@@ -1,5 +1,13 @@
 {%- comment -%} 360labs — Teaser plateforme (texte + bénéfices) {%- endcomment -%}
-<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Plateforme' }}">
+<section class="labs theme-{{ section.settings.theme }} pad labs-section{% if section.settings.atmos %} atmos{% endif %}" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Plateforme' }}">
+  {%- if section.settings.atmos -%}
+    {%- assign atmos_src = 'labs-atmos-platform.png' | asset_url -%}
+    {%- if section.settings.atmos_image != blank -%}{%- assign atmos_src = section.settings.atmos_image | image_url: width: 2400 -%}{%- endif -%}
+    <div class="atmos-bg" aria-hidden="true">
+      <img class="atmos-img" src="{{ atmos_src }}" alt="" loading="lazy">
+      <span class="atmos-bloom"></span><span class="atmos-grain"></span><span class="atmos-vig"></span>
+    </div>
+  {%- endif -%}
   <div class="wrap tool reveal">
     <div>
       {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
@@ -25,6 +33,8 @@
   "class": "labs-shopify-section",
   "settings": [
     { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "checkbox", "id": "atmos", "label": "Fond atmosphérique (profondeur)", "default": true },
+    { "type": "image_picker", "id": "atmos_image", "label": "Image atmosphérique (optionnel)" },
     { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "plateforme" },
     { "type": "text", "id": "label", "label": "Libellé éditeur" },
     { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "La Plateforme · Bientôt" },

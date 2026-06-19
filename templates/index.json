@@ -613,7 +613,8 @@
     "double_cta": {
       "type": "labs-double-cta",
       "settings": {
-        "theme": "light",
+        "theme": "dark",
+        "atmos": true,
         "anchor": "contact",
         "eyebrow": "Et maintenant",
         "heading": "À vous de jouer.",

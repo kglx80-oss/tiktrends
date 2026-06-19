@@ -1,6 +1,13 @@
 {%- comment -%} 360labs — Hero centré (eyebrow, titre dégradé, CTA, statistiques) {%- endcomment -%}
-<section class="labs theme-{{ section.settings.theme }} hero center labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="Hero">
-  {%- if section.settings.bg_motion -%}
+<section class="labs theme-{{ section.settings.theme }} hero center labs-section{% if section.settings.atmos %} atmos{% endif %}" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="Hero">
+  {%- if section.settings.atmos -%}
+    {%- assign atmos_src = 'labs-atmos-hero.png' | asset_url -%}
+    {%- if section.settings.atmos_image != blank -%}{%- assign atmos_src = section.settings.atmos_image | image_url: width: 2400 -%}{%- endif -%}
+    <div class="atmos-bg" aria-hidden="true">
+      <img class="atmos-img" src="{{ atmos_src }}" alt="" loading="eager" fetchpriority="high">
+      <span class="atmos-bloom"></span><span class="atmos-grain"></span><span class="atmos-vig"></span>
+    </div>
+  {%- elsif section.settings.bg_motion -%}
     <div class="labs-aurora" aria-hidden="true"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
   {%- endif -%}
   <div class="wrap">
@@ -35,7 +42,9 @@
   "class": "labs-shopify-section",
   "settings": [
     { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
-    { "type": "checkbox", "id": "bg_motion", "label": "Fond animé iridescent", "default": true },
+    { "type": "checkbox", "id": "atmos", "label": "Fond atmosphérique (profondeur)", "default": true },
+    { "type": "image_picker", "id": "atmos_image", "label": "Image atmosphérique (optionnel, remplace le visuel par défaut)" },
+    { "type": "checkbox", "id": "bg_motion", "label": "Fond animé iridescent (si atmosphère désactivée)", "default": false },
     { "type": "text", "id": "anchor", "label": "Ancre (id)" },
     { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Groupe de croissance e-commerce · Depuis 2019" },
     { "type": "text", "id": "heading", "label": "Titre (HTML, .grad-on pour le dégradé)", "default": "Nous <span class=\"grad-on\">construisons, possédons et propulsons</span> les marques e-commerce." },

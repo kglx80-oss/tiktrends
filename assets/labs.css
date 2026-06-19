@@ -905,3 +905,26 @@ body.labs-page .shopify-section{position:relative}
   .ecoH-core::after{animation:none}
   .nav::after{animation:none}
 }
+
+/* ============ ATMOSPHÈRE (fond profond généré + couches de profondeur) ============ */
+.atmos{position:relative;overflow:hidden;isolation:isolate}
+.atmos>.wrap{position:relative;z-index:2}
+.atmos-bg{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.atmos-bg .atmos-img{position:absolute;inset:-3%;width:106%;height:106%;object-fit:cover;opacity:.92;
+  will-change:transform;animation:atmos-drift 38s ease-in-out infinite alternate}
+@keyframes atmos-drift{0%{transform:scale(1.05) translate3d(0,0,0)}100%{transform:scale(1.13) translate3d(-2%,-1.5%,0)}}
+.atmos-bloom{position:absolute;left:50%;top:46%;width:72%;height:82%;transform:translate(-50%,-50%);
+  background:radial-gradient(50% 50% at 50% 50%,rgba(174,182,255,.20),rgba(248,200,224,.10) 45%,transparent 72%);
+  filter:blur(28px);mix-blend-mode:screen;animation:atmos-breathe 10s ease-in-out infinite}
+@keyframes atmos-breathe{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:.85;transform:translate(-50%,-50%) scale(1.07)}}
+.atmos-grain{position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.atmos-vig{position:absolute;inset:0;
+  background:radial-gradient(130% 100% at 50% 22%,transparent 42%,rgba(5,5,12,.55) 100%),
+             linear-gradient(to bottom,rgba(5,5,12,.45),transparent 22%,transparent 70%,rgba(5,5,12,.62))}
+.atmos.hero.center{padding:128px 0 120px}
+@media (max-width:620px){
+  .atmos-bg .atmos-img{inset:-2%;width:104%;height:104%}
+  .atmos.hero.center{padding:104px 0 90px}
+}
+@media (prefers-reduced-motion:reduce){.atmos-img,.atmos-bloom{animation:none}}
