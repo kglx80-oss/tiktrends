@@ -22,7 +22,7 @@
         "c1": {
           "type": "category",
           "settings": {
-            "kicker": "01 — Conseil",
+            "kicker": "01 · Conseil",
             "cat": "Conseil",
             "title": "Nos agences",
             "count": "4 marques",
@@ -49,7 +49,7 @@
         "c2": {
           "type": "category",
           "settings": {
-            "kicker": "02 — Ownership",
+            "kicker": "02 · Ownership",
             "cat": "Ownership",
             "title": "Notre incubateur",
             "count": "Focuslabs",
@@ -67,7 +67,7 @@
         "c3": {
           "type": "category",
           "settings": {
-            "kicker": "03 — Produit",
+            "kicker": "03 · Produit",
             "cat": "Produit",
             "title": "Notre plateforme",
             "count": "Bientôt",
@@ -86,7 +86,7 @@
         "c4": {
           "type": "category",
           "settings": {
-            "kicker": "04 — Partenaires",
+            "kicker": "04 · Partenaires",
             "cat": "Partenaires",
             "title": "Nos partenaires",
             "count": "Apollon",
@@ -266,7 +266,7 @@
         "tile": "W",
         "name": "Websitz",
         "base": "Les systèmes qui tournent sans vous.",
-        "text": "Construit des systèmes digitaux rentables et automatisés — et porte l'angle B2B du groupe.",
+        "text": "Construit des systèmes digitaux rentables et automatisés, et porte l'angle B2B du groupe.",
         "proof": "Systèmes · Data · Automatisation",
         "cta_label": "Travailler avec Websitz",
         "cta_url": "/pages/entreprises"
@@ -323,7 +323,7 @@
           "settings": {
             "number": "01",
             "title": "Media buying",
-            "text": "Meta, Google, TikTok — pilotés à la marge."
+            "text": "Meta, Google, TikTok, pilotés à la marge."
           }
         },
         "p2": {

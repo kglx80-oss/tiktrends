@@ -7,8 +7,8 @@
         "bg_motion": false,
         "eyebrow": "Groupe de croissance e-commerce · Depuis 2019",
         "heading": "Nous <span class=\"grad-on\">construisons, possédons et propulsons</span> les marques e-commerce.",
-        "text": "Un écosystème complet — agences, incubateur, plateforme — qui fait grandir votre marque comme si c'était la sienne. Parce que, souvent, ça l'est.",
-        "cta1_label": "Auditer ma marque — gratuit",
+        "text": "Un écosystème complet (agences, incubateur, plateforme) qui fait grandir votre marque comme si c'était la sienne. Parce que, souvent, ça l'est.",
+        "cta1_label": "Auditer ma marque gratuitement",
         "cta1_url": "/pages/audit",
         "cta2_label": "Je suis une entreprise",
         "cta2_url": "/pages/entreprises"
@@ -52,12 +52,12 @@
         "media_position": "right",
         "eyebrow": "La thèse",
         "heading": "Trop de marques meurent d'un seul levier manquant.",
-        "text": "<p>Un beau site sans trafic. Du trafic qui ne convertit pas. Des ventes sans rentabilité. La plupart des marques ne manquent pas d'ambition — elles manquent d'un <strong>système complet</strong>.</p><p>Depuis 2019, on a construit l'inverse d'une agence mono-levier : un groupe qui couvre toute la chaîne, et qui <strong>construit, possède et scale ses propres marques</strong> avant de mettre cette machine au service de la vôtre.</p>",
+        "text": "<p>Un beau site sans trafic. Du trafic qui ne convertit pas. Des ventes sans rentabilité. La plupart des marques ne manquent pas d'ambition : elles manquent d'un <strong>système complet</strong>.</p><p>Depuis 2019, on a construit l'inverse d'une agence mono-levier : un groupe qui couvre toute la chaîne, et qui <strong>construit, possède et scale ses propres marques</strong> avant de mettre cette machine au service de la vôtre.</p>",
         "cta_label": "Comprendre le Groupe",
         "cta_url": "/pages/le-groupe",
         "cta_style": "btn-soft",
         "panel_title": "Système de croissance",
-        "result_label": "Résultat — système complet",
+        "result_label": "Résultat : système complet",
         "result_value": "+850%",
         "result_tag": "de croissance"
       },
@@ -104,20 +104,20 @@
         "theme": "dark",
         "anchor": "ecosysteme",
         "eyebrow": "L'écosystème en aperçu",
-        "heading": "Un écosystème, plusieurs métiers — une seule mécanique de croissance.",
+        "heading": "Un écosystème, plusieurs métiers, une seule mécanique de croissance.",
         "core_label": "360labs"
       },
       "blocks": {
         "c1": {
           "type": "category",
           "settings": {
-            "kicker": "01 — Conseil",
+            "kicker": "01 · Conseil",
             "cat": "Conseil",
             "title": "Nos agences",
             "count": "4 marques",
             "arc": 78,
             "phase": -90,
-            "desc": "Quatre agences spécialisées qui couvrent toute la chaîne de croissance — du site à l'acquisition.",
+            "desc": "Quatre agences spécialisées qui couvrent toute la chaîne de croissance, du site à l'acquisition.",
             "chips": "GLX, TikTrends, Websitz, Melie",
             "cta_label": "Découvrir l'écosystème",
             "cta_url": "/pages/ecosysteme",
@@ -138,13 +138,13 @@
         "c2": {
           "type": "category",
           "settings": {
-            "kicker": "02 — Ownership",
+            "kicker": "02 · Ownership",
             "cat": "Ownership",
             "title": "Notre incubateur",
             "count": "Focuslabs",
             "arc": 58,
             "phase": -30,
-            "desc": "On construit et on détient nos propres marques e-commerce. On joue notre propre argent — la meilleure preuve de notre méthode.",
+            "desc": "On construit et on détient nos propres marques e-commerce. On joue notre propre argent : la meilleure preuve de notre méthode.",
             "chips": "Marques en propre, Skin in the game",
             "cta_label": "Comprendre la thèse",
             "cta_url": "/pages/le-groupe",
@@ -156,7 +156,7 @@
         "c3": {
           "type": "category",
           "settings": {
-            "kicker": "03 — Produit",
+            "kicker": "03 · Produit",
             "cat": "Produit",
             "title": "Notre plateforme",
             "count": "Bientôt",
@@ -175,7 +175,7 @@
         "c4": {
           "type": "category",
           "settings": {
-            "kicker": "04 — Partenaires",
+            "kicker": "04 · Partenaires",
             "cat": "Partenaires",
             "title": "Nos partenaires",
             "count": "Apollon Textile",
@@ -239,7 +239,7 @@
             "tile": "W",
             "name": "Websitz",
             "base": "Les systèmes qui tournent sans vous.",
-            "text": "Construit des systèmes digitaux rentables et automatisés — et porte l'angle B2B du groupe.",
+            "text": "Construit des systèmes digitaux rentables et automatisés, et porte l'angle B2B du groupe.",
             "tags": "Systèmes & data, Automatisation, Acquisition B2B",
             "link_label": "Visiter Websitz",
             "link_url": "/pages/ecosysteme#websitz"
@@ -272,7 +272,7 @@
         "anchor": "skin",
         "eyebrow": "Focuslabs · Ownership",
         "heading": "On ne vous conseille pas depuis les gradins. On joue notre propre argent.",
-        "text": "<p>Avec <strong>Focuslabs</strong>, notre incubateur, nous lançons et détenons nos propres marques e-commerce. Pas des cas d'école : de vraies marques, avec notre trésorerie, nos stocks et nos arbitrages.</p><p>Résultat : on vit les mêmes décisions que vous — la marge, le scaling, le cash. C'est pour ça qu'on vous parle en <strong>propriétaire</strong>, pas en prestataire. Notre méthode est testée sur nous-mêmes avant d'être appliquée chez vous.</p>",
+        "text": "<p>Avec <strong>Focuslabs</strong>, notre incubateur, nous lançons et détenons nos propres marques e-commerce. Pas des cas d'école : de vraies marques, avec notre trésorerie, nos stocks et nos arbitrages.</p><p>Résultat : on vit les mêmes décisions que vous, la marge, le scaling, le cash. C'est pour ça qu'on vous parle en <strong>propriétaire</strong>, pas en prestataire. Notre méthode est testée sur nous-mêmes avant d'être appliquée chez vous.</p>",
         "cta_label": "Comprendre la thèse du Groupe",
         "cta_url": "/pages/le-groupe#histoire",
         "cta_style": "btn-glass"
@@ -320,11 +320,11 @@
         "anchor": "resultats",
         "eyebrow": "Preuve · Étude de cas",
         "number": "+850 %",
-        "heading": "Enissati. La marque avait le potentiel — on a construit l'écosystème qui l'a libéré, en 6 mois.",
+        "heading": "Enissati. La marque avait le potentiel, on a construit l'écosystème qui l'a libéré, en 6 mois.",
         "list": "Refonte complète du site\nNouveaux supports visuels\nLancement des publicités\nStratégie d'emailing & CRM",
         "cta_label": "Voir nos résultats",
         "cta_url": "/pages/resultats",
-        "placeholder": "visuel marque — Enissati",
+        "placeholder": "visuel marque · Enissati",
         "caption": "espace photo · 4/3"
       }
     },
@@ -340,7 +340,7 @@
         "agenda_badge": "Journal",
         "nl_title": "La newsletter du groupe",
         "nl_text": "Nos analyses e-commerce et les coulisses de l'écosystème, une fois par mois.",
-        "foot_text": "Un espace éditorial qui travaille votre visibilité — SEO classique et GEO (réponses des moteurs IA) — au service de chaque marque du groupe.",
+        "foot_text": "Un espace éditorial qui travaille votre visibilité, SEO classique et GEO (réponses des moteurs IA), au service de chaque marque du groupe.",
         "foot_cta_label": "Voir tout le journal",
         "foot_cta_url": "/blogs/journal"
       },
@@ -598,7 +598,7 @@
         "anchor": "plateforme-demo",
         "eyebrow": "La Plateforme · Aperçu",
         "heading": "Toute votre marque, pilotée en direct.",
-        "text": "Publicités, social, trafic, produits — vos données réunies et lisibles, avec un copilote qui vous dit quoi faire chaque jour.",
+        "text": "Publicités, social, trafic, produits : vos données réunies et lisibles, avec un copilote qui vous dit quoi faire chaque jour.",
         "cta_label": "Rejoindre la liste d'attente",
         "cta_url": "/pages/plateforme#waitlist",
         "cta_style": "btn-glass",

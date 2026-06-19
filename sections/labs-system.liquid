@@ -32,7 +32,7 @@
           {%- endfor -%}
         </div>
         <div class="lsys-result">
-          <div><span class="lsys-r-lbl">{{ section.settings.result_label | default: 'Résultat — système complet' }}</span><b class="grad-on">{{ section.settings.result_value | default: '+850%' }}</b></div>
+          <div><span class="lsys-r-lbl">{{ section.settings.result_label | default: 'Résultat : système complet' }}</span><b class="grad-on">{{ section.settings.result_value | default: '+850%' }}</b></div>
           <span class="lsys-r-tag">{{ section.settings.result_tag | default: 'de croissance' }}</span>
         </div>
       </div>
@@ -106,13 +106,13 @@
     { "type": "header", "content": "Texte" },
     { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "La thèse" },
     { "type": "text", "id": "heading", "label": "Titre", "default": "Trop de marques meurent d'un seul levier manquant." },
-    { "type": "richtext", "id": "text", "label": "Paragraphes", "default": "<p>Un beau site sans trafic. Du trafic qui ne convertit pas. La plupart des marques ne manquent pas d'ambition — elles manquent d'un <strong>système complet</strong>.</p><p>Depuis 2019, on a construit l'inverse d'une agence mono-levier : un groupe qui couvre <strong>toute la chaîne</strong>.</p>" },
+    { "type": "richtext", "id": "text", "label": "Paragraphes", "default": "<p>Un beau site sans trafic. Du trafic qui ne convertit pas. La plupart des marques ne manquent pas d'ambition : elles manquent d'un <strong>système complet</strong>.</p><p>Depuis 2019, on a construit l'inverse d'une agence mono-levier : un groupe qui couvre <strong>toute la chaîne</strong>.</p>" },
     { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Comprendre le Groupe" },
     { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
     { "type": "select", "id": "cta_style", "label": "Style du bouton", "options": [ { "value": "btn-soft", "label": "Discret" }, { "value": "btn-glass", "label": "Iridescent" } ], "default": "btn-soft" },
     { "type": "header", "content": "Mockup — résultat" },
     { "type": "text", "id": "panel_title", "label": "Titre du panneau", "default": "Système de croissance" },
-    { "type": "text", "id": "result_label", "label": "Résultat — libellé", "default": "Résultat — système complet" },
+    { "type": "text", "id": "result_label", "label": "Résultat — libellé", "default": "Résultat : système complet" },
     { "type": "text", "id": "result_value", "label": "Résultat — valeur", "default": "+850%" },
     { "type": "text", "id": "result_tag", "label": "Résultat — mention", "default": "de croissance" }
   ],

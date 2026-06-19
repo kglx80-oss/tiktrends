@@ -25,7 +25,7 @@
           "type": "stat",
           "settings": {
             "value": "+850 %",
-            "label": "CA — Enissati en 6 mois",
+            "label": "CA · Enissati en 6 mois",
             "gradient": true
           }
         },
@@ -65,11 +65,11 @@
         "anchor": "enissati",
         "eyebrow": "Étude de cas",
         "number": "+850 %",
-        "heading": "Enissati. La marque avait le potentiel — on a construit l'écosystème qui l'a libéré, en 6 mois.",
+        "heading": "Enissati. La marque avait le potentiel, on a construit l'écosystème qui l'a libéré, en 6 mois.",
         "list": "Refonte complète du site\nNouveaux supports visuels\nLancement des publicités\nStratégie d'emailing & CRM",
         "cta_label": "Auditer ma marque",
         "cta_url": "/pages/audit",
-        "placeholder": "visuel marque — Enissati",
+        "placeholder": "visuel marque · Enissati",
         "caption": "espace photo · 4/3"
       }
     },
@@ -83,7 +83,7 @@
         "list": "Audit & refonte CRO\nNouvelle stratégie d'acquisition\nEmailing automatisé\nScaling maîtrisé",
         "cta_label": "Voir l'approche",
         "cta_url": "/pages/ecosysteme",
-        "placeholder": "visuel marque — Vitacare",
+        "placeholder": "visuel marque · Vitacare",
         "caption": "espace photo · 4/3"
       }
     },

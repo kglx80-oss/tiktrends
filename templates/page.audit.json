@@ -7,7 +7,7 @@
         "anchor": "audit",
         "eyebrow": "Audit gratuit",
         "heading": "Faites auditer votre marque, gratuitement.",
-        "text": "On analyse votre site, votre acquisition et vos parcours. Vous repartez avec un plan d'action clair — sans engagement.",
+        "text": "On analyse votre site, votre acquisition et vos parcours. Vous repartez avec un plan d'action clair, sans engagement.",
         "form_title": "Réserver mon audit",
         "form_sub": "Réponse sous 48 h ouvrées.",
         "select_label": "Vous êtes",
@@ -19,7 +19,7 @@
           "type": "point",
           "settings": {
             "bold": "Audit CRO & Pub",
-            "text": "— on identifie où sont vos points de fuite."
+            "text": "on identifie où sont vos points de fuite."
           }
         },
         "p2": {
@@ -33,7 +33,7 @@
           "type": "point",
           "settings": {
             "bold": "Sans engagement",
-            "text": "— vous repartez avec, qu'on travaille ensemble ou non."
+            "text": "vous repartez avec, qu'on travaille ensemble ou non."
           }
         },
         "m1": {
