@@ -1,6 +1,6 @@
 {
   "sections": {
-    "banner": { "type": "labs-banner", "settings": { "theme": "dark", "caption": "espace visuel · bannière résultats", "eyebrow": "Résultats", "heading": "Des résultats qu'on <span class=\"grad-on\">assume</span>.", "text": "Des marques transformées, des chiffres réels. Voici ce que produit un écosystème complet.", "cta1_label": "Auditer ma marque", "cta1_url": "/pages/audit", "image_opacity": 60 } },
+    "banner": { "type": "labs-banner", "settings": { "theme": "dark", "caption": "", "eyebrow": "Résultats", "heading": "Des résultats qu'on <span class=\"grad-on\">assume</span>.", "text": "Des marques transformées, des chiffres réels. Voici ce que produit un écosystème complet.", "cta1_label": "Auditer ma marque", "cta1_url": "/pages/audit", "image_opacity": 60 } },
     "proof": { "type": "labs-proof-band", "settings": { "theme": "dark", "subtext": "Résultats moyens constatés sur les marques accompagnées" }, "blocks": {
       "s1": { "type": "stat", "settings": { "value": "+850 %", "label": "CA — Enissati en 6 mois", "gradient": true } },
       "s2": { "type": "stat", "settings": { "value": "~40", "label": "Marques en gestion" } },
