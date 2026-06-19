@@ -21,21 +21,30 @@
       "block_order": ["s1", "s2", "s3"]
     },
     "thesis": {
-      "type": "labs-split",
+      "type": "labs-system",
       "settings": {
         "theme": "light",
         "anchor": "groupe",
         "label": "La thèse",
+        "media_position": "right",
         "eyebrow": "La thèse",
         "heading": "Trop de marques meurent d'un seul levier manquant.",
         "text": "<p>Un beau site sans trafic. Du trafic qui ne convertit pas. Des ventes sans rentabilité. La plupart des marques ne manquent pas d'ambition — elles manquent d'un <strong>système complet</strong>.</p><p>Depuis 2019, on a construit l'inverse d'une agence mono-levier : un groupe qui couvre toute la chaîne, et qui <strong>construit, possède et scale ses propres marques</strong> avant de mettre cette machine au service de la vôtre.</p>",
         "cta_label": "Comprendre le Groupe",
         "cta_url": "/pages/le-groupe",
         "cta_style": "btn-soft",
-        "ratio": "tall",
-        "placeholder": "espace photo — l'équipe au travail / studio",
-        "caption": "espace photo · 3/4"
-      }
+        "panel_title": "Système de croissance",
+        "result_label": "Résultat — système complet",
+        "result_value": "+850%",
+        "result_tag": "de croissance"
+      },
+      "blocks": {
+        "l1": { "type": "lever", "settings": { "icon": "globe", "title": "Site & conversion" } },
+        "l2": { "type": "lever", "settings": { "icon": "chart", "title": "Acquisition rentable" } },
+        "l3": { "type": "lever", "settings": { "icon": "video", "title": "Studio & contenu" } },
+        "l4": { "type": "lever", "settings": { "icon": "mail", "title": "CRM & rétention" } }
+      },
+      "block_order": ["l1", "l2", "l3", "l4"]
     },
     "hub": {
       "type": "labs-eco-hub",
