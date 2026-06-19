@@ -242,12 +242,6 @@
         "m1",
         "m2"
       ]
-    },
-    "ribbons": {
-      "type": "labs-ribbons",
-      "settings": {
-        "height": 340
-      }
     }
   },
   "order": [
@@ -255,7 +249,6 @@
     "offers",
     "split",
     "reassure",
-    "lead",
-    "ribbons"
+    "lead"
   ]
 }

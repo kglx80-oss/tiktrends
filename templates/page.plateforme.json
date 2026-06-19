@@ -98,18 +98,11 @@
         "c2",
         "c3"
       ]
-    },
-    "ribbons": {
-      "type": "labs-ribbons",
-      "settings": {
-        "height": 340
-      }
     }
   },
   "order": [
     "hero",
     "platform",
-    "teaser",
-    "ribbons"
+    "teaser"
   ]
 }

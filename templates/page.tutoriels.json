@@ -123,18 +123,11 @@
         "d1",
         "d2"
       ]
-    },
-    "ribbons": {
-      "type": "labs-ribbons",
-      "settings": {
-        "height": 340
-      }
     }
   },
   "order": [
     "hero",
     "tutos",
-    "cta",
-    "ribbons"
+    "cta"
   ]
 }

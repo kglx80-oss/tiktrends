@@ -96,17 +96,10 @@
         "r3",
         "r4"
       ]
-    },
-    "ribbons": {
-      "type": "labs-ribbons",
-      "settings": {
-        "height": 340
-      }
     }
   },
   "order": [
     "lead",
-    "reassure",
-    "ribbons"
+    "reassure"
   ]
 }

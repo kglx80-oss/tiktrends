@@ -153,18 +153,11 @@
         "t2",
         "t3"
       ]
-    },
-    "ribbons": {
-      "type": "labs-ribbons",
-      "settings": {
-        "height": 340
-      }
     }
   },
   "order": [
     "hero",
     "res",
-    "news",
-    "ribbons"
+    "news"
   ]
 }

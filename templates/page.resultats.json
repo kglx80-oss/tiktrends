@@ -299,12 +299,6 @@
         "d1",
         "d2"
       ]
-    },
-    "ribbons": {
-      "type": "labs-ribbons",
-      "settings": {
-        "height": 340
-      }
     }
   },
   "order": [
@@ -314,7 +308,6 @@
     "case2",
     "reviews",
     "wall",
-    "cta",
-    "ribbons"
+    "cta"
   ]
 }

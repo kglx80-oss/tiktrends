@@ -247,12 +247,6 @@
         "d1",
         "d2"
       ]
-    },
-    "ribbons": {
-      "type": "labs-ribbons",
-      "settings": {
-        "height": 340
-      }
     }
   },
   "order": [
@@ -262,7 +256,6 @@
     "convictions",
     "ownership",
     "founders",
-    "cta",
-    "ribbons"
+    "cta"
   ]
 }

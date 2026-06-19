@@ -385,12 +385,6 @@
         "d1",
         "d2"
       ]
-    },
-    "ribbons": {
-      "type": "labs-ribbons",
-      "settings": {
-        "height": 340
-      }
     }
   },
   "order": [
@@ -401,7 +395,6 @@
     "tiktrends",
     "websitz",
     "melie",
-    "cta",
-    "ribbons"
+    "cta"
   ]
 }
