@@ -11,9 +11,9 @@
         "signature": "Iridescent · Sora"
       },
       "blocks": {
-        "c1": { "type": "column", "settings": { "heading": "Le Groupe" } },
-        "c2": { "type": "column", "settings": { "heading": "Travailler avec nous" } },
-        "c3": { "type": "column", "settings": { "heading": "Légal" } }
+        "c1": { "type": "column", "settings": { "heading": "Le Groupe", "menu": "footer-groupe" } },
+        "c2": { "type": "column", "settings": { "heading": "Travailler avec nous", "menu": "footer-travailler" } },
+        "c3": { "type": "column", "settings": { "heading": "Légal", "menu": "footer-legal" } }
       },
       "block_order": ["c1", "c2", "c3"]
     }
