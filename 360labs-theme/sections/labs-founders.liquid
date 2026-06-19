@@ -1,0 +1,60 @@
+{%- comment -%} 360labs — Fondateurs / équipe {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Équipe' }}">
+  <div class="wrap">
+    <div class="head reveal">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+    </div>
+    <div class="founders reveal">
+      {%- for block in section.blocks -%}
+        <div class="founder" {{ block.shopify_attributes }}>
+          <div class="ph sq">
+            {%- if block.settings.image != blank -%}<img src="{{ block.settings.image | image_url: width: 600 }}" alt="{{ block.settings.name }}" loading="lazy">{%- else -%}<span>{{ block.settings.placeholder | default: 'photo' }}</span>{%- endif -%}
+          </div>
+          <h3>{{ block.settings.name }}</h3>
+          {%- if block.settings.role != blank -%}<div class="role">{{ block.settings.role }}</div>{%- endif -%}
+          {%- if block.settings.text != blank -%}<p>{{ block.settings.text }}</p>{%- endif -%}
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Fondateurs",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "L'équipe" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Les visages derrière le groupe." }
+  ],
+  "blocks": [
+    {
+      "type": "founder",
+      "name": "Personne",
+      "settings": [
+        { "type": "image_picker", "id": "image", "label": "Photo" },
+        { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "photo — fondateur" },
+        { "type": "text", "id": "name", "label": "Nom", "default": "Prénom Nom" },
+        { "type": "text", "id": "role", "label": "Rôle", "default": "Co-fondateur" },
+        { "type": "textarea", "id": "text", "label": "Bio courte", "default": "Une ligne sur le rôle dans le groupe." }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Fondateurs",
+      "blocks": [
+        { "type": "founder", "settings": { "name": "Fondateur 1", "role": "CEO & co-fondateur" } },
+        { "type": "founder", "settings": { "name": "Fondateur 2", "role": "Co-fondateur" } },
+        { "type": "founder", "settings": { "name": "Fondateur 3", "role": "Directeur acquisition" } },
+        { "type": "founder", "settings": { "name": "Fondateur 4", "role": "Directrice création" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

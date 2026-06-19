@@ -1,0 +1,29 @@
+{%- comment -%} 360labs — Éditorial (titre à gauche, corps à droite) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Éditorial' }}">
+  <div class="wrap ed-grid reveal">
+    <div>
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.title != blank -%}<h2 class="ed-title" style="margin-top:12px">{{ section.settings.title }}</h2>{%- endif -%}
+    </div>
+    <div class="ed-body">
+      {{ section.settings.body }}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Éditorial",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "histoire" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Notre histoire" },
+    { "type": "text", "id": "title", "label": "Titre", "default": "De la première agence à l'écosystème." },
+    { "type": "richtext", "id": "body", "label": "Corps", "default": "<p>Tout a commencé en 2019 avec une conviction simple : une marque e-commerce ne grandit pas avec un seul levier, mais avec un <strong>système complet</strong>.</p><p>Aujourd'hui, 360labs réunit quatre agences, un incubateur de marques en propre et bientôt une plateforme — pour couvrir toute la chaîne de croissance, du site à l'acquisition.</p>" }
+  ],
+  "presets": [ { "name": "360labs · Éditorial" } ]
+}
+{% endschema %}

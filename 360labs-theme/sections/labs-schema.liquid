@@ -1,0 +1,73 @@
+{%- comment -%} 360labs — Schéma écosystème (couches) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Schéma' }}">
+  <div class="wrap">
+    <div class="head reveal" style="max-width:640px;text-align:center;margin-left:auto;margin-right:auto">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+    </div>
+    <div class="schema reveal">
+      {%- for block in section.blocks -%}
+        {%- if block.type == 'layer' -%}
+          <div class="slayer" {{ block.shopify_attributes }}>
+            <div class="slayer-tag">{{ block.settings.tag }}<span>{{ block.settings.subtitle }}</span></div>
+            <div class="schips">
+              {%- assign chips = block.settings.chips | split: ',' -%}
+              {%- for c in chips -%}<span class="schip{% if block.settings.glass %} glass{% endif %}">{{ c | strip }}</span>{%- endfor -%}
+            </div>
+          </div>
+        {%- elsif block.type == 'channel' -%}
+          <div class="schannel" {{ block.shopify_attributes }}>
+            <b>{{ block.settings.title }}</b><span>{{ block.settings.text }}</span>
+          </div>
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Schéma écosystème",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "L'écosystème, couche par couche" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Comment les métiers s'assemblent." }
+  ],
+  "blocks": [
+    {
+      "type": "layer",
+      "name": "Couche",
+      "settings": [
+        { "type": "text", "id": "tag", "label": "Tag", "default": "CONSEIL" },
+        { "type": "text", "id": "subtitle", "label": "Sous-titre", "default": "Les agences" },
+        { "type": "text", "id": "chips", "label": "Chips (virgule)", "default": "GLX, TikTrends, Websitz, Melie" },
+        { "type": "checkbox", "id": "glass", "label": "Chips iridescents", "default": false }
+      ]
+    },
+    {
+      "type": "channel",
+      "name": "Canal (ligne pointillée)",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Titre", "default": "Une direction unique" },
+        { "type": "text", "id": "text", "label": "Texte", "default": "Tous les leviers, alignés vers la croissance." }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Schéma écosystème",
+      "blocks": [
+        { "type": "layer", "settings": { "tag": "CONSEIL", "subtitle": "Les agences", "chips": "GLX, TikTrends, Websitz, Melie", "glass": true } },
+        { "type": "layer", "settings": { "tag": "OWNERSHIP", "subtitle": "L'incubateur", "chips": "Focuslabs, Marques en propre" } },
+        { "type": "layer", "settings": { "tag": "PRODUIT", "subtitle": "La plateforme", "chips": "Copilote IA, Bientôt" } },
+        { "type": "layer", "settings": { "tag": "PARTENAIRES", "subtitle": "Le physique", "chips": "Apollon Textile, Laval" } },
+        { "type": "channel", "settings": { "title": "Une seule mécanique", "text": "Tous les leviers alignés vers la croissance de votre marque." } }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -43,14 +43,21 @@
             "marks": [
               {%- assign mcount = 0 -%}
               {%- for i in (1..4) -%}
-                {%- assign lbl = block.settings['mark' | append: i | append: '_label'] -%}
+                {%- capture k_label -%}mark{{ i }}_label{%- endcapture -%}
+                {%- capture k_letter -%}mark{{ i }}_letter{%- endcapture -%}
+                {%- capture k_image -%}mark{{ i }}_image{%- endcapture -%}
+                {%- capture k_logo -%}mark{{ i }}_logo{%- endcapture -%}
+                {%- capture k_soft -%}mark{{ i }}_soft{%- endcapture -%}
+                {%- capture k_icon -%}mark{{ i }}_icon{%- endcapture -%}
+                {%- assign lbl = block.settings[k_label] -%}
                 {%- if lbl != blank -%}
                   {%- if mcount > 0 -%},{%- endif -%}
                   {%- assign mcount = mcount | plus: 1 -%}
-                  {%- assign img = block.settings['mark' | append: i | append: '_image'] -%}
-                  {%- assign asset = block.settings['mark' | append: i | append: '_logo'] -%}
-                  {%- assign soft = block.settings['mark' | append: i | append: '_soft'] -%}
-                  {%- assign letter = block.settings['mark' | append: i | append: '_letter'] -%}
+                  {%- assign img = block.settings[k_image] -%}
+                  {%- assign asset = block.settings[k_logo] -%}
+                  {%- assign soft = block.settings[k_soft] -%}
+                  {%- assign letter = block.settings[k_letter] -%}
+                  {%- assign use_icon = block.settings[k_icon] -%}
                   {%- liquid
                     assign logo_url = ''
                     if img != blank
@@ -59,7 +66,7 @@
                       assign logo_url = asset | asset_url
                     endif
                   -%}
-                  { "t": {{ lbl | json }}, "l": {{ letter | default: '' | json }}{% if logo_url != '' %}, "logo": {{ logo_url | json }}{% endif %}{% if soft %}, "soft": true{% endif %}{% if block.settings['mark' | append: i | append: '_icon'] %}, "icon": "grid"{% endif %} }
+                  { "t": {{ lbl | json }}, "l": {{ letter | default: '' | json }}{% if logo_url != '' %}, "logo": {{ logo_url | json }}{% endif %}{% if soft %}, "soft": true{% endif %}{% if use_icon %}, "icon": "grid"{% endif %} }
                 {%- endif -%}
               {%- endfor -%}
             ]

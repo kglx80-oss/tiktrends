@@ -1,0 +1,39 @@
+{%- comment -%} 360labs — Split + capsule iridescente {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Capsule' }}">
+  <div class="wrap skin reveal">
+    <div>
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.text != blank -%}{{ section.settings.text }}{%- endif -%}
+      {%- if section.settings.cta_label != blank -%}<a class="btn {{ section.settings.cta_style }}" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+    </div>
+    <div class="skin-stage">
+      <div class="skin-cap">
+        <div class="sheen" style="position:absolute;inset:0;border-radius:inherit;pointer-events:none;mix-blend-mode:screen;background:linear-gradient(177deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.06) 32%,transparent 50%)"></div>
+        <div class="lab">{{ section.settings.capsule_label }}</div>
+        <div class="ic"><svg viewBox="0 0 44 44" fill="none"><g stroke="rgba(26,20,48,.5)" stroke-width="1.5"><circle cx="22" cy="22" r="14"></circle><path d="M8 22h28M22 8c4.4 4.4 4.4 23.6 0 28M22 8c-4.4 4.4-4.4 23.6 0 28"></path></g></svg></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Capsule",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Notre méthode" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Une mécanique testée sur nos propres marques." },
+    { "type": "richtext", "id": "text", "label": "Texte", "default": "<p>On applique d'abord chaque levier sur nos marques en propre. <strong>Ce qui marche</strong> arrive ensuite chez vous — validé, pas théorique.</p>" },
+    { "type": "text", "id": "capsule_label", "label": "Texte de la capsule", "default": "labs" },
+    { "type": "text", "id": "cta_label", "label": "Bouton" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
+    { "type": "select", "id": "cta_style", "label": "Style", "options": [ { "value": "btn-glass", "label": "Iridescent" }, { "value": "btn-soft", "label": "Discret" } ], "default": "btn-glass" }
+  ],
+  "presets": [ { "name": "360labs · Capsule" } ]
+}
+{% endschema %}

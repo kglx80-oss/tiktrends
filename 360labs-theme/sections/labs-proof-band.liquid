@@ -1,0 +1,51 @@
+{%- comment -%} 360labs — Bandeau de preuves (chiffres) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad-sm labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Preuves' }}">
+  <div class="wrap reveal">
+    <div class="proof{% if section.blocks.size == 5 %} five{% endif %}">
+      {%- for block in section.blocks -%}
+        <div class="proof-cell" {{ block.shopify_attributes }}>
+          <div class="proof-num{% if block.settings.gradient %} g{% endif %}">{{ block.settings.value }}</div>
+          <div class="proof-lab">{{ block.settings.label }}</div>
+        </div>
+      {%- endfor -%}
+    </div>
+    {%- if section.settings.subtext != blank -%}<div class="proof-sub">{{ section.settings.subtext }}</div>{%- endif -%}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Bandeau preuves",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "max_blocks": 5,
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "subtext", "label": "Sous-texte", "default": "Données 2019–2026 · écosystème 360labs" }
+  ],
+  "blocks": [
+    {
+      "type": "stat",
+      "name": "Chiffre",
+      "settings": [
+        { "type": "text", "id": "value", "label": "Valeur", "default": "+3000" },
+        { "type": "text", "id": "label", "label": "Libellé", "default": "Projets accompagnés" },
+        { "type": "checkbox", "id": "gradient", "label": "Dégradé", "default": false }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Bandeau preuves",
+      "blocks": [
+        { "type": "stat", "settings": { "value": "+3000", "label": "Projets accompagnés", "gradient": true } },
+        { "type": "stat", "settings": { "value": "~40", "label": "Marques en gestion" } },
+        { "type": "stat", "settings": { "value": "1500+", "label": "Avis vérifiés" } },
+        { "type": "stat", "settings": { "value": "2019", "label": "Depuis" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

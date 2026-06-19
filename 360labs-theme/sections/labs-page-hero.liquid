@@ -1,0 +1,35 @@
+{%- comment -%} 360labs — Hero de page interne (phero) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} phero labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Hero page' }}">
+  <div class="wrap reveal">
+    {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+    {%- if section.settings.heading != blank -%}<h1>{{ section.settings.heading }}</h1>{%- endif -%}
+    {%- if section.settings.text != blank -%}<p>{{ section.settings.text }}</p>{%- endif -%}
+    {%- if section.settings.cta1_label != blank or section.settings.cta2_label != blank -%}
+      <div class="hero-cta">
+        {%- if section.settings.cta1_label != blank -%}<a class="btn btn-glass" href="{{ section.settings.cta1_url | default: '#' }}">{{ section.settings.cta1_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+        {%- if section.settings.cta2_label != blank -%}<a class="btn btn-soft" href="{{ section.settings.cta2_url | default: '#' }}">{{ section.settings.cta2_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+      </div>
+    {%- endif -%}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Hero de page",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Le Groupe" },
+    { "type": "text", "id": "heading", "label": "Titre (HTML, .grad-on possible)", "default": "Le groupe qui <span class=\"grad-on\">construit, possède et propulse</span>." },
+    { "type": "textarea", "id": "text", "label": "Texte", "default": "Depuis 2019, 360labs réunit agences, incubateur et bientôt une plateforme pour faire grandir les marques e-commerce." },
+    { "type": "text", "id": "cta1_label", "label": "Bouton 1" },
+    { "type": "url", "id": "cta1_url", "label": "Lien bouton 1" },
+    { "type": "text", "id": "cta2_label", "label": "Bouton 2" },
+    { "type": "url", "id": "cta2_url", "label": "Lien bouton 2" }
+  ],
+  "presets": [ { "name": "360labs · Hero de page" } ]
+}
+{% endschema %}

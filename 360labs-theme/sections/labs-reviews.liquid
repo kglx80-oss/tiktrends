@@ -1,0 +1,63 @@
+{%- comment -%} 360labs — Mur d'avis (colonnes maçonnerie) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Avis' }}">
+  <div class="wrap">
+    <div class="head reveal">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+    </div>
+    <div class="reviews reveal">
+      {%- for block in section.blocks -%}
+        {%- assign stars = block.settings.stars | default: 5 -%}
+        <div class="review" {{ block.shopify_attributes }}>
+          <div class="review-stars">{% for i in (1..stars) %}★{% endfor %}</div>
+          <p>{{ block.settings.text }}</p>
+          <div class="review-by">
+            <span class="review-av">{{ block.settings.initial }}</span>
+            <div><b>{{ block.settings.name }}</b><span>{{ block.settings.detail }}</span></div>
+          </div>
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Avis",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "1500+ avis vérifiés" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Ce que disent les marques que nous accompagnons." }
+  ],
+  "blocks": [
+    {
+      "type": "review",
+      "name": "Avis",
+      "settings": [
+        { "type": "range", "id": "stars", "label": "Étoiles", "min": 1, "max": 5, "step": 1, "default": 5 },
+        { "type": "textarea", "id": "text", "label": "Avis", "default": "Une équipe qui s'investit comme si c'était sa propre marque. Résultats au rendez-vous." },
+        { "type": "text", "id": "initial", "label": "Initiale avatar", "default": "M" },
+        { "type": "text", "id": "name", "label": "Nom", "default": "Marie D." },
+        { "type": "text", "id": "detail", "label": "Détail", "default": "Fondatrice · Cosmétique" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Avis",
+      "blocks": [
+        { "type": "review", "settings": { "text": "Une équipe qui s'investit comme si c'était sa propre marque. +850 % en 6 mois, on n'y croyait pas.", "initial": "E", "name": "Équipe Enissati", "detail": "Marque cliente" } },
+        { "type": "review", "settings": { "text": "Enfin un partenaire qui pense système et pas seulement pub. Notre rentabilité a changé de dimension.", "initial": "V", "name": "Vitacare", "detail": "Compléments alimentaires" } },
+        { "type": "review", "settings": { "text": "Du site à l'acquisition, tout est aligné. On gagne un temps fou et de la clarté.", "initial": "J", "name": "Joud", "detail": "Lifestyle" } },
+        { "type": "review", "settings": { "text": "Le studio TikTok a transformé notre acquisition. Des créateurs calibrés, des ventes en direct.", "initial": "C", "name": "Chilsilk", "detail": "Mode" } },
+        { "type": "review", "settings": { "text": "Accompagnement humain et exigeant. On sent qu'ils jouent leur réputation à chaque décision.", "initial": "M", "name": "Morphea", "detail": "Beauté" } },
+        { "type": "review", "settings": { "text": "Des résultats mesurables, mois après mois. La méthode du groupe fait la différence.", "initial": "F", "name": "Finisher", "detail": "Sport & nutrition" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,28 @@
+{
+  "sections": {
+    "hero": { "type": "labs-page-hero", "settings": { "theme": "dark", "eyebrow": "Entreprises · B2B", "heading": "Le groupe au service de <span class=\"grad-on\">votre entreprise</span>.", "text": "Site, visibilité, image de marque, automatisation : on met l'écosystème 360labs au service des entreprises qui veulent une présence digitale qui génère du business.", "cta1_label": "Parler à un expert", "cta1_url": "#contact", "cta2_label": "Voir nos résultats", "cta2_url": "/pages/resultats" } },
+    "offers": { "type": "labs-offers", "settings": { "theme": "light", "eyebrow": "L'offre Entreprises", "heading": "Tout ce dont votre entreprise a besoin." }, "blocks": {
+      "o1": { "type": "offer", "settings": { "icon": "globe", "title": "Site & présence digitale", "text": "Un site professionnel qui inspire confiance et génère des contrats.", "by": "par GLX" } },
+      "o2": { "type": "offer", "settings": { "icon": "chart", "title": "Acquisition B2B", "text": "Des campagnes pour générer des leads qualifiés en continu.", "by": "par Melie" } },
+      "o3": { "type": "offer", "settings": { "icon": "bolt", "title": "Systèmes & automatisation", "text": "Des process automatisés qui tournent sans vous.", "by": "par Websitz" } },
+      "o4": { "type": "offer", "settings": { "icon": "shield", "title": "Image de marque", "text": "Une identité forte et cohérente sur tous vos supports.", "by": "par 360labs" } },
+      "o5": { "type": "offer", "settings": { "icon": "tshirt", "title": "Textile & merch", "text": "Vêtements et personnalisation sur-mesure, à Laval.", "by": "par Apollon" } },
+      "o6": { "type": "offer", "settings": { "icon": "box", "title": "Conseil sur-mesure", "text": "Un accompagnement adapté à vos enjeux.", "by": "par 360labs" } }
+    }, "block_order": ["o1","o2","o3","o4","o5","o6"] },
+    "split": { "type": "labs-split", "settings": { "theme": "dark", "media_position": "left", "eyebrow": "Notre approche", "heading": "Un interlocuteur, tout l'écosystème.", "text": "<p>Plutôt que de jongler entre cinq prestataires, vous travaillez avec <strong>un seul groupe</strong> qui coordonne site, acquisition, image et automatisation.</p><p>Résultat : de la cohérence, de la vitesse, et une présence digitale qui <strong>génère des contrats</strong>.</p>", "cta_label": "Parler à un expert", "cta_url": "#contact", "cta_style": "btn-glass", "ratio": "wide", "placeholder": "espace photo — équipe / bureaux", "caption": "espace photo · 16/9" } },
+    "reassure": { "type": "labs-reassure", "settings": { "theme": "light" }, "blocks": {
+      "r1": { "type": "item", "settings": { "text": "Un seul interlocuteur" } },
+      "r2": { "type": "item", "settings": { "text": "Devis sous 48 h" } },
+      "r3": { "type": "item", "settings": { "text": "+3000 projets accompagnés" } },
+      "r4": { "type": "item", "settings": { "text": "Basés en France" } }
+    }, "block_order": ["r1","r2","r3","r4"] },
+    "lead": { "type": "labs-lead-form", "settings": { "theme": "dark", "anchor": "contact", "eyebrow": "Contact B2B", "heading": "Parlons de votre projet.", "text": "Dites-nous ce que vous cherchez. On revient vers vous avec une proposition claire.", "form_title": "Demander un devis", "form_sub": "Réponse sous 48 h ouvrées.", "select_label": "Votre besoin", "select_options": "Site web, Acquisition, Automatisation, Image de marque, Textile & merch, Autre", "submit_label": "Envoyer ma demande" }, "blocks": {
+      "p1": { "type": "point", "settings": { "bold": "Un seul interlocuteur", "text": "pour tout votre digital." } },
+      "p2": { "type": "point", "settings": { "bold": "Proposition claire", "text": "périmètre, délais, budget." } },
+      "p3": { "type": "point", "settings": { "bold": "Sans engagement", "text": "— on échange d'abord." } },
+      "m1": { "type": "meta", "settings": { "value": "48 h", "label": "Délai de réponse" } },
+      "m2": { "type": "meta", "settings": { "value": "France", "label": "Équipe basée en" } }
+    }, "block_order": ["p1","p2","p3","m1","m2"] }
+  },
+  "order": ["hero","offers","split","reassure","lead"]
+}

@@ -1,0 +1,116 @@
+{%- comment -%}
+  360labs — Blog / Journal (article vedette + filtres + grille)
+  Si un blog Shopify est sélectionné, les articles sont chargés automatiquement.
+  Sinon, on utilise les cartes manuelles (blocs).
+{%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Journal' }}">
+  <div class="wrap">
+    <div class="head reveal" style="max-width:640px">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.lede != blank -%}<p class="lede">{{ section.settings.lede }}</p>{%- endif -%}
+    </div>
+
+    {%- if section.settings.filters != blank -%}
+      <div class="filters reveal">
+        {%- assign fs = section.settings.filters | split: ',' -%}
+        {%- for f in fs -%}<button class="filt{% if forloop.first %} on{% endif %}" type="button">{{ f | strip }}</button>{%- endfor -%}
+      </div>
+    {%- endif -%}
+
+    {%- liquid
+      assign blog_obj = blogs[section.settings.blog]
+      if blog_obj == blank and blog != blank
+        assign blog_obj = blog
+      endif
+    -%}
+    {%- if blog_obj.articles_count > 0 -%}
+      {%- assign feat = blog_obj.articles.first -%}
+      <article class="feat reveal">
+        <div class="ph">{%- if feat.image -%}<img src="{{ feat.image | image_url: width: 1000 }}" alt="{{ feat.title }}">{%- else -%}<span>visuel article</span>{%- endif -%}</div>
+        <div class="feat-body">
+          <span class="ncat">{{ feat.tags.first | default: 'Article' }}</span>
+          <h3>{{ feat.title }}</h3>
+          <p>{{ feat.excerpt_or_content | strip_html | truncatewords: 32 }}</p>
+          <div class="feat-meta"><span>{{ feat.published_at | date: '%-d %B %Y' }}</span><a class="rc-meta" href="{{ feat.url }}" style="color:var(--accent-ink)">Lire l'article →</a></div>
+        </div>
+      </article>
+      <div class="blog-grid reveal">
+        {%- for article in blog_obj.articles offset: 1 limit: 9 -%}
+          <a class="ncard" href="{{ article.url }}">
+            <div class="ph wide">{%- if article.image -%}<img src="{{ article.image | image_url: width: 800 }}" alt="{{ article.title }}">{%- else -%}<span>visuel article</span>{%- endif -%}</div>
+            <div class="ncard-body"><span class="ncat">{{ article.tags.first | default: 'Article' }}</span><h3>{{ article.title }}</h3><span class="ndate">{{ article.published_at | date: '%-d %B %Y' }}</span></div>
+          </a>
+        {%- endfor -%}
+      </div>
+    {%- else -%}
+      {%- assign posts = section.blocks | where: 'type', 'post' -%}
+      {%- if posts.size > 0 -%}
+        {%- assign feat = posts.first -%}
+        <article class="feat reveal">
+          <div class="ph">{%- if feat.settings.image != blank -%}<img src="{{ feat.settings.image | image_url: width: 1000 }}" alt="{{ feat.settings.title }}">{%- else -%}<span>{{ feat.settings.placeholder | default: 'visuel article' }}</span>{%- endif -%}</div>
+          <div class="feat-body">
+            <span class="ncat">{{ feat.settings.category }}</span>
+            <h3>{{ feat.settings.title }}</h3>
+            <p>{{ feat.settings.excerpt }}</p>
+            <div class="feat-meta"><span>{{ feat.settings.date }}</span><a class="rc-meta" href="{{ feat.settings.url | default: '#' }}" style="color:var(--accent-ink)">Lire l'article →</a></div>
+          </div>
+        </article>
+      {%- endif -%}
+      <div class="blog-grid reveal">
+        {%- for block in posts offset: 1 -%}
+          <a class="ncard" href="{{ block.settings.url | default: '#' }}" {{ block.shopify_attributes }}>
+            <div class="ph wide">{%- if block.settings.image != blank -%}<img src="{{ block.settings.image | image_url: width: 800 }}" alt="{{ block.settings.title }}">{%- else -%}<span>{{ block.settings.placeholder | default: 'visuel article' }}</span>{%- endif -%}</div>
+            <div class="ncard-body"><span class="ncat">{{ block.settings.category }}</span><h3>{{ block.settings.title }}</h3><span class="ndate">{{ block.settings.date }}</span></div>
+          </a>
+        {%- endfor -%}
+      </div>
+    {%- endif -%}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Journal / Blog",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Le journal du groupe" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Analyses, coulisses & résultats." },
+    { "type": "textarea", "id": "lede", "label": "Accroche", "default": "Notre regard sur l'e-commerce, pensé pour le référencement et les moteurs génératifs." },
+    { "type": "text", "id": "filters", "label": "Filtres (séparés par virgule)", "default": "Tout, Études de cas, Acquisition, Conversion, Coulisses" },
+    { "type": "blog", "id": "blog", "label": "Blog Shopify (optionnel — sinon cartes manuelles)" }
+  ],
+  "blocks": [
+    {
+      "type": "post",
+      "name": "Article (manuel)",
+      "settings": [
+        { "type": "image_picker", "id": "image", "label": "Image" },
+        { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "visuel article — à fournir" },
+        { "type": "text", "id": "category", "label": "Catégorie", "default": "Étude de cas" },
+        { "type": "text", "id": "title", "label": "Titre", "default": "Titre de l'article" },
+        { "type": "textarea", "id": "excerpt", "label": "Extrait (pour l'article vedette)", "default": "Un résumé court de l'article." },
+        { "type": "text", "id": "date", "label": "Date", "default": "12 juin 2026" },
+        { "type": "url", "id": "url", "label": "Lien" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Journal / Blog",
+      "blocks": [
+        { "type": "post", "settings": { "category": "Étude de cas", "title": "Enissati : +850 % de chiffre d'affaires en 6 mois.", "excerpt": "Comment on a reconstruit l'écosystème complet d'une marque pour libérer son potentiel.", "date": "12 juin 2026" } },
+        { "type": "post", "settings": { "category": "Coulisses", "title": "Focuslabs : pourquoi nous lançons nos propres marques.", "date": "28 mai 2026" } },
+        { "type": "post", "settings": { "category": "Acquisition", "title": "TikTok Shop : le guide pour scaler une marque en 2026.", "date": "15 mai 2026" } },
+        { "type": "post", "settings": { "category": "Groupe", "title": "La Plateforme : ce que prépare le copilote des marques.", "date": "2 mai 2026" } },
+        { "type": "post", "settings": { "category": "Conversion", "title": "5 leviers CRO qui changent vraiment le taux de conversion.", "date": "20 avril 2026" } },
+        { "type": "post", "settings": { "category": "Acquisition", "title": "Structurer un compte Meta rentable en 2026.", "date": "8 avril 2026" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,57 @@
+{%- comment -%} 360labs — Convictions (liste numérotée 2 colonnes) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Convictions' }}">
+  <div class="wrap">
+    <div class="head reveal">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+    </div>
+    <div class="conv-list reveal">
+      {%- for block in section.blocks -%}
+        <div class="conv" {{ block.shopify_attributes }}>
+          <div class="conv-n">{{ block.settings.number | default: forloop.index | prepend: '0' }}</div>
+          <div>
+            <h3>{{ block.settings.title }}</h3>
+            <p>{{ block.settings.text }}</p>
+          </div>
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Convictions",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Nos convictions" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Ce en quoi nous croyons." }
+  ],
+  "blocks": [
+    {
+      "type": "conviction",
+      "name": "Conviction",
+      "settings": [
+        { "type": "text", "id": "number", "label": "Numéro" },
+        { "type": "text", "id": "title", "label": "Titre", "default": "Le système avant le levier." },
+        { "type": "textarea", "id": "text", "label": "Texte", "default": "Une marque grandit quand tous les leviers travaillent ensemble." }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Convictions",
+      "blocks": [
+        { "type": "conviction", "settings": { "number": "01", "title": "Le système avant le levier.", "text": "Une marque grandit quand tous les leviers travaillent ensemble, pas isolément." } },
+        { "type": "conviction", "settings": { "number": "02", "title": "Skin in the game.", "text": "On teste notre méthode sur nos propres marques avant de l'appliquer chez vous." } },
+        { "type": "conviction", "settings": { "number": "03", "title": "La rentabilité, pas la vanité.", "text": "On pilote la marge et le cash, pas seulement le chiffre d'affaires." } },
+        { "type": "conviction", "settings": { "number": "04", "title": "Le long terme.", "text": "On construit des marques durables, pas des coups sans lendemain." } }
+      ]
+    }
+  ]
+}
+{% endschema %}

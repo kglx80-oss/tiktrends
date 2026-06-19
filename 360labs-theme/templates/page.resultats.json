@@ -1,0 +1,38 @@
+{
+  "sections": {
+    "banner": { "type": "labs-banner", "settings": { "theme": "dark", "caption": "espace visuel · bannière résultats", "eyebrow": "Résultats", "heading": "Des résultats qu'on <span class=\"grad-on\">assume</span>.", "text": "Des marques transformées, des chiffres réels. Voici ce que produit un écosystème complet.", "cta1_label": "Auditer ma marque", "cta1_url": "/pages/audit", "image_opacity": 60 } },
+    "proof": { "type": "labs-proof-band", "settings": { "theme": "dark", "subtext": "Résultats moyens constatés sur les marques accompagnées" }, "blocks": {
+      "s1": { "type": "stat", "settings": { "value": "+850 %", "label": "CA — Enissati en 6 mois", "gradient": true } },
+      "s2": { "type": "stat", "settings": { "value": "~40", "label": "Marques en gestion" } },
+      "s3": { "type": "stat", "settings": { "value": "+3000", "label": "Projets accompagnés" } },
+      "s4": { "type": "stat", "settings": { "value": "1500+", "label": "Avis vérifiés" } }
+    }, "block_order": ["s1","s2","s3","s4"] },
+    "case": { "type": "labs-case-study", "settings": { "theme": "light", "anchor": "enissati", "eyebrow": "Étude de cas", "number": "+850 %", "heading": "Enissati. La marque avait le potentiel — on a construit l'écosystème qui l'a libéré, en 6 mois.", "list": "Refonte complète du site\nNouveaux supports visuels\nLancement des publicités\nStratégie d'emailing & CRM", "cta_label": "Auditer ma marque", "cta_url": "/pages/audit", "placeholder": "visuel marque — Enissati", "caption": "espace photo · 4/3" } },
+    "case2": { "type": "labs-case-study", "settings": { "theme": "dark", "eyebrow": "Étude de cas", "number": "x3", "heading": "Vitacare. Une acquisition enfin rentable, et un site qui transforme.", "list": "Audit & refonte CRO\nNouvelle stratégie d'acquisition\nEmailing automatisé\nScaling maîtrisé", "cta_label": "Voir l'approche", "cta_url": "/pages/ecosysteme", "placeholder": "visuel marque — Vitacare", "caption": "espace photo · 4/3" } },
+    "reviews": { "type": "labs-reviews", "settings": { "theme": "light", "eyebrow": "1500+ avis vérifiés", "heading": "Ce que disent les marques qu'on accompagne." }, "blocks": {
+      "r1": { "type": "review", "settings": { "text": "Une équipe qui s'investit comme si c'était sa propre marque. +850 % en 6 mois, on n'y croyait pas.", "initial": "E", "name": "Équipe Enissati", "detail": "Marque cliente" } },
+      "r2": { "type": "review", "settings": { "text": "Enfin un partenaire qui pense système et pas seulement pub.", "initial": "V", "name": "Vitacare", "detail": "Compléments" } },
+      "r3": { "type": "review", "settings": { "text": "Du site à l'acquisition, tout est aligné. On gagne un temps fou.", "initial": "J", "name": "Joud", "detail": "Lifestyle" } },
+      "r4": { "type": "review", "settings": { "text": "Le studio TikTok a transformé notre acquisition.", "initial": "C", "name": "Chilsilk", "detail": "Mode" } },
+      "r5": { "type": "review", "settings": { "text": "Accompagnement humain et exigeant.", "initial": "M", "name": "Morphea", "detail": "Beauté" } },
+      "r6": { "type": "review", "settings": { "text": "Des résultats mesurables, mois après mois.", "initial": "F", "name": "Finisher", "detail": "Sport" } }
+    }, "block_order": ["r1","r2","r3","r4","r5","r6"] },
+    "wall": { "type": "labs-brand-wall", "settings": { "theme": "dark", "eyebrow": "Ils nous font confiance", "heading": "Des marques qui grandissent avec le groupe.", "count_big": "~40 marques", "count_sub": "en gestion active", "footnote": "Avis vérifiés · Trustpilot · Google · ComeUp" }, "blocks": {
+      "b1": { "type": "brand", "settings": { "letter": "V", "name": "Vitacare", "row": "1" } },
+      "b2": { "type": "brand", "settings": { "letter": "C", "name": "Chilsilk", "row": "1" } },
+      "b3": { "type": "brand", "settings": { "letter": "E", "name": "Enissati", "row": "1" } },
+      "b4": { "type": "brand", "settings": { "letter": "J", "name": "Joud", "row": "1" } },
+      "b5": { "type": "brand", "settings": { "letter": "M", "name": "Morphea", "row": "1" } },
+      "b6": { "type": "brand", "settings": { "letter": "M", "name": "Mumijo", "row": "2" } },
+      "b7": { "type": "brand", "settings": { "letter": "F", "name": "Finisher", "row": "2" } },
+      "b8": { "type": "brand", "settings": { "letter": "M", "name": "Mlle Confettis", "row": "2" } },
+      "b9": { "type": "brand", "settings": { "letter": "V", "name": "Vitacare", "row": "2" } },
+      "b10": { "type": "brand", "settings": { "letter": "J", "name": "Joud", "row": "2" } }
+    }, "block_order": ["b1","b2","b3","b4","b5","b6","b7","b8","b9","b10"] },
+    "cta": { "type": "labs-double-cta", "settings": { "theme": "light", "anchor": "contact", "eyebrow": "À votre tour", "heading": "Le prochain résultat, c'est le vôtre." }, "blocks": {
+      "d1": { "type": "door", "settings": { "eyebrow": "Marque e-commerce", "title": "Faites auditer votre marque.", "text": "Gratuit, sans engagement.", "cta_label": "Réserver mon audit", "cta_url": "/pages/audit", "cta_style": "btn-glass" } },
+      "d2": { "type": "door", "settings": { "eyebrow": "Entreprise · B2B", "title": "Parlons de votre projet.", "text": "Le groupe au service des entreprises.", "cta_label": "Parler à un expert", "cta_url": "/pages/entreprises", "cta_style": "btn-soft" } }
+    }, "block_order": ["d1","d2"] }
+  },
+  "order": ["banner","proof","case","case2","reviews","wall","cta"]
+}

@@ -1,0 +1,112 @@
+{%- comment -%} 360labs — Lead / formulaire (audit, contact) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Formulaire' }}">
+  <div class="wrap lead reveal">
+    <div class="lead-txt">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2 style="font-size:28px;line-height:1.12;margin:14px 0 14px">{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.text != blank -%}<p class="lede" style="max-width:460px">{{ section.settings.text }}</p>{%- endif -%}
+      {%- assign points = section.blocks | where: 'type', 'point' -%}
+      {%- if points.size > 0 -%}
+        <ul class="lead-list">
+          {%- for block in points -%}
+            <li {{ block.shopify_attributes }}><span class="lk"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></svg></span><span>{% if block.settings.bold != blank %}<b>{{ block.settings.bold }}</b> {% endif %}{{ block.settings.text }}</span></li>
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
+      {%- assign metas = section.blocks | where: 'type', 'meta' -%}
+      {%- if metas.size > 0 -%}
+        <div class="lead-meta">
+          {%- for block in metas -%}
+            <div class="lm" {{ block.shopify_attributes }}><b>{{ block.settings.value }}</b><span>{{ block.settings.label }}</span></div>
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
+    </div>
+
+    <div class="form-card">
+      <h3>{{ section.settings.form_title }}</h3>
+      {%- if section.settings.form_sub != blank -%}<div class="fc-sub">{{ section.settings.form_sub }}</div>{%- endif -%}
+      {%- form 'contact', id: 'labs-lead-form' -%}
+        {%- if form.posted_successfully? -%}
+          <p class="form-note" style="color:var(--accent-ink);font-size:14px">✓ Merci, votre demande a bien été envoyée. On vous recontacte rapidement.</p>
+        {%- endif -%}
+        {%- if form.errors -%}
+          <p class="form-note" style="color:#ff8a80">Merci de vérifier les champs obligatoires.</p>
+        {%- endif -%}
+        <div class="field-row">
+          <div class="field"><label>Prénom & nom</label><input type="text" name="contact[name]" placeholder="Votre nom" required></div>
+          <div class="field"><label>E-mail</label><input type="email" name="contact[email]" placeholder="vous@marque.com" required></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Marque / société</label><input type="text" name="contact[Société]" placeholder="Nom de la marque"></div>
+          <div class="field"><label>Site web</label><input type="url" name="contact[Site web]" placeholder="https://"></div>
+        </div>
+        <div class="field">
+          <label>{{ section.settings.select_label }}</label>
+          <select name="contact[Objet]" class="field">
+            {%- assign opts = section.settings.select_options | split: ',' -%}
+            {%- for o in opts -%}<option value="{{ o | strip }}">{{ o | strip }}</option>{%- endfor -%}
+          </select>
+        </div>
+        <div class="field"><label>Votre message</label><textarea name="contact[body]" placeholder="{{ section.settings.message_placeholder }}"></textarea></div>
+        <button type="submit" class="btn btn-glass">{{ section.settings.submit_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+        {%- if section.settings.form_note != blank -%}<p class="form-note">{{ section.settings.form_note }}</p>{%- endif -%}
+      {%- endform -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Formulaire lead",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "header", "content": "Colonne gauche" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Audit gratuit" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Faites auditer votre marque, gratuitement." },
+    { "type": "textarea", "id": "text", "label": "Texte", "default": "On analyse votre site, votre acquisition et vos parcours. Vous repartez avec un plan d'action clair — sans engagement." },
+    { "type": "header", "content": "Formulaire" },
+    { "type": "text", "id": "form_title", "label": "Titre du formulaire", "default": "Réserver mon audit" },
+    { "type": "text", "id": "form_sub", "label": "Sous-titre", "default": "Réponse sous 48 h ouvrées." },
+    { "type": "text", "id": "select_label", "label": "Libellé du menu déroulant", "default": "Vous êtes" },
+    { "type": "text", "id": "select_options", "label": "Options (séparées par virgule)", "default": "Marque e-commerce, Entreprise / B2B, Créateur, Autre" },
+    { "type": "text", "id": "message_placeholder", "label": "Placeholder message", "default": "Parlez-nous de votre marque, vos objectifs…" },
+    { "type": "text", "id": "submit_label", "label": "Bouton d'envoi", "default": "Envoyer ma demande" },
+    { "type": "text", "id": "form_note", "label": "Note sous le formulaire", "default": "Vos données restent confidentielles. Aucun engagement." }
+  ],
+  "blocks": [
+    {
+      "type": "point",
+      "name": "Argument (liste)",
+      "settings": [
+        { "type": "text", "id": "bold", "label": "Début en gras" },
+        { "type": "text", "id": "text", "label": "Texte", "default": "Analyse complète de vos leviers de croissance." }
+      ]
+    },
+    {
+      "type": "meta",
+      "name": "Statistique",
+      "settings": [
+        { "type": "text", "id": "value", "label": "Valeur", "default": "48 h" },
+        { "type": "text", "id": "label", "label": "Libellé", "default": "Délai de réponse" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Formulaire lead",
+      "blocks": [
+        { "type": "point", "settings": { "bold": "Audit CRO & Pub", "text": "— on identifie où sont vos points de fuite." } },
+        { "type": "point", "settings": { "bold": "Plan d'action", "text": "priorisé selon l'impact et l'effort." } },
+        { "type": "point", "settings": { "bold": "Sans engagement", "text": "— vous repartez avec, qu'on travaille ensemble ou non." } },
+        { "type": "meta", "settings": { "value": "48 h", "label": "Délai de réponse" } },
+        { "type": "meta", "settings": { "value": "Gratuit", "label": "Audit complet" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

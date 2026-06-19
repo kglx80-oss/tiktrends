@@ -1,0 +1,37 @@
+{%- comment -%} 360labs — Bandeau réassurance {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad-sm labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Réassurance' }}">
+  <div class="wrap reveal">
+    <div class="reassure">
+      {%- for block in section.blocks -%}
+        <span {{ block.shopify_attributes }}><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></svg>{{ block.settings.text }}</span>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Réassurance",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" }
+  ],
+  "blocks": [
+    { "type": "item", "name": "Élément", "settings": [ { "type": "text", "id": "text", "label": "Texte", "default": "Sans engagement" } ] }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Réassurance",
+      "blocks": [
+        { "type": "item", "settings": { "text": "Audit gratuit & sans engagement" } },
+        { "type": "item", "settings": { "text": "Réponse sous 48 h" } },
+        { "type": "item", "settings": { "text": "+3000 projets accompagnés" } },
+        { "type": "item", "settings": { "text": "1500+ avis vérifiés" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

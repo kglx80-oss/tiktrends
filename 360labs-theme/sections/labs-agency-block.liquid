@@ -1,0 +1,65 @@
+{%- comment -%} 360labs — Bloc agence détaillé (head + pôles) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: section.settings.name }}">
+  <div class="wrap agblock reveal">
+    <div class="agblock-head">
+      <div class="ag-top">
+        <span class="ag-tile">{% if section.settings.logo != blank %}<img src="{{ section.settings.logo | image_url: width: 116 }}" alt="{{ section.settings.name }}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">{% else %}{{ section.settings.tile }}{% endif %}</span>
+        <div><div class="ag-name">{{ section.settings.name }}</div><div class="ag-base">{{ section.settings.base }}</div></div>
+      </div>
+      {%- if section.settings.text != blank -%}<p>{{ section.settings.text }}</p>{%- endif -%}
+      {%- if section.settings.proof != blank -%}<div class="ag-proof">{{ section.settings.proof }}</div>{%- endif -%}
+      {%- if section.settings.cta_label != blank -%}<a class="btn {{ section.settings.cta_style }}" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+    </div>
+    <div class="poles">
+      {%- for block in section.blocks -%}
+        <div class="pole" {{ block.shopify_attributes }}>
+          <div class="pole-n">{{ block.settings.number | default: forloop.index | prepend: '0' }}</div>
+          <div><b>{{ block.settings.title }}</b><span>{{ block.settings.text }}</span></div>
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Bloc agence",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "glx" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "tile", "label": "Initiale", "default": "G" },
+    { "type": "image_picker", "id": "logo", "label": "Logo (optionnel)" },
+    { "type": "text", "id": "name", "label": "Nom", "default": "GLX" },
+    { "type": "text", "id": "base", "label": "Baseline", "default": "Le site qui vend." },
+    { "type": "textarea", "id": "text", "label": "Description", "default": "Création et optimisation de sites e-commerce qui convertissent et fidélisent. La première société du groupe." },
+    { "type": "text", "id": "proof", "label": "Ligne de preuve", "default": "+3000 projets · depuis 2019" },
+    { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Travailler avec GLX" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
+    { "type": "select", "id": "cta_style", "label": "Style", "options": [ { "value": "btn-glass", "label": "Iridescent" }, { "value": "btn-soft", "label": "Discret" } ], "default": "btn-glass" }
+  ],
+  "blocks": [
+    {
+      "type": "pole",
+      "name": "Pôle",
+      "settings": [
+        { "type": "text", "id": "number", "label": "Numéro" },
+        { "type": "text", "id": "title", "label": "Titre", "default": "Création de site" },
+        { "type": "textarea", "id": "text", "label": "Texte", "default": "Des sites e-commerce pensés pour convertir." }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Bloc agence",
+      "blocks": [
+        { "type": "pole", "settings": { "number": "01", "title": "Site & CRO", "text": "Des sites e-commerce pensés pour convertir et fidéliser." } },
+        { "type": "pole", "settings": { "number": "02", "title": "CRM & rétention", "text": "Emailing, automatisations et fidélisation." } },
+        { "type": "pole", "settings": { "number": "03", "title": "Accompagnement", "text": "Un partenaire de croissance sur la durée." } }
+      ]
+    }
+  ]
+}
+{% endschema %}

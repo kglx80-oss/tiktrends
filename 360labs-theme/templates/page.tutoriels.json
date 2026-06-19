@@ -1,0 +1,18 @@
+{
+  "sections": {
+    "hero": { "type": "labs-page-hero", "settings": { "theme": "dark", "eyebrow": "Tutoriels", "heading": "Apprenez à <span class=\"grad-on\">créer vos médias</span>.", "text": "Des pas-à-pas concrets pour produire des contenus qui vendent — fiches produit, vidéos, créas UGC." } },
+    "tutos": { "type": "labs-resources", "settings": { "theme": "light", "eyebrow": "Tutoriels", "heading": "Nos tutoriels vidéo.", "lede": "Du concret, filmé par nos équipes." }, "blocks": {
+      "t1": { "type": "resource", "settings": { "icon": "video", "tag": "Tutoriel", "title": "Créer une fiche produit qui convertit", "text": "Structurer une page produit, du visuel au CTA.", "meta": "Regarder" } },
+      "t2": { "type": "resource", "settings": { "icon": "video", "tag": "Tutoriel", "title": "Filmer une vidéo UGC en 30 min", "text": "Le setup minimal pour des vidéos qui performent.", "meta": "Regarder" } },
+      "t3": { "type": "resource", "settings": { "icon": "video", "tag": "Tutoriel", "title": "Monter un TikTok qui scrolle", "text": "Hook, rythme et montage pour retenir l'attention.", "meta": "Regarder" } },
+      "t4": { "type": "resource", "settings": { "icon": "video", "tag": "Tutoriel", "title": "Écrire un brief créateur efficace", "text": "Le template de brief qu'on utilise en interne.", "meta": "Regarder" } },
+      "t5": { "type": "resource", "settings": { "icon": "video", "tag": "Tutoriel", "title": "Lancer une campagne Meta de zéro", "text": "Structure de compte et premières créas.", "meta": "Regarder" } },
+      "t6": { "type": "resource", "settings": { "icon": "video", "tag": "Tutoriel", "title": "Mettre en place une séquence email", "text": "Bienvenue, panier abandonné, rétention.", "meta": "Regarder" } }
+    }, "block_order": ["t1","t2","t3","t4","t5","t6"] },
+    "cta": { "type": "labs-double-cta", "settings": { "theme": "dark", "eyebrow": "Aller plus loin", "heading": "Besoin d'un coup de main ?" }, "blocks": {
+      "d1": { "type": "door", "settings": { "eyebrow": "Marque e-commerce", "title": "Faites auditer votre marque.", "text": "On regarde vos contenus et votre acquisition.", "cta_label": "Audit gratuit", "cta_url": "/pages/audit", "cta_style": "btn-glass" } },
+      "d2": { "type": "door", "settings": { "eyebrow": "Ressources", "title": "Téléchargez nos guides.", "text": "Templates et assets prêts à l'emploi.", "cta_label": "Voir les ressources", "cta_url": "/pages/ressources", "cta_style": "btn-soft" } }
+    }, "block_order": ["d1","d2"] }
+  },
+  "order": ["hero","tutos","cta"]
+}
