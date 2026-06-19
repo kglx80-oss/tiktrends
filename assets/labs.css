@@ -223,6 +223,11 @@ html{scroll-behavior:smooth}
 .hero-meta .hm b.g{background:var(--grad-text);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero-meta .hm span{font-size:12px;color:var(--muted)}
 .hero-meta .hm+.hm{padding-left:30px;border-left:1px solid var(--border)}
+@media (min-width:981px){
+  .hero.center .hero-in{max-width:1040px}
+  .hero.center h1{font-size:58px;line-height:1.04;letter-spacing:-.035em;max-width:22ch;margin:20px auto 22px}
+  .hero.center p{font-size:17.5px;max-width:620px}
+}
 .stack{position:relative;height:430px}
 .cap{position:absolute;width:312px;height:130px;border-radius:42px;background:var(--cg);overflow:hidden;
   box-shadow:0 38px 72px -24px rgba(0,0,0,.7),0 16px 50px -16px rgba(129,140,248,.5),
@@ -749,10 +754,11 @@ html{scroll-behavior:smooth}
   .hero.center p,.phero p{font-size:15px}
   .phero{padding:100px 0 72px}
   .phero h1,.hero h1{font-size:28px}
-  .hero-meta{gap:0;justify-content:flex-start}
-  .hero-meta .hm{flex:1 1 auto}
-  .hero-meta .hm+.hm{padding-left:18px;margin-left:18px}
+  .hero-meta{gap:0;justify-content:center;width:100%;flex-wrap:nowrap;margin-top:36px}
+  .hero-meta .hm{flex:1 1 0;min-width:0;align-items:center;text-align:center;padding:0 8px}
+  .hero-meta .hm+.hm{padding-left:8px;margin-left:0;border-left:1px solid var(--border)}
   .hero-meta .hm b{font-size:18px}
+  .hero-meta .hm span{font-size:10.5px;line-height:1.25}
   .feat-body h3{font-size:21px}
   .ecoH-hub,.ecoH-ring{width:300px}
   .ecoH-ring{height:300px}
