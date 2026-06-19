@@ -1,0 +1,126 @@
+{%- comment -%}
+  360labs — Header / Navigation
+  Nav sticky avec wordmark, liens (blocs), méga-menu Ressources et CTA.
+  Hamburger mobile + méga-menu pilotés par labs-nav.js.
+{%- endcomment -%}
+
+<nav class="labs nav" style="--labs-nav-bg: {{ section.settings.bg_color }};">
+  <div class="nav-in">
+    <a class="nav-brand" href="{{ section.settings.brand_url | default: routes.root_url }}" style="text-decoration:none">
+      {%- if section.settings.logo != blank -%}
+        <img src="{{ section.settings.logo | image_url: width: 120 }}" alt="{{ section.settings.brand_text | strip_html }}" style="height:26px;width:auto;display:block">
+      {%- else -%}
+        <span class="mark mark-26"><svg viewBox="0 0 26 26" fill="none"><g stroke="rgba(26,20,48,.55)" stroke-width="1.1"><circle cx="13" cy="13" r="8.5"></circle><path d="M4.5 13h17M13 4.5c2.6 2.6 2.6 14.4 0 17M13 4.5c-2.6 2.6-2.6 14.4 0 17M6 9h14M6 17h14"></path></g></svg></span>
+      {%- endif -%}
+      <span class="wordmark">{{ section.settings.brand_text }}</span>
+    </a>
+
+    <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+
+    <div class="nav-links">
+      {%- for block in section.blocks -%}
+        {%- case block.type -%}
+          {%- when 'link' -%}
+            <a href="{{ block.settings.url | default: '#' }}" {{ block.shopify_attributes }}>
+              {{ block.settings.label }}
+              {%- if block.settings.tag != blank -%}<span class="nav-tag">{{ block.settings.tag }}</span>{%- endif -%}
+            </a>
+        {%- endcase -%}
+      {%- endfor -%}
+
+      {%- if section.settings.show_dropdown -%}
+        <div class="nav-drop">
+          <button class="nav-drop-t" type="button" aria-expanded="false">{{ section.settings.dropdown_label }} <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
+          <div class="nav-mega">
+            {%- assign mega_blocks = section.blocks | where: 'type', 'mega_item' -%}
+            {%- for block in mega_blocks -%}
+              <a class="nm-item" href="{{ block.settings.url | default: '#' }}" {{ block.shopify_attributes }}>
+                <span class="nm-ic">
+                  {%- if block.settings.icon == 'video' -%}
+                    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"></rect><path d="M10 9l4 2.5-4 2.5z"></path></svg>
+                  {%- elsif block.settings.icon == 'file' -%}
+                    <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M13 3v5h5"></path></svg>
+                  {%- else -%}
+                    <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M8 7h7M8 11h7M8 15h4"></path></svg>
+                  {%- endif -%}
+                </span>
+                <div><b>{{ block.settings.title }}</b><span>{{ block.settings.description }}</span></div>
+              </a>
+              {%- unless forloop.last -%}{%- if block.settings.separator_after -%}<div class="nm-sep"></div>{%- endif -%}{%- endunless -%}
+            {%- endfor -%}
+          </div>
+        </div>
+      {%- endif -%}
+
+      {%- if section.settings.cta_label != blank -%}
+        <a class="btn btn-glass nav-cta" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }}</a>
+      {%- endif -%}
+    </div>
+  </div>
+</nav>
+
+{%- style -%}
+  .nav { background: var(--labs-nav-bg, rgba(8,8,12,.66)); }
+{%- endstyle -%}
+
+{% schema %}
+{
+  "name": "360labs · Header",
+  "tag": "header",
+  "class": "labs-section labs-header-section",
+  "settings": [
+    { "type": "header", "content": "Marque" },
+    { "type": "text", "id": "brand_text", "label": "Texte du logo (HTML autorisé)", "default": "360<b>labs</b>" },
+    { "type": "image_picker", "id": "logo", "label": "Logo image (optionnel, remplace l'icône)" },
+    { "type": "url", "id": "brand_url", "label": "Lien du logo" },
+    { "type": "color", "id": "bg_color", "label": "Fond de la barre", "default": "#08080c" },
+    { "type": "header", "content": "Méga-menu (dropdown)" },
+    { "type": "checkbox", "id": "show_dropdown", "label": "Afficher le méga-menu", "default": true },
+    { "type": "text", "id": "dropdown_label", "label": "Libellé du menu", "default": "Ressources" },
+    { "type": "header", "content": "Bouton d'appel à l'action" },
+    { "type": "text", "id": "cta_label", "label": "Libellé du bouton", "default": "Audit gratuit" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" }
+  ],
+  "blocks": [
+    {
+      "type": "link",
+      "name": "Lien de navigation",
+      "settings": [
+        { "type": "text", "id": "label", "label": "Libellé", "default": "Lien" },
+        { "type": "url", "id": "url", "label": "URL" },
+        { "type": "text", "id": "tag", "label": "Badge (ex. Bientôt)" }
+      ]
+    },
+    {
+      "type": "mega_item",
+      "name": "Item méga-menu",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Titre", "default": "Blog" },
+        { "type": "text", "id": "description", "label": "Description", "default": "Analyses e-commerce, SEO & croissance" },
+        { "type": "url", "id": "url", "label": "URL" },
+        { "type": "select", "id": "icon", "label": "Icône", "options": [
+          { "value": "blog", "label": "Article" },
+          { "value": "video", "label": "Vidéo" },
+          { "value": "file", "label": "Fichier" }
+        ], "default": "blog" },
+        { "type": "checkbox", "id": "separator_after", "label": "Séparateur après cet item", "default": false }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Header",
+      "blocks": [
+        { "type": "link", "settings": { "label": "Le Groupe", "url": "/pages/le-groupe" } },
+        { "type": "link", "settings": { "label": "L'écosystème", "url": "/pages/ecosysteme" } },
+        { "type": "link", "settings": { "label": "Entreprises", "url": "/pages/entreprises" } },
+        { "type": "link", "settings": { "label": "Résultats", "url": "/pages/resultats" } },
+        { "type": "link", "settings": { "label": "La Plateforme", "url": "/pages/plateforme", "tag": "Bientôt" } },
+        { "type": "mega_item", "settings": { "title": "Blog", "description": "Analyses e-commerce, SEO & croissance", "icon": "blog", "url": "/blogs/journal" } },
+        { "type": "mega_item", "settings": { "title": "Tutoriels", "description": "Pas-à-pas pour créer vos médias", "icon": "video", "url": "/pages/tutoriels" } },
+        { "type": "mega_item", "settings": { "title": "Ressources", "description": "Guides, templates & assets à télécharger", "icon": "file", "url": "/pages/ressources", "separator_after": true } }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,22 @@
+{
+  "type": "footer",
+  "name": "Footer",
+  "sections": {
+    "labs_footer": {
+      "type": "labs-footer",
+      "settings": {
+        "brand_text": "360<b>labs</b>",
+        "tagline": "L'écosystème qui construit, possède et propulse les marques e-commerce. Depuis 2019.",
+        "copyright": "© 2026 360LABS — Tous droits réservés.",
+        "signature": "Iridescent · Sora"
+      },
+      "blocks": {
+        "c1": { "type": "column", "settings": { "heading": "Le Groupe" } },
+        "c2": { "type": "column", "settings": { "heading": "Travailler avec nous" } },
+        "c3": { "type": "column", "settings": { "heading": "Légal" } }
+      },
+      "block_order": ["c1", "c2", "c3"]
+    }
+  },
+  "order": ["labs_footer"]
+}
