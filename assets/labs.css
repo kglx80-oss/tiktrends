@@ -821,21 +821,30 @@ body.labs-page .shopify-section{position:relative}
    raccord avec la marque. Une vraie image (.ph>img) passe au-dessus (z-index 2). */
 .ph{
   background:
-    radial-gradient(120% 120% at 16% 12%, rgba(174,182,255,.22), transparent 56%),
-    radial-gradient(120% 120% at 84% 88%, rgba(248,200,224,.18), transparent 56%),
+    radial-gradient(120% 120% at 16% 12%, rgba(174,182,255,.30), transparent 58%),
+    radial-gradient(120% 120% at 84% 88%, rgba(248,200,224,.24), transparent 58%),
     linear-gradient(140deg, var(--panel2), var(--panel));
 }
-.ph::before{
-  content:"";position:absolute;inset:-40%;z-index:0;pointer-events:none;
-  background:conic-gradient(from 0deg,
-    rgba(125,168,255,0), rgba(125,168,255,.55), rgba(248,180,217,.5),
-    rgba(169,160,255,.55), rgba(251,217,192,.45), rgba(125,168,255,0));
-  filter:blur(46px);opacity:.55;mix-blend-mode:screen;
-  animation:ph-spin 20s linear infinite;will-change:transform;
+/* thème clair : panneau iridescent pastel bien visible */
+.theme-light .ph{
+  background:
+    radial-gradient(120% 120% at 16% 12%, rgba(150,160,255,.55), transparent 60%),
+    radial-gradient(120% 120% at 86% 86%, rgba(248,170,214,.50), transparent 60%),
+    radial-gradient(100% 100% at 62% 42%, rgba(251,210,180,.40), transparent 62%),
+    linear-gradient(140deg, #ECE8FF, #FBEEF4);
 }
+.ph::before{
+  content:"";position:absolute;inset:-45%;z-index:0;pointer-events:none;
+  background:conic-gradient(from 0deg,
+    rgba(125,168,255,0), #7DA8FF, #F8B4D9, #A9A0FF, #FBD9C0, rgba(125,168,255,0));
+  filter:blur(52px);opacity:.5;mix-blend-mode:screen;
+  animation:ph-spin 18s linear infinite;will-change:transform;
+}
+/* sur fond clair, le « screen » disparaît : on repasse en fusion normale */
+.theme-light .ph::before{mix-blend-mode:normal;opacity:.5}
 .ph::after{z-index:0}
 .ph>img{z-index:2}
-/* repères de placement masqués (rendu plus propre, « visuel » plutôt que « placeholder ») */
+/* repères de placement masqués (rendu « visuel » plutôt que « placeholder ») */
 .ph span,.media-tag,.banner-cap,.bleed span{display:none}
 @keyframes ph-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.ph::before{animation:none}}
