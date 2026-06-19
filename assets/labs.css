@@ -795,3 +795,23 @@ body.labs-page .shopify-section{position:relative}
 .ben{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
 .ben:hover{transform:translateY(-3px);border-color:var(--border2);
   box-shadow:0 22px 44px -28px rgba(0,0,0,.5)}
+
+/* ---- Motion design : fond iridescent animé (halos qui dérivent) ---- */
+.hero .wrap,.banner-in{position:relative;z-index:1}
+.labs-aurora{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.labs-aurora span{position:absolute;display:block;border-radius:50%;filter:blur(72px);
+  opacity:.55;mix-blend-mode:screen;will-change:transform}
+.theme-light .labs-aurora span{opacity:.4}
+.labs-aurora .a1{width:46vw;height:46vw;min-width:380px;min-height:380px;
+  background:radial-gradient(circle,#7DA8FF,transparent 70%);top:-14%;left:-8%;
+  animation:aur-a 24s ease-in-out infinite alternate}
+.labs-aurora .a2{width:40vw;height:40vw;min-width:320px;min-height:320px;
+  background:radial-gradient(circle,#F8B4D9,transparent 70%);top:-6%;right:-10%;left:auto;
+  animation:aur-b 30s ease-in-out infinite alternate}
+.labs-aurora .a3{width:42vw;height:42vw;min-width:340px;min-height:340px;
+  background:radial-gradient(circle,#A9A0FF,transparent 70%);bottom:-20%;left:30%;top:auto;
+  animation:aur-c 27s ease-in-out infinite alternate}
+@keyframes aur-a{from{transform:translate(0,0) scale(1)}to{transform:translate(16%,12%) scale(1.18)}}
+@keyframes aur-b{from{transform:translate(0,0) scale(1)}to{transform:translate(-14%,18%) scale(1.12)}}
+@keyframes aur-c{from{transform:translate(0,0) scale(1.05)}to{transform:translate(10%,-14%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.labs-aurora span{animation:none}}

@@ -1,5 +1,8 @@
 {%- comment -%} 360labs — Hero centré (eyebrow, titre dégradé, CTA, statistiques) {%- endcomment -%}
 <section class="labs theme-{{ section.settings.theme }} hero center labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="Hero">
+  {%- if section.settings.bg_motion -%}
+    <div class="labs-aurora" aria-hidden="true"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
+  {%- endif -%}
   <div class="wrap">
     <div class="hero-in">
       {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
@@ -32,6 +35,7 @@
   "class": "labs-shopify-section",
   "settings": [
     { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "checkbox", "id": "bg_motion", "label": "Fond animé iridescent", "default": true },
     { "type": "text", "id": "anchor", "label": "Ancre (id)" },
     { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Groupe de croissance e-commerce · Depuis 2019" },
     { "type": "text", "id": "heading", "label": "Titre (HTML, .grad-on pour le dégradé)", "default": "Nous <span class=\"grad-on\">construisons, possédons et propulsons</span> les marques e-commerce." },
