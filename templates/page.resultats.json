@@ -10,7 +10,8 @@
         "text": "Des marques transformées, des chiffres réels. Voici ce que produit un écosystème complet.",
         "cta1_label": "Auditer ma marque",
         "cta1_url": "/pages/audit",
-        "image_opacity": 60
+        "image_opacity": 60,
+        "min_height": 420
       }
     },
     "proof": {
