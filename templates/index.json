@@ -178,6 +178,25 @@
       },
       "block_order": ["p1", "p2", "p3"]
     },
+    "dashboard": {
+      "type": "labs-dashboard",
+      "settings": {
+        "theme": "dark",
+        "anchor": "plateforme-demo",
+        "eyebrow": "La Plateforme · Aperçu",
+        "heading": "Toute votre marque, pilotée en direct.",
+        "text": "Publicités, social, trafic, produits — vos données réunies et lisibles, avec un copilote qui vous dit quoi faire chaque jour.",
+        "cta_label": "Rejoindre la liste d'attente",
+        "cta_url": "/pages/plateforme#waitlist",
+        "cta_style": "btn-glass",
+        "domain": "360labs.app",
+        "metric_label": "Publicités live",
+        "metric_value": "6 559",
+        "metric2_label": "Trafic mensuel",
+        "metric2_value": "4M",
+        "toast": "Nouvelle marque détectée"
+      }
+    },
     "double_cta": {
       "type": "labs-double-cta",
       "settings": {
@@ -194,5 +213,5 @@
       "block_order": ["d1", "d2"]
     }
   },
-  "order": ["hero", "thesis", "hub", "agencies", "ownership", "case_study", "news", "brand_wall", "platform", "double_cta"]
+  "order": ["hero", "thesis", "hub", "agencies", "ownership", "case_study", "news", "brand_wall", "platform", "dashboard", "double_cta"]
 }
