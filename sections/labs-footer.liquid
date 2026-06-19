@@ -7,13 +7,12 @@
   <div class="wrap foot-grid">
     <div class="foot-brand">
       <div class="nav-brand" style="gap:11px">
+        {%- assign logo_alt = section.settings.brand_text | default: '360labs' | strip_html -%}
         {%- if section.settings.logo != blank -%}
-          {%- assign logo_alt = section.settings.brand_text | strip_html -%}
-          {{ section.settings.logo | image_tag: widths: '120, 160, 240, 320', alt: logo_alt, style: 'height:40px;width:auto' }}
+          {{ section.settings.logo | image_tag: widths: '160, 240, 320, 440', alt: logo_alt, style: 'height:46px;width:auto;display:block' }}
         {%- else -%}
-          <span class="mark mark-40"><svg viewBox="0 0 40 40" fill="none"><g stroke="rgba(26,20,48,.5)" stroke-width="1.4"><circle cx="20" cy="20" r="13"></circle><path d="M7 20h26M20 7c4 4 4 22 0 26M20 7c-4 4-4 22 0 26M9.5 13h21M9.5 27h21"></path></g></svg></span>
+          <img class="brand-logo" src="{{ 'labs-logo.svg' | asset_url }}" alt="{{ logo_alt }}" width="190" height="92" style="height:46px;width:auto;display:block">
         {%- endif -%}
-        <span class="wordmark" style="font-size:22px;color:#F4F4F8">{{ section.settings.brand_text }}</span>
       </div>
       {%- if section.settings.tagline != blank -%}<p class="foot-base">{{ section.settings.tagline }}</p>{%- endif -%}
       <div class="foot-soc">
