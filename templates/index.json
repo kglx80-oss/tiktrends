@@ -220,7 +220,14 @@
         "d2": { "type": "door", "settings": { "anchor": "entreprises", "eyebrow": "Entreprise · B2B", "title": "Construisons votre présence digitale.", "text": "Site, visibilité, image de marque, automatisation : le groupe au service des entreprises.", "cta_label": "Parler à un expert", "cta_url": "/pages/entreprises", "cta_style": "btn-soft" } }
       },
       "block_order": ["d1", "d2"]
+    },
+    "ribbons": {
+      "type": "labs-ribbons",
+      "settings": {
+        "heading": "L'écosystème qui propulse les marques e-commerce.",
+        "height": 420
+      }
     }
   },
-  "order": ["hero", "thesis", "hub", "agencies", "ownership", "case_study", "news", "brand_wall", "platform", "dashboard", "double_cta"]
+  "order": ["hero", "thesis", "hub", "agencies", "ownership", "case_study", "news", "brand_wall", "platform", "dashboard", "double_cta", "ribbons"]
 }

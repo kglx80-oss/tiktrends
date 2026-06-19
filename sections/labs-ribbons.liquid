@@ -1,0 +1,84 @@
+{%- comment -%}
+  360labs — Bande "Ribbons" : fontaine de filaments de lumière iridescents (style premium, façon Frame.io)
+  100% SVG/CSS animé, léger, reduced-motion safe. Idéale au-dessus du footer ou en signature de page.
+{%- endcomment -%}
+<section class="labs theme-dark labs-section rib-sec" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Ribbons' }}">
+  <div class="rib-art" aria-hidden="true">
+    <svg viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice">
+      <defs>
+        <linearGradient id="ribg-{{ section.id }}" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#7DA8FF"/><stop offset=".45" stop-color="#A9A0FF"/>
+          <stop offset=".78" stop-color="#C9A8FF"/><stop offset="1" stop-color="#F8B4D9"/>
+        </linearGradient>
+        <radialGradient id="ribbase-{{ section.id }}" cx="50%" cy="100%" r="60%">
+          <stop offset="0" stop-color="#A9A0FF" stop-opacity=".5"/><stop offset="1" stop-color="#A9A0FF" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="ribblur-{{ section.id }}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+      </defs>
+      <ellipse cx="600" cy="420" rx="540" ry="180" fill="url(#ribbase-{{ section.id }})"/>
+      <g class="rib-fan">
+        <g filter="url(#ribblur-{{ section.id }})" opacity=".6">
+          {%- for i in (-5..5) -%}
+            {%- assign ang = i | times: 8 -%}
+            <path d="M600,420 C 455,120 745,120 600,420" transform="rotate({{ ang }} 600 420)" fill="none" stroke="url(#ribg-{{ section.id }})" stroke-width="6"/>
+          {%- endfor -%}
+        </g>
+        <g>
+          {%- for i in (-5..5) -%}
+            {%- assign ang = i | times: 8 -%}
+            {%- assign d = i | plus: 5 | times: 0.32 -%}
+            <path class="rib" style="animation-delay:{{ d }}s" d="M600,420 C 455,120 745,120 600,420" transform="rotate({{ ang }} 600 420)" fill="none" stroke="url(#ribg-{{ section.id }})" stroke-width="1.6" stroke-linecap="round"/>
+          {%- endfor -%}
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  {%- if section.settings.eyebrow != blank or section.settings.heading != blank or section.settings.cta_label != blank -%}
+    <div class="wrap rib-inner reveal">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.cta_label != blank -%}<a class="btn btn-glass" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+    </div>
+  {%- endif -%}
+</section>
+
+{%- style -%}
+  .rib-sec{position:relative;overflow:hidden;background:radial-gradient(80% 90% at 50% 120%,rgba(125,168,255,.10),transparent 60%),#06060a;
+    padding:{{ section.settings.top_padding | default: 110 }}px 0 0;min-height:{{ section.settings.height | default: 420 }}px;display:flex;flex-direction:column}
+  .rib-art{position:absolute;left:0;right:0;bottom:0;height:88%;z-index:1;pointer-events:none}
+  .rib-art svg{width:100%;height:100%;display:block}
+  .rib-fan{transform-box:view-box;transform-origin:600px 420px;animation:rib-breathe 13s ease-in-out infinite}
+  @keyframes rib-breathe{0%,100%{transform:scale(1);opacity:.95}50%{transform:scale(1.05);opacity:1}}
+  .rib{opacity:.3;animation:rib-shimmer 6s ease-in-out infinite}
+  @keyframes rib-shimmer{0%,100%{opacity:.22}50%{opacity:.95}}
+  .rib-inner{position:relative;z-index:2;text-align:center;max-width:680px;padding-bottom:64px}
+  .rib-inner .eyebrow{margin-bottom:14px}
+  .rib-inner h2{font-size:30px;line-height:1.12;letter-spacing:-.035em;text-wrap:balance;margin:0 auto 26px;max-width:16ch}
+  .rib-inner .btn{margin:0 auto}
+  @media (max-width:980px){.rib-sec{min-height:340px}.rib-inner h2{font-size:25px}}
+  @media (prefers-reduced-motion:reduce){.rib-fan,.rib{animation:none}.rib{opacity:.6}}
+{%- endstyle -%}
+
+{% schema %}
+{
+  "name": "360labs · Ribbons",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "paragraph", "content": "Bande visuelle premium (filaments de lumière). Idéale au-dessus du footer. Laissez les champs vides pour un rendu 100% visuel." },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "range", "id": "height", "label": "Hauteur", "min": 280, "max": 640, "step": 20, "unit": "px", "default": 420 },
+    { "type": "range", "id": "top_padding", "label": "Marge haute (texte)", "min": 40, "max": 200, "step": 10, "unit": "px", "default": 110 },
+    { "type": "header", "content": "Texte (optionnel)" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre" },
+    { "type": "text", "id": "heading", "label": "Titre" },
+    { "type": "text", "id": "cta_label", "label": "Bouton" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" }
+  ],
+  "presets": [
+    { "name": "360labs · Ribbons", "settings": { "heading": "L'écosystème qui propulse les marques e-commerce." } }
+  ]
+}
+{% endschema %}
