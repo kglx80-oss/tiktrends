@@ -940,6 +940,17 @@ body.labs-page .shopify-section{position:relative}
 .atmos--vivid .atmos-vig::after{
   background:linear-gradient(to bottom,rgba(6,6,14,.5),transparent 26%,transparent 56%,rgba(6,6,14,.6)),
              radial-gradient(120% 100% at 50% 42%,transparent 52%,rgba(6,6,14,.5))}
+/* effet parallaxe : la vidéo se décale plus lentement que le scroll → profondeur */
+@supports (animation-timeline: view()){
+  @media (prefers-reduced-motion:no-preference){
+    .atmos--vivid video.atmos-img{
+      animation:atmos-parallax linear both;animation-timeline:view();animation-range:cover}
+    @keyframes atmos-parallax{
+      from{transform:scale(1.16) translateY(-7%)}
+      to{transform:scale(1.16) translateY(7%)}
+    }
+  }
+}
 .atmos.hero.center{padding:128px 0 120px}
 @media (max-width:620px){
   .atmos-bg .atmos-img{inset:-2%;width:104%;height:104%}
