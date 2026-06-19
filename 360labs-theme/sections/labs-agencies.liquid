@@ -9,7 +9,7 @@
       {%- for block in section.blocks -%}
         <div class="ag" {{ block.shopify_attributes }}>
           <div class="ag-top">
-            <span class="ag-tile">{% if block.settings.logo != blank %}<img src="{{ block.settings.logo | image_url: width: 92 }}" alt="{{ block.settings.name }}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">{% else %}{{ block.settings.tile }}{% endif %}</span>
+            <span class="ag-tile">{% if block.settings.logo != blank %}{{ block.settings.logo | image_tag: widths: '46, 92, 138', alt: block.settings.name, style: 'width:100%;height:100%;object-fit:cover;border-radius:inherit' }}{% else %}{{ block.settings.tile }}{% endif %}</span>
             <div><div class="ag-name">{{ block.settings.name }}</div><div class="ag-base">{{ block.settings.base }}</div></div>
           </div>
           {%- if block.settings.text != blank -%}<p>{{ block.settings.text }}</p>{%- endif -%}

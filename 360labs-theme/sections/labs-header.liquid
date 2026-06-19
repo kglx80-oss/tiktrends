@@ -8,7 +8,8 @@
   <div class="nav-in">
     <a class="nav-brand" href="{{ section.settings.brand_url | default: routes.root_url }}" style="text-decoration:none">
       {%- if section.settings.logo != blank -%}
-        <img src="{{ section.settings.logo | image_url: width: 120 }}" alt="{{ section.settings.brand_text | strip_html }}" style="height:26px;width:auto;display:block">
+        {%- assign logo_alt = section.settings.brand_text | strip_html -%}
+        {{ section.settings.logo | image_tag: widths: '90, 120, 180, 240', alt: logo_alt, style: 'height:26px;width:auto;display:block' }}
       {%- else -%}
         <span class="mark mark-26"><svg viewBox="0 0 26 26" fill="none"><g stroke="rgba(26,20,48,.55)" stroke-width="1.1"><circle cx="13" cy="13" r="8.5"></circle><path d="M4.5 13h17M13 4.5c2.6 2.6 2.6 14.4 0 17M13 4.5c-2.6 2.6-2.6 14.4 0 17M6 9h14M6 17h14"></path></g></svg></span>
       {%- endif -%}

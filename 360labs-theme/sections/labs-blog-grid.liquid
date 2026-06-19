@@ -27,7 +27,7 @@
     {%- if blog_obj.articles_count > 0 -%}
       {%- assign feat = blog_obj.articles.first -%}
       <article class="feat reveal">
-        <div class="ph">{%- if feat.image -%}<img src="{{ feat.image | image_url: width: 1000 }}" alt="{{ feat.title }}">{%- else -%}<span>visuel article</span>{%- endif -%}</div>
+        <div class="ph">{%- if feat.image -%}{{ feat.image | image_tag: widths: '400, 600, 800, 1000, 1400', alt: feat.title }}{%- else -%}<span>visuel article</span>{%- endif -%}</div>
         <div class="feat-body">
           <span class="ncat">{{ feat.tags.first | default: 'Article' }}</span>
           <h3>{{ feat.title }}</h3>
@@ -38,7 +38,7 @@
       <div class="blog-grid reveal">
         {%- for article in blog_obj.articles offset: 1 limit: 9 -%}
           <a class="ncard" href="{{ article.url }}">
-            <div class="ph wide">{%- if article.image -%}<img src="{{ article.image | image_url: width: 800 }}" alt="{{ article.title }}">{%- else -%}<span>visuel article</span>{%- endif -%}</div>
+            <div class="ph wide">{%- if article.image -%}{{ article.image | image_tag: loading: 'lazy', widths: '400, 600, 800', alt: article.title }}{%- else -%}<span>visuel article</span>{%- endif -%}</div>
             <div class="ncard-body"><span class="ncat">{{ article.tags.first | default: 'Article' }}</span><h3>{{ article.title }}</h3><span class="ndate">{{ article.published_at | date: '%-d %B %Y' }}</span></div>
           </a>
         {%- endfor -%}
@@ -48,7 +48,7 @@
       {%- if posts.size > 0 -%}
         {%- assign feat = posts.first -%}
         <article class="feat reveal">
-          <div class="ph">{%- if feat.settings.image != blank -%}<img src="{{ feat.settings.image | image_url: width: 1000 }}" alt="{{ feat.settings.title }}">{%- else -%}<span>{{ feat.settings.placeholder | default: 'visuel article' }}</span>{%- endif -%}</div>
+          <div class="ph">{%- if feat.settings.image != blank -%}{{ feat.settings.image | image_tag: widths: '400, 600, 800, 1000, 1400', alt: feat.settings.title }}{%- else -%}<span>{{ feat.settings.placeholder | default: 'visuel article' }}</span>{%- endif -%}</div>
           <div class="feat-body">
             <span class="ncat">{{ feat.settings.category }}</span>
             <h3>{{ feat.settings.title }}</h3>
@@ -60,7 +60,7 @@
       <div class="blog-grid reveal">
         {%- for block in posts offset: 1 -%}
           <a class="ncard" href="{{ block.settings.url | default: '#' }}" {{ block.shopify_attributes }}>
-            <div class="ph wide">{%- if block.settings.image != blank -%}<img src="{{ block.settings.image | image_url: width: 800 }}" alt="{{ block.settings.title }}">{%- else -%}<span>{{ block.settings.placeholder | default: 'visuel article' }}</span>{%- endif -%}</div>
+            <div class="ph wide">{%- if block.settings.image != blank -%}{{ block.settings.image | image_tag: loading: 'lazy', widths: '400, 600, 800', alt: block.settings.title }}{%- else -%}<span>{{ block.settings.placeholder | default: 'visuel article' }}</span>{%- endif -%}</div>
             <div class="ncard-body"><span class="ncat">{{ block.settings.category }}</span><h3>{{ block.settings.title }}</h3><span class="ndate">{{ block.settings.date }}</span></div>
           </a>
         {%- endfor -%}

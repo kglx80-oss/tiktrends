@@ -12,7 +12,7 @@
     <figure class="figure media-well" style="direction:ltr">
       <div class="ph {{ section.settings.ratio }}">
         {%- if section.settings.image != blank -%}
-          <img src="{{ section.settings.image | image_url: width: 1200 }}" alt="{{ section.settings.image.alt | default: section.settings.heading | strip_html }}" loading="lazy">
+          {{ section.settings.image | image_tag: loading: 'lazy', widths: '400, 600, 800, 1200, 1600' }}
         {%- else -%}
           <span>{{ section.settings.placeholder }}</span>
         {%- endif -%}

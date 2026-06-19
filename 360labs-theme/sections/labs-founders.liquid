@@ -9,7 +9,7 @@
       {%- for block in section.blocks -%}
         <div class="founder" {{ block.shopify_attributes }}>
           <div class="ph sq">
-            {%- if block.settings.image != blank -%}<img src="{{ block.settings.image | image_url: width: 600 }}" alt="{{ block.settings.name }}" loading="lazy">{%- else -%}<span>{{ block.settings.placeholder | default: 'photo' }}</span>{%- endif -%}
+            {%- if block.settings.image != blank -%}{{ block.settings.image | image_tag: loading: 'lazy', widths: '300, 450, 600, 900', alt: block.settings.name }}{%- else -%}<span>{{ block.settings.placeholder | default: 'photo' }}</span>{%- endif -%}
           </div>
           <h3>{{ block.settings.name }}</h3>
           {%- if block.settings.role != blank -%}<div class="role">{{ block.settings.role }}</div>{%- endif -%}

@@ -10,13 +10,13 @@
     </div>
   </div>
   <div class="bw-rows reveal">
-    {%- assign row1 = section.blocks | where: 'type', 'brand' -%}
     {%- for r in (1..2) -%}
+      {%- assign rstr = r | append: '' -%}
       <div class="bw-row{% if r == 2 %} rev{% endif %}">
         <div class="bw-track">
           {%- for dup in (1..2) -%}
             {%- for block in section.blocks -%}
-              {%- if block.type == 'brand' and block.settings.row == r -%}
+              {%- if block.type == 'brand' and block.settings.row == rstr -%}
                 <span class="bw-chip"><span class="bwi">{{ block.settings.letter }}</span><span>{{ block.settings.name }}</span></span>
               {%- endif -%}
             {%- endfor -%}

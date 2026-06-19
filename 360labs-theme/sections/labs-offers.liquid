@@ -1,7 +1,4 @@
 {%- comment -%} 360labs — Offres / services (grille 3 colonnes) {%- endcomment -%}
-{%- liquid
-  assign icons = ''
--%}
 <section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Offres' }}">
   <div class="wrap">
     <div class="head reveal">

@@ -12,7 +12,7 @@
           {%- if block.type == 'article' -%}
             <a class="ncard" href="{{ block.settings.url | default: '#' }}" {{ block.shopify_attributes }}>
               <div class="ph wide">
-                {%- if block.settings.image != blank -%}<img src="{{ block.settings.image | image_url: width: 800 }}" alt="{{ block.settings.title }}" loading="lazy">{%- else -%}<span>{{ block.settings.placeholder | default: 'visuel article' }}</span>{%- endif -%}
+                {%- if block.settings.image != blank -%}{{ block.settings.image | image_tag: loading: 'lazy', widths: '400, 600, 800, 1000', alt: block.settings.title }}{%- else -%}<span>{{ block.settings.placeholder | default: 'visuel article' }}</span>{%- endif -%}
               </div>
               <div class="ncard-body">
                 {%- if block.settings.category != blank -%}<span class="ncat">{{ block.settings.category }}</span>{%- endif -%}

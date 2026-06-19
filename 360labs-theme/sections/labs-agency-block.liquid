@@ -3,7 +3,7 @@
   <div class="wrap agblock reveal">
     <div class="agblock-head">
       <div class="ag-top">
-        <span class="ag-tile">{% if section.settings.logo != blank %}<img src="{{ section.settings.logo | image_url: width: 116 }}" alt="{{ section.settings.name }}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">{% else %}{{ section.settings.tile }}{% endif %}</span>
+        <span class="ag-tile">{% if section.settings.logo != blank %}{{ section.settings.logo | image_tag: widths: '58, 116, 174', alt: section.settings.name, style: 'width:100%;height:100%;object-fit:cover;border-radius:inherit' }}{% else %}{{ section.settings.tile }}{% endif %}</span>
         <div><div class="ag-name">{{ section.settings.name }}</div><div class="ag-base">{{ section.settings.base }}</div></div>
       </div>
       {%- if section.settings.text != blank -%}<p>{{ section.settings.text }}</p>{%- endif -%}
