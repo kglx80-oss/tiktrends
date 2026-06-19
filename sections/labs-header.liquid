@@ -9,9 +9,9 @@
     <a class="nav-brand" href="{{ section.settings.brand_url | default: routes.root_url }}" style="text-decoration:none">
       {%- assign logo_alt = section.settings.brand_text | default: '360labs' | strip_html -%}
       {%- if section.settings.logo != blank -%}
-        {{ section.settings.logo | image_tag: widths: '120, 180, 240, 360', alt: logo_alt, style: 'height:30px;width:auto;display:block' }}
+        {{ section.settings.logo | image_tag: widths: '160, 240, 320, 440', alt: logo_alt, style: 'height:38px;width:auto;display:block' }}
       {%- else -%}
-        <img class="brand-logo" src="{{ 'labs-logo.svg' | asset_url }}" alt="{{ logo_alt }}" width="124" height="60" style="height:30px;width:auto;display:block">
+        <img class="brand-logo" src="{{ 'labs-logo.svg' | asset_url }}" alt="{{ logo_alt }}" width="158" height="71" style="height:38px;width:auto;display:block">
       {%- endif -%}
     </a>
 
