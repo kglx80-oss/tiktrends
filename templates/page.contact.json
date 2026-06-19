@@ -1,12 +1,75 @@
 {
   "sections": {
-    "hero": { "type": "labs-page-hero", "settings": { "theme": "dark", "eyebrow": "Contact", "heading": "Parlons de <span class=\"grad-on\">votre marque</span>.", "text": "Une question, un projet, un audit ? Écrivez-nous, on revient vers vous sous 48 h ouvrées." } },
-    "lead": { "type": "labs-lead-form", "settings": { "theme": "light", "anchor": "contact", "eyebrow": "Écrivez-nous", "heading": "Comment peut-on vous aider ?", "text": "Dites-nous en quelques mots ce que vous cherchez.", "form_title": "Nous contacter", "form_sub": "Réponse sous 48 h ouvrées.", "select_label": "Sujet", "select_options": "Audit gratuit, Projet e-commerce, Entreprise / B2B, Presse / partenariat, Autre", "submit_label": "Envoyer le message" }, "blocks": {
-      "p1": { "type": "point", "settings": { "bold": "Réponse rapide", "text": "sous 48 h ouvrées." } },
-      "p2": { "type": "point", "settings": { "bold": "Le bon expert", "text": "selon votre besoin." } },
-      "m1": { "type": "meta", "settings": { "value": "48 h", "label": "Délai de réponse" } },
-      "m2": { "type": "meta", "settings": { "value": "France", "label": "Équipe basée en" } }
-    }, "block_order": ["p1","p2","m1","m2"] }
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Contact",
+        "heading": "Parlons de <span class=\"grad-on\">votre marque</span>.",
+        "text": "Une question, un projet, un audit ? Écrivez-nous, on revient vers vous sous 48 h ouvrées."
+      }
+    },
+    "lead": {
+      "type": "labs-lead-form",
+      "settings": {
+        "theme": "light",
+        "anchor": "contact",
+        "eyebrow": "Écrivez-nous",
+        "heading": "Comment peut-on vous aider ?",
+        "text": "Dites-nous en quelques mots ce que vous cherchez.",
+        "form_title": "Nous contacter",
+        "form_sub": "Réponse sous 48 h ouvrées.",
+        "select_label": "Sujet",
+        "select_options": "Audit gratuit, Projet e-commerce, Entreprise / B2B, Presse / partenariat, Autre",
+        "submit_label": "Envoyer le message"
+      },
+      "blocks": {
+        "p1": {
+          "type": "point",
+          "settings": {
+            "bold": "Réponse rapide",
+            "text": "sous 48 h ouvrées."
+          }
+        },
+        "p2": {
+          "type": "point",
+          "settings": {
+            "bold": "Le bon expert",
+            "text": "selon votre besoin."
+          }
+        },
+        "m1": {
+          "type": "meta",
+          "settings": {
+            "value": "48 h",
+            "label": "Délai de réponse"
+          }
+        },
+        "m2": {
+          "type": "meta",
+          "settings": {
+            "value": "France",
+            "label": "Équipe basée en"
+          }
+        }
+      },
+      "block_order": [
+        "p1",
+        "p2",
+        "m1",
+        "m2"
+      ]
+    },
+    "ribbons": {
+      "type": "labs-ribbons",
+      "settings": {
+        "height": 340
+      }
+    }
   },
-  "order": ["hero","lead"]
+  "order": [
+    "hero",
+    "lead",
+    "ribbons"
+  ]
 }

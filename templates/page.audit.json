@@ -1,18 +1,112 @@
 {
   "sections": {
-    "lead": { "type": "labs-lead-form", "settings": { "theme": "dark", "anchor": "audit", "eyebrow": "Audit gratuit", "heading": "Faites auditer votre marque, gratuitement.", "text": "On analyse votre site, votre acquisition et vos parcours. Vous repartez avec un plan d'action clair — sans engagement.", "form_title": "Réserver mon audit", "form_sub": "Réponse sous 48 h ouvrées.", "select_label": "Vous êtes", "select_options": "Marque e-commerce, Entreprise / B2B, Créateur, Autre", "submit_label": "Envoyer ma demande" }, "blocks": {
-      "p1": { "type": "point", "settings": { "bold": "Audit CRO & Pub", "text": "— on identifie où sont vos points de fuite." } },
-      "p2": { "type": "point", "settings": { "bold": "Plan d'action", "text": "priorisé selon l'impact et l'effort." } },
-      "p3": { "type": "point", "settings": { "bold": "Sans engagement", "text": "— vous repartez avec, qu'on travaille ensemble ou non." } },
-      "m1": { "type": "meta", "settings": { "value": "48 h", "label": "Délai de réponse" } },
-      "m2": { "type": "meta", "settings": { "value": "Gratuit", "label": "Audit complet" } }
-    }, "block_order": ["p1","p2","p3","m1","m2"] },
-    "reassure": { "type": "labs-reassure", "settings": { "theme": "light" }, "blocks": {
-      "r1": { "type": "item", "settings": { "text": "100 % gratuit" } },
-      "r2": { "type": "item", "settings": { "text": "Sans engagement" } },
-      "r3": { "type": "item", "settings": { "text": "Réponse sous 48 h" } },
-      "r4": { "type": "item", "settings": { "text": "+3000 audits réalisés" } }
-    }, "block_order": ["r1","r2","r3","r4"] }
+    "lead": {
+      "type": "labs-lead-form",
+      "settings": {
+        "theme": "dark",
+        "anchor": "audit",
+        "eyebrow": "Audit gratuit",
+        "heading": "Faites auditer votre marque, gratuitement.",
+        "text": "On analyse votre site, votre acquisition et vos parcours. Vous repartez avec un plan d'action clair — sans engagement.",
+        "form_title": "Réserver mon audit",
+        "form_sub": "Réponse sous 48 h ouvrées.",
+        "select_label": "Vous êtes",
+        "select_options": "Marque e-commerce, Entreprise / B2B, Créateur, Autre",
+        "submit_label": "Envoyer ma demande"
+      },
+      "blocks": {
+        "p1": {
+          "type": "point",
+          "settings": {
+            "bold": "Audit CRO & Pub",
+            "text": "— on identifie où sont vos points de fuite."
+          }
+        },
+        "p2": {
+          "type": "point",
+          "settings": {
+            "bold": "Plan d'action",
+            "text": "priorisé selon l'impact et l'effort."
+          }
+        },
+        "p3": {
+          "type": "point",
+          "settings": {
+            "bold": "Sans engagement",
+            "text": "— vous repartez avec, qu'on travaille ensemble ou non."
+          }
+        },
+        "m1": {
+          "type": "meta",
+          "settings": {
+            "value": "48 h",
+            "label": "Délai de réponse"
+          }
+        },
+        "m2": {
+          "type": "meta",
+          "settings": {
+            "value": "Gratuit",
+            "label": "Audit complet"
+          }
+        }
+      },
+      "block_order": [
+        "p1",
+        "p2",
+        "p3",
+        "m1",
+        "m2"
+      ]
+    },
+    "reassure": {
+      "type": "labs-reassure",
+      "settings": {
+        "theme": "light"
+      },
+      "blocks": {
+        "r1": {
+          "type": "item",
+          "settings": {
+            "text": "100 % gratuit"
+          }
+        },
+        "r2": {
+          "type": "item",
+          "settings": {
+            "text": "Sans engagement"
+          }
+        },
+        "r3": {
+          "type": "item",
+          "settings": {
+            "text": "Réponse sous 48 h"
+          }
+        },
+        "r4": {
+          "type": "item",
+          "settings": {
+            "text": "+3000 audits réalisés"
+          }
+        }
+      },
+      "block_order": [
+        "r1",
+        "r2",
+        "r3",
+        "r4"
+      ]
+    },
+    "ribbons": {
+      "type": "labs-ribbons",
+      "settings": {
+        "height": 340
+      }
+    }
   },
-  "order": ["lead","reassure"]
+  "order": [
+    "lead",
+    "reassure",
+    "ribbons"
+  ]
 }

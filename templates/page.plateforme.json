@@ -1,16 +1,115 @@
 {
   "sections": {
-    "hero": { "type": "labs-page-hero", "settings": { "theme": "dark", "eyebrow": "La Plateforme · Bientôt", "heading": "Le <span class=\"grad-on\">copilote</span> des marques e-commerce.", "text": "Bientôt : pilotez toute votre marque depuis un seul endroit, avec une IA qui pense comme nos experts. Rejoignez la liste d'attente pour un accès anticipé.", "cta1_label": "Rejoindre la liste d'attente", "cta1_url": "#waitlist" } },
-    "platform": { "type": "labs-platform", "settings": { "theme": "light", "anchor": "benefices", "eyebrow": "Ce que ça change", "heading": "Tout votre business, lisible et piloté.", "text": "Fini les dix outils déconnectés. Une plateforme qui réunit vos données et vous dit quoi faire.", "cta_label": "Rejoindre la liste", "cta_url": "#waitlist" }, "blocks": {
-      "p1": { "type": "benefit", "settings": { "number": "01", "title": "Tout votre business, en un seul endroit.", "text": "Vos données réunies et lisibles, sans jongler entre dix outils." } },
-      "p2": { "type": "benefit", "settings": { "number": "02", "title": "Un copilote qui vous dit quoi faire.", "text": "Chaque jour, une lecture claire et des actions prioritaires." } },
-      "p3": { "type": "benefit", "settings": { "number": "03", "title": "L'intelligence du groupe, à votre service.", "text": "La méthode qui a fait grandir +3000 projets, dans une plateforme." } }
-    }, "block_order": ["p1","p2","p3"] },
-    "teaser": { "type": "labs-platform-teaser", "settings": { "theme": "dark", "anchor": "waitlist", "eyebrow": "Accès anticipé", "heading": "Quelque chose se prépare.", "pill": "Accès anticipé", "veil_title": "Le copilote arrive bientôt.", "veil_text": "Une plateforme qui réunit vos données et vous dit quoi faire, chaque jour. Rejoignez la liste pour un accès prioritaire.", "show_waitlist": true, "waitlist_button": "Rejoindre" }, "blocks": {
-      "c1": { "type": "cry", "settings": { "key": "// 01", "title": "Données unifiées", "text": "Toutes vos sources réunies, lisibles d'un coup d'œil." } },
-      "c2": { "type": "cry", "settings": { "key": "// 02", "title": "Copilote IA", "text": "Des recommandations quotidiennes, priorisées par impact." } },
-      "c3": { "type": "cry", "settings": { "key": "// 03", "title": "Méthode du groupe", "text": "L'expérience de +3000 projets, encodée." } }
-    }, "block_order": ["c1","c2","c3"] }
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "La Plateforme · Bientôt",
+        "heading": "Le <span class=\"grad-on\">copilote</span> des marques e-commerce.",
+        "text": "Bientôt : pilotez toute votre marque depuis un seul endroit, avec une IA qui pense comme nos experts. Rejoignez la liste d'attente pour un accès anticipé.",
+        "cta1_label": "Rejoindre la liste d'attente",
+        "cta1_url": "#waitlist"
+      }
+    },
+    "platform": {
+      "type": "labs-platform",
+      "settings": {
+        "theme": "light",
+        "anchor": "benefices",
+        "eyebrow": "Ce que ça change",
+        "heading": "Tout votre business, lisible et piloté.",
+        "text": "Fini les dix outils déconnectés. Une plateforme qui réunit vos données et vous dit quoi faire.",
+        "cta_label": "Rejoindre la liste",
+        "cta_url": "#waitlist"
+      },
+      "blocks": {
+        "p1": {
+          "type": "benefit",
+          "settings": {
+            "number": "01",
+            "title": "Tout votre business, en un seul endroit.",
+            "text": "Vos données réunies et lisibles, sans jongler entre dix outils."
+          }
+        },
+        "p2": {
+          "type": "benefit",
+          "settings": {
+            "number": "02",
+            "title": "Un copilote qui vous dit quoi faire.",
+            "text": "Chaque jour, une lecture claire et des actions prioritaires."
+          }
+        },
+        "p3": {
+          "type": "benefit",
+          "settings": {
+            "number": "03",
+            "title": "L'intelligence du groupe, à votre service.",
+            "text": "La méthode qui a fait grandir +3000 projets, dans une plateforme."
+          }
+        }
+      },
+      "block_order": [
+        "p1",
+        "p2",
+        "p3"
+      ]
+    },
+    "teaser": {
+      "type": "labs-platform-teaser",
+      "settings": {
+        "theme": "dark",
+        "anchor": "waitlist",
+        "eyebrow": "Accès anticipé",
+        "heading": "Quelque chose se prépare.",
+        "pill": "Accès anticipé",
+        "veil_title": "Le copilote arrive bientôt.",
+        "veil_text": "Une plateforme qui réunit vos données et vous dit quoi faire, chaque jour. Rejoignez la liste pour un accès prioritaire.",
+        "show_waitlist": true,
+        "waitlist_button": "Rejoindre"
+      },
+      "blocks": {
+        "c1": {
+          "type": "cry",
+          "settings": {
+            "key": "// 01",
+            "title": "Données unifiées",
+            "text": "Toutes vos sources réunies, lisibles d'un coup d'œil."
+          }
+        },
+        "c2": {
+          "type": "cry",
+          "settings": {
+            "key": "// 02",
+            "title": "Copilote IA",
+            "text": "Des recommandations quotidiennes, priorisées par impact."
+          }
+        },
+        "c3": {
+          "type": "cry",
+          "settings": {
+            "key": "// 03",
+            "title": "Méthode du groupe",
+            "text": "L'expérience de +3000 projets, encodée."
+          }
+        }
+      },
+      "block_order": [
+        "c1",
+        "c2",
+        "c3"
+      ]
+    },
+    "ribbons": {
+      "type": "labs-ribbons",
+      "settings": {
+        "height": 340
+      }
+    }
   },
-  "order": ["hero","platform","teaser"]
+  "order": [
+    "hero",
+    "platform",
+    "teaser",
+    "ribbons"
+  ]
 }

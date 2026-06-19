@@ -18,7 +18,17 @@
         "lede": "Lancements de marques, résultats et regards sur l'e-commerce.",
         "filters": "Tout, Études de cas, Acquisition, Conversion, Coulisses"
       }
+    },
+    "ribbons": {
+      "type": "labs-ribbons",
+      "settings": {
+        "height": 340
+      }
     }
   },
-  "order": ["hero", "blog"]
+  "order": [
+    "hero",
+    "blog",
+    "ribbons"
+  ]
 }

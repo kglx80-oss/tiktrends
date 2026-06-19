@@ -1,43 +1,407 @@
 {
   "sections": {
-    "hero": { "type": "labs-page-hero", "settings": { "theme": "dark", "eyebrow": "L'écosystème", "heading": "Plusieurs métiers. <span class=\"grad-on\">Une seule mécanique</span> de croissance.", "text": "Quatre agences, un incubateur, des partenaires : chaque brique sert la croissance de votre marque." } },
-    "hub": { "type": "labs-eco-hub", "settings": { "theme": "dark", "anchor": "hub", "eyebrow": "Vue d'ensemble", "heading": "L'écosystème en un coup d'œil.", "core_label": "360labs" }, "blocks": {
-      "c1": { "type": "category", "settings": { "kicker": "01 — Conseil", "cat": "Conseil", "title": "Nos agences", "count": "4 marques", "arc": 78, "phase": -90, "desc": "Quatre agences qui couvrent toute la chaîne de croissance.", "chips": "GLX, TikTrends, Websitz, Melie", "cta_label": "Voir les agences", "cta_url": "#glx", "mark1_label": "GLX", "mark1_letter": "G", "mark1_logo": "labs-logo-glx.svg", "mark2_label": "TikTrends", "mark2_letter": "T", "mark2_logo": "labs-logo-tiktrends.svg", "mark3_label": "Websitz", "mark3_letter": "W", "mark3_logo": "labs-logo-websitz.svg", "mark4_label": "Melie", "mark4_letter": "M", "mark4_logo": "labs-logo-melie.svg" } },
-      "c2": { "type": "category", "settings": { "kicker": "02 — Ownership", "cat": "Ownership", "title": "Notre incubateur", "count": "Focuslabs", "arc": 58, "phase": -30, "desc": "On construit et on détient nos propres marques.", "chips": "Marques en propre, Skin in the game", "cta_label": "Le Groupe", "cta_url": "/pages/le-groupe", "mark1_label": "Focuslabs", "mark1_letter": "F", "mark1_logo": "labs-logo-focuslabs.svg" } },
-      "c3": { "type": "category", "settings": { "kicker": "03 — Produit", "cat": "Produit", "title": "Notre plateforme", "count": "Bientôt", "arc": 40, "phase": 150, "desc": "Le copilote IA des marques e-commerce.", "chips": "Copilote IA, Bientôt", "cta_label": "Rejoindre la liste", "cta_url": "/pages/plateforme", "mark1_label": "Plateforme", "mark1_logo": "none", "mark1_soft": true, "mark1_icon": true } },
-      "c4": { "type": "category", "settings": { "kicker": "04 — Partenaires", "cat": "Partenaires", "title": "Nos partenaires", "count": "Apollon", "arc": 50, "phase": 60, "desc": "Image physique : textile et personnalisation à Laval.", "chips": "Apollon Textile, Laval", "cta_label": "Entreprises", "cta_url": "/pages/entreprises", "mark1_label": "Apollon", "mark1_letter": "A", "mark1_logo": "labs-logo-apollon.svg" } }
-    }, "block_order": ["c1","c2","c3","c4"] },
-    "schema": { "type": "labs-schema", "settings": { "theme": "light", "eyebrow": "Couche par couche", "heading": "Comment les métiers s'assemblent." }, "blocks": {
-      "l1": { "type": "layer", "settings": { "tag": "CONSEIL", "subtitle": "Les agences", "chips": "GLX, TikTrends, Websitz, Melie", "glass": true } },
-      "l2": { "type": "layer", "settings": { "tag": "OWNERSHIP", "subtitle": "L'incubateur", "chips": "Focuslabs, Marques en propre" } },
-      "l3": { "type": "layer", "settings": { "tag": "PRODUIT", "subtitle": "La plateforme", "chips": "Copilote IA, Bientôt" } },
-      "l4": { "type": "layer", "settings": { "tag": "PARTENAIRES", "subtitle": "Le physique", "chips": "Apollon Textile, Laval" } },
-      "ch": { "type": "channel", "settings": { "title": "Une seule mécanique", "text": "Tous les leviers alignés vers la croissance de votre marque." } }
-    }, "block_order": ["l1","l2","l3","l4","ch"] },
-    "glx": { "type": "labs-agency-block", "settings": { "theme": "dark", "anchor": "glx", "tile": "G", "logo": "", "name": "GLX", "base": "Le site qui vend.", "text": "Création et optimisation de sites e-commerce qui convertissent et fidélisent. La première société du groupe, depuis 2019.", "proof": "+3000 projets · depuis 2019", "cta_label": "Travailler avec GLX", "cta_url": "/pages/audit" }, "blocks": {
-      "p1": { "type": "pole", "settings": { "number": "01", "title": "Site & CRO", "text": "Des sites pensés pour convertir et fidéliser." } },
-      "p2": { "type": "pole", "settings": { "number": "02", "title": "CRM & rétention", "text": "Emailing, automatisations, fidélisation." } },
-      "p3": { "type": "pole", "settings": { "number": "03", "title": "Accompagnement", "text": "Un partenaire de croissance sur la durée." } }
-    }, "block_order": ["p1","p2","p3"] },
-    "tiktrends": { "type": "labs-agency-block", "settings": { "theme": "light", "anchor": "tiktrends", "tile": "T", "name": "TikTrends", "base": "La marque qui scrolle et qui vend.", "text": "Transforme TikTok en machine à vendre : social commerce, studio créatif et créateurs calibrés pour la conversion.", "proof": "TikTok Shop · Studio & UGC · Live", "cta_label": "Travailler avec TikTrends", "cta_url": "/pages/audit", "cta_style": "btn-glass" }, "blocks": {
-      "p1": { "type": "pole", "settings": { "number": "01", "title": "TikTok Shop", "text": "Lancement et scaling sur TikTok Shop." } },
-      "p2": { "type": "pole", "settings": { "number": "02", "title": "Studio & UGC", "text": "Des contenus calibrés pour la conversion." } },
-      "p3": { "type": "pole", "settings": { "number": "03", "title": "Live commerce", "text": "Des lives qui vendent en direct." } }
-    }, "block_order": ["p1","p2","p3"] },
-    "websitz": { "type": "labs-agency-block", "settings": { "theme": "dark", "anchor": "websitz", "tile": "W", "name": "Websitz", "base": "Les systèmes qui tournent sans vous.", "text": "Construit des systèmes digitaux rentables et automatisés — et porte l'angle B2B du groupe.", "proof": "Systèmes · Data · Automatisation", "cta_label": "Travailler avec Websitz", "cta_url": "/pages/entreprises" }, "blocks": {
-      "p1": { "type": "pole", "settings": { "number": "01", "title": "Systèmes & data", "text": "Des outils qui pilotent votre business." } },
-      "p2": { "type": "pole", "settings": { "number": "02", "title": "Automatisation", "text": "Des process qui tournent en autonomie." } },
-      "p3": { "type": "pole", "settings": { "number": "03", "title": "Acquisition B2B", "text": "Générer des leads qualifiés en continu." } }
-    }, "block_order": ["p1","p2","p3"] },
-    "melie": { "type": "labs-agency-block", "settings": { "theme": "light", "anchor": "melie", "tile": "M", "name": "Melie", "base": "L'acquisition rentable.", "text": "Pilote vos campagnes payantes pour une acquisition stable et profitable, sur toutes les régies.", "proof": "Meta · Google · TikTok", "cta_label": "Travailler avec Melie", "cta_url": "/pages/audit", "cta_style": "btn-glass" }, "blocks": {
-      "p1": { "type": "pole", "settings": { "number": "01", "title": "Media buying", "text": "Meta, Google, TikTok — pilotés à la marge." } },
-      "p2": { "type": "pole", "settings": { "number": "02", "title": "Creative strategy", "text": "Des créas qui font baisser le coût d'acquisition." } },
-      "p3": { "type": "pole", "settings": { "number": "03", "title": "Scaling", "text": "Passer à l'échelle sans casser la rentabilité." } }
-    }, "block_order": ["p1","p2","p3"] },
-    "cta": { "type": "labs-double-cta", "settings": { "theme": "dark", "anchor": "contact", "eyebrow": "Et maintenant", "heading": "Quel levier vous manque ?" }, "blocks": {
-      "d1": { "type": "door", "settings": { "eyebrow": "Marque e-commerce", "title": "Faites auditer votre marque.", "text": "On identifie le levier manquant, gratuitement.", "cta_label": "Réserver mon audit", "cta_url": "/pages/audit", "cta_style": "btn-glass" } },
-      "d2": { "type": "door", "settings": { "eyebrow": "Entreprise · B2B", "title": "Parlons de votre projet.", "text": "Le groupe au service des entreprises.", "cta_label": "Parler à un expert", "cta_url": "/pages/entreprises", "cta_style": "btn-soft" } }
-    }, "block_order": ["d1","d2"] }
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "L'écosystème",
+        "heading": "Plusieurs métiers. <span class=\"grad-on\">Une seule mécanique</span> de croissance.",
+        "text": "Quatre agences, un incubateur, des partenaires : chaque brique sert la croissance de votre marque."
+      }
+    },
+    "hub": {
+      "type": "labs-eco-hub",
+      "settings": {
+        "theme": "dark",
+        "anchor": "hub",
+        "eyebrow": "Vue d'ensemble",
+        "heading": "L'écosystème en un coup d'œil.",
+        "core_label": "360labs"
+      },
+      "blocks": {
+        "c1": {
+          "type": "category",
+          "settings": {
+            "kicker": "01 — Conseil",
+            "cat": "Conseil",
+            "title": "Nos agences",
+            "count": "4 marques",
+            "arc": 78,
+            "phase": -90,
+            "desc": "Quatre agences qui couvrent toute la chaîne de croissance.",
+            "chips": "GLX, TikTrends, Websitz, Melie",
+            "cta_label": "Voir les agences",
+            "cta_url": "#glx",
+            "mark1_label": "GLX",
+            "mark1_letter": "G",
+            "mark1_logo": "labs-logo-glx.svg",
+            "mark2_label": "TikTrends",
+            "mark2_letter": "T",
+            "mark2_logo": "labs-logo-tiktrends.svg",
+            "mark3_label": "Websitz",
+            "mark3_letter": "W",
+            "mark3_logo": "labs-logo-websitz.svg",
+            "mark4_label": "Melie",
+            "mark4_letter": "M",
+            "mark4_logo": "labs-logo-melie.svg"
+          }
+        },
+        "c2": {
+          "type": "category",
+          "settings": {
+            "kicker": "02 — Ownership",
+            "cat": "Ownership",
+            "title": "Notre incubateur",
+            "count": "Focuslabs",
+            "arc": 58,
+            "phase": -30,
+            "desc": "On construit et on détient nos propres marques.",
+            "chips": "Marques en propre, Skin in the game",
+            "cta_label": "Le Groupe",
+            "cta_url": "/pages/le-groupe",
+            "mark1_label": "Focuslabs",
+            "mark1_letter": "F",
+            "mark1_logo": "labs-logo-focuslabs.svg"
+          }
+        },
+        "c3": {
+          "type": "category",
+          "settings": {
+            "kicker": "03 — Produit",
+            "cat": "Produit",
+            "title": "Notre plateforme",
+            "count": "Bientôt",
+            "arc": 40,
+            "phase": 150,
+            "desc": "Le copilote IA des marques e-commerce.",
+            "chips": "Copilote IA, Bientôt",
+            "cta_label": "Rejoindre la liste",
+            "cta_url": "/pages/plateforme",
+            "mark1_label": "Plateforme",
+            "mark1_logo": "none",
+            "mark1_soft": true,
+            "mark1_icon": true
+          }
+        },
+        "c4": {
+          "type": "category",
+          "settings": {
+            "kicker": "04 — Partenaires",
+            "cat": "Partenaires",
+            "title": "Nos partenaires",
+            "count": "Apollon",
+            "arc": 50,
+            "phase": 60,
+            "desc": "Image physique : textile et personnalisation à Laval.",
+            "chips": "Apollon Textile, Laval",
+            "cta_label": "Entreprises",
+            "cta_url": "/pages/entreprises",
+            "mark1_label": "Apollon",
+            "mark1_letter": "A",
+            "mark1_logo": "labs-logo-apollon.svg"
+          }
+        }
+      },
+      "block_order": [
+        "c1",
+        "c2",
+        "c3",
+        "c4"
+      ]
+    },
+    "schema": {
+      "type": "labs-schema",
+      "settings": {
+        "theme": "light",
+        "eyebrow": "Couche par couche",
+        "heading": "Comment les métiers s'assemblent."
+      },
+      "blocks": {
+        "l1": {
+          "type": "layer",
+          "settings": {
+            "tag": "CONSEIL",
+            "subtitle": "Les agences",
+            "chips": "GLX, TikTrends, Websitz, Melie",
+            "glass": true
+          }
+        },
+        "l2": {
+          "type": "layer",
+          "settings": {
+            "tag": "OWNERSHIP",
+            "subtitle": "L'incubateur",
+            "chips": "Focuslabs, Marques en propre"
+          }
+        },
+        "l3": {
+          "type": "layer",
+          "settings": {
+            "tag": "PRODUIT",
+            "subtitle": "La plateforme",
+            "chips": "Copilote IA, Bientôt"
+          }
+        },
+        "l4": {
+          "type": "layer",
+          "settings": {
+            "tag": "PARTENAIRES",
+            "subtitle": "Le physique",
+            "chips": "Apollon Textile, Laval"
+          }
+        },
+        "ch": {
+          "type": "channel",
+          "settings": {
+            "title": "Une seule mécanique",
+            "text": "Tous les leviers alignés vers la croissance de votre marque."
+          }
+        }
+      },
+      "block_order": [
+        "l1",
+        "l2",
+        "l3",
+        "l4",
+        "ch"
+      ]
+    },
+    "glx": {
+      "type": "labs-agency-block",
+      "settings": {
+        "theme": "dark",
+        "anchor": "glx",
+        "tile": "G",
+        "logo": "",
+        "name": "GLX",
+        "base": "Le site qui vend.",
+        "text": "Création et optimisation de sites e-commerce qui convertissent et fidélisent. La première société du groupe, depuis 2019.",
+        "proof": "+3000 projets · depuis 2019",
+        "cta_label": "Travailler avec GLX",
+        "cta_url": "/pages/audit"
+      },
+      "blocks": {
+        "p1": {
+          "type": "pole",
+          "settings": {
+            "number": "01",
+            "title": "Site & CRO",
+            "text": "Des sites pensés pour convertir et fidéliser."
+          }
+        },
+        "p2": {
+          "type": "pole",
+          "settings": {
+            "number": "02",
+            "title": "CRM & rétention",
+            "text": "Emailing, automatisations, fidélisation."
+          }
+        },
+        "p3": {
+          "type": "pole",
+          "settings": {
+            "number": "03",
+            "title": "Accompagnement",
+            "text": "Un partenaire de croissance sur la durée."
+          }
+        }
+      },
+      "block_order": [
+        "p1",
+        "p2",
+        "p3"
+      ]
+    },
+    "tiktrends": {
+      "type": "labs-agency-block",
+      "settings": {
+        "theme": "light",
+        "anchor": "tiktrends",
+        "tile": "T",
+        "name": "TikTrends",
+        "base": "La marque qui scrolle et qui vend.",
+        "text": "Transforme TikTok en machine à vendre : social commerce, studio créatif et créateurs calibrés pour la conversion.",
+        "proof": "TikTok Shop · Studio & UGC · Live",
+        "cta_label": "Travailler avec TikTrends",
+        "cta_url": "/pages/audit",
+        "cta_style": "btn-glass"
+      },
+      "blocks": {
+        "p1": {
+          "type": "pole",
+          "settings": {
+            "number": "01",
+            "title": "TikTok Shop",
+            "text": "Lancement et scaling sur TikTok Shop."
+          }
+        },
+        "p2": {
+          "type": "pole",
+          "settings": {
+            "number": "02",
+            "title": "Studio & UGC",
+            "text": "Des contenus calibrés pour la conversion."
+          }
+        },
+        "p3": {
+          "type": "pole",
+          "settings": {
+            "number": "03",
+            "title": "Live commerce",
+            "text": "Des lives qui vendent en direct."
+          }
+        }
+      },
+      "block_order": [
+        "p1",
+        "p2",
+        "p3"
+      ]
+    },
+    "websitz": {
+      "type": "labs-agency-block",
+      "settings": {
+        "theme": "dark",
+        "anchor": "websitz",
+        "tile": "W",
+        "name": "Websitz",
+        "base": "Les systèmes qui tournent sans vous.",
+        "text": "Construit des systèmes digitaux rentables et automatisés — et porte l'angle B2B du groupe.",
+        "proof": "Systèmes · Data · Automatisation",
+        "cta_label": "Travailler avec Websitz",
+        "cta_url": "/pages/entreprises"
+      },
+      "blocks": {
+        "p1": {
+          "type": "pole",
+          "settings": {
+            "number": "01",
+            "title": "Systèmes & data",
+            "text": "Des outils qui pilotent votre business."
+          }
+        },
+        "p2": {
+          "type": "pole",
+          "settings": {
+            "number": "02",
+            "title": "Automatisation",
+            "text": "Des process qui tournent en autonomie."
+          }
+        },
+        "p3": {
+          "type": "pole",
+          "settings": {
+            "number": "03",
+            "title": "Acquisition B2B",
+            "text": "Générer des leads qualifiés en continu."
+          }
+        }
+      },
+      "block_order": [
+        "p1",
+        "p2",
+        "p3"
+      ]
+    },
+    "melie": {
+      "type": "labs-agency-block",
+      "settings": {
+        "theme": "light",
+        "anchor": "melie",
+        "tile": "M",
+        "name": "Melie",
+        "base": "L'acquisition rentable.",
+        "text": "Pilote vos campagnes payantes pour une acquisition stable et profitable, sur toutes les régies.",
+        "proof": "Meta · Google · TikTok",
+        "cta_label": "Travailler avec Melie",
+        "cta_url": "/pages/audit",
+        "cta_style": "btn-glass"
+      },
+      "blocks": {
+        "p1": {
+          "type": "pole",
+          "settings": {
+            "number": "01",
+            "title": "Media buying",
+            "text": "Meta, Google, TikTok — pilotés à la marge."
+          }
+        },
+        "p2": {
+          "type": "pole",
+          "settings": {
+            "number": "02",
+            "title": "Creative strategy",
+            "text": "Des créas qui font baisser le coût d'acquisition."
+          }
+        },
+        "p3": {
+          "type": "pole",
+          "settings": {
+            "number": "03",
+            "title": "Scaling",
+            "text": "Passer à l'échelle sans casser la rentabilité."
+          }
+        }
+      },
+      "block_order": [
+        "p1",
+        "p2",
+        "p3"
+      ]
+    },
+    "cta": {
+      "type": "labs-double-cta",
+      "settings": {
+        "theme": "dark",
+        "anchor": "contact",
+        "eyebrow": "Et maintenant",
+        "heading": "Quel levier vous manque ?"
+      },
+      "blocks": {
+        "d1": {
+          "type": "door",
+          "settings": {
+            "eyebrow": "Marque e-commerce",
+            "title": "Faites auditer votre marque.",
+            "text": "On identifie le levier manquant, gratuitement.",
+            "cta_label": "Réserver mon audit",
+            "cta_url": "/pages/audit",
+            "cta_style": "btn-glass"
+          }
+        },
+        "d2": {
+          "type": "door",
+          "settings": {
+            "eyebrow": "Entreprise · B2B",
+            "title": "Parlons de votre projet.",
+            "text": "Le groupe au service des entreprises.",
+            "cta_label": "Parler à un expert",
+            "cta_url": "/pages/entreprises",
+            "cta_style": "btn-soft"
+          }
+        }
+      },
+      "block_order": [
+        "d1",
+        "d2"
+      ]
+    },
+    "ribbons": {
+      "type": "labs-ribbons",
+      "settings": {
+        "height": 340
+      }
+    }
   },
-  "order": ["hero","hub","schema","glx","tiktrends","websitz","melie","cta"]
+  "order": [
+    "hero",
+    "hub",
+    "schema",
+    "glx",
+    "tiktrends",
+    "websitz",
+    "melie",
+    "cta",
+    "ribbons"
+  ]
 }

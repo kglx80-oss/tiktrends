@@ -1,34 +1,268 @@
 {
   "sections": {
-    "hero": { "type": "labs-page-hero", "settings": { "theme": "dark", "eyebrow": "Le Groupe", "heading": "Le groupe qui <span class=\"grad-on\">construit, possède et propulse</span> les marques.", "text": "Depuis 2019, 360labs réunit agences, incubateur et bientôt une plateforme pour faire grandir les marques e-commerce — comme si c'étaient les siennes.", "cta1_label": "Auditer ma marque", "cta1_url": "/pages/audit", "cta2_label": "Découvrir l'écosystème", "cta2_url": "/pages/ecosysteme" } },
-    "proof": { "type": "labs-proof-band", "settings": { "theme": "dark", "subtext": "Données 2019–2026 · écosystème 360labs" }, "blocks": {
-      "m1": { "type": "stat", "settings": { "value": "+3000", "label": "Projets accompagnés", "gradient": true } },
-      "m2": { "type": "stat", "settings": { "value": "~40", "label": "Marques en gestion" } },
-      "m3": { "type": "stat", "settings": { "value": "1500+", "label": "Avis vérifiés" } },
-      "m4": { "type": "stat", "settings": { "value": "2019", "label": "Depuis" } }
-    }, "block_order": ["m1","m2","m3","m4"] },
-    "histoire": { "type": "labs-editorial", "settings": { "theme": "light", "anchor": "histoire", "eyebrow": "Notre histoire", "title": "De la première agence à l'écosystème.", "body": "<p>Tout a commencé en 2019 avec une conviction simple : une marque e-commerce ne grandit pas avec un seul levier, mais avec un <strong>système complet</strong>.</p><p>D'abord une agence — GLX — puis le constat qu'il fallait couvrir toute la chaîne. Aujourd'hui, 360labs réunit quatre agences, un incubateur de marques en propre et bientôt une plateforme.</p><p>Notre différence : on ne conseille pas depuis les gradins. On <strong>possède et opère nos propres marques</strong>, on vit les mêmes décisions que vous.</p>" } },
-    "convictions": { "type": "labs-convictions", "settings": { "theme": "dark", "eyebrow": "Nos convictions", "heading": "Ce en quoi nous croyons." }, "blocks": {
-      "c1": { "type": "conviction", "settings": { "number": "01", "title": "Le système avant le levier.", "text": "Une marque grandit quand tous les leviers travaillent ensemble, pas isolément." } },
-      "c2": { "type": "conviction", "settings": { "number": "02", "title": "Skin in the game.", "text": "On teste notre méthode sur nos propres marques avant de l'appliquer chez vous." } },
-      "c3": { "type": "conviction", "settings": { "number": "03", "title": "La rentabilité, pas la vanité.", "text": "On pilote la marge et le cash, pas seulement le chiffre d'affaires." } },
-      "c4": { "type": "conviction", "settings": { "number": "04", "title": "Le long terme.", "text": "On construit des marques durables, pas des coups sans lendemain." } }
-    }, "block_order": ["c1","c2","c3","c4"] },
-    "ownership": { "type": "labs-ownership", "settings": { "theme": "light", "anchor": "skin", "eyebrow": "Focuslabs · Ownership", "heading": "On joue notre propre argent.", "text": "<p>Avec <strong>Focuslabs</strong>, notre incubateur, nous lançons et détenons nos propres marques e-commerce. De vraies marques, avec notre trésorerie et nos arbitrages.</p>", "cta_label": "Comprendre la thèse", "cta_url": "/pages/ecosysteme", "cta_style": "btn-glass" }, "blocks": {
-      "o1": { "type": "card", "settings": { "wide": true, "icon": "gem", "tag": "Skin in the game", "title": "Nos marques, notre capital.", "text": "Quand on vous recommande une décision, on l'a déjà prise pour nous." } },
-      "o2": { "type": "card", "settings": { "icon": "coins", "number": "100 %", "title": "Du capital engagé", "text": "Nos marques sont financées par le groupe." } },
-      "o3": { "type": "card", "settings": { "icon": "flask", "number": "R&D", "title": "Terrain d'essai", "text": "Chaque levier est validé en interne." } }
-    }, "block_order": ["o1","o2","o3"] },
-    "founders": { "type": "labs-founders", "settings": { "theme": "dark", "eyebrow": "L'équipe", "heading": "Les visages derrière le groupe." }, "blocks": {
-      "f1": { "type": "founder", "settings": { "name": "Fondateur 1", "role": "CEO & co-fondateur", "text": "Vision groupe & stratégie de croissance." } },
-      "f2": { "type": "founder", "settings": { "name": "Fondateur 2", "role": "Co-fondateur", "text": "Opérations & marques en propre." } },
-      "f3": { "type": "founder", "settings": { "name": "Direction acquisition", "role": "Head of Paid", "text": "Acquisition rentable, toutes régies." } },
-      "f4": { "type": "founder", "settings": { "name": "Direction création", "role": "Head of Creative", "text": "Studio, UGC & contenus qui vendent." } }
-    }, "block_order": ["f1","f2","f3","f4"] },
-    "cta": { "type": "labs-double-cta", "settings": { "theme": "light", "anchor": "contact", "eyebrow": "Et maintenant", "heading": "Travaillons ensemble." }, "blocks": {
-      "d1": { "type": "door", "settings": { "eyebrow": "Marque e-commerce", "title": "Faites auditer votre marque.", "text": "Un audit CRO & Pub gratuit, sans engagement.", "cta_label": "Réserver mon audit", "cta_url": "/pages/audit", "cta_style": "btn-glass" } },
-      "d2": { "type": "door", "settings": { "eyebrow": "Entreprise · B2B", "title": "Construisons votre présence.", "text": "Site, visibilité, image, automatisation.", "cta_label": "Parler à un expert", "cta_url": "/pages/entreprises", "cta_style": "btn-soft" } }
-    }, "block_order": ["d1","d2"] }
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Le Groupe",
+        "heading": "Le groupe qui <span class=\"grad-on\">construit, possède et propulse</span> les marques.",
+        "text": "Depuis 2019, 360labs réunit agences, incubateur et bientôt une plateforme pour faire grandir les marques e-commerce — comme si c'étaient les siennes.",
+        "cta1_label": "Auditer ma marque",
+        "cta1_url": "/pages/audit",
+        "cta2_label": "Découvrir l'écosystème",
+        "cta2_url": "/pages/ecosysteme"
+      }
+    },
+    "proof": {
+      "type": "labs-proof-band",
+      "settings": {
+        "theme": "dark",
+        "subtext": "Données 2019–2026 · écosystème 360labs"
+      },
+      "blocks": {
+        "m1": {
+          "type": "stat",
+          "settings": {
+            "value": "+3000",
+            "label": "Projets accompagnés",
+            "gradient": true
+          }
+        },
+        "m2": {
+          "type": "stat",
+          "settings": {
+            "value": "~40",
+            "label": "Marques en gestion"
+          }
+        },
+        "m3": {
+          "type": "stat",
+          "settings": {
+            "value": "1500+",
+            "label": "Avis vérifiés"
+          }
+        },
+        "m4": {
+          "type": "stat",
+          "settings": {
+            "value": "2019",
+            "label": "Depuis"
+          }
+        }
+      },
+      "block_order": [
+        "m1",
+        "m2",
+        "m3",
+        "m4"
+      ]
+    },
+    "histoire": {
+      "type": "labs-editorial",
+      "settings": {
+        "theme": "light",
+        "anchor": "histoire",
+        "eyebrow": "Notre histoire",
+        "title": "De la première agence à l'écosystème.",
+        "body": "<p>Tout a commencé en 2019 avec une conviction simple : une marque e-commerce ne grandit pas avec un seul levier, mais avec un <strong>système complet</strong>.</p><p>D'abord une agence — GLX — puis le constat qu'il fallait couvrir toute la chaîne. Aujourd'hui, 360labs réunit quatre agences, un incubateur de marques en propre et bientôt une plateforme.</p><p>Notre différence : on ne conseille pas depuis les gradins. On <strong>possède et opère nos propres marques</strong>, on vit les mêmes décisions que vous.</p>"
+      }
+    },
+    "convictions": {
+      "type": "labs-convictions",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Nos convictions",
+        "heading": "Ce en quoi nous croyons."
+      },
+      "blocks": {
+        "c1": {
+          "type": "conviction",
+          "settings": {
+            "number": "01",
+            "title": "Le système avant le levier.",
+            "text": "Une marque grandit quand tous les leviers travaillent ensemble, pas isolément."
+          }
+        },
+        "c2": {
+          "type": "conviction",
+          "settings": {
+            "number": "02",
+            "title": "Skin in the game.",
+            "text": "On teste notre méthode sur nos propres marques avant de l'appliquer chez vous."
+          }
+        },
+        "c3": {
+          "type": "conviction",
+          "settings": {
+            "number": "03",
+            "title": "La rentabilité, pas la vanité.",
+            "text": "On pilote la marge et le cash, pas seulement le chiffre d'affaires."
+          }
+        },
+        "c4": {
+          "type": "conviction",
+          "settings": {
+            "number": "04",
+            "title": "Le long terme.",
+            "text": "On construit des marques durables, pas des coups sans lendemain."
+          }
+        }
+      },
+      "block_order": [
+        "c1",
+        "c2",
+        "c3",
+        "c4"
+      ]
+    },
+    "ownership": {
+      "type": "labs-ownership",
+      "settings": {
+        "theme": "light",
+        "anchor": "skin",
+        "eyebrow": "Focuslabs · Ownership",
+        "heading": "On joue notre propre argent.",
+        "text": "<p>Avec <strong>Focuslabs</strong>, notre incubateur, nous lançons et détenons nos propres marques e-commerce. De vraies marques, avec notre trésorerie et nos arbitrages.</p>",
+        "cta_label": "Comprendre la thèse",
+        "cta_url": "/pages/ecosysteme",
+        "cta_style": "btn-glass"
+      },
+      "blocks": {
+        "o1": {
+          "type": "card",
+          "settings": {
+            "wide": true,
+            "icon": "gem",
+            "tag": "Skin in the game",
+            "title": "Nos marques, notre capital.",
+            "text": "Quand on vous recommande une décision, on l'a déjà prise pour nous."
+          }
+        },
+        "o2": {
+          "type": "card",
+          "settings": {
+            "icon": "coins",
+            "number": "100 %",
+            "title": "Du capital engagé",
+            "text": "Nos marques sont financées par le groupe."
+          }
+        },
+        "o3": {
+          "type": "card",
+          "settings": {
+            "icon": "flask",
+            "number": "R&D",
+            "title": "Terrain d'essai",
+            "text": "Chaque levier est validé en interne."
+          }
+        }
+      },
+      "block_order": [
+        "o1",
+        "o2",
+        "o3"
+      ]
+    },
+    "founders": {
+      "type": "labs-founders",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "L'équipe",
+        "heading": "Les visages derrière le groupe."
+      },
+      "blocks": {
+        "f1": {
+          "type": "founder",
+          "settings": {
+            "name": "Fondateur 1",
+            "role": "CEO & co-fondateur",
+            "text": "Vision groupe & stratégie de croissance."
+          }
+        },
+        "f2": {
+          "type": "founder",
+          "settings": {
+            "name": "Fondateur 2",
+            "role": "Co-fondateur",
+            "text": "Opérations & marques en propre."
+          }
+        },
+        "f3": {
+          "type": "founder",
+          "settings": {
+            "name": "Direction acquisition",
+            "role": "Head of Paid",
+            "text": "Acquisition rentable, toutes régies."
+          }
+        },
+        "f4": {
+          "type": "founder",
+          "settings": {
+            "name": "Direction création",
+            "role": "Head of Creative",
+            "text": "Studio, UGC & contenus qui vendent."
+          }
+        }
+      },
+      "block_order": [
+        "f1",
+        "f2",
+        "f3",
+        "f4"
+      ]
+    },
+    "cta": {
+      "type": "labs-double-cta",
+      "settings": {
+        "theme": "light",
+        "anchor": "contact",
+        "eyebrow": "Et maintenant",
+        "heading": "Travaillons ensemble."
+      },
+      "blocks": {
+        "d1": {
+          "type": "door",
+          "settings": {
+            "eyebrow": "Marque e-commerce",
+            "title": "Faites auditer votre marque.",
+            "text": "Un audit CRO & Pub gratuit, sans engagement.",
+            "cta_label": "Réserver mon audit",
+            "cta_url": "/pages/audit",
+            "cta_style": "btn-glass"
+          }
+        },
+        "d2": {
+          "type": "door",
+          "settings": {
+            "eyebrow": "Entreprise · B2B",
+            "title": "Construisons votre présence.",
+            "text": "Site, visibilité, image, automatisation.",
+            "cta_label": "Parler à un expert",
+            "cta_url": "/pages/entreprises",
+            "cta_style": "btn-soft"
+          }
+        }
+      },
+      "block_order": [
+        "d1",
+        "d2"
+      ]
+    },
+    "ribbons": {
+      "type": "labs-ribbons",
+      "settings": {
+        "height": 340
+      }
+    }
   },
-  "order": ["hero","proof","histoire","convictions","ownership","founders","cta"]
+  "order": [
+    "hero",
+    "proof",
+    "histoire",
+    "convictions",
+    "ownership",
+    "founders",
+    "cta",
+    "ribbons"
+  ]
 }

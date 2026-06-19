@@ -7,6 +7,23 @@
       {{ section.settings.image | image_tag: loading: 'lazy', widths: '800, 1200, 1600, 2200, 2800', alt: banner_alt, style: banner_style }}
     {%- endif -%}
   </div>
+  {%- if section.settings.motion_bg -%}
+    <div class="banner-rib" aria-hidden="true">
+      <svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="brg-{{ section.id }}" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#7DA8FF"/><stop offset=".5" stop-color="#A9A0FF"/><stop offset="1" stop-color="#F8B4D9"/>
+          </linearGradient>
+          <filter id="brblur-{{ section.id }}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="7"/></filter>
+        </defs>
+        <g filter="url(#brblur-{{ section.id }})" fill="none" stroke="url(#brg-{{ section.id }})" stroke-width="2" stroke-linecap="round">
+          <path class="brib" style="animation-delay:0s" d="M-50,470 C300,360 560,540 760,420 C940,312 1080,360 1260,250"/>
+          <path class="brib" style="animation-delay:1.1s" d="M-50,540 C320,430 600,600 820,470 C1000,365 1110,420 1260,320"/>
+          <path class="brib" style="animation-delay:2.2s" d="M-50,400 C260,300 520,470 740,350 C920,252 1090,300 1260,190"/>
+        </g>
+      </svg>
+    </div>
+  {%- endif -%}
   {%- if section.settings.caption != blank -%}<div class="banner-cap">{{ section.settings.caption }}</div>{%- endif -%}
   <div class="wrap banner-in reveal">
     {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
@@ -21,6 +38,16 @@
   </div>
 </section>
 
+{%- style -%}
+  .banner-rib{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 35%,#000 100%);mask-image:linear-gradient(90deg,transparent,#000 35%,#000 100%)}
+  .banner-rib svg{width:100%;height:100%;display:block}
+  .banner-rib .brib{opacity:.4;animation:brib-sh 7s ease-in-out infinite}
+  @keyframes brib-sh{0%,100%{opacity:.22}50%{opacity:.7}}
+  .banner-in{position:relative;z-index:1}
+  @media (prefers-reduced-motion:reduce){.banner-rib .brib{animation:none}}
+{%- endstyle -%}
+
 {% schema %}
 {
   "name": "360labs · Bannière",
@@ -32,6 +59,7 @@
     { "type": "text", "id": "label", "label": "Libellé éditeur" },
     { "type": "image_picker", "id": "image", "label": "Image de fond" },
     { "type": "range", "id": "image_opacity", "label": "Opacité de l'image", "min": 10, "max": 100, "step": 5, "unit": "%", "default": 60 },
+    { "type": "checkbox", "id": "motion_bg", "label": "Texture animée (filaments iridescents)", "default": true },
     { "type": "text", "id": "caption", "label": "Légende (coin)", "default": "espace visuel · bannière" },
     { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Résultats" },
     { "type": "text", "id": "heading", "label": "Titre (HTML, .grad-on possible)", "default": "Des résultats qu'on <span class=\"grad-on\">assume</span>." },

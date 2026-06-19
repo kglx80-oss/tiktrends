@@ -1,21 +1,170 @@
 {
   "sections": {
-    "hero": { "type": "labs-page-hero", "settings": { "theme": "dark", "eyebrow": "Ressources", "heading": "Guides, templates & <span class=\"grad-on\">assets</span> à télécharger.", "text": "Des ressources concrètes, issues de notre travail quotidien sur +3000 projets e-commerce." } },
-    "res": { "type": "labs-resources", "settings": { "theme": "light", "eyebrow": "À télécharger", "heading": "Notre bibliothèque de ressources.", "lede": "Tout pour faire grandir votre marque, gratuitement." }, "blocks": {
-      "r1": { "type": "resource", "settings": { "icon": "file", "tag": "Guide", "title": "Le guide du TikTok Shop", "text": "Tout pour lancer et scaler une marque sur TikTok Shop en 2026.", "meta": "Télécharger" } },
-      "r2": { "type": "resource", "settings": { "icon": "template", "tag": "Template", "title": "Template d'audit CRO", "text": "La checklist qu'on utilise pour auditer un site e-commerce.", "meta": "Obtenir le template" } },
-      "r3": { "type": "resource", "settings": { "icon": "download", "tag": "Asset", "title": "Pack créatif UGC", "text": "Nos modèles de scripts et briefs pour vos créateurs.", "meta": "Télécharger" } },
-      "r4": { "type": "resource", "settings": { "icon": "file", "tag": "Guide", "title": "Emailing & CRM e-commerce", "text": "Les séquences qui récupèrent du chiffre d'affaires.", "meta": "Lire le guide" } },
-      "r5": { "type": "resource", "settings": { "icon": "template", "tag": "Template", "title": "Plan d'acquisition 90 jours", "text": "Le cadre pour structurer vos premières campagnes.", "meta": "Obtenir le template" } },
-      "r6": { "type": "resource", "settings": { "icon": "download", "tag": "Asset", "title": "Kit de calculs e-commerce", "text": "Marge, LTV, CAC, ROAS — nos feuilles de calcul.", "meta": "Télécharger" } }
-    }, "block_order": ["r1","r2","r3","r4","r5","r6"] },
-    "news": { "type": "labs-news", "settings": { "theme": "dark", "eyebrow": "À lire aussi", "heading": "Le <span class=\"grad-on\">journal</span> du groupe.", "lede": "Nos analyses et coulisses, mises à jour régulièrement.", "agenda_title": "Explorer par sujet", "agenda_badge": "Journal", "nl_title": "La newsletter du groupe", "nl_text": "Une fois par mois, nos analyses et ressources.", "foot_cta_label": "Voir tout le journal", "foot_cta_url": "/blogs/journal" }, "blocks": {
-      "n1": { "type": "article", "settings": { "category": "Acquisition", "title": "TikTok Shop : le guide pour scaler en 2026.", "date": "15 mai 2026", "url": "/blogs/journal" } },
-      "n2": { "type": "article", "settings": { "category": "Conversion", "title": "5 leviers CRO qui changent tout.", "date": "20 avril 2026", "url": "/blogs/journal" } },
-      "t1": { "type": "topic", "settings": { "title": "Études de cas", "subtitle": "Résultats & transformations", "url": "/blogs/journal" } },
-      "t2": { "type": "topic", "settings": { "title": "Acquisition & paid", "subtitle": "Meta, Google, TikTok", "url": "/blogs/journal" } },
-      "t3": { "type": "topic", "settings": { "title": "Site & conversion", "subtitle": "CRO, parcours d'achat", "url": "/blogs/journal" } }
-    }, "block_order": ["n1","n2","t1","t2","t3"] }
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Ressources",
+        "heading": "Guides, templates & <span class=\"grad-on\">assets</span> à télécharger.",
+        "text": "Des ressources concrètes, issues de notre travail quotidien sur +3000 projets e-commerce."
+      }
+    },
+    "res": {
+      "type": "labs-resources",
+      "settings": {
+        "theme": "light",
+        "eyebrow": "À télécharger",
+        "heading": "Notre bibliothèque de ressources.",
+        "lede": "Tout pour faire grandir votre marque, gratuitement."
+      },
+      "blocks": {
+        "r1": {
+          "type": "resource",
+          "settings": {
+            "icon": "file",
+            "tag": "Guide",
+            "title": "Le guide du TikTok Shop",
+            "text": "Tout pour lancer et scaler une marque sur TikTok Shop en 2026.",
+            "meta": "Télécharger"
+          }
+        },
+        "r2": {
+          "type": "resource",
+          "settings": {
+            "icon": "template",
+            "tag": "Template",
+            "title": "Template d'audit CRO",
+            "text": "La checklist qu'on utilise pour auditer un site e-commerce.",
+            "meta": "Obtenir le template"
+          }
+        },
+        "r3": {
+          "type": "resource",
+          "settings": {
+            "icon": "download",
+            "tag": "Asset",
+            "title": "Pack créatif UGC",
+            "text": "Nos modèles de scripts et briefs pour vos créateurs.",
+            "meta": "Télécharger"
+          }
+        },
+        "r4": {
+          "type": "resource",
+          "settings": {
+            "icon": "file",
+            "tag": "Guide",
+            "title": "Emailing & CRM e-commerce",
+            "text": "Les séquences qui récupèrent du chiffre d'affaires.",
+            "meta": "Lire le guide"
+          }
+        },
+        "r5": {
+          "type": "resource",
+          "settings": {
+            "icon": "template",
+            "tag": "Template",
+            "title": "Plan d'acquisition 90 jours",
+            "text": "Le cadre pour structurer vos premières campagnes.",
+            "meta": "Obtenir le template"
+          }
+        },
+        "r6": {
+          "type": "resource",
+          "settings": {
+            "icon": "download",
+            "tag": "Asset",
+            "title": "Kit de calculs e-commerce",
+            "text": "Marge, LTV, CAC, ROAS — nos feuilles de calcul.",
+            "meta": "Télécharger"
+          }
+        }
+      },
+      "block_order": [
+        "r1",
+        "r2",
+        "r3",
+        "r4",
+        "r5",
+        "r6"
+      ]
+    },
+    "news": {
+      "type": "labs-news",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "À lire aussi",
+        "heading": "Le <span class=\"grad-on\">journal</span> du groupe.",
+        "lede": "Nos analyses et coulisses, mises à jour régulièrement.",
+        "agenda_title": "Explorer par sujet",
+        "agenda_badge": "Journal",
+        "nl_title": "La newsletter du groupe",
+        "nl_text": "Une fois par mois, nos analyses et ressources.",
+        "foot_cta_label": "Voir tout le journal",
+        "foot_cta_url": "/blogs/journal"
+      },
+      "blocks": {
+        "n1": {
+          "type": "article",
+          "settings": {
+            "category": "Acquisition",
+            "title": "TikTok Shop : le guide pour scaler en 2026.",
+            "date": "15 mai 2026",
+            "url": "/blogs/journal"
+          }
+        },
+        "n2": {
+          "type": "article",
+          "settings": {
+            "category": "Conversion",
+            "title": "5 leviers CRO qui changent tout.",
+            "date": "20 avril 2026",
+            "url": "/blogs/journal"
+          }
+        },
+        "t1": {
+          "type": "topic",
+          "settings": {
+            "title": "Études de cas",
+            "subtitle": "Résultats & transformations",
+            "url": "/blogs/journal"
+          }
+        },
+        "t2": {
+          "type": "topic",
+          "settings": {
+            "title": "Acquisition & paid",
+            "subtitle": "Meta, Google, TikTok",
+            "url": "/blogs/journal"
+          }
+        },
+        "t3": {
+          "type": "topic",
+          "settings": {
+            "title": "Site & conversion",
+            "subtitle": "CRO, parcours d'achat",
+            "url": "/blogs/journal"
+          }
+        }
+      },
+      "block_order": [
+        "n1",
+        "n2",
+        "t1",
+        "t2",
+        "t3"
+      ]
+    },
+    "ribbons": {
+      "type": "labs-ribbons",
+      "settings": {
+        "height": 340
+      }
+    }
   },
-  "order": ["hero","res","news"]
+  "order": [
+    "hero",
+    "res",
+    "news",
+    "ribbons"
+  ]
 }
