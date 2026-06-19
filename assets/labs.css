@@ -774,8 +774,11 @@ body.labs-page .shopify-section{position:relative}
 /* Les sections 360labs gèrent leur propre fond/scope via .labs.theme-* */
 .labs.theme-dark,.labs.theme-light{display:block}
 .labs-section.labs.theme-dark,.labs-section.labs.theme-light{position:relative;overflow:hidden}
-/* Liens génériques dans le scope labs */
-.labs a{color:inherit}
+/* Liens dans le contenu riche (paragraphes/listes) — sans toucher aux boutons ni aux liens stylés */
+.labs p a,.labs li a{color:var(--accent-ink);text-decoration:underline;text-underline-offset:2px}
+/* Sécurité : couleur de texte des boutons toujours correcte (foncé sur iridescent) */
+.labs a.btn-glass,a.btn-glass{color:#1a1430}
+.labs a.btn-soft,a.btn-soft{color:var(--text)}
 /* Ancrage sous header sticky */
 .labs-section{scroll-margin-top:96px}
 
