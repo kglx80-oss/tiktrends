@@ -1,10 +1,12 @@
 {%- comment -%} 360labs — Double CTA (portes) {%- endcomment -%}
-<section class="labs theme-{{ section.settings.theme }} pad labs-section{% if section.settings.atmos %} atmos{% endif %}" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Double CTA' }}">
+<section class="labs theme-{{ section.settings.theme }} pad labs-section{% if section.settings.atmos %} atmos atmos--vivid{% endif %}" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Double CTA' }}">
   {%- if section.settings.atmos -%}
-    {%- assign atmos_src = 'labs-atmos-cta.png' | asset_url -%}
-    {%- if section.settings.atmos_image != blank -%}{%- assign atmos_src = section.settings.atmos_image | image_url: width: 2400 -%}{%- endif -%}
+    {%- assign atmos_poster = 'labs-atmos-hero.png' | asset_url -%}
+    {%- if section.settings.atmos_image != blank -%}{%- assign atmos_poster = section.settings.atmos_image | image_url: width: 2400 -%}{%- endif -%}
     <div class="atmos-bg" aria-hidden="true">
-      <img class="atmos-img" src="{{ atmos_src }}" alt="" loading="lazy">
+      <video class="atmos-img" autoplay muted loop playsinline preload="auto" poster="{{ atmos_poster }}">
+        <source src="{{ 'labs-atmos-hero.mp4' | asset_url }}" type="video/mp4">
+      </video>
       <span class="atmos-bloom"></span><span class="atmos-grain"></span><span class="atmos-vig"></span>
     </div>
   {%- endif -%}
