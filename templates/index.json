@@ -553,6 +553,7 @@
       "type": "labs-platform",
       "settings": {
         "theme": "dark",
+        "atmos": false,
         "anchor": "plateforme",
         "eyebrow": "La Plateforme · Bientôt",
         "heading": "Le copilote des marques e-commerce arrive.",
