@@ -4,6 +4,7 @@
       "type": "labs-hero",
       "settings": {
         "theme": "dark",
+        "atmos": false,
         "bg_motion": false,
         "eyebrow": "Groupe de croissance e-commerce · Depuis 2019",
         "heading": "Nous <span class=\"grad-on\">construisons, possédons et propulsons</span> les marques e-commerce.",
