@@ -912,6 +912,7 @@ body.labs-page .shopify-section{position:relative}
 .atmos-bg{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
 .atmos-bg .atmos-img{position:absolute;inset:-3%;width:106%;height:106%;object-fit:cover;opacity:.72;
   will-change:transform;animation:atmos-drift 38s ease-in-out infinite alternate}
+.atmos-bg video.atmos-img{animation:none;opacity:.8}
 @keyframes atmos-drift{0%{transform:scale(1.05) translate3d(0,0,0)}100%{transform:scale(1.13) translate3d(-2%,-1.5%,0)}}
 .atmos-bloom{position:absolute;left:50%;top:40%;width:64%;height:70%;transform:translate(-50%,-50%);
   background:radial-gradient(50% 50% at 50% 50%,rgba(174,182,255,.14),rgba(248,200,224,.07) 45%,transparent 72%);

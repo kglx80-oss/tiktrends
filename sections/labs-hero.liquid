@@ -4,7 +4,9 @@
     {%- assign atmos_src = 'labs-atmos-hero.png' | asset_url -%}
     {%- if section.settings.atmos_image != blank -%}{%- assign atmos_src = section.settings.atmos_image | image_url: width: 2400 -%}{%- endif -%}
     <div class="atmos-bg" aria-hidden="true">
-      <img class="atmos-img" src="{{ atmos_src }}" alt="" loading="eager" fetchpriority="high">
+      <video class="atmos-img" autoplay muted loop playsinline preload="auto" poster="{{ atmos_src }}">
+        <source src="{{ 'labs-atmos-hero.mp4' | asset_url }}" type="video/mp4">
+      </video>
       <span class="atmos-bloom"></span><span class="atmos-grain"></span><span class="atmos-vig"></span>
     </div>
   {%- elsif section.settings.bg_motion -%}
