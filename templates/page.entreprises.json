@@ -9,7 +9,12 @@
       "o5": { "type": "offer", "settings": { "icon": "tshirt", "title": "Textile & merch", "text": "Vêtements et personnalisation sur-mesure, à Laval.", "by": "par Apollon" } },
       "o6": { "type": "offer", "settings": { "icon": "box", "title": "Conseil sur-mesure", "text": "Un accompagnement adapté à vos enjeux.", "by": "par 360labs" } }
     }, "block_order": ["o1","o2","o3","o4","o5","o6"] },
-    "split": { "type": "labs-split", "settings": { "theme": "dark", "media_position": "left", "eyebrow": "Notre approche", "heading": "Un interlocuteur, tout l'écosystème.", "text": "<p>Plutôt que de jongler entre cinq prestataires, vous travaillez avec <strong>un seul groupe</strong> qui coordonne site, acquisition, image et automatisation.</p><p>Résultat : de la cohérence, de la vitesse, et une présence digitale qui <strong>génère des contrats</strong>.</p>", "cta_label": "Parler à un expert", "cta_url": "#contact", "cta_style": "btn-glass", "ratio": "wide", "placeholder": "espace photo — équipe / bureaux", "caption": "espace photo · 16/9" } },
+    "split": { "type": "labs-orchestration", "settings": { "theme": "dark", "media_position": "left", "eyebrow": "Notre approche", "heading": "Un interlocuteur, tout l'écosystème.", "text": "<p>Plutôt que de jongler entre cinq prestataires, vous travaillez avec <strong>un seul groupe</strong> qui coordonne site, acquisition, image et automatisation.</p><p>Résultat : de la cohérence, de la vitesse, et une présence digitale qui <strong>génère des contrats</strong>.</p>", "cta_label": "Parler à un expert", "cta_url": "#contact", "cta_style": "btn-glass", "panel_title": "Votre projet · 360labs", "contact_initials": "360", "contact_name": "Votre chef de projet dédié", "foot": "Un seul interlocuteur · tout coordonné" }, "blocks": {
+      "s1": { "type": "stream", "settings": { "icon": "globe", "title": "Site & présence", "status": "En cours", "state": "active" } },
+      "s2": { "type": "stream", "settings": { "icon": "chart", "title": "Acquisition B2B", "status": "Planifié", "state": "" } },
+      "s3": { "type": "stream", "settings": { "icon": "shield", "title": "Image de marque", "status": "Livré", "state": "done" } },
+      "s4": { "type": "stream", "settings": { "icon": "bolt", "title": "Automatisation", "status": "En cours", "state": "active" } }
+    }, "block_order": ["s1","s2","s3","s4"] },
     "reassure": { "type": "labs-reassure", "settings": { "theme": "light" }, "blocks": {
       "r1": { "type": "item", "settings": { "text": "Un seul interlocuteur" } },
       "r2": { "type": "item", "settings": { "text": "Devis sous 48 h" } },

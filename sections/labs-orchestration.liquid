@@ -1,0 +1,140 @@
+{%- comment -%}
+  360labs — Split "Orchestration" : texte + mockup produit (un interlocuteur pilote tout l'écosystème)
+  Carte projet : contact unique en ligne + chantiers coordonnés (statuts), flux animé, activation en cascade.
+{%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Orchestration' }}">
+  <div class="wrap split reveal" style="{% if section.settings.media_position == 'left' %}direction:rtl{% endif %}">
+    <div class="split-txt" style="direction:ltr">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.text != blank -%}{{ section.settings.text }}{%- endif -%}
+      {%- if section.settings.cta_label != blank -%}<a class="btn {{ section.settings.cta_style }}" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+    </div>
+
+    <div class="lorc-stage" style="direction:ltr">
+      <div class="lorc" aria-hidden="true">
+        <div class="lorc-top"><span class="lorc-live"></span>{{ section.settings.panel_title | default: 'Votre projet · 360labs' }}</div>
+        <div class="lorc-contact">
+          <span class="lorc-av">{{ section.settings.contact_initials | default: '360' }}</span>
+          <div class="lorc-c-meta">
+            <b>{{ section.settings.contact_name | default: 'Votre chef de projet dédié' }}</b>
+            <span>Interlocuteur unique · <i class="on">en ligne</i></span>
+          </div>
+          <span class="lorc-c-tag">1 contact</span>
+        </div>
+        <div class="lorc-rows" style="--n:{{ section.blocks.size }}">
+          {%- for block in section.blocks -%}
+            <div class="lorc-row" style="--i:{{ forloop.index0 }}" {{ block.shopify_attributes }}>
+              <span class="lorc-ic">
+                {%- case block.settings.icon -%}
+                  {%- when 'globe' -%}<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
+                  {%- when 'chart' -%}<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+                  {%- when 'shield' -%}<svg viewBox="0 0 24 24"><path d="M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg>
+                  {%- when 'bolt' -%}<svg viewBox="0 0 24 24"><path d="M13 3 4 14h7l-1 7 9-11h-7z"/></svg>
+                  {%- when 'tshirt' -%}<svg viewBox="0 0 24 24"><path d="M8 4l-5 3 2 4 3-1v10h8V10l3 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg>
+                  {%- else -%}<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6M9 13h6"/></svg>
+                {%- endcase -%}
+              </span>
+              <span class="lorc-lbl">{{ block.settings.title }}</span>
+              <span class="lorc-st {{ block.settings.state }}">{{ block.settings.status }}</span>
+            </div>
+          {%- endfor -%}
+        </div>
+        {%- if section.settings.foot != blank -%}<div class="lorc-foot"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>{{ section.settings.foot }}</div>{%- endif -%}
+      </div>
+    </div>
+  </div>
+</section>
+
+{%- style -%}
+  .lorc-stage{position:relative}
+  .lorc{position:relative;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-xl);
+    padding:22px;box-shadow:0 40px 90px -44px rgba(0,0,0,.7),0 18px 50px -30px rgba(129,140,248,.35);
+    animation:lorc-float 9s ease-in-out infinite}
+  @keyframes lorc-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .lorc-top{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;color:var(--soft);
+    padding-bottom:15px;border-bottom:1px solid var(--border);margin-bottom:14px}
+  .lorc-live{width:9px;height:9px;border-radius:50%;background:#36d399;box-shadow:0 0 0 0 rgba(54,211,153,.6);animation:lorc-pulse 1.8s ease-out infinite}
+  @keyframes lorc-pulse{0%{box-shadow:0 0 0 0 rgba(54,211,153,.55)}70%{box-shadow:0 0 0 8px rgba(54,211,153,0)}100%{box-shadow:0 0 0 0 rgba(54,211,153,0)}}
+  .lorc-contact{display:flex;align-items:center;gap:13px;padding:13px 14px;border-radius:14px;
+    background:var(--cg);box-shadow:inset 0 1.5px 1px rgba(255,255,255,.5);position:relative;z-index:2}
+  .lorc-av{width:42px;height:42px;flex:0 0 auto;border-radius:12px;display:grid;place-items:center;
+    background:rgba(26,20,48,.14);color:#1a1430;font-weight:800;font-size:14px;letter-spacing:-.04em}
+  .lorc-c-meta{flex:1;min-width:0;color:#1a1430}
+  .lorc-c-meta b{display:block;font-size:14px;font-weight:700;letter-spacing:-.01em}
+  .lorc-c-meta span{font-size:12px;color:rgba(26,20,48,.66)}
+  .lorc-c-meta .on{color:#0a7f56;font-style:normal;font-weight:600}
+  .lorc-c-tag{font-size:11px;font-weight:700;color:#1a1430;background:rgba(255,255,255,.5);padding:4px 10px;border-radius:999px}
+  .lorc-rows{position:relative;margin-top:4px;padding-top:10px}
+  .lorc-rows::before{content:"";position:absolute;left:34px;top:-6px;bottom:18px;width:2px;border-radius:2px;
+    background:linear-gradient(var(--peri),var(--rose),var(--sable));background-size:100% 200%;opacity:.5;
+    animation:lorc-flow 3s linear infinite}
+  @keyframes lorc-flow{to{background-position:0 -200%}}
+  .lorc-row{position:relative;display:flex;align-items:center;gap:13px;padding:11px 12px;border-radius:12px;
+    border:1px solid transparent;transition:background .3s,border-color .3s;
+    animation:lorc-active calc(var(--n,4) * 1.3s) ease-in-out infinite;animation-delay:calc(var(--i) * 1.3s)}
+  @keyframes lorc-active{0%,14%{background:var(--on-glass);border-color:var(--border2)}32%,100%{background:transparent;border-color:transparent}}
+  .lorc-ic{position:relative;z-index:1;width:38px;height:38px;flex:0 0 auto;border-radius:11px;display:grid;place-items:center;
+    background:var(--panel);border:1px solid var(--border2)}
+  .lorc-ic svg{width:19px;height:19px;stroke:var(--accent-ink);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .lorc-lbl{flex:1;min-width:0;font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
+  .lorc-st{flex:0 0 auto;font-size:11px;font-weight:600;padding:5px 11px;border-radius:999px;
+    background:var(--on-glass);border:1px solid var(--on-glass-b);color:var(--soft)}
+  .lorc-st.done{color:#0a7f56;background:rgba(54,211,153,.14);border-color:rgba(54,211,153,.3)}
+  .theme-dark .lorc-st.done{color:#36d399}
+  .lorc-st.active{color:#1a1430;background:var(--cg);border-color:transparent;box-shadow:inset 0 1px 1px rgba(255,255,255,.5)}
+  .lorc-foot{display:flex;align-items:center;gap:9px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
+    font-size:12.5px;font-weight:600;color:var(--soft)}
+  .lorc-foot svg{width:16px;height:16px;stroke:var(--accent-ink);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  @media (prefers-reduced-motion:reduce){.lorc,.lorc-live,.lorc-rows::before,.lorc-row{animation:none}}
+{%- endstyle -%}
+
+{% schema %}
+{
+  "name": "360labs · Orchestration",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "max_blocks": 6,
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "select", "id": "media_position", "label": "Position du mockup", "options": [ { "value": "right", "label": "Droite" }, { "value": "left", "label": "Gauche" } ], "default": "left" },
+    { "type": "header", "content": "Texte" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Notre approche" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Un interlocuteur, tout l'écosystème." },
+    { "type": "richtext", "id": "text", "label": "Paragraphes", "default": "<p>Plutôt que de jongler entre cinq prestataires, vous travaillez avec <strong>un seul groupe</strong> qui coordonne site, acquisition, image et automatisation.</p><p>Résultat : de la cohérence, de la vitesse, et une présence digitale qui <strong>génère des contrats</strong>.</p>" },
+    { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Parler à un expert" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
+    { "type": "select", "id": "cta_style", "label": "Style du bouton", "options": [ { "value": "btn-glass", "label": "Iridescent" }, { "value": "btn-soft", "label": "Discret" } ], "default": "btn-glass" },
+    { "type": "header", "content": "Mockup — projet" },
+    { "type": "text", "id": "panel_title", "label": "Titre du panneau", "default": "Votre projet · 360labs" },
+    { "type": "text", "id": "contact_initials", "label": "Avatar (initiales)", "default": "360" },
+    { "type": "text", "id": "contact_name", "label": "Nom de l'interlocuteur", "default": "Votre chef de projet dédié" },
+    { "type": "text", "id": "foot", "label": "Mention bas de carte", "default": "Un seul interlocuteur · tout coordonné" }
+  ],
+  "blocks": [
+    {
+      "type": "stream",
+      "name": "Chantier",
+      "settings": [
+        { "type": "select", "id": "icon", "label": "Icône", "options": [ {"value":"globe","label":"Site / Web"}, {"value":"chart","label":"Acquisition"}, {"value":"shield","label":"Image de marque"}, {"value":"bolt","label":"Automatisation"}, {"value":"tshirt","label":"Textile"}, {"value":"box","label":"Générique"} ], "default": "globe" },
+        { "type": "text", "id": "title", "label": "Chantier", "default": "Site & présence" },
+        { "type": "text", "id": "status", "label": "Statut (texte)", "default": "En cours" },
+        { "type": "select", "id": "state", "label": "Couleur du statut", "options": [ {"value":"active","label":"En cours (iridescent)"}, {"value":"done","label":"Livré (vert)"}, {"value":"","label":"Neutre"} ], "default": "active" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Orchestration",
+      "blocks": [
+        { "type": "stream", "settings": { "icon": "globe", "title": "Site & présence", "status": "En cours", "state": "active" } },
+        { "type": "stream", "settings": { "icon": "chart", "title": "Acquisition B2B", "status": "Planifié", "state": "" } },
+        { "type": "stream", "settings": { "icon": "shield", "title": "Image de marque", "status": "Livré", "state": "done" } },
+        { "type": "stream", "settings": { "icon": "bolt", "title": "Automatisation", "status": "En cours", "state": "active" } }
+      ]
+    }
+  ]
+}
+{% endschema %}
