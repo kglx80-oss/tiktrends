@@ -848,3 +848,28 @@ body.labs-page .shopify-section{position:relative}
 .ph span,.media-tag,.banner-cap,.bleed span{display:none}
 @keyframes ph-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.ph::before{animation:none}}
+
+/* ---- Néon iridescent : liseré lumineux qui balaie le bord des mockups ---- */
+@property --neon-a{syntax:"<angle>";inherits:false;initial-value:0deg}
+.ld-app,.lsys,.lorc{isolation:isolate}
+.ld-app::after,.lsys::after,.lorc::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;padding:1.6px;pointer-events:none;z-index:6;
+  background:conic-gradient(from var(--neon-a),
+    transparent 0deg, rgba(125,168,255,0) 22deg, #7DA8FF 46deg, #C9A8FF 70deg, #F8B4D9 92deg,
+    rgba(248,180,217,0) 120deg, transparent 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:neon-rot 5.5s linear infinite;
+}
+/* halo extérieur qui respire (le « waouh ») */
+.ld-app::before,.lsys::before,.lorc::before{
+  content:"";position:absolute;inset:-1px;border-radius:inherit;z-index:-1;pointer-events:none;
+  box-shadow:0 0 30px -6px rgba(125,168,255,.5), 0 0 60px -10px rgba(201,168,255,.35);
+  animation:neon-breathe 5.5s ease-in-out infinite;
+}
+@keyframes neon-rot{to{--neon-a:360deg}}
+@keyframes neon-breathe{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .ld-app::after,.lsys::after,.lorc::after{animation:none}
+  .ld-app::before,.lsys::before,.lorc::before{animation:none;opacity:.7}
+}
