@@ -4,6 +4,7 @@
       "type": "labs-hero",
       "settings": {
         "theme": "dark",
+        "bg_motion": false,
         "eyebrow": "Groupe de croissance e-commerce · Depuis 2019",
         "heading": "Nous <span class=\"grad-on\">construisons, possédons et propulsons</span> les marques e-commerce.",
         "text": "Un écosystème complet — agences, incubateur, plateforme — qui fait grandir votre marque comme si c'était la sienne. Parce que, souvent, ça l'est.",
