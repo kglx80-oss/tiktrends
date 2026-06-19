@@ -4,7 +4,7 @@
     {%- assign atmos_poster = 'labs-atmos-hero.png' | asset_url -%}
     {%- if section.settings.atmos_image != blank -%}{%- assign atmos_poster = section.settings.atmos_image | image_url: width: 2400 -%}{%- endif -%}
     <div class="atmos-bg" aria-hidden="true">
-      <video class="atmos-img" autoplay muted loop playsinline preload="auto" poster="{{ atmos_poster }}">
+      <video class="atmos-img" autoplay muted loop playsinline preload="metadata" poster="{{ atmos_poster }}">
         <source src="{{ 'labs-atmos-cta.mp4' | asset_url }}" type="video/mp4">
       </video>
       <span class="atmos-bloom"></span><span class="atmos-grain"></span><span class="atmos-vig"></span>
