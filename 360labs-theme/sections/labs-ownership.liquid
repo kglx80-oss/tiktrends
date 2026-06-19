@@ -1,0 +1,63 @@
+{%- comment -%} 360labs — Ownership / Skin in the game {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Ownership' }}">
+  <div class="wrap own-grid reveal">
+    <div class="own-txt">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.text != blank -%}{{ section.settings.text }}{%- endif -%}
+      {%- if section.settings.cta_label != blank -%}<a class="btn {{ section.settings.cta_style }}" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+    </div>
+    <div class="own-panel">
+      {%- for block in section.blocks -%}
+        <div class="own-card{% if block.settings.wide %} tall{% endif %}" {{ block.shopify_attributes }}>
+          {%- if block.settings.tag != blank -%}<div class="otag"><span class="dot"></span>{{ block.settings.tag }}</div>{%- endif -%}
+          {%- if block.settings.number != blank -%}<div class="ocn">{{ block.settings.number }}</div>{%- endif -%}
+          {%- if block.settings.title != blank -%}<b>{{ block.settings.title }}</b>{%- endif -%}
+          {%- if block.settings.text != blank -%}<p>{{ block.settings.text }}</p>{%- endif -%}
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Ownership",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "skin" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Focuslabs · Ownership" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "On ne vous conseille pas depuis les gradins. On joue notre propre argent." },
+    { "type": "richtext", "id": "text", "label": "Paragraphes", "default": "<p>Avec <strong>Focuslabs</strong>, notre incubateur, nous lançons et détenons nos propres marques e-commerce. Pas des cas d'école : de vraies marques, avec notre trésorerie, nos stocks et nos arbitrages.</p><p>Résultat : on vit les mêmes décisions que vous — la marge, le scaling, le cash. C'est pour ça qu'on vous parle en <strong>propriétaire</strong>, pas en prestataire.</p>" },
+    { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Comprendre la thèse du Groupe" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
+    { "type": "select", "id": "cta_style", "label": "Style du bouton", "options": [ { "value": "btn-glass", "label": "Iridescent" }, { "value": "btn-soft", "label": "Discret" } ], "default": "btn-glass" }
+  ],
+  "blocks": [
+    {
+      "type": "card",
+      "name": "Carte",
+      "settings": [
+        { "type": "checkbox", "id": "wide", "label": "Carte large (pleine largeur)", "default": false },
+        { "type": "text", "id": "tag", "label": "Étiquette (avec point)" },
+        { "type": "text", "id": "number", "label": "Grand chiffre" },
+        { "type": "text", "id": "title", "label": "Titre" },
+        { "type": "textarea", "id": "text", "label": "Texte" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Ownership",
+      "blocks": [
+        { "type": "card", "settings": { "wide": true, "tag": "Skin in the game", "title": "Nos marques, notre capital.", "text": "On conçoit, on finance et on opère des marques e-commerce en propre. Quand on vous recommande une décision, on l'a déjà prise pour nous." } },
+        { "type": "card", "settings": { "number": "100 %", "title": "Du capital engagé", "text": "Nos marques sont financées par le groupe, pas par des clients." } },
+        { "type": "card", "settings": { "number": "R&D", "title": "Terrain d'essai", "text": "Chaque levier est validé en interne avant d'arriver chez vous." } }
+      ]
+    }
+  ]
+}
+{% endschema %}

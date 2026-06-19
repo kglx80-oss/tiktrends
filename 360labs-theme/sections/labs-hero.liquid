@@ -1,0 +1,67 @@
+{%- comment -%} 360labs — Hero centré (eyebrow, titre dégradé, CTA, statistiques) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} hero center labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="Hero">
+  <div class="wrap">
+    <div class="hero-in">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h1>{{ section.settings.heading }}</h1>{%- endif -%}
+      {%- if section.settings.text != blank -%}<p>{{ section.settings.text }}</p>{%- endif -%}
+      {%- if section.settings.cta1_label != blank or section.settings.cta2_label != blank -%}
+        <div class="hero-cta">
+          {%- if section.settings.cta1_label != blank -%}<a class="btn btn-glass" href="{{ section.settings.cta1_url | default: '#' }}">{{ section.settings.cta1_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+          {%- if section.settings.cta2_label != blank -%}<a class="btn btn-soft" href="{{ section.settings.cta2_url | default: '#' }}">{{ section.settings.cta2_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+        </div>
+      {%- endif -%}
+      {%- if section.blocks.size > 0 -%}
+        <div class="hero-meta">
+          {%- for block in section.blocks -%}
+            <div class="hm" {{ block.shopify_attributes }}>
+              <b{% if block.settings.gradient %} class="g"{% endif %}>{{ block.settings.value }}</b>
+              <span>{{ block.settings.label }}</span>
+            </div>
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Hero",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "dark" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Groupe de croissance e-commerce · Depuis 2019" },
+    { "type": "text", "id": "heading", "label": "Titre (HTML — entourez un passage de <span class=\"grad-on\">…</span> pour le dégradé)", "default": "Nous <span class=\"grad-on\">construisons, possédons et propulsons</span> les marques e-commerce." },
+    { "type": "textarea", "id": "text", "label": "Texte", "default": "Un écosystème complet — agences, incubateur, plateforme — qui fait grandir votre marque comme si c'était la sienne. Parce que, souvent, ça l'est." },
+    { "type": "header", "content": "Boutons" },
+    { "type": "text", "id": "cta1_label", "label": "Bouton 1", "default": "Auditer ma marque — gratuit" },
+    { "type": "url", "id": "cta1_url", "label": "Lien bouton 1" },
+    { "type": "text", "id": "cta2_label", "label": "Bouton 2", "default": "Je suis une entreprise" },
+    { "type": "url", "id": "cta2_url", "label": "Lien bouton 2" }
+  ],
+  "blocks": [
+    {
+      "type": "stat",
+      "name": "Statistique",
+      "settings": [
+        { "type": "text", "id": "value", "label": "Valeur", "default": "+3000" },
+        { "type": "text", "id": "label", "label": "Libellé", "default": "Projets accompagnés" },
+        { "type": "checkbox", "id": "gradient", "label": "Valeur en dégradé", "default": false }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Hero",
+      "blocks": [
+        { "type": "stat", "settings": { "value": "+3000", "label": "Projets accompagnés", "gradient": true } },
+        { "type": "stat", "settings": { "value": "~40", "label": "Marques en gestion" } },
+        { "type": "stat", "settings": { "value": "1500+", "label": "Avis vérifiés" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

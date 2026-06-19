@@ -1,285 +1,197 @@
-/*
- * ------------------------------------------------------------
- * IMPORTANT: The contents of this file are auto-generated.
- *
- * This file may be updated by the Shopify admin theme editor
- * or related systems. Please exercise caution as any changes
- * made to this file may be overwritten.
- * ------------------------------------------------------------
- */{
+{
   "sections": {
-    "hero_jVaWmY": {
-      "type": "hero",
-      "blocks": {
-        "text_YLPk4p": {
-          "type": "text",
-          "name": "t:names.heading",
-          "settings": {
-            "text": "<p>Browse our latest products</p>",
-            "text_color": "{{ settings.color_palette.background }}",
-            "width": "fit-content",
-            "max_width": "normal",
-            "alignment": "left",
-            "type_preset": "h2",
-            "font": "var(--font-body--family)",
-            "font_size": "1rem",
-            "line_height": "normal",
-            "letter_spacing": "normal",
-            "case": "none",
-            "wrap": "pretty",
-            "background": false,
-            "background_color": "#00000026",
-            "corner_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {}
-        },
-        "button_H9gpTf": {
-          "type": "button",
-          "name": "t:names.button",
-          "settings": {
-            "label": "Shop all",
-            "link": "shopify://collections/all",
-            "open_in_new_tab": false,
-            "style_class": "button-custom",
-            "custom_button_background": "rgba(0,0,0,0)",
-            "custom_button_text": "{{ settings.color_palette.background }}",
-            "custom_button_border": "{{ settings.color_palette.background }}",
-            "width": "fit-content",
-            "custom_width": 100,
-            "width_mobile": "fit-content",
-            "custom_width_mobile": 100
-          },
-          "blocks": {}
-        }
-      },
-      "block_order": [
-        "text_YLPk4p",
-        "button_H9gpTf"
-      ],
-      "name": "t:names.hero",
+    "hero": {
+      "type": "labs-hero",
       "settings": {
-        "media_type_1": "image",
-        "media_type_2": "image",
-        "stack_media_on_mobile": false,
-        "custom_mobile_media": false,
-        "media_type_1_mobile": "image",
-        "media_type_2_mobile": "image",
-        "open_in_new_tab": false,
-        "content_direction": "column",
-        "vertical_on_mobile": true,
-        "horizontal_alignment": "space-between",
-        "vertical_alignment": "flex-end",
-        "align_baseline": true,
-        "horizontal_alignment_flex_direction_column": "center",
-        "vertical_alignment_flex_direction_column": "flex-end",
-        "gap": 24,
-        "section_width": "page-width",
-        "section_height": "medium",
-        "section_height_custom": 50,
-        "background_color": "rgba(0,0,0,0)",
-        "toggle_overlay": true,
-        "overlay_color": "#12121266",
-        "overlay_style": "solid",
-        "gradient_direction": "to bottom",
-        "blurred_reflection": false,
-        "reflection_opacity": 75,
-        "padding-block-start": 100,
-        "padding-block-end": 72
+        "theme": "dark",
+        "eyebrow": "Groupe de croissance e-commerce · Depuis 2019",
+        "heading": "Nous <span class=\"grad-on\">construisons, possédons et propulsons</span> les marques e-commerce.",
+        "text": "Un écosystème complet — agences, incubateur, plateforme — qui fait grandir votre marque comme si c'était la sienne. Parce que, souvent, ça l'est.",
+        "cta1_label": "Auditer ma marque — gratuit",
+        "cta1_url": "/pages/audit",
+        "cta2_label": "Je suis une entreprise",
+        "cta2_url": "/pages/entreprises"
+      },
+      "blocks": {
+        "s1": { "type": "stat", "settings": { "value": "+3000", "label": "Projets accompagnés", "gradient": true } },
+        "s2": { "type": "stat", "settings": { "value": "~40", "label": "Marques en gestion" } },
+        "s3": { "type": "stat", "settings": { "value": "1500+", "label": "Avis vérifiés" } }
+      },
+      "block_order": ["s1", "s2", "s3"]
+    },
+    "thesis": {
+      "type": "labs-split",
+      "settings": {
+        "theme": "light",
+        "anchor": "groupe",
+        "label": "La thèse",
+        "eyebrow": "La thèse",
+        "heading": "Trop de marques meurent d'un seul levier manquant.",
+        "text": "<p>Un beau site sans trafic. Du trafic qui ne convertit pas. Des ventes sans rentabilité. La plupart des marques ne manquent pas d'ambition — elles manquent d'un <strong>système complet</strong>.</p><p>Depuis 2019, on a construit l'inverse d'une agence mono-levier : un groupe qui couvre toute la chaîne, et qui <strong>construit, possède et scale ses propres marques</strong> avant de mettre cette machine au service de la vôtre.</p>",
+        "cta_label": "Comprendre le Groupe",
+        "cta_url": "/pages/le-groupe",
+        "cta_style": "btn-soft",
+        "ratio": "tall",
+        "placeholder": "espace photo — l'équipe au travail / studio",
+        "caption": "espace photo · 3/4"
       }
     },
-    "product_list_fa6P9H": {
-      "type": "product-list",
-      "blocks": {
-        "static-header": {
-          "type": "_product-list-content",
-          "name": "t:names.header",
-          "static": true,
-          "settings": {
-            "content_direction": "row",
-            "vertical_on_mobile": false,
-            "horizontal_alignment": "space-between",
-            "vertical_alignment": "flex-end",
-            "align_baseline": true,
-            "horizontal_alignment_flex_direction_column": "flex-start",
-            "vertical_alignment_flex_direction_column": "center",
-            "gap": 12,
-            "width": "fill",
-            "custom_width": 100,
-            "width_mobile": "fill",
-            "custom_width_mobile": 100,
-            "height": "fit",
-            "custom_height": 100,
-            "background_media": "none",
-            "video_position": "cover",
-            "background_image_position": "cover",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "product_list_text_YFtzcL": {
-              "type": "_product-list-text",
-              "name": "t:names.collection_title",
-              "settings": {
-                "text": "<h3>{{ closest.collection.title }}</h3>",
-                "width": "fit-content",
-                "max_width": "normal",
-                "alignment": "left",
-                "type_preset": "h4",
-                "font": "var(--font-body--family)",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "product_list_button_MWeP9V": {
-              "type": "_product-list-button",
-              "name": "t:names.product_list_button",
-              "settings": {
-                "label": "View all",
-                "open_in_new_tab": false,
-                "style_class": "link",
-                "width": "fit-content",
-                "custom_width": 100,
-                "width_mobile": "fit-content",
-                "custom_width_mobile": 100
-              },
-              "blocks": {}
-            }
-          },
-          "block_order": [
-            "product_list_text_YFtzcL",
-            "product_list_button_MWeP9V"
-          ]
-        },
-        "static-product-card": {
-          "type": "_product-card",
-          "name": "t:names.product_card",
-          "static": true,
-          "settings": {
-            "product_card_gap": 4,
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "product_card_gallery_677WP3": {
-              "type": "_product-card-gallery",
-              "name": "t:names.product_card_media",
-              "settings": {
-                "image_ratio": "adapt",
-                "border": "none",
-                "border_width": 1,
-                "border_opacity": 100,
-                "border_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "product_title_YXxMTj": {
-              "type": "product-title",
-              "name": "t:names.product_title",
-              "settings": {
-                "width": "100%",
-                "max_width": "normal",
-                "alignment": "left",
-                "type_preset": "rte",
-                "font": "var(--font-body--family)",
-                "font_size": "1rem",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 4,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "price_JQzVV4": {
-              "type": "price",
-              "name": "t:names.product_price",
-              "settings": {
-                "show_sale_price_first": true,
-                "show_installments": false,
-                "show_tax_info": false,
-                "type_preset": "h6",
-                "width": "100%",
-                "alignment": "left",
-                "font": "var(--font-body--family)",
-                "font_size": "1rem",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            }
-          },
-          "block_order": [
-            "product_card_gallery_677WP3",
-            "product_title_YXxMTj",
-            "price_JQzVV4"
-          ]
-        }
-      },
-      "name": "Featured collection",
+    "hub": {
+      "type": "labs-eco-hub",
       "settings": {
-        "collection": "all",
-        "layout_type": "grid",
-        "carousel_on_mobile": false,
-        "max_products": 8,
-        "columns": 4,
-        "mobile_columns": "2",
-        "mobile_card_size": "60cqw",
-        "columns_gap": 8,
-        "rows_gap": 24,
-        "icons_style": "arrow",
-        "icons_shape": "none",
-        "section_width": "page-width",
-        "horizontal_alignment": "flex-start",
-        "gap": 28,
-        "background_color": "{{ settings.color_palette.background }}",
-        "padding-block-start": 48,
-        "padding-block-end": 48
+        "theme": "dark",
+        "anchor": "ecosysteme",
+        "eyebrow": "L'écosystème en aperçu",
+        "heading": "Un écosystème, plusieurs métiers — une seule mécanique de croissance.",
+        "core_label": "360labs"
+      },
+      "blocks": {
+        "c1": { "type": "category", "settings": { "kicker": "01 — Conseil", "cat": "Conseil", "title": "Nos agences", "count": "4 marques", "arc": 78, "phase": -90, "desc": "Quatre agences spécialisées qui couvrent toute la chaîne de croissance — du site à l'acquisition.", "chips": "GLX, TikTrends, Websitz, Melie", "cta_label": "Découvrir l'écosystème", "cta_url": "/pages/ecosysteme", "mark1_label": "GLX", "mark1_letter": "G", "mark1_logo": "labs-logo-glx.svg", "mark2_label": "TikTrends", "mark2_letter": "T", "mark2_logo": "labs-logo-tiktrends.svg", "mark3_label": "Websitz", "mark3_letter": "W", "mark3_logo": "labs-logo-websitz.svg", "mark4_label": "Melie", "mark4_letter": "M", "mark4_logo": "labs-logo-melie.svg" } },
+        "c2": { "type": "category", "settings": { "kicker": "02 — Ownership", "cat": "Ownership", "title": "Notre incubateur", "count": "Focuslabs", "arc": 58, "phase": -30, "desc": "On construit et on détient nos propres marques e-commerce. On joue notre propre argent — la meilleure preuve de notre méthode.", "chips": "Marques en propre, Skin in the game", "cta_label": "Comprendre la thèse", "cta_url": "/pages/le-groupe", "mark1_label": "Focuslabs", "mark1_letter": "F", "mark1_logo": "labs-logo-focuslabs.svg" } },
+        "c3": { "type": "category", "settings": { "kicker": "03 — Produit", "cat": "Produit", "title": "Notre plateforme", "count": "Bientôt", "arc": 40, "phase": 150, "desc": "Le copilote IA des marques e-commerce : piloter toute votre marque depuis un seul endroit. Bientôt.", "chips": "Copilote IA, Bientôt", "cta_label": "Rejoindre la liste", "cta_url": "/pages/plateforme", "mark1_label": "Plateforme", "mark1_logo": "none", "mark1_soft": true, "mark1_icon": true } },
+        "c4": { "type": "category", "settings": { "kicker": "04 — Partenaires", "cat": "Partenaires", "title": "Nos partenaires", "count": "Apollon Textile", "arc": 50, "phase": 60, "desc": "Image physique de marque : textile et personnalisation sur-mesure, à Laval.", "chips": "Apollon Textile, Laval, Textile & merch", "cta_label": "Voir l'offre Entreprises", "cta_url": "/pages/entreprises", "mark1_label": "Apollon", "mark1_letter": "A", "mark1_logo": "labs-logo-apollon.svg" } }
+      },
+      "block_order": ["c1", "c2", "c3", "c4"]
+    },
+    "agencies": {
+      "type": "labs-agencies",
+      "settings": {
+        "theme": "light",
+        "anchor": "agences",
+        "eyebrow": "Les agences",
+        "heading": "Quatre expertises. Une seule direction.",
+        "cta_label": "Découvrir l'écosystème",
+        "cta_url": "/pages/ecosysteme"
+      },
+      "blocks": {
+        "a1": { "type": "agency", "settings": { "tile": "G", "name": "GLX", "base": "Le site qui vend.", "text": "Création et optimisation de sites e-commerce qui convertissent et fidélisent. La première société du groupe, depuis 2019.", "tags": "Site / CRO, CRM, Accompagnement", "link_label": "Visiter GLX", "link_url": "/pages/ecosysteme#glx" } },
+        "a2": { "type": "agency", "settings": { "tile": "T", "name": "TikTrends", "base": "La marque qui scrolle et qui vend.", "text": "Transforme TikTok en machine à vendre : social commerce, studio créatif et créateurs calibrés pour la conversion.", "tags": "TikTok Shop, Studio & UGC, Live commerce", "link_label": "Visiter TikTrends", "link_url": "/pages/ecosysteme#tiktrends" } },
+        "a3": { "type": "agency", "settings": { "tile": "W", "name": "Websitz", "base": "Les systèmes qui tournent sans vous.", "text": "Construit des systèmes digitaux rentables et automatisés — et porte l'angle B2B du groupe.", "tags": "Systèmes & data, Automatisation, Acquisition B2B", "link_label": "Visiter Websitz", "link_url": "/pages/ecosysteme#websitz" } },
+        "a4": { "type": "agency", "settings": { "tile": "M", "name": "Melie", "base": "L'acquisition rentable.", "text": "Pilote vos campagnes payantes pour une acquisition stable et profitable, sur toutes les régies.", "tags": "Meta · Google · TikTok, Creative strategy, Scaling", "link_label": "Visiter Melie", "link_url": "/pages/ecosysteme#melie" } }
+      },
+      "block_order": ["a1", "a2", "a3", "a4"]
+    },
+    "ownership": {
+      "type": "labs-ownership",
+      "settings": {
+        "theme": "dark",
+        "anchor": "skin",
+        "eyebrow": "Focuslabs · Ownership",
+        "heading": "On ne vous conseille pas depuis les gradins. On joue notre propre argent.",
+        "text": "<p>Avec <strong>Focuslabs</strong>, notre incubateur, nous lançons et détenons nos propres marques e-commerce. Pas des cas d'école : de vraies marques, avec notre trésorerie, nos stocks et nos arbitrages.</p><p>Résultat : on vit les mêmes décisions que vous — la marge, le scaling, le cash. C'est pour ça qu'on vous parle en <strong>propriétaire</strong>, pas en prestataire. Notre méthode est testée sur nous-mêmes avant d'être appliquée chez vous.</p>",
+        "cta_label": "Comprendre la thèse du Groupe",
+        "cta_url": "/pages/le-groupe#histoire",
+        "cta_style": "btn-glass"
+      },
+      "blocks": {
+        "o1": { "type": "card", "settings": { "wide": true, "tag": "Skin in the game", "title": "Nos marques, notre capital.", "text": "On conçoit, on finance et on opère des marques e-commerce en propre. Quand on vous recommande une décision, on l'a déjà prise pour nous." } },
+        "o2": { "type": "card", "settings": { "number": "100 %", "title": "Du capital engagé", "text": "Nos marques sont financées par le groupe, pas par des clients." } },
+        "o3": { "type": "card", "settings": { "number": "R&D", "title": "Terrain d'essai", "text": "Chaque levier est validé en interne avant d'arriver chez vous." } }
+      },
+      "block_order": ["o1", "o2", "o3"]
+    },
+    "case_study": {
+      "type": "labs-case-study",
+      "settings": {
+        "theme": "light",
+        "anchor": "resultats",
+        "eyebrow": "Preuve · Étude de cas",
+        "number": "+850 %",
+        "heading": "Enissati. La marque avait le potentiel — on a construit l'écosystème qui l'a libéré, en 6 mois.",
+        "list": "Refonte complète du site\nNouveaux supports visuels\nLancement des publicités\nStratégie d'emailing & CRM",
+        "cta_label": "Voir nos résultats",
+        "cta_url": "/pages/resultats",
+        "placeholder": "visuel marque — Enissati",
+        "caption": "espace photo · 4/3"
       }
+    },
+    "news": {
+      "type": "labs-news",
+      "settings": {
+        "theme": "dark",
+        "anchor": "actualite",
+        "eyebrow": "Le journal du groupe",
+        "heading": "Notre <span class=\"grad-on\">actualité</span>.",
+        "lede": "Lancements de marques, résultats, coulisses de l'écosystème et regards sur l'e-commerce. Notre contenu, pensé pour le référencement et les moteurs génératifs.",
+        "agenda_title": "Explorer par sujet",
+        "agenda_badge": "Journal",
+        "nl_title": "La newsletter du groupe",
+        "nl_text": "Nos analyses e-commerce et les coulisses de l'écosystème, une fois par mois.",
+        "foot_text": "Un espace éditorial qui travaille votre visibilité — SEO classique et GEO (réponses des moteurs IA) — au service de chaque marque du groupe.",
+        "foot_cta_label": "Voir tout le journal",
+        "foot_cta_url": "/blogs/journal"
+      },
+      "blocks": {
+        "n1": { "type": "article", "settings": { "category": "Étude de cas", "title": "Enissati : +850 % de chiffre d'affaires en 6 mois.", "date": "12 juin 2026", "url": "/blogs/journal" } },
+        "n2": { "type": "article", "settings": { "category": "Coulisses", "title": "Focuslabs : pourquoi nous lançons nos propres marques.", "date": "28 mai 2026", "url": "/blogs/journal" } },
+        "n3": { "type": "article", "settings": { "category": "Acquisition", "title": "TikTok Shop : le guide pour scaler une marque en 2026.", "date": "15 mai 2026", "url": "/blogs/journal" } },
+        "n4": { "type": "article", "settings": { "category": "Groupe", "title": "La Plateforme : ce que prépare le copilote des marques.", "date": "2 mai 2026", "url": "/blogs/journal" } },
+        "t1": { "type": "topic", "settings": { "title": "Études de cas", "subtitle": "Résultats & transformations de marques", "url": "/blogs/journal" } },
+        "t2": { "type": "topic", "settings": { "title": "Acquisition & paid", "subtitle": "Meta, Google, TikTok, scaling rentable", "url": "/blogs/journal" } },
+        "t3": { "type": "topic", "settings": { "title": "Site & conversion", "subtitle": "CRO, parcours d'achat, fidélisation", "url": "/blogs/journal" } },
+        "t4": { "type": "topic", "settings": { "title": "Coulisses du groupe", "subtitle": "Focuslabs, méthode, vision e-commerce", "url": "/blogs/journal" } }
+      },
+      "block_order": ["n1", "n2", "n3", "n4", "t1", "t2", "t3", "t4"]
+    },
+    "brand_wall": {
+      "type": "labs-brand-wall",
+      "settings": {
+        "theme": "light",
+        "eyebrow": "Ils nous font confiance",
+        "heading": "Des marques qui grandissent avec le groupe.",
+        "count_big": "~40 marques",
+        "count_sub": "en gestion active · 1500+ avis",
+        "footnote": "Avis vérifiés · Trustpilot · Google · ComeUp · logos clients à intégrer"
+      },
+      "blocks": {
+        "b1": { "type": "brand", "settings": { "letter": "V", "name": "Vitacare", "row": "1" } },
+        "b2": { "type": "brand", "settings": { "letter": "C", "name": "Chilsilk", "row": "1" } },
+        "b3": { "type": "brand", "settings": { "letter": "E", "name": "Enissati", "row": "1" } },
+        "b4": { "type": "brand", "settings": { "letter": "J", "name": "Joud", "row": "1" } },
+        "b5": { "type": "brand", "settings": { "letter": "M", "name": "Mlle Confettis", "row": "1" } },
+        "b6": { "type": "brand", "settings": { "letter": "M", "name": "Morphea", "row": "1" } },
+        "b7": { "type": "brand", "settings": { "letter": "M", "name": "Mumijo", "row": "2" } },
+        "b8": { "type": "brand", "settings": { "letter": "F", "name": "Finisher", "row": "2" } },
+        "b9": { "type": "brand", "settings": { "letter": "E", "name": "Enissati", "row": "2" } },
+        "b10": { "type": "brand", "settings": { "letter": "V", "name": "Vitacare", "row": "2" } },
+        "b11": { "type": "brand", "settings": { "letter": "J", "name": "Joud", "row": "2" } },
+        "b12": { "type": "brand", "settings": { "letter": "C", "name": "Chilsilk", "row": "2" } }
+      },
+      "block_order": ["b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "b10", "b11", "b12"]
+    },
+    "platform": {
+      "type": "labs-platform",
+      "settings": {
+        "theme": "dark",
+        "anchor": "plateforme",
+        "eyebrow": "La Plateforme · Bientôt",
+        "heading": "Le copilote des marques e-commerce arrive.",
+        "text": "Bientôt : pilotez toute votre marque e-commerce depuis un seul endroit, avec une IA qui pense comme nos experts.",
+        "cta_label": "Rejoindre la liste d'attente",
+        "cta_url": "/pages/plateforme#waitlist"
+      },
+      "blocks": {
+        "p1": { "type": "benefit", "settings": { "number": "01", "title": "Tout votre business, en un seul endroit.", "text": "Vos données réunies et lisibles, sans jongler entre dix outils." } },
+        "p2": { "type": "benefit", "settings": { "number": "02", "title": "Un copilote qui vous dit quoi faire.", "text": "Chaque jour, une lecture claire de votre marque et des actions prioritaires." } },
+        "p3": { "type": "benefit", "settings": { "number": "03", "title": "L'intelligence du groupe, à votre service.", "text": "La méthode qui a fait grandir +3000 projets, mise dans une plateforme." } }
+      },
+      "block_order": ["p1", "p2", "p3"]
+    },
+    "double_cta": {
+      "type": "labs-double-cta",
+      "settings": {
+        "theme": "light",
+        "anchor": "contact",
+        "eyebrow": "Et maintenant",
+        "heading": "À vous de jouer.",
+        "text": "Vous savez qui nous sommes et comment on travaille. La vraie question : vous passez à l'action, ou vous laissez vos concurrents prendre de l'avance ?"
+      },
+      "blocks": {
+        "d1": { "type": "door", "settings": { "eyebrow": "Marque e-commerce", "title": "Faites auditer votre marque.", "text": "Un audit CRO & Pub gratuit, sans engagement. On analyse, on vous dit où sont vos leviers.", "cta_label": "Réserver mon audit gratuit", "cta_url": "/pages/audit", "cta_style": "btn-glass" } },
+        "d2": { "type": "door", "settings": { "anchor": "entreprises", "eyebrow": "Entreprise · B2B", "title": "Construisons votre présence digitale.", "text": "Site, visibilité, image de marque, automatisation : le groupe au service des entreprises.", "cta_label": "Parler à un expert", "cta_url": "/pages/entreprises", "cta_style": "btn-soft" } }
+      },
+      "block_order": ["d1", "d2"]
     }
   },
-  "order": [
-    "hero_jVaWmY",
-    "product_list_fa6P9H"
-  ]
+  "order": ["hero", "thesis", "hub", "agencies", "ownership", "case_study", "news", "brand_wall", "platform", "double_cta"]
 }

@@ -1,0 +1,79 @@
+{%- comment -%} 360labs — Mur de marques (marquee 2 lignes) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Mur de marques' }}">
+  <div class="wrap">
+    <div class="bw-head reveal">
+      <div>
+        {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+        {%- if section.settings.heading != blank -%}<h2 style="font-size:23px;line-height:1.16;margin-top:12px">{{ section.settings.heading }}</h2>{%- endif -%}
+      </div>
+      {%- if section.settings.count_big != blank -%}<div class="bw-count"><b>{{ section.settings.count_big }}</b>{{ section.settings.count_sub }}</div>{%- endif -%}
+    </div>
+  </div>
+  <div class="bw-rows reveal">
+    {%- assign row1 = section.blocks | where: 'type', 'brand' -%}
+    {%- for r in (1..2) -%}
+      <div class="bw-row{% if r == 2 %} rev{% endif %}">
+        <div class="bw-track">
+          {%- for dup in (1..2) -%}
+            {%- for block in section.blocks -%}
+              {%- if block.type == 'brand' and block.settings.row == r -%}
+                <span class="bw-chip"><span class="bwi">{{ block.settings.letter }}</span><span>{{ block.settings.name }}</span></span>
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endfor -%}
+        </div>
+      </div>
+    {%- endfor -%}
+  </div>
+  {%- if section.settings.footnote != blank -%}
+    <div class="wrap" style="margin-top:36px"><div class="proof-sub" style="margin:0">{{ section.settings.footnote }}</div></div>
+  {%- endif -%}
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Mur de marques",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Ils nous font confiance" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Des marques qui grandissent avec le groupe." },
+    { "type": "text", "id": "count_big", "label": "Compteur (gras)", "default": "~40 marques" },
+    { "type": "text", "id": "count_sub", "label": "Compteur (suite)", "default": "en gestion active · 1500+ avis" },
+    { "type": "text", "id": "footnote", "label": "Note de bas", "default": "Avis vérifiés · Trustpilot · Google · ComeUp · logos clients à intégrer" }
+  ],
+  "blocks": [
+    {
+      "type": "brand",
+      "name": "Marque",
+      "settings": [
+        { "type": "text", "id": "letter", "label": "Initiale", "default": "V" },
+        { "type": "text", "id": "name", "label": "Nom", "default": "Vitacare" },
+        { "type": "select", "id": "row", "label": "Ligne", "options": [ { "value": "1", "label": "Ligne 1" }, { "value": "2", "label": "Ligne 2" } ], "default": "1" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Mur de marques",
+      "blocks": [
+        { "type": "brand", "settings": { "letter": "V", "name": "Vitacare", "row": "1" } },
+        { "type": "brand", "settings": { "letter": "C", "name": "Chilsilk", "row": "1" } },
+        { "type": "brand", "settings": { "letter": "E", "name": "Enissati", "row": "1" } },
+        { "type": "brand", "settings": { "letter": "J", "name": "Joud", "row": "1" } },
+        { "type": "brand", "settings": { "letter": "M", "name": "Mlle Confettis", "row": "1" } },
+        { "type": "brand", "settings": { "letter": "M", "name": "Morphea", "row": "1" } },
+        { "type": "brand", "settings": { "letter": "M", "name": "Mumijo", "row": "2" } },
+        { "type": "brand", "settings": { "letter": "F", "name": "Finisher", "row": "2" } },
+        { "type": "brand", "settings": { "letter": "E", "name": "Enissati", "row": "2" } },
+        { "type": "brand", "settings": { "letter": "V", "name": "Vitacare", "row": "2" } },
+        { "type": "brand", "settings": { "letter": "J", "name": "Joud", "row": "2" } },
+        { "type": "brand", "settings": { "letter": "C", "name": "Chilsilk", "row": "2" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

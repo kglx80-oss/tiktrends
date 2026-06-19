@@ -1,0 +1,53 @@
+{%- comment -%} 360labs — Étude de cas / preuve {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Étude de cas' }}">
+  <div class="wrap cs-grid cs reveal">
+    <div>
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.number != blank -%}<div class="cs-num grad-on">{{ section.settings.number }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.list != blank -%}
+        <ul class="cs-list">
+          {%- assign items = section.settings.list | newline_to_br | split: '<br />' -%}
+          {%- for it in items -%}{%- assign t = it | strip -%}{%- if t != blank -%}<li>{{ t }}</li>{%- endif -%}{%- endfor -%}
+        </ul>
+      {%- endif -%}
+      {%- if section.settings.cta_label != blank -%}<a class="btn {{ section.settings.cta_style }}" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+    </div>
+    <figure class="figure media-well">
+      <div class="ph {{ section.settings.ratio }}">
+        {%- if section.settings.image != blank -%}
+          <img src="{{ section.settings.image | image_url: width: 1200 }}" alt="{{ section.settings.image.alt | default: section.settings.heading }}" loading="lazy">
+        {%- else -%}
+          <span>{{ section.settings.placeholder }}</span>
+        {%- endif -%}
+      </div>
+      {%- if section.settings.caption != blank -%}<span class="media-tag">{{ section.settings.caption }}</span>{%- endif -%}
+    </figure>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Étude de cas",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "resultats" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Preuve · Étude de cas" },
+    { "type": "text", "id": "number", "label": "Grand chiffre (dégradé)", "default": "+850 %" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Enissati. La marque avait le potentiel — on a construit l'écosystème qui l'a libéré, en 6 mois." },
+    { "type": "textarea", "id": "list", "label": "Liste (une ligne par item)", "default": "Refonte complète du site\nNouveaux supports visuels\nLancement des publicités\nStratégie d'emailing & CRM" },
+    { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Voir nos résultats" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
+    { "type": "select", "id": "cta_style", "label": "Style du bouton", "options": [ { "value": "btn-soft", "label": "Discret" }, { "value": "btn-glass", "label": "Iridescent" } ], "default": "btn-soft" },
+    { "type": "header", "content": "Média" },
+    { "type": "image_picker", "id": "image", "label": "Image" },
+    { "type": "select", "id": "ratio", "label": "Format", "options": [ { "value": "", "label": "Paysage 4/3" }, { "value": "tall", "label": "Portrait 3/4" }, { "value": "wide", "label": "Large 16/9" }, { "value": "sq", "label": "Carré" } ], "default": "" },
+    { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "visuel marque — Enissati" },
+    { "type": "text", "id": "caption", "label": "Légende", "default": "espace photo · 4/3" }
+  ],
+  "presets": [ { "name": "360labs · Étude de cas" } ]
+}
+{% endschema %}
