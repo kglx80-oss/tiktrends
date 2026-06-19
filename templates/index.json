@@ -94,9 +94,9 @@
         "cta_style": "btn-glass"
       },
       "blocks": {
-        "o1": { "type": "card", "settings": { "wide": true, "tag": "Skin in the game", "title": "Nos marques, notre capital.", "text": "On conçoit, on finance et on opère des marques e-commerce en propre. Quand on vous recommande une décision, on l'a déjà prise pour nous." } },
-        "o2": { "type": "card", "settings": { "number": "100 %", "title": "Du capital engagé", "text": "Nos marques sont financées par le groupe, pas par des clients." } },
-        "o3": { "type": "card", "settings": { "number": "R&D", "title": "Terrain d'essai", "text": "Chaque levier est validé en interne avant d'arriver chez vous." } }
+        "o1": { "type": "card", "settings": { "wide": true, "icon": "gem", "tag": "Skin in the game", "title": "Nos marques, notre capital.", "text": "On conçoit, on finance et on opère des marques e-commerce en propre. Quand on vous recommande une décision, on l'a déjà prise pour nous." } },
+        "o2": { "type": "card", "settings": { "icon": "coins", "number": "100 %", "title": "Du capital engagé", "text": "Nos marques sont financées par le groupe, pas par des clients." } },
+        "o3": { "type": "card", "settings": { "icon": "flask", "number": "R&D", "title": "Terrain d'essai", "text": "Chaque levier est validé en interne avant d'arriver chez vous." } }
       },
       "block_order": ["o1", "o2", "o3"]
     },
