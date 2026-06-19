@@ -910,21 +910,32 @@ body.labs-page .shopify-section{position:relative}
 .atmos{position:relative;overflow:hidden;isolation:isolate}
 .atmos>.wrap{position:relative;z-index:2}
 .atmos-bg{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
-.atmos-bg .atmos-img{position:absolute;inset:-3%;width:106%;height:106%;object-fit:cover;opacity:.92;
+.atmos-bg .atmos-img{position:absolute;inset:-3%;width:106%;height:106%;object-fit:cover;opacity:.72;
   will-change:transform;animation:atmos-drift 38s ease-in-out infinite alternate}
 @keyframes atmos-drift{0%{transform:scale(1.05) translate3d(0,0,0)}100%{transform:scale(1.13) translate3d(-2%,-1.5%,0)}}
-.atmos-bloom{position:absolute;left:50%;top:46%;width:72%;height:82%;transform:translate(-50%,-50%);
-  background:radial-gradient(50% 50% at 50% 50%,rgba(174,182,255,.20),rgba(248,200,224,.10) 45%,transparent 72%);
-  filter:blur(28px);mix-blend-mode:screen;animation:atmos-breathe 10s ease-in-out infinite}
-@keyframes atmos-breathe{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:.85;transform:translate(-50%,-50%) scale(1.07)}}
+.atmos-bloom{position:absolute;left:50%;top:40%;width:64%;height:70%;transform:translate(-50%,-50%);
+  background:radial-gradient(50% 50% at 50% 50%,rgba(174,182,255,.14),rgba(248,200,224,.07) 45%,transparent 72%);
+  filter:blur(30px);mix-blend-mode:screen;animation:atmos-breathe 10s ease-in-out infinite}
+@keyframes atmos-breathe{0%,100%{opacity:.35;transform:translate(-50%,-50%) scale(1)}50%{opacity:.6;transform:translate(-50%,-50%) scale(1.06)}}
 .atmos-grain{position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-.atmos-vig{position:absolute;inset:0;
-  background:radial-gradient(130% 100% at 50% 22%,transparent 42%,rgba(5,5,12,.55) 100%),
-             linear-gradient(to bottom,rgba(5,5,12,.45),transparent 22%,transparent 70%,rgba(5,5,12,.62))}
+/* voile global + scrim derrière le texte (centre) pour garantir la lisibilité */
+.atmos-vig{position:absolute;inset:0;background:rgba(7,7,16,.30)}
+.atmos-vig::after{content:"";position:absolute;inset:0;
+  background:radial-gradient(78% 70% at 50% 50%,rgba(6,6,14,.58),rgba(6,6,14,.15) 62%,transparent 80%),
+             linear-gradient(to bottom,rgba(6,6,14,.5),transparent 26%,transparent 64%,rgba(6,6,14,.72))}
+/* variante texte à gauche (ex. La Plateforme) : on assombrit la colonne gauche */
+.atmos--left .atmos-vig::after{
+  background:radial-gradient(70% 75% at 32% 50%,rgba(6,6,14,.62),rgba(6,6,14,.2) 58%,transparent 78%),
+             linear-gradient(to right,rgba(6,6,14,.72),rgba(6,6,14,.34) 42%,transparent 66%),
+             linear-gradient(to bottom,rgba(6,6,14,.4),transparent 24%,transparent 70%,rgba(6,6,14,.6))}
+/* ombre portée sur le texte pour décoller du fond */
+.atmos .eyebrow,.atmos h1,.atmos h2,.atmos>.wrap>*>p,.atmos .hero-meta{
+  text-shadow:0 1px 16px rgba(4,4,12,.65),0 1px 4px rgba(4,4,12,.6)}
 .atmos.hero.center{padding:128px 0 120px}
 @media (max-width:620px){
   .atmos-bg .atmos-img{inset:-2%;width:104%;height:104%}
   .atmos.hero.center{padding:104px 0 90px}
+  .atmos--left .atmos-vig::after{background:linear-gradient(to bottom,rgba(6,6,14,.6),rgba(6,6,14,.45))}
 }
 @media (prefers-reduced-motion:reduce){.atmos-img,.atmos-bloom{animation:none}}
