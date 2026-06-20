@@ -15,6 +15,7 @@
       "type": "labs-platform",
       "settings": {
         "theme": "light",
+        "atmos": false,
         "anchor": "benefices",
         "eyebrow": "Ce que ça change",
         "heading": "Tout votre business, lisible et piloté.",
