@@ -39,7 +39,7 @@
               {%- assign digits = block.settings.value | replace: ',', '' | replace: ' ', '' | replace: '€', '' | strip -%}
               <div class="islab-row{% if block.settings.strong %} strong{% endif %}" {{ block.shopify_attributes }}>
                 <span class="islab-rk">{{ block.settings.label }}</span>
-                <span class="islab-rv"><span data-countup data-to="{{ digits }}" data-sep="1" data-locale="fr-FR">0</span> {{ section.settings.currency }}</span>
+                <span class="islab-rv"><span data-countup data-to="{{ digits }}" data-sep="1" data-locale="fr-FR">{{ digits }}</span> {{ section.settings.currency }}</span>
               </div>
             {%- endfor -%}
           </div>
