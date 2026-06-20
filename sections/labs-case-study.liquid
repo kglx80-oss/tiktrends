@@ -15,18 +15,23 @@
     </div>
 
     {%- if section.blocks.size > 0 -%}
-      <figure class="figure cs-board">
+      <figure class="figure cs-board reveal">
+        <svg class="islab-curve" viewBox="0 0 640 460" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="csC1-{{ section.id }}" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#3B6FF5"></stop>
+              <stop offset="0.5" stop-color="#7C5CFF"></stop>
+              <stop offset="1" stop-color="#C13ADF"></stop>
+            </linearGradient>
+            <linearGradient id="csC2-{{ section.id }}" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#3B6FF5"></stop>
+              <stop offset="1" stop-color="#6B7CFF"></stop>
+            </linearGradient>
+          </defs>
+          <path class="islab-c1" pathLength="1" d="M-12,150 C70,150 110,78 192,108 C274,138 322,58 410,80 C500,102 542,28 652,16" fill="none" stroke="url(#csC1-{{ section.id }})"></path>
+          <path class="islab-c2" pathLength="1" d="M-12,430 C78,400 120,452 210,416 C300,380 352,452 450,420 C552,388 602,442 652,406" fill="none" stroke="url(#csC2-{{ section.id }})"></path>
+        </svg>
         <div class="islab reveal">
-          <svg class="islab-curve" viewBox="0 0 600 220" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <linearGradient id="csCurve-{{ section.id }}" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#C9C2FF" stop-opacity=".34"></stop>
-                <stop offset="1" stop-color="#C9C2FF" stop-opacity="0"></stop>
-              </linearGradient>
-            </defs>
-            <path class="islab-area" d="M0,182 C100,176 150,150 250,116 C350,82 430,54 600,24 L600,220 L0,220 Z" fill="url(#csCurve-{{ section.id }})"></path>
-            <path class="islab-line" pathLength="1" d="M0,182 C100,176 150,150 250,116 C350,82 430,54 600,24" fill="none"></path>
-          </svg>
           <div class="islab-head">
             {%- if section.settings.board_title != blank -%}<div class="islab-title">{{ section.settings.board_title }}</div>{%- endif -%}
             {%- if section.settings.caption != blank -%}<div class="islab-sub">{{ section.settings.caption }}</div>{%- endif -%}
