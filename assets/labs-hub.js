@@ -100,7 +100,33 @@
     } else { showAll(); }
   }
 
-  function init(){ [].forEach.call(document.querySelectorAll('.ecoH'), build); reveal(); }
+  function countUp(){
+    var els=[].slice.call(document.querySelectorAll('[data-countup]:not(.cu-done)'));
+    if(!els.length) return;
+    function fmt(el,n){
+      var v=Math.round(n),
+          s=(el.getAttribute('data-sep')==='1') ? v.toLocaleString('en-US') : String(v);
+      return (el.getAttribute('data-prefix')||'') + s + (el.getAttribute('data-suffix')||'');
+    }
+    function run(el){
+      el.classList.add('cu-done');
+      var to=parseFloat((el.getAttribute('data-to')||'0').replace(/[^0-9.]/g,''))||0;
+      if(rmq.matches){ el.textContent=fmt(el,to); return; }
+      var dur=1400, t0=performance.now();
+      (function step(now){
+        var p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
+        el.textContent=fmt(el,to*e);
+        if(p<1) requestAnimationFrame(step);
+      })(t0);
+    }
+    if('IntersectionObserver' in window){
+      var io=new IntersectionObserver(function(ents){ents.forEach(function(en){ if(en.isIntersecting){ run(en.target); io.unobserve(en.target); } });},{threshold:.25});
+      els.forEach(function(el){io.observe(el);});
+      setTimeout(function(){ els.forEach(function(el){ if(!el.classList.contains('cu-done')) run(el); }); },2200);
+    } else { els.forEach(run); }
+  }
+
+  function init(){ [].forEach.call(document.querySelectorAll('.ecoH'), build); reveal(); countUp(); }
 
   if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
   // Re-init dans l'éditeur de thème Shopify lors d'un rechargement de section

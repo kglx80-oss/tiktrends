@@ -325,9 +325,23 @@
         "list": "Refonte complète du site\nNouveaux supports visuels\nLancement des publicités\nStratégie d'emailing & CRM",
         "cta_label": "Voir nos résultats",
         "cta_url": "/pages/resultats",
+        "board_title": "Income statement",
         "placeholder": "visuel marque · Enissati",
-        "caption": "espace photo · 4/3"
-      }
+        "caption": "Compte de résultat · 6 mois"
+      },
+      "blocks": {
+        "m1": { "type": "metric", "settings": { "label": "Total sales", "value": "970209", "delta": "1028", "tone": "good" } },
+        "m2": { "type": "metric", "settings": { "label": "Discount codes", "value": "56759", "delta": "457", "tone": "good" } },
+        "m3": { "type": "metric", "settings": { "label": "Refunds", "value": "11266", "delta": "748", "tone": "bad" } },
+        "m4": { "type": "metric", "settings": { "label": "Taxes", "value": "158700", "delta": "6767", "tone": "bad" } },
+        "m5": { "type": "metric", "settings": { "label": "Net sales", "value": "811509", "delta": "869", "tone": "good" } },
+        "m6": { "type": "metric", "settings": { "label": "COGS", "value": "214272", "delta": "24529", "tone": "bad" } },
+        "m7": { "type": "metric", "settings": { "label": "Marketing costs", "value": "235042", "delta": "7227", "tone": "bad" } },
+        "m8": { "type": "metric", "settings": { "label": "Contribution margin", "value": "362195", "delta": "355", "tone": "good" } },
+        "m9": { "type": "metric", "settings": { "label": "Operating expenses", "value": "75676", "delta": "0", "tone": "bad" } },
+        "m10": { "type": "metric", "settings": { "label": "Net profit", "value": "286519", "delta": "260", "tone": "good" } }
+      },
+      "block_order": [ "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10" ]
     },
     "news": {
       "type": "labs-news",

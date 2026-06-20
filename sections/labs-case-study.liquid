@@ -13,16 +13,46 @@
       {%- endif -%}
       {%- if section.settings.cta_label != blank -%}<a class="btn {{ section.settings.cta_style }}" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
     </div>
-    <figure class="figure media-well">
-      <div class="ph {{ section.settings.ratio }}">
-        {%- if section.settings.image != blank -%}
-          {{ section.settings.image | image_tag: loading: 'lazy', widths: '400, 600, 800, 1200, 1600' }}
-        {%- else -%}
-          <span>{{ section.settings.placeholder }}</span>
-        {%- endif -%}
-      </div>
-      {%- if section.settings.caption != blank -%}<span class="media-tag">{{ section.settings.caption }}</span>{%- endif -%}
-    </figure>
+
+    {%- if section.blocks.size > 0 -%}
+      <figure class="figure cs-board">
+        <div class="islab reveal">
+          <div class="islab-bar">
+            <div class="islab-tabs">
+              <span class="islab-tab"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M3 14h18M9 4v16"></path></svg>Breakdown</span>
+              <span class="islab-tab on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Tiles</span>
+            </div>
+            <span class="islab-csv"><svg viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>CSV</span>
+          </div>
+          <div class="islab-body">
+            {%- if section.settings.board_title != blank -%}<div class="islab-title">{{ section.settings.board_title }}</div>{%- endif -%}
+            <div class="islab-grid">
+              {%- for block in section.blocks -%}
+                {%- assign digits = block.settings.value | replace: ',', '' | replace: ' ', '' | replace: '€', '' | strip -%}
+                {%- assign dnum = block.settings.delta | replace: '%', '' | replace: ' ', '' | strip -%}
+                <div class="islab-tile" {{ block.shopify_attributes }}>
+                  <div class="islab-k">{{ block.settings.label }}<i class="islab-i">i</i></div>
+                  <div class="islab-v" data-countup data-to="{{ digits }}" data-prefix="{{ block.settings.prefix }}" data-sep="1">{{ block.settings.prefix }}0</div>
+                  <div class="islab-d {{ block.settings.tone }}"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"></path></svg><span data-countup data-to="{{ dnum }}" data-suffix="%">0%</span></div>
+                </div>
+              {%- endfor -%}
+            </div>
+          </div>
+        </div>
+        {%- if section.settings.caption != blank -%}<span class="media-tag">{{ section.settings.caption }}</span>{%- endif -%}
+      </figure>
+    {%- else -%}
+      <figure class="figure media-well">
+        <div class="ph {{ section.settings.ratio }}">
+          {%- if section.settings.image != blank -%}
+            {{ section.settings.image | image_tag: loading: 'lazy', widths: '400, 600, 800, 1200, 1600' }}
+          {%- else -%}
+            <span>{{ section.settings.placeholder }}</span>
+          {%- endif -%}
+        </div>
+        {%- if section.settings.caption != blank -%}<span class="media-tag">{{ section.settings.caption }}</span>{%- endif -%}
+      </figure>
+    {%- endif -%}
   </div>
 </section>
 
@@ -31,6 +61,7 @@
   "name": "360labs · Étude de cas",
   "tag": "section",
   "class": "labs-shopify-section",
+  "max_blocks": 12,
   "settings": [
     { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
     { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "resultats" },
@@ -42,12 +73,44 @@
     { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Voir nos résultats" },
     { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
     { "type": "select", "id": "cta_style", "label": "Style du bouton", "options": [ { "value": "btn-soft", "label": "Discret" }, { "value": "btn-glass", "label": "Iridescent" } ], "default": "btn-soft" },
-    { "type": "header", "content": "Média" },
+    { "type": "header", "content": "Dashboard de résultats (tuiles)" },
+    { "type": "paragraph", "content": "Ajoutez des blocs « Indicateur » pour afficher le tableau animé. Sans bloc, l'espace média/photo s'affiche à la place." },
+    { "type": "text", "id": "board_title", "label": "Titre du dashboard", "default": "Income statement" },
+    { "type": "text", "id": "caption", "label": "Légende", "default": "Compte de résultat · 6 mois" },
+    { "type": "header", "content": "Média (fallback si aucun bloc)" },
     { "type": "image_picker", "id": "image", "label": "Image" },
     { "type": "select", "id": "ratio", "label": "Format", "options": [ { "value": "", "label": "Paysage 4/3" }, { "value": "tall", "label": "Portrait 3/4" }, { "value": "wide", "label": "Large 16/9" }, { "value": "sq", "label": "Carré" } ], "default": "" },
-    { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "visuel marque · Enissati" },
-    { "type": "text", "id": "caption", "label": "Légende", "default": "espace photo · 4/3" }
+    { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "visuel marque · Enissati" }
   ],
-  "presets": [ { "name": "360labs · Étude de cas" } ]
+  "blocks": [
+    {
+      "type": "metric",
+      "name": "Indicateur",
+      "settings": [
+        { "type": "text", "id": "label", "label": "Libellé", "default": "Total sales" },
+        { "type": "text", "id": "value", "label": "Valeur (chiffres)", "default": "970209" },
+        { "type": "text", "id": "prefix", "label": "Préfixe", "default": "€" },
+        { "type": "text", "id": "delta", "label": "Variation (%)", "default": "1028" },
+        { "type": "select", "id": "tone", "label": "Couleur de la variation", "options": [ { "value": "good", "label": "Vert (positif)" }, { "value": "bad", "label": "Rouge (coût)" } ], "default": "good" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "360labs · Étude de cas",
+      "blocks": [
+        { "type": "metric", "settings": { "label": "Total sales", "value": "970209", "delta": "1028", "tone": "good" } },
+        { "type": "metric", "settings": { "label": "Discount codes", "value": "56759", "delta": "457", "tone": "good" } },
+        { "type": "metric", "settings": { "label": "Refunds", "value": "11266", "delta": "748", "tone": "bad" } },
+        { "type": "metric", "settings": { "label": "Taxes", "value": "158700", "delta": "6767", "tone": "bad" } },
+        { "type": "metric", "settings": { "label": "Net sales", "value": "811509", "delta": "869", "tone": "good" } },
+        { "type": "metric", "settings": { "label": "COGS", "value": "214272", "delta": "24529", "tone": "bad" } },
+        { "type": "metric", "settings": { "label": "Marketing costs", "value": "235042", "delta": "7227", "tone": "bad" } },
+        { "type": "metric", "settings": { "label": "Contribution margin", "value": "362195", "delta": "355", "tone": "good" } },
+        { "type": "metric", "settings": { "label": "Operating expenses", "value": "75676", "delta": "0", "tone": "bad" } },
+        { "type": "metric", "settings": { "label": "Net profit", "value": "286519", "delta": "260", "tone": "good" } }
+      ]
+    }
+  ]
 }
 {% endschema %}

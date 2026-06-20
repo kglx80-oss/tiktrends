@@ -358,6 +358,49 @@ html{scroll-behavior:smooth}
   background:rgba(8,8,12,.5);padding:6px 11px;border-radius:8px;border:1px solid var(--border);backdrop-filter:blur(4px)}
 .theme-light .ph span{background:rgba(255,255,255,.7)}
 
+/* ============ CASE STUDY · dashboard "Income statement" animé ============ */
+.cs-board{position:relative}
+.islab{border:1px solid var(--border);border-radius:var(--r-xl);background:#fff;overflow:hidden;
+  box-shadow:0 34px 70px -34px rgba(12,16,46,.32),0 2px 6px rgba(12,16,46,.05)}
+.theme-dark .islab{background:#0f1018;border-color:var(--border)}
+.islab-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:11px 16px 0;border-bottom:1px solid var(--border);background:#fbfbfe}
+.theme-dark .islab-bar{background:#13141d}
+.islab-tabs{display:flex;gap:20px}
+.islab-tab{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--muted2);
+  padding-bottom:11px;border-bottom:2px solid transparent;white-space:nowrap}
+.islab-tab svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.islab-tab.on{color:var(--text);border-color:var(--text)}
+.islab-csv{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#3a7afe;padding-bottom:11px}
+.islab-csv svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.islab-body{padding:16px}
+.islab-title{font-size:13px;font-weight:700;color:var(--text);margin:2px 0 14px}
+.islab-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+.islab-tile{border:1px solid var(--border);border-radius:14px;padding:12px 13px 13px;background:#fff;
+  opacity:0;transform:translateY(12px)}
+.theme-dark .islab-tile{background:#13141d}
+.islab.in .islab-tile{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.7,.3,1)}
+.islab-k{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;color:var(--muted2);margin-bottom:7px}
+.islab-i{display:inline-grid;place-items:center;width:13px;height:13px;border-radius:50%;flex:0 0 auto;
+  background:var(--border);color:var(--muted2);font-size:9px;font-style:normal;font-weight:700;line-height:1}
+.islab-v{font-size:23px;font-weight:700;letter-spacing:-.02em;line-height:1.05;color:var(--text);font-variant-numeric:tabular-nums}
+.islab-d{display:inline-flex;align-items:center;gap:3px;margin-top:6px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.islab-d svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.islab-d.good{color:#16a34a}
+.islab-d.bad{color:#e2483d}
+.islab.in .islab-tile:nth-child(1){transition-delay:.04s}
+.islab.in .islab-tile:nth-child(2){transition-delay:.10s}
+.islab.in .islab-tile:nth-child(3){transition-delay:.16s}
+.islab.in .islab-tile:nth-child(4){transition-delay:.22s}
+.islab.in .islab-tile:nth-child(5){transition-delay:.28s}
+.islab.in .islab-tile:nth-child(6){transition-delay:.34s}
+.islab.in .islab-tile:nth-child(7){transition-delay:.40s}
+.islab.in .islab-tile:nth-child(8){transition-delay:.46s}
+.islab.in .islab-tile:nth-child(9){transition-delay:.52s}
+.islab.in .islab-tile:nth-child(10){transition-delay:.58s}
+@media (max-width:520px){.islab-v{font-size:20px}.islab-grid{gap:9px}}
+@media (prefers-reduced-motion:reduce){.islab-tile{opacity:1;transform:none}}
+
 /* ============ MEDIA · figure + split (espace photo) ============ */
 .figure{position:relative;display:flex;flex-direction:column;gap:12px}
 .figure figcaption{font-size:12.5px;color:var(--muted2);line-height:1.5;letter-spacing:-.005em}
