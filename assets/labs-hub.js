@@ -105,7 +105,8 @@
     if(!els.length) return;
     function fmt(el,n){
       var v=Math.round(n),
-          s=(el.getAttribute('data-sep')==='1') ? v.toLocaleString('en-US') : String(v);
+          loc=el.getAttribute('data-locale')||'en-US',
+          s=(el.getAttribute('data-sep')==='1') ? v.toLocaleString(loc) : String(v);
       return (el.getAttribute('data-prefix')||'') + s + (el.getAttribute('data-suffix')||'');
     }
     function run(el){
