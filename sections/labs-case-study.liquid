@@ -1,6 +1,19 @@
 {%- comment -%} 360labs — Étude de cas / preuve {%- endcomment -%}
 <section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Étude de cas' }}">
   <div class="wrap cs-grid cs reveal">
+    {%- if section.blocks.size > 0 -%}
+      <svg class="islab-curve" viewBox="0 0 1200 380" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="csC1-{{ section.id }}" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#3B6FF5"></stop>
+            <stop offset="0.5" stop-color="#7C5CFF"></stop>
+            <stop offset="1" stop-color="#C13ADF"></stop>
+          </linearGradient>
+        </defs>
+        <path class="islab-line" pathLength="1" d="M-20,338 C120,330 190,300 300,296 C410,292 470,250 570,248 C680,246 730,290 840,228 C950,166 1010,196 1110,118 C1160,80 1190,50 1220,18" fill="none" stroke="url(#csC1-{{ section.id }})"></path>
+        <path class="islab-pulse" pathLength="1" d="M-20,338 C120,330 190,300 300,296 C410,292 470,250 570,248 C680,246 730,290 840,228 C950,166 1010,196 1110,118 C1160,80 1190,50 1220,18" fill="none"></path>
+      </svg>
+    {%- endif -%}
     <div>
       {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
       {%- if section.settings.number != blank -%}<div class="cs-num grad-on">{{ section.settings.number }}</div>{%- endif -%}
@@ -16,17 +29,6 @@
 
     {%- if section.blocks.size > 0 -%}
       <figure class="figure cs-board reveal">
-        <svg class="islab-curve" viewBox="0 0 640 460" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="csC1-{{ section.id }}" x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0" stop-color="#3B6FF5"></stop>
-              <stop offset="0.5" stop-color="#7C5CFF"></stop>
-              <stop offset="1" stop-color="#C13ADF"></stop>
-            </linearGradient>
-          </defs>
-          <path class="islab-line" pathLength="1" d="M-12,548 C92,524 150,432 250,392 C350,352 382,240 470,198 C560,156 592,36 662,-72" fill="none" stroke="url(#csC1-{{ section.id }})"></path>
-          <path class="islab-pulse" pathLength="1" d="M-12,548 C92,524 150,432 250,392 C350,352 382,240 470,198 C560,156 592,36 662,-72" fill="none"></path>
-        </svg>
         <div class="islab reveal">
           <div class="islab-head">
             {%- if section.settings.board_title != blank -%}<div class="islab-title">{{ section.settings.board_title }}</div>{%- endif -%}
