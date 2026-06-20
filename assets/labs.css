@@ -367,7 +367,7 @@ html{scroll-behavior:smooth}
 .cs-grid{position:relative}
 .cs-grid>div,.cs-grid>figure{position:relative;z-index:1}
 .islab-curve{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;pointer-events:none;overflow:visible;
-  opacity:0;transition:opacity .8s ease}
+  transform:translateX(8%);opacity:0;transition:opacity .8s ease}
 .cs.in .islab-curve{opacity:1}
 .islab-line{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-width:3;
   filter:drop-shadow(0 5px 16px rgba(124,92,255,.45));
