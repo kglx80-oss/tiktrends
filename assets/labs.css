@@ -360,8 +360,9 @@ html{scroll-behavior:smooth}
 
 /* ============ CASE STUDY · tableau "Compte de résultat" + courbe ============ */
 .cs-board{position:relative}
-.islab{position:relative;z-index:1;border:1px solid var(--border);border-radius:var(--r-xl);background:#fff;overflow:hidden;
-  padding:18px 18px 8px;box-shadow:0 34px 70px -34px rgba(12,16,46,.32),0 2px 6px rgba(12,16,46,.05)}
+.islab{position:relative;z-index:1;border:1px solid rgba(255,255,255,.65);border-radius:var(--r-xl);
+  background:rgba(255,255,255,.7);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);
+  overflow:hidden;padding:18px 18px 8px;box-shadow:0 34px 70px -34px rgba(12,16,46,.3),0 2px 6px rgba(12,16,46,.05)}
 .theme-dark .islab{background:#0f1018;border-color:var(--border)}
 .cs-grid{position:relative}
 .cs-grid>div,.cs-grid>figure{position:relative;z-index:1}
