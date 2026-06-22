@@ -1,0 +1,196 @@
+{%- comment -%} 360labs — Gabarit d'article enrichi (sommaire auto, points clés, auteur, articles liés, FAQ schema) {%- endcomment -%}
+{%- liquid
+  assign words = article.content | strip_html | split: ' ' | size
+  assign rt = words | divided_by: 200
+  if rt < 1
+    assign rt = 1
+  endif
+  assign cat = article.tags.first
+-%}
+<article class="labs theme-{{ section.settings.theme }} pad labs-article" data-article data-screen-label="Article">
+  <div class="wrap art-wrap">
+
+    <nav class="art-crumb reveal" aria-label="Fil d'Ariane">
+      <a href="{{ routes.root_url }}">Accueil</a>
+      <span>›</span>
+      <a href="{{ blog.url }}">{{ blog.title }}</a>
+      {%- if cat != blank -%}<span>›</span><a href="{{ blog.url }}/tagged/{{ cat | handleize }}">{{ cat }}</a>{%- endif -%}
+    </nav>
+
+    <header class="art-head reveal">
+      {%- if cat != blank -%}<span class="art-cat">{{ cat }}</span>{%- endif -%}
+      <h1>{{ article.title }}</h1>
+      {%- if article.excerpt != blank -%}<p class="art-lede">{{ article.excerpt | strip_html }}</p>{%- endif -%}
+      <div class="art-meta">
+        <span class="art-author-mini">
+          {%- if section.settings.author_image != blank -%}
+            {{ section.settings.author_image | image_url: width: 80 | image_tag: class: 'art-av-img', alt: section.settings.author_name }}
+          {%- else -%}
+            <span class="art-av">{{ section.settings.author_name | slice: 0 }}</span>
+          {%- endif -%}
+          <b>{{ section.settings.author_name }}</b>
+        </span>
+        <span class="art-dot">·</span>
+        <time datetime="{{ article.published_at | date: '%Y-%m-%d' }}">{{ article.published_at | date: '%-d %B %Y' }}</time>
+        <span class="art-dot">·</span>
+        <span>{{ rt }} min de lecture</span>
+      </div>
+    </header>
+
+    {%- if article.image -%}
+      <figure class="art-cover reveal">{{ article.image | image_tag: widths: '600, 900, 1200, 1600', alt: article.title }}</figure>
+    {%- endif -%}
+
+    <div class="art-layout">
+      <aside class="art-toc reveal" aria-label="Sommaire">
+        <div class="art-toc-title">Sommaire</div>
+        <nav id="artToc"></nav>
+      </aside>
+
+      <div class="art-body" id="artBody">
+        {%- if section.settings.show_keys and article.metafields.custom.key_takeaways != blank -%}
+          <div class="art-keys">
+            <div class="art-keys-t">{{ section.settings.keys_title | default: 'Points clés' }}</div>
+            <div class="rte">{{ article.metafields.custom.key_takeaways }}</div>
+          </div>
+        {%- endif -%}
+        {{ article.content }}
+
+        {%- if section.settings.cta_label != blank -%}
+          <div class="art-cta">
+            {%- if section.settings.cta_text != blank -%}<p>{{ section.settings.cta_text }}</p>{%- endif -%}
+            <a class="btn btn-glass" href="{{ section.settings.cta_url | default: '/pages/audit' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+          </div>
+        {%- endif -%}
+      </div>
+    </div>
+
+    {%- if section.settings.show_author_box -%}
+      <div class="art-author reveal">
+        {%- if section.settings.author_image != blank -%}
+          {{ section.settings.author_image | image_url: width: 160 | image_tag: class: 'art-au-img', alt: section.settings.author_name }}
+        {%- else -%}
+          <span class="art-av lg">{{ section.settings.author_name | slice: 0 }}</span>
+        {%- endif -%}
+        <div>
+          <div class="art-au-name">{{ section.settings.author_name }}</div>
+          {%- if section.settings.author_role != blank -%}<div class="art-au-role">{{ section.settings.author_role }}</div>{%- endif -%}
+          {%- if section.settings.author_bio != blank -%}<p class="art-au-bio">{{ section.settings.author_bio }}</p>{%- endif -%}
+        </div>
+      </div>
+    {%- endif -%}
+
+    {%- if section.settings.show_related and blog.articles_count > 1 -%}
+      <div class="art-related reveal">
+        <div class="art-rel-head"><h2>{{ section.settings.related_title | default: 'À lire aussi' }}</h2><a href="{{ blog.url }}">Tout le journal →</a></div>
+        <div class="art-rel-grid">
+          {%- assign count = 0 -%}
+          {%- for a in blog.articles -%}
+            {%- if a.id != article.id and count < 3 -%}
+              <a class="art-rel-card" href="{{ a.url }}">
+                <span class="art-rel-ph">{%- if a.image -%}{{ a.image | image_tag: loading: 'lazy', widths: '300, 500', alt: a.title }}{%- endif -%}</span>
+                <span class="art-rel-cat">{{ a.tags.first | default: 'Article' }}</span>
+                <span class="art-rel-title">{{ a.title }}</span>
+              </a>
+              {%- assign count = count | plus: 1 -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+      </div>
+    {%- endif -%}
+  </div>
+
+  {%- comment -%} Données structurées : Article (Shopify) {%- endcomment -%}
+  <script type="application/ld+json">{{ article | structured_data }}</script>
+
+  <script>
+    (function () {
+      var root = document.querySelector('[data-article]');
+      if (!root) return;
+      var body = root.querySelector('#artBody');
+      var tocNav = root.querySelector('#artToc');
+      if (!body) return;
+      var hs = body.querySelectorAll('h2, h3');
+
+      // Sommaire auto + ancres
+      if (tocNav && hs.length > 1) {
+        var ul = document.createElement('ul'), i = 0;
+        hs.forEach(function (h) {
+          if (!h.id) {
+            i++;
+            var slug = (h.textContent || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 42);
+            h.id = 'sec-' + i + (slug ? '-' + slug : '');
+          }
+          var li = document.createElement('li');
+          if (h.tagName === 'H3') li.className = 'toc-sub';
+          var a = document.createElement('a');
+          a.href = '#' + h.id;
+          a.textContent = h.textContent;
+          li.appendChild(a);
+          ul.appendChild(li);
+        });
+        tocNav.appendChild(ul);
+      } else {
+        var aside = root.querySelector('.art-toc');
+        if (aside) aside.style.display = 'none';
+      }
+
+      // FAQPage schema auto (à partir d'une section dont le titre contient "question"/"FAQ")
+      var faq = [];
+      body.querySelectorAll('h2').forEach(function (h2) {
+        if (!/question|faq/i.test(h2.textContent || '')) return;
+        var el = h2.nextElementSibling;
+        while (el && el.tagName !== 'H2') {
+          if (el.tagName === 'H3') {
+            var q = (el.textContent || '').trim(), ans = '', p = el.nextElementSibling;
+            while (p && p.tagName !== 'H3' && p.tagName !== 'H2') {
+              if (p.textContent) ans += (ans ? ' ' : '') + p.textContent.trim();
+              p = p.nextElementSibling;
+            }
+            if (q && ans) faq.push({ q: q, a: ans });
+            el = p;
+            continue;
+          }
+          el = el.nextElementSibling;
+        }
+      });
+      if (faq.length) {
+        var data = { "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": faq.map(function (f) {
+          return { "@type": "Question", "name": f.q, "acceptedAnswer": { "@type": "Answer", "text": f.a } };
+        }) };
+        var s = document.createElement('script');
+        s.type = 'application/ld+json';
+        s.textContent = JSON.stringify(data);
+        document.head.appendChild(s);
+      }
+    })();
+  </script>
+</article>
+
+{% schema %}
+{
+  "name": "360labs · Article",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "header", "content": "Auteur (E-E-A-T)" },
+    { "type": "text", "id": "author_name", "label": "Nom de l'auteur", "default": "L'équipe 360labs" },
+    { "type": "text", "id": "author_role", "label": "Rôle / fonction", "default": "Groupe de croissance e-commerce" },
+    { "type": "textarea", "id": "author_bio", "label": "Bio auteur", "default": "Depuis 2019, 360labs construit, possède et propulse des marques e-commerce via ses agences, son incubateur et sa plateforme. Nos contenus sont issus de notre travail sur +3000 projets." },
+    { "type": "image_picker", "id": "author_image", "label": "Photo / logo auteur (optionnel)" },
+    { "type": "checkbox", "id": "show_author_box", "label": "Afficher l'encadré auteur", "default": true },
+    { "type": "header", "content": "Points clés" },
+    { "type": "checkbox", "id": "show_keys", "label": "Afficher l'encadré « Points clés » (metafield custom.key_takeaways)", "default": true },
+    { "type": "text", "id": "keys_title", "label": "Titre de l'encadré", "default": "Points clés" },
+    { "type": "header", "content": "Articles liés" },
+    { "type": "checkbox", "id": "show_related", "label": "Afficher les articles liés", "default": true },
+    { "type": "text", "id": "related_title", "label": "Titre", "default": "À lire aussi" },
+    { "type": "header", "content": "Appel à l'action (fin d'article)" },
+    { "type": "text", "id": "cta_text", "label": "Texte", "default": "Vous voulez faire grandir votre marque e-commerce ?" },
+    { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Demander un audit gratuit" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton", "default": "/pages/audit" }
+  ],
+  "presets": [ { "name": "360labs · Article" } ]
+}
+{% endschema %}
