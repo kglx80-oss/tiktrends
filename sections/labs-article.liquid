@@ -1,13 +1,9 @@
 {%- comment -%} 360labs — Gabarit d'article premium (sommaire actif, progression, partage, points clés, auteur, articles liés, schémas Article + FAQPage) {%- endcomment -%}
-{%- liquid
-  assign words = article.content | strip_html | split: ' ' | size
-  assign rt = words | divided_by: 200
-  if rt < 1
-    assign rt = 1
-  endif
-  assign cat = article.tags.first
-  assign keys = article.metafields.custom.key_takeaways.value
--%}
+{%- assign words = article.content | strip_html | split: ' ' | size -%}
+{%- assign rt = words | divided_by: 200 -%}
+{%- if rt < 1 -%}{%- assign rt = 1 -%}{%- endif -%}
+{%- assign cat = article.tags.first -%}
+{%- assign keys = article.metafields.custom.key_takeaways.value -%}
 <article class="labs theme-{{ section.settings.theme }} pad labs-article" data-article data-screen-label="Article">
   <div class="art-progress" aria-hidden="true"><span id="artProgress"></span></div>
   <div class="wrap art-wrap">
