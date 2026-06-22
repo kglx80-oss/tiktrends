@@ -1,105 +1,51 @@
 {
   "sections": {
+    "estimate": {
+      "type": "labs-valuation",
+      "settings": {
+        "theme": "light",
+        "anchor": "estimer",
+        "eyebrow": "Estimateur gratuit",
+        "heading": "Combien vaut votre marque e-commerce ?",
+        "lede": "Obtenez une fourchette de valorisation en quelques secondes. Et si vous envisagez de vendre, on l'évalue précisément avec vous.",
+        "cta_label": "Faire évaluer ma marque",
+        "cta_url": "#vendre"
+      }
+    },
     "lead": {
       "type": "labs-lead-form",
       "settings": {
         "theme": "dark",
-        "anchor": "audit",
-        "eyebrow": "Audit gratuit",
-        "heading": "Faites auditer votre marque, gratuitement.",
-        "text": "On analyse votre site, votre acquisition et vos parcours. Vous repartez avec un plan d'action clair, sans engagement.",
-        "form_title": "Réserver mon audit",
-        "form_sub": "Réponse sous 48 h ouvrées.",
-        "select_label": "Vous êtes",
-        "select_options": "Marque e-commerce, Entreprise / B2B, Créateur, Autre",
-        "submit_label": "Envoyer ma demande"
+        "anchor": "vendre",
+        "eyebrow": "Vendre ma marque",
+        "heading": "Vous envisagez de vendre votre marque ?",
+        "text": "Parlons-en. On évalue votre marque, on vous fait une offre claire, et on assure une transition propre. Confidentiel et sans engagement.",
+        "form_title": "Demander une évaluation",
+        "form_sub": "Réponse sous 48 h ouvrées, en toute confidentialité.",
+        "select_label": "Votre situation",
+        "select_options": "Je veux vendre ma marque, J'explore une cession, Je cherche un partenaire/capital, Autre",
+        "submit_label": "Demander mon évaluation"
       },
       "blocks": {
-        "p1": {
-          "type": "point",
-          "settings": {
-            "bold": "Audit CRO & Pub",
-            "text": "on identifie où sont vos points de fuite."
-          }
-        },
-        "p2": {
-          "type": "point",
-          "settings": {
-            "bold": "Plan d'action",
-            "text": "priorisé selon l'impact et l'effort."
-          }
-        },
-        "p3": {
-          "type": "point",
-          "settings": {
-            "bold": "Sans engagement",
-            "text": "vous repartez avec, qu'on travaille ensemble ou non."
-          }
-        },
-        "m1": {
-          "type": "meta",
-          "settings": {
-            "value": "48 h",
-            "label": "Délai de réponse"
-          }
-        },
-        "m2": {
-          "type": "meta",
-          "settings": {
-            "value": "Gratuit",
-            "label": "Audit complet"
-          }
-        }
+        "p1": { "type": "point", "settings": { "bold": "Évaluation sérieuse", "text": "on analyse vos chiffres et on vous donne une valorisation argumentée." } },
+        "p2": { "type": "point", "settings": { "bold": "Offre rapide", "text": "si votre marque correspond, on avance vite et proprement." } },
+        "p3": { "type": "point", "settings": { "bold": "100 % confidentiel", "text": "vos données restent privées, qu'on travaille ensemble ou non." } },
+        "m1": { "type": "meta", "settings": { "value": "48 h", "label": "Première réponse" } },
+        "m2": { "type": "meta", "settings": { "value": "Confidentiel", "label": "Process discret" } }
       },
-      "block_order": [
-        "p1",
-        "p2",
-        "p3",
-        "m1",
-        "m2"
-      ]
+      "block_order": [ "p1", "p2", "p3", "m1", "m2" ]
     },
     "reassure": {
       "type": "labs-reassure",
-      "settings": {
-        "theme": "light"
-      },
+      "settings": { "theme": "light" },
       "blocks": {
-        "r1": {
-          "type": "item",
-          "settings": {
-            "text": "100 % gratuit"
-          }
-        },
-        "r2": {
-          "type": "item",
-          "settings": {
-            "text": "Sans engagement"
-          }
-        },
-        "r3": {
-          "type": "item",
-          "settings": {
-            "text": "Réponse sous 48 h"
-          }
-        },
-        "r4": {
-          "type": "item",
-          "settings": {
-            "text": "+3000 audits réalisés"
-          }
-        }
+        "r1": { "type": "item", "settings": { "text": "Process confidentiel" } },
+        "r2": { "type": "item", "settings": { "text": "Sans engagement" } },
+        "r3": { "type": "item", "settings": { "text": "Réponse sous 48 h" } },
+        "r4": { "type": "item", "settings": { "text": "Transition accompagnée" } }
       },
-      "block_order": [
-        "r1",
-        "r2",
-        "r3",
-        "r4"
-      ]
+      "block_order": [ "r1", "r2", "r3", "r4" ]
     }
   },
-  "order": [
-    "lead",
-    "reassure"
-  ]
+  "order": [ "estimate", "lead", "reassure" ]
 }
