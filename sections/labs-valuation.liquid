@@ -1,0 +1,67 @@
+{%- comment -%} 360labs — Estimateur de valorisation de marque e-commerce {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section{% if section.settings.atmos %} atmos{% endif %}" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Estimateur' }}" data-valuation>
+  <div class="wrap">
+    <div class="head reveal" style="max-width:680px">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.lede != blank -%}<p class="lede">{{ section.settings.lede }}</p>{%- endif -%}
+    </div>
+
+    <div class="val-card reveal">
+      <div class="val-inputs">
+        <label class="val-lab">Chiffre d'affaires mensuel
+          <span class="val-field"><i>€</i><input type="number" id="valRev" value="20000" min="0" step="1000" inputmode="numeric"></span>
+        </label>
+        <label class="val-lab">Marge nette <output id="valMarginOut">20 %</output>
+          <input type="range" id="valMargin" min="5" max="40" value="20" step="1">
+        </label>
+        <label class="val-lab">Croissance (12 derniers mois)
+          <select id="valGrowth">
+            <option value="stable">Stable</option>
+            <option value="up" selected>En croissance</option>
+            <option value="fast">Forte croissance</option>
+          </select>
+        </label>
+        <label class="val-lab">Ancienneté de la marque
+          <select id="valAge">
+            <option value="new">Moins d'1 an</option>
+            <option value="mid" selected>1 à 3 ans</option>
+            <option value="old">Plus de 3 ans</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="val-result">
+        <div class="val-result-l">Valorisation estimée</div>
+        <div class="val-range"><span id="valLow">—</span><em>–</em><span id="valHigh">—</span></div>
+        <div class="val-meta">Bénéfice annuel estimé : <b id="valProfit">—</b><br>Multiple appliqué : <b id="valMult">—</b></div>
+        {%- if section.settings.cta_label != blank -%}
+          <a class="btn btn-glass" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+        {%- endif -%}
+        <p class="val-disc">{{ section.settings.disclaimer | default: 'Estimation indicative basée sur un multiple du bénéfice annuel. Non contractuelle : seule une analyse par nos équipes donne une valeur ferme.' }}</p>
+      </div>
+    </div>
+  </div>
+  <script src="{{ 'labs-tools.js' | asset_url }}" defer="defer"></script>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Estimateur",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "checkbox", "id": "atmos", "label": "Fond atmosphérique", "default": false },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "estimer" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Estimateur gratuit" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Combien vaut votre marque e-commerce ?" },
+    { "type": "textarea", "id": "lede", "label": "Accroche", "default": "Obtenez une fourchette de valorisation en quelques secondes. Et si vous envisagez de vendre, on l'évalue précisément avec vous." },
+    { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Faire évaluer ma marque" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
+    { "type": "textarea", "id": "disclaimer", "label": "Mention" }
+  ],
+  "presets": [ { "name": "360labs · Estimateur" } ]
+}
+{% endschema %}

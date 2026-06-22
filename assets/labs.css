@@ -1104,3 +1104,27 @@ body.labs-page .shopify-section{position:relative}
   .art-body{max-width:none}
   .art-rel-grid{grid-template-columns:1fr}
 }
+
+/* ============ OUTIL · estimateur de valorisation ============ */
+.val-card{display:grid;grid-template-columns:1fr .85fr;border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;background:var(--panel);box-shadow:0 34px 70px -40px rgba(12,16,46,.3)}
+.val-inputs{padding:30px;display:flex;flex-direction:column;gap:22px}
+.val-lab{display:flex;flex-direction:column;gap:10px;font-size:13.5px;font-weight:600;color:var(--text)}
+.val-lab output{font-weight:700;color:var(--accent-ink)}
+.val-field{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:12px;padding:0 14px;background:#fff}
+.theme-dark .val-field{background:#13141d}
+.val-field i{font-style:normal;color:var(--muted2);font-weight:600}
+.val-field input{border:0;background:transparent;font:inherit;font-size:18px;font-weight:700;color:var(--text);padding:12px 0;width:100%;outline:none}
+.val-lab select{border:1px solid var(--border);border-radius:12px;padding:12px 14px;font:inherit;font-size:14.5px;color:var(--text);background:#fff}
+.theme-dark .val-lab select{background:#13141d}
+.val-lab input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;background:var(--border2);outline:none}
+.val-lab input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:var(--grad);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.val-lab input[type=range]::-moz-range-thumb{width:20px;height:20px;border:0;border-radius:50%;background:#9aa0ff;cursor:pointer}
+.val-result{padding:32px 30px;background:linear-gradient(160deg,#0e0f18,#1a1735);color:#fff;display:flex;flex-direction:column;justify-content:center}
+.val-result-l{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#AEB6FF;margin-bottom:8px}
+.val-range{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:clamp(24px,3.4vw,34px);font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.val-range em{font-style:normal;opacity:.5;font-weight:400}
+.val-meta{font-size:13px;color:#c9c9e0;margin-top:12px;line-height:1.7}
+.val-meta b{color:#fff}
+.val-result .btn{margin-top:18px;align-self:flex-start}
+.val-disc{font-size:11px;color:#8f90a8;margin-top:14px;line-height:1.5}
+@media (max-width:760px){.val-card{grid-template-columns:1fr}}
