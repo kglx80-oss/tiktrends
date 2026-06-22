@@ -14,7 +14,16 @@
     {%- if section.settings.filters != blank -%}
       <div class="filters reveal">
         {%- assign fs = section.settings.filters | split: ',' -%}
-        {%- for f in fs -%}<button class="filt{% if forloop.first %} on{% endif %}" type="button">{{ f | strip }}</button>{%- endfor -%}
+        {%- for f in fs -%}
+          {%- assign fl = f | strip -%}
+          {%- if blog == blank -%}
+            <button class="filt{% if forloop.first %} on{% endif %}" type="button">{{ fl }}</button>
+          {%- elsif forloop.first -%}
+            <a class="filt{% unless current_tags %} on{% endunless %}" href="{{ blog.url }}">{{ fl }}</a>
+          {%- else -%}
+            <a class="filt{% if current_tags contains fl %} on{% endif %}" href="{{ blog.url }}/tagged/{{ fl | handleize }}">{{ fl }}</a>
+          {%- endif -%}
+        {%- endfor -%}
       </div>
     {%- endif -%}
 

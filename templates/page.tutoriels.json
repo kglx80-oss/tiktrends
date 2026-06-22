@@ -6,87 +6,70 @@
         "theme": "dark",
         "eyebrow": "Tutoriels",
         "heading": "Apprenez à <span class=\"grad-on\">créer vos médias</span>.",
-        "text": "Des pas-à-pas concrets pour produire des contenus qui vendent : fiches produit, vidéos, créas UGC."
+        "text": "Des pas-à-pas concrets pour produire des contenus e-commerce qui vendent : fiches produit, vidéos UGC, TikTok, publicités, email."
       }
     },
     "tutos": {
       "type": "labs-resources",
       "settings": {
         "theme": "light",
-        "eyebrow": "Tutoriels",
-        "heading": "Nos tutoriels vidéo.",
-        "lede": "Du concret, filmé par nos équipes."
+        "eyebrow": "Tutoriels vidéo",
+        "heading": "Nos tutoriels e-commerce.",
+        "lede": "Du concret, filmé par nos équipes. Filtrez par thème pour trouver ce dont vous avez besoin.",
+        "show_filters": true,
+        "all_label": "Tout"
       },
       "blocks": {
         "t1": {
           "type": "resource",
-          "settings": {
-            "icon": "video",
-            "tag": "Tutoriel",
-            "title": "Créer une fiche produit qui convertit",
-            "text": "Structurer une page produit, du visuel au CTA.",
-            "meta": "Regarder"
-          }
+          "settings": { "tag": "Fiche produit", "format": "Vidéo", "icon": "video", "title": "Créer une fiche produit qui convertit", "text": "Structurer une page produit, du visuel au bouton d'achat.", "meta": "Regarder", "url": "#" }
         },
         "t2": {
           "type": "resource",
-          "settings": {
-            "icon": "video",
-            "tag": "Tutoriel",
-            "title": "Filmer une vidéo UGC en 30 min",
-            "text": "Le setup minimal pour des vidéos qui performent.",
-            "meta": "Regarder"
-          }
+          "settings": { "tag": "Fiche produit", "format": "Vidéo", "icon": "video", "title": "Rédiger des descriptions qui vendent", "text": "Bénéfices, objections et preuve sociale au bon endroit.", "meta": "Regarder", "url": "#" }
         },
         "t3": {
           "type": "resource",
-          "settings": {
-            "icon": "video",
-            "tag": "Tutoriel",
-            "title": "Monter un TikTok qui scrolle",
-            "text": "Hook, rythme et montage pour retenir l'attention.",
-            "meta": "Regarder"
-          }
+          "settings": { "tag": "UGC & contenu", "format": "Vidéo", "icon": "video", "title": "Filmer une vidéo UGC en 30 min", "text": "Le setup minimal pour des vidéos qui performent.", "meta": "Regarder", "url": "#" }
         },
         "t4": {
           "type": "resource",
-          "settings": {
-            "icon": "video",
-            "tag": "Tutoriel",
-            "title": "Écrire un brief créateur efficace",
-            "text": "Le template de brief qu'on utilise en interne.",
-            "meta": "Regarder"
-          }
+          "settings": { "tag": "UGC & contenu", "format": "Vidéo", "icon": "video", "title": "Écrire un brief créateur efficace", "text": "Le template de brief qu'on utilise en interne.", "meta": "Regarder", "url": "#" }
         },
         "t5": {
           "type": "resource",
-          "settings": {
-            "icon": "video",
-            "tag": "Tutoriel",
-            "title": "Lancer une campagne Meta de zéro",
-            "text": "Structure de compte et premières créas.",
-            "meta": "Regarder"
-          }
+          "settings": { "tag": "TikTok", "format": "Vidéo", "icon": "video", "title": "Monter un TikTok qui scrolle", "text": "Hook, rythme et montage pour retenir l'attention.", "meta": "Regarder", "url": "#" }
         },
         "t6": {
           "type": "resource",
-          "settings": {
-            "icon": "video",
-            "tag": "Tutoriel",
-            "title": "Mettre en place une séquence email",
-            "text": "Bienvenue, panier abandonné, rétention.",
-            "meta": "Regarder"
-          }
+          "settings": { "tag": "TikTok", "format": "Vidéo", "icon": "video", "title": "Configurer son TikTok Shop", "text": "Catalogue, paiement et premières ventes pas à pas.", "meta": "Regarder", "url": "#" }
+        },
+        "t7": {
+          "type": "resource",
+          "settings": { "tag": "Publicité", "format": "Vidéo", "icon": "video", "title": "Lancer une campagne Meta de zéro", "text": "Structure de compte et premières créations publicitaires.", "meta": "Regarder", "url": "#" }
+        },
+        "t8": {
+          "type": "resource",
+          "settings": { "tag": "Publicité", "format": "Vidéo", "icon": "video", "title": "Lire ses metrics publicitaires", "text": "ROAS, CPA, CTR : quoi regarder, quand et pourquoi.", "meta": "Regarder", "url": "#" }
+        },
+        "t9": {
+          "type": "resource",
+          "settings": { "tag": "Email & CRM", "format": "Vidéo", "icon": "video", "title": "Mettre en place une séquence email", "text": "Bienvenue, panier abandonné et rétention automatisés.", "meta": "Regarder", "url": "#" }
+        },
+        "t10": {
+          "type": "resource",
+          "settings": { "tag": "Email & CRM", "format": "Vidéo", "icon": "video", "title": "Segmenter sa base clients", "text": "Envoyer le bon message au bon segment, au bon moment.", "meta": "Regarder", "url": "#" }
+        },
+        "t11": {
+          "type": "resource",
+          "settings": { "tag": "Site & CRO", "format": "Vidéo", "icon": "video", "title": "Améliorer la vitesse de son site", "text": "Les optimisations qui boostent conversion et référencement.", "meta": "Regarder", "url": "#" }
+        },
+        "t12": {
+          "type": "resource",
+          "settings": { "tag": "Site & CRO", "format": "Vidéo", "icon": "video", "title": "Installer un suivi analytics fiable", "text": "Mesurer ce qui compte vraiment pour piloter votre marque.", "meta": "Regarder", "url": "#" }
         }
       },
-      "block_order": [
-        "t1",
-        "t2",
-        "t3",
-        "t4",
-        "t5",
-        "t6"
-      ]
+      "block_order": [ "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10", "t11", "t12" ]
     },
     "cta": {
       "type": "labs-double-cta",
@@ -98,36 +81,15 @@
       "blocks": {
         "d1": {
           "type": "door",
-          "settings": {
-            "eyebrow": "Marque e-commerce",
-            "title": "Faites auditer votre marque.",
-            "text": "On regarde vos contenus et votre acquisition.",
-            "cta_label": "Audit gratuit",
-            "cta_url": "/pages/audit",
-            "cta_style": "btn-glass"
-          }
+          "settings": { "eyebrow": "Marque e-commerce", "title": "Faites auditer votre marque.", "text": "On regarde vos contenus et votre acquisition.", "cta_label": "Audit gratuit", "cta_url": "/pages/audit", "cta_style": "btn-glass" }
         },
         "d2": {
           "type": "door",
-          "settings": {
-            "eyebrow": "Ressources",
-            "title": "Téléchargez nos guides.",
-            "text": "Templates et assets prêts à l'emploi.",
-            "cta_label": "Voir les ressources",
-            "cta_url": "/pages/ressources",
-            "cta_style": "btn-soft"
-          }
+          "settings": { "eyebrow": "Ressources", "title": "Téléchargez nos guides.", "text": "Templates et assets prêts à l'emploi.", "cta_label": "Voir les ressources", "cta_url": "/pages/ressources", "cta_style": "btn-soft" }
         }
       },
-      "block_order": [
-        "d1",
-        "d2"
-      ]
+      "block_order": [ "d1", "d2" ]
     }
   },
-  "order": [
-    "hero",
-    "tutos",
-    "cta"
-  ]
+  "order": [ "hero", "tutos", "cta" ]
 }

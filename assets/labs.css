@@ -452,7 +452,7 @@ html{scroll-behavior:smooth}
 /* ============ BLOG / RESSOURCES / TUTOS ============ */
 .filters{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:40px}
 .filt{font-family:inherit;font-size:13px;font-weight:500;color:var(--soft);padding:9px 16px;border-radius:999px;
-  background:var(--on-glass);border:1px solid var(--on-glass-b);cursor:pointer;transition:.16s}
+  background:var(--on-glass);border:1px solid var(--on-glass-b);cursor:pointer;transition:.16s;text-decoration:none;display:inline-block}
 .filt:hover{color:var(--text);border-color:var(--peri)}
 .filt.on{background:var(--cg);color:#1a1430;border-color:transparent;font-weight:600;box-shadow:inset 0 1.5px 1px rgba(255,255,255,.5)}
 .feat{display:grid;grid-template-columns:1.15fr 1fr;gap:44px;align-items:center;margin-bottom:56px;
