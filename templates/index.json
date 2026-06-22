@@ -6,20 +6,20 @@
         "theme": "dark",
         "atmos": false,
         "bg_motion": false,
-        "eyebrow": "Groupe de croissance e-commerce · Depuis 2019",
-        "heading": "Nous <span class=\"grad-on\">construisons, possédons et propulsons</span> les marques e-commerce.",
-        "text": "Un écosystème complet (agences, incubateur, plateforme) qui fait grandir votre marque comme si c'était la sienne. Parce que, souvent, ça l'est.",
-        "cta1_label": "Auditer ma marque gratuitement",
-        "cta1_url": "/pages/audit",
-        "cta2_label": "Je suis une entreprise",
-        "cta2_url": "/pages/entreprises"
+        "eyebrow": "Acquisition & investissement de marques e-commerce · Depuis 2019",
+        "heading": "Nous <span class=\"grad-on\">achetons, faisons grandir et revendons</span> des marques e-commerce.",
+        "text": "On rachète des marques e-commerce à fort potentiel, on déploie notre moteur de croissance, puis on crée de la valeur. Vous voulez vendre la vôtre, ou investir à nos côtés ? Parlons-en.",
+        "cta1_label": "Vendre ma marque",
+        "cta1_url": "/pages/audit#vendre",
+        "cta2_label": "Estimer ma marque",
+        "cta2_url": "/pages/audit#estimer"
       },
       "blocks": {
         "s1": {
           "type": "stat",
           "settings": {
-            "value": "+3000",
-            "label": "Projets accompagnés",
+            "value": "+850 %",
+            "label": "Meilleure croissance générée",
             "gradient": true
           }
         },
@@ -27,14 +27,14 @@
           "type": "stat",
           "settings": {
             "value": "~40",
-            "label": "Marques en gestion"
+            "label": "Marques opérées"
           }
         },
         "s3": {
           "type": "stat",
           "settings": {
-            "value": "1500+",
-            "label": "Avis vérifiés"
+            "value": "+3000",
+            "label": "Projets e-commerce menés"
           }
         }
       },
@@ -52,13 +52,13 @@
         "label": "La thèse",
         "media_position": "right",
         "eyebrow": "La thèse",
-        "heading": "Trop de marques meurent d'un seul levier manquant.",
-        "text": "<p>Un beau site sans trafic. Du trafic qui ne convertit pas. Des ventes sans rentabilité. La plupart des marques ne manquent pas d'ambition : elles manquent d'un <strong>système complet</strong>.</p><p>Depuis 2019, on a construit l'inverse d'une agence mono-levier : un groupe qui couvre toute la chaîne, et qui <strong>construit, possède et scale ses propres marques</strong> avant de mettre cette machine au service de la vôtre.</p>",
-        "cta_label": "Comprendre le Groupe",
+        "heading": "Beaucoup de marques valent plus qu'elles ne le croient.",
+        "text": "<p>Une marque e-commerce sous-exploitée — site qui convertit mal, acquisition non optimisée, rétention absente — vaut souvent bien plus <strong>une fois ces leviers activés</strong>.</p><p>Depuis 2019, on a bâti un moteur de croissance complet. Aujourd'hui, on l'utilise pour <strong>racheter des marques, les faire grandir et les revendre</strong> — en jouant notre propre capital.</p>",
+        "cta_label": "Notre thèse d'investissement",
         "cta_url": "/pages/le-groupe",
         "cta_style": "btn-soft",
-        "panel_title": "Système de croissance",
-        "result_label": "Résultat : système complet",
+        "panel_title": "Moteur de création de valeur",
+        "result_label": "Création de valeur",
         "result_value": "+850%",
         "result_tag": "de croissance"
       },
@@ -105,7 +105,7 @@
         "theme": "dark",
         "anchor": "ecosysteme",
         "eyebrow": "L'écosystème en aperçu",
-        "heading": "Un écosystème, plusieurs métiers, une seule mécanique de croissance.",
+        "heading": "Notre moteur de création de valeur : plusieurs métiers, une seule mécanique.",
         "core_label": "360labs"
       },
       "blocks": {
@@ -204,8 +204,8 @@
       "settings": {
         "theme": "light",
         "anchor": "agences",
-        "eyebrow": "Les agences",
-        "heading": "Quatre expertises. Une seule direction.",
+        "eyebrow": "Le moteur opérationnel",
+        "heading": "Quatre expertises qui font grandir chaque marque rachetée.",
         "cta_label": "Découvrir l'écosystème",
         "cta_url": "/pages/ecosysteme"
       },
@@ -271,10 +271,10 @@
       "settings": {
         "theme": "dark",
         "anchor": "skin",
-        "eyebrow": "Focuslabs · Ownership",
-        "heading": "On ne vous conseille pas depuis les gradins. On joue notre propre argent.",
-        "text": "<p>Avec <strong>Focuslabs</strong>, notre incubateur, nous lançons et détenons nos propres marques e-commerce. Pas des cas d'école : de vraies marques, avec notre trésorerie, nos stocks et nos arbitrages.</p><p>Résultat : on vit les mêmes décisions que vous, la marge, le scaling, le cash. C'est pour ça qu'on vous parle en <strong>propriétaire</strong>, pas en prestataire. Notre méthode est testée sur nous-mêmes avant d'être appliquée chez vous.</p>",
-        "cta_label": "Comprendre la thèse du Groupe",
+        "eyebrow": "Focuslabs · Notre capital en jeu",
+        "heading": "On ne conseille pas depuis les gradins : on achète, on opère, on joue notre propre argent.",
+        "text": "<p>Avec <strong>Focuslabs</strong>, nous rachetons et détenons des marques e-commerce. Pas des cas d'école : de vraies marques, avec notre trésorerie, nos stocks et nos arbitrages.</p><p>On vit chaque décision — marge, scaling, cash, revente. C'est ce qui nous permet d'évaluer une marque <strong>en propriétaire</strong>, de payer le juste prix, et de créer de la valeur avant de céder au bon moment.</p>",
+        "cta_label": "Notre thèse d'investissement",
         "cta_url": "/pages/le-groupe#histoire",
         "cta_style": "btn-glass"
       },
@@ -319,9 +319,9 @@
       "settings": {
         "theme": "light",
         "anchor": "resultats",
-        "eyebrow": "Preuve · Étude de cas",
+        "eyebrow": "Preuve · Création de valeur",
         "number": "+850 %",
-        "heading": "Enissati. La marque avait le potentiel, on a construit l'écosystème qui l'a libéré, en 6 mois.",
+        "heading": "Enissati : une marque à fort potentiel, dont on a multiplié la valeur en 6 mois.",
         "list": "Refonte complète du site\nNouveaux supports visuels\nLancement des publicités\nStratégie d'emailing & CRM",
         "cta_label": "Voir nos résultats",
         "cta_url": "/pages/resultats",
@@ -445,8 +445,8 @@
       "type": "labs-brand-wall",
       "settings": {
         "theme": "light",
-        "eyebrow": "Ils nous font confiance",
-        "heading": "Des marques qui grandissent avec le groupe.",
+        "eyebrow": "Notre portefeuille",
+        "heading": "Des marques que nous opérons et faisons grandir.",
         "count_big": "~40 marques",
         "count_sub": "en gestion active · 1500+ avis",
         "footnote": "Avis vérifiés · Trustpilot · Google · ComeUp · logos clients à intégrer"
@@ -627,36 +627,48 @@
         "toast": "Nouvelle marque détectée"
       }
     },
+    "estimate": {
+      "type": "labs-valuation",
+      "settings": {
+        "theme": "light",
+        "anchor": "estimer",
+        "eyebrow": "Vous avez une marque ?",
+        "heading": "Combien vaut votre marque e-commerce ?",
+        "lede": "Estimez sa valorisation en quelques secondes. Et si vous envisagez de vendre, on l'évalue précisément avec vous.",
+        "cta_label": "Faire évaluer ma marque",
+        "cta_url": "/pages/audit#vendre"
+      }
+    },
     "double_cta": {
       "type": "labs-double-cta",
       "settings": {
         "theme": "dark",
         "atmos": true,
         "anchor": "contact",
-        "eyebrow": "Et maintenant",
-        "heading": "À vous de jouer.",
-        "text": "Vous savez qui nous sommes et comment on travaille. La vraie question : vous passez à l'action, ou vous laissez vos concurrents prendre de l'avance ?"
+        "eyebrow": "Et votre marque ?",
+        "heading": "Vendre, faire grandir, ou investir.",
+        "text": "Que vous vouliez céder votre marque, la faire grandir avec nous, ou investir à nos côtés dans l'e-commerce — c'est ici que ça commence."
       },
       "blocks": {
         "d1": {
           "type": "door",
           "settings": {
-            "eyebrow": "Marque e-commerce",
-            "title": "Faites auditer votre marque.",
-            "text": "Un audit CRO & Pub gratuit, sans engagement. On analyse, on vous dit où sont vos leviers.",
-            "cta_label": "Réserver mon audit gratuit",
-            "cta_url": "/pages/audit",
+            "eyebrow": "Vous avez une marque",
+            "title": "Vendez votre marque e-commerce.",
+            "text": "Évaluation confidentielle, offre claire et transition accompagnée. Sans engagement.",
+            "cta_label": "Demander une évaluation",
+            "cta_url": "/pages/audit#vendre",
             "cta_style": "btn-glass"
           }
         },
         "d2": {
           "type": "door",
           "settings": {
-            "anchor": "entreprises",
-            "eyebrow": "Entreprise · B2B",
-            "title": "Construisons votre présence digitale.",
-            "text": "Site, visibilité, image de marque, automatisation : le groupe au service des entreprises.",
-            "cta_label": "Parler à un expert",
+            "anchor": "investir",
+            "eyebrow": "Vous avez du capital",
+            "title": "Investissez dans l'e-commerce.",
+            "text": "Exposez votre capital à des marques e-commerce sourcées et opérées par nos équipes.",
+            "cta_label": "Devenir partenaire investisseur",
             "cta_url": "/pages/entreprises",
             "cta_style": "btn-soft"
           }
@@ -675,6 +687,7 @@
     "agencies",
     "ownership",
     "case_study",
+    "estimate",
     "news",
     "brand_wall",
     "platform",
