@@ -479,6 +479,18 @@ html{scroll-behavior:smooth}
 .rcard:hover .rc-meta svg{transform:translateX(3px)}
 .rc-tag{align-self:flex-start;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--soft);background:var(--on-glass);border:1px solid var(--on-glass-b);padding:5px 10px;border-radius:999px}
+/* bibliothèque de ressources : filtres, badge format, miniature */
+.res-filters{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:30px}
+.res-fil{font-size:13px;font-weight:600;color:var(--muted);background:var(--on-glass);border:1px solid var(--on-glass-b);
+  padding:8px 16px;border-radius:999px;cursor:pointer;transition:color .18s,border-color .18s,background .18s}
+.res-fil:hover{color:var(--text);border-color:var(--border2)}
+.res-fil.on{color:var(--accent-ink);border-color:transparent;background:var(--cg);box-shadow:inset 0 1.5px 1px rgba(255,255,255,.5)}
+.rcard.is-hidden{display:none}
+.rc-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rc-fmt{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent-ink);
+  background:var(--cg);border:1px solid var(--on-glass-b);padding:5px 9px;border-radius:8px}
+.rc-thumb{display:block;border-radius:14px;overflow:hidden;aspect-ratio:16/10;border:1px solid var(--border);background:var(--on-glass)}
+.rc-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 
 /* ============ PLATEFORME · TEASER MYSTÈRE ============ */
 .tease{position:relative;border:1px solid var(--border2);border-radius:var(--r-xl);overflow:hidden;background:var(--panel)}

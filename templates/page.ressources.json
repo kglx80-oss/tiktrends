@@ -15,78 +15,61 @@
         "theme": "light",
         "eyebrow": "À télécharger",
         "heading": "Notre bibliothèque de ressources.",
-        "lede": "Tout pour faire grandir votre marque, gratuitement."
+        "lede": "Tout pour faire grandir votre marque e-commerce, gratuitement. Filtrez par catégorie.",
+        "show_filters": true,
+        "all_label": "Tout"
       },
       "blocks": {
         "r1": {
           "type": "resource",
-          "settings": {
-            "icon": "file",
-            "tag": "Guide",
-            "title": "Le guide du TikTok Shop",
-            "text": "Tout pour lancer et scaler une marque sur TikTok Shop en 2026.",
-            "meta": "Télécharger"
-          }
+          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "Le guide du TikTok Shop", "text": "Tout pour lancer et scaler une marque sur TikTok Shop en 2026.", "meta": "Lire le guide", "url": "/blogs/journal/tiktok-shop-guide-scaler-marque-2026" }
         },
         "r2": {
           "type": "resource",
-          "settings": {
-            "icon": "template",
-            "tag": "Template",
-            "title": "Template d'audit CRO",
-            "text": "La checklist qu'on utilise pour auditer un site e-commerce.",
-            "meta": "Obtenir le template"
-          }
+          "settings": { "tag": "Template", "format": "Notion", "icon": "template", "title": "Template d'audit CRO", "text": "La checklist qu'on utilise pour auditer un site e-commerce.", "meta": "Obtenir le template", "url": "#" }
         },
         "r3": {
           "type": "resource",
-          "settings": {
-            "icon": "download",
-            "tag": "Asset",
-            "title": "Pack créatif UGC",
-            "text": "Nos modèles de scripts et briefs pour vos créateurs.",
-            "meta": "Télécharger"
-          }
+          "settings": { "tag": "Checklist", "format": "PDF", "icon": "checklist", "title": "Checklist de lancement de marque", "text": "Les 40 points à valider avant d'ouvrir votre boutique.", "meta": "Télécharger", "url": "#" }
         },
         "r4": {
           "type": "resource",
-          "settings": {
-            "icon": "file",
-            "tag": "Guide",
-            "title": "Emailing & CRM e-commerce",
-            "text": "Les séquences qui récupèrent du chiffre d'affaires.",
-            "meta": "Lire le guide"
-          }
+          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "CRO : 7 leviers de conversion", "text": "Augmentez votre taux de conversion sans dépenser plus en acquisition.", "meta": "Lire le guide", "url": "/blogs/journal/cro-7-leviers-taux-de-conversion" }
         },
         "r5": {
           "type": "resource",
-          "settings": {
-            "icon": "template",
-            "tag": "Template",
-            "title": "Plan d'acquisition 90 jours",
-            "text": "Le cadre pour structurer vos premières campagnes.",
-            "meta": "Obtenir le template"
-          }
+          "settings": { "tag": "Asset", "format": "ZIP", "icon": "download", "title": "Pack créatif UGC", "text": "Nos modèles de scripts et briefs pour vos créateurs.", "meta": "Télécharger", "url": "#" }
         },
         "r6": {
           "type": "resource",
-          "settings": {
-            "icon": "download",
-            "tag": "Asset",
-            "title": "Kit de calculs e-commerce",
-            "text": "Marge, LTV, CAC, ROAS : nos feuilles de calcul.",
-            "meta": "Télécharger"
-          }
+          "settings": { "tag": "Template", "format": "Google Sheets", "icon": "template", "title": "Plan d'acquisition 90 jours", "text": "Le cadre pour structurer vos premières campagnes payantes.", "meta": "Obtenir le template", "url": "#" }
+        },
+        "r7": {
+          "type": "resource",
+          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "Publicité Meta & Google rentable", "text": "Scaler son acquisition sans exploser le coût par client.", "meta": "Lire le guide", "url": "/blogs/journal/publicite-meta-google-scaler-acquisition-rentable" }
+        },
+        "r8": {
+          "type": "resource",
+          "settings": { "tag": "Template", "format": "Google Sheets", "icon": "template", "title": "Kit de calculs e-commerce", "text": "Marge, LTV, CAC, ROAS : nos feuilles de calcul prêtes à l'emploi.", "meta": "Télécharger", "url": "#" }
+        },
+        "r9": {
+          "type": "resource",
+          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "SEO & GEO en 2026", "text": "Être visible sur Google et dans les réponses des IA génératives.", "meta": "Lire le guide", "url": "/blogs/journal/seo-geo-visibilite-google-ia-2026" }
+        },
+        "r10": {
+          "type": "resource",
+          "settings": { "tag": "Vidéo", "format": "Vidéo", "icon": "video", "title": "Créer une fiche produit qui convertit", "text": "Pas-à-pas vidéo pour structurer une page produit performante.", "meta": "Regarder", "url": "#" }
+        },
+        "r11": {
+          "type": "resource",
+          "settings": { "tag": "Checklist", "format": "Notion", "icon": "checklist", "title": "Checklist emailing & CRM", "text": "Les séquences qui récupèrent du chiffre d'affaires en automatique.", "meta": "Obtenir", "url": "#" }
+        },
+        "r12": {
+          "type": "resource",
+          "settings": { "tag": "Asset", "format": "Figma", "icon": "download", "title": "Templates de bannières créatives", "text": "Des modèles prêts à personnaliser pour vos publicités.", "meta": "Télécharger", "url": "#" }
         }
       },
-      "block_order": [
-        "r1",
-        "r2",
-        "r3",
-        "r4",
-        "r5",
-        "r6"
-      ]
+      "block_order": [ "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12" ]
     },
     "news": {
       "type": "labs-news",
@@ -105,59 +88,27 @@
       "blocks": {
         "n1": {
           "type": "article",
-          "settings": {
-            "category": "Acquisition",
-            "title": "TikTok Shop : le guide pour scaler en 2026.",
-            "date": "15 mai 2026",
-            "url": "/blogs/journal"
-          }
+          "settings": { "category": "Acquisition", "title": "TikTok Shop : le guide pour scaler en 2026.", "date": "15 mai 2026", "url": "/blogs/journal/tiktok-shop-guide-scaler-marque-2026" }
         },
         "n2": {
           "type": "article",
-          "settings": {
-            "category": "Conversion",
-            "title": "5 leviers CRO qui changent tout.",
-            "date": "20 avril 2026",
-            "url": "/blogs/journal"
-          }
+          "settings": { "category": "Conversion", "title": "CRO : 7 leviers qui changent tout.", "date": "20 avril 2026", "url": "/blogs/journal/cro-7-leviers-taux-de-conversion" }
         },
         "t1": {
           "type": "topic",
-          "settings": {
-            "title": "Études de cas",
-            "subtitle": "Résultats & transformations",
-            "url": "/blogs/journal"
-          }
+          "settings": { "title": "Études de cas", "subtitle": "Résultats & transformations", "url": "/blogs/journal/tagged/etude-de-cas" }
         },
         "t2": {
           "type": "topic",
-          "settings": {
-            "title": "Acquisition & paid",
-            "subtitle": "Meta, Google, TikTok",
-            "url": "/blogs/journal"
-          }
+          "settings": { "title": "Acquisition & paid", "subtitle": "Meta, Google, TikTok", "url": "/blogs/journal/tagged/acquisition" }
         },
         "t3": {
           "type": "topic",
-          "settings": {
-            "title": "Site & conversion",
-            "subtitle": "CRO, parcours d'achat",
-            "url": "/blogs/journal"
-          }
+          "settings": { "title": "Site & conversion", "subtitle": "CRO, parcours d'achat", "url": "/blogs/journal/tagged/cro" }
         }
       },
-      "block_order": [
-        "n1",
-        "n2",
-        "t1",
-        "t2",
-        "t3"
-      ]
+      "block_order": [ "n1", "n2", "t1", "t2", "t3" ]
     }
   },
-  "order": [
-    "hero",
-    "res",
-    "news"
-  ]
+  "order": [ "hero", "res", "news" ]
 }
