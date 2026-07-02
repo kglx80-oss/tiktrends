@@ -49,7 +49,7 @@
       <figure class="figure media-well">
         <div class="ph {{ section.settings.ratio }}">
           {%- if section.settings.image != blank -%}
-            {{ section.settings.image | image_tag: loading: 'lazy', widths: '400, 600, 800, 1200, 1600' }}
+            {{ section.settings.image | image_url: width: 1600 | image_tag: loading: 'lazy', widths: '400, 600, 800, 1200, 1600' }}
           {%- else -%}
             <span>{{ section.settings.placeholder }}</span>
           {%- endif -%}

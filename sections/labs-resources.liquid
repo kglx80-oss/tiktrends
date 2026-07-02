@@ -21,7 +21,7 @@
       {%- for block in section.blocks -%}
         <a class="rcard{% if block.settings.image != blank %} has-thumb{% endif %}" data-cat="{{ block.settings.tag | downcase | strip }}" href="{{ block.settings.url | default: '#' }}"{% if block.settings.url contains '://' %} target="_blank" rel="noopener"{% endif %} {{ block.shopify_attributes }}>
           {%- if block.settings.image != blank -%}
-            <span class="rc-thumb">{{ block.settings.image | image_tag: loading: 'lazy', widths: '300, 600', alt: block.settings.title }}</span>
+            <span class="rc-thumb">{{ block.settings.image | image_url: width: 600 | image_tag: loading: 'lazy', widths: '300, 600', alt: block.settings.title }}</span>
           {%- endif -%}
           <span class="rc-top">
             {%- if block.settings.tag != blank -%}<span class="rc-tag">{{ block.settings.tag }}</span>{%- endif -%}

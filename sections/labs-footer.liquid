@@ -9,7 +9,7 @@
       <div class="nav-brand" style="gap:11px">
         {%- assign logo_alt = section.settings.brand_text | default: '360labs' | strip_html -%}
         {%- if section.settings.logo != blank -%}
-          {{ section.settings.logo | image_tag: widths: '160, 240, 320, 440', alt: logo_alt, style: 'height:46px;width:auto;display:block' }}
+          {{ section.settings.logo | image_url: width: 440 | image_tag: widths: '160, 240, 320, 440', alt: logo_alt, style: 'height:46px;width:auto;display:block' }}
         {%- else -%}
           <img class="brand-logo" src="{{ 'labs-logo.svg' | asset_url }}" alt="{{ logo_alt }}" width="190" height="92" style="height:46px;width:auto;display:block">
         {%- endif -%}
