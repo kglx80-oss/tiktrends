@@ -5,68 +5,68 @@
       "settings": {
         "theme": "dark",
         "eyebrow": "Ressources",
-        "heading": "Guides, templates & <span class=\"grad-on\">assets</span> à télécharger.",
-        "text": "Des ressources concrètes, issues de notre travail quotidien sur +3000 projets e-commerce."
+        "heading": "Guides, outils & <span class=\"grad-on\">calculateurs</span> pour votre marque.",
+        "text": "Tout pour estimer, faire grandir, vendre ou racheter une marque e-commerce."
       }
     },
     "res": {
       "type": "labs-resources",
       "settings": {
         "theme": "light",
-        "eyebrow": "À télécharger",
+        "eyebrow": "À explorer",
         "heading": "Notre bibliothèque de ressources.",
-        "lede": "Tout pour faire grandir votre marque e-commerce, gratuitement. Filtrez par catégorie.",
+        "lede": "Valorisation, cession, due diligence, investissement : nos guides et outils, gratuits. Filtrez par catégorie.",
         "show_filters": true,
         "all_label": "Tout"
       },
       "blocks": {
         "r1": {
           "type": "resource",
-          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "Le guide du TikTok Shop", "text": "Tout pour lancer et scaler une marque sur TikTok Shop en 2026.", "meta": "Lire le guide", "url": "/blogs/journal/tiktok-shop-guide-scaler-marque-2026" }
+          "settings": { "tag": "Outil", "format": "Outil en ligne", "icon": "template", "title": "Estimateur de valorisation", "text": "Estimez la valeur de votre marque e-commerce en quelques minutes.", "meta": "Ouvrir l'outil", "url": "/pages/outils" }
         },
         "r2": {
           "type": "resource",
-          "settings": { "tag": "Template", "format": "Notion", "icon": "template", "title": "Template d'audit CRO", "text": "La checklist qu'on utilise pour auditer un site e-commerce.", "meta": "Obtenir le template", "url": "#" }
+          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "Combien vaut votre marque ?", "text": "La méthode de valorisation : SDE, EBITDA, add-backs et multiples.", "meta": "Lire le guide", "url": "/blogs/journal/combien-vaut-votre-marque-ecommerce-methode-de-valorisation" }
         },
         "r3": {
           "type": "resource",
-          "settings": { "tag": "Checklist", "format": "PDF", "icon": "checklist", "title": "Checklist de lancement de marque", "text": "Les 40 points à valider avant d'ouvrir votre boutique.", "meta": "Télécharger", "url": "#" }
+          "settings": { "tag": "Outil", "format": "Outil en ligne", "icon": "template", "title": "Calculateur de multiple EBITDA/SDE", "text": "Testez différentes hypothèses de multiple sur vos propres chiffres.", "meta": "Ouvrir l'outil", "url": "/pages/outils" }
         },
         "r4": {
           "type": "resource",
-          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "CRO : 7 leviers de conversion", "text": "Augmentez votre taux de conversion sans dépenser plus en acquisition.", "meta": "Lire le guide", "url": "/blogs/journal/cro-7-leviers-taux-de-conversion" }
+          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "EBITDA, SDE & multiples expliqués", "text": "Comment se fixe réellement le prix d'une marque e-commerce.", "meta": "Lire le guide", "url": "/blogs/journal/ebitda-sde-multiples-comment-se-fixe-le-prix-marque" }
         },
         "r5": {
           "type": "resource",
-          "settings": { "tag": "Asset", "format": "ZIP", "icon": "download", "title": "Pack créatif UGC", "text": "Nos modèles de scripts et briefs pour vos créateurs.", "meta": "Télécharger", "url": "#" }
+          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "Vendre sa marque en 7 étapes", "text": "De la préparation des comptes au closing avec earn-out.", "meta": "Lire le guide", "url": "/blogs/journal/vendre-marque-ecommerce-7-etapes-cession-reussie" }
         },
         "r6": {
           "type": "resource",
-          "settings": { "tag": "Template", "format": "Google Sheets", "icon": "template", "title": "Plan d'acquisition 90 jours", "text": "Le cadre pour structurer vos premières campagnes payantes.", "meta": "Obtenir le template", "url": "#" }
+          "settings": { "tag": "Outil", "format": "Outil en ligne", "icon": "checklist", "title": "Score d'éligibilité", "text": "Votre marque est-elle prête pour une cession ? Faites le test.", "meta": "Faire le test", "url": "/pages/outils" }
         },
         "r7": {
           "type": "resource",
-          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "Publicité Meta & Google rentable", "text": "Scaler son acquisition sans exploser le coût par client.", "meta": "Lire le guide", "url": "/blogs/journal/publicite-meta-google-scaler-acquisition-rentable" }
+          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "Due diligence : la grille de l'acheteur", "text": "Ce qu'un acquéreur analyse vraiment avant d'acheter une marque.", "meta": "Lire le guide", "url": "/blogs/journal/due-diligence-ecommerce-ce-quun-acheteur-regarde" }
         },
         "r8": {
           "type": "resource",
-          "settings": { "tag": "Template", "format": "Google Sheets", "icon": "template", "title": "Kit de calculs e-commerce", "text": "Marge, LTV, CAC, ROAS : nos feuilles de calcul prêtes à l'emploi.", "meta": "Télécharger", "url": "#" }
+          "settings": { "tag": "Outil", "format": "Outil en ligne", "icon": "template", "title": "Simulateur de revente / ROI", "text": "Projetez la création de valeur et le retour d'une opération.", "meta": "Ouvrir l'outil", "url": "/pages/outils" }
         },
         "r9": {
           "type": "resource",
-          "settings": { "tag": "Guide", "format": "Article", "icon": "file", "title": "SEO & GEO en 2026", "text": "Être visible sur Google et dans les réponses des IA génératives.", "meta": "Lire le guide", "url": "/blogs/journal/seo-geo-visibilite-google-ia-2026" }
+          "settings": { "tag": "Étude de cas", "format": "Article", "icon": "file", "title": "Du rachat à la revente", "text": "Comment on crée de la valeur sur une marque, étape par étape.", "meta": "Lire l'étude", "url": "/blogs/journal/etude-de-cas-creer-de-la-valeur-marque-ecommerce-rachat-revente" }
         },
         "r10": {
           "type": "resource",
-          "settings": { "tag": "Vidéo", "format": "Vidéo", "icon": "video", "title": "Créer une fiche produit qui convertit", "text": "Pas-à-pas vidéo pour structurer une page produit performante.", "meta": "Regarder", "url": "#" }
+          "settings": { "tag": "Investir", "format": "Article", "icon": "file", "title": "Notre thèse d'investissement", "text": "Pourquoi les marques DTC sous-valorisées sont une classe d'actifs.", "meta": "Lire la thèse", "url": "/blogs/journal/these-investissement-marques-ecommerce-sous-valorisees" }
         },
         "r11": {
           "type": "resource",
-          "settings": { "tag": "Checklist", "format": "Notion", "icon": "checklist", "title": "Checklist emailing & CRM", "text": "Les séquences qui récupèrent du chiffre d'affaires en automatique.", "meta": "Obtenir", "url": "#" }
+          "settings": { "tag": "Investir", "format": "Page", "icon": "link", "title": "Devenir partenaire investisseur", "text": "Exposez votre capital à des marques sourcées, rachetées et opérées.", "meta": "Découvrir", "url": "/pages/entreprises" }
         },
         "r12": {
           "type": "resource",
-          "settings": { "tag": "Asset", "format": "Figma", "icon": "download", "title": "Templates de bannières créatives", "text": "Des modèles prêts à personnaliser pour vos publicités.", "meta": "Télécharger", "url": "#" }
+          "settings": { "tag": "Audit", "format": "Gratuit", "icon": "checklist", "title": "Audit gratuit de votre marque", "text": "On identifie vos leviers de valorisation, sans engagement.", "meta": "Réserver l'audit", "url": "/pages/audit" }
         }
       },
       "block_order": [ "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12" ]
@@ -77,7 +77,7 @@
         "theme": "dark",
         "eyebrow": "À lire aussi",
         "heading": "Le <span class=\"grad-on\">journal</span> du groupe.",
-        "lede": "Nos analyses et coulisses, mises à jour régulièrement.",
+        "lede": "Nos analyses sur la valorisation, la cession et l'investissement, mises à jour régulièrement.",
         "agenda_title": "Explorer par sujet",
         "agenda_badge": "Journal",
         "nl_title": "La newsletter du groupe",
@@ -88,23 +88,23 @@
       "blocks": {
         "n1": {
           "type": "article",
-          "settings": { "category": "Acquisition", "title": "TikTok Shop : le guide pour scaler en 2026.", "date": "15 mai 2026", "url": "/blogs/journal/tiktok-shop-guide-scaler-marque-2026" }
+          "settings": { "category": "Valorisation", "title": "Combien vaut votre marque e-commerce ?", "date": "28 mai 2026", "url": "/blogs/journal/combien-vaut-votre-marque-ecommerce-methode-de-valorisation" }
         },
         "n2": {
           "type": "article",
-          "settings": { "category": "Conversion", "title": "CRO : 7 leviers qui changent tout.", "date": "20 avril 2026", "url": "/blogs/journal/cro-7-leviers-taux-de-conversion" }
+          "settings": { "category": "Cession", "title": "Vendre sa marque : les 7 étapes d'une cession.", "date": "2 mai 2026", "url": "/blogs/journal/vendre-marque-ecommerce-7-etapes-cession-reussie" }
         },
         "t1": {
           "type": "topic",
-          "settings": { "title": "Études de cas", "subtitle": "Résultats & transformations", "url": "/blogs/journal/tagged/etude-de-cas" }
+          "settings": { "title": "Valorisation", "subtitle": "Estimer le prix d'une marque", "url": "/blogs/journal/tagged/valorisation" }
         },
         "t2": {
           "type": "topic",
-          "settings": { "title": "Acquisition & paid", "subtitle": "Meta, Google, TikTok", "url": "/blogs/journal/tagged/acquisition" }
+          "settings": { "title": "Cession & acquisition", "subtitle": "Vendre ou racheter une marque", "url": "/blogs/journal/tagged/cession" }
         },
         "t3": {
           "type": "topic",
-          "settings": { "title": "Site & conversion", "subtitle": "CRO, parcours d'achat", "url": "/blogs/journal/tagged/cro" }
+          "settings": { "title": "Investissement", "subtitle": "Notre thèse & nos opérations", "url": "/blogs/journal/tagged/investissement" }
         }
       },
       "block_order": [ "n1", "n2", "t1", "t2", "t3" ]
