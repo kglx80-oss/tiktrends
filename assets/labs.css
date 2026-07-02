@@ -910,6 +910,10 @@ body.labs-page .shopify-section{position:relative}
 .theme-light .ph::before{mix-blend-mode:normal;opacity:.5}
 .ph::after{z-index:0}
 .ph>img{z-index:2}
+/* garder le faisceau lumineux animé AU-DESSUS de l'image quand une image est posée */
+.ph:has(img)::before{z-index:3;mix-blend-mode:screen;opacity:.4}
+.theme-light .ph:has(img)::before{mix-blend-mode:screen;opacity:.45}
+.ph:has(img)::after{z-index:3;mix-blend-mode:screen;opacity:.7}
 /* repères de placement masqués (rendu « visuel » plutôt que « placeholder ») */
 .ph span,.media-tag,.banner-cap,.bleed span{display:none}
 @keyframes ph-spin{to{transform:rotate(360deg)}}
