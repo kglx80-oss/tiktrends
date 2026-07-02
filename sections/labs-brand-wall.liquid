@@ -18,7 +18,11 @@
           {%- for dup in (1..4) -%}
             {%- for block in section.blocks -%}
               {%- if block.type == 'brand' and block.settings.row == rstr -%}
-                <span class="bw-chip"><span class="bwi{% if block.settings.logo != blank %} has-logo{% endif %}">{% if block.settings.logo != blank %}{{ block.settings.logo | image_url: width: 96 | image_tag: widths: '48, 96', alt: block.settings.name }}{% else %}{{ block.settings.letter }}{% endif %}</span><span>{{ block.settings.name }}</span></span>
+                {%- if block.settings.logo != blank and block.settings.logo_only -%}
+                  <span class="bw-chip bw-chip--logo"><img class="bw-fulllogo" src="{{ block.settings.logo | image_url: width: 320 }}" alt="{{ block.settings.name }}" loading="lazy"></span>
+                {%- else -%}
+                  <span class="bw-chip"><span class="bwi{% if block.settings.logo != blank %} has-logo{% endif %}">{% if block.settings.logo != blank %}{{ block.settings.logo | image_url: width: 96 | image_tag: widths: '48, 96', alt: block.settings.name }}{% else %}{{ block.settings.letter }}{% endif %}</span><span>{{ block.settings.name }}</span></span>
+                {%- endif -%}
               {%- endif -%}
             {%- endfor -%}
           {%- endfor -%}
@@ -53,6 +57,7 @@
       "settings": [
         { "type": "text", "id": "letter", "label": "Initiale", "default": "V" },
         { "type": "image_picker", "id": "logo", "label": "Logo (optionnel — remplace l'initiale)" },
+        { "type": "checkbox", "id": "logo_only", "label": "Afficher le logo seul (sans initiale ni nom)", "default": false },
         { "type": "text", "id": "name", "label": "Nom", "default": "Vitacare" },
         { "type": "select", "id": "row", "label": "Ligne", "options": [ { "value": "1", "label": "Ligne 1" }, { "value": "2", "label": "Ligne 2" } ], "default": "1" }
       ]
