@@ -1,0 +1,33 @@
+{%- comment -%} 360labs — JSON-LD Organization + WebSite (SEO/GEO), rendu globalement via theme.liquid {%- endcomment -%}
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": {{ shop.url | append: '/#organization' | json }},
+        "name": {{ shop.name | json }},
+        "url": {{ shop.url | json }},
+        {% if shop.description != blank %}"description": {{ shop.description | json }},{% endif %}
+        {% if settings.logo %}"logo": {{ settings.logo | image_url: width: 500 | prepend: "https:" | json }},{% endif %}
+        "slogan": "Nous achetons, faisons grandir et revendons des marques e-commerce."
+      },
+      {
+        "@type": "WebSite",
+        "@id": {{ shop.url | append: '/#website' | json }},
+        "url": {{ shop.url | json }},
+        "name": {{ shop.name | json }},
+        "inLanguage": "fr-FR",
+        "publisher": { "@id": {{ shop.url | append: '/#organization' | json }} },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": {{ shop.url | append: '/search?q={search_term_string}' | json }}
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
+  }
+</script>
