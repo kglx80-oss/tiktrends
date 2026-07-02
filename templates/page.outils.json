@@ -1,0 +1,75 @@
+{
+  "sections": {
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Outils gratuits",
+        "heading": "Estimez, calculez, <span class=\"grad-on\">décidez</span>.",
+        "text": "Nos calculateurs pour valoriser votre marque, comprendre son multiple, simuler une revente et savoir si elle est rachetable."
+      }
+    },
+    "estimate": {
+      "type": "labs-valuation",
+      "settings": {
+        "theme": "light",
+        "anchor": "estimer",
+        "eyebrow": "1 · Estimateur",
+        "heading": "Combien vaut votre marque ?",
+        "lede": "Une fourchette de valorisation en quelques secondes.",
+        "cta_label": "Faire évaluer ma marque",
+        "cta_url": "/pages/audit#vendre"
+      }
+    },
+    "multiple": {
+      "type": "labs-multiple",
+      "settings": {
+        "theme": "light",
+        "anchor": "multiple",
+        "eyebrow": "2 · Multiple",
+        "heading": "Quel multiple pour votre marque ?",
+        "lede": "Le prix de cession = bénéfice annuel × multiple. Voyez ce qui le fait varier.",
+        "cta_label": "Faire évaluer ma marque",
+        "cta_url": "/pages/audit#vendre"
+      }
+    },
+    "resale": {
+      "type": "labs-resale",
+      "settings": {
+        "theme": "light",
+        "anchor": "revente",
+        "eyebrow": "3 · Revente / ROI",
+        "heading": "Combien peut rapporter une revente ?",
+        "lede": "Projetez la valeur de revente et le ROI après une phase de croissance.",
+        "cta_label": "Investir avec nous",
+        "cta_url": "/pages/entreprises"
+      }
+    },
+    "eligibility": {
+      "type": "labs-eligibility",
+      "settings": {
+        "theme": "light",
+        "anchor": "eligibilite",
+        "eyebrow": "4 · Test express",
+        "heading": "Votre marque est-elle rachetable ?",
+        "lede": "Cinq questions pour le savoir en 30 secondes.",
+        "cta_label": "Demander une évaluation",
+        "cta_url": "/pages/audit#vendre"
+      }
+    },
+    "cta": {
+      "type": "labs-double-cta",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Passer à l'action",
+        "heading": "Vendre, ou investir."
+      },
+      "blocks": {
+        "d1": { "type": "door", "settings": { "eyebrow": "Vous avez une marque", "title": "Faites-la évaluer.", "text": "Évaluation confidentielle et offre claire, sans engagement.", "cta_label": "Demander une évaluation", "cta_url": "/pages/audit#vendre", "cta_style": "btn-glass" } },
+        "d2": { "type": "door", "settings": { "eyebrow": "Vous avez du capital", "title": "Investissez dans l'e-commerce.", "text": "Exposez votre capital à des marques opérées par nos équipes.", "cta_label": "Devenir partenaire", "cta_url": "/pages/entreprises", "cta_style": "btn-soft" } }
+      },
+      "block_order": [ "d1", "d2" ]
+    }
+  },
+  "order": [ "hero", "estimate", "multiple", "resale", "eligibility", "cta" ]
+}
