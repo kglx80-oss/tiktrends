@@ -21,10 +21,9 @@
         "l5": { "type": "link", "settings": { "label": "La Plateforme", "url": "/pages/plateforme", "tag": "Bientôt" } },
         "l6": { "type": "link", "settings": { "label": "Outils", "url": "/pages/outils" } },
         "m1": { "type": "mega_item", "settings": { "title": "Blog", "description": "Analyses e-commerce, SEO & croissance", "icon": "blog", "url": "/blogs/journal" } },
-        "m2": { "type": "mega_item", "settings": { "title": "Tutoriels", "description": "Pas-à-pas pour créer vos médias", "icon": "video", "url": "/pages/tutoriels" } },
         "m3": { "type": "mega_item", "settings": { "title": "Ressources", "description": "Guides, templates & assets à télécharger", "icon": "file", "url": "/pages/ressources", "separator_after": true } }
       },
-      "block_order": ["l1", "l2", "l3", "l4", "l5", "l6", "m1", "m2", "m3"]
+      "block_order": ["l1", "l2", "l3", "l4", "l5", "l6", "m1", "m3"]
     }
   },
   "order": ["labs_header"]

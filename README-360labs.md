@@ -34,8 +34,9 @@ avec le **handle** indiqué et assignez le **template** correspondant (menu
 | La Plateforme          | `plateforme`   | `page.plateforme`  |
 | Audit gratuit          | `audit`        | `page.audit`       |
 | Contact                | `contact`      | `page.contact`     |
-| Tutoriels              | `tutoriels`    | `page.tutoriels`   |
 | Ressources             | `ressources`   | `page.ressources`  |
+
+> Les **Tutoriels** (`page.tutoriels`) ont été retirés du site 360labs (nav + template déployé + page dépubliée). Le fichier `templates/page.tutoriels.json` est conservé dans le repo pour réutilisation sur le site GLX.
 
 > La page d'accueil utilise automatiquement le template `index` (déjà configuré).
 
