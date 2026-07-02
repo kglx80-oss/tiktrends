@@ -16,7 +16,7 @@
       "blocks": {
         "l1": { "type": "link", "settings": { "label": "Le Groupe", "url": "/pages/le-groupe" } },
         "l2": { "type": "link", "settings": { "label": "L'écosystème", "url": "/pages/ecosysteme" } },
-        "l3": { "type": "link", "settings": { "label": "Entreprises", "url": "/pages/entreprises" } },
+        "l3": { "type": "link", "settings": { "label": "Investir", "url": "/pages/entreprises" } },
         "l4": { "type": "link", "settings": { "label": "Résultats", "url": "/pages/resultats" } },
         "l5": { "type": "link", "settings": { "label": "La Plateforme", "url": "/pages/plateforme", "tag": "Bientôt" } },
         "l6": { "type": "link", "settings": { "label": "Outils", "url": "/pages/outils" } },
