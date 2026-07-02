@@ -6,10 +6,10 @@
         "theme": "dark",
         "caption": "",
         "eyebrow": "Résultats",
-        "heading": "Des résultats qu'on <span class=\"grad-on\">assume</span>.",
-        "text": "Des marques transformées, des chiffres réels. Voici ce que produit un écosystème complet.",
-        "cta1_label": "Auditer ma marque",
-        "cta1_url": "/pages/audit",
+        "heading": "La valeur qu'on <span class=\"grad-on\">crée</span>.",
+        "text": "Des marques rachetées, transformées et valorisées. Des chiffres réels, pas des promesses.",
+        "cta1_label": "Vendre ma marque",
+        "cta1_url": "/pages/audit#vendre",
         "image_opacity": 60,
         "min_height": 420
       }
@@ -67,8 +67,8 @@
         "number": "+850 %",
         "heading": "Enissati. La marque avait le potentiel, on a construit l'écosystème qui l'a libéré, en 6 mois.",
         "list": "Refonte complète du site\nNouveaux supports visuels\nLancement des publicités\nStratégie d'emailing & CRM",
-        "cta_label": "Auditer ma marque",
-        "cta_url": "/pages/audit",
+        "cta_label": "Faire évaluer ma marque",
+        "cta_url": "/pages/audit#vendre",
         "placeholder": "visuel marque · Enissati",
         "caption": "espace photo · 4/3"
       }
@@ -163,8 +163,8 @@
       "type": "labs-brand-wall",
       "settings": {
         "theme": "dark",
-        "eyebrow": "Ils nous font confiance",
-        "heading": "Des marques qui grandissent avec le groupe.",
+        "eyebrow": "Notre portefeuille",
+        "heading": "Des marques que nous opérons et faisons grandir.",
         "count_big": "~40 marques",
         "count_sub": "en gestion active",
         "footnote": "Avis vérifiés · Trustpilot · Google · ComeUp"

@@ -4,10 +4,10 @@
       "type": "labs-page-hero",
       "settings": {
         "theme": "dark",
-        "eyebrow": "Entreprises · B2B",
-        "heading": "Le groupe au service de <span class=\"grad-on\">votre entreprise</span>.",
-        "text": "Site, visibilité, image de marque, automatisation : on met l'écosystème 360labs au service des entreprises qui veulent une présence digitale qui génère du business.",
-        "cta1_label": "Parler à un expert",
+        "eyebrow": "Investisseurs · Partenaires capital",
+        "heading": "Investissez dans l'e-commerce, <span class=\"grad-on\">sans l'opérer</span>.",
+        "text": "Exposez votre capital à des marques e-commerce sourcées, rachetées et opérées par 360labs. On acquiert, on fait grandir, on revend — vous partagez la création de valeur.",
+        "cta1_label": "Devenir partenaire",
         "cta1_url": "#contact",
         "cta2_label": "Voir nos résultats",
         "cta2_url": "/pages/resultats"
@@ -17,238 +17,77 @@
       "type": "labs-offers",
       "settings": {
         "theme": "light",
-        "eyebrow": "L'offre Entreprises",
-        "heading": "Tout ce dont votre entreprise a besoin."
+        "eyebrow": "Pourquoi 360labs",
+        "heading": "Un modèle d'investissement aligné."
       },
       "blocks": {
-        "o1": {
-          "type": "offer",
-          "settings": {
-            "icon": "globe",
-            "title": "Site & présence digitale",
-            "text": "Un site professionnel qui inspire confiance et génère des contrats.",
-            "by": "par GLX"
-          }
-        },
-        "o2": {
-          "type": "offer",
-          "settings": {
-            "icon": "chart",
-            "title": "Acquisition B2B",
-            "text": "Des campagnes pour générer des leads qualifiés en continu.",
-            "by": "par Melie"
-          }
-        },
-        "o3": {
-          "type": "offer",
-          "settings": {
-            "icon": "bolt",
-            "title": "Systèmes & automatisation",
-            "text": "Des process automatisés qui tournent sans vous.",
-            "by": "par Websitz"
-          }
-        },
-        "o4": {
-          "type": "offer",
-          "settings": {
-            "icon": "shield",
-            "title": "Image de marque",
-            "text": "Une identité forte et cohérente sur tous vos supports.",
-            "by": "par 360labs"
-          }
-        },
-        "o5": {
-          "type": "offer",
-          "settings": {
-            "icon": "tshirt",
-            "title": "Textile & merch",
-            "text": "Vêtements et personnalisation sur-mesure, à Laval.",
-            "by": "par Apollon"
-          }
-        },
-        "o6": {
-          "type": "offer",
-          "settings": {
-            "icon": "box",
-            "title": "Conseil sur-mesure",
-            "text": "Un accompagnement adapté à vos enjeux.",
-            "by": "par 360labs"
-          }
-        }
+        "o1": { "type": "offer", "settings": { "icon": "chart", "title": "Sourcing propriétaire", "text": "On identifie des marques e-commerce sous-valorisées à fort potentiel de croissance.", "by": "Deal flow" } },
+        "o2": { "type": "offer", "settings": { "icon": "shield", "title": "Due diligence rigoureuse", "text": "Analyse des chiffres, des risques et du potentiel avant chaque acquisition.", "by": "Analyse" } },
+        "o3": { "type": "offer", "settings": { "icon": "bolt", "title": "Croissance opérée", "text": "Notre moteur — site, acquisition, contenu, CRM — fait grandir chaque marque rachetée.", "by": "Opérations" } },
+        "o4": { "type": "offer", "settings": { "icon": "globe", "title": "Revente au bon moment", "text": "On crée de la valeur, puis on cède quand le multiple est optimal.", "by": "Sortie" } },
+        "o5": { "type": "offer", "settings": { "icon": "box", "title": "Alignement total", "text": "On investit notre propre capital à vos côtés. Skin in the game.", "by": "Focuslabs" } },
+        "o6": { "type": "offer", "settings": { "icon": "shield", "title": "Reporting transparent", "text": "Vous suivez la performance du portefeuille, en clair, à intervalles réguliers.", "by": "Suivi" } }
       },
-      "block_order": [
-        "o1",
-        "o2",
-        "o3",
-        "o4",
-        "o5",
-        "o6"
-      ]
+      "block_order": [ "o1", "o2", "o3", "o4", "o5", "o6" ]
     },
     "split": {
       "type": "labs-orchestration",
       "settings": {
         "theme": "dark",
         "media_position": "left",
-        "eyebrow": "Notre approche",
-        "heading": "Un interlocuteur, tout l'écosystème.",
-        "text": "<p>Plutôt que de jongler entre cinq prestataires, vous travaillez avec <strong>un seul groupe</strong> qui coordonne site, acquisition, image et automatisation.</p><p>Résultat : de la cohérence, de la vitesse, et une présence digitale qui <strong>génère des contrats</strong>.</p>",
-        "cta_label": "Parler à un expert",
+        "eyebrow": "Notre processus",
+        "heading": "De l'acquisition à la revente, on opère pour vous.",
+        "text": "<p>Vous apportez du capital ; nous apportons le deal flow, l'analyse et l'exécution. <strong>Un seul partenaire</strong> gère tout le cycle : sourcing, acquisition, croissance, revente.</p><p>Notre intérêt est aligné sur le vôtre : nous ne créons de la valeur que si la marque en prend.</p>",
+        "cta_label": "Devenir partenaire",
         "cta_url": "#contact",
         "cta_style": "btn-glass",
-        "panel_title": "Votre projet · 360labs",
+        "panel_title": "Cycle d'investissement · 360labs",
         "contact_initials": "360",
-        "contact_name": "Votre chef de projet dédié",
-        "foot": "Un seul interlocuteur · tout coordonné"
+        "contact_name": "Votre partenaire dédié",
+        "foot": "Un cycle maîtrisé, de A à Z"
       },
       "blocks": {
-        "s1": {
-          "type": "stream",
-          "settings": {
-            "icon": "globe",
-            "title": "Site & présence",
-            "status": "En cours",
-            "state": "active"
-          }
-        },
-        "s2": {
-          "type": "stream",
-          "settings": {
-            "icon": "chart",
-            "title": "Acquisition B2B",
-            "status": "Planifié",
-            "state": ""
-          }
-        },
-        "s3": {
-          "type": "stream",
-          "settings": {
-            "icon": "shield",
-            "title": "Image de marque",
-            "status": "Livré",
-            "state": "done"
-          }
-        },
-        "s4": {
-          "type": "stream",
-          "settings": {
-            "icon": "bolt",
-            "title": "Automatisation",
-            "status": "En cours",
-            "state": "active"
-          }
-        }
+        "s1": { "type": "stream", "settings": { "icon": "chart", "title": "Sourcing", "status": "En cours", "state": "active" } },
+        "s2": { "type": "stream", "settings": { "icon": "shield", "title": "Due diligence", "status": "Planifié", "state": "" } },
+        "s3": { "type": "stream", "settings": { "icon": "bolt", "title": "Croissance", "status": "En cours", "state": "active" } },
+        "s4": { "type": "stream", "settings": { "icon": "globe", "title": "Revente", "status": "À venir", "state": "" } }
       },
-      "block_order": [
-        "s1",
-        "s2",
-        "s3",
-        "s4"
-      ]
+      "block_order": [ "s1", "s2", "s3", "s4" ]
     },
     "reassure": {
       "type": "labs-reassure",
-      "settings": {
-        "theme": "light"
-      },
+      "settings": { "theme": "light" },
       "blocks": {
-        "r1": {
-          "type": "item",
-          "settings": {
-            "text": "Un seul interlocuteur"
-          }
-        },
-        "r2": {
-          "type": "item",
-          "settings": {
-            "text": "Devis sous 48 h"
-          }
-        },
-        "r3": {
-          "type": "item",
-          "settings": {
-            "text": "+3000 projets accompagnés"
-          }
-        },
-        "r4": {
-          "type": "item",
-          "settings": {
-            "text": "Basés en France"
-          }
-        }
+        "r1": { "type": "item", "settings": { "text": "Skin in the game" } },
+        "r2": { "type": "item", "settings": { "text": "Intérêts alignés" } },
+        "r3": { "type": "item", "settings": { "text": "Reporting régulier" } },
+        "r4": { "type": "item", "settings": { "text": "+3000 projets menés" } }
       },
-      "block_order": [
-        "r1",
-        "r2",
-        "r3",
-        "r4"
-      ]
+      "block_order": [ "r1", "r2", "r3", "r4" ]
     },
     "lead": {
       "type": "labs-lead-form",
       "settings": {
         "theme": "dark",
         "anchor": "contact",
-        "eyebrow": "Contact B2B",
-        "heading": "Parlons de votre projet.",
-        "text": "Dites-nous ce que vous cherchez. On revient vers vous avec une proposition claire.",
-        "form_title": "Demander un devis",
-        "form_sub": "Réponse sous 48 h ouvrées.",
-        "select_label": "Votre besoin",
-        "select_options": "Site web, Acquisition, Automatisation, Image de marque, Textile & merch, Autre",
+        "eyebrow": "Contact investisseurs",
+        "heading": "Parlons investissement.",
+        "text": "Dites-nous votre horizon et votre capacité d'investissement. On revient vers vous avec une proposition claire, en toute confidentialité.",
+        "form_title": "Devenir partenaire",
+        "form_sub": "Réponse sous 48 h ouvrées, en toute confidentialité.",
+        "select_label": "Votre profil",
+        "select_options": "Investisseur particulier, Family office, Fonds, Autre",
         "submit_label": "Envoyer ma demande"
       },
       "blocks": {
-        "p1": {
-          "type": "point",
-          "settings": {
-            "bold": "Un seul interlocuteur",
-            "text": "pour tout votre digital."
-          }
-        },
-        "p2": {
-          "type": "point",
-          "settings": {
-            "bold": "Proposition claire",
-            "text": "périmètre, délais, budget."
-          }
-        },
-        "p3": {
-          "type": "point",
-          "settings": {
-            "bold": "Sans engagement",
-            "text": "on échange d'abord."
-          }
-        },
-        "m1": {
-          "type": "meta",
-          "settings": {
-            "value": "48 h",
-            "label": "Délai de réponse"
-          }
-        },
-        "m2": {
-          "type": "meta",
-          "settings": {
-            "value": "France",
-            "label": "Équipe basée en"
-          }
-        }
+        "p1": { "type": "point", "settings": { "bold": "Intérêts alignés", "text": "on investit notre propre capital avec vous." } },
+        "p2": { "type": "point", "settings": { "bold": "Cycle géré de A à Z", "text": "du sourcing à la revente." } },
+        "p3": { "type": "point", "settings": { "bold": "Confidentiel", "text": "on échange sans engagement." } },
+        "m1": { "type": "meta", "settings": { "value": "48 h", "label": "Première réponse" } },
+        "m2": { "type": "meta", "settings": { "value": "France", "label": "Équipe basée en" } }
       },
-      "block_order": [
-        "p1",
-        "p2",
-        "p3",
-        "m1",
-        "m2"
-      ]
+      "block_order": [ "p1", "p2", "p3", "m1", "m2" ]
     }
   },
-  "order": [
-    "hero",
-    "offers",
-    "split",
-    "reassure",
-    "lead"
-  ]
+  "order": [ "hero", "offers", "split", "reassure", "lead" ]
 }
