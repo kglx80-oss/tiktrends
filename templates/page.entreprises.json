@@ -18,7 +18,9 @@
       "settings": {
         "theme": "light",
         "eyebrow": "Pourquoi 360labs",
-        "heading": "Un modèle d'investissement aligné."
+        "heading": "Un modèle d'investissement aligné.",
+        "cta_label": "Parler à un expert",
+        "cta_url": "#contact"
       },
       "blocks": {
         "o1": { "type": "offer", "settings": { "icon": "chart", "title": "Sourcing propriétaire", "text": "On identifie des marques e-commerce sous-valorisées à fort potentiel de croissance.", "by": "Deal flow" } },
