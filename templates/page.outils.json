@@ -9,6 +9,17 @@
         "text": "Nos calculateurs pour valoriser votre marque, comprendre son multiple, simuler une revente et savoir si elle est rachetable."
       }
     },
+    "nav": {
+      "type": "labs-anchornav",
+      "settings": { "theme": "light", "title": "Aller à", "sticky": true },
+      "blocks": {
+        "a1": { "type": "item", "settings": { "label": "Valorisation", "anchor": "estimer" } },
+        "a2": { "type": "item", "settings": { "label": "Multiple", "anchor": "multiple" } },
+        "a3": { "type": "item", "settings": { "label": "Revente / ROI", "anchor": "revente" } },
+        "a4": { "type": "item", "settings": { "label": "Éligibilité", "anchor": "eligibilite" } }
+      },
+      "block_order": [ "a1", "a2", "a3", "a4" ]
+    },
     "estimate": {
       "type": "labs-valuation",
       "settings": {
@@ -71,5 +82,5 @@
       "block_order": [ "d1", "d2" ]
     }
   },
-  "order": [ "hero", "estimate", "multiple", "resale", "eligibility", "cta" ]
+  "order": [ "hero", "nav", "estimate", "multiple", "resale", "eligibility", "cta" ]
 }
