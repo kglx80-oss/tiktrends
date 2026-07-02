@@ -1,0 +1,35 @@
+{%- comment -%} 360labs — Sommaire / barre d'ancres (navigation intra-page) {%- endcomment -%}
+<nav class="labs theme-{{ section.settings.theme }} toolnav{% if section.settings.sticky %} toolnav--sticky{% endif %}" aria-label="{{ section.settings.title | default: 'Sommaire' }}" data-screen-label="Sommaire">
+  <div class="wrap toolnav-in">
+    {%- if section.settings.title != blank -%}<span class="toolnav-t">{{ section.settings.title }}</span>{%- endif -%}
+    <div class="toolnav-links">
+      {%- for block in section.blocks -%}
+        <a href="#{{ block.settings.anchor }}" {{ block.shopify_attributes }}>{{ block.settings.label }}</a>
+      {%- endfor -%}
+    </div>
+  </div>
+</nav>
+
+{% schema %}
+{
+  "name": "360labs · Sommaire",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "title", "label": "Libellé", "default": "Aller à" },
+    { "type": "checkbox", "id": "sticky", "label": "Barre collante au défilement", "default": true }
+  ],
+  "blocks": [
+    {
+      "type": "item",
+      "name": "Lien d'ancre",
+      "settings": [
+        { "type": "text", "id": "label", "label": "Libellé", "default": "Section" },
+        { "type": "text", "id": "anchor", "label": "Ancre cible (id, sans #)", "default": "estimer" }
+      ]
+    }
+  ],
+  "presets": [ { "name": "360labs · Sommaire" } ]
+}
+{% endschema %}

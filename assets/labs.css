@@ -1146,3 +1146,16 @@ body.labs-page .shopify-section{position:relative}
 .elig-verdict{font-size:14px;line-height:1.5;color:#c9c9e0;margin:0}
 .elig-verdict.ok{color:#8ef0b0}
 .elig-verdict.mid{color:#ffd78a}
+
+/* ---- sommaire / barre d'ancres ---- */
+.toolnav{border-bottom:1px solid var(--border)}
+.toolnav-in{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-top:14px;padding-bottom:14px}
+.toolnav-t{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}
+.toolnav-links{display:flex;gap:8px;flex-wrap:wrap}
+.toolnav-links a{font-size:13.5px;font-weight:600;color:var(--soft);text-decoration:none;padding:8px 15px;border:1px solid var(--border);border-radius:999px;background:var(--on-glass);transition:color .15s,border-color .15s}
+.toolnav-links a:hover{color:var(--accent-ink);border-color:var(--accent-ink)}
+.toolnav--sticky{position:sticky;top:0;z-index:30;backdrop-filter:blur(12px)}
+.theme-light.toolnav--sticky{background:rgba(255,255,255,.88)}
+.theme-dark.toolnav--sticky{background:rgba(10,10,16,.85)}
+.labs-section{scroll-margin-top:110px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
