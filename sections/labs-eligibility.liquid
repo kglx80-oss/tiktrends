@@ -1,0 +1,58 @@
+{%- comment -%} 360labs — Score d'éligibilité au rachat {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Éligibilité' }}" data-eligibility>
+  <div class="wrap">
+    <div class="head reveal" style="max-width:680px">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.lede != blank -%}<p class="lede">{{ section.settings.lede }}</p>{%- endif -%}
+    </div>
+    <div class="val-card reveal">
+      <div class="val-inputs">
+        <label class="val-lab">Chiffre d'affaires mensuel
+          <select data-elig id="eRev"><option data-score="4">Moins de 5 000 €</option><option data-score="10" selected>5 000 – 20 000 €</option><option data-score="16">20 000 – 50 000 €</option><option data-score="20">Plus de 50 000 €</option></select>
+        </label>
+        <label class="val-lab">Ancienneté
+          <select data-elig id="eAge"><option data-score="6">Moins d'1 an</option><option data-score="14" selected>1 à 3 ans</option><option data-score="20">Plus de 3 ans</option></select>
+        </label>
+        <label class="val-lab">Marge nette
+          <select data-elig id="eMargin"><option data-score="4">Moins de 10 %</option><option data-score="12" selected>10 – 20 %</option><option data-score="20">Plus de 20 %</option></select>
+        </label>
+        <label class="val-lab">Tendance
+          <select data-elig id="eGrowth"><option data-score="2">En baisse</option><option data-score="10">Stable</option><option data-score="16" selected>En croissance</option><option data-score="20">Forte croissance</option></select>
+        </label>
+        <label class="val-lab">Dépendance au fondateur
+          <select data-elig id="eFounder"><option data-score="4">Forte</option><option data-score="12" selected>Moyenne</option><option data-score="20">Faible (autonome)</option></select>
+        </label>
+      </div>
+      <div class="val-result">
+        <div class="val-result-l">Score d'éligibilité au rachat</div>
+        <div class="elig-score"><span id="eScore">—</span><small>/100</small></div>
+        <div class="elig-gauge"><span id="eGauge"></span></div>
+        <p class="elig-verdict" id="eVerdict">—</p>
+        {%- if section.settings.cta_label != blank -%}<a class="btn btn-glass" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+        <p class="val-disc">{{ section.settings.disclaimer | default: 'Indicatif : seule une analyse par nos équipes détermine une offre ferme.' }}</p>
+      </div>
+    </div>
+  </div>
+  <script src="{{ 'labs-tools.js' | asset_url }}" defer="defer"></script>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Éligibilité",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "eligibilite" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Test express" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Votre marque est-elle rachetable ?" },
+    { "type": "textarea", "id": "lede", "label": "Accroche", "default": "Cinq questions pour savoir si votre marque correspond à notre thèse d'acquisition." },
+    { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Demander une évaluation" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
+    { "type": "textarea", "id": "disclaimer", "label": "Mention" }
+  ],
+  "presets": [ { "name": "360labs · Éligibilité" } ]
+}
+{% endschema %}

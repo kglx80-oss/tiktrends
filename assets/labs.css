@@ -1136,3 +1136,13 @@ body.labs-page .shopify-section{position:relative}
 .val-result .btn{margin-top:18px;align-self:flex-start}
 .val-disc{font-size:11px;color:#8f90a8;margin-top:14px;line-height:1.5}
 @media (max-width:760px){.val-card{grid-template-columns:1fr}}
+
+/* ---- outils : ROI négatif + jauge éligibilité ---- */
+.val-meta b.neg{color:#ff8a80}
+.elig-score{display:flex;align-items:baseline;gap:6px;font-size:clamp(34px,5vw,46px);font-weight:800;letter-spacing:-.02em;color:#fff;line-height:1}
+.elig-score small{font-size:16px;font-weight:600;color:#AEB6FF}
+.elig-gauge{height:8px;border-radius:8px;background:rgba(255,255,255,.14);overflow:hidden;margin:14px 0 12px}
+.elig-gauge span{display:block;height:100%;width:0;border-radius:8px;background:var(--grad);transition:width .5s ease}
+.elig-verdict{font-size:14px;line-height:1.5;color:#c9c9e0;margin:0}
+.elig-verdict.ok{color:#8ef0b0}
+.elig-verdict.mid{color:#ffd78a}

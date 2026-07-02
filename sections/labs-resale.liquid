@@ -1,0 +1,57 @@
+{%- comment -%} 360labs — Simulateur de revente / ROI {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Revente' }}" data-resale>
+  <div class="wrap">
+    <div class="head reveal" style="max-width:680px">
+      {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+      {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+      {%- if section.settings.lede != blank -%}<p class="lede">{{ section.settings.lede }}</p>{%- endif -%}
+    </div>
+    <div class="val-card reveal">
+      <div class="val-inputs">
+        <label class="val-lab">Prix d'acquisition
+          <span class="val-field"><i>€</i><input type="number" id="rPrice" value="300000" min="0" step="10000" inputmode="numeric"></span>
+        </label>
+        <label class="val-lab">Bénéfice annuel actuel
+          <span class="val-field"><i>€</i><input type="number" id="rProfit" value="100000" min="0" step="5000" inputmode="numeric"></span>
+        </label>
+        <label class="val-lab">Croissance visée <output id="rGrowthOut">5,0 %/mois</output>
+          <input type="range" id="rGrowth" min="0" max="15" value="5" step="0.5">
+        </label>
+        <label class="val-lab">Horizon <output id="rMonthsOut">18 mois</output>
+          <input type="range" id="rMonths" min="6" max="36" value="18" step="1">
+        </label>
+        <label class="val-lab">Multiple de sortie <output id="rMultOut">×3.0</output>
+          <input type="range" id="rMult" min="2" max="6" value="3" step="0.5">
+        </label>
+      </div>
+      <div class="val-result">
+        <div class="val-result-l">Valeur de revente estimée</div>
+        <div class="val-range"><span id="rExit">—</span></div>
+        <div class="val-meta">Bénéfice projeté : <b id="rProj">—</b><br>Plus-value : <b id="rGain">—</b> · ROI : <b id="rRoi">—</b></div>
+        {%- if section.settings.cta_label != blank -%}<a class="btn btn-glass" href="{{ section.settings.cta_url | default: '#' }}">{{ section.settings.cta_label }} <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>{%- endif -%}
+        <p class="val-disc">{{ section.settings.disclaimer | default: 'Projection théorique (croissance composée du bénéfice). Les résultats réels dépendent de l’exécution.' }}</p>
+      </div>
+    </div>
+  </div>
+  <script src="{{ 'labs-tools.js' | asset_url }}" defer="defer"></script>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Revente / ROI",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "revente" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "Simulateur d'investissement" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Combien peut rapporter une revente ?" },
+    { "type": "textarea", "id": "lede", "label": "Accroche", "default": "Projetez la valeur de revente et le ROI d'une marque après une phase de croissance. C'est notre métier au quotidien." },
+    { "type": "text", "id": "cta_label", "label": "Bouton", "default": "Investir avec nous" },
+    { "type": "url", "id": "cta_url", "label": "Lien du bouton" },
+    { "type": "textarea", "id": "disclaimer", "label": "Mention" }
+  ],
+  "presets": [ { "name": "360labs · Revente / ROI" } ]
+}
+{% endschema %}
