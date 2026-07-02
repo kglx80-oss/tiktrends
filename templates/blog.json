@@ -4,9 +4,9 @@
       "type": "labs-page-hero",
       "settings": {
         "theme": "dark",
-        "eyebrow": "Le journal du groupe",
-        "heading": "Analyses, coulisses & <span class=\"grad-on\">résultats</span>.",
-        "text": "Notre regard sur l'e-commerce, pensé pour le référencement et les moteurs génératifs."
+        "eyebrow": "Le journal 360labs",
+        "heading": "Acheter, faire grandir, <span class=\"grad-on\">revendre</span>.",
+        "text": "Nos analyses sur la valorisation, l'acquisition, la croissance et la cession de marques e-commerce."
       }
     },
     "blog": {
@@ -15,8 +15,8 @@
         "theme": "light",
         "eyebrow": "Tous les articles",
         "heading": "Le journal.",
-        "lede": "Lancements de marques, résultats et regards sur l'e-commerce.",
-        "filters": "Tout, Étude de cas, Acquisition, CRO, Coulisses, SEO"
+        "lede": "Valorisation, acquisition, croissance et revente de marques e-commerce.",
+        "filters": "Tout, Valorisation, Acquisition, Cession, Investissement, Étude de cas"
       }
     }
   },
