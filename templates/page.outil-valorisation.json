@@ -1,0 +1,70 @@
+{
+  "sections": {
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Outil gratuit · Valorisation",
+        "heading": "Estimateur de <span class=\"grad-on\">valorisation</span> de marque e-commerce",
+        "text": "Obtenez une fourchette de valorisation en quelques secondes, à partir de vos propres chiffres."
+      }
+    },
+    "tool": {
+      "type": "labs-valuation",
+      "settings": {
+        "theme": "light",
+        "anchor": "outil",
+        "eyebrow": "Estimateur gratuit",
+        "heading": "Combien vaut votre marque ?",
+        "lede": "Renseignez vos chiffres pour obtenir une fourchette de valorisation indicative.",
+        "cta_label": "Faire évaluer ma marque",
+        "cta_url": "/pages/audit#vendre"
+      }
+    },
+    "guide": {
+      "type": "labs-tool-guide",
+      "settings": {
+        "theme": "light",
+        "example_eyebrow": "Exemple et conseils",
+        "example_heading": "Exemple et conseils",
+        "example_text": "<p>Une marque qui réalise <strong>20 000 € de chiffre d'affaires mensuel</strong> avec <strong>20 % de marge nette</strong> dégage environ 48 000 € de bénéfice annuel. Avec un multiple de 3,5×, sa valorisation indicative ressort autour de <strong>168 000 €</strong>.</p>",
+        "steps_eyebrow": "Comment ça marche",
+        "steps_heading": "Comment fonctionne notre estimateur de valorisation ?",
+        "steps_lede": "Estimez la valeur de votre marque en trois étapes, à partir de vos propres chiffres.",
+        "formula": "Valorisation ≈ Bénéfice annuel × Multiple"
+      },
+      "blocks": {
+        "c1": { "type": "tip", "settings": { "text": "Raisonnez sur le bénéfice net normalisé, pas sur le chiffre d'affaires : c'est lui qu'un acheteur valorise." } },
+        "c2": { "type": "tip", "settings": { "text": "Une croissance régulière et des revenus récurrents tirent le multiple — et donc la valeur — vers le haut." } },
+        "c3": { "type": "tip", "settings": { "text": "Réduire la dépendance au fondateur et diversifier vos canaux fait gagner un demi-point à un point de multiple." } },
+        "s1": { "type": "step", "settings": { "number": "1", "title": "Saisissez vos chiffres", "text": "Indiquez votre chiffre d'affaires mensuel, votre marge nette, votre croissance et l'ancienneté de la marque." } },
+        "s2": { "type": "step", "settings": { "number": "2", "title": "L'outil calcule", "text": "Il en déduit votre bénéfice annuel et applique un multiple adapté à votre profil de risque." } },
+        "s3": { "type": "step", "settings": { "number": "3", "title": "Lisez votre fourchette", "text": "Vous obtenez une valorisation indicative basse et haute, à affiner avec nos équipes." } }
+      },
+      "block_order": [ "c1", "c2", "c3", "s1", "s2", "s3" ]
+    },
+    "faq": {
+      "type": "labs-faq",
+      "settings": { "theme": "light", "anchor": "faq", "eyebrow": "FAQ", "heading": "Questions fréquentes sur la valorisation", "open_first": true },
+      "blocks": {
+        "q1": { "type": "qa", "settings": { "question": "Qu'est-ce que la valorisation d'une marque e-commerce ?", "answer": "<p>C'est l'estimation du prix auquel une marque pourrait être cédée. Elle repose sur un résultat normalisé (SDE ou EBITDA) multiplié par un coefficient qui dépend de la croissance, de la récurrence et du niveau de risque.</p>" } },
+        "q2": { "type": "qa", "settings": { "question": "Comment utiliser cet estimateur ?", "answer": "<p>Renseignez votre chiffre d'affaires mensuel, votre marge nette, votre croissance et l'ancienneté de la marque. L'outil calcule instantanément une fourchette de valorisation.</p>" } },
+        "q3": { "type": "qa", "settings": { "question": "Sur quoi repose le multiple appliqué ?", "answer": "<p>Le multiple varie selon la taille, la croissance, la diversification des canaux et la dépendance au fondateur. Il se situe généralement entre 2 et 4× pour les petites marques et 3 à 6× pour les marques matures.</p>" } },
+        "q4": { "type": "qa", "settings": { "question": "L'estimation est-elle contractuelle ?", "answer": "<p>Non. Il s'agit d'une fourchette indicative. Seule une analyse de vos comptes par nos équipes donne une valeur ferme.</p>" } },
+        "q5": { "type": "qa", "settings": { "question": "Comment augmenter la valeur de ma marque ?", "answer": "<p>En améliorant la récurrence, en diversifiant vos canaux d'acquisition, en consolidant vos marges et en réduisant la dépendance au fondateur. Demandez un audit gratuit pour identifier vos leviers.</p>" } }
+      },
+      "block_order": [ "q1", "q2", "q3", "q4", "q5" ]
+    },
+    "others": {
+      "type": "labs-tools-index",
+      "settings": { "theme": "light", "heading": "Découvrez d'autres outils gratuits", "columns": 3 },
+      "blocks": {
+        "t2": { "type": "tool", "settings": { "icon": "multiple", "title": "Calculateur de multiple EBITDA/SDE", "url": "/pages/calculateur-multiple-ebitda-sde" } },
+        "t3": { "type": "tool", "settings": { "icon": "roi", "title": "Simulateur de revente / ROI", "url": "/pages/simulateur-revente-roi-ecommerce" } },
+        "t4": { "type": "tool", "settings": { "icon": "check", "title": "Test d'éligibilité au rachat", "url": "/pages/test-eligibilite-rachat-marque" } }
+      },
+      "block_order": [ "t2", "t3", "t4" ]
+    }
+  },
+  "order": [ "hero", "tool", "guide", "faq", "others" ]
+}

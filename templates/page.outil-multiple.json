@@ -1,0 +1,70 @@
+{
+  "sections": {
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Outil gratuit · Multiple",
+        "heading": "Calculateur de <span class=\"grad-on\">multiple</span> EBITDA/SDE",
+        "text": "Découvrez le multiple appliqué à votre marque e-commerce et la valorisation qui en découle."
+      }
+    },
+    "tool": {
+      "type": "labs-multiple",
+      "settings": {
+        "theme": "light",
+        "anchor": "outil",
+        "eyebrow": "Calculateur gratuit",
+        "heading": "Quel multiple pour votre marque ?",
+        "lede": "Le prix de cession = bénéfice annuel × multiple. Voyez ce qui le fait varier.",
+        "cta_label": "Faire évaluer ma marque",
+        "cta_url": "/pages/audit#vendre"
+      }
+    },
+    "guide": {
+      "type": "labs-tool-guide",
+      "settings": {
+        "theme": "light",
+        "example_eyebrow": "Exemple et conseils",
+        "example_heading": "Exemple et conseils",
+        "example_text": "<p>Une marque dégageant <strong>120 000 € d'EBITDA annuel</strong>, en croissance, multi-canal et peu dépendante du fondateur, se voit appliquer un multiple d'environ <strong>4×</strong>, soit une valorisation autour de <strong>480 000 €</strong>.</p>",
+        "steps_eyebrow": "Comment ça marche",
+        "steps_heading": "Comment fonctionne notre calculateur de multiple ?",
+        "steps_lede": "Estimez le multiple de votre marque à partir de son bénéfice et de son profil de risque.",
+        "formula": "Valorisation = Bénéfice annuel (EBITDA/SDE) × Multiple"
+      },
+      "blocks": {
+        "c1": { "type": "tip", "settings": { "text": "Le multiple récompense la qualité : croissance, récurrence, diversification des canaux et autonomie du fondateur." } },
+        "c2": { "type": "tip", "settings": { "text": "Un point de multiple gagné sur 120 000 € d'EBITDA, c'est 120 000 € de valeur en plus." } },
+        "c3": { "type": "tip", "settings": { "text": "Documentez vos add-backs : un bénéfice retraité crédible se défend mieux en négociation." } },
+        "s1": { "type": "step", "settings": { "number": "1", "title": "Renseignez votre bénéfice", "text": "Saisissez votre EBITDA ou SDE annuel normalisé." } },
+        "s2": { "type": "step", "settings": { "number": "2", "title": "Décrivez votre profil", "text": "Croissance, canaux, dépendance au fondateur et revenus récurrents : autant de facteurs de risque." } },
+        "s3": { "type": "step", "settings": { "number": "3", "title": "Obtenez votre multiple", "text": "L'outil affiche le multiple estimé et la valorisation correspondante, avec une fourchette." } }
+      },
+      "block_order": [ "c1", "c2", "c3", "s1", "s2", "s3" ]
+    },
+    "faq": {
+      "type": "labs-faq",
+      "settings": { "theme": "light", "anchor": "faq", "eyebrow": "FAQ", "heading": "Questions fréquentes sur les multiples", "open_first": true },
+      "blocks": {
+        "q1": { "type": "qa", "settings": { "question": "Quelle différence entre EBITDA et SDE ?", "answer": "<p>Le SDE réintègre la rémunération du dirigeant (petites marques opérées par le fondateur). L'EBITDA suppose un management salarié (marques matures).</p>" } },
+        "q2": { "type": "qa", "settings": { "question": "Comment est calculé le multiple ?", "answer": "<p>À partir d'un multiple de base ajusté selon votre croissance, la diversification de vos canaux, votre dépendance au fondateur et vos revenus récurrents.</p>" } },
+        "q3": { "type": "qa", "settings": { "question": "Quelles fourchettes de multiples sont réalistes ?", "answer": "<p>Environ 2 à 4× le SDE pour les petites marques et 3 à 6× l'EBITDA pour les marques matures.</p>" } },
+        "q4": { "type": "qa", "settings": { "question": "Qu'est-ce qui fait baisser mon multiple ?", "answer": "<p>La dépendance au fondateur, un canal unique, un seul produit vedette ou des revenus non récurrents.</p>" } },
+        "q5": { "type": "qa", "settings": { "question": "Ce multiple est-il définitif ?", "answer": "<p>Non, c'est une estimation. La valeur ferme dépend d'une analyse détaillée de vos comptes.</p>" } }
+      },
+      "block_order": [ "q1", "q2", "q3", "q4", "q5" ]
+    },
+    "others": {
+      "type": "labs-tools-index",
+      "settings": { "theme": "light", "heading": "Découvrez d'autres outils gratuits", "columns": 3 },
+      "blocks": {
+        "t1": { "type": "tool", "settings": { "icon": "euro", "title": "Estimateur de valorisation", "url": "/pages/estimateur-valorisation-marque-ecommerce" } },
+        "t3": { "type": "tool", "settings": { "icon": "roi", "title": "Simulateur de revente / ROI", "url": "/pages/simulateur-revente-roi-ecommerce" } },
+        "t4": { "type": "tool", "settings": { "icon": "check", "title": "Test d'éligibilité au rachat", "url": "/pages/test-eligibilite-rachat-marque" } }
+      },
+      "block_order": [ "t1", "t3", "t4" ]
+    }
+  },
+  "order": [ "hero", "tool", "guide", "faq", "others" ]
+}

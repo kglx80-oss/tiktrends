@@ -1,0 +1,76 @@
+{%- comment -%} 360labs — FAQ (accordéon + JSON-LD FAQPage pour SEO/GEO) {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'FAQ' }}">
+  <div class="wrap fq-wrap">
+    {%- if section.settings.heading != blank or section.settings.eyebrow != blank -%}
+      <div class="head reveal" style="max-width:720px">
+        {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+        {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+        {%- if section.settings.lede != blank -%}<p class="lede">{{ section.settings.lede }}</p>{%- endif -%}
+      </div>
+    {%- endif -%}
+
+    <div class="fq-list reveal">
+      {%- for block in section.blocks -%}
+        <details class="fq-item"{% if forloop.first and section.settings.open_first %} open{% endif %} {{ block.shopify_attributes }}>
+          <summary>
+            <span>{{ block.settings.question }}</span>
+            <svg class="fq-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+          </summary>
+          <div class="fq-a">{{ block.settings.answer }}</div>
+        </details>
+      {%- endfor -%}
+    </div>
+  </div>
+
+  {%- if section.blocks.size > 0 -%}
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+        {%- for block in section.blocks -%}
+          {"@type":"Question","name":{{ block.settings.question | strip_html | json }},"acceptedAnswer":{"@type":"Answer","text":{{ block.settings.answer | strip_html | json }}}}{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      ]}
+    </script>
+  {%- endif -%}
+
+  <style>
+    #shopify-section-{{ section.id }} .fq-list{margin-top:6px;border:1px solid var(--line,#e7e7ee);border-radius:16px;overflow:hidden;background:var(--card,#fff)}
+    #shopify-section-{{ section.id }} .fq-item{border-top:1px solid var(--line,#e7e7ee)}
+    #shopify-section-{{ section.id }} .fq-item:first-child{border-top:0}
+    #shopify-section-{{ section.id }} .fq-item summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;font-weight:600;font-size:16px;line-height:1.35}
+    #shopify-section-{{ section.id }} .fq-item summary::-webkit-details-marker{display:none}
+    #shopify-section-{{ section.id }} .fq-chev{flex:0 0 auto;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.5;transition:transform .25s}
+    #shopify-section-{{ section.id }} .fq-item[open] .fq-chev{transform:rotate(180deg)}
+    #shopify-section-{{ section.id }} .fq-a{padding:0 24px 22px;font-size:15px;line-height:1.6;opacity:.75}
+    #shopify-section-{{ section.id }} .fq-a p{margin:0 0 10px}
+    #shopify-section-{{ section.id }} .fq-a :last-child{margin-bottom:0}
+  </style>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · FAQ",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "max_blocks": 20,
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)", "default": "faq" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre", "default": "FAQ" },
+    { "type": "text", "id": "heading", "label": "Titre", "default": "Questions fréquentes" },
+    { "type": "textarea", "id": "lede", "label": "Accroche" },
+    { "type": "checkbox", "id": "open_first", "label": "Ouvrir la première question par défaut", "default": true }
+  ],
+  "blocks": [
+    {
+      "type": "qa",
+      "name": "Question",
+      "settings": [
+        { "type": "text", "id": "question", "label": "Question", "default": "Votre question ?" },
+        { "type": "richtext", "id": "answer", "label": "Réponse" }
+      ]
+    }
+  ],
+  "presets": [ { "name": "360labs · FAQ" } ]
+}
+{% endschema %}

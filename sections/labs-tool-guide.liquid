@@ -1,0 +1,104 @@
+{%- comment -%} 360labs — Guide d'un outil : Exemple & conseils + Comment ça marche {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Guide' }}">
+  <div class="wrap tg-wrap">
+
+    {%- assign tips = section.blocks | where: 'type', 'tip' -%}
+    {%- if section.settings.example_heading != blank or section.settings.example_text != blank or tips.size > 0 -%}
+      <div class="tg-block reveal">
+        {%- if section.settings.example_eyebrow != blank -%}<div class="eyebrow">{{ section.settings.example_eyebrow }}</div>{%- endif -%}
+        {%- if section.settings.example_heading != blank -%}<h2>{{ section.settings.example_heading }}</h2>{%- endif -%}
+        {%- if section.settings.example_text != blank -%}
+          <div class="tg-example">{{ section.settings.example_text }}</div>
+        {%- endif -%}
+        {%- if tips.size > 0 -%}
+          <ul class="tg-tips">
+            {%- for b in tips -%}
+              <li {{ b.shopify_attributes }}><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></svg><span>{{ b.settings.text }}</span></li>
+            {%- endfor -%}
+          </ul>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+
+    {%- assign steps = section.blocks | where: 'type', 'step' -%}
+    {%- if section.settings.steps_heading != blank or steps.size > 0 -%}
+      <div class="tg-block tg-steps-wrap reveal">
+        <div class="tg-steps-head">
+          {%- if section.settings.steps_eyebrow != blank -%}<div class="eyebrow">{{ section.settings.steps_eyebrow }}</div>{%- endif -%}
+          {%- if section.settings.steps_heading != blank -%}<h2>{{ section.settings.steps_heading }}</h2>{%- endif -%}
+          {%- if section.settings.steps_lede != blank -%}<p class="lede">{{ section.settings.steps_lede }}</p>{%- endif -%}
+          {%- if section.settings.formula != blank -%}<p class="tg-formula"><span>Calcul</span> {{ section.settings.formula }}</p>{%- endif -%}
+        </div>
+        {%- if steps.size > 0 -%}
+          <div class="tg-steps">
+            {%- for b in steps -%}
+              <div class="tg-step" {{ b.shopify_attributes }}>
+                <span class="tg-num">{{ b.settings.number | default: forloop.index }}</span>
+                <h3>{{ b.settings.title }}</h3>
+                {%- if b.settings.text != blank -%}<p>{{ b.settings.text }}</p>{%- endif -%}
+              </div>
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+
+  </div>
+
+  <style>
+    #shopify-section-{{ section.id }} .tg-wrap{display:flex;flex-direction:column;gap:56px}
+    #shopify-section-{{ section.id }} .tg-example{margin-top:18px;padding:22px 24px;border:1px solid var(--line,#e7e7ee);border-radius:16px;background:color-mix(in srgb,var(--accent-ink,#5b4bd6) 5%,#fff);font-size:16px;line-height:1.6}
+    #shopify-section-{{ section.id }} .tg-tips{list-style:none;margin:22px 0 0;padding:0;display:flex;flex-direction:column;gap:14px}
+    #shopify-section-{{ section.id }} .tg-tips li{display:flex;gap:12px;align-items:flex-start;font-size:15.5px;line-height:1.55}
+    #shopify-section-{{ section.id }} .tg-tips svg{flex:0 0 auto;width:20px;height:20px;margin-top:2px;fill:none;stroke:#1fbf75;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+    #shopify-section-{{ section.id }} .tg-steps-head{text-align:center;max-width:720px;margin:0 auto}
+    #shopify-section-{{ section.id }} .tg-formula{display:inline-block;margin-top:14px;padding:8px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent-ink,#5b4bd6) 10%,transparent);font-size:14.5px;font-weight:500}
+    #shopify-section-{{ section.id }} .tg-formula span{font-weight:700;color:var(--accent-ink,#5b4bd6);text-transform:uppercase;letter-spacing:.04em;font-size:12px;margin-right:6px}
+    #shopify-section-{{ section.id }} .tg-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px}
+    #shopify-section-{{ section.id }} .tg-step{padding:24px;border:1px solid var(--line,#e7e7ee);border-radius:16px;background:var(--card,#fff)}
+    #shopify-section-{{ section.id }} .tg-num{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--line,#e7e7ee);font-weight:700;font-size:15px;margin-bottom:14px}
+    #shopify-section-{{ section.id }} .tg-step h3{font-size:16.5px;margin:0 0 8px}
+    #shopify-section-{{ section.id }} .tg-step p{font-size:14.5px;line-height:1.55;opacity:.72;margin:0}
+    @media(max-width:820px){#shopify-section-{{ section.id }} .tg-steps{grid-template-columns:1fr}#shopify-section-{{ section.id }} .tg-wrap{gap:44px}}
+  </style>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Guide d'outil",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "max_blocks": 12,
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "header", "content": "Exemple & conseils" },
+    { "type": "text", "id": "example_eyebrow", "label": "Sur-titre", "default": "Exemple et conseils" },
+    { "type": "text", "id": "example_heading", "label": "Titre", "default": "Exemple et conseils" },
+    { "type": "richtext", "id": "example_text", "label": "Exemple chiffré (encadré)" },
+    { "type": "header", "content": "Comment ça marche" },
+    { "type": "text", "id": "steps_eyebrow", "label": "Sur-titre", "default": "Comment ça marche" },
+    { "type": "text", "id": "steps_heading", "label": "Titre", "default": "Comment fonctionne notre outil ?" },
+    { "type": "textarea", "id": "steps_lede", "label": "Accroche" },
+    { "type": "text", "id": "formula", "label": "Formule / explication du calcul (optionnel)" }
+  ],
+  "blocks": [
+    {
+      "type": "tip",
+      "name": "Conseil (coche verte)",
+      "settings": [ { "type": "textarea", "id": "text", "label": "Conseil", "default": "Un conseil actionnable." } ]
+    },
+    {
+      "type": "step",
+      "name": "Étape",
+      "settings": [
+        { "type": "text", "id": "number", "label": "Numéro (optionnel)" },
+        { "type": "text", "id": "title", "label": "Titre", "default": "Étape" },
+        { "type": "textarea", "id": "text", "label": "Texte" }
+      ]
+    }
+  ],
+  "presets": [ { "name": "360labs · Guide d'outil" } ]
+}
+{% endschema %}

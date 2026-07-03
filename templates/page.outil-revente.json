@@ -1,0 +1,70 @@
+{
+  "sections": {
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Outil gratuit · Revente",
+        "heading": "Simulateur de <span class=\"grad-on\">revente</span> & ROI e-commerce",
+        "text": "Projetez la valeur de revente d'une marque et le retour sur investissement d'une opération d'achat-revente."
+      }
+    },
+    "tool": {
+      "type": "labs-resale",
+      "settings": {
+        "theme": "light",
+        "anchor": "outil",
+        "eyebrow": "Simulateur gratuit",
+        "heading": "Combien peut rapporter une revente ?",
+        "lede": "Projetez la valeur de revente et le ROI après une phase de croissance.",
+        "cta_label": "Investir avec nous",
+        "cta_url": "/pages/entreprises"
+      }
+    },
+    "guide": {
+      "type": "labs-tool-guide",
+      "settings": {
+        "theme": "light",
+        "example_eyebrow": "Exemple et conseils",
+        "example_heading": "Exemple et conseils",
+        "example_text": "<p>En rachetant une marque <strong>300 000 €</strong> (100 000 € de bénéfice annuel) puis en la faisant croître de 5 %/mois sur 18 mois, le bénéfice projeté atteint ~240 000 €. Revendue à un multiple de 3×, elle vaut <strong>~720 000 €</strong>, soit une plus-value de 420 000 € (ROI ~140 %).</p>",
+        "steps_eyebrow": "Comment ça marche",
+        "steps_heading": "Comment fonctionne notre simulateur de revente ?",
+        "steps_lede": "Projetez la création de valeur d'une opération à partir de vos hypothèses.",
+        "formula": "Valeur de revente = Bénéfice projeté × Multiple de sortie"
+      },
+      "blocks": {
+        "c1": { "type": "tip", "settings": { "text": "Le prix d'entrée fait la moitié du résultat : acheter au bon multiple protège tout le ROI." } },
+        "c2": { "type": "tip", "settings": { "text": "La croissance composée est puissante mais dépend de l'exécution : restez prudent sur l'hypothèse mensuelle." } },
+        "c3": { "type": "tip", "settings": { "text": "Un multiple de sortie plus élevé se mérite : diversification, récurrence et autonomie de la marque." } },
+        "s1": { "type": "step", "settings": { "number": "1", "title": "Entrez l'opération", "text": "Prix d'acquisition et bénéfice annuel actuel de la marque." } },
+        "s2": { "type": "step", "settings": { "number": "2", "title": "Fixez vos hypothèses", "text": "Croissance visée, horizon de détention et multiple de revente." } },
+        "s3": { "type": "step", "settings": { "number": "3", "title": "Lisez le ROI", "text": "L'outil projette la valeur de revente, la plus-value et le retour sur investissement." } }
+      },
+      "block_order": [ "c1", "c2", "c3", "s1", "s2", "s3" ]
+    },
+    "faq": {
+      "type": "labs-faq",
+      "settings": { "theme": "light", "anchor": "faq", "eyebrow": "FAQ", "heading": "Questions fréquentes sur la revente", "open_first": true },
+      "blocks": {
+        "q1": { "type": "qa", "settings": { "question": "À quoi sert ce simulateur ?", "answer": "<p>À projeter la valeur de revente d'une marque après une phase de croissance, et le retour sur investissement d'une opération d'achat-revente.</p>" } },
+        "q2": { "type": "qa", "settings": { "question": "Comment la projection est-elle calculée ?", "answer": "<p>Le bénéfice croît de manière composée selon le taux mensuel et l'horizon choisis, puis on lui applique le multiple de sortie.</p>" } },
+        "q3": { "type": "qa", "settings": { "question": "Qu'est-ce qu'un bon ROI sur ce type d'opération ?", "answer": "<p>Cela dépend du risque et de l'horizon. L'intérêt de l'outil est de comparer des scénarios, pas de garantir un chiffre.</p>" } },
+        "q4": { "type": "qa", "settings": { "question": "Les résultats sont-ils garantis ?", "answer": "<p>Non. C'est une projection théorique ; les résultats réels dépendent de l'exécution opérationnelle.</p>" } },
+        "q5": { "type": "qa", "settings": { "question": "Puis-je investir à vos côtés ?", "answer": "<p>Oui. 360labs source, rachète et opère des marques pour des partenaires investisseurs. Découvrez notre approche sur la page investisseurs.</p>" } }
+      },
+      "block_order": [ "q1", "q2", "q3", "q4", "q5" ]
+    },
+    "others": {
+      "type": "labs-tools-index",
+      "settings": { "theme": "light", "heading": "Découvrez d'autres outils gratuits", "columns": 3 },
+      "blocks": {
+        "t1": { "type": "tool", "settings": { "icon": "euro", "title": "Estimateur de valorisation", "url": "/pages/estimateur-valorisation-marque-ecommerce" } },
+        "t2": { "type": "tool", "settings": { "icon": "multiple", "title": "Calculateur de multiple EBITDA/SDE", "url": "/pages/calculateur-multiple-ebitda-sde" } },
+        "t4": { "type": "tool", "settings": { "icon": "check", "title": "Test d'éligibilité au rachat", "url": "/pages/test-eligibilite-rachat-marque" } }
+      },
+      "block_order": [ "t1", "t2", "t4" ]
+    }
+  },
+  "order": [ "hero", "tool", "guide", "faq", "others" ]
+}

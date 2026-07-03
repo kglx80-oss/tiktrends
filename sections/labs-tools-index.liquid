@@ -1,0 +1,82 @@
+{%- comment -%} 360labs — Annuaire d'outils (sommaire) / « Autres outils gratuits » {%- endcomment -%}
+<section class="labs theme-{{ section.settings.theme }} pad labs-section" {% if section.settings.anchor != blank %}id="{{ section.settings.anchor }}"{% endif %} data-screen-label="{{ section.settings.label | default: 'Outils' }}">
+  <div class="wrap">
+    {%- if section.settings.heading != blank or section.settings.eyebrow != blank -%}
+      <div class="head reveal" style="max-width:720px">
+        {%- if section.settings.eyebrow != blank -%}<div class="eyebrow">{{ section.settings.eyebrow }}</div>{%- endif -%}
+        {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+        {%- if section.settings.lede != blank -%}<p class="lede">{{ section.settings.lede }}</p>{%- endif -%}
+      </div>
+    {%- endif -%}
+
+    <div class="ti-grid reveal" data-cols="{{ section.settings.columns | default: 2 }}">
+      {%- for block in section.blocks -%}
+        {%- assign ext = false -%}{%- if block.settings.url contains '://' -%}{%- assign ext = true -%}{%- endif -%}
+        <a class="ti-card" href="{{ block.settings.url | default: '#' }}"{% if ext %} target="_blank" rel="noopener"{% endif %} {{ block.shopify_attributes }}>
+          <span class="ti-ic">
+            {%- case block.settings.icon -%}
+              {%- when 'euro' -%}<svg viewBox="0 0 24 24"><path d="M15 8a5 5 0 1 0 0 8M4 10h7M4 14h7"></path></svg>
+              {%- when 'multiple' -%}<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>
+              {%- when 'roi' -%}<svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M21 7v5h-5"></path></svg>
+              {%- when 'check' -%}<svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"></path></svg>
+              {%- when 'gauge' -%}<svg viewBox="0 0 24 24"><path d="M12 13l4-3M4 18a8 8 0 1 1 16 0"></path></svg>
+              {%- else -%}<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 7h8M8 11h8M8 15h5"></path></svg>
+            {%- endcase -%}
+          </span>
+          <span class="ti-txt">
+            <span class="ti-name">{{ block.settings.title }}</span>
+            {%- if block.settings.subtitle != blank -%}<span class="ti-sub">{{ block.settings.subtitle }}</span>{%- endif -%}
+          </span>
+          <svg class="ti-arr" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </a>
+      {%- endfor -%}
+    </div>
+  </div>
+
+  <style>
+    #shopify-section-{{ section.id }} .ti-grid{display:grid;gap:14px;margin-top:8px}
+    #shopify-section-{{ section.id }} .ti-grid[data-cols="2"]{grid-template-columns:repeat(2,1fr)}
+    #shopify-section-{{ section.id }} .ti-grid[data-cols="3"]{grid-template-columns:repeat(3,1fr)}
+    #shopify-section-{{ section.id }} .ti-card{display:flex;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--line,#e7e7ee);border-radius:16px;background:var(--card,#fff);text-decoration:none;color:inherit;transition:border-color .2s,transform .2s,box-shadow .2s}
+    #shopify-section-{{ section.id }} .ti-card:hover{border-color:var(--accent-ink,#5b4bd6);transform:translateY(-2px);box-shadow:0 10px 30px rgba(40,30,90,.08)}
+    #shopify-section-{{ section.id }} .ti-ic{flex:0 0 auto;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--accent-ink,#5b4bd6) 12%,transparent)}
+    #shopify-section-{{ section.id }} .ti-ic svg{width:22px;height:22px;fill:none;stroke:var(--accent-ink,#5b4bd6);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    #shopify-section-{{ section.id }} .ti-txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+    #shopify-section-{{ section.id }} .ti-name{font-weight:600;font-size:16px;line-height:1.25}
+    #shopify-section-{{ section.id }} .ti-sub{font-size:13px;opacity:.62;line-height:1.35}
+    #shopify-section-{{ section.id }} .ti-arr{flex:0 0 auto;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.35;transition:opacity .2s,transform .2s}
+    #shopify-section-{{ section.id }} .ti-card:hover .ti-arr{opacity:1;transform:translateX(3px)}
+    @media(max-width:720px){#shopify-section-{{ section.id }} .ti-grid[data-cols]{grid-template-columns:1fr}}
+  </style>
+</section>
+
+{% schema %}
+{
+  "name": "360labs · Annuaire d'outils",
+  "tag": "section",
+  "class": "labs-shopify-section",
+  "max_blocks": 24,
+  "settings": [
+    { "type": "select", "id": "theme", "label": "Thème", "options": [ { "value": "dark", "label": "Sombre" }, { "value": "light", "label": "Clair" } ], "default": "light" },
+    { "type": "text", "id": "anchor", "label": "Ancre (id)" },
+    { "type": "text", "id": "label", "label": "Libellé éditeur" },
+    { "type": "text", "id": "eyebrow", "label": "Sur-titre" },
+    { "type": "text", "id": "heading", "label": "Titre" },
+    { "type": "textarea", "id": "lede", "label": "Accroche" },
+    { "type": "range", "id": "columns", "label": "Colonnes", "min": 2, "max": 3, "step": 1, "default": 2 }
+  ],
+  "blocks": [
+    {
+      "type": "tool",
+      "name": "Outil",
+      "settings": [
+        { "type": "select", "id": "icon", "label": "Icône", "options": [ {"value":"euro","label":"Valorisation (€)"}, {"value":"multiple","label":"Multiple (barres)"}, {"value":"roi","label":"ROI / revente"}, {"value":"check","label":"Éligibilité (bouclier)"}, {"value":"gauge","label":"Jauge"}, {"value":"calc","label":"Calculateur"} ], "default": "calc" },
+        { "type": "text", "id": "title", "label": "Nom de l'outil", "default": "Nom de l'outil" },
+        { "type": "text", "id": "subtitle", "label": "Sous-titre (optionnel)" },
+        { "type": "url", "id": "url", "label": "Lien vers la page de l'outil" }
+      ]
+    }
+  ],
+  "presets": [ { "name": "360labs · Annuaire d'outils" } ]
+}
+{% endschema %}

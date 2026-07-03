@@ -1,0 +1,70 @@
+{
+  "sections": {
+    "hero": {
+      "type": "labs-page-hero",
+      "settings": {
+        "theme": "dark",
+        "eyebrow": "Outil gratuit · Éligibilité",
+        "heading": "Votre marque est-elle <span class=\"grad-on\">rachetable</span> ?",
+        "text": "Cinq questions pour tester en 30 secondes le potentiel de rachat de votre marque e-commerce."
+      }
+    },
+    "tool": {
+      "type": "labs-eligibility",
+      "settings": {
+        "theme": "light",
+        "anchor": "outil",
+        "eyebrow": "Test express gratuit",
+        "heading": "Votre marque est-elle rachetable ?",
+        "lede": "Cinq questions pour le savoir en 30 secondes.",
+        "cta_label": "Demander une évaluation",
+        "cta_url": "/pages/audit#vendre"
+      }
+    },
+    "guide": {
+      "type": "labs-tool-guide",
+      "settings": {
+        "theme": "light",
+        "example_eyebrow": "Exemple et conseils",
+        "example_heading": "Exemple et conseils",
+        "example_text": "<p>Une marque de 2 ans, <strong>15 000 €/mois de CA</strong>, 18 % de marge, en croissance et moyennement dépendante du fondateur obtient un score autour de <strong>70/100</strong> : un profil intéressant, à consolider sur l'autonomie et la marge avant une cession.</p>",
+        "steps_eyebrow": "Comment ça marche",
+        "steps_heading": "Comment fonctionne notre test d'éligibilité ?",
+        "steps_lede": "Cinq critères pondérés produisent un score de rachat sur 100.",
+        "formula": "Score = somme pondérée de 5 critères (sur 100)"
+      },
+      "blocks": {
+        "c1": { "type": "tip", "settings": { "text": "Un score élevé vient surtout de la marge, de la croissance et de la faible dépendance au fondateur." } },
+        "c2": { "type": "tip", "settings": { "text": "Sous 40/100, travaillez d'abord vos fondamentaux (marge, récurrence) avant d'envisager une cession." } },
+        "c3": { "type": "tip", "settings": { "text": "Le score est un point de départ : la vraie valeur se révèle en analyse détaillée." } },
+        "s1": { "type": "step", "settings": { "number": "1", "title": "Répondez à 5 questions", "text": "CA mensuel, ancienneté, marge, tendance et dépendance au fondateur." } },
+        "s2": { "type": "step", "settings": { "number": "2", "title": "L'outil note votre profil", "text": "Chaque réponse est pondérée pour produire un score sur 100." } },
+        "s3": { "type": "step", "settings": { "number": "3", "title": "Lisez votre verdict", "text": "Vous savez immédiatement si votre marque présente un profil rachetable." } }
+      },
+      "block_order": [ "c1", "c2", "c3", "s1", "s2", "s3" ]
+    },
+    "faq": {
+      "type": "labs-faq",
+      "settings": { "theme": "light", "anchor": "faq", "eyebrow": "FAQ", "heading": "Questions fréquentes sur l'éligibilité", "open_first": true },
+      "blocks": {
+        "q1": { "type": "qa", "settings": { "question": "Que mesure ce test d'éligibilité ?", "answer": "<p>La probabilité qu'une marque présente un profil intéressant pour un rachat, à partir de cinq critères clés.</p>" } },
+        "q2": { "type": "qa", "settings": { "question": "Comment le score est-il calculé ?", "answer": "<p>Chaque réponse rapporte un nombre de points ; la somme, ramenée sur 100, donne votre score d'éligibilité.</p>" } },
+        "q3": { "type": "qa", "settings": { "question": "Quels critères comptent le plus ?", "answer": "<p>La marge nette, la croissance et l'autonomie vis-à-vis du fondateur pèsent particulièrement lourd.</p>" } },
+        "q4": { "type": "qa", "settings": { "question": "Un score faible signifie-t-il que ma marque est invendable ?", "answer": "<p>Non. Il indique surtout des leviers à travailler avant une cession. Un audit vous dira lesquels en priorité.</p>" } },
+        "q5": { "type": "qa", "settings": { "question": "Que faire après le test ?", "answer": "<p>Demandez une évaluation gratuite : nos équipes analysent vos comptes et vous donnent une fourchette de valeur ferme.</p>" } }
+      },
+      "block_order": [ "q1", "q2", "q3", "q4", "q5" ]
+    },
+    "others": {
+      "type": "labs-tools-index",
+      "settings": { "theme": "light", "heading": "Découvrez d'autres outils gratuits", "columns": 3 },
+      "blocks": {
+        "t1": { "type": "tool", "settings": { "icon": "euro", "title": "Estimateur de valorisation", "url": "/pages/estimateur-valorisation-marque-ecommerce" } },
+        "t2": { "type": "tool", "settings": { "icon": "multiple", "title": "Calculateur de multiple EBITDA/SDE", "url": "/pages/calculateur-multiple-ebitda-sde" } },
+        "t3": { "type": "tool", "settings": { "icon": "roi", "title": "Simulateur de revente / ROI", "url": "/pages/simulateur-revente-roi-ecommerce" } }
+      },
+      "block_order": [ "t1", "t2", "t3" ]
+    }
+  },
+  "order": [ "hero", "tool", "guide", "faq", "others" ]
+}
