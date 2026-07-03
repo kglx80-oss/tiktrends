@@ -8,7 +8,7 @@
         "brand_text": "360<b>labs</b>",
         "tagline": "L'écosystème qui construit, possède et propulse les marques e-commerce. Depuis 2019.",
         "copyright": "© 2026 360LABS · Tous droits réservés.",
-        "signature": "Iridescent · Sora"
+        "signature": ""
       },
       "blocks": {
         "c1": { "type": "column", "settings": { "heading": "Le Groupe", "menu": "footer-groupe" } },
