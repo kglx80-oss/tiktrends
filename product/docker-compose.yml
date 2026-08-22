@@ -1,0 +1,45 @@
+# Déploiement OVH — 1 VPS suffit pour démarrer (EU, RGPD).
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tiktrends
+      POSTGRES_USER: tiktrends
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # pgvector : activer l'extension au 1er démarrage
+    # (CREATE EXTENSION IF NOT EXISTS vector; via la 1re migration Drizzle)
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+
+  web:
+    build: { context: ., dockerfile: Dockerfile.web }
+    restart: unless-stopped
+    env_file: .env.deploy
+    depends_on: [db, redis]
+
+  workers:
+    build: { context: ., dockerfile: Dockerfile.workers }
+    restart: unless-stopped
+    env_file: .env.deploy
+    depends_on: [db, redis]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on: [web]
+
+volumes:
+  pgdata:
+  redisdata:
+  caddydata:

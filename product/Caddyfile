@@ -1,0 +1,4 @@
+# Remplace par ton domaine (DNS A -> IP du VPS OVH). TLS Let's Encrypt automatique.
+app.ton-domaine.fr {
+	reverse_proxy web:3000
+}
