@@ -1,0 +1,58 @@
+{
+  "ad_account_id": "act_demo",
+  "ads": [
+    {
+      "id": "m-201",
+      "name": "Static product - offer led",
+      "status": "ACTIVE",
+      "campaign": {
+        "name": "Prospecting"
+      },
+      "adset": {
+        "name": "FR-25-45"
+      },
+      "creative": {
+        "image_hash": "img-1",
+        "thumbnail_url": null
+      },
+      "insights": [
+        {
+          "date_start": "2026-08-15",
+          "spend": 90.0,
+          "impressions": 30000,
+          "clicks": 330,
+          "conversions": 21,
+          "purchase_value": 735
+        }
+      ]
+    },
+    {
+      "id": "m-202",
+      "name": "Testimonial video",
+      "status": "ACTIVE",
+      "campaign": {
+        "name": "Prospecting"
+      },
+      "adset": {
+        "name": "FR-25-45"
+      },
+      "creative": {
+        "video_id": "mvid-9",
+        "thumbnail_url": null
+      },
+      "insights": [
+        {
+          "date_start": "2026-08-16",
+          "spend": 180.0,
+          "impressions": 52000,
+          "clicks": 610,
+          "conversions": 44,
+          "purchase_value": 1540,
+          "video_3s": 18200,
+          "video_thruplay": 9880,
+          "video_p50": 26000
+        }
+      ]
+    }
+  ]
+}

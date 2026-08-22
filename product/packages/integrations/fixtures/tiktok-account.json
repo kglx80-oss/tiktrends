@@ -1,0 +1,83 @@
+{
+  "advertiser_id": "demo-tt",
+  "ads": [
+    {
+      "ad_id": "tt-101",
+      "ad_name": "UGC serum - hook question",
+      "campaign_name": "Acquisition",
+      "adgroup_name": "FR-BroadV1",
+      "video_id": "vid-A",
+      "status": "ENABLE",
+      "thumbnail": null,
+      "duration": 18,
+      "daily": [
+        {
+          "stat_time_day": "2026-08-15",
+          "spend": 120.5,
+          "impressions": 42000,
+          "clicks": 540,
+          "conversions": 48,
+          "total_purchase_value": 1680,
+          "video_watched_2s": 15120,
+          "video_watched_15s": 9450,
+          "video_views_p50": 18900
+        },
+        {
+          "stat_time_day": "2026-08-16",
+          "spend": 135.0,
+          "impressions": 46000,
+          "clicks": 590,
+          "conversions": 52,
+          "total_purchase_value": 1820,
+          "video_watched_2s": 16560,
+          "video_watched_15s": 10120,
+          "video_views_p50": 20240
+        }
+      ]
+    },
+    {
+      "ad_id": "tt-102",
+      "ad_name": "UGC serum - meme test (meme video)",
+      "campaign_name": "Acquisition",
+      "adgroup_name": "FR-Retarget",
+      "video_id": "vid-A",
+      "status": "ENABLE",
+      "duration": 18,
+      "daily": [
+        {
+          "stat_time_day": "2026-08-15",
+          "spend": 40.0,
+          "impressions": 15000,
+          "clicks": 150,
+          "conversions": 9,
+          "total_purchase_value": 270,
+          "video_watched_2s": 4200,
+          "video_watched_15s": 2100,
+          "video_views_p50": 6000
+        }
+      ]
+    },
+    {
+      "ad_id": "tt-103",
+      "ad_name": "Avant/Apres 8 semaines",
+      "campaign_name": "Acquisition",
+      "adgroup_name": "FR-BroadV1",
+      "video_id": "vid-B",
+      "status": "ENABLE",
+      "duration": 22,
+      "daily": [
+        {
+          "stat_time_day": "2026-08-16",
+          "spend": 260.0,
+          "impressions": 70000,
+          "clicks": 420,
+          "conversions": 18,
+          "total_purchase_value": 540,
+          "video_watched_2s": 17500,
+          "video_watched_15s": 8400,
+          "video_views_p50": 24500
+        }
+      ]
+    }
+  ]
+}
