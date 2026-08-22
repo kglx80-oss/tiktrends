@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TikTrends — Aperçu produit (Sprint 1)</title>
+<style>
+:root{--bg:#120810;--surface:#1c121b;--ink:#f6eef4;--ink-2:#cbbcc7;--muted:#9a8a98;--line:rgba(255,255,255,.10);--line-2:rgba(255,255,255,.20);--accent:#fe2c55}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background-color:#120810;color:var(--ink);font-family:'Geist',-apple-system,BlinkMacSystemFont,Arial,sans-serif;background-image:radial-gradient(1000px 560px at 50% -10%,rgba(254,44,85,.40),transparent 60%),radial-gradient(760px 520px at 88% 4%,rgba(150,30,110,.22),transparent 55%),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:100% 100%,100% 100%,36px 36px,36px 36px;background-attachment:fixed;min-height:100vh}
+.wrap{max-width:1180px;margin:0 auto;padding:30px 24px 60px}
+.banner{background:rgba(254,44,85,.10);border:1px solid rgba(254,44,85,.28);border-radius:12px;padding:10px 14px;font-size:12.5px;color:var(--ink-2);margin-bottom:18px}
+h1{font-size:26px;font-weight:800}
+.sub{color:var(--ink-2);font-size:13px;margin:6px 0 18px}
+.btns{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+.btn{padding:10px 16px;border-radius:999px;background:linear-gradient(135deg,#fe2c55,#ff2d8f);color:#fff;font-weight:600;font-size:13px;text-decoration:none}
+.btn.o{background:transparent;border:1px solid var(--line-2);color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.row{display:flex;justify-content:space-between;align-items:center}
+.plat{font-size:11px;color:var(--muted);text-transform:uppercase}
+.grade{width:26px;height:26px;border-radius:8px;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.t{font-weight:700;font-size:14px;margin:8px 0 10px}
+.k{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:var(--ink-2)}
+.k b{font-family:'Geist Mono',ui-monospace,monospace}
+.bk{margin-top:8px;font-size:11px;color:var(--muted);font-family:'Geist Mono',ui-monospace,monospace}
+</style></head><body><div class="wrap">
+<div class="banner"><b>Aperçu statique</b> — rendu de la page <code>/dashboard</code> du produit (Next.js), généré par le <b>vrai pipeline</b> (fixtures → normalisation → dédup → agrégation → Radar). L'app réelle tourne en local avec <code>pnpm dev</code>.</div>
+<div style="display:flex;align-items:center;gap:10px"><h1>Dashboard créas</h1><span style="font-size:11px;color:var(--muted);font-family:'Geist Mono',monospace">fixtures · Sprint 1</span></div>
+<div class="sub">4 créas (après dédup) · TikTok + Meta · noté par Radar</div>
+<div class="btns"><a class="btn" href="#">Connecter TikTok Ads</a><a class="btn o" href="#">Connecter Meta Ads</a></div>
+<div class="grid"><div class="card"><div class="row"><span class="plat">tiktok</span><span class="grade" style="background:#18cc8c">A</span></div><div class="t">UGC serum - hook question</div><div class="k"><span>Dépense</span><b>€295,50</b></div><div class="k"><span>Impressions</span><b>103 000</b></div><div class="k"><span>CTR</span><b>1.24%</b></div><div class="k"><span>ROAS</span><b>12.76×</b></div><div class="bk">winner</div></div><div class="card"><div class="row"><span class="plat">tiktok</span><span class="grade" style="background:#f5a623">C</span></div><div class="t">Avant/Apres 8 semaines</div><div class="k"><span>Dépense</span><b>€260,00</b></div><div class="k"><span>Impressions</span><b>70 000</b></div><div class="k"><span>CTR</span><b>0.60%</b></div><div class="k"><span>ROAS</span><b>2.08×</b></div><div class="bk">iteration</div></div><div class="card"><div class="row"><span class="plat">meta</span><span class="grade" style="background:#18cc8c">A</span></div><div class="t">Testimonial video</div><div class="k"><span>Dépense</span><b>€180,00</b></div><div class="k"><span>Impressions</span><b>52 000</b></div><div class="k"><span>CTR</span><b>1.17%</b></div><div class="k"><span>ROAS</span><b>8.56×</b></div><div class="bk">winner</div></div><div class="card"><div class="row"><span class="plat">meta</span><span class="grade" style="background:#ff4d6d">D</span></div><div class="t">Static product - offer led</div><div class="k"><span>Dépense</span><b>€90,00</b></div><div class="k"><span>Impressions</span><b>30 000</b></div><div class="k"><span>CTR</span><b>1.10%</b></div><div class="k"><span>ROAS</span><b>8.17×</b></div><div class="bk">iteration</div></div></div>
+</div></body></html>
