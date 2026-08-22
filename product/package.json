@@ -1,0 +1,21 @@
+{
+  "name": "tiktrends",
+  "private": true,
+  "packageManager": "pnpm@9.7.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @tiktrends/db generate",
+    "db:migrate": "pnpm --filter @tiktrends/db migrate"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0",
+    "typescript": "^5.5.4",
+    "@types/node": "^20.14.0",
+    "vitest": "^2.0.5"
+  }
+}

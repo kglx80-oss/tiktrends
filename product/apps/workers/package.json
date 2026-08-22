@@ -1,0 +1,19 @@
+{
+  "name": "@tiktrends/workers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bullmq": "^5.12.0",
+    "ioredis": "^5.4.1",
+    "@tiktrends/db": "workspace:*",
+    "@tiktrends/core": "workspace:*",
+    "@tiktrends/ai": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.5.4", "tsx": "^4.17.0" }
+}

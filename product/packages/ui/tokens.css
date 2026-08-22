@@ -1,0 +1,86 @@
+/* ============================================================
+   TikTrends — Design tokens (DA officielle)
+   Extraits 1:1 de la maquette de démo. À déposer dans
+   packages/ui (ex: tokens.css) pour garantir la parité visuelle
+   du vrai produit avec la maquette.
+   Thème : sombre + accent magenta (façon TikTok), arrondis, grille.
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --bg:            #120810;   /* fond page (base sombre magentée) */
+  --surface:       #1c121b;   /* cartes / éléments surélevés */
+  --rail:          #0d070c;   /* rail / barres sombres */
+  --paper:         #2a1826;   /* pistes / placeholders */
+
+  /* Texte */
+  --ink:           #f6eef4;   /* texte primaire (clair) */
+  --ink-2:         #cbbcc7;   /* texte secondaire */
+  --muted:         #9a8a98;   /* texte tertiaire / méta */
+
+  /* Bordures (overlays clairs sur fond sombre) */
+  --line:          rgba(255,255,255,0.10);
+  --line-2:        rgba(255,255,255,0.20);
+
+  /* Accent magenta (rôle « lime » historique) */
+  --accent:        #fe2c55;
+  --accent-strong: #ff5c8a;
+  --accent-soft:   #2a1320;
+  --on-accent:     #ffffff;
+  --grad-accent:   linear-gradient(135deg, #fe2c55 0%, #ff2d8f 100%);
+
+  /* Statuts */
+  --ok:    #18cc8c;
+  --warn:  #f5a623;
+  --err:   #ff4d6d;
+  --info:  #3b82f6;
+
+  /* Rayons (esprit arrondi) */
+  --r-sm:   8px;
+  --r-md:   12px;   /* boutons, petites cartes */
+  --r-card: 20px;   /* cartes — surface par défaut */
+  --r-pill: 999px;  /* pills, avatars, boutons primaires */
+
+  /* Ombres (fond sombre) */
+  --sh-sm:   0 1px 2px rgba(0,0,0,0.45);
+  --sh-card: 0 2px 12px rgba(0,0,0,0.40);
+  --sh-lift: 0 14px 34px -10px rgba(0,0,0,0.60);
+
+  /* Typo (Google Fonts) */
+  --font-sans: 'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* Fond signature : halo magenta + grille de petits carrés (36px).
+   À appliquer sur body (et les vues plein écran). */
+body {
+  background-color: #120810;
+  color: var(--ink);
+  background-image:
+    radial-gradient(1000px 560px at 50% -10%, rgba(254,44,85,0.40), transparent 60%),
+    radial-gradient(760px 520px at 88% 4%, rgba(150,30,110,0.22), transparent 55%),
+    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+  background-position: center top;
+  background-attachment: fixed;
+}
+
+/* Primaires en dégradé magenta */
+.btn-primary {
+  background: var(--grad-accent);
+  color: #fff;
+  border-radius: var(--r-pill);
+}
+.btn-primary:hover { filter: brightness(1.08); }
+
+/* Import polices (Google Fonts) — la maquette embarque Geist/Geist Mono.
+   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400..900&family=Geist+Mono:wght@400..600&display=swap'); */
+
+/* Équivalent tokens Tailwind (packages/ui, tailwind.config) :
+   colors: { bg:'#120810', surface:'#1c121b', rail:'#0d070c', paper:'#2a1826',
+             ink:'#f6eef4', 'ink-2':'#cbbcc7', muted:'#9a8a98',
+             accent:'#fe2c55', 'accent-strong':'#ff5c8a' }
+   borderRadius: { sm:'8px', md:'12px', card:'20px', pill:'999px' }
+   backgroundImage: { 'accent': 'linear-gradient(135deg,#fe2c55,#ff2d8f)' }
+*/

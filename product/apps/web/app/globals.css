@@ -1,0 +1,8 @@
+@import '@tiktrends/ui/tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Polices de la DA TikTrends */
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400..900&family=Geist+Mono:wght@400..600&display=swap');
+html, body { font-family: var(--font-sans); }
