@@ -1,0 +1,156 @@
+{
+  "creatives": [
+    {
+      "id": "c1",
+      "spend": 500,
+      "metric": 4.0,
+      "tags": {
+        "persona": [
+          "Femme 30-45"
+        ],
+        "hook_type": [
+          "problem_callout"
+        ],
+        "angle": [
+          "problem_solution"
+        ],
+        "emotion": [
+          "frustration"
+        ]
+      }
+    },
+    {
+      "id": "c2",
+      "spend": 400,
+      "metric": 3.6,
+      "tags": {
+        "persona": [
+          "Femme 30-45"
+        ],
+        "hook_type": [
+          "problem_callout"
+        ],
+        "angle": [
+          "problem_solution"
+        ],
+        "emotion": [
+          "relief"
+        ]
+      }
+    },
+    {
+      "id": "c3",
+      "spend": 300,
+      "metric": 2.0,
+      "tags": {
+        "persona": [
+          "Femme 30-45"
+        ],
+        "hook_type": [
+          "question"
+        ],
+        "angle": [
+          "education"
+        ],
+        "emotion": [
+          "curiosity"
+        ]
+      }
+    },
+    {
+      "id": "c4",
+      "spend": 300,
+      "metric": 1.5,
+      "tags": {
+        "persona": [
+          "Homme 25-40"
+        ],
+        "hook_type": [
+          "bold_claim"
+        ],
+        "angle": [
+          "us_vs_them"
+        ],
+        "emotion": [
+          "pride"
+        ]
+      }
+    },
+    {
+      "id": "c5",
+      "spend": 200,
+      "metric": 2.2,
+      "tags": {
+        "persona": [
+          "Homme 25-40"
+        ],
+        "hook_type": [
+          "question"
+        ],
+        "angle": [
+          "education"
+        ],
+        "emotion": [
+          "curiosity"
+        ]
+      }
+    },
+    {
+      "id": "c6",
+      "spend": 250,
+      "metric": 3.0,
+      "tags": {
+        "persona": [
+          "Femme 30-45"
+        ],
+        "hook_type": [
+          "result_first"
+        ],
+        "angle": [
+          "transformation"
+        ],
+        "emotion": [
+          "desire"
+        ]
+      }
+    },
+    {
+      "id": "c7",
+      "spend": 200,
+      "metric": 1.2,
+      "tags": {
+        "persona": [
+          "Homme 25-40"
+        ],
+        "hook_type": [
+          "problem_callout"
+        ],
+        "angle": [
+          "problem_solution"
+        ],
+        "emotion": [
+          "frustration"
+        ]
+      }
+    },
+    {
+      "id": "c8",
+      "spend": 150,
+      "metric": 2.5,
+      "tags": {
+        "persona": [
+          "Femme 30-45"
+        ],
+        "hook_type": [
+          "bold_claim"
+        ],
+        "angle": [
+          "offer_led"
+        ],
+        "emotion": [
+          "surprise"
+        ]
+      }
+    }
+  ]
+}
