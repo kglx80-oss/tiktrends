@@ -42,7 +42,8 @@ export interface Feature {
 export const FEATURES: Feature[] = [
   // Analyse
   { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter' },
-  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter', soon: true },
+  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter' },
+  { key: 'radar',     label: 'Radar',        href: '/radar',       icon: 'radar',  group: 'Analyse',  minRole: 'member',        minPlan: 'core' },
   { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Analyse',  minRole: 'member',        minPlan: 'starter' },
   // Création
   { key: 'inspo',     label: 'Inspo',        href: '/inspo',       icon: 'bulb',   group: 'Création', minRole: 'member',        minPlan: 'core' },
