@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { StudioClient } from './StudioClient';
+import { VideoStudio } from './VideoStudio';
+import { higgsfieldConfigured } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
@@ -51,6 +53,7 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
         pré-remplit l'inspiration avec une créa gagnante repérée chez un concurrent.
       </PageInfo>
       <StudioClient hasKey={hasKey} prefillProduct={sp.brand} prefillInspiration={sp.inspo} />
+      <VideoStudio ready={higgsfieldConfigured()} />
     </main>
   );
 }

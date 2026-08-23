@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { AssistantChat } from './AssistantChat';
 
 interface Starter { label: string; desc: string; href: string }
 interface Category { key: string; label: string; icon: string; starters: Starter[] }
@@ -11,6 +12,7 @@ export interface AssistantHomeProps {
   credits: number;
   brandName: string | null;
   brandId: string | null;
+  aiReady: boolean;
 }
 
 function buildCategories(brandId: string | null): Category[] {
@@ -50,7 +52,7 @@ const ROUTINES: Array<{ icon: string; title: string; desc: string; hrefFor: (b: 
   { icon: '✨', title: 'Inspirations du marché', desc: 'Trouve des tendances et idées créatives fraîches.', hrefFor: () => '/inspo' },
 ];
 
-export function AssistantHome({ firstName, credits, brandName, brandId }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, brandName, brandId, aiReady }: AssistantHomeProps) {
   const cats = buildCategories(brandId);
   const [active, setActive] = useState(cats[0]!.key);
   const current = cats.find((c) => c.key === active) ?? cats[0]!;
@@ -71,6 +73,11 @@ export function AssistantHome({ firstName, credits, brandName, brandId }: Assist
           </span>
           <Link href="/studio" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Ouvrir le Studio IA</Link>
         </div>
+      </div>
+
+      {/* Chat assistant */}
+      <div style={{ marginBottom: 26 }}>
+        <AssistantChat ready={aiReady} />
       </div>
 
       {/* Routines */}

@@ -63,6 +63,30 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       </div>
 
       <div style={panel}>
+        <h2 style={h2}>Intégrations serveur</h2>
+        <p style={sub}>Ce qui est branché côté serveur. Les clés se posent dans les variables d'environnement (jamais visibles ici).</p>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {[
+            { label: 'IA — Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', on: !!process.env.ANTHROPIC_API_KEY, unlocks: 'Studio, assistant, pré-remplissage marque, analyse concurrent' },
+            { label: 'Bibliothèque pub — Trendtrack', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Inspo, suivis, analyse concurrent' },
+            { label: 'Vidéo IA — Higgsfield', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Génération de vidéos dans le Studio' },
+            { label: 'E-mails — SMTP', env: 'SMTP_URL', on: !!process.env.SMTP_URL, unlocks: 'Notifications par e-mail (à venir)' },
+            { label: 'Slack', env: 'SLACK_BOT_TOKEN', on: !!process.env.SLACK_BOT_TOKEN, unlocks: 'Résumés et @TikTrends dans Slack (à venir)' },
+          ].map((it) => (
+            <div key={it.env} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 14px', flexWrap: 'wrap' }}>
+              <span style={{ width: 9, height: 9, borderRadius: '50%', background: it.on ? '#18cc8c' : 'var(--line-2)', flexShrink: 0, boxShadow: it.on ? '0 0 0 3px rgba(24,204,140,.15)' : 'none' }} />
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', minWidth: 200 }}>{it.label}</span>
+              <span style={{ fontSize: 12, color: 'var(--muted)', flex: 1, minWidth: 180 }}>{it.unlocks}</span>
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: it.on ? '#18cc8c' : 'var(--muted)', background: it.on ? 'rgba(24,204,140,.14)' : 'var(--line)' }}>
+                {it.on ? 'BRANCHÉ' : 'À BRANCHER'}
+              </span>
+              <code style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{it.env}</code>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={panel}>
         <h2 style={h2}>White-label <span style={{ fontSize: 11, color: 'var(--warn)', fontWeight: 700 }}>Bientôt</span></h2>
         <p style={{ ...sub, marginBottom: 0 }}>Logo, couleurs et domaine personnalisés pour tes rapports clients (plan Business).</p>
       </div>
