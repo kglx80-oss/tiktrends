@@ -5,13 +5,15 @@ import { getSession } from '../../../lib/auth';
 import { ROLE_LABEL, PLAN_LABEL, roleAtLeast, type Role } from '../../../lib/rbac';
 import { createInviteAction, revokeInviteAction } from '../../actions/invites';
 import { input, btn, btnGhost, panel, Msg } from '../../../components/ui';
+import { ADMIN_THEME } from '../../../lib/theme';
+import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
 
 const roleColor: Record<Role, string> = {
   owner: '#fe2c55', admin: '#7aa2ff', member: '#18cc8c', client_viewer: '#f5a623',
 };
-const OK: Record<string, string> = { invite: 'Invitation créée — copie le lien ci-dessous.', revoked: 'Invitation révoquée.' };
+const OK: Record<string, string> = { invite: 'Invitation créée, copie le lien ci-dessous.', revoked: 'Invitation révoquée.' };
 const ERR: Record<string, string> = {
   forbidden: 'Action réservée aux administrateurs.', email: 'Renseigne un e-mail.',
   role: 'Rôle invalide.', already: 'Cette personne a déjà un compte.', notfound: 'Invitation introuvable.',
@@ -39,11 +41,20 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   }
 
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 1000, margin: '0 auto' }}>
-      <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Équipe & droits</h1>
+    <main style={{ ...ADMIN_THEME, padding: '30px 36px 60px', maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Équipe & droits</h1>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
+      </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
-        Espace <b>{s.workspaceName}</b> — chaque membre voit et agit selon son rôle.
+        Espace <b>{s.workspaceName}</b>, chaque membre voit et agit selon son rôle.
       </p>
+
+      <PageInfo title="équipe & invitations">
+        Invite des membres par e-mail avec un <b>rôle</b> (Admin, Membre, Client lecture) : ils reçoivent un lien
+        pour définir leur mot de passe et rejoindre l'espace. Chaque rôle donne accès à un sous-ensemble du
+        produit. Tu peux révoquer une invitation tant qu'elle n'a pas été acceptée.
+      </PageInfo>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
       {e && ERR[e] && <Msg kind="err">{ERR[e]}</Msg>}
@@ -108,7 +119,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         </div>
         {members.map((m) => (
           <div key={m.email} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px', padding: '13px 16px', borderTop: '1px solid var(--line)', alignItems: 'center' }}>
-            <span style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{m.name || '—'}</span>
+            <span style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{m.name || '(sans nom)'}</span>
             <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>{m.email}</span>
             <span><span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, color: roleColor[m.role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[m.role]}</span></span>
           </div>

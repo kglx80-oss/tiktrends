@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { StudioClient } from './StudioClient';
+import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,13 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
         Génère des créatives prêtes à tourner. Source les gagnantes dans l'<b>Inspo</b>, puis itère ici.
       </p>
+
+      <PageInfo title="générer une créative">
+        Remplis le brief à gauche (produit, cible, angle, ton, plateforme) et lance la génération : tu obtiens des
+        <b> angles</b>, des <b>hooks</b>, un <b>script</b> seconde par seconde, des <b>textes d'annonce</b> et des
+        <b> légendes</b>, chacun copiable. Astuce&nbsp;: depuis l'<b>Inspo</b>, «&nbsp;✨ Générer une variante&nbsp;»
+        pré-remplit l'inspiration avec une créa gagnante repérée chez un concurrent.
+      </PageInfo>
       <StudioClient hasKey={hasKey} prefillProduct={sp.brand} prefillInspiration={sp.inspo} />
     </main>
   );

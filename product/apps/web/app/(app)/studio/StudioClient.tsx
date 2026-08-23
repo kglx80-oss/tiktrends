@@ -71,7 +71,7 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration }: { h
             <section style={card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ ...h2, marginBottom: 0 }}>Script</h2>
-                <Copy text={out.script.map((b) => `${b.time} — ${b.line}`).join('\n')} />
+                <Copy text={out.script.map((b) => `${b.time} · ${b.line}`).join('\n')} />
               </div>
               <div style={{ display: 'grid', gap: 6, marginTop: 12 }}>
                 {out.script.map((b, i) => (

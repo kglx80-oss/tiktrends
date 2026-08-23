@@ -3,6 +3,8 @@ import { and, count, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, ROLE_LABEL, PLAN_LABEL, type Role } from '../../../lib/rbac';
+import { ADMIN_THEME } from '../../../lib/theme';
+import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,14 +54,20 @@ export default async function ConsolePage() {
   ];
 
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 1100, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+    <main style={{ ...ADMIN_THEME, padding: '30px 36px 60px', maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Console</h1>
-        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>suivi de l'espace · admin</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
-        Vue d'ensemble de <b>{s.workspaceName}</b> — activité, équipe et abonnement en un coup d'œil.
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
+        Vue d'ensemble de <b>{s.workspaceName}</b> : activité, équipe et abonnement en un coup d'œil.
       </p>
+      <PageInfo title="suivi de l'espace">
+        La <b>Console</b> réservée aux administrateurs suit la santé de ton espace : nombre de membres et de
+        marques, créas sauvegardées, marques suivies, tickets ouverts et abonnement en cours. Les compteurs
+        se mettent à jour en direct depuis ta base. Utilise «&nbsp;Gérer&nbsp;» pour agir sur l'équipe et
+        «&nbsp;Support&nbsp;» pour traiter les tickets.
+      </PageInfo>
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14, marginBottom: 28 }}>
@@ -83,7 +91,7 @@ export default async function ConsolePage() {
               <div key={m.email} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i ? '1px solid var(--line)' : 'none' }}>
                 <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{(m.name || m.email).slice(0, 1).toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{m.name || '—'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{m.name || '(sans nom)'}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.email}</div>
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: roleColor[m.role] }}>{ROLE_LABEL[m.role]}</span>

@@ -33,7 +33,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       </div>
 
       <div style={panel}>
-        <h2 style={h2}>Sécurité — changer de mot de passe</h2>
+        <h2 style={h2}>Sécurité : changer de mot de passe</h2>
         <p style={sub}>On te demande ton mot de passe actuel pour confirmer que c'est bien toi.</p>
         <form action={changePasswordAction} style={{ display: 'grid', gap: 14, maxWidth: 420 }}>
           <div><label style={lbl}>Mot de passe actuel</label><input name="current" type="password" required autoComplete="current-password" style={input} /></div>

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { buildAnalysis, BUCKETS, bucketDef, type AnalysisRow } from '../../../lib/analysis';
+import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'radar')!;
@@ -78,6 +79,14 @@ export default async function RadarPage() {
         Chaque créa est notée <b>Hook / Hold / CTR / Conv</b> (A→D, en percentiles du compte) puis rangée en
         recommandation : <b>scaler, pousser, itérer, rafraîchir, couper</b>. Branche un compte pour des données live.
       </p>
+
+      <PageInfo title="comment lire le Radar">
+        Le Radar note chaque créa sur 4 axes : <b>Hook</b> (accroche 3 s), <b>Hold</b> (rétention),
+        <b>CTR</b> (clics) et <b>Conv</b> (ROAS), en <b>A→D</b> comparés aux autres créas de ton compte.
+        Le score global (pondéré 40&nbsp;% conv, 25&nbsp;% hook, 20&nbsp;% hold, 15&nbsp;% CTR) range la créa dans un
+        bucket avec une action claire. Le <b>diagnostic</b> pointe la cause probable (hook lent, promesse non tenue,
+        CTA tardif, offre/landing). Une créa a besoin d'assez de volume (dépense et impressions) pour être notée.
+      </PageInfo>
 
       {/* Résumé buckets */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>

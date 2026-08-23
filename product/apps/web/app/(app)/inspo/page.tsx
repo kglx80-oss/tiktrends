@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdSort, type AdPlatform } from '@tiktrends/integrations';
 import { AdCard, compact } from '../../../components/AdCard';
+import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +59,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           </h2>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '0 auto' }}>
             {why === 'plan'
-              ? "L'Inspo (bibliothèque concurrentielle Trendtrack) est disponible à partir du plan Core. Passe ton espace en Core dans Réglages → Abonnement."
+              ? "L'Inspo (bibliothèque concurrentielle) est disponible à partir du plan Core. Passe ton espace en Core dans Réglages puis Abonnement."
               : "Ton rôle ne permet pas d'accéder à l'Inspo."}
           </p>
           {why === 'plan' && s.role === 'owner' && (
@@ -149,11 +150,18 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Inspo</h1>
-        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>bibliothèque concurrentielle · Trendtrack · {platformLabel[platform]}</span>
+        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>bibliothèque concurrentielle · {platformLabel[platform]}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
         Recherche les publicités qui tournent chez tes concurrents. L'ancienneté (<b>jours actifs</b>) est un proxy de performance.
       </p>
+
+      <PageInfo title="chercher & sourcer des créas">
+        Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
+        (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
+        fait remonter les créas diffusées depuis longtemps (souvent des gagnantes). Clique <b>★</b> pour sauvegarder une
+        créa, <b>+ Suivre</b> une marque, et <b>✨ Générer une variante</b> pour l'envoyer au Studio.
+      </PageInfo>
 
       {/* Filtres */}
       <form action="/inspo" method="get" style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
@@ -181,8 +189,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         ))}
       </div>
 
-      {sample && <div style={banner('rgba(245,166,35,.12)', 'rgba(245,166,35,.4)', '#f5c877')}>Mode démonstration (échantillon réel). Ajoute <code>TRENDTRACK_API_KEY</code> sur le serveur pour la recherche en direct.</div>}
-      {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur Trendtrack : {error}</div>}
+      {sample && <div style={banner('rgba(245,166,35,.12)', 'rgba(245,166,35,.4)', '#f5c877')}>Mode démonstration (échantillon réel). La source de données n'est pas encore configurée sur le serveur pour la recherche en direct.</div>}
+      {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur de la source de données : {error}</div>}
       {!sample && !error && !query && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}
       {!sample && !error && query && <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>≈ {compact(total)} annonce(s) · page {page}/{totalPages}{autoDomain && <> · recherche par domaine <b style={{ color: 'var(--ink-2)' }}>{effSearch}</b></>}</p>}
 

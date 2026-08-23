@@ -107,7 +107,7 @@ export async function ttSearchAds(cfg: TrendtrackConfig, input: SearchAdsInput):
   });
   if (!res.ok) {
     const t = await res.text().catch(() => '');
-    throw new Error(`Trendtrack ${res.status}: ${t.slice(0, 200)}`);
+    throw new Error(`Source ${res.status}: ${t.slice(0, 200)}`);
   }
   const json: any = await res.json();
   const rows: any[] = Array.isArray(json?.data) ? json.data : [];
@@ -194,7 +194,7 @@ export async function ttSearchTikTok(cfg: TrendtrackConfig, input: SearchTikTokI
         res = await fetch(u, { headers, cache: 'no-store' });
       }
       if (res.status === 404 || res.status === 405) { lastErr = `${c.method} ${c.path} -> ${res.status}`; continue; }
-      if (!res.ok) throw new Error(`Trendtrack TikTok ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+      if (!res.ok) throw new Error(`Source (TikTok) ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
       const json: any = await res.json();
       const rows: any[] = Array.isArray(json?.data) ? json.data : [];
       return { ads: rows.map(mapTikTok), total: json?.pagination?.total ?? rows.length };
@@ -202,7 +202,7 @@ export async function ttSearchTikTok(cfg: TrendtrackConfig, input: SearchTikTokI
       lastErr = (e as Error).message;
     }
   }
-  throw new Error(lastErr || 'Trendtrack TikTok : endpoint introuvable');
+  throw new Error(lastErr || 'Source indisponible');
 }
 
 /* ------------------------------- Google ---------------------------------- */
@@ -246,7 +246,7 @@ export async function ttSearchGoogle(cfg: TrendtrackConfig, input: SearchGoogleI
     body: JSON.stringify(body),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(`Trendtrack Google ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`Source (Google) ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
   const json: any = await res.json();
   const rows: any[] = Array.isArray(json?.data) ? json.data : [];
   return { ads: rows.map(mapGoogle), total: json?.pagination?.total ?? rows.length };

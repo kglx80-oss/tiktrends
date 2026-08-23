@@ -1,5 +1,6 @@
 import { fixtures } from '@tiktrends/integrations';
 import { topCreativeTags, personaHookMatrix, type TaggedCreative } from '@tiktrends/core';
+import { PageInfo } from '../../../components/PageInfo';
 
 const creatives = (fixtures.tagged as { creatives: TaggedCreative[] }).creatives;
 const DIMS = [['hook_type', 'Type de hook'], ['persona', 'Persona'], ['angle', 'Angle'], ['emotion', 'Émotion']] as const;
@@ -13,6 +14,12 @@ export default function Tags() {
       <p style={{ color: 'var(--ink-2)', fontSize: 13, margin: '6px 0 22px' }}>
         Analyse par ingrédient créatif (métrique cible : ROAS, pondérée par le spend). La combinaison gagnante persona × hook en un coup d'œil.
       </p>
+
+      <PageInfo title="lire tes tags créatifs">
+        Le Tagging décompose tes créas en ingrédients (type de hook, persona, angle, émotion) et mesure leur
+        performance moyenne pondérée par la dépense. La matrice <b>persona × hook</b> révèle les combinaisons qui
+        convertissent le mieux, pour orienter tes prochains briefs.
+      </PageInfo>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
         {DIMS.map(([dim, label]) => {
           const rows = topCreativeTags(creatives, dim);

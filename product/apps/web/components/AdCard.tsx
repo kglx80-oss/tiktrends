@@ -2,12 +2,12 @@ import type { InspoAd } from '@tiktrends/integrations';
 import { SaveButton, FollowButton } from './InspoButtons';
 
 export const compact = (n?: number) => {
-  if (n == null) return '—';
+  if (n == null) return 'n/c';
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.', ',') + ' M';
   if (n >= 1_000) return (n / 1_000).toFixed(0) + ' k';
   return String(n);
 };
-const eur = (n?: number) => (n == null ? '—' : '€' + compact(n));
+const eur = (n?: number) => (n == null ? 'n/c' : '€' + compact(n));
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -41,7 +41,7 @@ export function AdCard({ ad, saved = false, following = false }: { ad: InspoAd; 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={ad.advertiserLogo} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
           )}
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ad.advertiserName || '—'}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ad.advertiserName || 'Annonceur'}</span>
           <FollowButton ad={ad} initialFollowing={following} />
         </div>
         {ad.body && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}

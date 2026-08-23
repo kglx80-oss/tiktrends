@@ -37,7 +37,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
             Creative Intelligence, <span style={{ color: 'var(--accent-strong)' }}>TikTok-first</span>, pour agences.
           </h2>
           <p style={{ marginTop: 14, color: 'var(--ink-2)', fontSize: 14, maxWidth: 420, lineHeight: 1.6 }}>
-            Radar prescriptif, tagging IA, Inspo concurrentielle et gestion multi-marques —
+            Radar prescriptif, tagging IA, Inspo concurrentielle et gestion multi-marques,
             avec des droits par équipe et par client.
           </p>
         </div>

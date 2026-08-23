@@ -1,4 +1,5 @@
 import { buildDashboard } from '../../../lib/pipeline';
+import { PageInfo } from '../../../components/PageInfo';
 
 const eur = (n: number) => '€' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d),)/g, ' ');
 const gcol: Record<string, string> = { A: '#18cc8c', B: '#7aa2ff', C: '#f5a623', D: '#ff4d6d' };
@@ -9,11 +10,17 @@ export default function Dashboard() {
     <main style={{ minHeight: '100vh', padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Dashboard créas</h1>
-        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>fixtures · Sprint 1</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>données d'exemple</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginBottom: 18 }}>
-        Pipeline réel : normalisation → dédup créas → agrégation → Radar. Branchez un compte pour des données live.
+        Pipeline réel : normalisation → dédup créas → agrégation → Radar. Branche un compte pour des données live.
       </p>
+
+      <PageInfo title="vue d'ensemble des créas">
+        Le Dashboard liste tes créas triées par dépense, avec leur <b>note Radar</b> et leur <b>bucket</b>
+        (winner, à itérer, à couper…). C'est ta porte d'entrée : de là, ouvre le <b>Radar</b> pour le détail
+        par axe ou l'<b>Analytics</b> pour les KPI agrégés.
+      </PageInfo>
       <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
         <a href="/api/oauth/tiktok" style={btn}>Connecter TikTok Ads</a>
         <a href="/api/oauth/meta" style={{ ...btn, background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--ink)' }}>Connecter Meta Ads</a>

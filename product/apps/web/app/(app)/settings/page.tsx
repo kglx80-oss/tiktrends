@@ -3,6 +3,8 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { updateWorkspaceAction, setPlanAction } from '../../actions/admin';
 import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
+import { ADMIN_THEME } from '../../../lib/theme';
+import { PageInfo } from '../../../components/PageInfo';
 
 const OK: Record<string, string> = { '1': 'Espace mis à jour.', plan: 'Abonnement modifié.' };
 const ERR: Record<string, string> = { forbidden: "Action réservée à l'administrateur.", plan: 'Abonnement invalide.' };
@@ -18,9 +20,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const isOwner = s.role === 'owner';
 
   return (
-    <main style={pageWrap}>
-      <h1 style={h1}>Réglages de l'espace</h1>
+    <main style={{ ...ADMIN_THEME, ...pageWrap }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h1 style={h1}>Réglages de l'espace</h1>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
+      </div>
       <p style={sub}>Administration de <b>{s.workspaceName}</b>.</p>
+
+      <PageInfo title="réglages de l'espace">
+        Configure ici le <b>nom de l'espace</b> et, en tant que propriétaire, l'<b>abonnement</b> (qui débloque
+        les fonctionnalités comme Inspo et le Studio). Les changements s'appliquent immédiatement à tout ton espace.
+      </PageInfo>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
       {e && ERR[e] && <Msg kind="err">{ERR[e]}</Msg>}

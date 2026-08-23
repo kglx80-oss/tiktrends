@@ -31,7 +31,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
       <AuthShell title="Sur invitation" subtitle="L'accès à TikTrends se fait par invitation.">
         <div style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.6 }}>
           Cet espace est déjà créé. Pour rejoindre une équipe, demande à un administrateur de
-          t'envoyer une invitation par e-mail — tu recevras un lien pour définir ton mot de passe.
+          t'envoyer une invitation par e-mail, tu recevras un lien pour définir ton mot de passe.
         </div>
         <p style={{ marginTop: 20, fontSize: 13, color: 'var(--muted)' }}>
           Déjà un compte ?{' '}

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
+import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,12 @@ export default async function AnalyticsPage() {
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
         Vue agrégée de tes créas : dépense, portée, efficacité, et répartition Radar. Branche un compte pour des données live.
       </p>
+
+      <PageInfo title="lire tes KPI">
+        Cette page agrège tes créas : <b>dépense</b> et <b>impressions</b> totales, <b>CTR</b> pondéré par le volume,
+        et <b>ROAS moyen</b> des créas éligibles. La <b>répartition Radar</b> montre combien de créas sont à scaler
+        ou à couper, et le tableau liste tes <b>meilleures créas par ROAS</b> avec leur recommandation.
+      </PageInfo>
 
       {/* KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 26 }}>

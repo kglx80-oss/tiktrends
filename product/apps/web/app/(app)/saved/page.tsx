@@ -5,6 +5,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { AdCard } from '../../../components/AdCard';
 import { BrandRemoveButton } from '../../../components/InspoButtons';
+import { PageInfo } from '../../../components/PageInfo';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,12 @@ export default async function SavedPage() {
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 24 }}>
         Tes créas gardées et les marques que tu suis. Depuis l'<b>Inspo</b>, ★ sauvegarde une créa et « + Suivre » une marque.
       </p>
+
+      <PageInfo title="tes créas & marques gardées">
+        Retrouve ici tout ce que tu as sauvegardé depuis l'<b>Inspo</b>. Clique <b>★</b> pour retirer une créa,
+        <b> voir</b> pour relancer une recherche sur une marque suivie, et <b>✨ Générer une variante</b> pour
+        envoyer une créa gardée au Studio. Les dossiers de rangement arrivent bientôt.
+      </PageInfo>
 
       {/* Marques suivies */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>
