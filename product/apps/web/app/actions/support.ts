@@ -8,7 +8,24 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { createNotification, notifyWorkspaceStaff } from '../../lib/notifications';
 
+import { desc } from 'drizzle-orm';
+
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
+
+export interface MyTicket { id: string; type: string; title: string; status: string; updatedAt: string }
+
+/** Tickets de l'utilisateur courant (pour le widget d'aide). Membre: les siens ; admin: tout l'espace. */
+export async function fetchMyTickets(): Promise<MyTicket[]> {
+  const s = await getSession();
+  if (!s || !db) return [];
+  const isAdmin = roleAtLeast(s.role, 'admin');
+  const rows = await db.select().from(schema.tickets)
+    .where(isAdmin
+      ? eq(schema.tickets.workspaceId, s.workspaceId)
+      : and(eq(schema.tickets.workspaceId, s.workspaceId), eq(schema.tickets.userId, s.user.id)))
+    .orderBy(desc(schema.tickets.updatedAt)).limit(15);
+  return rows.map((t) => ({ id: t.id, type: t.type, title: t.title, status: t.status, updatedAt: (t.updatedAt as Date).toISOString() }));
+}
 const TYPES = ['bug', 'suggestion', 'question'] as const;
 const STATUSES = ['open', 'in_progress', 'resolved'] as const;
 const STATUS_LABEL: Record<string, string> = { open: 'Ouvert', in_progress: 'En cours', resolved: 'Résolu' };
