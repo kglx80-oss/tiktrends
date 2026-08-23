@@ -110,13 +110,11 @@ export function AppShell(props: Props) {
         <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />
 
         {/* Navigation groupée */}
-        <nav style={{ marginTop: 14, display: 'grid', gap: 4, overflowY: 'auto', flex: 1 }}>
+        <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', flex: 1 }}>
           {nav.map((grp) => (
-            <div key={grp.group} style={{ marginBottom: 4 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 10px 2px' }}>{grp.group}</div>
-              <div style={{ display: 'grid', gap: 1 }}>
-                {grp.items.map((it) => <NavLink key={it.key} it={it} active={pathname === it.href} />)}
-              </div>
+            <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>{grp.group}</div>
+              {grp.items.map((it) => <NavLink key={it.key} it={it} active={pathname === it.href} />)}
             </div>
           ))}
         </nav>
