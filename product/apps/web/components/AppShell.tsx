@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { BrandSwitcher } from './BrandSwitcher';
 
-// Pages « espace admin » : fond ambré + accent orange (même univers sombre).
-const ADMIN_ROUTES = ['/console', '/credits', '/settings', '/team', '/billing', '/brands', '/connections'];
+// Console ADMIN+ uniquement : fond ambré + accent orange (même univers sombre).
+// Les pages « espace de travail » (marques, connexions, membres, abonnement)
+// gardent la DA magenta standard.
+const ADMIN_ROUTES = ['/console', '/credits', '/settings'];
 const ADMIN_CONTENT = {
   '--accent': '#f5a623',
   '--accent-strong': '#ffca6b',
