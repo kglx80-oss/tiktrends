@@ -2,7 +2,24 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+
+// Pages « espace admin » : fond ambré + accent orange (même univers sombre).
+const ADMIN_ROUTES = ['/console', '/settings', '/team', '/billing'];
+const ADMIN_CONTENT = {
+  '--accent': '#f5a623',
+  '--accent-strong': '#ffca6b',
+  '--accent-soft': '#2a2110',
+  '--grad-accent': 'linear-gradient(135deg,#f5a623 0%,#ff8c42 100%)',
+  backgroundColor: '#130d07',
+  backgroundImage:
+    'radial-gradient(1100px 560px at 50% -12%, rgba(245,166,35,0.20), transparent 60%),' +
+    'radial-gradient(760px 520px at 90% 2%, rgba(255,140,66,0.13), transparent 55%),' +
+    'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),' +
+    'linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
+  backgroundSize: '100% 100%, 100% 100%, 36px 36px, 36px 36px',
+  backgroundAttachment: 'fixed',
+} as unknown as CSSProperties;
 
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
 interface Group { group: string; items: NavItem[] }
@@ -67,6 +84,7 @@ export function AppShell(props: Props) {
   const { nav, account, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '250px minmax(0,1fr)', minHeight: '100vh' }}>
@@ -126,7 +144,7 @@ export function AppShell(props: Props) {
         </div>
       </aside>
 
-      <div style={{ minWidth: 0 }}>{children}</div>
+      <div style={{ minWidth: 0, minHeight: '100vh', ...(isAdmin ? ADMIN_CONTENT : null) }}>{children}</div>
     </div>
   );
 }
