@@ -206,6 +206,10 @@ function AdCard({ ad }: { ad: InspoAd }) {
             {ad.landingDomain && <span>· {ad.landingDomain}</span>}
           </div>
         )}
+        <a href={`/studio?brand=${encodeURIComponent(ad.advertiserName || '')}&inspo=${encodeURIComponent(ad.body || '')}`}
+          style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: 700, padding: '7px 10px', borderRadius: 10, border: '1px solid var(--line-2)', color: 'var(--ink)', textDecoration: 'none' }}>
+          ✨ Générer une variante
+        </a>
       </div>
     </div>
   );
