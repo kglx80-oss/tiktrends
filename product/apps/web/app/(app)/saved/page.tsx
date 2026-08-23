@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { AdCard } from '../../../components/AdCard';
-import { unfollowBrandAction } from '../../actions/inspo';
+import { BrandRemoveButton } from '../../../components/InspoButtons';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -47,12 +47,7 @@ export default async function SavedPage() {
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{b.name}</span>
             <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)' }}>{b.platform}</span>
             <a href={`/inspo?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
-            <form action={unfollowBrandAction} style={{ margin: 0 }}>
-              <input type="hidden" name="platform" value={b.platform} />
-              <input type="hidden" name="name" value={b.name} />
-              <input type="hidden" name="back" value="/saved" />
-              <button type="submit" title="Ne plus suivre" style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }}>✕</button>
-            </form>
+            <BrandRemoveButton platform={b.platform} name={b.name} />
           </div>
         ))}
       </div>
@@ -62,7 +57,7 @@ export default async function SavedPage() {
       {ads.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucune créa sauvegardée. Va dans l'Inspo et clique ★ sur une annonce.</p>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
         {ads.map((ad) => (
-          <AdCard key={ad.platform + ad.id} ad={ad} saved back="/saved" following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
+          <AdCard key={ad.platform + ad.id} ad={ad} saved following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}
       </div>
     </main>

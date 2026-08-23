@@ -153,26 +153,56 @@ function mapTikTok(r: any): InspoAd {
 }
 
 export interface SearchTikTokInput {
-  search: string; limit?: number; page?: number;
+  search?: string; domain?: string; limit?: number; page?: number;
   type?: 'ad' | 'organic' | 'all'; mediaType?: 'video' | 'image' | 'carousel';
-  sortBy?: string; country?: string;
+  sortBy?: string;
 }
 export async function ttSearchTikTok(cfg: TrendtrackConfig, input: SearchTikTokInput): Promise<SearchAdsResult> {
-  const u = new URL('/v1/tiktok/library', cfg.baseUrl || DEFAULT_BASE);
-  const set = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v)); };
-  set('search', input.search);
-  set('limit', input.limit ?? 24);
-  set('page', input.page ?? 1);
-  set('type', input.type ?? 'ad');
-  set('mediaType', input.mediaType);
-  set('sortBy', input.sortBy);
-  set('countries', input.country);
+  const base = cfg.baseUrl || DEFAULT_BASE;
+  const headers = { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json' };
+  const limit = input.limit ?? 24;
+  const page = input.page ?? 1;
 
-  const res = await fetch(u, { headers: { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json' }, cache: 'no-store' });
-  if (!res.ok) throw new Error(`Trendtrack TikTok ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
-  const json: any = await res.json();
-  const rows: any[] = Array.isArray(json?.data) ? json.data : [];
-  return { ads: rows.map(mapTikTok), total: json?.pagination?.total ?? rows.length };
+  const body: Record<string, unknown> = {
+    keywordMode: 'any', searchArea: 'all', type: input.type ?? 'ad',
+    status: 'all', sortBy: input.sortBy ?? 'newest', order: 'desc', page, limit,
+  };
+  if (input.search) body.search = [input.search];
+  if (input.domain) body.domain = input.domain;
+  if (input.mediaType) body.mediaType = input.mediaType;
+
+  // Meta/Google passent par POST /v1/<res>/query ; on tente le même schéma pour TikTok,
+  // avec repli GET /v1/tiktok/library si le chemin POST n'existe pas.
+  const candidates: Array<{ method: 'POST' | 'GET'; path: string }> = [
+    { method: 'POST', path: '/v1/tiktok/library/query' },
+    { method: 'POST', path: '/v1/tiktok/query' },
+    { method: 'GET', path: '/v1/tiktok/library' },
+  ];
+
+  let lastErr = '';
+  for (const c of candidates) {
+    try {
+      let res: Response;
+      if (c.method === 'POST') {
+        res = await fetch(new URL(c.path, base), { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' });
+      } else {
+        const u = new URL(c.path, base);
+        const set = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v)); };
+        set('search', input.search); set('domain', input.domain); set('type', input.type ?? 'ad');
+        set('status', 'all'); set('sortBy', input.sortBy ?? 'newest'); set('searchArea', 'all');
+        set('mediaType', input.mediaType); set('page', page); set('limit', limit);
+        res = await fetch(u, { headers, cache: 'no-store' });
+      }
+      if (res.status === 404 || res.status === 405) { lastErr = `${c.method} ${c.path} -> ${res.status}`; continue; }
+      if (!res.ok) throw new Error(`Trendtrack TikTok ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+      const json: any = await res.json();
+      const rows: any[] = Array.isArray(json?.data) ? json.data : [];
+      return { ads: rows.map(mapTikTok), total: json?.pagination?.total ?? rows.length };
+    } catch (e) {
+      lastErr = (e as Error).message;
+    }
+  }
+  throw new Error(lastErr || 'Trendtrack TikTok : endpoint introuvable');
 }
 
 /* ------------------------------- Google ---------------------------------- */

@@ -95,7 +95,11 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       const media = sp.media === 'video' || sp.media === 'image' ? sp.media : undefined;
       let r;
       if (platform === 'tiktok') {
-        r = await ttSearchTikTok({ apiKey }, { search: effSearch, limit: LIMIT, page, mediaType: media, country: sp.country || undefined });
+        r = await ttSearchTikTok({ apiKey }, {
+          search: autoDomain ? undefined : effSearch,
+          domain: autoDomain ? effSearch : undefined,
+          limit: LIMIT, page, mediaType: media,
+        });
       } else if (platform === 'google') {
         r = await ttSearchGoogle({ apiKey }, { search: effSearch, limit: LIMIT, page, country: sp.country || undefined });
       } else {
@@ -128,7 +132,6 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     savedSet = new Set(sv.map((r) => r.p + ':' + r.e));
     followSet = new Set(fl.map((r) => r.p + ':' + r.n));
   }
-  const backUrl = buildQS(sp, {});
 
   const totalPages = Math.min(Math.ceil(total / LIMIT) || 1, 417);
 
@@ -175,7 +178,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {/* Grille */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
         {ads.map((ad) => (
-          <AdCard key={ad.id} ad={ad} back={backUrl}
+          <AdCard key={ad.id} ad={ad}
             saved={savedSet.has(ad.platform + ':' + ad.id)}
             following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}
