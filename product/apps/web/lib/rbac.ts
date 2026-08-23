@@ -31,6 +31,9 @@ export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 // Allocation de crédits mensuelle par abonnement.
 export const PLAN_CREDITS: Record<Plan, number> = { starter: 200, core: 2000, plus: 10000, business: 50000 };
 
+// Tarif mensuel indicatif par abonnement (EUR HT) — paramétrable, sert au calcul du MRR.
+export const PLAN_PRICE: Record<Plan, number> = { starter: 0, core: 99, plus: 299, business: 990 };
+
 export interface Feature {
   key: string;
   label: string;

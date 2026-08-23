@@ -55,6 +55,16 @@ HIGGSFIELD_MODEL=              # optionnel
 > il suffit d'ajuster `HIGGSFIELD_BASE_URL` / `..._T2V_PATH` / `..._JOB_PATH`
 > dans `.env.deploy`, **sans toucher au code**.
 
+## 2 bis. ADMIN+ — vue plateforme (fondateur)
+
+```
+FOUNDER_EMAILS=kguilbaux@agence-glx.fr
+```
+
+Débloque la **vue plateforme** dans ADMIN+ (MRR, churn, tous les espaces).
+Sans cette variable, personne ne voit les données globales (sécurité multi-tenant).
+Plusieurs fondateurs : séparer par des virgules.
+
 ## 3. Bibliothèque pub — Trendtrack (déjà branché)
 
 ```
