@@ -3,10 +3,13 @@ import { redirect } from 'next/navigation';
 import { and, count, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
-import { roleAtLeast, ROLE_LABEL, PLAN_LABEL, PLAN_PRICE, type Role, type Plan } from '../../../lib/rbac';
+import { roleAtLeast, ROLE_LABEL, PLAN_LABEL, type Role, type Plan } from '../../../lib/rbac';
 import { ADMIN_THEME } from '../../../lib/theme';
 import { isFounder } from '../../../lib/founder';
 import { computePlatformMetrics } from '../../../lib/platform-metrics';
+import { getPlanConfig } from '../../../lib/settings';
+import { updatePlanConfigAction } from '../../actions/platform';
+import { input, Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
@@ -19,13 +22,16 @@ const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 const eur = (n: number) => n.toLocaleString('fr-FR') + ' €';
 async function c(q: Promise<{ n: number }[]>): Promise<number> { try { return (await q)[0]?.n ?? 0; } catch { return 0; } }
 
-export default async function ConsolePage() {
+export default async function ConsolePage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
+  const { ok, e } = await searchParams;
 
   const founder = isFounder(s.user.email);
-  const metrics = founder ? await computePlatformMetrics() : null;
+  const planCfg = await getPlanConfig();
+  const PLAN_PRICE = planCfg.prices;
+  const metrics = founder ? await computePlatformMetrics(planCfg.prices) : null;
 
   const ws = s.workspaceId;
   let members = 0, saved = 0, follows = 0, ticketsTotal = 0, ticketsOpen = 0, brands = 0, creditsBalance = 0;
@@ -64,6 +70,9 @@ export default async function ConsolePage() {
         La <b>vue plateforme</b> (MRR, churn, tous les espaces) est réservée au <b>fondateur</b> pour ne jamais
         exposer les données d'un client à un autre.
       </PageInfo>
+
+      {ok === 'config' && <Msg kind="ok">Tarifs et allocations mis à jour.</Msg>}
+      {e === 'forbidden' && <Msg kind="err">Action réservée au fondateur.</Msg>}
 
       {/* ============ VUE PLATEFORME (fondateur) ============ */}
       {founder && metrics && (
@@ -124,6 +133,35 @@ export default async function ConsolePage() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Tarifs & allocations — éditables par le fondateur */}
+          <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: 18, marginTop: 16 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Tarifs &amp; allocations par plan</h3>
+            <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--muted)' }}>Modifiable ici. Le MRR et la répartition se recalculent sur ces valeurs.</p>
+            <form action={updatePlanConfigAction}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 460 }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                      <th style={th}>Plan</th><th style={th}>Tarif €/mois</th><th style={th}>Crédits /mois</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PLANS.map((p) => (
+                      <tr key={p} style={{ borderTop: '1px solid var(--line)' }}>
+                        <td style={{ ...td, fontWeight: 700, color: 'var(--ink)' }}>{PLAN_LABEL[p]}</td>
+                        <td style={td}><input name={`price_${p}`} defaultValue={planCfg.prices[p]} inputMode="numeric" style={{ ...input, width: 120, padding: '8px 10px' }} /></td>
+                        <td style={td}><input name={`credits_${p}`} defaultValue={planCfg.credits[p]} inputMode="numeric" style={{ ...input, width: 140, padding: '8px 10px' }} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Enregistrer les tarifs</button>
+              </div>
+            </form>
           </div>
         </section>
       )}

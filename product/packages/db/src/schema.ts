@@ -357,6 +357,13 @@ export const tickets = pgTable('tickets', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ===================== Réglages plateforme (clé/valeur global, ADMIN+) ===================== */
+export const appSettings = pgTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ===================== Messages de tickets (fil de discussion) ===================== */
 export const ticketMessages = pgTable('ticket_messages', {
   id: uuid('id').primaryKey().defaultRandom(),

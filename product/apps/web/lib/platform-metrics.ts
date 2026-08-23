@@ -30,7 +30,7 @@ export interface PlatformMetrics {
 const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 async function n(q: Promise<{ n: number }[]>): Promise<number> { try { return (await q)[0]?.n ?? 0; } catch { return 0; } }
 
-export async function computePlatformMetrics(): Promise<PlatformMetrics> {
+export async function computePlatformMetrics(prices: Record<Plan, number> = PLAN_PRICE): Promise<PlatformMetrics> {
   const empty: PlatformMetrics = {
     workspaces: 0, paying: 0, usersTotal: 0, brandsTotal: 0, mrr: 0, arr: 0, arpa: 0,
     byPlan: { starter: 0, core: 0, plus: 0, business: 0 }, new30: 0, active30: 0, atRisk: 0,
@@ -55,7 +55,7 @@ export async function computePlatformMetrics(): Promise<PlatformMetrics> {
   const rows: WorkspaceRow[] = wsList.map((w) => {
     const plan = (PLANS.includes(w.plan as Plan) ? w.plan : 'starter') as Plan;
     byPlan[plan] += 1;
-    const price = PLAN_PRICE[plan];
+    const price = prices[plan];
     mrr += price;
     if (price > 0) paying += 1;
     const created = w.createdAt as Date;
