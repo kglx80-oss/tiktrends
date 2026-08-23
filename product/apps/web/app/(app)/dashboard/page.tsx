@@ -4,6 +4,7 @@ import { buildDashboard } from '../../../lib/pipeline';
 import { PageInfo } from '../../../components/PageInfo';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
+import { anthropicConfigured } from '../../../lib/ai-status';
 import { AssistantHome } from '../../../components/AssistantHome';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,7 @@ export default async function Dashboard() {
 
   return (
     <main style={{ minHeight: '100vh', padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
-      <AssistantHome firstName={firstName} credits={credits} brandName={brand?.name ?? null} brandId={brand?.id ?? null} />
+      <AssistantHome firstName={firstName} credits={credits} brandName={brand?.name ?? null} brandId={brand?.id ?? null} aiReady={anthropicConfigured()} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
