@@ -77,34 +77,37 @@ export interface SearchAdsInput {
 }
 export interface SearchAdsResult { ads: InspoAd[]; total: number }
 
-/** Recherche d'annonces (Inspo). Lance une erreur si l'API répond non-2xx. */
-export async function ttSearchAds(cfg: TrendtrackConfig, input: SearchAdsInput): Promise<SearchAdsResult> {
-  const base = cfg.baseUrl || DEFAULT_BASE;
-  const u = new URL('/v1/ads', base);
-  const set = (k: string, v: unknown) => {
-    if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
-  };
-  set('search', input.search);
-  set('limit', input.limit ?? 24);
-  set('offset', input.offset ?? 0);
-  set('mediaType', input.mediaType);
-  set('status', input.status);
-  set('searchIn', input.searchIn);
-  set('country', input.country);
-  set('adLanguage', input.adLanguage);
-  set('minReach', input.minReach);
-  set('reachPeriod', input.minReach ? 'total' : undefined);
-  set('minDaysRunning', input.minDaysRunning);
-  // NB : sortBy n'est pas accepté en query-string sur GET /v1/ads (enum rejeté).
-  // Le tri passera par POST /v1/ads/query ultérieurement.
+const SEARCH_TYPE: Record<string, string> = { ad_copy: 'adCopy', brand: 'brand', domain: 'domain' };
 
-  const res = await fetch(u, {
-    headers: { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json' },
+/** Recherche d'annonces Meta (POST /v1/ads/query).
+ *  sortBy=newest + status=all pour NE PAS filtrer sur le reach EU (sinon les
+ *  annonceurs US comme Grüns sont exclus). Lance une erreur si non-2xx. */
+export async function ttSearchAds(cfg: TrendtrackConfig, input: SearchAdsInput): Promise<SearchAdsResult> {
+  const limit = input.limit ?? 24;
+  const page = Math.floor((input.offset ?? 0) / limit) + 1;
+  const body: Record<string, unknown> = {
+    search: [input.search],
+    searchType: SEARCH_TYPE[input.searchIn ?? 'ad_copy'] ?? 'adCopy',
+    keywordMode: 'any',
+    sortBy: input.sortBy ?? 'newest',
+    order: input.order ?? 'desc',
+    page,
+    limit,
+    platforms: ['facebook'],
+    status: input.status ?? 'all',
+  };
+  if (input.mediaType) body.mediaType = input.mediaType;
+  if (input.country) body.country = input.country;
+
+  const res = await fetch(new URL('/v1/ads/query', cfg.baseUrl || DEFAULT_BASE), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
     cache: 'no-store',
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Trendtrack ${res.status}: ${body.slice(0, 200)}`);
+    const t = await res.text().catch(() => '');
+    throw new Error(`Trendtrack ${res.status}: ${t.slice(0, 200)}`);
   }
   const json: any = await res.json();
   const rows: any[] = Array.isArray(json?.data) ? json.data : [];

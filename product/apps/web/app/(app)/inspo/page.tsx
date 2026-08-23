@@ -102,7 +102,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         r = await ttSearchAds({ apiKey }, {
           search: effSearch, limit: LIMIT, offset: (page - 1) * LIMIT,
           mediaType: media,
-          status: sp.status === 'all' ? 'all' : 'active',
+          status: sp.status === 'active' ? 'active' : 'all',
           searchIn: effSearchIn,
           country: sp.country || undefined,
           adLanguage: sp.lang || undefined,
@@ -152,7 +152,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           <Select name="p" def={sp.p} opts={PLATFORMS} />
           <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
           <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
-          <Select name="status" def={sp.status} opts={[['active', 'Actives'], ['all', 'Toutes']]} />
+          <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
           <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
           <Select name="lang" def={sp.lang} opts={[['', 'Langue : toutes'], ...LANGS]} />
           <Select name="minReach" def={sp.minReach} opts={[['', 'Reach : min'], ...REACHES]} />
