@@ -66,6 +66,22 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
   const apiKey = process.env.TRENDTRACK_API_KEY;
 
+  // Détection URL/domaine : si l'utilisateur tape une URL ou un domaine,
+  // on bascule automatiquement en recherche par domaine (plus pertinent).
+  const urlLike = /^https?:\/\//i.test(query) || /^[a-z0-9-]+(\.[a-z0-9-]+){1,}(\/|$)/i.test(query);
+  let effSearch = query;
+  let effSearchIn = (sp.searchIn as 'ad_copy' | 'brand' | 'domain') || undefined;
+  let autoDomain = false;
+  if (urlLike) {
+    try {
+      effSearch = new URL(/^https?:\/\//i.test(query) ? query : 'https://' + query).hostname.replace(/^www\./, '');
+    } catch {
+      effSearch = query.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./, '');
+    }
+    effSearchIn = 'domain';
+    autoDomain = true;
+  }
+
   let ads: InspoAd[] = [];
   let total = 0;
   let error = '';
@@ -79,15 +95,15 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       const media = sp.media === 'video' || sp.media === 'image' ? sp.media : undefined;
       let r;
       if (platform === 'tiktok') {
-        r = await ttSearchTikTok({ apiKey }, { search: query, limit: LIMIT, page, mediaType: media, country: sp.country || undefined });
+        r = await ttSearchTikTok({ apiKey }, { search: effSearch, limit: LIMIT, page, mediaType: media, country: sp.country || undefined });
       } else if (platform === 'google') {
-        r = await ttSearchGoogle({ apiKey }, { search: query, limit: LIMIT, page, country: sp.country || undefined });
+        r = await ttSearchGoogle({ apiKey }, { search: effSearch, limit: LIMIT, page, country: sp.country || undefined });
       } else {
         r = await ttSearchAds({ apiKey }, {
-          search: query, limit: LIMIT, offset: (page - 1) * LIMIT,
+          search: effSearch, limit: LIMIT, offset: (page - 1) * LIMIT,
           mediaType: media,
           status: sp.status === 'all' ? 'all' : 'active',
-          searchIn: (sp.searchIn as 'ad_copy' | 'brand' | 'domain') || undefined,
+          searchIn: effSearchIn,
           country: sp.country || undefined,
           adLanguage: sp.lang || undefined,
           minReach: sp.minReach ? Number(sp.minReach) : undefined,
@@ -154,7 +170,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {sample && <div style={banner('rgba(245,166,35,.12)', 'rgba(245,166,35,.4)', '#f5c877')}>Mode démonstration (échantillon réel). Ajoute <code>TRENDTRACK_API_KEY</code> sur le serveur pour la recherche en direct.</div>}
       {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur Trendtrack : {error}</div>}
       {!sample && !error && !query && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}
-      {!sample && !error && query && <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>≈ {compact(total)} annonce(s) · page {page}/{totalPages}</p>}
+      {!sample && !error && query && <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>≈ {compact(total)} annonce(s) · page {page}/{totalPages}{autoDomain && <> · recherche par domaine <b style={{ color: 'var(--ink-2)' }}>{effSearch}</b></>}</p>}
 
       {/* Grille */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
