@@ -334,3 +334,19 @@ export const tickets = pgTable('tickets', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* ===================== Invitations (inscription sur invitation) ===================== */
+export const inviteStatusEnum = pgEnum('invite_status', ['pending', 'accepted', 'revoked']);
+
+export const invites = pgTable('invites', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  role: roleEnum('role').notNull().default('member'),
+  token: text('token').notNull().unique(),
+  invitedBy: uuid('invited_by').references(() => users.id, { onDelete: 'set null' }),
+  status: inviteStatusEnum('status').notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+});

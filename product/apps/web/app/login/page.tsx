@@ -8,6 +8,7 @@ const ERRORS: Record<string, string> = {
   invalid: 'E-mail ou mot de passe incorrect.',
   missing: 'Renseigne ton e-mail et ton mot de passe.',
   server: 'Base de données indisponible. Réessaie dans un instant.',
+  throttled: 'Trop de tentatives. Patiente quelques minutes avant de réessayer.',
 };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ e?: string }> }) {
