@@ -1,0 +1,11 @@
+[Unit]
+Description=TikTrends — auto-déploiement (git pull + docker compose + migrations)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=debian
+WorkingDirectory=/home/debian/tiktrends
+ExecStart=/home/debian/tiktrends/product/ops/deploy.sh
