@@ -1,15 +1,37 @@
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
 import { buildDashboard } from '../../../lib/pipeline';
 import { PageInfo } from '../../../components/PageInfo';
+import { getSession } from '../../../lib/auth';
+import { getActiveBrand } from '../../../lib/brands';
+import { AssistantHome } from '../../../components/AssistantHome';
+
+export const dynamic = 'force-dynamic';
 
 const eur = (n: number) => '€' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d),)/g, ' ');
 const gcol: Record<string, string> = { A: '#18cc8c', B: '#7aa2ff', C: '#f5a623', D: '#ff4d6d' };
 
-export default function Dashboard() {
+export default async function Dashboard() {
   const rows = buildDashboard();
+  const s = await getSession();
+  let credits = 0;
+  let brand: { id: string; name: string } | null = null;
+  if (s) {
+    if (db) {
+      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+      credits = w?.c ?? 0;
+    }
+    const ab = await getActiveBrand(s.workspaceId);
+    if (ab) brand = { id: ab.id, name: ab.name };
+  }
+  const firstName = ((s?.user.name || s?.user.email || 'toi').trim().split(/\s+/)[0]) || 'toi';
+
   return (
     <main style={{ minHeight: '100vh', padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
+      <AssistantHome firstName={firstName} credits={credits} brandName={brand?.name ?? null} brandId={brand?.id ?? null} />
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Dashboard créas</h1>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
         <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>données d'exemple</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginBottom: 18 }}>
