@@ -6,10 +6,12 @@ const DEFAULT_BASE = 'https://api.trendtrack.io';
 
 export interface TrendtrackConfig { apiKey: string; baseUrl?: string }
 
-/** Annonce normalisée pour l'affichage Inspo (sous-ensemble utile du payload). */
+export type AdPlatform = 'meta' | 'tiktok' | 'google';
+
+/** Annonce normalisée pour l'affichage Inspo (multi-plateformes). */
 export interface InspoAd {
   id: string;
-  platform: string;
+  platform: AdPlatform;
   status: string;
   daysRunning: number;
   mediaType?: string;
@@ -25,13 +27,19 @@ export interface InspoAd {
   estimatedSpend?: number;
   reachDelta7d?: number;
   mainCountry?: string;
+  // Spécifiques TikTok
+  views?: number;
+  likes?: number;
+  engagementRate?: number;
+  // Spécifiques Google
+  format?: string;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function mapAd(r: any): InspoAd {
   return {
     id: String(r.id),
-    platform: r.platform ?? 'facebook',
+    platform: 'meta',
     status: r.status ?? 'active',
     daysRunning: r.daysRunning ?? 0,
     mediaType: r.media?.type,
@@ -116,10 +124,101 @@ export async function ttGetMe(cfg: TrendtrackConfig): Promise<{ ok: boolean; wor
   }
 }
 
+/* ------------------------------- TikTok ---------------------------------- */
+function mapTikTok(r: any): InspoAd {
+  return {
+    id: String(r.id),
+    platform: 'tiktok',
+    status: r.status ?? 'active',
+    daysRunning: r.daysRunning ?? 0,
+    mediaType: r.media?.type,
+    thumbnailUrl: r.media?.thumbnailUrl,
+    mediaUrl: r.media?.videoUrl || r.media?.mediaUrl,
+    advertiserName: r.profile?.name || (r.profile?.handle ? '@' + r.profile.handle : undefined),
+    advertiserLogo: r.profile?.avatarUrl,
+    liveAdsCount: r.pageSnapshot?.adsCount,
+    body: r.content?.description,
+    landingDomain: r.shop?.domain || undefined,
+    mainCountry: undefined,
+    views: r.metrics?.views,
+    likes: r.metrics?.likes,
+    engagementRate: r.metrics?.engagementRate,
+  };
+}
+
+export interface SearchTikTokInput {
+  search: string; limit?: number; page?: number;
+  type?: 'ad' | 'organic' | 'all'; mediaType?: 'video' | 'image' | 'carousel';
+  sortBy?: string; country?: string;
+}
+export async function ttSearchTikTok(cfg: TrendtrackConfig, input: SearchTikTokInput): Promise<SearchAdsResult> {
+  const u = new URL('/v1/tiktok/library', cfg.baseUrl || DEFAULT_BASE);
+  const set = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v)); };
+  set('search', input.search);
+  set('limit', input.limit ?? 24);
+  set('page', input.page ?? 1);
+  set('type', input.type ?? 'ad');
+  set('mediaType', input.mediaType);
+  set('sortBy', input.sortBy);
+  set('countries', input.country);
+
+  const res = await fetch(u, { headers: { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json' }, cache: 'no-store' });
+  if (!res.ok) throw new Error(`Trendtrack TikTok ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+  const json: any = await res.json();
+  const rows: any[] = Array.isArray(json?.data) ? json.data : [];
+  return { ads: rows.map(mapTikTok), total: json?.pagination?.total ?? rows.length };
+}
+
+/* ------------------------------- Google ---------------------------------- */
+function mapGoogle(r: any): InspoAd {
+  return {
+    id: String(r.compositeAdId || r.adId),
+    platform: 'google',
+    status: r.isActive ? 'active' : 'inactive',
+    daysRunning: r.servedDays ?? 0,
+    mediaType: r.media?.kind || 'image',
+    thumbnailUrl: r.media?.url,
+    mediaUrl: r.media?.url,
+    advertiserName: r.advertiser?.name || r.advertiser?.shopName,
+    advertiserLogo: r.advertiser?.logoUrl,
+    liveAdsCount: r.advertiser?.liveAds?.all,
+    body: undefined,
+    landingDomain: r.advertiser?.domain,
+    reach: r.reach?.value,
+    format: r.media?.format || r.raw?.format,
+    mainCountry: r.mainCountry,
+  };
+}
+
+export interface SearchGoogleInput { search: string; limit?: number; page?: number; country?: string; sortBy?: 'newest' | 'longest-running' | 'impressions'; }
+export async function ttSearchGoogle(cfg: TrendtrackConfig, input: SearchGoogleInput): Promise<SearchAdsResult> {
+  const u = new URL('/v1/google-ads/query', cfg.baseUrl || DEFAULT_BASE);
+  const filters: Record<string, unknown> = {};
+  if (input.country) filters.country = [input.country];
+  const body = {
+    search: [input.search],
+    page: input.page ?? 1,
+    limit: input.limit ?? 24,
+    sort: input.sortBy ?? 'newest',
+    order: 'desc',
+    filters,
+  };
+  const res = await fetch(u, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`Trendtrack Google ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+  const json: any = await res.json();
+  const rows: any[] = Array.isArray(json?.data) ? json.data : [];
+  return { ads: rows.map(mapGoogle), total: json?.pagination?.total ?? rows.length };
+}
+
 /** Échantillon RÉEL (capturé via l'API) affiché tant qu'aucune clé n'est configurée. */
 export const SAMPLE_INSPO_ADS: InspoAd[] = [
   {
-    id: 'sample_oldspice', platform: 'facebook', status: 'active', daysRunning: 41, mediaType: 'video',
+    id: 'sample_oldspice', platform: 'meta', status: 'active', daysRunning: 41, mediaType: 'video',
     thumbnailUrl: 'https://medias.trendtrack.io/facebook/thumbnails/f5b236f2889c7c67156298837776aa45183059a071653c4e3d4b845880999363.jpg',
     mediaUrl: 'https://medias.trendtrack.io/facebook/video/0f3904b1b55df91b830fc1d5d387363de418f2c318896acbb410672f22c370d9.mp4',
     advertiserName: 'Old Spice.', advertiserLogo: 'https://medias.trendtrack.io/profile_picture/596698237104856.jpg',
@@ -127,7 +226,7 @@ export const SAMPLE_INSPO_ADS: InspoAd[] = [
     callToAction: null as unknown as undefined, landingDomain: undefined, reach: 15484761, estimatedSpend: 139363, reachDelta7d: 9296287, mainCountry: 'DE',
   },
   {
-    id: 'sample_neutrogena', platform: 'facebook', status: 'active', daysRunning: 143, mediaType: 'video',
+    id: 'sample_neutrogena', platform: 'meta', status: 'active', daysRunning: 143, mediaType: 'video',
     thumbnailUrl: 'https://medias.trendtrack.io/facebook/thumbnails/ffb8d519088ebec75ce83898bb8f068f6d2d56695ec506f3e33b67632d87c223.jpg',
     mediaUrl: 'https://medias.trendtrack.io/facebook/video/4324dc7891d62725b81ca4f88aa4338a246264dc262f9291a562b2291b168d1f.mp4',
     advertiserName: 'Neutrogena', advertiserLogo: 'https://medias.trendtrack.io/profile_picture/157448800978315.jpg',

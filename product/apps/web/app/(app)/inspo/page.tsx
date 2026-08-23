@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
-import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd, type AdSort } from '@tiktrends/integrations';
+import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdSort, type AdPlatform } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,9 +30,12 @@ const compact = (n?: number) => {
 const eur = (n?: number) => (n == null ? '—' : '€' + compact(n));
 
 type SP = {
-  q?: string; searchIn?: string; media?: string; sort?: string; status?: string;
+  q?: string; p?: string; searchIn?: string; media?: string; sort?: string; status?: string;
   country?: string; lang?: string; minReach?: string; minDays?: string; page?: string;
 };
+
+const PLATFORMS: [AdPlatform, string][] = [['meta', 'Meta'], ['tiktok', 'TikTok'], ['google', 'Google']];
+const platformLabel: Record<AdPlatform, string> = { meta: 'Meta', tiktok: 'TikTok', google: 'Google' };
 
 function buildQS(sp: SP, over: Partial<SP>): string {
   const merged = { ...sp, ...over };
@@ -71,6 +74,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
   const sp = await searchParams;
   const query = (sp.q || '').trim();
+  const platform: AdPlatform = sp.p === 'tiktok' || sp.p === 'google' ? sp.p : 'meta';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
   const apiKey = process.env.TRENDTRACK_API_KEY;
 
@@ -84,19 +88,25 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     sample = true;
   } else if (query) {
     try {
-      const r = await ttSearchAds({ apiKey }, {
-        search: query,
-        limit: LIMIT,
-        offset: (page - 1) * LIMIT,
-        mediaType: sp.media === 'video' || sp.media === 'image' ? sp.media : undefined,
-        status: sp.status === 'all' ? 'all' : 'active',
-        searchIn: (sp.searchIn as 'ad_copy' | 'brand' | 'domain') || undefined,
-        country: sp.country || undefined,
-        adLanguage: sp.lang || undefined,
-        minReach: sp.minReach ? Number(sp.minReach) : undefined,
-        minDaysRunning: sp.minDays ? Number(sp.minDays) : undefined,
-        sortBy: (sp.sort as AdSort) || 'reachDelta7d',
-      });
+      const media = sp.media === 'video' || sp.media === 'image' ? sp.media : undefined;
+      let r;
+      if (platform === 'tiktok') {
+        r = await ttSearchTikTok({ apiKey }, { search: query, limit: LIMIT, page, mediaType: media, country: sp.country || undefined });
+      } else if (platform === 'google') {
+        r = await ttSearchGoogle({ apiKey }, { search: query, limit: LIMIT, page, country: sp.country || undefined });
+      } else {
+        r = await ttSearchAds({ apiKey }, {
+          search: query, limit: LIMIT, offset: (page - 1) * LIMIT,
+          mediaType: media,
+          status: sp.status === 'all' ? 'all' : 'active',
+          searchIn: (sp.searchIn as 'ad_copy' | 'brand' | 'domain') || undefined,
+          country: sp.country || undefined,
+          adLanguage: sp.lang || undefined,
+          minReach: sp.minReach ? Number(sp.minReach) : undefined,
+          minDaysRunning: sp.minDays ? Number(sp.minDays) : undefined,
+          sortBy: (sp.sort as AdSort) || 'reachDelta7d',
+        });
+      }
       ads = r.ads;
       total = r.total;
     } catch (e) {
@@ -110,7 +120,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Inspo</h1>
-        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>bibliothèque concurrentielle · Trendtrack · Meta</span>
+        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>bibliothèque concurrentielle · Trendtrack · {platformLabel[platform]}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
         Recherche les publicités qui tournent chez tes concurrents. L'ancienneté (<b>jours actifs</b>) est un proxy de performance.
@@ -123,6 +133,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           <button type="submit" style={searchBtn}>Rechercher</button>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Select name="p" def={sp.p} opts={PLATFORMS} />
           <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
           <Select name="sort" def={sp.sort} opts={SORTS.map((x) => [x.v, 'Tri : ' + x.label])} />
           <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
@@ -196,9 +207,25 @@ function AdCard({ ad }: { ad: InspoAd }) {
         </div>
         {ad.body && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <Stat label="Reach" value={compact(ad.reach)} />
-          <Stat label="Spend est." value={eur(ad.estimatedSpend)} />
-          {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
+          {ad.platform === 'tiktok' ? (
+            <>
+              <Stat label="Vues" value={compact(ad.views)} />
+              <Stat label="Likes" value={compact(ad.likes)} />
+              {ad.engagementRate != null && <Stat label="Engag." value={ad.engagementRate.toFixed(1).replace('.', ',') + ' %'} />}
+            </>
+          ) : ad.platform === 'google' ? (
+            <>
+              <Stat label="Reach" value={compact(ad.reach)} />
+              {ad.format && <Stat label="Format" value={ad.format.replace('_', ' ')} />}
+              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
+            </>
+          ) : (
+            <>
+              <Stat label="Reach" value={compact(ad.reach)} />
+              <Stat label="Spend est." value={eur(ad.estimatedSpend)} />
+              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
+            </>
+          )}
         </div>
         {(ad.callToAction || ad.landingDomain) && (
           <div style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
