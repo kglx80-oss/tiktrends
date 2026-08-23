@@ -1,13 +1,15 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { and, eq, desc } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
-import { createTicketAction, updateTicketStatusAction } from '../../actions/admin';
-import { input, btn, btnGhost, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
+import { createTicketAction } from '../../actions/support';
+import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
+import { PageInfo } from '../../../components/PageInfo';
 
-const OK: Record<string, string> = { '1': 'Merci ! Ton message a bien été envoyé.', status: 'Statut mis à jour.' };
-const ERR: Record<string, string> = { title: 'Ajoute un titre.', forbidden: 'Réservé aux administrateurs.', notfound: 'Ticket introuvable.' };
+const OK: Record<string, string> = { '1': 'Message envoyé.', created: 'Ticket ouvert, on te répond vite.' };
+const ERR: Record<string, string> = { title: 'Ajoute un titre.', forbidden: 'Action non autorisée.', notfound: 'Ticket introuvable.' };
 
 const TYPE_LABEL: Record<string, string> = { bug: '🐞 Bug', suggestion: '💡 Suggestion', question: '❓ Question' };
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -26,78 +28,63 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
 
   let tickets: Array<typeof schema.tickets.$inferSelect> = [];
   if (db) {
-    tickets = await db
-      .select()
-      .from(schema.tickets)
+    tickets = await db.select().from(schema.tickets)
       .where(isAdmin
         ? eq(schema.tickets.workspaceId, s.workspaceId)
         : and(eq(schema.tickets.workspaceId, s.workspaceId), eq(schema.tickets.userId, s.user.id)))
-      .orderBy(desc(schema.tickets.createdAt));
+      .orderBy(desc(schema.tickets.updatedAt));
   }
 
   return (
     <main style={pageWrap}>
-      <h1 style={h1}>Support & suggestions</h1>
-      <p style={sub}>{isAdmin ? 'Tous les tickets de ton espace. Change leur statut au fil du traitement.' : 'Signale un bug, propose une idée, pose une question. On te répond.'}</p>
+      <h1 style={h1}>Support &amp; communication</h1>
+      <p style={sub}>{isAdmin ? "Tous les tickets de ton espace : réponds, change le statut, garde le fil." : 'Signale un bug, propose une idée, pose une question. On te répond dans le fil.'}</p>
+      <PageInfo title="comment ça marche">
+        Chaque message ouvre un <b>fil de discussion</b>. Tu reçois une <b>notification</b> (cloche en haut à droite)
+        dès qu'on te répond ou que le statut change. Types : 🐞 bug, 💡 suggestion, ❓ question.
+      </PageInfo>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
       {e && ERR[e] && <Msg kind="err">{ERR[e]}</Msg>}
 
       <div style={panel}>
         <h2 style={h2}>Nouveau message</h2>
-        <form action={createTicketAction} style={{ display: 'grid', gap: 14 }}>
+        <form action={createTicketAction} style={{ display: 'grid', gap: 14, marginTop: 10 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ minWidth: 180 }}>
               <label style={lbl}>Type</label>
-              <select name="type" defaultValue="suggestion" style={{ ...input, width: 'auto', minWidth: 180 }}>
-                <option value="suggestion">💡 Suggestion</option>
-                <option value="bug">🐞 Bug</option>
+              <select name="type" defaultValue="question" style={{ ...input, width: 'auto', minWidth: 180 }}>
                 <option value="question">❓ Question</option>
+                <option value="bug">🐞 Bug</option>
+                <option value="suggestion">💡 Suggestion</option>
               </select>
             </div>
             <div style={{ flex: 1, minWidth: 220 }}>
               <label style={lbl}>Titre</label>
-              <input name="title" required style={input} placeholder="Ex : ajouter l'export PDF des rapports" />
+              <input name="title" required style={input} placeholder="Ex : l'export PDF ne fonctionne pas" />
             </div>
           </div>
           <div>
-            <label style={lbl}>Détails (optionnel)</label>
-            <textarea name="body" rows={4} style={{ ...input, resize: 'vertical' }} placeholder="Décris le contexte, les étapes, ce que tu attends…" />
+            <label style={lbl}>Message</label>
+            <textarea name="body" required style={{ ...input, minHeight: 90, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} placeholder="Décris le contexte, ce que tu attendais, ce qui s'est passé." />
           </div>
           <div><button type="submit" style={btn}>Envoyer</button></div>
         </form>
       </div>
 
-      <h2 style={{ ...h2, marginBottom: 12 }}>{isAdmin ? `Tickets (${tickets.length})` : `Mes messages (${tickets.length})`}</h2>
-      {tickets.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucun message pour l'instant.</p>}
+      <h2 style={{ ...h2, marginBottom: 12 }}>{isAdmin ? 'Tickets de l’espace' : 'Tes tickets'} ({tickets.length})</h2>
+      {tickets.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucun ticket pour l'instant.</p>}
       <div style={{ display: 'grid', gap: 10 }}>
         {tickets.map((t) => {
-          const st = STATUS[t.status] || STATUS.open!;
+          const st = STATUS[t.status] ?? STATUS.open!;
           return (
-            <div key={t.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{TYPE_LABEL[t.type]}</span>
-                <span style={{ fontWeight: 700, color: 'var(--ink)', fontSize: 15, flex: 1 }}>{t.title}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, color: st.color, background: 'rgba(255,255,255,.06)' }}>{st.label}</span>
-              </div>
-              {t.body && <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>{t.body}</p>}
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                  {t.authorName || 'Anonyme'} · {new Date(t.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
-                {isAdmin && (
-                  <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
-                    {(['open', 'in_progress', 'resolved'] as const).filter((k) => k !== t.status).map((k) => (
-                      <form key={k} action={updateTicketStatusAction}>
-                        <input type="hidden" name="id" value={t.id} />
-                        <input type="hidden" name="status" value={k} />
-                        <button type="submit" style={btnGhost}>→ {STATUS[k]!.label}</button>
-                      </form>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <Link key={t.id} href={`/support/${t.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '13px 16px', textDecoration: 'none', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12.5 }}>{TYPE_LABEL[t.type] ?? t.type}</span>
+              <span style={{ flex: 1, minWidth: 180, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{t.title}</span>
+              {isAdmin && t.authorName && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t.authorName}</span>}
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, color: st.color, background: st.color + '22' }}>{st.label}</span>
+              <span style={{ fontSize: 12, color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir ›</span>
+            </Link>
           );
         })}
       </div>

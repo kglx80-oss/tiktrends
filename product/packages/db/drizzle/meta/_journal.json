@@ -50,6 +50,13 @@
       "when": 1787502429314,
       "tag": "0006_slow_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787509170594,
+      "tag": "0007_secret_ravenous",
+      "breakpoints": true
     }
   ]
 }

@@ -53,42 +53,5 @@ export async function setPlanAction(formData: FormData): Promise<void> {
   redirect('/settings?ok=plan');
 }
 
-/* ----------------------------- Tickets ----------------------------------- */
-export async function createTicketAction(formData: FormData): Promise<void> {
-  const s = await getSession();
-  if (!s || !db) redirect('/login');
-  const type = norm(formData.get('type'));
-  const title = norm(formData.get('title'));
-  const body = norm(formData.get('body'));
-  const t = (['bug', 'suggestion', 'question'].includes(type) ? type : 'suggestion') as 'bug' | 'suggestion' | 'question';
-  if (!title) redirect('/support?e=title');
-
-  await db.insert(schema.tickets).values({
-    workspaceId: s.workspaceId,
-    userId: s.user.id,
-    authorName: s.user.name || s.user.email,
-    type: t,
-    title,
-    body,
-  });
-  redirect('/support?ok=1');
-}
-
-export async function updateTicketStatusAction(formData: FormData): Promise<void> {
-  const s = await getSession();
-  if (!s || !db) redirect('/login');
-  if (!roleAtLeast(s.role, 'admin')) redirect('/support?e=forbidden'); // seuls admin/owner gèrent
-  const id = norm(formData.get('id'));
-  const status = norm(formData.get('status'));
-  if (!id || !['open', 'in_progress', 'resolved'].includes(status)) redirect('/support?e=bad');
-
-  // On restreint la mise à jour aux tickets du workspace courant (cloisonnement).
-  const [tk] = await db.select().from(schema.tickets).where(eq(schema.tickets.id, id)).limit(1);
-  if (!tk || tk.workspaceId !== s.workspaceId) redirect('/support?e=notfound');
-
-  await db.update(schema.tickets)
-    .set({ status: status as 'open' | 'in_progress' | 'resolved', updatedAt: new Date() })
-    .where(eq(schema.tickets.id, id));
-  revalidatePath('/support');
-  redirect('/support?ok=status');
-}
+/* Les actions « tickets » vivent désormais dans actions/support.ts
+   (fil de discussion + notifications). */
