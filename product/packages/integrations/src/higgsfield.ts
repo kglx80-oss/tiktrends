@@ -10,6 +10,7 @@
  *   HIGGSFIELD_API_SECRET   (optionnel — auth « Key id:secret » si fourni)
  *   HIGGSFIELD_BASE_URL     (def: https://platform.higgsfield.ai)
  *   HIGGSFIELD_T2V_PATH     (def: /v1/text2video)
+ *   HIGGSFIELD_I2V_PATH     (def: /v1/image2video)
  *   HIGGSFIELD_JOB_PATH     (def: /v1/jobs)   -> {JOB_PATH}/{id}
  *   HIGGSFIELD_MODEL        (optionnel)
  */
@@ -19,12 +20,14 @@ export interface HiggsfieldConfig {
   apiSecret?: string;
   baseUrl?: string;
   t2vPath?: string;
+  i2vPath?: string;
   jobPath?: string;
   model?: string;
 }
 
 export interface VideoJob { id: string; status: 'queued' | 'processing' | 'completed' | 'failed'; videoUrl?: string; thumbnailUrl?: string; error?: string }
 export interface VideoInput { prompt: string; durationS?: number; aspectRatio?: '9:16' | '1:1' | '16:9'; seed?: number }
+export interface ImageVideoInput extends VideoInput { imageUrl: string }
 
 /** Construit la config depuis l'environnement (null si la clé est absente). */
 export function higgsfieldFromEnv(): HiggsfieldConfig | null {
@@ -35,6 +38,7 @@ export function higgsfieldFromEnv(): HiggsfieldConfig | null {
     apiSecret: process.env.HIGGSFIELD_API_SECRET || undefined,
     baseUrl: process.env.HIGGSFIELD_BASE_URL || 'https://platform.higgsfield.ai',
     t2vPath: process.env.HIGGSFIELD_T2V_PATH || '/v1/text2video',
+    i2vPath: process.env.HIGGSFIELD_I2V_PATH || '/v1/image2video',
     jobPath: process.env.HIGGSFIELD_JOB_PATH || '/v1/jobs',
     model: process.env.HIGGSFIELD_MODEL || undefined,
   };
@@ -59,6 +63,31 @@ export async function hfSubmitVideo(cfg: HiggsfieldConfig, input: VideoInput): P
   const url = `${cfg.baseUrl}${cfg.t2vPath}`;
   const body: Record<string, unknown> = {
     prompt: input.prompt,
+    duration: input.durationS ?? 5,
+    aspect_ratio: input.aspectRatio ?? '9:16',
+  };
+  if (input.seed != null) body.seed = input.seed;
+  if (cfg.model) body.model = cfg.model;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: authHeader(cfg) },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) throw new Error(`Source vidéo : ${res.status} ${(await res.text()).slice(0, 200)}`);
+  const data = (await res.json()) as Record<string, unknown>;
+  const jobId = pickString(data, ['id', 'job_id', 'jobId', 'request_id', 'requestId']);
+  if (!jobId) throw new Error("Réponse inattendue de la source vidéo (identifiant de job absent).");
+  return { jobId };
+}
+
+/** Soumet une génération image → vidéo (anime une image de départ). */
+export async function hfSubmitImageVideo(cfg: HiggsfieldConfig, input: ImageVideoInput): Promise<{ jobId: string }> {
+  const url = `${cfg.baseUrl}${cfg.i2vPath}`;
+  const body: Record<string, unknown> = {
+    prompt: input.prompt,
+    image_url: input.imageUrl,
     duration: input.durationS ?? 5,
     aspect_ratio: input.aspectRatio ?? '9:16',
   };

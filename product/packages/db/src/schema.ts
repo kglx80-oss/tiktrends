@@ -295,6 +295,7 @@ export const generations = pgTable('generations', {
   creditsCost: integer('credits_cost').default(0),
   status: text('status').default('queued'),
   jobId: text('job_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 /* ======================= AGENT / BILLING / API ======================= */

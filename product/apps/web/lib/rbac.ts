@@ -54,6 +54,7 @@ export const FEATURES: Feature[] = [
   { key: 'inspo',     label: 'Inspo',        href: '/inspo',       icon: 'bulb',   group: 'Création', minRole: 'member',        minPlan: 'core' },
   { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Création', parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Création', minRole: 'member',        minPlan: 'core' },
+  { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   // Menu profil — Compte
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
   // Menu profil — Espace de travail

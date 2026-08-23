@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
+import Link from 'next/link';
 import { StudioClient } from './StudioClient';
-import { VideoStudio } from './VideoStudio';
 import { higgsfieldConfigured } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
 
@@ -53,7 +53,19 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
         pré-remplit l'inspiration avec une créa gagnante repérée chez un concurrent.
       </PageInfo>
       <StudioClient hasKey={hasKey} prefillProduct={sp.brand} prefillInspiration={sp.inspo} />
-      <VideoStudio ready={higgsfieldConfigured()} />
+
+      <Link href="/studio/video" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 30, padding: '18px 20px', border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', textDecoration: 'none' }}>
+        <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🎬</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <b style={{ fontSize: 15, color: 'var(--ink)' }}>Vidéo IA</b>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>HIGGSFIELD</span>
+            {!higgsfieldConfigured() && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>· à activer</span>}
+          </span>
+          <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-2)', marginTop: 3 }}>Texte → vidéo et image → vidéo, verticales, prêtes pour TikTok. Avec galerie et historique.</span>
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent-strong)', whiteSpace: 'nowrap' }}>Ouvrir ›</span>
+      </Link>
     </main>
   );
 }
