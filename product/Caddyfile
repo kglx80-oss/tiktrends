@@ -1,4 +1,5 @@
-# Remplace par ton domaine (DNS A -> IP du VPS OVH). TLS Let's Encrypt automatique.
-app.ton-domaine.fr {
+# DNS : enregistrement A  app.tiktrends.co  ->  IP du VPS OVH (51.255.39.79)
+# TLS Let's Encrypt automatique (Caddy gère le certificat + le renouvellement).
+app.tiktrends.co {
 	reverse_proxy web:3000
 }

@@ -13,7 +13,8 @@
     "ioredis": "^5.4.1",
     "@tiktrends/db": "workspace:*",
     "@tiktrends/core": "workspace:*",
-    "@tiktrends/ai": "workspace:*"
+    "@tiktrends/ai": "workspace:*",
+    "@tiktrends/integrations": "workspace:*"
   },
   "devDependencies": { "typescript": "^5.5.4", "tsx": "^4.17.0" }
 }

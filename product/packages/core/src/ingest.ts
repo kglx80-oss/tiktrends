@@ -1,6 +1,6 @@
 import type { CreativeMetrics } from './radar';
 
-export interface CreativeLike { fingerprint: string; [k: string]: unknown; }
+export interface CreativeLike { fingerprint: string; }
 export interface MetricRowLike {
   fingerprint: string; date: string; spend: number; impressions: number; clicks: number; conv: number; revenue: number;
   v2s?: number; v3s?: number; v6s?: number; v15s?: number; p50?: number;

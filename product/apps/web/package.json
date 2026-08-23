@@ -17,7 +17,8 @@
     "@tiktrends/ui": "workspace:*",
     "@tiktrends/db": "workspace:*",
     "@tiktrends/ai": "workspace:*",
-    "@tiktrends/core": "workspace:*"
+    "@tiktrends/core": "workspace:*",
+    "@tiktrends/integrations": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.4",
