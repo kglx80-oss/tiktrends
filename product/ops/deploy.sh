@@ -20,13 +20,17 @@ fi
 
 echo "[$(date -Is)] Nouveau commit détecté ($REMOTE) — déploiement…"
 
-# product/ a-t-il changé ? (sinon inutile de rebuild : ex. modif de la maquette).
-PRODUCT_CHANGED=$(git diff --name-only "$LOCAL" "$REMOTE" -- product/ | head -1 || true)
+# Le code applicatif a-t-il changé ? On ne rebuild que si apps/packages/Docker
+# changent — pas pour une modif ops/ ou docs (économie de temps/ressources).
+CODE_CHANGED=$(git diff --name-only "$LOCAL" "$REMOTE" -- \
+  product/apps product/packages \
+  product/Dockerfile.web product/Dockerfile.workers \
+  product/docker-compose.yml product/Caddyfile | head -1 || true)
 
 git pull --ff-only origin "$BRANCH"
 
-if [ -z "$PRODUCT_CHANGED" ]; then
-  echo "[$(date -Is)] Aucun changement dans product/ — pas de rebuild."
+if [ -z "$CODE_CHANGED" ]; then
+  echo "[$(date -Is)] Pas de changement de code applicatif — pull seul, aucun rebuild."
   exit 0
 fi
 
