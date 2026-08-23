@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { getActiveBrand } from '../../../lib/brands';
 import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdSort, type AdPlatform } from '@tiktrends/integrations';
 import { AdCard, compact } from '../../../components/AdCard';
 import { PageInfo } from '../../../components/PageInfo';
@@ -136,9 +137,16 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   let savedSet = new Set<string>();
   let followSet = new Set<string>();
   if (db) {
+    const brand = await getActiveBrand(s.workspaceId);
+    const savedWhere = brand
+      ? and(eq(schema.savedAds.workspaceId, s.workspaceId), eq(schema.savedAds.brandId, brand.id))
+      : eq(schema.savedAds.workspaceId, s.workspaceId);
+    const followWhere = brand
+      ? and(eq(schema.followedBrands.workspaceId, s.workspaceId), eq(schema.followedBrands.brandId, brand.id))
+      : eq(schema.followedBrands.workspaceId, s.workspaceId);
     const [sv, fl] = await Promise.all([
-      db.select({ p: schema.savedAds.platform, e: schema.savedAds.externalId }).from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)),
-      db.select({ p: schema.followedBrands.platform, n: schema.followedBrands.name }).from(schema.followedBrands).where(eq(schema.followedBrands.workspaceId, s.workspaceId)),
+      db.select({ p: schema.savedAds.platform, e: schema.savedAds.externalId }).from(schema.savedAds).where(savedWhere),
+      db.select({ p: schema.followedBrands.platform, n: schema.followedBrands.name }).from(schema.followedBrands).where(followWhere),
     ]);
     savedSet = new Set(sv.map((r) => r.p + ':' + r.e));
     followSet = new Set(fl.map((r) => r.p + ':' + r.n));

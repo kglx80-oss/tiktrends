@@ -1,16 +1,19 @@
 import type { ReactNode } from 'react';
 
-/** Encart « Informations » repliable (natif <details>, sans JS) :
- *  à quoi sert la page + comment elle fonctionne. */
-export function PageInfo({ children, title = 'À quoi sert cette page ?' }: { children: ReactNode; title?: string }) {
+/** Petite note d'aide discrète (natif <details>, sans JS) : un « ⓘ » dans le coin
+ *  qui déplie une courte explication de la page. */
+export function PageInfo({ children, title = 'Informations' }: { children: ReactNode; title?: string }) {
   return (
-    <details style={{ marginBottom: 20, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', overflow: 'hidden' }}>
-      <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>
-        <span style={{ display: 'inline-flex', width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent-strong)', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontStyle: 'italic', fontWeight: 800 }}>i</span>
-        Informations
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>{title}</span>
+    <details style={{ position: 'relative', display: 'inline-block', marginBottom: 14 }}>
+      <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)', userSelect: 'none' }}>
+        <span style={{ display: 'inline-flex', width: 15, height: 15, borderRadius: '50%', border: '1px solid var(--line-2)', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontStyle: 'italic', fontWeight: 800 }}>i</span>
+        {title}
       </summary>
-      <div style={{ padding: '2px 16px 14px 40px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+      <div style={{
+        position: 'absolute', zIndex: 10, top: 'calc(100% + 6px)', left: 0, width: 340, maxWidth: '80vw',
+        padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)',
+        boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55,
+      }}>
         {children}
       </div>
     </details>

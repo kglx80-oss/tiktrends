@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
+import { getActiveBrand } from '../../../lib/brands';
 import { AdCard } from '../../../components/AdCard';
 import { BrandRemoveButton } from '../../../components/InspoButtons';
 import { PageInfo } from '../../../components/PageInfo';
@@ -18,10 +19,17 @@ export default async function SavedPage() {
   let ads: InspoAd[] = [];
   let brands: Array<typeof schema.followedBrands.$inferSelect> = [];
   const followSet = new Set<string>();
+  const activeBrand = db ? await getActiveBrand(s.workspaceId) : null;
   if (db) {
+    const savedWhere = activeBrand
+      ? and(eq(schema.savedAds.workspaceId, s.workspaceId), eq(schema.savedAds.brandId, activeBrand.id))
+      : eq(schema.savedAds.workspaceId, s.workspaceId);
+    const followWhere = activeBrand
+      ? and(eq(schema.followedBrands.workspaceId, s.workspaceId), eq(schema.followedBrands.brandId, activeBrand.id))
+      : eq(schema.followedBrands.workspaceId, s.workspaceId);
     const [sv, fl] = await Promise.all([
-      db.select().from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)).orderBy(desc(schema.savedAds.createdAt)),
-      db.select().from(schema.followedBrands).where(eq(schema.followedBrands.workspaceId, s.workspaceId)).orderBy(desc(schema.followedBrands.createdAt)),
+      db.select().from(schema.savedAds).where(savedWhere).orderBy(desc(schema.savedAds.createdAt)),
+      db.select().from(schema.followedBrands).where(followWhere).orderBy(desc(schema.followedBrands.createdAt)),
     ]);
     ads = sv.map((r) => r.snapshot as InspoAd);
     brands = fl;

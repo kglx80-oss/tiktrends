@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type CSSProperties, type ReactNode } from 'react';
+import { BrandSwitcher } from './BrandSwitcher';
 
 // Pages « espace admin » : fond ambré + accent orange (même univers sombre).
 const ADMIN_ROUTES = ['/console', '/settings', '/team', '/billing'];
@@ -23,9 +24,13 @@ const ADMIN_CONTENT = {
 
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
 interface Group { group: string; items: NavItem[] }
+interface Brand { id: string; name: string; logoUrl?: string | null }
 interface Props {
   nav: Group[];
   account: NavItem[];
+  brands: Brand[];
+  activeBrandId: string | null;
+  canManageBrands: boolean;
   userName: string;
   userEmail: string;
   roleLabel: string;
@@ -81,7 +86,7 @@ function NavLink({ it, active }: { it: NavItem; active: boolean }) {
 }
 
 export function AppShell(props: Props) {
-  const { nav, account, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
+  const { nav, account, brands, activeBrandId, canManageBrands, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
@@ -97,6 +102,9 @@ export function AppShell(props: Props) {
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>{workspaceName}</div>
           </div>
         </Link>
+
+        {/* Sélecteur de marque */}
+        <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />
 
         {/* Navigation groupée */}
         <nav style={{ marginTop: 14, display: 'grid', gap: 4, overflowY: 'auto', flex: 1 }}>

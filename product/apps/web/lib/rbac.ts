@@ -51,7 +51,7 @@ export const FEATURES: Feature[] = [
   { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Création', minRole: 'member',        minPlan: 'core' },
   // Agence
   { key: 'console',   label: 'Console',      href: '/console',     icon: 'gauge',  group: 'Agence',   minRole: 'admin',         minPlan: 'starter' },
-  { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'Agence',   minRole: 'admin',         minPlan: 'starter', soon: true },
+  { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'Agence',   minRole: 'admin',         minPlan: 'starter' },
   { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'Agence',   minRole: 'admin',         minPlan: 'starter', soon: true },
   // Compte (menu du profil)
   { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account',  minRole: 'admin',         minPlan: 'starter' },
