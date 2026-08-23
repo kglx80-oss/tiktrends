@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
+import { SupportWidget } from './SupportWidget';
 
 // Console ADMIN+ uniquement : fond ambré + accent orange (même univers sombre).
 // Les pages « espace de travail » (marques, connexions, membres, abonnement)
@@ -171,6 +172,7 @@ export function AppShell(props: Props) {
       <div style={{ minWidth: 0, minHeight: '100vh', ...(isAdmin ? ADMIN_CONTENT : null) }}>
         <NotificationBell />
         {children}
+        <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
       </div>
     </div>
   );
