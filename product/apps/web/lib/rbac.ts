@@ -38,7 +38,7 @@ export const FEATURES: Feature[] = [
   { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   minRole: 'client_viewer', minPlan: 'starter' },
   { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  minRole: 'client_viewer', minPlan: 'starter', soon: true },
   { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    minRole: 'member',        minPlan: 'starter' },
-  { key: 'inspo',     label: 'Inspo',        href: '/inspo',       icon: 'bulb',   minRole: 'member',        minPlan: 'core',    soon: true },
+  { key: 'inspo',     label: 'Inspo',        href: '/inspo',       icon: 'bulb',   minRole: 'member',        minPlan: 'core' },
   { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  minRole: 'member',        minPlan: 'core',    soon: true },
   { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  minRole: 'admin',         minPlan: 'starter', soon: true },
   { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   minRole: 'admin',         minPlan: 'starter', soon: true },
