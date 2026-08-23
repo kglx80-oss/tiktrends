@@ -24,8 +24,12 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
 }
 
 // Catalogue des fonctionnalités : rôle minimum + abonnement minimum.
-export type NavGroup = 'Analyse' | 'Création' | 'Agence' | 'account';
-export const RAIL_GROUPS: NavGroup[] = ['Analyse', 'Création', 'Agence'];
+export type NavGroup = 'Analyse' | 'Création' | 'account';
+export const RAIL_GROUPS: NavGroup[] = ['Analyse', 'Création'];
+export type AccountSection = 'Compte' | 'Espace' | 'Admin';
+
+// Allocation de crédits mensuelle par abonnement.
+export const PLAN_CREDITS: Record<Plan, number> = { starter: 200, core: 2000, plus: 10000, business: 50000 };
 
 export interface Feature {
   key: string;
@@ -33,6 +37,7 @@ export interface Feature {
   href: string;
   icon: string;      // glyphe simple (SVG géré dans le rail)
   group: NavGroup;
+  section?: AccountSection; // sous-section du menu profil (pour group 'account')
   parent?: string;   // sous-menu d'une autre fonctionnalité (ex: saved -> inspo)
   minRole: Role;
   minPlan: Plan;
@@ -40,24 +45,26 @@ export interface Feature {
 }
 
 export const FEATURES: Feature[] = [
-  // Analyse
+  // Analyse (rail)
   { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter' },
   { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter' },
   { key: 'radar',     label: 'Radar',        href: '/radar',       icon: 'radar',  group: 'Analyse',  minRole: 'member',        minPlan: 'core' },
   { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Analyse',  minRole: 'member',        minPlan: 'starter' },
-  // Création
+  // Création (rail)
   { key: 'inspo',     label: 'Inspo',        href: '/inspo',       icon: 'bulb',   group: 'Création', minRole: 'member',        minPlan: 'core' },
   { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Création', parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Création', minRole: 'member',        minPlan: 'core' },
-  // Agence
-  { key: 'console',   label: 'Console',      href: '/console',     icon: 'gauge',  group: 'Agence',   minRole: 'admin',         minPlan: 'starter' },
-  { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'Agence',   minRole: 'admin',         minPlan: 'starter' },
-  { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'Agence',   minRole: 'admin',         minPlan: 'starter', soon: true },
-  // Compte (menu du profil)
-  { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account',  minRole: 'admin',         minPlan: 'starter' },
-  { key: 'team',      label: 'Membres',      href: '/team',        icon: 'users',  group: 'account',  minRole: 'admin',         minPlan: 'starter' },
-  { key: 'billing',   label: 'Abonnement',   href: '/billing',     icon: 'card',   group: 'account',  minRole: 'owner',         minPlan: 'starter', soon: true },
-  { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account',  minRole: 'client_viewer', minPlan: 'starter' },
+  // Menu profil — Compte
+  { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
+  // Menu profil — Espace de travail
+  { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
+  { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter', soon: true },
+  { key: 'team',      label: 'Membres',      href: '/team',        icon: 'users',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
+  { key: 'billing',   label: 'Abonnement',   href: '/billing',     icon: 'card',   group: 'account', section: 'Espace', minRole: 'owner',  minPlan: 'starter', soon: true },
+  // Menu profil — ADMIN+
+  { key: 'console',   label: 'Console',      href: '/console',     icon: 'gauge',  group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
+  { key: 'credits',   label: 'Crédits',      href: '/credits',     icon: 'coin',   group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
+  { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
 ];
 
 export interface Access { role: Role; plan: Plan; }
@@ -81,6 +88,14 @@ export function railNav(a: Access): Array<{ group: NavGroup; items: NavItem[] }>
 export function accountFeatures(a: Access): NavItem[] {
   return FEATURES.filter((f) => f.group === 'account' && roleAtLeast(a.role, f.minRole))
     .map((f) => ({ ...f, locked: !planAtLeast(a.plan, f.minPlan), isSub: false }));
+}
+
+export const ACCOUNT_SECTIONS: AccountSection[] = ['Compte', 'Espace', 'Admin'];
+/** Menu profil groupé par section (Compte / Espace de travail / ADMIN+). */
+export function accountSections(a: Access): Array<{ section: AccountSection; items: NavItem[] }> {
+  const feats = accountFeatures(a);
+  return ACCOUNT_SECTIONS.map((sec) => ({ section: sec, items: feats.filter((f) => f.section === sec) }))
+    .filter((g) => g.items.length > 0);
 }
 
 /** L'utilisateur a-t-il accès (rôle ET abonnement suffisants) ? */

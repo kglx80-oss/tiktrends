@@ -6,7 +6,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { BrandSwitcher } from './BrandSwitcher';
 
 // Pages « espace admin » : fond ambré + accent orange (même univers sombre).
-const ADMIN_ROUTES = ['/console', '/settings', '/team', '/billing'];
+const ADMIN_ROUTES = ['/console', '/credits', '/settings', '/team', '/billing', '/brands', '/connections'];
 const ADMIN_CONTENT = {
   '--accent': '#f5a623',
   '--accent-strong': '#ffca6b',
@@ -25,12 +25,14 @@ const ADMIN_CONTENT = {
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
 interface Group { group: string; items: NavItem[] }
 interface Brand { id: string; name: string; logoUrl?: string | null }
+interface AccountGroup { section: string; items: NavItem[] }
 interface Props {
   nav: Group[];
-  account: NavItem[];
+  accountGroups: AccountGroup[];
   brands: Brand[];
   activeBrandId: string | null;
   canManageBrands: boolean;
+  creditBalance: number;
   userName: string;
   userEmail: string;
   roleLabel: string;
@@ -56,6 +58,7 @@ function Icon({ name }: { name: string }) {
     gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H2a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 3.2 6.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H8a1.6 1.6 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V8a1.6 1.6 0 0 0 1.5 1H22a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z',
     gauge: 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4M13.4 10.6 19 5M4 20a8 8 0 1 1 16 0z',
     radar: 'M12 12a9 9 0 1 0 0 0.01M12 12a5 5 0 1 0 0 0.01M12 12l6-4',
+    coin: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M12 7v10M9.5 9.2a2.5 2 0 0 1 2.5-1.2c1.4 0 2.5.8 2.5 1.8s-1.1 1.7-2.5 1.7-2.5.8-2.5 1.8 1.1 1.7 2.5 1.7a2.5 2 0 0 0 2.5-1.2',
   };
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -86,7 +89,7 @@ function NavLink({ it, active }: { it: NavItem; active: boolean }) {
 }
 
 export function AppShell(props: Props) {
-  const { nav, account, brands, activeBrandId, canManageBrands, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
+  const { nav, accountGroups, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
@@ -125,15 +128,27 @@ export function AppShell(props: Props) {
               <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
               <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: 'var(--sh-lift, 0 14px 34px -10px rgba(0,0,0,.6))', overflow: 'hidden' }}>
                 <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{workspaceName}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{workspaceName}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
+                    </div>
+                    <span title="Crédits restants" style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: '#f5c877', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', whiteSpace: 'nowrap' }}>◈ {creditBalance.toLocaleString('fr-FR')}</span>
+                  </div>
                 </div>
                 <div style={{ padding: 6 }}>
                   <Link href="/profile" onClick={() => setMenuOpen(false)} style={menuItem}>Mon profil</Link>
-                  {account.map((it) => (it.locked || it.soon)
-                    ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
-                    : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>)}
-                  <div style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default', display: 'flex', justifyContent: 'space-between' }}>Langue<span style={{ fontSize: 11 }}>FR</span></div>
+                  {accountGroups.map((grp) => (
+                    <div key={grp.section}>
+                      <div style={{ padding: '8px 12px 2px', fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: grp.section === 'Admin' ? '#f5c877' : 'var(--muted)' }}>
+                        {grp.section === 'Admin' ? 'ADMIN+' : grp.section === 'Espace' ? 'Espace de travail' : grp.section}
+                      </div>
+                      {grp.items.map((it) => (it.locked || it.soon)
+                        ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
+                        : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={{ ...menuItem, ...(grp.section === 'Admin' ? { color: '#f5c877' } : null) }}>{it.label}</Link>)}
+                    </div>
+                  ))}
+                  <div style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default', display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>Langue<span style={{ fontSize: 11 }}>FR</span></div>
                 </div>
                 <form action={logout} style={{ borderTop: '1px solid var(--line)', padding: 6, margin: 0 }}>
                   <button type="submit" style={{ ...menuItem, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', color: '#ff9db0', cursor: 'pointer' }}>Déconnexion</button>
