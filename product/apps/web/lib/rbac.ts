@@ -58,7 +58,7 @@ export const FEATURES: Feature[] = [
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
   // Menu profil — Espace de travail
   { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
-  { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter', soon: true },
+  { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   { key: 'team',      label: 'Membres',      href: '/team',        icon: 'users',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   { key: 'billing',   label: 'Abonnement',   href: '/billing',     icon: 'card',   group: 'account', section: 'Espace', minRole: 'owner',  minPlan: 'starter', soon: true },
   // Menu profil — ADMIN+
