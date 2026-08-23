@@ -50,11 +50,20 @@ function mapAd(r: any): InspoAd {
   };
 }
 
+export type AdSort = 'reachDelta7d' | 'longestRunning' | 'reach' | 'newest' | 'mostDuplicates';
 export interface SearchAdsInput {
   search: string;
   limit?: number;
   offset?: number;
   mediaType?: 'video' | 'image';
+  status?: 'active' | 'all';
+  searchIn?: 'ad_copy' | 'brand' | 'domain';
+  country?: string;             // ISO alpha-2 (FR, DE, US…)
+  adLanguage?: string;          // fr, en, de…
+  minReach?: number;
+  minDaysRunning?: number;
+  sortBy?: AdSort;
+  order?: 'asc' | 'desc';
 }
 export interface SearchAdsResult { ads: InspoAd[]; total: number }
 
@@ -62,10 +71,22 @@ export interface SearchAdsResult { ads: InspoAd[]; total: number }
 export async function ttSearchAds(cfg: TrendtrackConfig, input: SearchAdsInput): Promise<SearchAdsResult> {
   const base = cfg.baseUrl || DEFAULT_BASE;
   const u = new URL('/v1/ads', base);
-  u.searchParams.set('search', input.search);
-  u.searchParams.set('limit', String(input.limit ?? 24));
-  u.searchParams.set('offset', String(input.offset ?? 0));
-  if (input.mediaType) u.searchParams.set('mediaType', input.mediaType);
+  const set = (k: string, v: unknown) => {
+    if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
+  };
+  set('search', input.search);
+  set('limit', input.limit ?? 24);
+  set('offset', input.offset ?? 0);
+  set('mediaType', input.mediaType);
+  set('status', input.status);
+  set('searchIn', input.searchIn);
+  set('country', input.country);
+  set('adLanguage', input.adLanguage);
+  set('minReach', input.minReach);
+  set('reachPeriod', input.minReach ? 'total' : undefined);
+  set('minDaysRunning', input.minDaysRunning);
+  set('sortBy', input.sortBy);
+  set('order', input.order ?? (input.sortBy ? 'desc' : undefined));
 
   const res = await fetch(u, {
     headers: { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json' },
