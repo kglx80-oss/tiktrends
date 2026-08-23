@@ -43,6 +43,8 @@ export const FEATURES: Feature[] = [
   { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  minRole: 'admin',         minPlan: 'starter', soon: true },
   { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   minRole: 'admin',         minPlan: 'starter', soon: true },
   { key: 'team',      label: 'Équipe',       href: '/team',        icon: 'users',  minRole: 'admin',         minPlan: 'starter' },
+  { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   minRole: 'client_viewer', minPlan: 'starter' },
+  { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   minRole: 'admin',         minPlan: 'starter' },
   { key: 'billing',   label: 'Abonnement',   href: '/billing',     icon: 'card',   minRole: 'owner',         minPlan: 'starter', soon: true },
 ];
 

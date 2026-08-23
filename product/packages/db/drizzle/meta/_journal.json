@@ -15,6 +15,13 @@
       "when": 1787468322273,
       "tag": "0001_clean_lord_tyger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787469694375,
+      "tag": "0002_dizzy_human_torch",
+      "breakpoints": true
     }
   ]
 }

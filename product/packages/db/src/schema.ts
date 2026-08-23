@@ -317,3 +317,20 @@ export const apiKeys = pgTable('api_keys', {
   scopes: text('scopes').array(),
   rateLimit: integer('rate_limit').default(60),
 });
+
+/* ===================== SUPPORT : tickets & suggestions ===================== */
+export const ticketTypeEnum = pgEnum('ticket_type', ['bug', 'suggestion', 'question']);
+export const ticketStatusEnum = pgEnum('ticket_status', ['open', 'in_progress', 'resolved']);
+
+export const tickets = pgTable('tickets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  authorName: text('author_name'),
+  type: ticketTypeEnum('type').notNull().default('suggestion'),
+  title: text('title').notNull(),
+  body: text('body').notNull().default(''),
+  status: ticketStatusEnum('status').notNull().default('open'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
