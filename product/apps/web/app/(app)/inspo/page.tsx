@@ -3,7 +3,7 @@ import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdPlatform } from '@tiktrends/integrations';
+import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdSort, type AdPlatform } from '@tiktrends/integrations';
 import { AdCard, compact } from '../../../components/AdCard';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +12,15 @@ const feature = FEATURES.find((f) => f.key === 'inspo')!;
 const CHIPS = ['skincare', 'fitness', 'mode', 'maison', 'nutrition', 'beauté', 'gadget'];
 const LIMIT = 24;
 
+// Tri Meta (POST /v1/ads/query). NB : « Scaling 7 j » et « Reach » n'affichent que
+// les annonceurs avec du reach EU (l'API filtre alors sur min_reach).
+const SORTS: Array<[AdSort, string]> = [
+  ['newest', 'Récentes'],
+  ['longestRunning', 'Plus anciennes'],
+  ['reachDelta7d', 'Scaling 7 j (UE)'],
+  ['reach', 'Reach (UE)'],
+  ['mostDuplicates', 'Plus dupliquées'],
+];
 const COUNTRIES = ['FR', 'BE', 'CH', 'DE', 'ES', 'IT', 'GB', 'NL', 'PT', 'US', 'CA'];
 const LANGS = [['fr', 'Français'], ['en', 'Anglais'], ['de', 'Allemand'], ['es', 'Espagnol'], ['it', 'Italien'], ['nl', 'Néerlandais']];
 const REACHES = [['100000', '100 k+'], ['500000', '500 k+'], ['1000000', '1 M+']];
@@ -108,6 +117,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           mediaType: media,
           status: sp.status === 'active' ? 'active' : 'all',
           searchIn: effSearchIn,
+          sortBy: (sp.sort as AdSort) || 'newest',
           country: sp.country || undefined,
           adLanguage: sp.lang || undefined,
           minReach: sp.minReach ? Number(sp.minReach) : undefined,
@@ -154,6 +164,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Select name="p" def={sp.p} opts={PLATFORMS} />
           <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
+          {platform === 'meta' && <Select name="sort" def={sp.sort} opts={SORTS.map(([v, l]) => [v, 'Tri : ' + l])} />}
           <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
           <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
           <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
