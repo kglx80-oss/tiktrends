@@ -14,6 +14,10 @@ export default function Home() {
         <a href="/dashboard" style={{ display: 'inline-block', marginTop: 22, padding: '12px 22px', borderRadius: 999, background: 'var(--grad-accent)', color: '#fff', fontWeight: 600, textDecoration: 'none' }}>
           Ouvrir le dashboard créas →
         </a>
+        <div style={{ marginTop: 26, display: 'inline-flex', gap: 8, alignItems: 'center', padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line)', fontSize: 12, color: 'var(--ink-2)' }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--ok)' }} />
+          Déploiement automatique actif · v1
+        </div>
       </div>
     </main>
   );
