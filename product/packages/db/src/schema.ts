@@ -356,6 +356,30 @@ export const tickets = pgTable('tickets', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ===================== Messages de tickets (fil de discussion) ===================== */
+export const ticketMessages = pgTable('ticket_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ticketId: uuid('ticket_id').notNull().references(() => tickets.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  authorName: text('author_name'),
+  body: text('body').notNull(),
+  isStaff: boolean('is_staff').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ tIdx: index('ticket_messages_ticket_idx').on(t.ticketId) }));
+
+/* ===================== Notifications (cloche, temps quasi réel) ===================== */
+export const notifications = pgTable('notifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(),          // ticket_new | ticket_reply | ticket_status | system
+  title: text('title').notNull(),
+  body: text('body'),
+  href: text('href'),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uIdx: index('notifications_user_idx').on(t.userId, t.createdAt) }));
+
 /* ===================== Invitations (inscription sur invitation) ===================== */
 export const inviteStatusEnum = pgEnum('invite_status', ['pending', 'accepted', 'revoked']);
 

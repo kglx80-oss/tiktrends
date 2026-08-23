@@ -11,6 +11,7 @@ import {
   addProductAction, deleteProductAction, importProductsAction,
 } from '../../../actions/brand-detail';
 import { input, lbl, Msg } from '../../../../components/ui';
+import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,49 +125,13 @@ export default async function BrandDetailPage({ params, searchParams }: {
             ))}
           </div>
 
-        <form action={updateBrandAction}>
-          <input type="hidden" name="id" value={b.id} />
-          <h2 style={sectionH}>Profil</h2>
-          <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>Le profil nourrit le Studio IA et le Radar. Tout est modifiable.</p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <F label="Nom *" flex="2 1 220px"><input name="name" defaultValue={b.name} required style={input} /></F>
-            <F label="Site" flex="2 1 220px"><input name="url" defaultValue={b.url ?? ''} placeholder="gruns.co" style={input} /></F>
-          </div>
-          <F label="Description produit / service"><textarea name="description" defaultValue={b.description ?? ''} style={area} /></F>
-          <F label="Propositions de valeur uniques (USP)" hint="une par ligne"><textarea name="usp" defaultValue={b.usp ?? ''} style={area} /></F>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <F label="Audience cible" flex="1 1 240px"><input name="audience" defaultValue={b.audience ?? ''} style={input} /></F>
-            <F label="Catégorie" flex="1 1 160px"><input name="category" defaultValue={b.category ?? ''} style={input} /></F>
-          </div>
-          <F label="Besoins de la catégorie"><input name="categoryNeeds" defaultValue={b.categoryNeeds ?? ''} style={input} /></F>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <F label="Secteur" flex="1 1 240px"><input name="industry" defaultValue={b.industry ?? ''} style={input} /></F>
-            <F label="Tags secteur" hint="virgules" flex="1 1 240px"><input name="industryTags" defaultValue={j(b.industryTags)} style={input} /></F>
-          </div>
-          <F label="En savoir plus"><textarea name="moreAbout" defaultValue={b.moreAbout ?? ''} style={area} /></F>
-
-          <h2 style={{ ...sectionH, marginTop: 22 }}>Charte</h2>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <F label="Ton de voix" flex="1 1 220px"><input name="tone" defaultValue={b.tone ?? ''} style={input} /></F>
-            <F label="Langue(s)" hint="virgules" flex="1 1 200px"><input name="languages" defaultValue={j(b.languages)} style={input} /></F>
-          </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <F label="Couleurs" hint="hex, virgules" flex="1 1 220px"><input name="colors" defaultValue={j(b.colors)} style={input} /></F>
-            <F label="Polices" hint="virgules" flex="1 1 200px"><input name="fonts" defaultValue={j(b.fonts)} style={input} /></F>
-          </div>
-          {(b.colors ?? []).length > 0 && (
-            <div style={{ display: 'flex', gap: 8, margin: '-4px 0 14px', flexWrap: 'wrap' }}>
-              {(b.colors ?? []).map((c, i) => <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-2)' }}><span style={{ width: 18, height: 18, borderRadius: 5, border: '1px solid var(--line-2)', background: c }} />{c}</span>)}
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <F label="Mots à privilégier" hint="virgules" flex="1 1 240px"><input name="preferredWords" defaultValue={j(b.preferredWords)} style={input} /></F>
-            <F label="Mots à éviter" hint="virgules" flex="1 1 240px"><input name="avoidWords" defaultValue={j(b.avoidWords)} style={input} /></F>
-          </div>
-          {/* concurrents édités dans l'onglet dédié : champ caché pour préserver la valeur */}
-          <input type="hidden" name="competitors" value={competitors.join('\n')} />
-          <div style={{ marginTop: 8 }}><button type="submit" style={{ ...addBtn, padding: '11px 20px', fontSize: 13.5 }}>Enregistrer le profil</button></div>
-        </form>
+        <BrandOverviewForm aiReady={aiReady} init={{
+          id: b.id, name: b.name, url: b.url ?? '', description: b.description ?? '', usp: b.usp ?? '',
+          audience: b.audience ?? '', category: b.category ?? '', categoryNeeds: b.categoryNeeds ?? '',
+          moreAbout: b.moreAbout ?? '', industry: b.industry ?? '', industryTags: j(b.industryTags),
+          tone: b.tone ?? '', languages: j(b.languages), colors: j(b.colors), fonts: j(b.fonts),
+          preferredWords: j(b.preferredWords), avoidWords: j(b.avoidWords), competitors: competitors.join('\n'),
+        }} />
         </div>
         );
       })()}
