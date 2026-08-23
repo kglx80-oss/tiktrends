@@ -3,3 +3,8 @@
 app.tiktrends.co {
 	reverse_proxy web:3000
 }
+
+# Accès direct par IP en HTTP (utile avant propagation DNS / pour un test rapide).
+http://51.255.39.79 {
+	reverse_proxy web:3000
+}
