@@ -289,8 +289,14 @@ export default async function BrandDetailPage({ params, searchParams }: {
           <h2 style={sectionH}>Concurrents <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{competitors.length}</span></h2>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>On surveille ces marques pour que tu saches toujours où tu te situes. Tu pourras les suivre en direct depuis l'Inspo une fois les bibliothèques branchées.</p>
           {competitors.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-              {competitors.map((c, i) => <span key={i} style={{ fontSize: 12.5, fontWeight: 700, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)' }}>{c}</span>)}
+            <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
+              {competitors.map((c, i) => (
+                <Link key={i} href={`/brands/${id}/competitors/${encodeURIComponent(c)}`} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 14px', textDecoration: 'none' }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 8, background: '#1b1420', border: '1px solid var(--line-2)', color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>{c.trim().slice(0, 2).toUpperCase()}</span>
+                  <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{c}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)' }}>Analyser ›</span>
+                </Link>
+              ))}
             </div>
           )}
           <label style={lbl}>Marques concurrentes <span style={{ color: 'var(--muted)' }}>(une par ligne)</span></label>

@@ -147,6 +147,77 @@ export async function generateProducts(
   return tool?.input?.products ?? [];
 }
 
+/* ============ Analyse concurrent depuis ses publicités (CDC §F3) ============ */
+export interface CompetitorInsights {
+  summary: string;
+  hooks: string[];
+  headlines: string[];
+  adCopyAngles: string[];
+  adAngles: string[];
+  usps: string[];
+  desires: string[];
+  emotions: string[];
+  themes: string[];
+  personas: string[];
+}
+
+const COMPETITOR_TOOL = {
+  name: 'return_competitor_insights',
+  description: "Renvoie l'analyse structurée des créas publicitaires d'un concurrent.",
+  input_schema: {
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'Synthèse en 2 à 3 phrases de la stratégie créative du concurrent' },
+      hooks: { type: 'array', items: { type: 'string' }, description: "Accroches récurrentes (0-3 s), 5 à 10" },
+      headlines: { type: 'array', items: { type: 'string' }, description: 'Titres/headlines marquants, 5 à 10' },
+      adCopyAngles: { type: 'array', items: { type: 'string' }, description: 'Angles de copy récurrents, 5 à 8' },
+      adAngles: { type: 'array', items: { type: 'string' }, description: 'Angles marketing/stratégiques, 5 à 8' },
+      usps: { type: 'array', items: { type: 'string' }, description: 'Propositions de valeur mises en avant, 5 à 8' },
+      desires: { type: 'array', items: { type: 'string' }, description: 'Désirs clients adressés, 4 à 8' },
+      emotions: { type: 'array', items: { type: 'string' }, description: 'Émotions activées, 4 à 8' },
+      themes: { type: 'array', items: { type: 'string' }, description: 'Thèmes/univers visuels récurrents, 4 à 8' },
+      personas: { type: 'array', items: { type: 'string' }, description: 'Personas/cibles déduits, 3 à 6' },
+    },
+    required: ['summary', 'hooks', 'headlines', 'adCopyAngles', 'adAngles', 'usps', 'desires', 'emotions', 'themes', 'personas'],
+  },
+} as const;
+
+export interface CompetitorAdInput { body?: string; callToAction?: string; format?: string; platform?: string }
+
+export function buildCompetitorCorpus(ads: CompetitorAdInput[]): string {
+  return ads
+    .map((a, i) => {
+      const parts = [a.body?.trim(), a.callToAction ? `CTA: ${a.callToAction}` : ''].filter(Boolean).join(' | ');
+      return parts ? `[${i + 1}] ${parts.slice(0, 500)}` : '';
+    })
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 14000);
+}
+
+export async function analyzeCompetitor(
+  client: Anthropic,
+  i: { name: string; ads: CompetitorAdInput[] },
+): Promise<CompetitorInsights> {
+  const corpus = buildCompetitorCorpus(i.ads);
+  const res = await client.messages.create({
+    model: GEN_MODEL,
+    max_tokens: 3000,
+    system: [
+      "Tu es l'analyste créatif de TikTrends.",
+      "À partir d'un corpus de textes publicitaires d'une marque concurrente, tu extrais les patterns récurrents et actionnables.",
+      'Tu écris en français, concis, sous forme de listes de patterns distincts (pas de phrases longues).',
+      "Ne recopie pas les annonces mot pour mot : synthétise les mécaniques. Rends TOUJOURS ta réponse via l'outil return_competitor_insights.",
+    ].join(' '),
+    tools: [COMPETITOR_TOOL as unknown as Anthropic.Tool],
+    tool_choice: { type: 'tool', name: 'return_competitor_insights' },
+    messages: [{ role: 'user', content: `Concurrent : ${i.name}.\nCorpus des créas (${i.ads.length}) :\n"""${corpus}"""\n\nExtrais l'analyse structurée.` }],
+  });
+  const tool = res.content.find((c) => c.type === 'tool_use') as { input?: CompetitorInsights } | undefined;
+  if (!tool?.input) throw new Error('Analyse vide (aucune sortie structurée).');
+  return tool.input;
+}
+
 /** Récupère le texte visible d'une page (best-effort, sans dépendance). */
 export async function fetchSiteText(url: string): Promise<string> {
   const target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
