@@ -1,4 +1,4 @@
-import { buildDashboard } from '../../lib/pipeline';
+import { buildDashboard } from '../../../lib/pipeline';
 
 const eur = (n: number) => '€' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d),)/g, ' ');
 const gcol: Record<string, string> = { A: '#18cc8c', B: '#7aa2ff', C: '#f5a623', D: '#ff4d6d' };
