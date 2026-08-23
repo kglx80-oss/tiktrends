@@ -32,7 +32,17 @@ ls -1t "$BACKUP_DIR"/tiktrends-*.sql.gz 2>/dev/null | tail -n +$((KEEP + 1)) | x
 echo "[$(date -Is)] Rotation : $(ls -1 "$BACKUP_DIR"/tiktrends-*.sql.gz | wc -l) sauvegarde(s) conservée(s)."
 
 # ------------------------------------------------------------------------------
-# COPIE HORS-SITE (optionnelle, recommandée) — décommenter après avoir configuré
-# rclone avec un remote "ovh" pointant sur OVH Object Storage (S3) :
-#   rclone copy "$FILE" ovh:tiktrends-backups/ && echo "copie hors-site OK"
+# COPIE HORS-SITE (OVH Object Storage) — s'active TOUTE SEULE dès qu'un remote
+# rclone nommé "ovh" existe. Tant qu'il n'est pas configuré, on ne fait rien.
+# La copie n'échoue jamais la sauvegarde locale (best-effort).
+OFFSITE_BUCKET="${OFFSITE_BUCKET:-tiktrends-backups}"
+if command -v rclone >/dev/null 2>&1 && rclone listremotes 2>/dev/null | grep -q '^ovh:'; then
+  if rclone copy "$FILE" "ovh:${OFFSITE_BUCKET}/" 2>/dev/null; then
+    echo "[$(date -Is)] Copie hors-site OK -> ovh:${OFFSITE_BUCKET}/"
+    # Rotation hors-site : garder ~30 jours.
+    rclone delete --min-age 30d "ovh:${OFFSITE_BUCKET}/" 2>/dev/null || true
+  else
+    echo "[$(date -Is)] AVERTISSEMENT : copie hors-site échouée (sauvegarde locale conservée)."
+  fi
+fi
 # ------------------------------------------------------------------------------
