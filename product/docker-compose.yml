@@ -6,29 +6,42 @@ services:
     environment:
       POSTGRES_DB: tiktrends
       POSTGRES_USER: tiktrends
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Le mot de passe vient de .env.deploy (POSTGRES_PASSWORD), pas d'interpolation.
+    env_file: .env.deploy
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # pgvector : activer l'extension au 1er démarrage
-    # (CREATE EXTENSION IF NOT EXISTS vector; via la 1re migration Drizzle)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tiktrends -d tiktrends"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   web:
     build: { context: ., dockerfile: Dockerfile.web }
     restart: unless-stopped
     env_file: .env.deploy
-    depends_on: [db, redis]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
 
   workers:
     build: { context: ., dockerfile: Dockerfile.workers }
     restart: unless-stopped
     env_file: .env.deploy
-    depends_on: [db, redis]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
 
   caddy:
     image: caddy:2-alpine
