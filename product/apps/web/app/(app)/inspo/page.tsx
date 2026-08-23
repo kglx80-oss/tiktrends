@@ -1,7 +1,10 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
-import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdSort, type AdPlatform } from '@tiktrends/integrations';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
+import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdPlatform } from '@tiktrends/integrations';
+import { AdCard, compact } from '../../../components/AdCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,25 +12,10 @@ const feature = FEATURES.find((f) => f.key === 'inspo')!;
 const CHIPS = ['skincare', 'fitness', 'mode', 'maison', 'nutrition', 'beauté', 'gadget'];
 const LIMIT = 24;
 
-const SORTS: Array<{ v: AdSort; label: string }> = [
-  { v: 'reachDelta7d', label: 'Scaling 7 j' },
-  { v: 'longestRunning', label: 'Plus anciennes' },
-  { v: 'reach', label: 'Reach total' },
-  { v: 'newest', label: 'Plus récentes' },
-  { v: 'mostDuplicates', label: 'Plus dupliquées' },
-];
 const COUNTRIES = ['FR', 'BE', 'CH', 'DE', 'ES', 'IT', 'GB', 'NL', 'PT', 'US', 'CA'];
 const LANGS = [['fr', 'Français'], ['en', 'Anglais'], ['de', 'Allemand'], ['es', 'Espagnol'], ['it', 'Italien'], ['nl', 'Néerlandais']];
 const REACHES = [['100000', '100 k+'], ['500000', '500 k+'], ['1000000', '1 M+']];
 const DAYS = [['7', '7 j+'], ['30', '30 j+'], ['90', '90 j+']];
-
-const compact = (n?: number) => {
-  if (n == null) return '—';
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.', ',') + ' M';
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + ' k';
-  return String(n);
-};
-const eur = (n?: number) => (n == null ? '—' : '€' + compact(n));
 
 type SP = {
   q?: string; p?: string; searchIn?: string; media?: string; sort?: string; status?: string;
@@ -104,7 +92,6 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           adLanguage: sp.lang || undefined,
           minReach: sp.minReach ? Number(sp.minReach) : undefined,
           minDaysRunning: sp.minDays ? Number(sp.minDays) : undefined,
-          sortBy: (sp.sort as AdSort) || 'reachDelta7d',
         });
       }
       ads = r.ads;
@@ -113,6 +100,19 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       error = (e as Error).message;
     }
   }
+
+  // État sauvegardé / suivi pour cocher les cartes.
+  let savedSet = new Set<string>();
+  let followSet = new Set<string>();
+  if (db) {
+    const [sv, fl] = await Promise.all([
+      db.select({ p: schema.savedAds.platform, e: schema.savedAds.externalId }).from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)),
+      db.select({ p: schema.followedBrands.platform, n: schema.followedBrands.name }).from(schema.followedBrands).where(eq(schema.followedBrands.workspaceId, s.workspaceId)),
+    ]);
+    savedSet = new Set(sv.map((r) => r.p + ':' + r.e));
+    followSet = new Set(fl.map((r) => r.p + ':' + r.n));
+  }
+  const backUrl = buildQS(sp, {});
 
   const totalPages = Math.min(Math.ceil(total / LIMIT) || 1, 417);
 
@@ -135,7 +135,6 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Select name="p" def={sp.p} opts={PLATFORMS} />
           <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
-          <Select name="sort" def={sp.sort} opts={SORTS.map((x) => [x.v, 'Tri : ' + x.label])} />
           <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
           <Select name="status" def={sp.status} opts={[['active', 'Actives'], ['all', 'Toutes']]} />
           <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
@@ -159,7 +158,11 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
       {/* Grille */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
-        {ads.map((ad) => <AdCard key={ad.id} ad={ad} />)}
+        {ads.map((ad) => (
+          <AdCard key={ad.id} ad={ad} back={backUrl}
+            saved={savedSet.has(ad.platform + ':' + ad.id)}
+            following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
+        ))}
       </div>
 
       {/* Pagination */}
@@ -183,71 +186,6 @@ function Select({ name, def, opts }: { name: string; def?: string; opts: string[
     <select name={name} defaultValue={def ?? opts[0]?.[0] ?? ''} style={{ ...inputBase, padding: '8px 10px', fontSize: 13, cursor: 'pointer' }}>
       {opts.map((o) => <option key={o[0] || 'any'} value={o[0]}>{o[1]}</option>)}
     </select>
-  );
-}
-
-function AdCard({ ad }: { ad: InspoAd }) {
-  return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
-      <a href={ad.mediaUrl || ad.thumbnailUrl || '#'} target="_blank" rel="noreferrer" style={{ position: 'relative', aspectRatio: '1/1', display: 'block', background: 'var(--paper)' }}>
-        {ad.thumbnailUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={ad.thumbnailUrl} alt={ad.advertiserName || 'ad'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        )}
-        <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>{ad.daysRunning} j actifs</span>
-        {ad.mediaType === 'video' && <span style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 11, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>▶ vidéo</span>}
-      </a>
-      <div style={{ padding: '11px 12px', display: 'grid', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {ad.advertiserLogo && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={ad.advertiserLogo} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
-          )}
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.advertiserName || '—'}</span>
-        </div>
-        {ad.body && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {ad.platform === 'tiktok' ? (
-            <>
-              <Stat label="Vues" value={compact(ad.views)} />
-              <Stat label="Likes" value={compact(ad.likes)} />
-              {ad.engagementRate != null && <Stat label="Engag." value={ad.engagementRate.toFixed(1).replace('.', ',') + ' %'} />}
-            </>
-          ) : ad.platform === 'google' ? (
-            <>
-              <Stat label="Reach" value={compact(ad.reach)} />
-              {ad.format && <Stat label="Format" value={ad.format.replace('_', ' ')} />}
-              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
-            </>
-          ) : (
-            <>
-              <Stat label="Reach" value={compact(ad.reach)} />
-              <Stat label="Spend est." value={eur(ad.estimatedSpend)} />
-              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
-            </>
-          )}
-        </div>
-        {(ad.callToAction || ad.landingDomain) && (
-          <div style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {ad.callToAction && <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{ad.callToAction}</span>}
-            {ad.landingDomain && <span>· {ad.landingDomain}</span>}
-          </div>
-        )}
-        <a href={`/studio?brand=${encodeURIComponent(ad.advertiserName || '')}&inspo=${encodeURIComponent(ad.body || '')}`}
-          style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: 700, padding: '7px 10px', borderRadius: 10, border: '1px solid var(--line-2)', color: 'var(--ink)', textDecoration: 'none' }}>
-          ✨ Générer une variante
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ flex: '1 1 auto', minWidth: 60, padding: '5px 8px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--line)' }}>
-      <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{value}</div>
-    </div>
   );
 }
 

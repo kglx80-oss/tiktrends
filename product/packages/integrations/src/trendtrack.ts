@@ -18,6 +18,7 @@ export interface InspoAd {
   thumbnailUrl?: string;
   mediaUrl?: string;
   advertiserName?: string;
+  advertiserId?: string;
   advertiserLogo?: string;
   liveAdsCount?: number;
   body?: string;
@@ -46,6 +47,7 @@ function mapAd(r: any): InspoAd {
     thumbnailUrl: r.media?.thumbnailUrl,
     mediaUrl: r.media?.mediaUrl,
     advertiserName: r.advertiser?.name,
+    advertiserId: r.advertiser?.id ? String(r.advertiser.id) : undefined,
     advertiserLogo: r.advertiser?.logoUrl,
     liveAdsCount: r.advertiser?.liveAdsCount,
     body: r.content?.body ?? r.content?.title ?? undefined,
@@ -93,8 +95,8 @@ export async function ttSearchAds(cfg: TrendtrackConfig, input: SearchAdsInput):
   set('minReach', input.minReach);
   set('reachPeriod', input.minReach ? 'total' : undefined);
   set('minDaysRunning', input.minDaysRunning);
-  set('sortBy', input.sortBy);
-  set('order', input.order ?? (input.sortBy ? 'desc' : undefined));
+  // NB : sortBy n'est pas accepté en query-string sur GET /v1/ads (enum rejeté).
+  // Le tri passera par POST /v1/ads/query ultérieurement.
 
   const res = await fetch(u, {
     headers: { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json' },
@@ -135,6 +137,7 @@ function mapTikTok(r: any): InspoAd {
     thumbnailUrl: r.media?.thumbnailUrl,
     mediaUrl: r.media?.videoUrl || r.media?.mediaUrl,
     advertiserName: r.profile?.name || (r.profile?.handle ? '@' + r.profile.handle : undefined),
+    advertiserId: r.profile?.id ? String(r.profile.id) : (r.profile?.handle || undefined),
     advertiserLogo: r.profile?.avatarUrl,
     liveAdsCount: r.pageSnapshot?.adsCount,
     body: r.content?.description,
@@ -180,6 +183,7 @@ function mapGoogle(r: any): InspoAd {
     thumbnailUrl: r.media?.url,
     mediaUrl: r.media?.url,
     advertiserName: r.advertiser?.name || r.advertiser?.shopName,
+    advertiserId: r.advertiser?.id ? String(r.advertiser.id) : undefined,
     advertiserLogo: r.advertiser?.logoUrl,
     liveAdsCount: r.advertiser?.liveAds?.all,
     body: undefined,

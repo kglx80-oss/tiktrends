@@ -1,6 +1,6 @@
 import {
   pgTable, pgEnum, uuid, text, integer, doublePrecision, boolean,
-  timestamp, jsonb, date, primaryKey, vector, index,
+  timestamp, jsonb, date, primaryKey, unique, vector, index,
 } from 'drizzle-orm/pg-core';
 
 /* ============================ ENUMS ============================ */
@@ -350,3 +350,25 @@ export const invites = pgTable('invites', {
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
 });
+
+/* ============== Inspo : créas sauvegardées & marques suivies ============== */
+export const savedAds = pgTable('saved_ads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  platform: text('platform').notNull(),          // meta / tiktok / google
+  externalId: text('external_id').notNull(),
+  snapshot: jsonb('snapshot_json').notNull(),     // champs InspoAd pour l'affichage
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniq: unique().on(t.workspaceId, t.platform, t.externalId) }));
+
+export const followedBrands = pgTable('followed_brands', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  platform: text('platform').notNull(),
+  name: text('name').notNull(),
+  externalId: text('external_id'),
+  logoUrl: text('logo_url'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniq: unique().on(t.workspaceId, t.platform, t.name) }));
