@@ -45,7 +45,8 @@ Options si le contrat d'API l'exige (à confirmer avec la doc Higgsfield) :
 ```
 HIGGSFIELD_API_SECRET=          # si auth « Key id:secret »
 HIGGSFIELD_BASE_URL=            # def: https://platform.higgsfield.ai
-HIGGSFIELD_T2V_PATH=            # def: /v1/text2video
+HIGGSFIELD_T2V_PATH=            # def: /v1/text2video  (texte → vidéo)
+HIGGSFIELD_I2V_PATH=            # def: /v1/image2video (image → vidéo)
 HIGGSFIELD_JOB_PATH=            # def: /v1/jobs   (statut: {JOB_PATH}/{id})
 HIGGSFIELD_MODEL=              # optionnel
 ```
