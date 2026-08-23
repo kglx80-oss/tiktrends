@@ -24,44 +24,67 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
 }
 
 // Catalogue des fonctionnalités : rôle minimum + abonnement minimum.
+export type NavGroup = 'Analyse' | 'Création' | 'Agence' | 'account';
+export const RAIL_GROUPS: NavGroup[] = ['Analyse', 'Création', 'Agence'];
+
 export interface Feature {
   key: string;
   label: string;
   href: string;
   icon: string;      // glyphe simple (SVG géré dans le rail)
+  group: NavGroup;
+  parent?: string;   // sous-menu d'une autre fonctionnalité (ex: saved -> inspo)
   minRole: Role;
   minPlan: Plan;
   soon?: boolean;    // fonctionnalité à venir (affichée grisée)
 }
 
 export const FEATURES: Feature[] = [
-  { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   minRole: 'client_viewer', minPlan: 'starter' },
-  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  minRole: 'client_viewer', minPlan: 'starter', soon: true },
-  { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    minRole: 'member',        minPlan: 'starter' },
-  { key: 'inspo',     label: 'Inspo',        href: '/inspo',       icon: 'bulb',   minRole: 'member',        minPlan: 'core' },
-  { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', minRole: 'member',      minPlan: 'core' },
-  { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  minRole: 'member',        minPlan: 'core' },
-  { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  minRole: 'admin',         minPlan: 'starter', soon: true },
-  { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   minRole: 'admin',         minPlan: 'starter', soon: true },
-  { key: 'team',      label: 'Équipe',       href: '/team',        icon: 'users',  minRole: 'admin',         minPlan: 'starter' },
-  { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   minRole: 'client_viewer', minPlan: 'starter' },
-  { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   minRole: 'admin',         minPlan: 'starter' },
-  { key: 'billing',   label: 'Abonnement',   href: '/billing',     icon: 'card',   minRole: 'owner',         minPlan: 'starter', soon: true },
+  // Analyse
+  { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter' },
+  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter', soon: true },
+  { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Analyse',  minRole: 'member',        minPlan: 'starter' },
+  // Création
+  { key: 'inspo',     label: 'Inspo',        href: '/inspo',       icon: 'bulb',   group: 'Création', minRole: 'member',        minPlan: 'core' },
+  { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Création', parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Création', minRole: 'member',        minPlan: 'core' },
+  // Agence
+  { key: 'console',   label: 'Console',      href: '/console',     icon: 'gauge',  group: 'Agence',   minRole: 'admin',         minPlan: 'starter' },
+  { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'Agence',   minRole: 'admin',         minPlan: 'starter', soon: true },
+  { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'Agence',   minRole: 'admin',         minPlan: 'starter', soon: true },
+  // Compte (menu du profil)
+  { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account',  minRole: 'admin',         minPlan: 'starter' },
+  { key: 'team',      label: 'Membres',      href: '/team',        icon: 'users',  group: 'account',  minRole: 'admin',         minPlan: 'starter' },
+  { key: 'billing',   label: 'Abonnement',   href: '/billing',     icon: 'card',   group: 'account',  minRole: 'owner',         minPlan: 'starter', soon: true },
+  { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account',  minRole: 'client_viewer', minPlan: 'starter' },
 ];
 
 export interface Access { role: Role; plan: Plan; }
+export type NavItem = Feature & { locked: boolean; isSub: boolean };
+
+/** Navigation du rail, groupée ; les sous-menus suivent leur parent (indentés). */
+export function railNav(a: Access): Array<{ group: NavGroup; items: NavItem[] }> {
+  return RAIL_GROUPS.map((g) => ({
+    group: g,
+    items: FEATURES.filter((f) => f.group === g && !f.parent && roleAtLeast(a.role, f.minRole)).flatMap((f) => {
+      const self: NavItem = { ...f, locked: !planAtLeast(a.plan, f.minPlan), isSub: false };
+      const subs: NavItem[] = FEATURES
+        .filter((c) => c.parent === f.key && roleAtLeast(a.role, c.minRole))
+        .map((c) => ({ ...c, locked: !planAtLeast(a.plan, c.minPlan), isSub: true }));
+      return [self, ...subs];
+    }),
+  })).filter((grp) => grp.items.length > 0);
+}
+
+/** Fonctionnalités du menu de compte (profil). */
+export function accountFeatures(a: Access): NavItem[] {
+  return FEATURES.filter((f) => f.group === 'account' && roleAtLeast(a.role, f.minRole))
+    .map((f) => ({ ...f, locked: !planAtLeast(a.plan, f.minPlan), isSub: false }));
+}
 
 /** L'utilisateur a-t-il accès (rôle ET abonnement suffisants) ? */
 export function canAccess(a: Access, f: Feature): boolean {
   return roleAtLeast(a.role, f.minRole) && planAtLeast(a.plan, f.minPlan);
-}
-
-/** Fonctionnalités visibles dans le rail pour cet accès (droits rôle OK ; le plan
- *  insuffisant reste visible mais verrouillé pour inciter à l'upgrade). */
-export function visibleFeatures(a: Access): Array<Feature & { locked: boolean }> {
-  return FEATURES.filter((f) => roleAtLeast(a.role, f.minRole)).map((f) => ({
-    ...f, locked: !planAtLeast(a.plan, f.minPlan),
-  }));
 }
 
 /** Raison d'un refus (pour l'UI de page verrouillée). */
