@@ -49,6 +49,27 @@ export const brands = pgTable('brands', {
   industry: text('industry'),
   languages: text('languages').array(),
   brandKit: jsonb('brand_kit_json'),
+  description: text('description'),
+  usp: text('usp'),
+  audience: text('audience'),
+  category: text('category'),
+  categoryNeeds: text('category_needs'),
+  moreAbout: text('more_about'),
+  industryTags: text('industry_tags').array(),
+  colors: text('colors').array(),
+  fonts: text('fonts').array(),
+  preferredWords: text('preferred_words').array(),
+  avoidWords: text('avoid_words').array(),
+  competitors: text('competitors').array(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Scénarios d'usage d'une marque (contexte d'utilisation ciblé par les créas). */
+export const scenarios = pgTable('scenarios', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  context: text('context'),
 });
 
 export const products = pgTable('products', {

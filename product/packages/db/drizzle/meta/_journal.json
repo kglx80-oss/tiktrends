@@ -43,6 +43,13 @@
       "when": 1787494600020,
       "tag": "0005_mighty_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787502429314,
+      "tag": "0006_slow_toro",
+      "breakpoints": true
     }
   ]
 }
