@@ -8,7 +8,7 @@ import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integra
 import { anthropicFromEnv, enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
-import { resolveProductImage } from '../../lib/product-image';
+import { resolveProductImage, probeProductImage } from '../../lib/product-image';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string }
@@ -196,7 +196,12 @@ export async function importAllProductImagesAction(): Promise<{ updated: number;
     catch { return null; }
   }));
   const updatedIds = results.filter((x): x is string => !!x);
-  const note = updatedIds.length === 0 ? `Aucune image exploitable trouvée (${diag}). Le site n'expose peut-être pas d'og:image ni de catalogue public.` : undefined;
+  let note: string | undefined;
+  if (updatedIds.length === 0) {
+    const first = todo[0]!;
+    const pr = await probeProductImage({ productName: first.name, productUrl: first.url, siteUrl: b?.url });
+    note = `Diag ${pr.host ?? '?'} : page=${pr.pageStatus}${pr.ct ? ` (${pr.ct})` : ''}, og:image=${pr.htmlOg ? 'oui' : 'non'}, img DOM=${pr.htmlImg ? 'oui' : 'non'}, JSON fiche=${pr.productJson ? 'oui' : 'non'}, catalogue Shopify=${pr.catalog ? 'oui' : 'non'}.`;
+  }
   return { updated: updatedIds.length, total: rows.length, updatedIds, note };
 }
 

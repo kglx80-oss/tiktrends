@@ -7,15 +7,22 @@
  * Utilitaire serveur partagé (import produits + récupération groupée + par produit).
  */
 
-const UA = 'Mozilla/5.0 (compatible; TikTrendsBot/1.0; +https://tiktrends.co)';
+// UA navigateur réel : beaucoup de sites renvoient un challenge/403 aux robots.
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const IMG_EXT = /\.(?:jpe?g|png|webp|avif|gif)(?:[?#]|$)/i;
 
-async function getText(url: string): Promise<string | null> {
+async function getRaw(url: string): Promise<{ status: number | 'err'; ct: string; text: string }> {
   try {
-    const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'text/html,application/json,*/*' }, signal: AbortSignal.timeout(15000) });
-    if (!res.ok) return null;
-    return await res.text();
-  } catch { return null; }
+    const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'text/html,application/json,image/*,*/*', 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' }, redirect: 'follow', signal: AbortSignal.timeout(15000) });
+    const ct = res.headers.get('content-type') || '';
+    const text = /json|text|html/i.test(ct) || res.ok ? await res.text() : '';
+    return { status: res.status, ct, text };
+  } catch { return { status: 'err', ct: '', text: '' }; }
+}
+
+async function getText(url: string): Promise<string | null> {
+  const r = await getRaw(url);
+  return r.status !== 'err' && r.status < 400 ? r.text : null;
 }
 
 function abs(u: string, base: string): string | null {
@@ -61,6 +68,18 @@ function imageFromHtml(html: string, base: string): string | null {
   if (!img) {
     const ld = /"image"\s*:\s*(?:"([^"]+)"|\[\s*"([^"]+)")/i.exec(html);
     img = ld?.[1] || ld?.[2];
+  }
+  // Préchargement d'image (souvent l'image produit principale).
+  if (!img) img = pick(/<link[^>]+rel=["']preload["'][^>]+as=["']image["'][^>]+href=["']([^"']+)["']/i) || pick(/<link[^>]+as=["']image["'][^>]+href=["']([^"']+)["']/i);
+  // Repli : première <img> qui ressemble à un média produit (cdn/uploads/media/products…).
+  if (!img) {
+    const re = /<img[^>]+(?:src|data-src|data-srcset|srcset)=["']([^"']+)["']/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html))) {
+      const cand = (m[1] || '').split(/\s+/)[0]!; // 1re URL d'un éventuel srcset
+      if (/logo|icon|sprite|placeholder|flag|badge|payment|trustpilot|avatar/i.test(cand)) continue;
+      if (IMG_EXT.test(cand) && /(cdn|uploads|media|content|product|images?|files|assets)/i.test(cand)) { img = cand; break; }
+    }
   }
   return img ? abs(img, base) : null;
 }
@@ -111,6 +130,35 @@ export async function resolveProductImage(input: { productName: string; productU
     if (viaCatalog && (await looksLikeImage(viaCatalog))) return viaCatalog;
   }
   return null;
+}
+
+export interface ProbeResult {
+  host?: string; pageStatus: number | 'err'; ct?: string;
+  htmlOg: boolean; htmlImg: boolean; productJson: boolean; catalog: boolean;
+  imageUrl: string | null;
+}
+
+/** Sonde diagnostique : indique quelle stratégie répond pour une fiche produit. */
+export async function probeProductImage(input: { productName: string; productUrl?: string | null; siteUrl?: string | null }): Promise<ProbeResult> {
+  const { productName, productUrl, siteUrl } = input;
+  const out: ProbeResult = { pageStatus: 'err', htmlOg: false, htmlImg: false, productJson: false, catalog: false, imageUrl: null };
+  const ref = productUrl || siteUrl || '';
+  try { out.host = new URL(ref).host; } catch { /* rien */ }
+
+  if (productUrl) {
+    const clean = productUrl.split(/[?#]/)[0]!.replace(/\/$/, '');
+    const j = await getRaw(`${clean}.json`);
+    try { out.productJson = j.status !== 'err' && j.status < 400 && !!JSON.parse(j.text)?.product; } catch { /* pas du JSON */ }
+    const page = await getRaw(productUrl);
+    out.pageStatus = page.status; out.ct = page.ct.split(';')[0];
+    if (page.text) { out.htmlOg = /property=["']og:image/i.test(page.text); out.htmlImg = !!imageFromHtml(page.text, productUrl); }
+  }
+  if (siteUrl) {
+    const origin = (() => { try { return new URL(siteUrl).origin; } catch { return null; } })();
+    if (origin) { const c = await getRaw(`${origin}/products.json?limit=1`); try { out.catalog = c.status !== 'err' && c.status < 400 && Array.isArray(JSON.parse(c.text)?.products); } catch { /* pas Shopify */ } }
+  }
+  out.imageUrl = await resolveProductImage({ productName, productUrl, siteUrl });
+  return out;
 }
 
 /** Rétro-compat : extraction depuis une URL de page (og:image + validation). */
