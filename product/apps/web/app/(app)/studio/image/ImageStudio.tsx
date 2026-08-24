@@ -60,8 +60,9 @@ export function ImageStudio({ ready, aiReady, brandName, initial }: {
 
         {mode === 'i2i' && (
           <div style={{ marginBottom: 12 }}>
-            <label style={lbl}>URL de ton image produit</label>
+            <label style={lbl}>URL de ton image produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— lien direct vers le fichier image (jpg / png / webp)</span></label>
             <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={!ready || busy} placeholder="https://…/produit.jpg" style={fld} />
+            <p style={{ margin: '6px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>Pas la page produit : clic droit sur l'image → « Copier l'adresse de l'image ». (L'upload de fichier arrive bientôt.)</p>
           </div>
         )}
 
