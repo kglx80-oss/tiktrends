@@ -7,6 +7,7 @@ export const AD_TEMPLATES: AdTemplate[] = ['problem_solution', 'before_after', '
 
 export interface AdConcept {
   template: AdTemplate;
+  kicker?: string;         // eyebrow court en MAJUSCULES (2-4 mots), couleur d'accent
   headline: string;        // accroche FR, courte et percutante
   subhead?: string;        // ligne de soutien courte
   cta: string;             // bouton d'action (FR)
@@ -39,7 +40,8 @@ const AD_TOOL = {
           type: 'object',
           properties: {
             template: { type: 'string', enum: AD_TEMPLATES, description: 'Gabarit de composition.' },
-            headline: { type: 'string', description: 'Accroche FR très courte (max ~6 mots), orientée bénéfice ou douleur.' },
+            kicker: { type: 'string', description: 'Eyebrow court en MAJUSCULES (2 à 4 mots), affiché en couleur d’accent au-dessus du titre (ex : « FINI LE REPASSAGE », « RÉSULTAT EN 7 JOURS »).' },
+            headline: { type: 'string', description: 'Accroche FR très courte (max ~5 mots), orientée bénéfice ou douleur, sans point final.' },
             subhead: { type: 'string', description: 'Ligne de soutien courte (optionnelle).' },
             cta: { type: 'string', description: "Appel à l'action court (FR), ex : « Je découvre », « J'en profite »." },
             badge: { type: 'string', description: 'Pastille courte (ex : « AVANT / APRÈS », « -30 % », « NOUVEAU »).' },
