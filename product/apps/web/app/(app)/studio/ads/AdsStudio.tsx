@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { generateAdsAction, cloneAdAction, type AdItem } from '../../../actions/ads';
+import { setProductImageAction, importProductImageAction } from '../../../actions/image';
 import type { AdTemplate } from '@tiktrends/ai';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -44,7 +45,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
 }) {
   const [mode, setMode] = useState<'brand' | 'clone'>('brand');
+  const [prods, setProds] = useState(products);
   const [productId, setProductId] = useState('');
+  const [prodThumb, setProdThumb] = useState('');
+  const [prodMsg, setProdMsg] = useState('');
+  const [prodBusy, setProdBusy] = useState(false);
+  const prodImgInput = useRef<HTMLInputElement>(null);
   const [personaId, setPersonaId] = useState('');
   const [objective, setObjective] = useState('Ventes');
   const [templates, setTemplates] = useState<AdTemplate[]>(['problem_solution', 'before_after', 'testimonial', 'benefits']);
@@ -55,10 +61,38 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [preview, setPreview] = useState<string | null>(null);
   const refInput = useRef<HTMLInputElement>(null);
 
-  const selected = products.find((p) => p.id === productId) || null;
+  const selected = prods.find((p) => p.id === productId) || null;
 
   function toggle(t: AdTemplate) {
     setTemplates((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t]));
+  }
+
+  function markHasImage() {
+    setProds((list) => list.map((p) => (p.id === productId ? { ...p, hasImage: true } : p)));
+  }
+
+  async function onProductFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !productId) return;
+    setError(''); setProdMsg('');
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) { setError('Formats acceptés : jpg, png, webp.'); return; }
+    setProdBusy(true);
+    try {
+      const uri = await fileToDataUri(file, 1280);
+      const r = await setProductImageAction({ productId, dataUri: uri });
+      if (r.error) setError(r.error);
+      else { setProdThumb(uri); markHasImage(); setProdMsg('Photo produit enregistrée. Elle sera utilisée dans les pubs.'); }
+    } catch (err) { setError((err as Error).message); }
+    setProdBusy(false);
+  }
+
+  async function importFromPage() {
+    if (!productId || prodBusy) return;
+    setError(''); setProdMsg(''); setProdBusy(true);
+    const r = await importProductImageAction({ productId });
+    if (r.error) setError(r.error);
+    else if (r.imageUrl) { setProdThumb(r.imageUrl); markHasImage(); setProdMsg('Photo récupérée depuis la fiche produit.'); }
+    setProdBusy(false);
   }
 
   async function onRefFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -114,9 +148,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
           <div style={{ flex: '1 1 220px' }}>
             <label style={lbl}>Produit</label>
-            <select value={productId} onChange={(e) => setProductId(e.target.value)} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
+            <select value={productId} onChange={(e) => { setProductId(e.target.value); setProdThumb(''); setProdMsg(''); }} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
               <option value="">— Aucun (générique)</option>
-              {products.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · 📷' : ''}</option>)}
+              {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · 📷' : ''}</option>)}
             </select>
           </div>
           <div style={{ flex: '1 1 200px' }}>
@@ -134,10 +168,27 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </div>
         </div>
 
-        {productId && !selected?.hasImage && (
-          <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--muted)' }}>
-            💡 Astuce : ajoute une photo à ce produit dans <b>Image IA</b> (Mise en scène produit → Enregistrer) pour que ton vrai packaging apparaisse dans les pubs.
-          </p>
+        {productId && (
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, padding: 14, borderRadius: 14, border: `1px solid ${selected?.hasImage ? 'rgba(120,220,150,.4)' : 'rgba(245,166,35,.4)'}`, background: selected?.hasImage ? 'rgba(120,220,150,.07)' : 'rgba(245,166,35,.07)' }}>
+            {prodThumb ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={prodThumb} alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--line-2)', flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 64, height: 64, borderRadius: 10, border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>{selected?.hasImage ? '📷' : '📦'}</div>
+            )}
+            <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+                {selected?.hasImage ? 'Photo produit prête ✓ — ton vrai packaging sera utilisé' : 'Ajoute la photo de ton produit pour un rendu fidèle'}
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                <input ref={prodImgInput} type="file" accept="image/png,image/jpeg,image/webp" onChange={onProductFile} disabled={!ready || prodBusy} style={{ display: 'none' }} />
+                <button type="button" onClick={() => prodImgInput.current?.click()} disabled={!ready || prodBusy} style={miniBtn}>⬆ {selected?.hasImage ? 'Remplacer' : 'Importer une photo'}</button>
+                <button type="button" onClick={importFromPage} disabled={!ready || prodBusy} style={miniBtn}>🔗 Récupérer depuis la fiche produit</button>
+              </div>
+              {prodBusy && <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--muted)' }}>Traitement…</div>}
+              {prodMsg && <div style={{ marginTop: 6, fontSize: 11.5, color: '#9fe6b3' }}>{prodMsg}</div>}
+            </div>
+          </div>
         )}
 
         {mode === 'brand' ? (
@@ -231,3 +282,4 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 }
 
 const lbl = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBottom: 6 } as const;
+const miniBtn = { fontSize: 12, fontWeight: 800, padding: '7px 12px', borderRadius: 999, cursor: 'pointer', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)' } as const;

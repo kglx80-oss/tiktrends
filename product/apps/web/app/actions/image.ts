@@ -147,6 +147,50 @@ export async function setProductImageAction(input: { productId: string; dataUri?
   return { ok: true, imageUrl };
 }
 
+/** Récupère automatiquement la photo du produit depuis sa fiche (og:image), et l'enregistre. */
+export async function importProductImageAction(input: { productId: string }): Promise<{ ok?: true; imageUrl?: string; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+
+  const [p] = await db.select({ id: schema.products.id, url: schema.products.url })
+    .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
+  if (!p) return { error: 'Produit introuvable.' };
+
+  const [b] = await db.select({ url: schema.brands.url }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+  const pageUrl = (p.url || b?.url || '').trim();
+  if (!pageUrl) return { error: "Ce produit n'a pas d'URL de fiche. Ajoute-la sur la marque, ou importe la photo manuellement." };
+
+  let html = '';
+  try {
+    const res = await fetch(pageUrl, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; TikTrendsBot/1.0)' }, signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return { error: `La fiche produit a répondu ${res.status}.` };
+    html = await res.text();
+  } catch { return { error: 'Impossible de charger la fiche produit.' }; }
+
+  // og:image / twitter:image / link image_src (l'ordre des attributs peut varier).
+  const pick = (re: RegExp) => { const m = re.exec(html); return m?.[1]?.trim(); };
+  let img =
+    pick(/<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i) ||
+    pick(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
+    pick(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
+    pick(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i);
+  if (!img) return { error: "Aucune image trouvée sur la fiche. Importe-la manuellement." };
+
+  try { img = new URL(img, pageUrl).toString(); } catch { return { error: 'Image de fiche invalide.' }; }
+
+  // Vérifie que l'URL pointe bien vers un fichier image accessible.
+  try {
+    const head = await fetch(img, { method: 'GET', headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
+    const ct = head.headers.get('content-type') || '';
+    if (!head.ok || !/^image\//.test(ct)) return { error: "L'image de la fiche n'est pas accessible. Importe-la manuellement." };
+  } catch { return { error: "L'image de la fiche n'est pas accessible. Importe-la manuellement." }; }
+
+  await db.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, input.productId));
+  return { ok: true, imageUrl: img };
+}
+
 export async function listBrandImages(): Promise<BrandImage[]> {
   const s = await getSession();
   if (!s || !db) return [];
