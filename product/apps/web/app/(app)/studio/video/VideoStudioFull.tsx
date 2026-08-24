@@ -66,10 +66,20 @@ export function VideoStudioFull({ ready, brandName, initialVideos, initialPrompt
     <div>
       {/* Générateur */}
       <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
+        {!ready && (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
+            <span style={{ fontSize: 20 }}>🔒</span>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+              <b style={{ color: 'var(--ink)' }}>Vidéo IA en attente de la clé Higgsfield.</b> Cette fonction utilise Higgsfield (une clé distincte de Claude).
+              Une fois <code style={{ fontSize: 12 }}>HIGGSFIELD_API_KEY</code> posée sur le serveur, elle s'active ici.
+              En attendant, le <b>Studio IA</b> (scripts, hooks) et l'<b>assistant</b> fonctionnent déjà avec Claude.
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           {([['t2v', 'Texte → Vidéo'], ['i2v', 'Image → Vidéo']] as const).map(([k, label]) => (
-            <button key={k} type="button" onClick={() => setMode(k)} style={{
-              fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: 'pointer',
+            <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
+              fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
               background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? '#0d070c' : 'var(--ink-2)',
             }}>{label}</button>
