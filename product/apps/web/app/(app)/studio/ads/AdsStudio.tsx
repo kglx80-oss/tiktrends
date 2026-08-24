@@ -46,7 +46,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 }) {
   const [mode, setMode] = useState<'brand' | 'clone'>('brand');
   const [prods, setProds] = useState(products);
-  const [productId, setProductId] = useState('');
+  // S'il n'y a qu'un seul produit, on le sélectionne d'office (évite le piège « Aucun »).
+  const [productId, setProductId] = useState(products.length === 1 ? products[0]!.id : '');
   const [prodThumb, setProdThumb] = useState('');
   const [prodMsg, setProdMsg] = useState('');
   const [prodBusy, setProdBusy] = useState(false);
@@ -105,8 +106,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     if (r.error) setError(r.error);
     else {
       if (r.updatedIds.length) setProds((list) => list.map((p) => (r.updatedIds.includes(p.id) ? { ...p, hasImage: true } : p)));
-      setBulkOk(r.updated > 0);
-      setBulkMsg(r.updated > 0 ? `${r.updated} photo(s) produit récupérée(s) depuis le site.` : (r.note || 'Aucune nouvelle photo trouvée.'));
+      const allDone = r.updated === 0 && !r.note;
+      setBulkOk(r.updated > 0 || allDone);
+      setBulkMsg(r.updated > 0 ? `${r.updated} photo(s) produit récupérée(s) depuis le site.` : (r.note || 'Toutes les photos produit sont déjà récupérées ✓'));
     }
     setBulkBusy(false);
   }
@@ -195,6 +197,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             </select>
           </div>
         </div>
+
+        {!productId && prods.some((p) => p.hasImage) && (
+          <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.07)', fontSize: 12.5, color: '#f5b043' }}>
+            ⚠️ Sélectionne ton <b>produit</b> ci-dessus (pas « Aucun ») pour que ton vrai packaging apparaisse dans les pubs.
+          </div>
+        )}
 
         {productId && (
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, padding: 14, borderRadius: 14, border: `1px solid ${selected?.hasImage ? 'rgba(120,220,150,.4)' : 'rgba(245,166,35,.4)'}`, background: selected?.hasImage ? 'rgba(120,220,150,.07)' : 'rgba(245,166,35,.07)' }}>
