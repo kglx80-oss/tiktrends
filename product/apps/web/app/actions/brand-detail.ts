@@ -10,6 +10,11 @@ import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
+// Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
+const asArr = (v: unknown): string[] =>
+  Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean)
+  : typeof v === 'string' && v.trim() ? v.split(/[\n,]/).map((x) => x.trim()).filter(Boolean)
+  : [];
 
 /** Génère TOUT le profil depuis le site et l'enregistre (profil + personas + scénarios + concurrents). */
 export async function generateFullBrandAction(formData: FormData): Promise<void> {
@@ -34,9 +39,11 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
   if (b.url) { try { siteText = await fetchSiteText(b.url); } catch { /* on continue */ } }
 
   // NB : redirect() lève une exception spéciale Next — il doit rester HORS du try/catch.
+  console.log(`[generateFullBrand] start brand=${b.name} url=${b.url ?? '-'} siteText=${siteText ? siteText.length + 'c' : 'none'}`);
   let errMsg = '';
   try {
     const d = await generateBrandProfile(client, { name: b.name, url: b.url || undefined, siteText });
+    console.log(`[generateFullBrand] IA ok personas=${d.personas?.length ?? 0} scenarios=${d.scenarios?.length ?? 0}`);
 
     // On ne remplit que les champs vides (ne pas écraser ce que l'utilisateur a saisi).
     await db.update(schema.brands).set({
@@ -46,24 +53,24 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
       category: b.category || d.category || null,
       categoryNeeds: b.categoryNeeds || d.categoryNeeds || null,
       tone: b.tone || d.tone || null,
-      industryTags: has(b.industryTags) ? b.industryTags : d.industryTags,
-      preferredWords: has(b.preferredWords) ? b.preferredWords : d.preferredWords,
-      avoidWords: has(b.avoidWords) ? b.avoidWords : d.avoidWords,
-      competitors: has(b.competitors) ? b.competitors : d.competitors,
+      industryTags: has(b.industryTags) ? b.industryTags : asArr(d.industryTags),
+      preferredWords: has(b.preferredWords) ? b.preferredWords : asArr(d.preferredWords),
+      avoidWords: has(b.avoidWords) ? b.avoidWords : asArr(d.avoidWords),
+      competitors: has(b.competitors) ? b.competitors : asArr(d.competitors),
     }).where(eq(schema.brands.id, brandId));
 
     // Personas / scénarios : on ne crée que s'il n'y en a pas encore.
+    const personas = Array.isArray(d.personas) ? d.personas : [];
+    const scenarios = Array.isArray(d.scenarios) ? d.scenarios : [];
     const [pc] = await db.select({ n: schema.personas.id }).from(schema.personas).where(eq(schema.personas.brandId, brandId)).limit(1);
-    if (!pc && d.personas?.length) {
-      await db.insert(schema.personas).values(d.personas.filter((p) => p.name?.trim()).map((p) => ({
-        brandId, name: p.name.trim(), description: p.description || null,
-        pains: Array.isArray(p.pains) ? p.pains : [], desires: Array.isArray(p.desires) ? p.desires : [],
-      })));
-    }
+    const pRows = personas.filter((p) => p?.name?.trim()).map((p) => ({
+      brandId, name: String(p.name).trim(), description: p.description || null,
+      pains: asArr(p.pains), desires: asArr(p.desires),
+    }));
+    if (!pc && pRows.length) await db.insert(schema.personas).values(pRows);
     const [sc] = await db.select({ n: schema.scenarios.id }).from(schema.scenarios).where(eq(schema.scenarios.brandId, brandId)).limit(1);
-    if (!sc && d.scenarios?.length) {
-      await db.insert(schema.scenarios).values(d.scenarios.filter((x) => x.title?.trim()).map((x) => ({ brandId, title: x.title.trim(), context: x.context || null })));
-    }
+    const sRows = scenarios.filter((x) => x?.title?.trim()).map((x) => ({ brandId, title: String(x.title).trim(), context: x.context || null }));
+    if (!sc && sRows.length) await db.insert(schema.scenarios).values(sRows);
 
     if (!unlimited) {
       try {
@@ -74,9 +81,11 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
     }
   } catch (e) {
     errMsg = (e as Error)?.message || 'inconnue';
+    console.error('[generateFullBrand] ERREUR:', errMsg);
   }
 
   if (errMsg) redirect(`/brands/${brandId}?tab=overview&e=generate&m=${encodeURIComponent(errMsg.slice(0, 160))}`);
+  console.log('[generateFullBrand] succès, redirection');
   redirect(`/brands/${brandId}?tab=overview&ok=generated`);
 }
 

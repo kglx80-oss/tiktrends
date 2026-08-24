@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { generateImageAction, type BrandImage } from '../../../actions/image';
+import { useState, useTransition } from 'react';
+import { generateImageAction, suggestImageBriefAction, type BrandImage } from '../../../actions/image';
 import type { FalAspect } from '@tiktrends/integrations';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
@@ -24,6 +24,17 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   const [error, setError] = useState('');
   const [images, setImages] = useState<BrandImage[]>(initial);
   const [preview, setPreview] = useState<string | null>(null);
+  const [suggesting, startSuggest] = useTransition();
+
+  function suggest() {
+    if (suggesting) return;
+    setError('');
+    startSuggest(async () => {
+      const r = await suggestImageBriefAction({ productId: productId || undefined });
+      if (r.error) setError(r.error);
+      else if (r.text) setPrompt(r.text);
+    });
+  }
 
   async function run() {
     if (busy) return;
@@ -92,7 +103,13 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           </div>
         )}
 
-        <label style={lbl}>{mode === 't2i' ? "Décris l'image" : 'Décris la scène autour du produit'}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <label style={{ ...lbl, marginBottom: 0 }}>{mode === 't2i' ? "Décris l'image" : 'Décris la scène autour du produit'}</label>
+          <button type="button" onClick={suggest} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose une description à partir de ta marque et du produit' : 'IA non configurée'} style={{
+            fontSize: 11.5, fontWeight: 800, padding: '4px 10px', borderRadius: 999, cursor: ready && aiReady && !suggesting ? 'pointer' : 'default',
+            border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
+          }}>✦ {suggesting ? 'Rédaction…' : 'Générer une description'}</button>
+        </div>
         <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} disabled={!ready || busy}
           placeholder={mode === 't2i' ? 'Ex : boisson énergisante sur un bureau lumineux, ambiance productive, gros plan' : 'Ex : mon produit posé sur une table en marbre, lumière douce du matin'}
           style={{ ...fld, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />

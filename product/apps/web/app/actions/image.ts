@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
-import { anthropicFromEnv, enhanceImagePrompt } from '@tiktrends/ai';
+import { anthropicFromEnv, enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 
@@ -85,6 +85,38 @@ export async function generateImageAction(input: {
       return { error: "Impossible de charger l'image de départ. L'URL doit pointer vers un fichier image direct (jpg, png, webp) et être public — pas une page produit. Astuce : clic droit sur l'image du produit → « Copier l'adresse de l'image »." };
     }
     return { error: 'Échec de la génération : ' + msg };
+  }
+}
+
+/** Propose une description d'image ancrée sur la marque + produit sélectionné. */
+export async function suggestImageBriefAction(input: { productId?: string }): Promise<{ text?: string; error?: string }> {
+  const s = await getSession();
+  if (!s) return { error: 'Session expirée.' };
+  const client = anthropicFromEnv();
+  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+
+  const brand = await getActiveBrand(s.workspaceId);
+  let da: { colors?: string[] | null; tone?: string | null; usp?: string | null; audience?: string | null } = {};
+  let product: { name: string; description: string | null } | null = null;
+  if (db && brand) {
+    const [row] = await db.select({ colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp, audience: schema.brands.audience })
+      .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    da = row ?? {};
+    if (input.productId) {
+      const [p] = await db.select({ name: schema.products.name, description: schema.products.description })
+        .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
+      if (p) product = p;
+    }
+  }
+  try {
+    const text = await suggestImageBrief(client, {
+      brand: brand?.name, tone: da.tone ?? undefined, colors: da.colors ?? undefined,
+      usp: da.usp ?? undefined, audience: da.audience ?? undefined,
+      productName: product?.name, productDesc: product?.description ?? undefined,
+    });
+    return { text: text || undefined };
+  } catch (e) {
+    return { error: (e as Error).message };
   }
 }
 

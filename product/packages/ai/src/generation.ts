@@ -121,6 +121,29 @@ export async function enhanceImagePrompt(client: Anthropic, desc: string, opts: 
   return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim() || desc;
 }
 
+/** Propose une idée de scène visuelle (FR) pour une pub, ancrée sur la marque + produit. */
+export async function suggestImageBrief(client: Anthropic, ctx: {
+  brand?: string; tone?: string; colors?: string[]; usp?: string; audience?: string;
+  productName?: string; productDesc?: string;
+}): Promise<string> {
+  const sys = [
+    "Tu proposes UNE idée de visuel publicitaire concret et tournable, en français, en 1 à 2 phrases.",
+    "Décris la scène : sujet, décor, ambiance, lumière, cadrage — pas de blabla, pas de guillemets, juste la description.",
+    "Reste fidèle à la marque et mets le produit en valeur.",
+  ].join(' ');
+  const info = [
+    ctx.brand ? `Marque : ${ctx.brand}.` : '',
+    ctx.productName ? `Produit : ${ctx.productName}${ctx.productDesc ? ` — ${ctx.productDesc.slice(0, 240)}` : ''}.` : '',
+    ctx.tone ? `Ton : ${ctx.tone}.` : '',
+    ctx.audience ? `Cible : ${ctx.audience}.` : '',
+    ctx.usp ? `Atouts : ${ctx.usp.replace(/\n/g, '; ').slice(0, 300)}.` : '',
+    ctx.colors?.length ? `Couleurs de marque : ${ctx.colors.join(', ')}.` : '',
+    'Propose une idée de visuel.',
+  ].filter(Boolean).join('\n');
+  const res = await client.messages.create({ model: GEN_MODEL, max_tokens: 300, system: sys, messages: [{ role: 'user', content: info }] });
+  return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim();
+}
+
 export interface ScriptInput { brandName: string; format: string; language?: string; angle?: string; hookCount?: number; }
 export function buildScriptPrompt(i: ScriptInput): string {
   return [
