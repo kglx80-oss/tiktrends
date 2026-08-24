@@ -12,6 +12,8 @@ export interface AdRecipe {
   accent: string;            // couleur d'accent / bouton (hex)
   brandName?: string;
   logoUrl?: string | null;
+  // Méta (non rendues) — pour décliner (« iterate ») une pub existante.
+  productId?: string; personaId?: string; objective?: string;
 }
 
 const WHITE = '#ffffff';

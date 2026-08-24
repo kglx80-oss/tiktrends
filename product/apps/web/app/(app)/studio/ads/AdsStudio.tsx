@@ -1,10 +1,32 @@
 'use client';
 
-import { useState } from 'react';
-import { generateAdsAction, type AdItem } from '../../../actions/ads';
+import { useRef, useState } from 'react';
+import { generateAdsAction, cloneAdAction, type AdItem } from '../../../actions/ads';
 import type { AdTemplate } from '@tiktrends/ai';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
+
+/** Redimensionne une image (navigateur) en data URI jpeg — léger pour l'analyse vision. */
+function fileToDataUri(file: File, maxSide = 1100, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Lecture impossible.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Image illisible.'));
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d'); if (!ctx) return reject(new Error('Canvas indisponible.'));
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 const TEMPLATES: { key: AdTemplate; label: string; emoji: string }[] = [
   { key: 'problem_solution', label: 'Problème / solution', emoji: '⚡' },
@@ -21,14 +43,17 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
 }) {
+  const [mode, setMode] = useState<'brand' | 'clone'>('brand');
   const [productId, setProductId] = useState('');
   const [personaId, setPersonaId] = useState('');
   const [objective, setObjective] = useState('Ventes');
   const [templates, setTemplates] = useState<AdTemplate[]>(['problem_solution', 'before_after', 'testimonial', 'benefits']);
+  const [refUri, setRefUri] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [ads, setAds] = useState<AdItem[]>(initial);
   const [preview, setPreview] = useState<string | null>(null);
+  const refInput = useRef<HTMLInputElement>(null);
 
   const selected = products.find((p) => p.id === productId) || null;
 
@@ -36,10 +61,28 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     setTemplates((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t]));
   }
 
+  async function onRefFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) { setError('Formats acceptés : jpg, png, webp.'); return; }
+    try { setRefUri(await fileToDataUri(file)); } catch (err) { setError((err as Error).message); }
+  }
+
   async function run() {
     if (busy) return;
+    setError('');
+    if (mode === 'clone') {
+      if (!refUri) { setError('Importe une pub de référence à cloner.'); return; }
+      setBusy(true);
+      const res = await cloneAdAction({ referenceDataUri: refUri, productId: productId || undefined, personaId: personaId || undefined, objective });
+      setBusy(false);
+      if (res.error) { setError(res.error); return; }
+      if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
+      return;
+    }
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
-    setError(''); setBusy(true);
+    setBusy(true);
     const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
@@ -57,6 +100,16 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             </div>
           </div>
         )}
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {([['brand', 'Depuis la marque'], ['clone', 'Cloner une pub gagnante']] as const).map(([k, label]) => (
+            <button key={k} type="button" disabled={!ready} onClick={() => { setMode(k); setError(''); }} style={{
+              fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
+              border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
+              background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? '#0d070c' : 'var(--ink-2)',
+            }}>{label}</button>
+          ))}
+        </div>
 
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
           <div style={{ flex: '1 1 220px' }}>
@@ -87,29 +140,55 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </p>
         )}
 
-        <label style={lbl}>Gabarits</label>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-          {TEMPLATES.map((t) => {
-            const on = templates.includes(t.key);
-            return (
-              <button key={t.key} type="button" disabled={!ready} onClick={() => toggle(t.key)} style={{
-                fontSize: 12.5, fontWeight: on ? 800 : 600, padding: '9px 14px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
-                border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
-                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
-              }}>{t.emoji} {t.label}</button>
-            );
-          })}
-        </div>
+        {mode === 'brand' ? (
+          <>
+            <label style={lbl}>Gabarits</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+              {TEMPLATES.map((t) => {
+                const on = templates.includes(t.key);
+                return (
+                  <button key={t.key} type="button" disabled={!ready} onClick={() => toggle(t.key)} style={{
+                    fontSize: 12.5, fontWeight: on ? 800 : 600, padding: '9px 14px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
+                    border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
+                    background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+                  }}>{t.emoji} {t.label}</button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: 14, borderRadius: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
+            <label style={lbl}>Pub gagnante à cloner <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— l'IA reprend l'angle et la structure, avec TON produit</span></label>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              {refUri ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={refUri} alt="" style={{ width: 96, height: 120, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--line-2)', flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 96, height: 120, borderRadius: 10, border: '1px dashed var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--muted)', flexShrink: 0 }}>🏆</div>
+              )}
+              <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+                <input ref={refInput} type="file" accept="image/png,image/jpeg,image/webp" onChange={onRefFile} disabled={!ready || busy} style={{ display: 'none' }} />
+                <button type="button" onClick={() => refInput.current?.click()} disabled={!ready || busy} style={{
+                  fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
+                  border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', opacity: ready ? 1 : .55,
+                }}>⬆ {refUri ? 'Changer la référence' : 'Importer une pub'}</button>
+                <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+                  Capture d'une pub qui marche (concurrent, veille, bibliothèque). L'IA en déduit le gabarit et recompose avec ta marque. Astuce : retrouve des gagnantes dans la <b>Veille</b>.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>4 crédits / pub · {templates.length} pub{templates.length > 1 ? 's' : ''}</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? '4 crédits · 1 pub clonée' : `4 crédits / pub · ${templates.length} pub${templates.length > 1 ? 's' : ''}`}</span>
           <span style={{ flex: 1 }} />
-          <button type="button" onClick={run} disabled={!ready || busy || !templates.length} style={{
+          <button type="button" onClick={run} disabled={!ready || busy || (mode === 'brand' ? !templates.length : !refUri)} style={{
             padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
-            cursor: ready && !busy && templates.length ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && templates.length ? 1 : .5,
-          }}>{busy ? 'Création des pubs…' : '✨ Générer les pubs'}</button>
+            cursor: ready && !busy ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && (mode === 'brand' ? templates.length : refUri) ? 1 : .5,
+          }}>{busy ? (mode === 'clone' ? 'Clonage…' : 'Création des pubs…') : mode === 'clone' ? '✨ Cloner la pub' : '✨ Générer les pubs'}</button>
         </div>
-        {busy && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>Écriture des concepts, génération des scènes et composition… (~20-40 s)</p>}
+        {busy && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, génération de la scène et composition…' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
         {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
       </div>
 
