@@ -5,3 +5,4 @@ export * from './meta';
 export * from './fixtures';
 export * from './trendtrack';
 export * from './higgsfield';
+export * from './fal';

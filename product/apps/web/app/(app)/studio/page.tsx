@@ -3,7 +3,7 @@ import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import Link from 'next/link';
 import { StudioClient } from './StudioClient';
-import { higgsfieldConfigured } from '@tiktrends/integrations';
+import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
@@ -54,7 +54,20 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
       </PageInfo>
       <StudioClient hasKey={hasKey} prefillProduct={sp.brand} prefillInspiration={sp.inspo} />
 
-      <Link href="/studio/video" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 30, padding: '18px 20px', border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', textDecoration: 'none' }}>
+      <Link href="/studio/image" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 30, padding: '18px 20px', border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', textDecoration: 'none' }}>
+        <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🖼️</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <b style={{ fontSize: 15, color: 'var(--ink)' }}>Image IA</b>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>FAL</span>
+            {!falConfigured() && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>· à activer</span>}
+          </span>
+          <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-2)', marginTop: 3 }}>Visuels pub : texte → image et mise en scène produit (Flux / Ideogram), avec texte lisible sur l'image.</span>
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent-strong)', whiteSpace: 'nowrap' }}>Ouvrir ›</span>
+      </Link>
+
+      <Link href="/studio/video" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14, padding: '18px 20px', border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', textDecoration: 'none' }}>
         <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🎬</span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

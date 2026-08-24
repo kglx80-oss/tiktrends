@@ -36,6 +36,7 @@ function buildCategories(brandId: string | null): Category[] {
       { label: 'Suivre une marque', desc: 'Ajouter des concurrents à surveiller', href: brand('competitors') },
     ] },
     { key: 'creative', label: 'Créatif', icon: '🎬', starters: [
+      { label: 'Générer un visuel IA', desc: 'Texte ou produit → image pub (Flux / Ideogram)', href: '/studio/image' },
       { label: 'Générer une vidéo IA', desc: 'Texte ou image → vidéo verticale TikTok', href: '/studio/video' },
       { label: 'Générer des hooks', desc: 'Des accroches prêtes à tourner', href: '/studio' },
       { label: 'Écrire un script', desc: 'Un script vidéo seconde par seconde', href: '/studio' },
