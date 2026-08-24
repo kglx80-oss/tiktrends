@@ -38,7 +38,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   ready: boolean; aiReady: boolean; brandName: string | null; initial: BrandImage[];
   products: Product[]; brandColors: string[];
 }) {
-  const [mode, setMode] = useState<'t2i' | 'i2i'>('t2i');
+  const [mode, setMode] = useState<'t2i' | 'i2i'>('i2i');
   const [prompt, setPrompt] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [uploadedUri, setUploadedUri] = useState('');
@@ -133,7 +133,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         )}
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {([['t2i', 'Texte → Image'], ['i2i', 'Mise en scène produit']] as const).map(([k, label]) => (
+          {([['i2i', 'Mise en scène produit'], ['t2i', 'Texte → Image']] as const).map(([k, label]) => (
             <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
