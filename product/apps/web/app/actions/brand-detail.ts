@@ -33,6 +33,8 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
   let siteText: string | undefined;
   if (b.url) { try { siteText = await fetchSiteText(b.url); } catch { /* on continue */ } }
 
+  // NB : redirect() lève une exception spéciale Next — il doit rester HORS du try/catch.
+  let errMsg = '';
   try {
     const d = await generateBrandProfile(client, { name: b.name, url: b.url || undefined, siteText });
 
@@ -70,10 +72,12 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
         await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque — génération complète du profil' });
       } catch { /* best-effort */ }
     }
-    redirect(`/brands/${brandId}?tab=overview&ok=generated`);
-  } catch {
-    redirect(`/brands/${brandId}?tab=overview&e=generate`);
+  } catch (e) {
+    errMsg = (e as Error)?.message || 'inconnue';
   }
+
+  if (errMsg) redirect(`/brands/${brandId}?tab=overview&e=generate&m=${encodeURIComponent(errMsg.slice(0, 160))}`);
+  redirect(`/brands/${brandId}?tab=overview&ok=generated`);
 }
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
