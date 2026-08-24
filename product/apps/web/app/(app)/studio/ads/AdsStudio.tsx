@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { generateAdsAction, cloneAdAction, type AdItem } from '../../../actions/ads';
-import { setProductImageAction, importProductImageAction } from '../../../actions/image';
+import { setProductImageAction, importProductImageAction, importAllProductImagesAction } from '../../../actions/image';
 import type { AdTemplate } from '@tiktrends/ai';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -50,6 +50,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [prodThumb, setProdThumb] = useState('');
   const [prodMsg, setProdMsg] = useState('');
   const [prodBusy, setProdBusy] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMsg, setBulkMsg] = useState('');
   const prodImgInput = useRef<HTMLInputElement>(null);
   const [personaId, setPersonaId] = useState('');
   const [objective, setObjective] = useState('Ventes');
@@ -93,6 +95,18 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     if (r.error) setError(r.error);
     else if (r.imageUrl) { setProdThumb(r.imageUrl); markHasImage(); setProdMsg('Photo récupérée depuis la fiche produit.'); }
     setProdBusy(false);
+  }
+
+  async function importAll() {
+    if (bulkBusy) return;
+    setError(''); setBulkMsg(''); setBulkBusy(true);
+    const r = await importAllProductImagesAction();
+    if (r.error) setError(r.error);
+    else {
+      if (r.updatedIds.length) setProds((list) => list.map((p) => (r.updatedIds.includes(p.id) ? { ...p, hasImage: true } : p)));
+      setBulkMsg(r.updated > 0 ? `${r.updated} photo(s) produit récupérée(s) depuis le site.` : 'Aucune nouvelle photo trouvée (produits déjà pourvus ou fiches sans image).');
+    }
+    setBulkBusy(false);
   }
 
   async function onRefFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -144,6 +158,18 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             }}>{label}</button>
           ))}
         </div>
+
+        {prods.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>
+              📷 Photos produit : <b>{prods.filter((p) => p.hasImage).length}/{prods.length}</b> récupérées.
+            </span>
+            <button type="button" onClick={importAll} disabled={!ready || bulkBusy} style={{ ...miniBtn, opacity: ready && !bulkBusy ? 1 : .6 }}>
+              {bulkBusy ? 'Récupération…' : '🔗 Récupérer toutes les photos depuis le site'}
+            </button>
+            {bulkMsg && <span style={{ fontSize: 11.5, color: '#9fe6b3' }}>{bulkMsg}</span>}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
           <div style={{ flex: '1 1 220px' }}>

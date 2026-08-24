@@ -8,6 +8,7 @@ import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integra
 import { anthropicFromEnv, enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
+import { extractProductImageUrl } from '../../lib/product-image';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string }
@@ -162,33 +163,36 @@ export async function importProductImageAction(input: { productId: string }): Pr
   const pageUrl = (p.url || b?.url || '').trim();
   if (!pageUrl) return { error: "Ce produit n'a pas d'URL de fiche. Ajoute-la sur la marque, ou importe la photo manuellement." };
 
-  let html = '';
-  try {
-    const res = await fetch(pageUrl, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; TikTrendsBot/1.0)' }, signal: AbortSignal.timeout(15000) });
-    if (!res.ok) return { error: `La fiche produit a répondu ${res.status}.` };
-    html = await res.text();
-  } catch { return { error: 'Impossible de charger la fiche produit.' }; }
-
-  // og:image / twitter:image / link image_src (l'ordre des attributs peut varier).
-  const pick = (re: RegExp) => { const m = re.exec(html); return m?.[1]?.trim(); };
-  let img =
-    pick(/<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i) ||
-    pick(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
-    pick(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
-    pick(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i);
-  if (!img) return { error: "Aucune image trouvée sur la fiche. Importe-la manuellement." };
-
-  try { img = new URL(img, pageUrl).toString(); } catch { return { error: 'Image de fiche invalide.' }; }
-
-  // Vérifie que l'URL pointe bien vers un fichier image accessible.
-  try {
-    const head = await fetch(img, { method: 'GET', headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
-    const ct = head.headers.get('content-type') || '';
-    if (!head.ok || !/^image\//.test(ct)) return { error: "L'image de la fiche n'est pas accessible. Importe-la manuellement." };
-  } catch { return { error: "L'image de la fiche n'est pas accessible. Importe-la manuellement." }; }
+  const img = await extractProductImageUrl(pageUrl, { validate: true });
+  if (!img) return { error: "Aucune image exploitable trouvée sur la fiche. Importe-la manuellement." };
 
   await db.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, input.productId));
   return { ok: true, imageUrl: img };
+}
+
+/** Récupère en masse les photos de tous les produits (sans photo) depuis leurs fiches / le site de la marque. */
+export async function importAllProductImagesAction(): Promise<{ updated: number; total: number; updatedIds: string[]; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { updated: 0, total: 0, updatedIds: [], error: 'Session expirée.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { updated: 0, total: 0, updatedIds: [], error: 'Aucune marque active.' };
+
+  const [b] = await db.select({ url: schema.brands.url }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+  const rows = await db.select({ id: schema.products.id, url: schema.products.url, imageUrl: schema.products.imageUrl })
+    .from(schema.products).where(eq(schema.products.brandId, brand.id));
+
+  const todo = rows.filter((r) => !r.imageUrl && (r.url || b?.url));
+  if (!todo.length) return { updated: 0, total: rows.length, updatedIds: [] };
+
+  const results = await Promise.all(todo.map(async (r) => {
+    const pageUrl = (r.url || b?.url || '').trim();
+    const img = await extractProductImageUrl(pageUrl, { validate: true });
+    if (!img) return null;
+    try { await db!.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, r.id)); return r.id; }
+    catch { return null; }
+  }));
+  const updatedIds = results.filter((x): x is string => !!x);
+  return { updated: updatedIds.length, total: rows.length, updatedIds };
 }
 
 export async function listBrandImages(): Promise<BrandImage[]> {

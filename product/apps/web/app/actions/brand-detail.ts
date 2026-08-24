@@ -8,6 +8,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { anthropicFromEnv, generateProducts, generateBrandProfile, fetchSiteText } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
+import { extractProductImageUrl } from '../../lib/product-image';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -195,7 +196,16 @@ export async function importProductsAction(formData: FormData): Promise<void> {
       brandId, name: p.name.trim(), description: p.description || null, usp: p.usp || null,
       url: p.url || null, price: typeof p.price === 'number' ? p.price : null,
     }));
-    if (rows.length) await db.insert(schema.products).values(rows);
+    if (rows.length) {
+      const inserted = await db.insert(schema.products).values(rows).returning({ id: schema.products.id, url: schema.products.url });
+      // Récupération best-effort de la photo depuis la fiche de chaque produit (og:image).
+      await Promise.all(inserted.map(async (p) => {
+        const page = (p.url || brand.url || '').trim();
+        if (!page) return;
+        const img = await extractProductImageUrl(page, { validate: true });
+        if (img) { try { await db!.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, p.id)); } catch { /* ignore */ } }
+      }));
+    }
     if (!unlimited) try {
       await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
       await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque — import produits IA' });
