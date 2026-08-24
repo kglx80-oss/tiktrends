@@ -5,9 +5,76 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
-import { anthropicFromEnv, generateProducts, fetchSiteText } from '@tiktrends/ai';
+import { anthropicFromEnv, generateProducts, generateBrandProfile, fetchSiteText } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
+
+const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
+
+/** Génère TOUT le profil depuis le site et l'enregistre (profil + personas + scénarios + concurrents). */
+export async function generateFullBrandAction(formData: FormData): Promise<void> {
+  const brandId = norm(formData.get('brandId'));
+  const g = await guardBrand(brandId);
+  if (!g || !db) redirect('/brands');
+
+  const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
+  if (!b) redirect('/brands');
+
+  const client = anthropicFromEnv();
+  if (!client) redirect(`/brands/${brandId}?tab=overview&e=ai`);
+
+  const unlimited = unlimitedCredits(g.email);
+  const cost = costFor('brief');
+  if (!unlimited) {
+    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
+    if ((w?.c ?? 0) < cost) redirect(`/brands/${brandId}?tab=overview&e=credits`);
+  }
+
+  let siteText: string | undefined;
+  if (b.url) { try { siteText = await fetchSiteText(b.url); } catch { /* on continue */ } }
+
+  try {
+    const d = await generateBrandProfile(client, { name: b.name, url: b.url || undefined, siteText });
+
+    // On ne remplit que les champs vides (ne pas écraser ce que l'utilisateur a saisi).
+    await db.update(schema.brands).set({
+      description: b.description || d.description || null,
+      usp: b.usp || d.usp || null,
+      audience: b.audience || d.audience || null,
+      category: b.category || d.category || null,
+      categoryNeeds: b.categoryNeeds || d.categoryNeeds || null,
+      tone: b.tone || d.tone || null,
+      industryTags: has(b.industryTags) ? b.industryTags : d.industryTags,
+      preferredWords: has(b.preferredWords) ? b.preferredWords : d.preferredWords,
+      avoidWords: has(b.avoidWords) ? b.avoidWords : d.avoidWords,
+      competitors: has(b.competitors) ? b.competitors : d.competitors,
+    }).where(eq(schema.brands.id, brandId));
+
+    // Personas / scénarios : on ne crée que s'il n'y en a pas encore.
+    const [pc] = await db.select({ n: schema.personas.id }).from(schema.personas).where(eq(schema.personas.brandId, brandId)).limit(1);
+    if (!pc && d.personas?.length) {
+      await db.insert(schema.personas).values(d.personas.filter((p) => p.name?.trim()).map((p) => ({
+        brandId, name: p.name.trim(), description: p.description || null,
+        pains: Array.isArray(p.pains) ? p.pains : [], desires: Array.isArray(p.desires) ? p.desires : [],
+      })));
+    }
+    const [sc] = await db.select({ n: schema.scenarios.id }).from(schema.scenarios).where(eq(schema.scenarios.brandId, brandId)).limit(1);
+    if (!sc && d.scenarios?.length) {
+      await db.insert(schema.scenarios).values(d.scenarios.filter((x) => x.title?.trim()).map((x) => ({ brandId, title: x.title.trim(), context: x.context || null })));
+    }
+
+    if (!unlimited) {
+      try {
+        const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
+        await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
+        await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque — génération complète du profil' });
+      } catch { /* best-effort */ }
+    }
+    redirect(`/brands/${brandId}?tab=overview&ok=generated`);
+  } catch {
+    redirect(`/brands/${brandId}?tab=overview&e=generate`);
+  }
+}
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const commas = (v: FormDataEntryValue | null) => norm(v).split(',').map((x) => x.trim()).filter(Boolean);

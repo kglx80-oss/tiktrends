@@ -1,8 +1,8 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useState } from 'react';
 import { input, lbl } from './ui';
-import { updateBrandAction, generateBrandDraftAction, type BrandDraftState } from '../app/actions/brands';
+import { updateBrandAction } from '../app/actions/brands';
 
 const area = { ...input, minHeight: 74, resize: 'vertical' as const, lineHeight: 1.5, fontFamily: 'inherit' };
 const sectionH = { margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' } as const;
@@ -15,53 +15,14 @@ export interface BrandInitial {
   competitors: string; // préservé (édité dans l'onglet Concurrents), passé en caché
 }
 
-export function BrandOverviewForm({ init, aiReady }: { init: BrandInitial; aiReady: boolean }) {
+export function BrandOverviewForm({ init }: { init: BrandInitial }) {
   const [f, setF] = useState(init);
   const set = (k: keyof BrandInitial) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
-
-  const [draftState, runDraft, drafting] = useActionState<BrandDraftState, FormData>(async (_p, fd) => {
-    const res = await generateBrandDraftAction(_p, fd);
-    if (res.draft) {
-      const d = res.draft;
-      setF((s) => ({
-        ...s,
-        description: d.description || s.description,
-        usp: d.usp || s.usp,
-        audience: d.audience || s.audience,
-        category: d.category || s.category,
-        categoryNeeds: d.categoryNeeds || s.categoryNeeds,
-        tone: d.tone || s.tone,
-        industryTags: d.industryTags?.join(', ') || s.industryTags,
-        preferredWords: d.preferredWords?.join(', ') || s.preferredWords,
-        avoidWords: d.avoidWords?.join(', ') || s.avoidWords,
-      }));
-    }
-    return res;
-  }, {});
 
   return (
     <form action={updateBrandAction}>
       <input type="hidden" name="id" value={f.id} />
       <input type="hidden" name="competitors" value={f.competitors} />
-
-      {/* Barre IA de pré-remplissage */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18, padding: '12px 14px', border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)' }}>
-        <button
-          type="button"
-          disabled={!aiReady || drafting || !f.name.trim()}
-          onClick={() => { const fd = new FormData(); fd.set('name', f.name); fd.set('url', f.url); runDraft(fd); }}
-          title={aiReady ? 'Analyse le site et pré-remplit le profil' : 'IA non configurée sur le serveur'}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 15px', borderRadius: 999, border: 'none',
-            background: aiReady && f.name.trim() ? 'var(--grad-accent)' : 'var(--line-2)',
-            color: aiReady && f.name.trim() ? '#0d070c' : 'var(--muted)', fontWeight: 800, fontSize: 13,
-            cursor: aiReady && f.name.trim() && !drafting ? 'pointer' : 'default',
-          }}
-        >✦ {drafting ? 'Analyse en cours…' : 'Générer par IA depuis le site'}</button>
-        {!aiReady && <span style={{ fontSize: 12, color: 'var(--muted)' }}>IA non configurée — remplis le profil à la main.</span>}
-        {draftState.error && <span style={{ fontSize: 12, color: '#ff9db0' }}>{draftState.error}</span>}
-        {draftState.draft && <span style={{ fontSize: 12, color: '#7ee8bf' }}>Profil pré-rempli{draftState.cost ? ` (${draftState.cost} crédits)` : ''}. Vérifie, puis enregistre.</span>}
-      </div>
 
       <h2 style={sectionH}>Profil</h2>
       <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>Le profil nourrit le Studio IA et le Radar. Tout est modifiable.</p>
