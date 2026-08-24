@@ -6,6 +6,7 @@ import { getSession } from '../../lib/auth';
 import { FEATURES, canAccess } from '../../lib/rbac';
 import { anthropicFromEnv, generateCreative, type CreativeOutput } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
+import { unlimitedCredits } from '../../lib/credits';
 
 const feature = FEATURES.find((f) => f.key === 'studio')!;
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
@@ -30,7 +31,8 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
 
   // Vérification des crédits (une génération = coût d'un script).
   const cost = costFor('script');
-  if (db) {
+  const unlimited = unlimitedCredits(s.user.email);
+  if (db && !unlimited) {
     const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
     if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis). Recharge depuis Crédits.` };
   }
@@ -46,7 +48,7 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
       inspiration: norm(formData.get('inspiration')) || undefined,
     });
     // Débit des crédits + trace (best-effort, ne bloque pas la sortie).
-    if (db) {
+    if (db && !unlimited) {
       try {
         const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
         await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));

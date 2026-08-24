@@ -8,6 +8,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
 import { anthropicFromEnv, analyzeCompetitor, type CompetitorInsights } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
+import { unlimitedCredits } from '../../lib/credits';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
@@ -32,12 +33,12 @@ export interface CompetitorReport {
 
 const memKey = (name: string) => `competitor:${name.toLowerCase().slice(0, 120)}`;
 
-async function guardBrand(brandId: string): Promise<{ workspaceId: string } | null> {
+async function guardBrand(brandId: string): Promise<{ workspaceId: string; email: string | null } | null> {
   const s = await getSession();
   if (!s || !db || !roleAtLeast(s.role, 'admin')) return null;
   const [b] = await db.select({ id: schema.brands.id }).from(schema.brands)
     .where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
-  return b ? { workspaceId: s.workspaceId } : null;
+  return b ? { workspaceId: s.workspaceId, email: s.user.email } : null;
 }
 
 function aggregate(ads: InspoAd[]): CompetitorAggregates {
@@ -90,13 +91,14 @@ export async function analyzeCompetitorAction(formData: FormData): Promise<void>
   const client = anthropicFromEnv();
   if (client) {
     const cost = costFor('report');
+    const unlimited = unlimitedCredits(g.email);
     const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
-    if ((w?.c ?? 0) < cost) {
+    if (!unlimited && (w?.c ?? 0) < cost) {
       note = `Créas récupérées, mais crédits insuffisants pour l'analyse IA (${cost} requis).`;
     } else {
       try {
         insights = await analyzeCompetitor(client, { name, ads: ads.map((a) => ({ body: a.body, callToAction: a.callToAction, format: a.format, platform: a.platform })) });
-        try {
+        if (!unlimited) try {
           await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
           await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: `Analyse concurrent — ${name}` });
         } catch { /* débit best-effort */ }

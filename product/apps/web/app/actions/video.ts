@@ -6,6 +6,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
 import { costFor } from '@tiktrends/core';
+import { unlimitedCredits } from '../../lib/credits';
 
 /** Fournisseur vidéo actif : Fal (Kling) en priorité, sinon Higgsfield. */
 function videoReady(): boolean { return !!falFromEnv() || !!higgsfieldFromEnv(); }
@@ -16,21 +17,23 @@ export interface BrandVideo { id: string; prompt: string; mode: string; status: 
 
 async function debitAndRecord(
   workspaceId: string, brandId: string | null, cost: number,
-  input: Record<string, unknown>, jobId: string,
+  input: Record<string, unknown>, jobId: string, unlimited = false,
 ): Promise<string | undefined> {
   let generationId: string | undefined;
   if (!db) return undefined;
   if (brandId) {
     const [g] = await db.insert(schema.generations).values({
-      brandId, kind: 'video', input, jobId, status: 'processing', creditsCost: cost,
+      brandId, kind: 'video', input, jobId, status: 'processing', creditsCost: unlimited ? 0 : cost,
     }).returning();
     generationId = g?.id;
   }
-  try {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-    await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, workspaceId));
-    await db.insert(schema.creditLedger).values({ workspaceId, delta: -cost, reason: 'Studio — vidéo IA' });
-  } catch { /* débit best-effort */ }
+  if (!unlimited) {
+    try {
+      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
+      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, workspaceId));
+      await db.insert(schema.creditLedger).values({ workspaceId, delta: -cost, reason: 'Studio — vidéo IA' });
+    } catch { /* débit best-effort */ }
+  }
   return generationId;
 }
 
@@ -53,7 +56,8 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
   if (!fal && !hf) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
 
   const cost = costFor('video');
-  const short = await ensureCredits(s.workspaceId, cost);
+  const unlimited = unlimitedCredits(s.user.email);
+  const short = unlimited ? null : await ensureCredits(s.workspaceId, cost);
   if (short) return { error: short };
 
   try {
@@ -61,7 +65,7 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
       ? await falSubmitVideo(fal, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
       : await hfSubmitVideo(hf!, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
     const brand = await getActiveBrand(s.workspaceId);
-    const generationId = await debitAndRecord(s.workspaceId, brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16' }, jobId);
+    const generationId = await debitAndRecord(s.workspaceId, brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16' }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
     return { error: 'Échec du lancement : ' + (e as Error).message };
@@ -82,7 +86,8 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
   if (!fal && !hf) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
 
   const cost = costFor('video');
-  const short = await ensureCredits(s.workspaceId, cost);
+  const unlimited = unlimitedCredits(s.user.email);
+  const short = unlimited ? null : await ensureCredits(s.workspaceId, cost);
   if (short) return { error: short };
 
   const motion = prompt || 'Anime cette image de façon naturelle et cinématographique.';
@@ -91,7 +96,7 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
       ? await falSubmitVideo(fal, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
       : await hfSubmitImageVideo(hf!, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
     const brand = await getActiveBrand(s.workspaceId);
-    const generationId = await debitAndRecord(s.workspaceId, brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16' }, jobId);
+    const generationId = await debitAndRecord(s.workspaceId, brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16' }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
     return { error: 'Échec du lancement : ' + (e as Error).message };
