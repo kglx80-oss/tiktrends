@@ -24,6 +24,7 @@ export interface InspoAd {
   body?: string;
   callToAction?: string;
   landingDomain?: string;
+  landingUrl?: string;
   reach?: number;
   estimatedSpend?: number;
   reachDelta7d?: number;
@@ -54,6 +55,7 @@ function mapAd(r: any): InspoAd {
     body: r.content?.body ?? r.content?.title ?? undefined,
     callToAction: r.content?.callToAction ?? undefined,
     landingDomain: r.content?.landingPageDomain ?? undefined,
+    landingUrl: r.content?.landingPageUrl ?? undefined,
     reach: r.metrics?.reach ?? undefined,
     estimatedSpend: r.metrics?.estimatedSpend ?? undefined,
     reachDelta7d: r.metrics?.reachDelta7d ?? undefined,
