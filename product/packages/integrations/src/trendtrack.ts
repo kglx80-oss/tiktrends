@@ -27,6 +27,7 @@ export interface InspoAd {
   reach?: number;
   estimatedSpend?: number;
   reachDelta7d?: number;
+  reachDelta30d?: number;
   mainCountry?: string;
   // Spécifiques TikTok
   views?: number;
@@ -56,11 +57,12 @@ function mapAd(r: any): InspoAd {
     reach: r.metrics?.reach ?? undefined,
     estimatedSpend: r.metrics?.estimatedSpend ?? undefined,
     reachDelta7d: r.metrics?.reachDelta7d ?? undefined,
+    reachDelta30d: r.metrics?.reachDelta30d ?? undefined,
     mainCountry: r.audience?.mainCountry ?? undefined,
   };
 }
 
-export type AdSort = 'reachDelta7d' | 'longestRunning' | 'reach' | 'newest' | 'mostDuplicates';
+export type AdSort = 'reachDelta7d' | 'reachDelta30d' | 'longestRunning' | 'reach' | 'newest' | 'mostDuplicates';
 export interface SearchAdsInput {
   search: string;
   limit?: number;

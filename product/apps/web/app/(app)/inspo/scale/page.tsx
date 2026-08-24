@@ -6,7 +6,8 @@ import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
-import { classifyAngle, capPerBrand, median, type AngleKey } from '@tiktrends/core';
+import { classifyAngle, capPerBrand, median } from '@tiktrends/core';
+import { getVeilleCache, isFresh, setVeilleCache } from '../../../../lib/veille-cache';
 import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
 import { PageInfo } from '../../../../components/PageInfo';
 
@@ -23,9 +24,19 @@ const PRESETS = [
 ];
 
 const eur = (n: number) => (n >= 1000 ? Math.round(n / 1000).toLocaleString('fr-FR') + ' k€' : Math.round(n) + ' €');
-const growthOf = (a: InspoAd) => a.reachDelta7d ?? a.reach ?? 0;
+const growthOf = (a: InspoAd) => a.reachDelta30d ?? a.reachDelta7d ?? a.reach ?? 0;
+const DEFAULT_NICHE = 'café';
 
-export default async function ScalePage({ searchParams }: { searchParams: Promise<{ q?: string; country?: string }> }) {
+function timeAgo(iso: string): string {
+  const d = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(d / 3600000);
+  if (h < 1) return "il y a moins d'une heure";
+  if (h < 24) return `il y a ${h} h`;
+  const j = Math.floor(h / 24);
+  return `il y a ${j} j`;
+}
+
+export default async function ScalePage({ searchParams }: { searchParams: Promise<{ q?: string; country?: string; refresh?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!canAccess({ role: s.role, plan: s.plan }, feature)) {
@@ -44,23 +55,38 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
   }
 
   const sp = await searchParams;
-  const q = (sp.q || '').trim();
-  const country = sp.country || 'FR';
+  const explicitQ = (sp.q || '').trim();
+  const q = explicitQ || DEFAULT_NICHE;        // jamais vide : niche par défaut
+  const country = (sp.country || 'FR').toUpperCase();
+  const refresh = sp.refresh === '1';
   const apiKey = process.env.TRENDTRACK_API_KEY;
 
-  let ads: InspoAd[] = [];
+  let curated: InspoAd[] = [];
   let sample = false;
   let error = '';
-  if (!apiKey) { ads = SAMPLE_INSPO_ADS; sample = true; }
-  else if (q) {
-    try {
-      const r = await ttSearchAds({ apiKey }, { search: q, searchIn: 'ad_copy', status: 'all', sortBy: 'reachDelta7d', country, limit: 100, offset: 0 });
-      ads = r.ads;
-    } catch (e) { error = (e as Error).message; }
-  }
+  let fetchedAt = '';
+  let fromCache = false;
 
-  // Curation : plafond 3 créas par marque (on garde les plus fortes en croissance).
-  const curated = capPerBrand(ads, (a) => a.advertiserName || a.id, growthOf, 3);
+  if (!apiKey) {
+    curated = capPerBrand(SAMPLE_INSPO_ADS, (a) => a.advertiserName || a.id, growthOf, 3);
+    sample = true;
+  } else {
+    // Cache 7 j (données marché partagées) : évite de rebrûler des crédits.
+    const cache = await getVeilleCache(country, q);
+    if (cache && isFresh(cache) && !refresh) {
+      curated = cache.ads; fetchedAt = cache.fetchedAt; fromCache = true;
+    } else {
+      try {
+        const r = await ttSearchAds({ apiKey }, { search: q, searchIn: 'ad_copy', status: 'all', sortBy: 'reachDelta30d', country, limit: 100, offset: 0 });
+        curated = capPerBrand(r.ads, (a) => a.advertiserName || a.id, growthOf, 3);
+        fetchedAt = new Date().toISOString();
+        await setVeilleCache(country, q, curated);
+      } catch (e) {
+        error = (e as Error).message;
+        if (cache) { curated = cache.ads; fetchedAt = cache.fetchedAt; fromCache = true; } // repli sur le cache périmé
+      }
+    }
+  }
 
   // Enrichissement (angle) + état sauvegardé/suivi.
   let savedSet = new Set<string>(); let followSet = new Set<string>();
@@ -111,28 +137,33 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
       </PageInfo>
 
       {/* Choix de niche */}
-      <form style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '14px 0 18px' }}>
-        <input name="q" defaultValue={q} placeholder="Une niche (ex : compléments, skincare, café)…" style={{ ...inputBase, flex: '1 1 260px' }} />
+      <form style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '14px 0 12px' }}>
+        <input name="q" defaultValue={explicitQ} placeholder={`Une niche (ex : compléments, skincare, café)…`} style={{ ...inputBase, flex: '1 1 260px' }} />
         <input type="hidden" name="country" value={country} />
         <button type="submit" style={searchBtn}>Analyser la niche</button>
       </form>
-      {!q && !sample && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--muted)', alignSelf: 'center' }}>Exemples :</span>
-          {PRESETS.map((p) => (
-            <Link key={p.q} href={`/inspo/scale?q=${encodeURIComponent(p.q)}&country=FR`} style={preset}>{p.label}</Link>
-          ))}
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ fontSize: 12.5, color: 'var(--muted)', alignSelf: 'center' }}>Niches :</span>
+        {PRESETS.map((p) => (
+          <Link key={p.q} href={`/inspo/scale?q=${encodeURIComponent(p.q)}&country=FR`} style={{ ...preset, ...(p.q === q ? { borderColor: 'var(--accent-strong)', color: 'var(--ink)' } : null) }}>{p.label}</Link>
+        ))}
+      </div>
 
       {sample && <div style={banner('rgba(245,166,35,.12)', 'rgba(245,166,35,.4)', '#f5c877')}>Mode démonstration (échantillon). La source de données n'est pas configurée sur le serveur.</div>}
-      {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur de la source : {error}</div>}
+      {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur de la source : {error}{curated.length > 0 && ' — affichage du dernier résultat en cache.'}</div>}
 
-      {(q || sample) && curated.length === 0 && !error && (
+      {!sample && curated.length > 0 && (
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+          Niche <b style={{ color: 'var(--ink-2)' }}>{q}</b> · {country} · {fromCache ? 'en cache' : 'à jour'}{fetchedAt ? ` · maj ${timeAgo(fetchedAt)}` : ''}
+          {' · '}<Link href={`/inspo/scale?q=${encodeURIComponent(q)}&country=${country}&refresh=1`} style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>Rafraîchir</Link>
+        </p>
+      )}
+
+      {curated.length === 0 && !error && (
         <p style={{ color: 'var(--muted)', fontSize: 14 }}>Aucune créa trouvée pour cette niche. Essaie un autre mot-clé.</p>
       )}
 
-      {curated.length > 0 && <SwipeFile items={items} stats={stats} advertisers={advertisers} niche={q || 'échantillon'} country={country} />}
+      {curated.length > 0 && <SwipeFile items={items} stats={stats} advertisers={advertisers} niche={q} country={country} />}
     </main>
   );
 }

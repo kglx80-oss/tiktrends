@@ -9,7 +9,7 @@ export interface SwipeItem { ad: InspoAd; angle: AngleKey; saved: boolean; follo
 export interface SwipeStats { total: number; videos: number; advertisers: number; spendCumul: string; medianDuration: number; medianGrowth: number }
 
 const compact = (n: number) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.0', '') + 'k' : String(Math.round(n));
-const growthOf = (a: InspoAd) => a.reachDelta7d ?? a.reach ?? 0;
+const growthOf = (a: InspoAd) => a.reachDelta30d ?? a.reachDelta7d ?? a.reach ?? 0;
 const isVideo = (a: InspoAd) => (a.mediaType || '').toLowerCase().includes('vid');
 
 const ANGLE_COLOR: Record<AngleKey, string> = {
@@ -55,7 +55,7 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
         <Stat n={String(stats.videos)} label="Vidéos" />
         <Stat n={String(stats.advertisers)} label="Annonceurs" />
         <Stat n={stats.spendCumul} label="Spend estimé cumulé" />
-        <Stat n={compact(stats.medianGrowth)} label="Croissance médiane" />
+        <Stat n={compact(stats.medianGrowth)} label="Croissance médiane 30j" />
         <Stat n={stats.medianDuration + ' j'} label="Durée médiane" />
       </div>
 
@@ -71,7 +71,7 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
           {anglePresent.map((k) => <option key={k} value={k}>{ANGLE_LABEL[k]}</option>)}
         </select>
         <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} style={sel}>
-          <option value="growth">Tri : croissance reach</option>
+          <option value="growth">Tri : croissance reach 30j</option>
           <option value="reach">Tri : reach</option>
           <option value="duration">Tri : durée de diffusion</option>
           <option value="spend">Tri : spend estimé</option>
