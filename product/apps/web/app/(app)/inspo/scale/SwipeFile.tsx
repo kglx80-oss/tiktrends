@@ -101,15 +101,32 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
 function Card({ it }: { it: SwipeItem }) {
   const { ad, angle } = it;
   const [open, setOpen] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const g = growthOf(ad);
+  const canPlay = isVideo(ad) && !!ad.mediaUrl;
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative', aspectRatio: '4 / 5', background: ad.thumbnailUrl ? `center/cover no-repeat url(${ad.thumbnailUrl})` : '#140f18' }}>
-        {isVideo(ad) && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,.6)', color: '#fff' }}>VIDÉO</span>}
-        {/* Angle en évidence sur le visuel */}
-        <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, color: '#0d070c', background: ANGLE_COLOR[angle], boxShadow: '0 2px 8px rgba(0,0,0,.4)' }}>{ANGLE_LABEL[angle]}</span>
-        <div style={{ position: 'absolute', top: 8, right: 8 }}><SaveButton ad={ad} initialSaved={it.saved} /></div>
-        {!ad.thumbnailUrl && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
+        {playing && ad.mediaUrl ? (
+          <video src={ad.mediaUrl} poster={ad.thumbnailUrl} controls autoPlay playsInline
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
+        ) : (
+          <>
+            {isVideo(ad) && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,.6)', color: '#fff' }}>VIDÉO</span>}
+            {/* Angle en évidence sur le visuel */}
+            <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, color: '#0d070c', background: ANGLE_COLOR[angle], boxShadow: '0 2px 8px rgba(0,0,0,.4)' }}>{ANGLE_LABEL[angle]}</span>
+            <div style={{ position: 'absolute', top: 8, right: 8 }}><SaveButton ad={ad} initialSaved={it.saved} /></div>
+            {!ad.thumbnailUrl && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>{canPlay ? '' : 'Aperçu indisponible'}</div>}
+            {canPlay && (
+              <button type="button" onClick={() => setPlaying(true)} aria-label="Lire la vidéo" style={{
+                position: 'absolute', inset: 0, margin: 'auto', width: 54, height: 54, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: 'rgba(0,0,0,.55)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {/* Bande d'analyse — mise en évidence */}

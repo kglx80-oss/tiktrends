@@ -1,5 +1,6 @@
 import type { InspoAd } from '@tiktrends/integrations';
 import { SaveButton, FollowButton } from './InspoButtons';
+import { AdMedia } from './AdMedia';
 
 export const compact = (n?: number) => {
   if (n == null) return 'n/c';
@@ -22,16 +23,9 @@ export function AdCard({ ad, saved = false, following = false }: { ad: InspoAd; 
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative' }}>
-        <a href={ad.mediaUrl || ad.thumbnailUrl || '#'} target="_blank" rel="noreferrer" style={{ position: 'relative', aspectRatio: '1/1', display: 'block', background: 'var(--paper)' }}>
-          {ad.thumbnailUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={ad.thumbnailUrl} alt={ad.advertiserName || 'ad'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          )}
-          <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>{ad.daysRunning} j actifs</span>
-          {ad.mediaType === 'video' && <span style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 11, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>▶ vidéo</span>}
-        </a>
+        <AdMedia mediaUrl={ad.mediaUrl} thumbnailUrl={ad.thumbnailUrl} isVideo={ad.mediaType === 'video'} daysRunning={ad.daysRunning} aspect="1/1" />
         {/* Sauvegarder / retirer (instantané) */}
-        <div style={{ position: 'absolute', top: 6, right: 6 }}>
+        <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
           <SaveButton ad={ad} initialSaved={saved} />
         </div>
       </div>
