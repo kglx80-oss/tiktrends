@@ -33,10 +33,11 @@ export default async function ImageStudioPage() {
   }
 
   const [brand, images] = await Promise.all([getActiveBrand(s.workspaceId), listBrandImages()]);
-  let products: Array<{ id: string; name: string }> = [];
+  let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
   let colors: string[] = [];
   if (db && brand) {
-    products = await db.select({ id: schema.products.id, name: schema.products.name }).from(schema.products).where(eq(schema.products.brandId, brand.id));
+    const rows = await db.select({ id: schema.products.id, name: schema.products.name, imageUrl: schema.products.imageUrl }).from(schema.products).where(eq(schema.products.brandId, brand.id));
+    products = rows.map((p) => ({ id: p.id, name: p.name, hasImage: !!p.imageUrl }));
     const [row] = await db.select({ colors: schema.brands.colors }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     colors = row?.colors ?? [];
   }
@@ -52,9 +53,10 @@ export default async function ImageStudioPage() {
         Génère des visuels pub à partir d'un texte ou de ton image produit. Rattachés à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
       </p>
       <PageInfo title="générer un visuel">
-        <b>Texte → Image</b> (tu décris la scène) ou <b>Mise en scène produit</b> (tu pars de ton visuel produit).
-        Coche <b>Texte lisible</b> pour une accroche écrite propre sur l'image (Ideogram), et <b>Optimiser le prompt</b>
-        pour que Claude rédige un prompt de qualité pub. 4 crédits par image.
+        <b>Texte → Image</b> (tu décris la scène) ou <b>Mise en scène produit</b> : importe la photo de ton produit,
+        l'IA garde ton vrai packaging et ne recompose que le décor (Kontext). Enregistre la photo une fois sur le
+        produit, elle sera réutilisée. Coche <b>Texte lisible</b> pour une accroche écrite propre (Ideogram), et
+        <b>Optimiser le prompt</b> pour que Claude rédige un prompt de qualité pub. 4 crédits par image.
       </PageInfo>
 
       <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} />
