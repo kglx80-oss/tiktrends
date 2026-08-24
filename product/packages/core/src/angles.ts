@@ -4,27 +4,35 @@
  * L'ordre de test encode une priorité (du plus spécifique au plus générique).
  */
 export type AngleKey =
-  | 'testimonial' | 'social_proof' | 'objection' | 'offer' | 'educational' | 'problem' | 'other';
+  | 'testimonial' | 'social_proof' | 'objection' | 'offer' | 'gift'
+  | 'product_feature' | 'educational' | 'problem' | 'lifestyle' | 'other';
 
 export const ANGLE_LABEL: Record<AngleKey, string> = {
-  testimonial: 'Témoignage créateur',
+  testimonial: 'Témoignage',
   social_proof: 'Preuve sociale',
   objection: "Réponse à l'objection",
   offer: 'Offre / promo',
+  gift: 'Idée cadeau',
+  product_feature: 'Produit / démo',
   educational: 'Éducatif / mécanisme',
   problem: 'Problème / douleur',
+  lifestyle: 'Lifestyle / moment',
   other: 'Autre',
 };
 
-export const ANGLE_KEYS: AngleKey[] = ['testimonial', 'social_proof', 'objection', 'offer', 'educational', 'problem', 'other'];
+export const ANGLE_KEYS: AngleKey[] = ['testimonial', 'social_proof', 'objection', 'offer', 'gift', 'product_feature', 'educational', 'problem', 'lifestyle', 'other'];
 
+// Ordre = priorité (du plus spécifique au plus générique). Multilingue léger (FR/EN/DE).
 const RULES: Array<{ key: AngleKey; re: RegExp }> = [
-  { key: 'offer', re: /(-\s?\d{1,3}\s?%|\b\d{1,3}\s?%|offert|gratuit|code promo|réduction|promo\b|soldes|livraison offerte|prix cassé|économise)/i },
-  { key: 'social_proof', re: /(\bavis\b|\d[\d\s.,]*\s?(clients|avis|personnes|abonnés)|noté|★|⭐|recommandé|best[- ]?seller|n°\s?1|numéro un|des milliers|plus de \d)/i },
-  { key: 'testimonial', re: /(\bje\b|\bj'ai\b|\bj’ai\b|\bmon\b|\bma\b|depuis que|témoignage|j'utilise|j’utilise|mon secret|je te|je vous)/i },
-  { key: 'objection', re: /(sans\s+\w+|pas de\b|arrête[rz]?|contrairement|vous pensez que|oubliez|ne (marche|fonctionne) pas|marre de|fini(e|es)? les)/i },
-  { key: 'educational', re: /(pourquoi|comment\b|\d+\s+(raisons|astuces|erreurs|étapes)|le secret|voici|apprends|le mécanisme|ce que personne)/i },
-  { key: 'problem', re: /(fatigue|douleur|stress|problème|galère|en marre|ballonn|insomnie|manque d'énergie|manque d’énergie)/i },
+  { key: 'offer', re: /(-\s?\d{1,3}\s?%|\b\d{1,3}\s?%|offert|gratuit|free\b|code promo|réduction|promo\b|soldes|sale\b|livraison offerte|prix cassé|économise|rabatt)/i },
+  { key: 'gift', re: /(cadeau|offrir|\bgift\b|father'?s day|mother'?s day|fête des (pères|mères)|noël|christmas|saint-valentin|idée cadeau|geschenk)/i },
+  { key: 'social_proof', re: /(\bavis\b|\d[\d\s.,]*\s?(clients|avis|personnes|abonnés|reviews)|noté|★|⭐|recommandé|best[- ]?seller|n°\s?1|numéro un|des milliers|plus de \d|loved by|approuvé)/i },
+  { key: 'testimonial', re: /(\bje\b|\bj'ai\b|\bj’ai\b|\bmon\b|\bma\b|depuis que|témoignage|j'utilise|j’utilise|mon secret|\bi\b .*\bmy\b|\bich\b)/i },
+  { key: 'objection', re: /(sans\s+\w+|pas de\b|arrête[rz]?|contrairement|vous pensez que|oubliez|ne (marche|fonctionne) pas|marre de|fini(e|es)? les|no more|forget)/i },
+  { key: 'product_feature', re: /(machine|technologie|technology|automatique|automatic|grâce à|fonctionn|en un seul geste|une seule|ajuste|en temps réel|real[- ]?time|\d+\s+(boissons|produits|modes|fonctions|recettes)|découvrez|explorez|introducing|dévoile|powerful|conçu pour)/i },
+  { key: 'educational', re: /(pourquoi|comment\b|how to|\d+\s+(raisons|astuces|erreurs|étapes|tips|steps)|le secret|the secret|voici|apprends|le mécanisme|ce que personne)/i },
+  { key: 'problem', re: /(fatigue|douleur|stress|problème|galère|en marre|ballonn|insomnie|manque d'énergie|manque d’énergie|tired|struggle)/i },
+  { key: 'lifestyle', re: /(moment|à la maison|at home|zuhause|le matin|morning|pause|évade|ambiance|chez (soi|vous)|routine|daily|dolce vita|turbulent)/i },
 ];
 
 export function classifyAngle(text?: string | null): AngleKey {

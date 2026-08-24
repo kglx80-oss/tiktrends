@@ -14,7 +14,8 @@ const isVideo = (a: InspoAd) => (a.mediaType || '').toLowerCase().includes('vid'
 
 const ANGLE_COLOR: Record<AngleKey, string> = {
   testimonial: '#c084fc', social_proof: '#38bdf8', objection: '#fb7185', offer: '#f5a623',
-  educational: '#34d399', problem: '#f97316', other: '#94a3b8',
+  gift: '#f472b6', product_feature: '#22d3ee', educational: '#34d399', problem: '#f97316',
+  lifestyle: '#a3e635', other: '#94a3b8',
 };
 
 export function SwipeFile({ items, stats, advertisers, niche, country }: {
@@ -105,9 +106,18 @@ function Card({ it }: { it: SwipeItem }) {
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative', aspectRatio: '4 / 5', background: ad.thumbnailUrl ? `center/cover no-repeat url(${ad.thumbnailUrl})` : '#140f18' }}>
         {isVideo(ad) && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,.6)', color: '#fff' }}>VIDÉO</span>}
-        {g > 0 && <span style={{ position: 'absolute', top: 8, right: 44, fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: 'rgba(24,204,140,.9)', color: '#04150e' }}>▲ {compact(g)}</span>}
+        {/* Angle en évidence sur le visuel */}
+        <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, color: '#0d070c', background: ANGLE_COLOR[angle], boxShadow: '0 2px 8px rgba(0,0,0,.4)' }}>{ANGLE_LABEL[angle]}</span>
         <div style={{ position: 'absolute', top: 8, right: 8 }}><SaveButton ad={ad} initialSaved={it.saved} /></div>
         {!ad.thumbnailUrl && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
+      </div>
+
+      {/* Bande d'analyse — mise en évidence */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', background: 'var(--paper, rgba(255,255,255,.03))', borderBottom: '1px solid var(--line)' }}>
+        <Cell v={'▲ ' + compact(g)} label="Croiss. 30j" accent />
+        <Cell v={compact(ad.reach ?? 0)} label="Reach" />
+        <Cell v={ad.estimatedSpend != null ? compact(ad.estimatedSpend) + '€' : '—'} label="Spend" />
+        <Cell v={(ad.daysRunning ?? 0) + 'j'} label="Diffusion" />
       </div>
 
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -116,21 +126,22 @@ function Card({ it }: { it: SwipeItem }) {
           <FollowButton ad={ad} initialFollowing={it.following} />
         </div>
 
-        <span style={{ alignSelf: 'flex-start', fontSize: 10.5, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: ANGLE_COLOR[angle], background: ANGLE_COLOR[angle] + '22' }}>{ANGLE_LABEL[angle]}</span>
-
         {ad.body && (
           <div>
-            <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, ...(open ? {} : { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }) }}>{ad.body}</p>
-            {ad.body.length > 160 && <button type="button" onClick={() => setOpen((o) => !o)} style={{ marginTop: 4, fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>{open ? 'Réduire' : 'Voir tout le copy'}</button>}
+            <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, ...(open ? {} : { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }) }}>{ad.body}</p>
+            {ad.body.length > 120 && <button type="button" onClick={() => setOpen((o) => !o)} style={{ marginTop: 4, fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>{open ? 'Réduire' : 'Voir tout le copy'}</button>}
           </div>
         )}
-
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 'auto', paddingTop: 8, borderTop: '1px solid var(--line)', fontSize: 11.5, color: 'var(--muted)' }}>
-          {ad.reach != null && <Metric k="Reach" v={compact(ad.reach)} />}
-          {ad.estimatedSpend != null && <Metric k="Spend" v={compact(ad.estimatedSpend) + '€'} />}
-          {ad.daysRunning != null && <Metric k="Diffusion" v={ad.daysRunning + 'j'} />}
-        </div>
       </div>
+    </div>
+  );
+}
+
+function Cell({ v, label, accent }: { v: string; label: string; accent?: boolean }) {
+  return (
+    <div style={{ padding: '10px 6px', textAlign: 'center', borderRight: '1px solid var(--line)' }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: accent ? '#2fd6a0' : 'var(--ink)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{v}</div>
+      <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--muted)', marginTop: 3 }}>{label}</div>
     </div>
   );
 }
@@ -156,9 +167,6 @@ function Stat({ n, label }: { n: string; label: string }) {
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', marginTop: 3 }}>{label}</div>
     </div>
   );
-}
-function Metric({ k, v }: { k: string; v: string }) {
-  return <span><b style={{ color: 'var(--ink-2)' }}>{v}</b> <span style={{ opacity: .8 }}>{k}</span></span>;
 }
 function Seg<T extends string>({ value, set, opts }: { value: T; set: (v: T) => void; opts: Array<[T, string]> }) {
   return (
