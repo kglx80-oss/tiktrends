@@ -31,13 +31,26 @@ function stripHtml(html?: string): string | null {
   return t ? t.slice(0, 500) : null;
 }
 
-/** Récupère (et normalise) les produits du catalogue public Shopify. Renvoie null si indisponible. */
-export async function fetchShopifyProducts(origin: string, max = 250): Promise<ShopifyProductNorm[] | null> {
+function normOne(p: RawProduct, origin: string): ShopifyProductNorm | null {
+  if (!p.handle || !p.title) return null;
+  const priceStr = p.variants?.find((v) => v.price)?.price;
+  const price = priceStr != null ? Number(priceStr) : null;
+  return {
+    handle: p.handle, title: p.title.trim(), description: stripHtml(p.body_html),
+    price: price != null && !Number.isNaN(price) ? price : null,
+    url: `${origin}/products/${p.handle}`,
+    imageUrl: p.images?.find((i) => i.src)?.src || p.image?.src || null,
+  };
+}
+
+/** Récupère les produits à un point d'accès JSON précis (paginé). null si indisponible/vide. */
+async function fetchProductsAt(origin: string, path: string, max = 250): Promise<ShopifyProductNorm[] | null> {
   const out: ShopifyProductNorm[] = [];
   for (let page = 1; page <= 5 && out.length < max; page++) {
     let raw: RawProduct[] = [];
     try {
-      const res = await fetch(`${origin}/products.json?limit=250&page=${page}`, {
+      const sep = path.includes('?') ? '&' : '?';
+      const res = await fetch(`${origin}${path}${sep}limit=250&page=${page}`, {
         headers: { 'user-agent': UA, accept: 'application/json' }, signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) return page === 1 ? null : out;
@@ -45,17 +58,29 @@ export async function fetchShopifyProducts(origin: string, max = 250): Promise<S
       raw = data.products ?? [];
     } catch { return page === 1 ? null : out; }
     if (!raw.length) break;
-    for (const p of raw) {
-      if (!p.handle || !p.title) continue;
-      const priceStr = p.variants?.find((v) => v.price)?.price;
-      const price = priceStr != null ? Number(priceStr) : null;
-      out.push({
-        handle: p.handle, title: p.title.trim(), description: stripHtml(p.body_html),
-        price: price != null && !Number.isNaN(price) ? price : null,
-        url: `${origin}/products/${p.handle}`,
-        imageUrl: p.images?.find((i) => i.src)?.src || p.image?.src || null,
-      });
+    for (const p of raw) { const n = normOne(p, origin); if (n) out.push(n); }
+  }
+  return out.length ? out : null;
+}
+
+/** Rétro-compat. */
+export async function fetchShopifyProducts(origin: string, max = 250): Promise<ShopifyProductNorm[] | null> {
+  return fetchProductsAt(origin, '/products.json', max);
+}
+
+/** Essaie plusieurs variantes de domaine/chemin pour trouver le catalogue Shopify public. */
+export async function discoverShopify(domainInput: string): Promise<{ origin: string; products: ShopifyProductNorm[] } | null> {
+  const base = normalizeShopDomain(domainInput);
+  if (!base) return null;
+  const host = base.replace('https://', '');
+  const hosts = Array.from(new Set([host, host.startsWith('www.') ? host.slice(4) : `www.${host}`]));
+  const paths = ['/products.json', '/collections/all/products.json'];
+  for (const h of hosts) {
+    const origin = `https://${h}`;
+    for (const path of paths) {
+      const products = await fetchProductsAt(origin, path);
+      if (products && products.length) return { origin, products };
     }
   }
-  return out;
+  return null;
 }
