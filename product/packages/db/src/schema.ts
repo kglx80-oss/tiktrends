@@ -44,6 +44,7 @@ export const brands = pgTable('brands', {
   name: text('name').notNull(),
   url: text('url'),
   logoUrl: text('logo_url'),
+  shopifyDomain: text('shopify_domain'),
   palette: jsonb('palette_json'),
   tone: text('tone'),
   industry: text('industry'),

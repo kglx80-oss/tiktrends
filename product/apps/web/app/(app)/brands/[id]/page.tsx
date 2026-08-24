@@ -12,6 +12,7 @@ import {
 } from '../../../actions/brand-detail';
 import { input, lbl, Msg } from '../../../../components/ui';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
+import { ShopifyConnect } from './ShopifyConnect';
 
 export const dynamic = 'force-dynamic';
 
@@ -212,9 +213,15 @@ export default async function BrandDetailPage({ params, searchParams }: {
           </div>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>Les produits aident l'IA à générer des créas qui parlent vraiment de ton offre.</p>
 
+          <ShopifyConnect brandId={id} initialDomain={b.shopifyDomain ?? null} />
+
           {products.map((p) => (
             <div key={p.id} style={card}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {p.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line-2)' }} />
+                )}
                 <b style={{ color: 'var(--ink)', fontSize: 14, flex: 1, minWidth: 160 }}>{p.name}</b>
                 {p.price != null && <span style={{ fontSize: 12.5, color: 'var(--accent-strong)', fontWeight: 700 }}>{p.price} €</span>}
                 {p.url && <a href={p.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--muted)' }}>fiche ↗</a>}
