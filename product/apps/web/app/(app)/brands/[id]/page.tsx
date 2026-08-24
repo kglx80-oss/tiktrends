@@ -8,7 +8,7 @@ import { anthropicConfigured } from '../../../../lib/ai-status';
 import { updateBrandAction } from '../../../actions/brands';
 import {
   addPersonaAction, deletePersonaAction, addScenarioAction, deleteScenarioAction,
-  addProductAction, deleteProductAction, importProductsAction,
+  addProductAction, deleteProductAction, importProductsAction, generateFullBrandAction,
 } from '../../../actions/brand-detail';
 import { input, lbl, Msg } from '../../../../components/ui';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
@@ -20,8 +20,8 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: 'overview', label: 'Aperçu' }, { key: 'audience', label: 'Audience' },
   { key: 'products', label: 'Produits' }, { key: 'competitors', label: 'Concurrents' },
 ];
-const OK: Record<string, string> = { saved: 'Profil mis à jour.', created: 'Marque créée.', persona: 'Persona ajouté.', scenario: 'Scénario ajouté.', product: 'Produit ajouté.', imported: 'Produits importés.' };
-const ERR: Record<string, string> = { nourl: 'Renseigne le site de la marque pour importer.', ai: "IA non configurée sur le serveur.", credits: 'Crédits insuffisants pour l’import.', import: "L'import a échoué, réessaie." };
+const OK: Record<string, string> = { saved: 'Profil mis à jour.', created: 'Marque créée.', generated: 'Profil généré depuis le site (profil, audience, concurrents).', persona: 'Persona ajouté.', scenario: 'Scénario ajouté.', product: 'Produit ajouté.', imported: 'Produits importés.' };
+const ERR: Record<string, string> = { nourl: 'Renseigne le site de la marque pour importer.', ai: "IA non configurée sur le serveur.", credits: 'Crédits insuffisants.', import: "L'import a échoué, réessaie.", generate: "La génération a échoué, réessaie." };
 
 const area = { ...input, minHeight: 74, resize: 'vertical' as const, lineHeight: 1.5, fontFamily: 'inherit' };
 const card = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: 14, marginBottom: 12 } as const;
@@ -125,7 +125,19 @@ export default async function BrandDetailPage({ params, searchParams }: {
             ))}
           </div>
 
-        <BrandOverviewForm aiReady={aiReady} init={{
+          {/* Générer tout le profil depuis le site (profil + audience + concurrents) */}
+          <form action={generateFullBrandAction} style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.08), var(--surface))', padding: '16px 18px', margin: '4px 0 22px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <input type="hidden" name="brandId" value={b.id} />
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>✦ Générer tout le profil depuis le site</div>
+              <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>
+                {aiReady ? <>L'IA lit <b>{b.url || 'le site'}</b> et remplit profil, USP, audience, personas, scénarios et concurrents. Ne remplace pas ce que tu as déjà saisi.</> : <>Nécessite la clé IA serveur.</>}
+              </div>
+            </div>
+            <button type="submit" disabled={!aiReady} style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: aiReady ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: aiReady ? 1 : .5, whiteSpace: 'nowrap' }}>Générer maintenant</button>
+          </form>
+
+        <BrandOverviewForm init={{
           id: b.id, name: b.name, url: b.url ?? '', description: b.description ?? '', usp: b.usp ?? '',
           audience: b.audience ?? '', category: b.category ?? '', categoryNeeds: b.categoryNeeds ?? '',
           moreAbout: b.moreAbout ?? '', industry: b.industry ?? '', industryTags: j(b.industryTags),
