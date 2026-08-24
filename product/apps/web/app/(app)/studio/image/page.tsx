@@ -53,10 +53,11 @@ export default async function ImageStudioPage() {
         Génère des visuels pub à partir d'un texte ou de ton image produit. Rattachés à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
       </p>
       <PageInfo title="générer un visuel">
-        <b>Texte → Image</b> (tu décris la scène) ou <b>Mise en scène produit</b> : importe la photo de ton produit,
-        l'IA garde ton vrai packaging et ne recompose que le décor (Kontext). Enregistre la photo une fois sur le
-        produit, elle sera réutilisée. Coche <b>Texte lisible</b> pour une accroche écrite propre (Ideogram), et
-        <b>Optimiser le prompt</b> pour que Claude rédige un prompt de qualité pub. 4 crédits par image.
+        <b>Mise en scène produit</b> (recommandé) : importe la photo de ton produit, l'IA garde ton vrai
+        packaging et ne recompose que le décor (Kontext). Enregistre la photo une fois sur le produit, elle sera
+        réutilisée. Le mode <b>Texte → Image</b> reste dispo pour des visuels d'ambiance sans produit. Coche
+        <b>Texte lisible</b> pour une accroche écrite propre (Ideogram), et <b>Optimiser le prompt</b> pour que
+        Claude rédige un prompt de qualité pub. 4 crédits par image.
       </PageInfo>
 
       <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} />
