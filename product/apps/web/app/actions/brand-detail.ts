@@ -8,7 +8,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { anthropicFromEnv, generateProducts, generateBrandProfile, fetchSiteText } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
-import { extractProductImageUrl } from '../../lib/product-image';
+import { resolveProductImage } from '../../lib/product-image';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -197,12 +197,11 @@ export async function importProductsAction(formData: FormData): Promise<void> {
       url: p.url || null, price: typeof p.price === 'number' ? p.price : null,
     }));
     if (rows.length) {
-      const inserted = await db.insert(schema.products).values(rows).returning({ id: schema.products.id, url: schema.products.url });
-      // Récupération best-effort de la photo depuis la fiche de chaque produit (og:image).
+      const inserted = await db.insert(schema.products).values(rows).returning({ id: schema.products.id, name: schema.products.name, url: schema.products.url });
+      // Récupération best-effort de la photo de chaque produit depuis le site.
       await Promise.all(inserted.map(async (p) => {
-        const page = (p.url || brand.url || '').trim();
-        if (!page) return;
-        const img = await extractProductImageUrl(page, { validate: true });
+        if (!p.url && !brand.url) return;
+        const img = await resolveProductImage({ productName: p.name, productUrl: p.url, siteUrl: brand.url });
         if (img) { try { await db!.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, p.id)); } catch { /* ignore */ } }
       }));
     }

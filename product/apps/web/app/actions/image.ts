@@ -8,7 +8,7 @@ import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integra
 import { anthropicFromEnv, enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
-import { extractProductImageUrl } from '../../lib/product-image';
+import { resolveProductImage } from '../../lib/product-image';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string }
@@ -155,44 +155,49 @@ export async function importProductImageAction(input: { productId: string }): Pr
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Aucune marque active.' };
 
-  const [p] = await db.select({ id: schema.products.id, url: schema.products.url })
+  const [p] = await db.select({ id: schema.products.id, name: schema.products.name, url: schema.products.url })
     .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
   if (!p) return { error: 'Produit introuvable.' };
 
   const [b] = await db.select({ url: schema.brands.url }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
-  const pageUrl = (p.url || b?.url || '').trim();
-  if (!pageUrl) return { error: "Ce produit n'a pas d'URL de fiche. Ajoute-la sur la marque, ou importe la photo manuellement." };
+  if (!p.url && !b?.url) return { error: "Ni le produit ni la marque n'ont d'URL de site. Ajoute l'URL sur la marque, ou importe la photo manuellement." };
 
-  const img = await extractProductImageUrl(pageUrl, { validate: true });
-  if (!img) return { error: "Aucune image exploitable trouvée sur la fiche. Importe-la manuellement." };
+  const img = await resolveProductImage({ productName: p.name, productUrl: p.url, siteUrl: b?.url });
+  if (!img) return { error: "Aucune image exploitable trouvée sur le site. Importe-la manuellement." };
 
   await db.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, input.productId));
   return { ok: true, imageUrl: img };
 }
 
 /** Récupère en masse les photos de tous les produits (sans photo) depuis leurs fiches / le site de la marque. */
-export async function importAllProductImagesAction(): Promise<{ updated: number; total: number; updatedIds: string[]; error?: string }> {
+export async function importAllProductImagesAction(): Promise<{ updated: number; total: number; updatedIds: string[]; note?: string; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { updated: 0, total: 0, updatedIds: [], error: 'Session expirée.' };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { updated: 0, total: 0, updatedIds: [], error: 'Aucune marque active.' };
 
   const [b] = await db.select({ url: schema.brands.url }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
-  const rows = await db.select({ id: schema.products.id, url: schema.products.url, imageUrl: schema.products.imageUrl })
+  const rows = await db.select({ id: schema.products.id, name: schema.products.name, url: schema.products.url, imageUrl: schema.products.imageUrl })
     .from(schema.products).where(eq(schema.products.brandId, brand.id));
 
+  const withUrl = rows.filter((r) => r.url).length;
+  const diag = `site marque : ${b?.url ? 'oui' : 'non'} · produits avec URL de fiche : ${withUrl}/${rows.length}`;
+
   const todo = rows.filter((r) => !r.imageUrl && (r.url || b?.url));
-  if (!todo.length) return { updated: 0, total: rows.length, updatedIds: [] };
+  if (!todo.length) {
+    const alreadyDone = rows.filter((r) => r.imageUrl).length === rows.length && rows.length > 0;
+    return { updated: 0, total: rows.length, updatedIds: [], note: alreadyDone ? undefined : `Rien à récupérer (${diag}). Ajoute l'URL du site sur la marque.` };
+  }
 
   const results = await Promise.all(todo.map(async (r) => {
-    const pageUrl = (r.url || b?.url || '').trim();
-    const img = await extractProductImageUrl(pageUrl, { validate: true });
+    const img = await resolveProductImage({ productName: r.name, productUrl: r.url, siteUrl: b?.url });
     if (!img) return null;
     try { await db!.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, r.id)); return r.id; }
     catch { return null; }
   }));
   const updatedIds = results.filter((x): x is string => !!x);
-  return { updated: updatedIds.length, total: rows.length, updatedIds };
+  const note = updatedIds.length === 0 ? `Aucune image exploitable trouvée (${diag}). Le site n'expose peut-être pas d'og:image ni de catalogue public.` : undefined;
+  return { updated: updatedIds.length, total: rows.length, updatedIds, note };
 }
 
 export async function listBrandImages(): Promise<BrandImage[]> {
