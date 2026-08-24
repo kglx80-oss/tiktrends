@@ -40,9 +40,9 @@ function buildCategories(brandId: string | null): Category[] {
       { label: 'Générer des hooks', desc: 'Des accroches prêtes à tourner', href: '/studio' },
       { label: 'Écrire un script', desc: 'Un script vidéo seconde par seconde', href: '/studio' },
     ] },
-    { key: 'inspo', label: 'Inspiration', icon: '💡', starters: [
-      { label: 'Tendances du marché', desc: 'Les créas fraîches qui percent', href: '/inspo' },
-      { label: 'Créas gagnantes', desc: 'Explorer les bibliothèques pub', href: '/inspo' },
+    { key: 'inspo', label: 'Veille', icon: '💡', starters: [
+      { label: 'Ce qui scale en ce moment', desc: 'Le swipe file trié par croissance de reach', href: '/inspo/scale' },
+      { label: 'Explorer les bibliothèques pub', desc: 'Recherche Meta / TikTok / Google', href: '/inspo' },
     ] },
   ];
 }

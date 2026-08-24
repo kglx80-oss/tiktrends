@@ -6,3 +6,4 @@ export * from './diagnostic';
 export * from './credits';
 export * from './launch';
 export * from './briefs';
+export * from './angles';
