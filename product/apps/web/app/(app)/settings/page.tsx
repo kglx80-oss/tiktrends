@@ -68,8 +68,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <div style={{ display: 'grid', gap: 8 }}>
           {[
             { label: 'IA — Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', on: !!process.env.ANTHROPIC_API_KEY, unlocks: 'Studio, assistant, pré-remplissage marque, analyse concurrent' },
-            { label: 'Bibliothèque pub — Trendtrack', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Inspo, suivis, analyse concurrent' },
-            { label: 'Vidéo IA — Higgsfield', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Génération de vidéos dans le Studio' },
+            { label: 'Bibliothèque pub — Trendtrack', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Veille, suivis, analyse concurrent' },
+            { label: 'Image & Vidéo IA — Fal.ai', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studio Image (Flux/Ideogram) et Vidéo (Kling 2)' },
+            { label: 'Vidéo IA — Higgsfield (option)', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Alternative vidéo (contrôles caméra)' },
             { label: 'E-mails — SMTP', env: 'SMTP_URL', on: !!process.env.SMTP_URL, unlocks: 'Notifications par e-mail (à venir)' },
             { label: 'Slack', env: 'SLACK_BOT_TOKEN', on: !!process.env.SLACK_BOT_TOKEN, unlocks: 'Résumés et @TikTrends dans Slack (à venir)' },
           ].map((it) => (
