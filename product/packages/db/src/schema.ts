@@ -11,7 +11,7 @@ export const tagSourceEnum = pgEnum('tag_source', ['ai', 'human']);
 export const bucketEnum = pgEnum('radar_bucket', ['winner', 'high_potential', 'iteration', 'kill_candidate', 'fatigued', 'insufficient']);
 export const librarySourceEnum = pgEnum('library_source', ['trendtrack', 'tiktok_cc', 'tiktok_ccl', 'meta_al', 'chrome_ext']);
 export const insightTypeEnum = pgEnum('insight_type', ['pain', 'desire', 'objection', 'language', 'usage']);
-export const generationKindEnum = pgEnum('generation_kind', ['script', 'copy', 'image', 'video']);
+export const generationKindEnum = pgEnum('generation_kind', ['script', 'copy', 'image', 'video', 'ad']);
 export const channelEnum = pgEnum('agent_channel', ['web', 'slack', 'whatsapp']);
 
 /* ============================ CORE ============================ */
