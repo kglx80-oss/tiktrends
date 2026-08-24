@@ -132,9 +132,30 @@ function Card({ it }: { it: SwipeItem }) {
             {ad.body.length > 120 && <button type="button" onClick={() => setOpen((o) => !o)} style={{ marginTop: 4, fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>{open ? 'Réduire' : 'Voir tout le copy'}</button>}
           </div>
         )}
+
+        {siteHref(ad) && (
+          <a href={siteHref(ad)!} target="_blank" rel="noreferrer noopener" style={{
+            marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '9px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent',
+            color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none',
+          }}>
+            {ctaLabel(ad)} <span style={{ color: 'var(--accent-strong)' }}>↗</span>
+          </a>
+        )}
       </div>
     </div>
   );
+}
+
+/** URL de la landing à ouvrir : URL complète si dispo, sinon le domaine. */
+function siteHref(ad: InspoAd): string | null {
+  if (ad.landingUrl && /^https?:\/\//i.test(ad.landingUrl)) return ad.landingUrl;
+  if (ad.landingDomain) return 'https://' + ad.landingDomain.replace(/^https?:\/\//i, '');
+  return null;
+}
+function ctaLabel(ad: InspoAd): string {
+  const dom = ad.landingDomain?.replace(/^www\./, '');
+  return dom ? `Ouvrir ${dom}` : 'Ouvrir le site';
 }
 
 function Cell({ v, label, accent }: { v: string; label: string; accent?: boolean }) {
