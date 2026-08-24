@@ -72,8 +72,8 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <b style={{ fontSize: 15, color: 'var(--ink)' }}>Vidéo IA</b>
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>HIGGSFIELD</span>
-            {!higgsfieldConfigured() && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>· à activer</span>}
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>KLING 2 · FAL</span>
+            {!(falConfigured() || higgsfieldConfigured()) && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>· à activer</span>}
           </span>
           <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-2)', marginTop: 3 }}>Texte → vidéo et image → vidéo, verticales, prêtes pour TikTok. Avec galerie et historique.</span>
         </span>

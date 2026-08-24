@@ -4,8 +4,11 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
-import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob } from '@tiktrends/integrations';
+import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
 import { costFor } from '@tiktrends/core';
+
+/** Fournisseur vidéo actif : Fal (Kling) en priorité, sinon Higgsfield. */
+function videoReady(): boolean { return !!falFromEnv() || !!higgsfieldFromEnv(); }
 
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
@@ -45,15 +48,18 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
   const prompt = input.prompt?.trim();
   if (!prompt) return { error: 'Décris la vidéo à générer.' };
 
-  const cfg = higgsfieldFromEnv();
-  if (!cfg) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
+  const fal = falFromEnv();
+  const hf = fal ? null : higgsfieldFromEnv();
+  if (!fal && !hf) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
 
   const cost = costFor('video');
   const short = await ensureCredits(s.workspaceId, cost);
   if (short) return { error: short };
 
   try {
-    const { jobId } = await hfSubmitVideo(cfg, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
+    const { jobId } = fal
+      ? await falSubmitVideo(fal, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
+      : await hfSubmitVideo(hf!, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
     const brand = await getActiveBrand(s.workspaceId);
     const generationId = await debitAndRecord(s.workspaceId, brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16' }, jobId);
     return { jobId, generationId };
@@ -71,15 +77,19 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
   if (!imageUrl) return { error: "Ajoute l'URL d'une image de départ." };
   if (!/^https?:\/\//i.test(imageUrl)) return { error: "L'URL de l'image doit commencer par http(s)." };
 
-  const cfg = higgsfieldFromEnv();
-  if (!cfg) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
+  const fal = falFromEnv();
+  const hf = fal ? null : higgsfieldFromEnv();
+  if (!fal && !hf) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
 
   const cost = costFor('video');
   const short = await ensureCredits(s.workspaceId, cost);
   if (short) return { error: short };
 
+  const motion = prompt || 'Anime cette image de façon naturelle et cinématographique.';
   try {
-    const { jobId } = await hfSubmitImageVideo(cfg, { prompt: prompt || 'Anime cette image de façon naturelle et cinématographique.', imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
+    const { jobId } = fal
+      ? await falSubmitVideo(fal, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
+      : await hfSubmitImageVideo(hf!, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
     const brand = await getActiveBrand(s.workspaceId);
     const generationId = await debitAndRecord(s.workspaceId, brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16' }, jobId);
     return { jobId, generationId };
@@ -111,10 +121,17 @@ export async function listBrandVideos(): Promise<BrandVideo[]> {
 export async function pollVideoAction(jobId: string, generationId?: string): Promise<VideoStatus> {
   const s = await getSession();
   if (!s) return { status: 'unknown', error: 'Session expirée.' };
-  const cfg = higgsfieldFromEnv();
-  if (!cfg) return { status: 'unknown', error: 'Vidéo IA non configurée.' };
   try {
-    const job = await hfGetJob(cfg, jobId);
+    let job;
+    if (isFalJob(jobId)) {
+      const fal = falFromEnv();
+      if (!fal) return { status: 'unknown', error: 'Vidéo IA non configurée.' };
+      job = await falGetVideo(fal, jobId);
+    } else {
+      const hf = higgsfieldFromEnv();
+      if (!hf) return { status: 'unknown', error: 'Vidéo IA non configurée.' };
+      job = await hfGetJob(hf, jobId);
+    }
     if (db && generationId && (job.status === 'completed' || job.status === 'failed')) {
       try {
         await db.update(schema.generations)

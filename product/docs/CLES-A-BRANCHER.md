@@ -49,10 +49,19 @@ FAL_IMAGE_MODEL_I2I=fal-ai/flux/dev/image-to-image
 FAL_IMAGE_MODEL_TEXT=fal-ai/ideogram/v3          # image avec texte lisible
 ```
 
-> Fal héberge aussi les modèles **vidéo** (Kling, Veo…). On pourra router la
-> vidéo sur Fal avec la même clé pour tout unifier.
+**La vidéo (Kling 2) passe aussi par cette clé Fal** — image ET vidéo avec une seule clé.
+Options vidéo (Kling 2 par défaut) :
+```
+FAL_VIDEO_MODEL=fal-ai/kling-video/v2/master/text-to-video
+FAL_VIDEO_MODEL_I2V=fal-ai/kling-video/v2/master/image-to-video
+FAL_QUEUE_URL=https://queue.fal.run
+```
 
-## 3. Vidéo IA — Higgsfield
+## 3. Vidéo IA — Higgsfield (optionnel)
+
+`FAL_KEY` suffit pour la vidéo (Kling 2). Higgsfield reste **optionnel** : ne le
+branche que si tu veux ses contrôles caméra/presets spécifiques. Si `FAL_KEY`
+est présente, c'est Fal (Kling) qui est utilisé en priorité.
 
 ```
 HIGGSFIELD_API_KEY=...
