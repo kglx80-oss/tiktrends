@@ -70,8 +70,8 @@ export function VideoStudioFull({ ready, brandName, initialVideos, initialPrompt
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
             <span style={{ fontSize: 20 }}>🔒</span>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-              <b style={{ color: 'var(--ink)' }}>Vidéo IA en attente de la clé Higgsfield.</b> Cette fonction utilise Higgsfield (une clé distincte de Claude).
-              Une fois <code style={{ fontSize: 12 }}>HIGGSFIELD_API_KEY</code> posée sur le serveur, elle s'active ici.
+              <b style={{ color: 'var(--ink)' }}>Vidéo IA en attente de la clé Fal.</b> La génération vidéo (Kling 2) utilise Fal.ai — la même clé que l'Image IA.
+              Une fois <code style={{ fontSize: 12 }}>FAL_KEY</code> posée sur le serveur, elle s'active ici.
               En attendant, le <b>Studio IA</b> (scripts, hooks) et l'<b>assistant</b> fonctionnent déjà avec Claude.
             </div>
           </div>

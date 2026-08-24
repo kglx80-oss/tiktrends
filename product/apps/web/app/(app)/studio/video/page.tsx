@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
-import { higgsfieldConfigured } from '@tiktrends/integrations';
+import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
 import { listBrandVideos } from '../../../actions/video';
 import { VideoStudioFull } from './VideoStudioFull';
 import { PageInfo } from '../../../../components/PageInfo';
@@ -37,7 +37,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
       <Link href="/studio" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Studio IA</Link>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
         <h1 style={h1}>Vidéo IA</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>HIGGSFIELD</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>KLING 2 · FAL</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
         Génère des vidéos verticales prêtes pour TikTok, à partir d'un texte ou d'une image. Les vidéos sont rattachées à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
@@ -48,7 +48,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
         ci-dessous — le rendu prend en général 1 à 3 minutes. Chaque vidéo coûte 12 crédits.
       </PageInfo>
 
-      <VideoStudioFull ready={higgsfieldConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} />
+      <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} />
     </main>
   );
 }
