@@ -9,6 +9,7 @@ import { anthropicFromEnv, generateProducts, generateBrandProfile, fetchSiteText
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
+import { fetchShopifyProducts, normalizeShopDomain } from '../../lib/shopify';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -168,6 +169,41 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
   const id = norm(formData.get('id'));
   if (id) await db.delete(schema.products).where(and(eq(schema.products.id, id), eq(schema.products.brandId, brandId)));
   redirect(`/brands/${brandId}?tab=products`);
+}
+
+const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Connecte / synchronise la boutique Shopify : importe produits + images + prix depuis le catalogue public. */
+export async function syncShopifyProductsAction(input: { brandId: string; domain?: string }): Promise<{ imported?: number; updated?: number; total?: number; error?: string }> {
+  const g = await guardBrand(input.brandId);
+  if (!g || !db) return { error: 'Accès refusé.' };
+  const [b] = await db.select({ url: schema.brands.url, shopifyDomain: schema.brands.shopifyDomain }).from(schema.brands).where(eq(schema.brands.id, input.brandId)).limit(1);
+  if (!b) return { error: 'Marque introuvable.' };
+
+  const origin = normalizeShopDomain(input.domain || b.shopifyDomain || b.url || '');
+  if (!origin) return { error: "Indique le domaine de ta boutique (ex : ta-marque.com ou ta-marque.myshopify.com)." };
+
+  const products = await fetchShopifyProducts(origin);
+  if (products === null) return { error: `Catalogue Shopify inaccessible sur ${origin.replace('https://', '')}. Vérifie le domaine, ou essaie le domaine .myshopify.com.` };
+  if (!products.length) return { error: 'Boutique connectée mais aucun produit public trouvé.' };
+
+  // Mémorise le domaine connecté.
+  await db.update(schema.brands).set({ shopifyDomain: origin.replace('https://', '') }).where(eq(schema.brands.id, input.brandId));
+
+  const existing = await db.select({ id: schema.products.id, name: schema.products.name }).from(schema.products).where(eq(schema.products.brandId, input.brandId));
+  const byName = new Map(existing.map((e) => [normName(e.name), e.id]));
+
+  let imported = 0, updated = 0;
+  for (const p of products.slice(0, 250)) {
+    const key = normName(p.title);
+    const id = byName.get(key);
+    const values = { name: p.title, description: p.description, price: p.price, url: p.url, imageUrl: p.imageUrl };
+    try {
+      if (id) { await db.update(schema.products).set(values).where(eq(schema.products.id, id)); updated++; }
+      else { await db.insert(schema.products).values({ brandId: input.brandId, ...values }); imported++; byName.set(key, 'x'); }
+    } catch { /* ignore la ligne */ }
+  }
+  return { imported, updated, total: products.length };
 }
 
 /** Import IA des produits depuis le site de la marque (gated + débit crédits). */
