@@ -55,9 +55,10 @@ export default async function AdsStudioPage() {
         Des publicités complètes, prêtes à poster, rattachées à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
       </p>
       <PageInfo title="générer des pubs">
-        Choisis un <b>produit</b> (ajoute sa photo dans Image IA pour que ton vrai packaging apparaisse), un
-        <b> persona</b> et un <b>objectif</b>, puis sélectionne les <b>gabarits</b>. L'IA écrit le concept (accroche,
-        CTA), génère la scène avec ton produit, et compose la pub finale (texte, bouton, logo). 4 crédits par pub.
+        Deux logiques, comme Atria. <b>Depuis la marque</b> : choisis produit, persona, objectif et gabarits, l'IA
+        écrit le concept, génère la scène avec ton produit et compose la pub finale (texte, bouton, logo).
+        <b> Cloner une pub gagnante</b> : importe une pub qui marche, l'IA en reprend l'angle et la structure pour ta
+        marque. Ajoute la photo du produit dans Image IA pour que ton vrai packaging apparaisse. 4 crédits par pub.
       </PageInfo>
 
       <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} />

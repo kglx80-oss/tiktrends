@@ -77,6 +77,42 @@ function ctxLines(ctx: AdConceptCtx): string {
   ].filter(Boolean).join('\n');
 }
 
+const CLONE_TOOL = {
+  name: 'return_ad',
+  description: "Renvoie UN concept publicitaire qui recrée la pub de référence pour NOTRE marque/produit.",
+  input_schema: AD_TOOL.input_schema.properties.concepts.items,
+} as const;
+
+export interface CloneRefImage { base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' }
+
+/** Analyse une pub gagnante (vision) et en dérive un concept reproduisant l'angle + la structure, pour NOTRE produit. */
+export async function cloneAdFromReference(client: Anthropic, ref: CloneRefImage, ctx: AdConceptCtx): Promise<AdConcept | null> {
+  const sys = [
+    "Tu es directeur créatif. On te montre une PUBLICITÉ GAGNANTE d'une autre marque.",
+    "Objectif : recréer la MÊME logique (angle, structure, type de gabarit, ton de l'accroche, présence d'un CTA, avant/après, témoignage, etc.) mais pour NOTRE marque et NOTRE produit.",
+    "Choisis le template le plus proche de la pub de référence parmi : " + AD_TEMPLATES.join(', ') + ".",
+    "Écris l'accroche (headline), l'eyebrow (kicker), le CTA en français, adaptés à notre produit.",
+    "sceneBrief en anglais : décris une scène qui REPREND l'ambiance/cadrage de la référence mais met en scène NOTRE produit (le décrire comme « the product »). AUCUN texte incrusté.",
+    "Ne copie pas la marque ni les mots exacts de la référence : inspire-toi de sa mécanique.",
+    "Rends via l'outil return_ad.",
+  ].join(' ');
+  const res = await client.messages.create({
+    model: GEN_MODEL, max_tokens: 1200, system: sys,
+    tools: [CLONE_TOOL as unknown as Anthropic.Tool],
+    tool_choice: { type: 'tool', name: 'return_ad' },
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: ref.mediaType, data: ref.base64 } },
+        { type: 'text', text: `Recrée cette pub pour nous.\n\n${ctxLines(ctx)}` },
+      ],
+    }],
+  });
+  const tool = res.content.find((c) => c.type === 'tool_use') as { input?: AdConcept } | undefined;
+  const c = tool?.input;
+  return c && c.headline && c.sceneBrief ? c : null;
+}
+
 /** Génère des concepts publicitaires (accroche + CTA + brief de scène) pour les gabarits demandés. */
 export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, opts: { templates: AdTemplate[] }): Promise<AdConcept[]> {
   const templates = opts.templates.length ? opts.templates : AD_TEMPLATES;

@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
-import { anthropicFromEnv, generateAdConcepts, AD_TEMPLATES, type AdTemplate, type AdConcept } from '@tiktrends/ai';
+import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, AD_TEMPLATES, type AdTemplate, type AdConcept, type CloneRefImage } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import type { AdRecipe } from '../../lib/ad-render';
@@ -118,6 +118,7 @@ export async function generateAdsAction(input: {
       template: c.template, sceneUrl, kicker: c.kicker, headline: c.headline, subhead: c.subhead, cta: c.cta,
       badge: c.badge, quote: c.quote, author: c.author, rating: c.rating, benefits: c.benefits,
       accent, brandName: brand.name, logoUrl: da?.logoUrl ?? null,
+      productId: input.productId, personaId: input.personaId, objective: input.objective,
     };
     try {
       const [row] = await db.insert(schema.generations).values({
@@ -141,6 +142,110 @@ export async function generateAdsAction(input: {
   }
 
   return { ads };
+}
+
+/** Contexte marque + produit + persona (mutualisé par génération et clone). */
+async function loadAdContext(brandId: string, productId?: string, personaId?: string) {
+  const [da] = await db!.select({
+    colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp,
+    audience: schema.brands.audience, category: schema.brands.category, logoUrl: schema.brands.logoUrl,
+  }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
+
+  let product: { name: string; description: string | null; usp: string | null; imageUrl: string | null } | null = null;
+  if (productId) {
+    const [p] = await db!.select({ name: schema.products.name, description: schema.products.description, usp: schema.products.usp, imageUrl: schema.products.imageUrl })
+      .from(schema.products).where(and(eq(schema.products.id, productId), eq(schema.products.brandId, brandId))).limit(1);
+    if (p) product = p;
+  }
+  let persona: { name: string; pains: string[] | null; desires: string[] | null } | null = null;
+  if (personaId) {
+    const [p] = await db!.select({ name: schema.personas.name, pains: schema.personas.pains, desires: schema.personas.desires })
+      .from(schema.personas).where(and(eq(schema.personas.id, personaId), eq(schema.personas.brandId, brandId))).limit(1);
+    if (p) persona = p;
+  }
+  return { da, product, persona };
+}
+
+const DATA_URI = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/;
+
+/** Clone une pub gagnante : analyse l'image de référence (vision) puis recompose avec ton produit. */
+export async function cloneAdAction(input: {
+  referenceDataUri: string; productId?: string; personaId?: string; objective?: string;
+}): Promise<AdsResult> {
+  const s = await getSession();
+  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
+  const cfg = falFromEnv();
+  if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
+  const client = anthropicFromEnv();
+  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!db) return { error: 'Base de données indisponible.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+
+  const m = DATA_URI.exec(input.referenceDataUri?.trim() || '');
+  if (!m || !m[1] || !m[2]) return { error: 'Ajoute une image de pub de référence (jpg, png ou webp).' };
+  const ref: CloneRefImage = { mediaType: m[1] as CloneRefImage['mediaType'], base64: m[2] };
+
+  const cost = costFor('image', 1);
+  const unlimited = unlimitedCredits(s.user.email);
+  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+  const credits = w?.c ?? 0;
+  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+
+  const { da, product, persona } = await loadAdContext(brand.id, input.productId, input.personaId);
+  const editMode = !!product?.imageUrl;
+  const accent = pickAccent(da?.colors);
+
+  let concept: AdConcept | null;
+  try {
+    concept = await cloneAdFromReference(client, ref, {
+      brand: brand.name, tone: da?.tone ?? undefined, colors: da?.colors ?? undefined, usp: da?.usp ?? undefined,
+      audience: da?.audience ?? undefined, category: da?.category ?? undefined,
+      productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
+      hasProductPhoto: editMode,
+      persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
+      objective: input.objective,
+    });
+  } catch (e) {
+    return { error: "Analyse de la référence impossible : " + (e as Error).message };
+  }
+  if (!concept) return { error: "La pub de référence n'a pas pu être interprétée. Réessaie." };
+
+  let sceneUrl: string | null = null;
+  try {
+    const { images } = await falGenerateImage(cfg, {
+      prompt: scenePrompt(concept, editMode), aspectRatio: '4:5',
+      imageUrl: editMode ? product!.imageUrl! : undefined, edit: editMode, count: 1,
+    });
+    sceneUrl = images[0] || null;
+  } catch { /* échec scène */ }
+  if (!sceneUrl) return { error: "La scène n'a pas pu être générée. Réessaie." };
+
+  const recipe: AdRecipe = {
+    template: concept.template, sceneUrl, kicker: concept.kicker, headline: concept.headline, subhead: concept.subhead, cta: concept.cta,
+    badge: concept.badge, quote: concept.quote, author: concept.author, rating: concept.rating, benefits: concept.benefits,
+    accent, brandName: brand.name, logoUrl: da?.logoUrl ?? null,
+    productId: input.productId, personaId: input.personaId, objective: input.objective,
+  };
+  let ad: AdItem;
+  try {
+    const [row] = await db.insert(schema.generations).values({
+      brandId: brand.id, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
+      status: 'completed', assetUrls: [sceneUrl], creditsCost: unlimited ? 0 : cost,
+    }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
+    if (!row) return { error: "Enregistrement impossible. Réessaie." };
+    ad = { id: row.id, template: concept.template, headline: concept.headline, url: `/api/ad/${row.id}`, createdAt: (row.createdAt as Date).toISOString() };
+  } catch (e) {
+    return { error: 'Enregistrement impossible : ' + (e as Error).message };
+  }
+
+  if (!unlimited) {
+    try {
+      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio — clone de pub' });
+    } catch { /* best-effort */ }
+  }
+  return { ads: [ad] };
 }
 
 /** Liste les publicités déjà composées pour la marque active. */
