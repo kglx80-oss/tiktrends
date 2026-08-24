@@ -32,13 +32,13 @@ const addBtn = { padding: '9px 15px', borderRadius: 999, border: 'none', backgro
 
 export default async function BrandDetailPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; ok?: string; e?: string; n?: string }>;
+  searchParams: Promise<{ tab?: string; ok?: string; e?: string; n?: string; m?: string }>;
 }) {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
   const { id } = await params;
-  const { tab: tabRaw, ok, e, n } = await searchParams;
+  const { tab: tabRaw, ok, e, n, m } = await searchParams;
   const tab: Tab = (TABS.some((t) => t.key === tabRaw) ? tabRaw : 'overview') as Tab;
 
   if (!db) notFound();
@@ -86,7 +86,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
       </div>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}{ok === 'imported' && n ? ` (${n})` : ''}</Msg>}
-      {e && ERR[e] && <Msg kind="err">{ERR[e]}</Msg>}
+      {e && ERR[e] && <Msg kind="err">{ERR[e]}{m ? ` — ${m}` : ''}</Msg>}
 
       {/* ---------------- APERÇU ---------------- */}
       {tab === 'overview' && (() => {
