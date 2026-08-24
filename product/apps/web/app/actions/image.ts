@@ -14,6 +14,7 @@ export interface BrandImage { id: string; prompt: string; url: string | null; cr
 
 export async function generateImageAction(input: {
   prompt: string; aspectRatio?: FalAspect; imageUrl?: string; withText?: boolean; enhance?: boolean; count?: number;
+  productId?: string; headline?: string;
 }): Promise<ImageResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -35,13 +36,32 @@ export async function generateImageAction(input: {
 
   const brand = await getActiveBrand(s.workspaceId);
 
-  // Optimisation du prompt par Claude (optionnelle, si clé présente).
+  // Contexte marque (DA) + produit sélectionné, pour ancrer la génération.
+  let da: { colors?: string[] | null; tone?: string | null; usp?: string | null; description?: string | null } = {};
+  let product: { name: string; description: string | null } | null = null;
+  if (db && brand) {
+    const [row] = await db.select({ colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp, description: schema.brands.description })
+      .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    da = row ?? {};
+    if (input.productId) {
+      const [p] = await db.select({ name: schema.products.name, description: schema.products.description })
+        .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
+      if (p) product = p;
+    }
+  }
+
+  // Optimisation du prompt par Claude (ancrée marque + produit + texte).
   let prompt = desc;
   if (input.enhance) {
     const client = anthropicFromEnv();
     if (client) {
-      try { prompt = await enhanceImagePrompt(client, desc, { brand: brand?.name, withText: input.withText, product: !!input.imageUrl }); }
-      catch { /* on garde la description brute */ }
+      try {
+        prompt = await enhanceImagePrompt(client, desc, {
+          brand: brand?.name, tone: da.tone ?? undefined, colors: da.colors ?? undefined, usp: da.usp ?? undefined,
+          productName: product?.name, productDesc: product?.description ?? undefined,
+          withText: input.withText, headline: input.headline?.trim() || undefined, product: !!input.imageUrl,
+        });
+      } catch { /* on garde la description brute */ }
     }
   }
 

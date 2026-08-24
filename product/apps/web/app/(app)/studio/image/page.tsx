@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -31,6 +33,13 @@ export default async function ImageStudioPage() {
   }
 
   const [brand, images] = await Promise.all([getActiveBrand(s.workspaceId), listBrandImages()]);
+  let products: Array<{ id: string; name: string }> = [];
+  let colors: string[] = [];
+  if (db && brand) {
+    products = await db.select({ id: schema.products.id, name: schema.products.name }).from(schema.products).where(eq(schema.products.brandId, brand.id));
+    const [row] = await db.select({ colors: schema.brands.colors }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    colors = row?.colors ?? [];
+  }
 
   return (
     <main style={wrap}>
@@ -48,7 +57,7 @@ export default async function ImageStudioPage() {
         pour que Claude rédige un prompt de qualité pub. 4 crédits par image.
       </PageInfo>
 
-      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} />
+      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} />
     </main>
   );
 }
