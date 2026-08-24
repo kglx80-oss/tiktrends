@@ -83,6 +83,28 @@ export async function generateCreative(client: Anthropic, b: CreativeBrief): Pro
   return tool.input;
 }
 
+/** Transforme une description en prompt image optimisé (Flux/Ideogram), en anglais. */
+export async function enhanceImagePrompt(
+  client: Anthropic,
+  desc: string,
+  opts: { brand?: string; tone?: string; withText?: boolean; product?: boolean } = {},
+): Promise<string> {
+  const sys = [
+    'You write concise, high-quality prompts for an ad-creative image model (Flux / Ideogram).',
+    'Output ONE English prompt only, no preamble, no quotes.',
+    'Be specific about subject, composition, lighting, mood, lens, and background — advertising quality, photoreal unless asked otherwise.',
+    opts.withText ? 'The image must include clean, legible on-image text; specify the exact text and its placement.' : 'Avoid gibberish text on the image.',
+    opts.product ? 'Feature the real product prominently and keep it faithful (do not distort packaging).' : '',
+    opts.tone ? `Brand tone: ${opts.tone}.` : '',
+    opts.brand ? `Brand: ${opts.brand}.` : '',
+  ].filter(Boolean).join(' ');
+  const res = await client.messages.create({
+    model: GEN_MODEL, max_tokens: 500, system: sys,
+    messages: [{ role: 'user', content: `Idée: ${desc.slice(0, 1000)}` }],
+  });
+  return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim() || desc;
+}
+
 export interface ScriptInput { brandName: string; format: string; language?: string; angle?: string; hookCount?: number; }
 export function buildScriptPrompt(i: ScriptInput): string {
   return [

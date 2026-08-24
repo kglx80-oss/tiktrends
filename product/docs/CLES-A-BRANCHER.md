@@ -33,7 +33,26 @@ Modèles (optionnel, valeurs par défaut sinon) :
 ANTHROPIC_GEN_MODEL=claude-sonnet-5
 ```
 
-## 2. Vidéo IA — Higgsfield
+## 2. Image IA — Fal.ai (Flux / Ideogram)
+
+```
+FAL_KEY=...
+```
+
+Active le **Studio → Image IA** (texte → image, mise en scène produit, texte lisible).
+Paiement à l'usage chez Fal (~2 à 8 centimes/image selon le modèle).
+
+Options (valeurs par défaut sinon) :
+```
+FAL_IMAGE_MODEL=fal-ai/flux/dev                  # texte -> image (éco)
+FAL_IMAGE_MODEL_I2I=fal-ai/flux/dev/image-to-image
+FAL_IMAGE_MODEL_TEXT=fal-ai/ideogram/v3          # image avec texte lisible
+```
+
+> Fal héberge aussi les modèles **vidéo** (Kling, Veo…). On pourra router la
+> vidéo sur Fal avec la même clé pour tout unifier.
+
+## 3. Vidéo IA — Higgsfield
 
 ```
 HIGGSFIELD_API_KEY=...

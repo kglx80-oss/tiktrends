@@ -58,6 +58,7 @@ export const FEATURES: Feature[] = [
   { key: 'scale',     label: 'Ce qui scale', href: '/inspo/scale', icon: 'trend',  group: 'Création', parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Création', parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Création', minRole: 'member',        minPlan: 'core' },
+  { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   // Menu profil — Compte
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
