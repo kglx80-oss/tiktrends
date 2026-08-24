@@ -7,26 +7,30 @@ import type { FalAspect } from '@tiktrends/integrations';
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
-export function ImageStudio({ ready, aiReady, brandName, initial }: {
+export function ImageStudio({ ready, aiReady, brandName, initial, products, brandColors }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: BrandImage[];
+  products: Array<{ id: string; name: string }>; brandColors: string[];
 }) {
   const [mode, setMode] = useState<'t2i' | 'i2i'>('t2i');
   const [prompt, setPrompt] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [ratio, setRatio] = useState<FalAspect>('1:1');
   const [withText, setWithText] = useState(false);
+  const [headline, setHeadline] = useState('');
+  const [productId, setProductId] = useState('');
   const [enhance, setEnhance] = useState(aiReady);
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [images, setImages] = useState<BrandImage[]>(initial);
+  const [preview, setPreview] = useState<string | null>(null);
 
   async function run() {
     if (busy) return;
     if (!prompt.trim()) { setError("Décris l'image à générer."); return; }
     if (mode === 'i2i' && !imageUrl.trim()) { setError("Ajoute l'URL de ton image produit."); return; }
     setError(''); setBusy(true);
-    const res = await generateImageAction({ prompt, aspectRatio: ratio, imageUrl: mode === 'i2i' ? imageUrl : undefined, withText, enhance, count });
+    const res = await generateImageAction({ prompt, aspectRatio: ratio, imageUrl: mode === 'i2i' ? imageUrl : undefined, withText, enhance, count, productId: productId || undefined, headline: withText ? headline : undefined });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.images) {
@@ -58,6 +62,28 @@ export function ImageStudio({ ready, aiReady, brandName, initial }: {
           ))}
         </div>
 
+        {/* Contexte marque : produit + DA appliqués automatiquement */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+          {products.length > 0 && (
+            <div>
+              <label style={lbl}>Produit de la marque</label>
+              <select value={productId} onChange={(e) => setProductId(e.target.value)} disabled={!ready} style={{ ...fld, width: 'auto', minWidth: 200, padding: '9px 10px' }}>
+                <option value="">— Aucun (générique)</option>
+                {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          )}
+          {brandColors.length > 0 && (
+            <div>
+              <label style={lbl}>DA appliquée</label>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', height: 38 }}>
+                {brandColors.slice(0, 6).map((c, i) => <span key={i} title={c} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid var(--line-2)', background: c }} />)}
+                <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>couleurs de {brandName ?? 'la marque'}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {mode === 'i2i' && (
           <div style={{ marginBottom: 12 }}>
             <label style={lbl}>URL de ton image produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— lien direct vers le fichier image (jpg / png / webp)</span></label>
@@ -82,6 +108,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial }: {
             ))}
           </div>
           <label style={chk}><input type="checkbox" checked={withText} onChange={(e) => setWithText(e.target.checked)} disabled={!ready} /> Texte lisible sur l'image</label>
+          {withText && <input value={headline} onChange={(e) => setHeadline(e.target.value)} disabled={!ready} placeholder="Accroche à écrire (ex : Focus. Toute la journée.)" style={{ ...fld, flex: '1 1 220px', padding: '8px 10px' }} />}
           <label style={{ ...chk, opacity: aiReady ? 1 : .5 }}><input type="checkbox" checked={enhance} onChange={(e) => setEnhance(e.target.checked)} disabled={!ready || !aiReady} /> Optimiser le prompt (Claude)</label>
           <select value={count} onChange={(e) => setCount(Number(e.target.value))} disabled={!ready} style={{ ...fld, width: 'auto', padding: '8px 10px' }}>
             {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} image{n > 1 ? 's' : ''}</option>)}
@@ -110,17 +137,28 @@ export function ImageStudio({ ready, aiReady, brandName, initial }: {
           {images.map((im) => (
             <div key={im.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
               {im.url && (
-                <a href={im.url} target="_blank" rel="noreferrer">
+                <button type="button" onClick={() => setPreview(im.url)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={im.url} alt="" style={{ width: '100%', display: 'block', aspectRatio: '1/1', objectFit: 'cover' }} />
-                </a>
+                </button>
               )}
               <div style={{ padding: '9px 11px' }}>
                 <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{im.prompt}</p>
-                {im.url && <a href={im.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 6, fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>}
+                <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+                  {im.url && <button type="button" onClick={() => setPreview(im.url)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Aperçu ⛶</button>}
+                  {im.url && <a href={im.url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>}
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {preview && (
+        <div onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
+          <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div>
       )}
     </div>
