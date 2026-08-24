@@ -9,6 +9,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { BRAND_COOKIE } from '../../lib/brands';
 import { anthropicFromEnv, generateBrandProfile, fetchSiteText, type BrandProfileDraft } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
+import { unlimitedCredits } from '../../lib/credits';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const lines = (v: FormDataEntryValue | null) => norm(v).split('\n').map((x) => x.trim()).filter(Boolean);
@@ -44,7 +45,8 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur (clé manquante). Remplis le profil manuellement." };
 
   const cost = costFor('brief');
-  if (db) {
+  const unlimited = unlimitedCredits(s.user.email);
+  if (db && !unlimited) {
     const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
     if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis). Recharge depuis Crédits.` };
   }
@@ -54,7 +56,7 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
 
   try {
     const draft = await generateBrandProfile(client, { name, url: url || undefined, siteText });
-    if (db) {
+    if (db && !unlimited) {
       try {
         const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
         await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));

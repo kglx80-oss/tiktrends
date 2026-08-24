@@ -7,18 +7,19 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { anthropicFromEnv, generateProducts, fetchSiteText } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
+import { unlimitedCredits } from '../../lib/credits';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const commas = (v: FormDataEntryValue | null) => norm(v).split(',').map((x) => x.trim()).filter(Boolean);
 
 /** Vérifie que la marque appartient bien au workspace de l'utilisateur admin. */
-async function guardBrand(brandId: string): Promise<{ workspaceId: string } | null> {
+async function guardBrand(brandId: string): Promise<{ workspaceId: string; email: string | null } | null> {
   const s = await getSession();
   if (!s || !db) return null;
   if (!roleAtLeast(s.role, 'admin')) return null;
   const [b] = await db.select({ id: schema.brands.id }).from(schema.brands)
     .where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
-  return b ? { workspaceId: s.workspaceId } : null;
+  return b ? { workspaceId: s.workspaceId, email: s.user.email } : null;
 }
 
 /* ---------------- Personas ---------------- */
@@ -101,8 +102,9 @@ export async function importProductsAction(formData: FormData): Promise<void> {
   if (!client) redirect(`/brands/${brandId}?tab=products&e=ai`);
 
   const cost = costFor('brief');
+  const unlimited = unlimitedCredits(g.email);
   const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
-  if ((w?.c ?? 0) < cost) redirect(`/brands/${brandId}?tab=products&e=credits`);
+  if (!unlimited && (w?.c ?? 0) < cost) redirect(`/brands/${brandId}?tab=products&e=credits`);
 
   let siteText: string | undefined;
   try { siteText = await fetchSiteText(brand.url); } catch { /* on tente quand même */ }
@@ -114,7 +116,7 @@ export async function importProductsAction(formData: FormData): Promise<void> {
       url: p.url || null, price: typeof p.price === 'number' ? p.price : null,
     }));
     if (rows.length) await db.insert(schema.products).values(rows);
-    try {
+    if (!unlimited) try {
       await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
       await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque — import produits IA' });
     } catch { /* débit best-effort */ }

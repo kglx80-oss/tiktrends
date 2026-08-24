@@ -7,6 +7,7 @@ import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
 import { anthropicFromEnv, enhanceImagePrompt } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
+import { unlimitedCredits } from '../../lib/credits';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string }
@@ -24,11 +25,12 @@ export async function generateImageAction(input: {
 
   const count = Math.min(4, Math.max(1, input.count ?? 1));
   const cost = costFor('image', count);
+  const unlimited = unlimitedCredits(s.user.email);
   let credits = 0;
   if (db) {
     const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
     credits = w?.c ?? 0;
-    if (credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${count} image(s)).` };
+    if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${count} image(s)).` };
   }
 
   const brand = await getActiveBrand(s.workspaceId);
@@ -47,12 +49,14 @@ export async function generateImageAction(input: {
     const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: input.aspectRatio ?? '1:1', imageUrl: input.imageUrl, withText: input.withText, count });
     if (db) {
       if (brand) {
-        try { await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1' }, status: 'completed', assetUrls: images, creditsCost: cost }); } catch { /* ignore */ }
+        try { await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1' }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }); } catch { /* ignore */ }
       }
-      try {
-        await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
-        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio — image IA' });
-      } catch { /* débit best-effort */ }
+      if (!unlimited) {
+        try {
+          await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+          await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio — image IA' });
+        } catch { /* débit best-effort */ }
+      }
     }
     return { images, prompt };
   } catch (e) {
