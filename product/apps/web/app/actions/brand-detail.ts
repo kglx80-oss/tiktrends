@@ -9,7 +9,7 @@ import { anthropicFromEnv, generateProducts, generateBrandProfile, fetchSiteText
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
-import { fetchShopifyProducts, normalizeShopDomain } from '../../lib/shopify';
+import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -180,14 +180,14 @@ export async function syncShopifyProductsAction(input: { brandId: string; domain
   const [b] = await db.select({ url: schema.brands.url, shopifyDomain: schema.brands.shopifyDomain }).from(schema.brands).where(eq(schema.brands.id, input.brandId)).limit(1);
   if (!b) return { error: 'Marque introuvable.' };
 
-  const origin = normalizeShopDomain(input.domain || b.shopifyDomain || b.url || '');
-  if (!origin) return { error: "Indique le domaine de ta boutique (ex : ta-marque.com ou ta-marque.myshopify.com)." };
+  const domainInput = (input.domain || b.shopifyDomain || b.url || '').trim();
+  if (!normalizeShopDomain(domainInput)) return { error: "Indique le domaine de ta boutique (ex : ta-marque.com ou ta-marque.myshopify.com)." };
 
-  const products = await fetchShopifyProducts(origin);
-  if (products === null) return { error: `Catalogue Shopify inaccessible sur ${origin.replace('https://', '')}. Vérifie le domaine, ou essaie le domaine .myshopify.com.` };
-  if (!products.length) return { error: 'Boutique connectée mais aucun produit public trouvé.' };
+  const found = await discoverShopify(domainInput);
+  if (!found) return { error: `Catalogue Shopify introuvable sur ${domainInput.replace(/^https?:\/\//, '')}. Essaie le domaine .myshopify.com de ta boutique. Si ton catalogue public est désactivé, dis-le-moi et on passe par un jeton Storefront.` };
+  const { origin, products } = found;
 
-  // Mémorise le domaine connecté.
+  // Mémorise le domaine connecté (celui qui a répondu).
   await db.update(schema.brands).set({ shopifyDomain: origin.replace('https://', '') }).where(eq(schema.brands.id, input.brandId));
 
   const existing = await db.select({ id: schema.products.id, name: schema.products.name }).from(schema.products).where(eq(schema.products.brandId, input.brandId));
