@@ -52,6 +52,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [prodBusy, setProdBusy] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMsg, setBulkMsg] = useState('');
+  const [bulkOk, setBulkOk] = useState(true);
   const prodImgInput = useRef<HTMLInputElement>(null);
   const [personaId, setPersonaId] = useState('');
   const [objective, setObjective] = useState('Ventes');
@@ -104,7 +105,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     if (r.error) setError(r.error);
     else {
       if (r.updatedIds.length) setProds((list) => list.map((p) => (r.updatedIds.includes(p.id) ? { ...p, hasImage: true } : p)));
-      setBulkMsg(r.updated > 0 ? `${r.updated} photo(s) produit récupérée(s) depuis le site.` : 'Aucune nouvelle photo trouvée (produits déjà pourvus ou fiches sans image).');
+      setBulkOk(r.updated > 0);
+      setBulkMsg(r.updated > 0 ? `${r.updated} photo(s) produit récupérée(s) depuis le site.` : (r.note || 'Aucune nouvelle photo trouvée.'));
     }
     setBulkBusy(false);
   }
@@ -167,7 +169,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <button type="button" onClick={importAll} disabled={!ready || bulkBusy} style={{ ...miniBtn, opacity: ready && !bulkBusy ? 1 : .6 }}>
               {bulkBusy ? 'Récupération…' : '🔗 Récupérer toutes les photos depuis le site'}
             </button>
-            {bulkMsg && <span style={{ fontSize: 11.5, color: '#9fe6b3' }}>{bulkMsg}</span>}
+            {bulkMsg && <span style={{ fontSize: 11.5, color: bulkOk ? '#9fe6b3' : '#f5b043' }}>{bulkMsg}</span>}
           </div>
         )}
 
