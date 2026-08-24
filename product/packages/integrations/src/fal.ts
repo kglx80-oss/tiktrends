@@ -10,6 +10,7 @@
  *   FAL_IMAGE_MODEL      (def: fal-ai/flux/dev)            — texte -> image
  *   FAL_IMAGE_MODEL_I2I  (def: fal-ai/flux/dev/image-to-image) — image -> image
  *   FAL_IMAGE_MODEL_TEXT (def: fal-ai/ideogram/v3)         — image avec texte lisible
+ *   FAL_IMAGE_MODEL_EDIT (def: fal-ai/flux-kontext/dev)    — édition fidèle (garde le produit)
  */
 
 export interface FalConfig {
@@ -19,12 +20,13 @@ export interface FalConfig {
   imageModel: string;
   imageModelI2I: string;
   imageModelText: string;
+  imageModelEdit: string;
   videoModel: string;
   videoModelI2V: string;
 }
 
 export type FalAspect = '9:16' | '1:1' | '16:9' | '4:5';
-export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; withText?: boolean; count?: number }
+export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; withText?: boolean; count?: number; edit?: boolean }
 export interface FalImageResult { images: string[] }
 
 export function falFromEnv(): FalConfig | null {
@@ -37,6 +39,7 @@ export function falFromEnv(): FalConfig | null {
     imageModel: process.env.FAL_IMAGE_MODEL || 'fal-ai/flux/dev',
     imageModelI2I: process.env.FAL_IMAGE_MODEL_I2I || 'fal-ai/flux/dev/image-to-image',
     imageModelText: process.env.FAL_IMAGE_MODEL_TEXT || 'fal-ai/ideogram/v3',
+    imageModelEdit: process.env.FAL_IMAGE_MODEL_EDIT || 'fal-ai/flux-kontext/dev',
     videoModel: process.env.FAL_VIDEO_MODEL || 'fal-ai/kling-video/v2/master/text-to-video',
     videoModelI2V: process.env.FAL_VIDEO_MODEL_I2V || 'fal-ai/kling-video/v2/master/image-to-video',
   };
@@ -64,7 +67,10 @@ function collectUrls(data: Record<string, unknown>): string[] {
 
 /** Génère une ou plusieurs images. Choisit le modèle selon le besoin (image de départ / texte lisible). */
 export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Promise<FalImageResult> {
-  const model = input.imageUrl ? cfg.imageModelI2I : input.withText ? cfg.imageModelText : cfg.imageModel;
+  // Avec une photo produit : Kontext (édition fidèle, garde le packaging) si demandé, sinon i2i classique.
+  const model = input.imageUrl
+    ? (input.edit ? cfg.imageModelEdit : cfg.imageModelI2I)
+    : input.withText ? cfg.imageModelText : cfg.imageModel;
   const body: Record<string, unknown> = {
     prompt: input.prompt,
     image_size: IMAGE_SIZE[input.aspectRatio ?? '1:1'],

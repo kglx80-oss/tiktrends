@@ -14,7 +14,7 @@ export interface BrandImage { id: string; prompt: string; url: string | null; cr
 
 export async function generateImageAction(input: {
   prompt: string; aspectRatio?: FalAspect; imageUrl?: string; withText?: boolean; enhance?: boolean; count?: number;
-  productId?: string; headline?: string;
+  productId?: string; headline?: string; useProductImage?: boolean;
 }): Promise<ImageResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -38,17 +38,22 @@ export async function generateImageAction(input: {
 
   // Contexte marque (DA) + produit sélectionné, pour ancrer la génération.
   let da: { colors?: string[] | null; tone?: string | null; usp?: string | null; description?: string | null } = {};
-  let product: { name: string; description: string | null } | null = null;
+  let product: { name: string; description: string | null; imageUrl: string | null } | null = null;
   if (db && brand) {
     const [row] = await db.select({ colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp, description: schema.brands.description })
       .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     da = row ?? {};
     if (input.productId) {
-      const [p] = await db.select({ name: schema.products.name, description: schema.products.description })
+      const [p] = await db.select({ name: schema.products.name, description: schema.products.description, imageUrl: schema.products.imageUrl })
         .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
       if (p) product = p;
     }
   }
+
+  // Source produit : photo fournie (upload ponctuel) OU photo enregistrée sur le produit (si autorisée).
+  // Si l'une des deux existe, on passe en édition fidèle (Kontext) pour garder le vrai packaging.
+  const sourceImage = input.imageUrl?.trim() || (input.useProductImage ? product?.imageUrl || undefined : undefined);
+  const editMode = !!sourceImage;
 
   // Optimisation du prompt par Claude (ancrée marque + produit + texte).
   let prompt = desc;
@@ -59,14 +64,14 @@ export async function generateImageAction(input: {
         prompt = await enhanceImagePrompt(client, desc, {
           brand: brand?.name, tone: da.tone ?? undefined, colors: da.colors ?? undefined, usp: da.usp ?? undefined,
           productName: product?.name, productDesc: product?.description ?? undefined,
-          withText: input.withText, headline: input.headline?.trim() || undefined, product: !!input.imageUrl,
+          withText: input.withText, headline: input.headline?.trim() || undefined, product: editMode, edit: editMode,
         });
       } catch { /* on garde la description brute */ }
     }
   }
 
   try {
-    const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: input.aspectRatio ?? '1:1', imageUrl: input.imageUrl, withText: input.withText, count });
+    const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: input.aspectRatio ?? '1:1', imageUrl: sourceImage, withText: input.withText, count, edit: editMode });
     if (db) {
       if (brand) {
         try { await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1' }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }); } catch { /* ignore */ }
@@ -81,7 +86,7 @@ export async function generateImageAction(input: {
     return { images, prompt };
   } catch (e) {
     const msg = (e as Error).message || '';
-    if (/image_load_error|Failed to load the image|422/.test(msg) && input.imageUrl) {
+    if (/image_load_error|Failed to load the image|422/.test(msg) && sourceImage) {
       return { error: "Impossible de charger l'image de départ. L'URL doit pointer vers un fichier image direct (jpg, png, webp) et être public — pas une page produit. Astuce : clic droit sur l'image du produit → « Copier l'adresse de l'image »." };
     }
     return { error: 'Échec de la génération : ' + msg };
@@ -118,6 +123,28 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
   } catch (e) {
     return { error: (e as Error).message };
   }
+}
+
+/** Enregistre (ou retire) la photo réelle d'un produit — réutilisée pour la mise en scène. */
+export async function setProductImageAction(input: { productId: string; dataUri?: string | null }): Promise<{ ok?: true; imageUrl?: string | null; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+
+  const [p] = await db.select({ id: schema.products.id }).from(schema.products)
+    .where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
+  if (!p) return { error: 'Produit introuvable.' };
+
+  const uri = input.dataUri?.trim() || '';
+  if (uri) {
+    if (!/^data:image\/(png|jpe?g|webp);base64,/.test(uri)) return { error: 'Format non pris en charge (jpg, png ou webp).' };
+    // ~6 Mo de data URI max (garde-fou taille de ligne).
+    if (uri.length > 6_000_000) return { error: 'Image trop lourde. Réduis la taille (max ~4 Mo).' };
+  }
+  const imageUrl = uri || null;
+  await db.update(schema.products).set({ imageUrl }).where(eq(schema.products.id, input.productId));
+  return { ok: true, imageUrl };
 }
 
 export async function listBrandImages(): Promise<BrandImage[]> {

@@ -80,6 +80,7 @@ export const products = pgTable('products', {
   usp: text('usp'),
   price: doublePrecision('price'),
   url: text('url'),
+  imageUrl: text('image_url'),
 });
 
 export const personas = pgTable('personas', {

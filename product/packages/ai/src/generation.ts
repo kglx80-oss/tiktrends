@@ -93,6 +93,7 @@ export interface ImagePromptOpts {
   withText?: boolean;       // texte lisible attendu (Ideogram)
   headline?: string;        // texte exact à écrire sur l'image
   product?: boolean;        // mise en scène produit (image de départ)
+  edit?: boolean;           // édition fidèle Kontext (garder le produit intact, restyler la scène)
 }
 
 /** Transforme une description en prompt image optimisé (Flux/Ideogram), ancré sur la marque. */
@@ -102,6 +103,29 @@ export async function enhanceImagePrompt(client: Anthropic, desc: string, opts: 
         ? `The image MUST render this exact on-image text, cleanly and legibly, well placed for an ad: "${opts.headline}".`
         : 'Include a short, punchy on-image headline (max 6 words) derived from the brand value props, rendered cleanly.')
     : 'Avoid gibberish text on the image.';
+
+  // Mode édition (Kontext) : on part d'une VRAIE photo produit → l'instruction doit préserver le packaging.
+  if (opts.edit) {
+    const sys = [
+      'You write ONE concise English EDIT instruction for an image-editing model (Flux Kontext) that receives the real product photo as input.',
+      'Output the instruction only — no preamble, no quotes.',
+      'Absolute rule: keep the product EXACTLY as in the input photo — same bottle/packaging shape, same label, same logo, same text, same colors and proportions. Do NOT redesign, relabel, or replace the product.',
+      'Only change the surrounding scene: background, surface, props, lighting and composition, to build a premium advertising shot.',
+      'Be specific about the new scene, surface, lighting and mood. Photoreal, advertising quality.',
+      textRule,
+      opts.productName ? `Product: ${opts.productName}${opts.productDesc ? ` — ${opts.productDesc.slice(0, 240)}` : ''}.` : '',
+      opts.brand ? `Brand: ${opts.brand}.` : '',
+      opts.tone ? `Brand tone/mood: ${opts.tone}.` : '',
+      opts.colors && opts.colors.length ? `Bias the scene palette toward the brand colors: ${opts.colors.join(', ')}.` : '',
+      opts.usp ? `Evoke these value props through the setting: ${opts.usp.replace(/\n/g, '; ').slice(0, 300)}.` : '',
+    ].filter(Boolean).join(' ');
+    const res = await client.messages.create({
+      model: GEN_MODEL, max_tokens: 500, system: sys,
+      messages: [{ role: 'user', content: `Desired scene: ${desc.slice(0, 1000)}` }],
+    });
+    return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim() || desc;
+  }
+
   const sys = [
     'You write ONE concise, high-quality English prompt for an ad-creative image model (Flux / Ideogram).',
     'Output the prompt only — no preamble, no quotes.',
