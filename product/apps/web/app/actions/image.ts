@@ -60,7 +60,11 @@ export async function generateImageAction(input: {
     }
     return { images, prompt };
   } catch (e) {
-    return { error: 'Échec de la génération : ' + (e as Error).message };
+    const msg = (e as Error).message || '';
+    if (/image_load_error|Failed to load the image|422/.test(msg) && input.imageUrl) {
+      return { error: "Impossible de charger l'image de départ. L'URL doit pointer vers un fichier image direct (jpg, png, webp) et être public — pas une page produit. Astuce : clic droit sur l'image du produit → « Copier l'adresse de l'image »." };
+    }
+    return { error: 'Échec de la génération : ' + msg };
   }
 }
 
