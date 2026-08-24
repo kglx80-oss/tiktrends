@@ -54,6 +54,7 @@ function Icon({ name }: { name: string }) {
     bulb: 'M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2h6c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z',
     spark: 'M12 2v6M12 16v6M2 12h6M16 12h6M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4',
     film: 'M2 3h20v18H2zM7 3v18M17 3v18M2 8h5M2 16h5M17 8h5M17 16h5',
+    trend: 'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
     store: 'M3 9l1-5h16l1 5M4 9v11h16V9M4 9h16',
     plug: 'M9 2v6M15 2v6M7 8h10v3a5 5 0 0 1-10 0zM12 16v6',
     users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9',
