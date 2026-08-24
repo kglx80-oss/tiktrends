@@ -54,7 +54,20 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
       </PageInfo>
       <StudioClient hasKey={hasKey} prefillProduct={sp.brand} prefillInspiration={sp.inspo} />
 
-      <Link href="/studio/image" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 30, padding: '18px 20px', border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', textDecoration: 'none' }}>
+      <Link href="/studio/ads" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 30, padding: '18px 20px', border: '1px solid var(--accent-strong)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(230,0,126,.08), var(--surface))', textDecoration: 'none' }}>
+        <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>✨</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <b style={{ fontSize: 15, color: 'var(--ink)' }}>Pubs IA</b>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>NOUVEAU</span>
+            {!falConfigured() && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>· à activer</span>}
+          </span>
+          <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-2)', marginTop: 3 }}>Publicités complètes prêtes à poster : concept, scène avec ton produit, accroche, CTA et logo composés (problème/solution, avant/après, témoignage, bénéfices).</span>
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent-strong)', whiteSpace: 'nowrap' }}>Ouvrir ›</span>
+      </Link>
+
+      <Link href="/studio/image" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14, padding: '18px 20px', border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', textDecoration: 'none' }}>
         <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🖼️</span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

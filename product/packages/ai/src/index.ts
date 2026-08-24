@@ -4,5 +4,6 @@ export * from './tagging';
 export * from './radar-reco';
 export * from './agent';
 export * from './generation';
+export * from './ads';
 export * from './brand';
 export * from './chat';

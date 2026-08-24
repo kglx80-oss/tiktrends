@@ -1,0 +1,1 @@
+ALTER TYPE "generation_kind" ADD VALUE 'ad';

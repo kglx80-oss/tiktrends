@@ -75,6 +75,7 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
     prompt: input.prompt,
     image_size: IMAGE_SIZE[input.aspectRatio ?? '1:1'],
     num_images: Math.min(4, Math.max(1, input.count ?? 1)),
+    output_format: 'jpeg', // jpeg = lisible par tous les composants (aperçu + compositeur pub)
   };
   if (input.imageUrl) body.image_url = input.imageUrl;
 
