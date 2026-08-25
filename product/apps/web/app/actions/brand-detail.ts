@@ -10,6 +10,7 @@ import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
+import { extractBrandDA } from '../../lib/brand-da';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -172,6 +173,27 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
 }
 
 const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Récupère la DA (logo, couleurs, polices) depuis le site et complète les champs vides. */
+export async function importBrandDAAction(input: { brandId: string }): Promise<{ logoUrl?: string | null; colors?: string[]; fonts?: string[]; error?: string }> {
+  const g = await guardBrand(input.brandId);
+  if (!g || !db) return { error: 'Accès refusé.' };
+  const [b] = await db.select({ url: schema.brands.url, shopifyDomain: schema.brands.shopifyDomain, logoUrl: schema.brands.logoUrl, colors: schema.brands.colors, fonts: schema.brands.fonts })
+    .from(schema.brands).where(eq(schema.brands.id, input.brandId)).limit(1);
+  if (!b) return { error: 'Marque introuvable.' };
+
+  const site = b.url || (b.shopifyDomain ? `https://${b.shopifyDomain}` : '');
+  if (!site) return { error: "Renseigne le site de la marque (ou connecte Shopify) pour récupérer la DA." };
+
+  const da = await extractBrandDA(site);
+  if (!da.logoUrl && !da.colors.length && !da.fonts.length) return { error: "Aucun élément de DA détecté sur le site. Tu peux renseigner logo/couleurs/polices manuellement." };
+
+  const logoUrl = b.logoUrl || da.logoUrl || null;
+  const colors = (b.colors && b.colors.length) ? b.colors : da.colors;
+  const fonts = (b.fonts && b.fonts.length) ? b.fonts : da.fonts;
+  await db.update(schema.brands).set({ logoUrl, colors, fonts }).where(eq(schema.brands.id, input.brandId));
+  return { logoUrl, colors, fonts };
+}
 
 /** Connecte / synchronise la boutique Shopify : importe produits + images + prix depuis le catalogue public. */
 export async function syncShopifyProductsAction(input: { brandId: string; domain?: string }): Promise<{ imported?: number; updated?: number; total?: number; error?: string }> {
