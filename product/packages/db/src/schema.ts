@@ -82,6 +82,7 @@ export const products = pgTable('products', {
   price: doublePrecision('price'),
   url: text('url'),
   imageUrl: text('image_url'),
+  imageUrls: text('image_urls').array(),
 });
 
 export const personas = pgTable('personas', {

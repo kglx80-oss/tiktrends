@@ -144,8 +144,31 @@ export async function setProductImageAction(input: { productId: string; dataUri?
     if (uri.length > 6_000_000) return { error: 'Image trop lourde. Réduis la taille (max ~4 Mo).' };
   }
   const imageUrl = uri || null;
-  await db.update(schema.products).set({ imageUrl }).where(eq(schema.products.id, input.productId));
+  await db.update(schema.products).set({ imageUrl, imageUrls: imageUrl ? [imageUrl] : null }).where(eq(schema.products.id, input.productId));
   return { ok: true, imageUrl };
+}
+
+/** Enregistre plusieurs photos de référence produit (glisser-déposer). La 1re sert d'aperçu. */
+export async function setProductImagesAction(input: { productId: string; dataUris: string[]; append?: boolean }): Promise<{ ok?: true; imageUrls?: string[]; imageUrl?: string | null; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+
+  const [p] = await db.select({ id: schema.products.id, imageUrls: schema.products.imageUrls }).from(schema.products)
+    .where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
+  if (!p) return { error: 'Produit introuvable.' };
+
+  const clean = (input.dataUris || []).map((u) => u.trim()).filter(Boolean);
+  for (const u of clean) {
+    if (!/^data:image\/(png|jpe?g|webp);base64,/.test(u)) return { error: 'Formats acceptés : jpg, png, webp.' };
+    if (u.length > 6_000_000) return { error: 'Une image est trop lourde (max ~4 Mo chacune).' };
+  }
+  const base = input.append ? (p.imageUrls ?? []) : [];
+  const imageUrls = [...base, ...clean].slice(0, 6);
+  const imageUrl = imageUrls[0] ?? null;
+  await db.update(schema.products).set({ imageUrl, imageUrls: imageUrls.length ? imageUrls : null }).where(eq(schema.products.id, input.productId));
+  return { ok: true, imageUrls, imageUrl };
 }
 
 /** Récupère automatiquement la photo du produit depuis sa fiche (og:image), et l'enregistre. */

@@ -62,7 +62,7 @@ async function refFromUrl(url: string): Promise<CloneRefImage | null> {
 /** Compose une série : scènes (univers variés) + enregistrement + débit. Mutualisé par génération et clone. */
 async function composeBatch(o: {
   cfg: FalConfig; brandId: string; brandName: string; colors?: string[] | null; logoUrl?: string | null;
-  productImageUrl: string | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
+  productImageUrls: string[] | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
   workspaceId: string; unlimited: boolean; credits: number; reason: string;
   productId?: string; personaId?: string; objective?: string;
 }): Promise<AdItem[]> {
@@ -75,7 +75,7 @@ async function composeBatch(o: {
     try {
       const { images } = await falGenerateImage(o.cfg, {
         prompt: scenePrompt(c, o.editMode, universeFor(i)), aspectRatio: '4:5',
-        imageUrl: o.editMode ? o.productImageUrl! : undefined, edit: o.editMode, count: 1,
+        imageUrls: o.editMode ? (o.productImageUrls ?? undefined) : undefined, edit: o.editMode, count: 1,
       });
       return images[0] || null;
     } catch { return null; }
@@ -155,9 +155,9 @@ export async function generateAdsAction(input: {
     audience: schema.brands.audience, category: schema.brands.category, logoUrl: schema.brands.logoUrl,
   }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
 
-  let product: { name: string; description: string | null; usp: string | null; imageUrl: string | null } | null = null;
+  let product: { name: string; description: string | null; usp: string | null; imageUrl: string | null; imageUrls: string[] | null } | null = null;
   if (input.productId) {
-    const [p] = await db.select({ name: schema.products.name, description: schema.products.description, usp: schema.products.usp, imageUrl: schema.products.imageUrl })
+    const [p] = await db.select({ name: schema.products.name, description: schema.products.description, usp: schema.products.usp, imageUrl: schema.products.imageUrl, imageUrls: schema.products.imageUrls })
       .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
     if (p) product = p;
   }
@@ -168,7 +168,8 @@ export async function generateAdsAction(input: {
     if (p) persona = p;
   }
 
-  const editMode = !!product?.imageUrl;
+  const productImageUrls = product ? (product.imageUrls && product.imageUrls.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : null)) : null;
+  const editMode = !!(productImageUrls && productImageUrls.length);
 
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
@@ -188,7 +189,7 @@ export async function generateAdsAction(input: {
 
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
-    productImageUrl: product?.imageUrl ?? null, editMode, concepts, universe: input.universe,
+    productImageUrls, editMode, concepts, universe: input.universe,
     workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · pubs IA',
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
@@ -232,9 +233,9 @@ async function loadAdContext(brandId: string, productId?: string, personaId?: st
     audience: schema.brands.audience, category: schema.brands.category, logoUrl: schema.brands.logoUrl,
   }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
 
-  let product: { name: string; description: string | null; usp: string | null; imageUrl: string | null } | null = null;
+  let product: { name: string; description: string | null; usp: string | null; imageUrl: string | null; imageUrls: string[] | null } | null = null;
   if (productId) {
-    const [p] = await db!.select({ name: schema.products.name, description: schema.products.description, usp: schema.products.usp, imageUrl: schema.products.imageUrl })
+    const [p] = await db!.select({ name: schema.products.name, description: schema.products.description, usp: schema.products.usp, imageUrl: schema.products.imageUrl, imageUrls: schema.products.imageUrls })
       .from(schema.products).where(and(eq(schema.products.id, productId), eq(schema.products.brandId, brandId))).limit(1);
     if (p) product = p;
   }
@@ -305,7 +306,8 @@ export async function cloneAdAction(input: {
   if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${count} pub(s)).` };
 
   const { da, product, persona } = await loadAdContext(brand.id, input.productId, input.personaId);
-  const editMode = !!product?.imageUrl;
+  const productImageUrls = product ? (product.imageUrls && product.imageUrls.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : null)) : null;
+  const editMode = !!(productImageUrls && productImageUrls.length);
   const ctx = {
     brand: brand.name, tone: da?.tone ?? undefined, colors: da?.colors ?? undefined, usp: da?.usp ?? undefined,
     audience: da?.audience ?? undefined, category: da?.category ?? undefined,
@@ -333,7 +335,7 @@ export async function cloneAdAction(input: {
 
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
-    productImageUrl: product?.imageUrl ?? null, editMode, concepts, universe: input.universe,
+    productImageUrls, editMode, concepts, universe: input.universe,
     workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · clone de pub',
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });

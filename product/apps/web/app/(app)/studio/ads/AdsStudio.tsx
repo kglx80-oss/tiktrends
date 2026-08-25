@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, type AdItem, type SavedAdRef } from '../../../actions/ads';
-import { setProductImageAction, importProductImageAction, importAllProductImagesAction } from '../../../actions/image';
+import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -60,9 +60,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [prods, setProds] = useState(products);
   // S'il n'y a qu'un seul produit, on le sélectionne d'office (évite le piège « Aucun »).
   const [productId, setProductId] = useState(products.length === 1 ? products[0]!.id : '');
-  const [prodThumb, setProdThumb] = useState('');
+  const [prodThumbs, setProdThumbs] = useState<string[]>([]);
   const [prodMsg, setProdMsg] = useState('');
   const [prodBusy, setProdBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMsg, setBulkMsg] = useState('');
   const [bulkOk, setBulkOk] = useState(true);
@@ -108,28 +109,24 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     setProds((list) => list.map((p) => (p.id === productId ? { ...p, hasImage: true } : p)));
   }
 
-  async function onProductFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !productId) return;
-    setError(''); setProdMsg('');
-    if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) { setError('Formats acceptés : jpg, png, webp.'); return; }
-    setProdBusy(true);
+  async function addProductFiles(files: File[]) {
+    if (!productId) { setError('Sélectionne d\'abord un produit ci-dessus.'); return; }
+    const imgs = files.filter((f) => /^image\/(png|jpe?g|webp)$/.test(f.type)).slice(0, 6);
+    if (!imgs.length) { setError('Formats acceptés : jpg, png, webp.'); return; }
+    setError(''); setProdMsg(''); setProdBusy(true);
     try {
-      const uri = await fileToDataUri(file, 1280);
-      const r = await setProductImageAction({ productId, dataUri: uri });
+      const uris = await Promise.all(imgs.map((f) => fileToDataUri(f, 1280)));
+      const r = await setProductImagesAction({ productId, dataUris: uris, append: true });
       if (r.error) setError(r.error);
-      else { setProdThumb(uri); markHasImage(); setProdMsg('Photo produit enregistrée. Elle sera utilisée dans les pubs.'); }
+      else { setProdThumbs(r.imageUrls ?? uris); markHasImage(); setProdMsg(`${(r.imageUrls ?? uris).length} photo(s) produit enregistrée(s). Elles serviront de référence.`); }
     } catch (err) { setError((err as Error).message); }
     setProdBusy(false);
   }
 
-  async function importFromPage() {
-    if (!productId || prodBusy) return;
-    setError(''); setProdMsg(''); setProdBusy(true);
-    const r = await importProductImageAction({ productId });
-    if (r.error) setError(r.error);
-    else if (r.imageUrl) { setProdThumb(r.imageUrl); markHasImage(); setProdMsg('Photo récupérée depuis la fiche produit.'); }
-    setProdBusy(false);
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault(); setDragOver(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length) void addProductFiles(files);
   }
 
   async function importAll() {
@@ -214,7 +211,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
           <div style={{ flex: '1 1 220px' }}>
             <label style={lbl}>Produit</label>
-            <select value={productId} onChange={(e) => { setProductId(e.target.value); setProdThumb(''); setProdMsg(''); }} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
+            <select value={productId} onChange={(e) => { setProductId(e.target.value); setProdThumbs([]); setProdMsg(''); }} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
               <option value="">· Aucun (générique)</option>
               {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · 📷' : ''}</option>)}
             </select>
@@ -247,21 +244,34 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         )}
 
         {productId && (
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, padding: 14, borderRadius: 14, border: `1px solid ${selected?.hasImage ? 'rgba(120,220,150,.4)' : 'rgba(245,166,35,.4)'}`, background: selected?.hasImage ? 'rgba(120,220,150,.07)' : 'rgba(245,166,35,.07)' }}>
-            {prodThumb ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={prodThumb} alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--line-2)', flexShrink: 0 }} />
+          <div
+            onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            onClick={() => prodImgInput.current?.click()}
+            style={{
+              display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, padding: 14, borderRadius: 14, cursor: 'pointer',
+              border: `1.5px dashed ${dragOver ? 'var(--accent-strong)' : selected?.hasImage ? 'rgba(120,220,150,.5)' : 'rgba(245,166,35,.5)'}`,
+              background: dragOver ? 'var(--accent-soft)' : selected?.hasImage ? 'rgba(120,220,150,.07)' : 'rgba(245,166,35,.07)',
+            }}
+          >
+            <input ref={prodImgInput} type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(e) => { const fs = Array.from(e.target.files || []); if (fs.length) void addProductFiles(fs); e.currentTarget.value = ''; }} disabled={!ready || prodBusy} style={{ display: 'none' }} />
+            {prodThumbs.length > 0 ? (
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                {prodThumbs.slice(0, 4).map((u, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={u} alt="" style={{ width: 56, height: 56, borderRadius: 9, objectFit: 'cover', border: '1px solid var(--line-2)' }} />
+                ))}
+              </div>
             ) : (
-              <div style={{ width: 64, height: 64, borderRadius: 10, border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>{selected?.hasImage ? '📷' : '📦'}</div>
+              <div style={{ width: 64, height: 64, borderRadius: 10, border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>{selected?.hasImage ? '📷' : '📥'}</div>
             )}
             <div style={{ flex: '1 1 240px', minWidth: 220 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                {selected?.hasImage ? 'Photo produit prête ✓ · ton vrai packaging sera utilisé' : 'Ajoute la photo de ton produit pour un rendu fidèle'}
+                {selected?.hasImage || prodThumbs.length ? 'Photo(s) produit prête(s) ✓ · ton vrai packaging sera utilisé' : 'Glisse-dépose une ou plusieurs photos de ton produit'}
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-                <input ref={prodImgInput} type="file" accept="image/png,image/jpeg,image/webp" onChange={onProductFile} disabled={!ready || prodBusy} style={{ display: 'none' }} />
-                <button type="button" onClick={() => prodImgInput.current?.click()} disabled={!ready || prodBusy} style={miniBtn}>⬆ {selected?.hasImage ? 'Remplacer' : 'Importer une photo'}</button>
-                <button type="button" onClick={importFromPage} disabled={!ready || prodBusy} style={miniBtn}>🔗 Récupérer depuis la fiche produit</button>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>
+                Glisser-déposer ici, ou clique pour choisir. Plusieurs angles = meilleure fidélité (jpg, png, webp).
               </div>
               {prodBusy && <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--muted)' }}>Traitement…</div>}
               {prodMsg && <div style={{ marginTop: 6, fontSize: 11.5, color: '#9fe6b3' }}>{prodMsg}</div>}
