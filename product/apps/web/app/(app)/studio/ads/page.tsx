@@ -39,14 +39,19 @@ export default async function AdsStudioPage() {
   const [ads, savedRefs] = await Promise.all([listBrandAds(), listSavedAdRefs()]);
   let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
   let personas: Array<{ id: string; name: string }> = [];
+  let edenRules = '';
   if (db && brand) {
-    const [prows, perows] = await Promise.all([
+    const [prows, perows, brow] = await Promise.all([
       db.select({ id: schema.products.id, name: schema.products.name, imageUrl: schema.products.imageUrl }).from(schema.products).where(eq(schema.products.brandId, brand.id)),
       db.select({ id: schema.personas.id, name: schema.personas.name }).from(schema.personas).where(eq(schema.personas.brandId, brand.id)),
+      db.select({ r: schema.brands.creativeRules }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1),
     ]);
     products = prows.map((p) => ({ id: p.id, name: p.name, hasImage: !!p.imageUrl }));
     personas = perows;
+    edenRules = (brow[0]?.r ?? '').trim();
   }
+  // Nombre de « règles » (lignes non vides) pour l'indicateur EDEN.
+  const edenCount = edenRules ? edenRules.split('\n').map((l) => l.trim()).filter(Boolean).length : 0;
 
   return (
     <main style={wrap}>
@@ -64,6 +69,22 @@ export default async function AdsStudioPage() {
         <b> Cloner une pub gagnante</b> : choisis une pub de ta <b>Veille</b> (ou importe une capture), l'IA en reprend
         l'angle + la structure et te sort plusieurs variations sur ta marque et ton produit. 4 crédits par pub.
       </PageInfo>
+
+      {/* Indicateur EDEN : rappelle que les règles maison cadrent chaque génération. */}
+      {brand && (
+        <Link href="/eden" style={{ display: 'flex', alignItems: 'center', gap: 11, textDecoration: 'none', marginBottom: 16, padding: '11px 15px', borderRadius: 14, border: `1px solid ${edenCount ? 'rgba(120,220,150,.4)' : 'var(--line-2)'}`, background: edenCount ? 'linear-gradient(180deg, rgba(120,220,150,.08), var(--surface))' : 'var(--surface)' }}>
+          <span style={{ fontSize: 17 }}>🌿</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>
+              {edenCount ? `EDEN actif · ${edenCount} règle${edenCount > 1 ? 's' : ''} maison appliquée${edenCount > 1 ? 's' : ''}` : 'EDEN · aucune règle maison définie'}
+            </span>
+            <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>
+              {edenCount ? 'Tes consignes sont imposées en priorité sur chaque pub générée.' : 'Pose tes consignes maison pour cadrer le style, le ton et les interdits.'}
+            </span>
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: edenCount ? '#7ee8bf' : 'var(--accent-strong)', whiteSpace: 'nowrap' }}>{edenCount ? 'Gérer ›' : 'Configurer ›'}</span>
+        </Link>
+      )}
 
       <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} />
     </main>
