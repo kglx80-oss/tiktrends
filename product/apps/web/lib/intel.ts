@@ -82,6 +82,45 @@ export const COMPETITORS: Competitor[] = [
   },
 ];
 
+/* ============ Matrice comparative & plan « faire mieux » ============ */
+export type Cap = 'yes' | 'partial' | 'no';
+export interface CapabilityRow {
+  capability: string;
+  us: Cap; atria: Cap; foreplay: Cap; higgsfield: Cap;
+  note?: string;
+}
+
+/** Capacités clés × concurrents (estimations · à réévaluer régulièrement). */
+export const CAPABILITIES: CapabilityRow[] = [
+  { capability: 'Règles maison éditables (Jarvis)', us: 'yes', atria: 'no', foreplay: 'no', higgsfield: 'no', note: 'Notre différenciateur : une couche de gouvernance créative propre.' },
+  { capability: 'Contexte de marque profond', us: 'yes', atria: 'yes', foreplay: 'partial', higgsfield: 'no' },
+  { capability: 'Génération image produit fidèle', us: 'yes', atria: 'yes', foreplay: 'no', higgsfield: 'partial' },
+  { capability: 'Génération vidéo', us: 'yes', atria: 'partial', foreplay: 'no', higgsfield: 'yes', note: 'Higgsfield est la référence motion · on doit s’en rapprocher.' },
+  { capability: 'Veille publicitaire (ad libraries)', us: 'partial', atria: 'yes', foreplay: 'yes', higgsfield: 'no', note: 'Foreplay est la référence · à brancher en temps réel.' },
+  { capability: 'Tracking concurrents automatique', us: 'partial', atria: 'yes', foreplay: 'yes', higgsfield: 'no' },
+  { capability: 'Bibliothèque d’assets + tagging IA', us: 'yes', atria: 'yes', foreplay: 'yes', higgsfield: 'partial' },
+  { capability: 'Multi-marques / white-label agence', us: 'yes', atria: 'partial', foreplay: 'partial', higgsfield: 'no' },
+  { capability: 'TikTok-first', us: 'yes', atria: 'partial', foreplay: 'yes', higgsfield: 'yes' },
+  { capability: 'Prix accessible', us: 'yes', atria: 'no', foreplay: 'yes', higgsfield: 'yes' },
+  { capability: 'Analyse de perf sur vraies données', us: 'partial', atria: 'yes', foreplay: 'partial', higgsfield: 'no' },
+];
+
+/** Où l'on doit faire mieux (priorisé). */
+export const GAPS: Array<{ priority: 'haute' | 'moyenne'; title: string; detail: string; vs: string }> = [
+  { priority: 'haute', title: 'Veille pub temps réel', detail: 'Brancher les bibliothèques Meta/TikTok pour une veille et une inspiration live, pas seulement des sauvegardes.', vs: 'Foreplay, Atria' },
+  { priority: 'haute', title: 'Qualité & variété vidéo', detail: 'Monter au niveau motion/UGC : avatars, contrôles caméra, presets cinématographiques.', vs: 'Higgsfield' },
+  { priority: 'moyenne', title: 'Tracking concurrents automatique', detail: 'Surveillance continue des marques suivies (nouvelles pubs, scaling) avec alertes.', vs: 'Foreplay (Spyder)' },
+  { priority: 'moyenne', title: 'Analyse de performance', detail: 'Connexions Meta/TikTok Ads pour juger les créas sur les vrais KPI, pas des estimations.', vs: 'Atria' },
+];
+
+/** Nos avantages à presser (déjà en place). */
+export const ADVANTAGES: string[] = [
+  'Jarvis : une couche de règles maison éditable, unique sur le marché.',
+  'Chaîne complète gouvernée : veille → concept → scène produit fidèle → design → vidéo.',
+  'Produit réel fidèle dans les créas (Nano Banana 2), pas des visuels génériques.',
+  'White-label agence + prix accessible face à des outils premium ou fragmentés.',
+];
+
 /** Notre pile IA maison, expliquée (orchestration + règles Jarvis par-dessus les modèles). */
 export const AI_STACK: Array<{ layer: string; role: string; engines: string }> = [
   { layer: 'Veille & inspiration', role: 'Repérer les mécaniques qui performent (concurrents, ad libraries, sauvegardes).', engines: 'Bibliothèques d’ads + analyse Claude' },
