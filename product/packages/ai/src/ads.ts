@@ -25,6 +25,57 @@ export interface AdConceptCtx {
   hasProductPhoto?: boolean;      // vraie photo produit dispo -> scène « edit »
   persona?: { name?: string; pains?: string[]; desires?: string[] };
   objective?: string;             // ex : « ventes », « notoriété », « trafic »
+  angle?: string;                 // angle précis à décliner (itération ciblée)
+}
+
+export interface AdAngle { title: string; rationale: string; template?: AdTemplate }
+
+const ANGLES_TOOL = {
+  name: 'return_angles',
+  description: "Renvoie des angles publicitaires précis et actionnables, inspirés de ce qui fonctionne.",
+  input_schema: {
+    type: 'object',
+    properties: {
+      angles: {
+        type: 'array',
+        description: '5 à 6 angles distincts, du plus prometteur au moins prometteur.',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: "Angle court et concret (FR), ex : « Focus sans caféine ni crash »." },
+            rationale: { type: 'string', description: 'Pourquoi cet angle marche pour cette cible (1 phrase).' },
+            template: { type: 'string', enum: AD_TEMPLATES, description: 'Gabarit le plus adapté à cet angle.' },
+          },
+          required: ['title', 'rationale'],
+        },
+      },
+    },
+    required: ['angles'],
+  },
+} as const;
+
+/** Propose des angles pub précis, en s'appuyant sur la marque + ce qui fonctionne (veille/concurrents). */
+export async function suggestAdAngles(client: Anthropic, ctx: AdConceptCtx, sources: { winningCopy?: string[]; competitors?: string[] }): Promise<AdAngle[]> {
+  const sys = [
+    "Tu es stratège créatif TikTok-first. Tu proposes des ANGLES publicitaires précis (pas des slogans), prêts à décliner.",
+    "Appuie-toi sur ce qui fonctionne (pubs gagnantes fournies, concurrents) et sur la marque/persona, mais n'invente pas de fausses promesses.",
+    "Des angles VARIÉS : douleur, bénéfice, preuve sociale, comparaison, usage/routine, objection levée.",
+    "Rends via l'outil return_angles.",
+  ].join(' ');
+  const info = [
+    ctxLines(ctx),
+    sources.competitors?.length ? `Concurrents : ${sources.competitors.slice(0, 12).join(', ')}.` : '',
+    sources.winningCopy?.length ? `Extraits de pubs qui fonctionnent (inspiration, ne pas copier) :\n- ${sources.winningCopy.slice(0, 12).map((c) => c.slice(0, 200)).join('\n- ')}` : '',
+    'Propose 5 à 6 angles précis à décliner.',
+  ].filter(Boolean).join('\n');
+  const res = await client.messages.create({
+    model: GEN_MODEL, max_tokens: 1200, system: sys,
+    tools: [ANGLES_TOOL as unknown as Anthropic.Tool],
+    tool_choice: { type: 'tool', name: 'return_angles' },
+    messages: [{ role: 'user', content: info }],
+  });
+  const tool = res.content.find((c) => c.type === 'tool_use') as { input?: { angles?: AdAngle[] } } | undefined;
+  return (tool?.input?.angles ?? []).filter((a) => a?.title);
 }
 
 const AD_TOOL = {
@@ -71,6 +122,7 @@ function ctxLines(ctx: AdConceptCtx): string {
     ctx.audience ? `Cible : ${ctx.audience}.` : '',
     p?.name ? `Persona : ${p.name}${p.pains?.length ? ` — douleurs : ${p.pains.slice(0, 4).join(', ')}` : ''}${p.desires?.length ? ` ; désirs : ${p.desires.slice(0, 4).join(', ')}` : ''}.` : '',
     ctx.objective ? `Objectif : ${ctx.objective}.` : '',
+    ctx.angle ? `Angle imposé (à décliner sous plusieurs exécutions) : ${ctx.angle}.` : '',
     ctx.hasProductPhoto
       ? "Une VRAIE photo du produit sera fournie au modèle image : les briefs de scène doivent mettre ce produit en situation (le décrire comme « the product »), sans le réinventer."
       : "Pas de photo produit : décris le produit dans la scène de façon générique mais crédible.",
@@ -119,7 +171,9 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
   const sys = [
     "Tu es directeur créatif d'une agence pub TikTok-first (style Atria).",
     "Tu écris en français, natif de la plateforme, orienté performance : accroches courtes qui claquent, CTA clairs.",
-    "Pour CHAQUE gabarit demandé, produis UN concept complet et distinct, cohérent avec la marque et le persona.",
+    ctx.angle
+      ? "Toutes les exécutions doivent servir le MÊME angle imposé, mais avec des exécutions VISUELLEMENT et rédactionnellement DISTINCTES (accroches, scènes, compositions différentes)."
+      : "Pour CHAQUE gabarit demandé, produis UN concept complet et distinct, cohérent avec la marque et le persona.",
     "Le sceneBrief est en anglais, décrit uniquement l'image (décor, sujet, cadrage, lumière), SANS aucun texte à incruster.",
     "problem_solution : accroche sur la douleur, scène qui montre le soulagement/produit.",
     "before_after : le sceneBrief doit décrire un split visuel gauche/droite AVANT (problème) vs APRÈS (résultat), badge « AVANT / APRÈS ».",

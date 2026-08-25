@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { generateAdsAction, cloneAdAction, type AdItem } from '../../../actions/ads';
+import { useRef, useState, useTransition } from 'react';
+import { generateAdsAction, cloneAdAction, suggestAnglesAction, type AdItem } from '../../../actions/ads';
 import { setProductImageAction, importProductImageAction, importAllProductImagesAction } from '../../../actions/image';
-import type { AdTemplate } from '@tiktrends/ai';
+import type { AdTemplate, AdAngle } from '@tiktrends/ai';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
@@ -58,6 +58,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [personaId, setPersonaId] = useState('');
   const [objective, setObjective] = useState('Ventes');
   const [templates, setTemplates] = useState<AdTemplate[]>(['problem_solution', 'before_after', 'testimonial', 'benefits']);
+  const [angle, setAngle] = useState('');
+  const [angles, setAngles] = useState<AdAngle[]>([]);
+  const [anglesBusy, startAngles] = useTransition();
   const [refUri, setRefUri] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -69,6 +72,16 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
   function toggle(t: AdTemplate) {
     setTemplates((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t]));
+  }
+
+  function proposeAngles() {
+    if (anglesBusy) return;
+    setError('');
+    startAngles(async () => {
+      const r = await suggestAnglesAction({ productId: productId || undefined });
+      if (r.error) setError(r.error);
+      else setAngles(r.angles ?? []);
+    });
   }
 
   function markHasImage() {
@@ -135,7 +148,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     }
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
@@ -227,9 +240,33 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </div>
         )}
 
+        {mode === 'brand' && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <label style={{ ...lbl, marginBottom: 0 }}>Angle <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— l'itération porte sur cet angle précis</span></label>
+              <button type="button" onClick={proposeAngles} disabled={!ready || anglesBusy} style={{
+                fontSize: 11.5, fontWeight: 800, padding: '4px 10px', borderRadius: 999, cursor: ready && !anglesBusy ? 'pointer' : 'default',
+                border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--accent-strong)', opacity: ready ? 1 : .55,
+              }}>✦ {anglesBusy ? 'Analyse veille…' : 'Proposer des angles'}</button>
+            </div>
+            <input value={angle} onChange={(e) => setAngle(e.target.value)} disabled={!ready} placeholder="Ex : Focus sans caféine ni crash — pour créateurs en surrégime" style={{ ...fld, padding: '10px 12px' }} />
+            {angles.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                {angles.map((a, i) => (
+                  <button key={i} type="button" onClick={() => setAngle(a.title)} title={a.rationale} style={{
+                    fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', maxWidth: 300,
+                    border: `1px solid ${angle === a.title ? 'transparent' : 'var(--line-2)'}`,
+                    background: angle === a.title ? 'var(--grad-accent)' : 'transparent', color: angle === a.title ? '#0d070c' : 'var(--ink-2)',
+                  }}>{a.title}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {mode === 'brand' ? (
           <>
-            <label style={lbl}>Gabarits</label>
+            <label style={lbl}>Gabarits <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— exécutions autorisées pour décliner l'angle</span></label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
               {TEMPLATES.map((t) => {
                 const on = templates.includes(t.key);
