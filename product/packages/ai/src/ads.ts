@@ -239,10 +239,12 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
       ? "On te fournit des accroches de PUBS QUI FONCTIONNENT (concurrents / veille) : analyse leurs MÉCANIQUES (type d'accroche, angle, déclencheur émotionnel, structure) et réutilise ces mécaniques gagnantes pour NOTRE produit. Ne recopie jamais les mots : transpose la mécanique."
       : "",
     ctx.angle
-      ? "Toutes les exécutions servent le MÊME angle imposé, mais avec des accroches et des scènes NETTEMENT différentes."
+      ? "Toutes les exécutions déclinent la MÊME pub gagnante : on garde l'angle et la structure de la référence, mais on varie l'accroche, le sujet et le décor d'une variation à l'autre. Les variations restent proches de la référence."
       : "Pour chaque gabarit, un concept distinct, cohérent marque + persona.",
-    "DIVERSITÉ OBLIGATOIRE entre les concepts : accroches TOUTES différentes (aucune répétition ni reformulation), angles différents, et surtout DÉCORS/SUJETS différents. NE répète JAMAIS le même personnage, lieu ou situation d'un concept à l'autre. Varie les personnes (âge, genre, métier), les lieux (bureau lumineux, cuisine, extérieur ville, salle de sport, salon, café, plein air…), les moments et les cadrages. Interdit de sortir deux fois la même scène 'personne fatiguée au bureau'.",
-    "Le sceneBrief est en anglais, décrit uniquement l'image (décor, sujet, cadrage, lumière), SANS aucun texte à incruster. Chaque sceneBrief doit poser un décor CONCRET et DIFFÉRENT des autres.",
+    ctx.angle
+      ? ""
+      : "DIVERSITÉ OBLIGATOIRE entre les concepts : accroches TOUTES différentes (aucune répétition ni reformulation), angles différents, et surtout DÉCORS/SUJETS différents. NE répète JAMAIS le même personnage, lieu ou situation d'un concept à l'autre. Varie les personnes (âge, genre, métier), les lieux (bureau lumineux, cuisine, extérieur ville, salle de sport, salon, café, plein air…), les moments et les cadrages. Interdit de sortir deux fois la même scène 'personne fatiguée au bureau'.",
+    "Le sceneBrief est en anglais, décrit uniquement l'image (décor, sujet, cadrage, lumière), SANS aucun texte à incruster.",
     "problem_solution : accroche sur la douleur réelle du persona, scène qui montre le soulagement/produit.",
     "before_after : sceneBrief = split visuel gauche/droite AVANT (problème) vs APRÈS (résultat), badge « AVANT / APRÈS ».",
     "testimonial : quote client crédible et SPÉCIFIQUE (détail concret) + author + rating 5 ; scène d'une personne satisfaite avec le produit.",
@@ -251,8 +253,9 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
     "stat : un chiffre-clé fort et crédible (stat) + son libellé (statLabel) + headline ; scène produit épurée.",
     "offer : promo/offre CONCRÈTE dans le badge + headline à urgence + CTA ; scène produit désirable.",
     ctx.offer?.trim()
-      ? `OFFRE À METTRE EN AVANT : « ${ctx.offer.trim().slice(0, 60)} ». Le gabarit 'offer' DOIT afficher cette offre TELLE QUELLE dans le champ badge, et l'accroche doit créer l'urgence autour d'elle. Si plusieurs gabarits conviennent, intègre l'offre aussi dans un badge secondaire quand c'est pertinent.`
-      : "Pour le gabarit 'offer', invente une promo crédible et concrète (ex « -20% », « 2+1 offert », « -15€ ») dans le badge · jamais de badge vide ou vague.",
+      ? `OFFRE À METTRE EN AVANT : « ${ctx.offer.trim().slice(0, 60)} ». Le gabarit 'offer' DOIT afficher la VALEUR de l'offre dans le champ badge, mais le badge doit rester TRÈS COURT (12 caractères max, juste la valeur : ex « -20% », « 2+1 offert », « -15€ »). Les mots d'urgence (« aujourd'hui », « stock limité »…) vont dans le kicker ou l'accroche, JAMAIS dans le badge.`
+      : "Pour le gabarit 'offer', mets une promo concrète et TRÈS COURTE dans le badge (12 caractères max : ex « -20% », « 2+1 offert », « -15€ ») · jamais de badge vide, vague ou long. L'urgence va dans le kicker/accroche.",
+    "Le champ 'badge' est TOUJOURS court (une pastille) : 14 caractères max, jamais de phrase.",
     ctx.winningPatterns?.trim()
       ? `INTELLIGENCE CRÉATIVE JARVIS (patterns gagnants observés sur des pubs qui performent dans cette niche · applique-les pour maximiser la performance, sans plagier) : ${ctx.winningPatterns.trim().slice(0, 1400)}`
       : "",
@@ -276,7 +279,9 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
   });
   const tool = res.content.find((c) => c.type === 'tool_use') as { input?: { concepts?: AdConcept[] } } | undefined;
   const concepts = (tool?.input?.concepts ?? []).filter((c) => c?.headline && c?.sceneBrief);
-  // Dédoublonnage : on écarte les concepts dont l'accroche est identique (variété garantie).
+  // Dédoublonnage par accroche UNIQUEMENT en mode « depuis la marque » (variété).
+  // En mode angle imposé (clone / itération), on décline la même pub : on garde les N variations.
+  if (ctx.angle) return concepts.slice(0, templates.length);
   const norm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const seen = new Set<string>();
   const unique = concepts.filter((c) => { const k = norm(c.headline); if (seen.has(k)) return false; seen.add(k); return true; });
