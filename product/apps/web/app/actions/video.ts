@@ -14,7 +14,7 @@ function videoReady(): boolean { return !!falFromEnv() || !!higgsfieldFromEnv();
 
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
-export interface BrandVideo { id: string; prompt: string; mode: string; status: string; jobId: string | null; videoUrl: string | null; createdAt: string }
+export interface BrandVideo { id: string; prompt: string; mode: string; status: string; jobId: string | null; videoUrl: string | null; error?: string; createdAt: string }
 
 async function debitAndRecord(
   workspaceId: string, brandId: string | null, cost: number,
@@ -115,10 +115,11 @@ export async function listBrandVideos(): Promise<BrandVideo[]> {
     .orderBy(desc(schema.generations.createdAt)).limit(24);
   return rows.map((g) => {
     const input = (g.input ?? {}) as { prompt?: string; mode?: string };
+    const output = (g.output ?? {}) as { error?: string };
     return {
       id: g.id, prompt: input.prompt || '(sans description)', mode: input.mode || 't2v',
       status: g.status || 'processing', jobId: g.jobId, videoUrl: (g.assetUrls && g.assetUrls[0]) || null,
-      createdAt: (g.createdAt as Date).toISOString(),
+      error: output.error, createdAt: (g.createdAt as Date).toISOString(),
     };
   });
 }
@@ -148,8 +149,9 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
         const [g] = await db.select({ createdAt: schema.generations.createdAt }).from(schema.generations).where(eq(schema.generations.id, generationId)).limit(1);
         const age = g?.createdAt ? Date.now() - new Date(g.createdAt as Date).getTime() : 0;
         if (age > STALE_MS) {
-          await db.update(schema.generations).set({ status: 'failed' }).where(eq(schema.generations.id, generationId));
-          return { status: 'failed', error: 'La génération a pris trop de temps et a été interrompue. Relance-la.' };
+          const error = 'La génération a pris trop de temps et a été interrompue. Relance-la.';
+          await db.update(schema.generations).set({ status: 'failed', output: { error } }).where(eq(schema.generations.id, generationId));
+          return { status: 'failed', error };
         }
       } catch { /* best-effort */ }
     }
@@ -157,7 +159,7 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
     if (db && generationId && (job.status === 'completed' || job.status === 'failed')) {
       try {
         await db.update(schema.generations)
-          .set({ status: job.status, assetUrls: job.videoUrl ? [job.videoUrl] : [] })
+          .set({ status: job.status, assetUrls: job.videoUrl ? [job.videoUrl] : [], output: job.error ? { error: job.error } : {} })
           .where(eq(schema.generations.id, generationId));
       } catch { /* best-effort */ }
     }

@@ -59,7 +59,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   function poll(id: string, jobId: string, tries = 0) {
     const t = setTimeout(async () => {
       const r = await pollVideoAction(jobId, id.startsWith('tmp-') ? undefined : id);
-      setVideos((list) => list.map((v) => v.id === id ? { ...v, status: r.status === 'unknown' ? v.status : r.status, videoUrl: r.videoUrl ?? v.videoUrl } : v));
+      setVideos((list) => list.map((v) => v.id === id ? { ...v, status: r.status === 'unknown' ? v.status : r.status, videoUrl: r.videoUrl ?? v.videoUrl, error: r.error ?? v.error } : v));
       if (r.status === 'completed' || r.status === 'failed') return;
       if (tries > 80) return;
       poll(id, jobId, tries + 1);
@@ -205,6 +205,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                 </div>
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.prompt}</p>
+                  {v.status === 'failed' && v.error && <p style={{ margin: '6px 0 0', fontSize: 11, color: '#ff9db0', lineHeight: 1.4 }}>{v.error}</p>}
                   <div style={{ display: 'flex', gap: 10, marginTop: 8, alignItems: 'center' }}>
                     {v.status === 'completed' && v.videoUrl && <a href={v.videoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>}
                     {pending && v.jobId && <button type="button" onClick={() => recheck(v)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Vérifier</button>}
