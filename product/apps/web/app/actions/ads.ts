@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
-import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, AD_TEMPLATES, type AdTemplate, type AdConcept, type CloneRefImage } from '@tiktrends/ai';
+import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, AD_TEMPLATES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import type { AdRecipe } from '../../lib/ad-render';
@@ -13,16 +13,28 @@ import type { AdRecipe } from '../../lib/ad-render';
 export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string }
 export interface AdsResult { error?: string; ads?: AdItem[] }
 
-/** Choisit une couleur d'accent lisible (bouton/CTA) dans la DA, sinon un bleu par défaut. */
-function pickAccent(colors?: string[] | null): string {
-  const list = (colors ?? []).filter((c) => /^#?[0-9a-fA-F]{6}$/.test(c.trim()));
-  for (const raw of list) {
-    const hex = raw.trim().replace('#', '');
-    const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
-    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; // ni trop sombre ni trop clair
-    if (lum > 0.18 && lum < 0.82) return '#' + hex;
-  }
-  return list[0] ? '#' + list[0].trim().replace('#', '') : '#2563EB';
+/** Ordonne les couleurs d'accent lisibles (bouton/CTA) de la DA ; défaut si aucune. */
+function pickAccents(colors?: string[] | null): string[] {
+  const list = (colors ?? []).filter((c) => /^#?[0-9a-fA-F]{6}$/.test(c.trim())).map((c) => '#' + c.trim().replace('#', ''));
+  const lumOf = (hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  };
+  const vivid = list.filter((h) => { const l = lumOf(h); return l > 0.18 && l < 0.82; });
+  const ordered = [...vivid, ...list.filter((h) => !vivid.includes(h))];
+  return ordered.length ? Array.from(new Set(ordered)) : ['#2563EB'];
+}
+function pickAccent(colors?: string[] | null): string { return pickAccents(colors)[0]!; }
+
+/** Rassemble des extraits de copy de pubs sauvegardées (veille) pour inspirer les angles. */
+function copyFromSnapshot(snap: unknown): string | null {
+  if (!snap || typeof snap !== 'object') return null;
+  const o = snap as Record<string, unknown>;
+  const c = (o.copy && typeof o.copy === 'object' ? o.copy as Record<string, unknown> : {});
+  const parts = [o.primaryText, o.headline, o.title, o.text, o.body, o.description, c.primaryText, c.headline, c.title, c.body]
+    .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+  const t = parts.join(' — ').trim();
+  return t ? t.slice(0, 240) : null;
 }
 
 function scenePrompt(c: AdConcept, editMode: boolean): string {
@@ -37,7 +49,7 @@ function scenePrompt(c: AdConcept, editMode: boolean): string {
 }
 
 export async function generateAdsAction(input: {
-  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[];
+  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -79,9 +91,9 @@ export async function generateAdsAction(input: {
   }
 
   const editMode = !!product?.imageUrl;
-  const accent = pickAccent(da?.colors);
+  const accents = pickAccents(da?.colors);
 
-  // 1) Concepts (Claude) — un par gabarit.
+  // 1) Concepts (Claude) — un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
   try {
     concepts = await generateAdConcepts(client, {
@@ -90,7 +102,7 @@ export async function generateAdsAction(input: {
       productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
       hasProductPhoto: editMode,
       persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
-      objective: input.objective,
+      objective: input.objective, angle: input.angle?.trim() || undefined,
     }, { templates });
   } catch (e) {
     return { error: 'Écriture des concepts impossible : ' + (e as Error).message };
@@ -117,7 +129,7 @@ export async function generateAdsAction(input: {
     const recipe: AdRecipe = {
       template: c.template, sceneUrl, kicker: c.kicker, headline: c.headline, subhead: c.subhead, cta: c.cta,
       badge: c.badge, quote: c.quote, author: c.author, rating: c.rating, benefits: c.benefits,
-      accent, brandName: brand.name, logoUrl: da?.logoUrl ?? null,
+      accent: accents[i % accents.length]!, brandName: brand.name, logoUrl: da?.logoUrl ?? null,
       productId: input.productId, personaId: input.personaId, objective: input.objective,
     };
     try {
@@ -142,6 +154,35 @@ export async function generateAdsAction(input: {
   }
 
   return { ads };
+}
+
+/** Propose des angles précis en s'appuyant sur la marque + les sauvegardes de veille + les concurrents. */
+export async function suggestAnglesAction(input: { productId?: string }): Promise<{ angles?: AdAngle[]; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const client = anthropicFromEnv();
+  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+
+  const { da, product } = await loadAdContext(brand.id, input.productId);
+
+  // Concurrents (DA) + copy des pubs sauvegardées (veille).
+  const [brow] = await db.select({ competitors: schema.brands.competitors }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+  const saved = await db.select({ snapshot: schema.savedAds.snapshot })
+    .from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)).limit(20);
+  const winningCopy = saved.map((r) => copyFromSnapshot(r.snapshot)).filter((x): x is string => !!x);
+
+  try {
+    const angles = await suggestAdAngles(client, {
+      brand: brand.name, tone: da?.tone ?? undefined, colors: da?.colors ?? undefined, usp: da?.usp ?? undefined,
+      audience: da?.audience ?? undefined, category: da?.category ?? undefined,
+      productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
+    }, { winningCopy, competitors: brow?.competitors ?? undefined });
+    return { angles };
+  } catch (e) {
+    return { error: 'Proposition d’angles impossible : ' + (e as Error).message };
+  }
 }
 
 /** Contexte marque + produit + persona (mutualisé par génération et clone). */
