@@ -26,7 +26,7 @@ export interface FalConfig {
 }
 
 export type FalAspect = '9:16' | '1:1' | '16:9' | '4:5';
-export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; withText?: boolean; count?: number; edit?: boolean }
+export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; imageUrls?: string[]; withText?: boolean; count?: number; edit?: boolean }
 export interface FalImageResult { images: string[] }
 
 export function falFromEnv(): FalConfig | null {
@@ -70,8 +70,11 @@ function collectUrls(data: Record<string, unknown>): string[] {
 
 /** Génère une ou plusieurs images. Choisit le modèle selon le besoin (image de départ / texte lisible). */
 export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Promise<FalImageResult> {
+  // Références produit : liste (jusqu'à plusieurs angles) ou image unique.
+  const refs = (input.imageUrls && input.imageUrls.length ? input.imageUrls : (input.imageUrl ? [input.imageUrl] : [])).slice(0, 8);
+  const hasRef = refs.length > 0;
   // Avec une photo produit : édition fidèle (Nano Banana / Kontext) si demandé, sinon i2i classique.
-  const model = input.imageUrl
+  const model = hasRef
     ? (input.edit ? cfg.imageModelEdit : cfg.imageModelI2I)
     : input.withText ? cfg.imageModelText : cfg.imageModel;
   const ratio = input.aspectRatio ?? '1:1';
@@ -80,11 +83,11 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
   if (isNano(model)) {
     // Ratio natif : le modèle calcule la résolution -> pas de déformation.
     body.aspect_ratio = ASPECT_STR[ratio];
-    if (input.imageUrl) body.image_urls = [input.imageUrl];
+    if (hasRef) body.image_urls = refs; // Nano Banana : plusieurs références possibles
   } else {
     body.image_size = IMAGE_SIZE[ratio];
     body.output_format = 'jpeg';
-    if (input.imageUrl) body.image_url = input.imageUrl;
+    if (hasRef) body.image_url = refs[0]; // Flux i2i : une seule image de départ
   }
 
   const res = await fetch(`${cfg.baseUrl}/${model}`, {
