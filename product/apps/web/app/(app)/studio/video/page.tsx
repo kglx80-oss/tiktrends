@@ -4,7 +4,9 @@ import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
-import { listBrandVideos } from '../../../actions/video';
+import { listBrandVideos, listAnimatableAssets } from '../../../actions/video';
+import { anthropicConfigured } from '../../../../lib/ai-status';
+import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { VideoStudioFull } from './VideoStudioFull';
 import { PageInfo } from '../../../../components/PageInfo';
 
@@ -30,25 +32,28 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
   }
 
   const sp = await searchParams;
-  const [brand, videos] = await Promise.all([getActiveBrand(s.workspaceId), listBrandVideos()]);
+  const brand = await getActiveBrand(s.workspaceId);
+  if (brand) await ensureBrandEnriched(brand.id);
+  const [videos, assets] = await Promise.all([listBrandVideos(), listAnimatableAssets()]);
 
   return (
     <main style={wrap}>
       <Link href="/studio" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Studio IA</Link>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
         <h1 style={h1}>Vidéo IA</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>KLING 2 · FAL</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>KLING 2.5 · FAL</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
         Génère des vidéos verticales prêtes pour TikTok, à partir d'un texte ou d'une image. Les vidéos sont rattachées à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
       </p>
       <PageInfo title="générer une vidéo">
-        Deux modes : <b>Texte → Vidéo</b> (tu décris la scène) et <b>Image → Vidéo</b> (tu animes une image existante,
-        ex : un visuel produit). Choisis le format (9:16 pour TikTok), lance, et retrouve tes vidéos dans la galerie
-        ci-dessous · le rendu prend en général 1 à 3 minutes. Chaque vidéo coûte 12 crédits.
+        Stratégie cohérente avec Pubs IA : <b>Image → Vidéo</b> anime directement <b>ton produit ou une pub déjà générée</b>
+        (mouvement de caméra, micro-animations), pendant que <b>Texte → Vidéo</b> part d'une description. Le bouton
+        <b> Suggérer un mouvement</b> propose une consigne ancrée sur ta marque. Format 9:16 pour TikTok, rendu ~1 à 3 min,
+        12 crédits par vidéo.
       </PageInfo>
 
-      <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} />
+      <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} />
     </main>
   );
 }

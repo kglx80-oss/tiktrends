@@ -40,8 +40,8 @@ export function falFromEnv(): FalConfig | null {
     imageModelI2I: process.env.FAL_IMAGE_MODEL_I2I || 'fal-ai/flux/dev/image-to-image',
     imageModelText: process.env.FAL_IMAGE_MODEL_TEXT || 'fal-ai/ideogram/v3',
     imageModelEdit: process.env.FAL_IMAGE_MODEL_EDIT || 'fal-ai/nano-banana-2/edit',
-    videoModel: process.env.FAL_VIDEO_MODEL || 'fal-ai/kling-video/v2/master/text-to-video',
-    videoModelI2V: process.env.FAL_VIDEO_MODEL_I2V || 'fal-ai/kling-video/v2/master/image-to-video',
+    videoModel: process.env.FAL_VIDEO_MODEL || 'fal-ai/kling-video/v2.5-turbo/pro/text-to-video',
+    videoModelI2V: process.env.FAL_VIDEO_MODEL_I2V || 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video',
   };
 }
 
@@ -141,16 +141,20 @@ export async function falGetVideo(cfg: FalConfig, jobId: string): Promise<FalVid
   const base = `${cfg.queueUrl}/${model}/requests/${encodeURIComponent(id)}`;
 
   const st = await fetch(`${base}/status`, { headers: { authorization: `Key ${cfg.apiKey}` }, signal: AbortSignal.timeout(20000) });
-  if (!st.ok) throw new Error(`Source vidéo : ${st.status}`);
+  // Job introuvable/expiré (404/410/422) : on considère l'échec plutôt que de tourner en rond.
+  if (st.status === 404 || st.status === 410 || st.status === 422) return { status: 'failed', error: 'Job introuvable ou expiré côté fournisseur.' };
+  if (!st.ok) return { status: 'processing' }; // erreur transitoire : on réessaiera
   const sd = (await st.json()) as Record<string, unknown>;
   const raw = (pickString(sd, ['status']) ?? 'IN_PROGRESS').toUpperCase();
+  if (/ERROR|FAIL|CANCEL/.test(raw)) return { status: 'failed', error: 'La génération vidéo a échoué côté fournisseur.' };
   if (/QUEUE/.test(raw)) return { status: 'queued' };
   if (!/COMPLET/.test(raw)) return { status: 'processing' };
 
   const rr = await fetch(base, { headers: { authorization: `Key ${cfg.apiKey}` }, signal: AbortSignal.timeout(20000) });
-  if (!rr.ok) throw new Error(`Source vidéo : ${rr.status}`);
+  if (!rr.ok) return { status: 'failed', error: `La vidéo n'a pas pu être récupérée (${rr.status}).` };
   const rd = (await rr.json()) as Record<string, unknown>;
   const nested = (rd.video ?? rd.output ?? rd.data ?? {}) as Record<string, unknown>;
-  const videoUrl = pickString(rd, ['video_url', 'url']) ?? pickString(nested, ['url', 'video_url']);
+  const videoUrl = pickString(rd, ['video_url', 'url']) ?? pickString(nested, ['url', 'video_url'])
+    ?? (Array.isArray(rd.videos) ? pickString((rd.videos[0] ?? {}) as Record<string, unknown>, ['url', 'video_url']) : undefined);
   return videoUrl ? { status: 'completed', videoUrl } : { status: 'failed', error: 'Vidéo introuvable dans la réponse.' };
 }

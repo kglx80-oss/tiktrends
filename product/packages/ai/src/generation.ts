@@ -168,6 +168,25 @@ export async function suggestImageBrief(client: Anthropic, ctx: {
   return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim();
 }
 
+/** Propose une consigne de MOUVEMENT vidéo (EN) pour animer un visuel produit, ancrée marque. */
+export async function suggestVideoBrief(client: Anthropic, ctx: {
+  brand?: string; tone?: string; productName?: string; productDesc?: string; fromImage?: boolean;
+}): Promise<string> {
+  const sys = [
+    'You write ONE concise English motion brief for a short vertical product ad video (Kling).',
+    'Output the brief only · no preamble, no quotes.',
+    ctx.fromImage
+      ? 'The starting frame already shows the product. Describe camera motion and micro-motion only: slow push-in or orbit, gentle parallax, soft light shifts, subtle product highlights. Keep the product identical and stable.'
+      : 'Describe a premium 5s product beauty-shot: subject, setting, lighting, and a smooth cinematic camera move.',
+    'Advertising quality, cinematic, photoreal, no text on screen.',
+    ctx.productName ? `Product: ${ctx.productName}${ctx.productDesc ? ` · ${ctx.productDesc.slice(0, 180)}` : ''}.` : '',
+    ctx.brand ? `Brand: ${ctx.brand}.` : '',
+    ctx.tone ? `Mood: ${ctx.tone}.` : '',
+  ].filter(Boolean).join(' ');
+  const res = await client.messages.create({ model: GEN_MODEL, max_tokens: 220, system: sys, messages: [{ role: 'user', content: 'Write the motion brief.' }] });
+  return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim();
+}
+
 export interface ScriptInput { brandName: string; format: string; language?: string; angle?: string; hookCount?: number; }
 export function buildScriptPrompt(i: ScriptInput): string {
   return [

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { startVideoAction, startImageVideoAction, pollVideoAction, type BrandVideo } from '../../../actions/video';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
 
 type Ratio = '9:16' | '1:1' | '16:9';
 const RATIOS: Ratio[] = ['9:16', '1:1', '16:9'];
@@ -12,17 +12,33 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
-export function VideoStudioFull({ ready, brandName, initialVideos, initialPrompt }: {
-  ready: boolean; brandName: string | null; initialVideos: BrandVideo[]; initialPrompt?: string;
+export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, initialPrompt, assets }: {
+  ready: boolean; aiReady?: boolean; brandName: string | null; initialVideos: BrandVideo[]; initialPrompt?: string; assets: AnimatableAsset[];
 }) {
-  const [mode, setMode] = useState<'t2v' | 'i2v'>('t2v');
+  const [mode, setMode] = useState<'t2v' | 'i2v'>(assets.length ? 'i2v' : 't2v');
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState(assets[0]?.url ?? '');
   const [ratio, setRatio] = useState<Ratio>('9:16');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [suggesting, startSuggest] = useTransition();
   const [videos, setVideos] = useState<BrandVideo[]>(initialVideos);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+
+  function suggestMotion() {
+    if (suggesting) return;
+    setError('');
+    startSuggest(async () => {
+      const r = await suggestVideoBriefAction({ fromImage: mode === 'i2v' });
+      if (r.error) setError(r.error);
+      else if (r.text) setPrompt(r.text);
+    });
+  }
+
+  async function removeVideo(id: string) {
+    setVideos((list) => list.filter((v) => v.id !== id));
+    if (!id.startsWith('tmp-')) await deleteVideoAction(id);
+  }
 
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
@@ -88,12 +104,40 @@ export function VideoStudioFull({ ready, brandName, initialVideos, initialPrompt
 
         {mode === 'i2v' && (
           <div style={{ marginBottom: 12 }}>
-            <label style={lbl}>URL de l'image de départ</label>
-            <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={!ready || busy} placeholder="https://…/mon-image.jpg" style={fld} />
+            <label style={lbl}>Image de départ à animer <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· ton produit ou une pub déjà générée</span></label>
+            {assets.length > 0 ? (
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                {assets.map((a) => {
+                  const on = imageUrl === a.url;
+                  return (
+                    <button key={a.url} type="button" disabled={!ready || busy} onClick={() => setImageUrl(a.url)} title={a.label} style={{
+                      padding: 0, borderRadius: 10, flexShrink: 0, cursor: ready && !busy ? 'pointer' : 'default', background: 'transparent', position: 'relative',
+                      border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
+                    }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={a.url} alt="" style={{ width: 72, height: 92, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
+                      <span style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 8.5, fontWeight: 800, padding: '2px 5px', borderRadius: 6, color: '#fff', background: 'rgba(0,0,0,.6)' }}>{a.kind === 'ad' ? 'PUB' : 'PRODUIT'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>Aucun visuel à animer pour l'instant. Génère d'abord une pub (Pubs IA) ou ajoute une photo produit.</p>
+            )}
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien d'image</summary>
+              <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={!ready || busy} placeholder="https://…/mon-image.jpg" style={{ ...fld, marginTop: 8 }} />
+            </details>
           </div>
         )}
 
-        <label style={lbl}>{mode === 't2v' ? 'Décris ta vidéo' : 'Consigne de mouvement (optionnel)'}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <label style={{ ...lbl, marginBottom: 0 }}>{mode === 't2v' ? 'Décris ta vidéo' : 'Consigne de mouvement (optionnel)'}</label>
+          <button type="button" onClick={suggestMotion} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose un mouvement à partir de ta marque' : 'IA non configurée'} style={{
+            fontSize: 11.5, fontWeight: 800, padding: '4px 10px', borderRadius: 999, cursor: ready && aiReady && !suggesting ? 'pointer' : 'default',
+            border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
+          }}>✦ {suggesting ? 'Rédaction…' : 'Suggérer un mouvement'}</button>
+        </div>
         <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} disabled={!ready || busy}
           placeholder={mode === 't2v' ? 'Ex : gros plan sur une boisson posée sur un bureau, lumière du matin, léger travelling avant' : 'Ex : léger zoom, la vapeur monte, ambiance chaleureuse'}
           style={{ ...fld, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
@@ -150,6 +194,8 @@ export function VideoStudioFull({ ready, brandName, initialVideos, initialPrompt
                   <div style={{ display: 'flex', gap: 10, marginTop: 8, alignItems: 'center' }}>
                     {v.status === 'completed' && v.videoUrl && <a href={v.videoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>}
                     {pending && v.jobId && <button type="button" onClick={() => recheck(v)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Vérifier</button>}
+                    <span style={{ flex: 1 }} />
+                    <button type="button" onClick={() => removeVideo(v.id)} title="Supprimer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Supprimer ✕</button>
                   </div>
                 </div>
               </div>
