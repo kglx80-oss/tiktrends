@@ -8,6 +8,7 @@ import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integra
 import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
+import { listBrandAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 
 export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string }
@@ -63,6 +64,7 @@ async function refFromUrl(url: string): Promise<CloneRefImage | null> {
 async function composeBatch(o: {
   cfg: FalConfig; brandId: string; brandName: string; colors?: string[] | null; logoUrl?: string | null;
   productImageUrls: string[] | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
+  assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean; credits: number; reason: string;
   productId?: string; personaId?: string; objective?: string;
@@ -72,16 +74,38 @@ async function composeBatch(o: {
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   const universeFor = (i: number) => chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
   const hasProduct = !!(o.productImageUrls && o.productImageUrls.length);
+  const assetRefs = o.assetRefUrls ?? [];
+  const hasAssetRef = assetRefs.length > 0;
+  // Références marque venant de la bibliothèque Assets, ajoutées en note quand on s'en sert.
+  const assetNote = hasAssetRef ? ' Additional images are brand reference material (real brand/product shots from the asset library) · draw visual style, palette and authenticity from them, but do not copy any text or layout.' : '';
 
   const genScene = async (c: AdConcept, i: number): Promise<string | null> => {
     // Clone : on donne la référence EN PREMIER puis nos images produit -> Nano recompose la mise en page.
-    const imageUrls = o.cloneRefUrl
-      ? [o.cloneRefUrl, ...(o.productImageUrls ?? [])]
-      : (o.editMode ? (o.productImageUrls ?? undefined) : undefined);
-    const prompt = o.cloneRefUrl ? scenePromptClone(c, hasProduct) : scenePrompt(c, o.editMode, universeFor(i));
+    // Sinon : produit (edit) et/ou images de la bibliothèque Assets comme références marque.
+    let imageUrls: string[] | undefined;
+    let prompt: string;
+    let edit: boolean;
+    if (o.cloneRefUrl) {
+      imageUrls = [o.cloneRefUrl, ...(o.productImageUrls ?? [])];
+      prompt = scenePromptClone(c, hasProduct);
+      edit = true;
+    } else if (o.editMode) {
+      imageUrls = [...(o.productImageUrls ?? []), ...assetRefs].slice(0, 8);
+      prompt = scenePrompt(c, true, universeFor(i)) + assetNote;
+      edit = true;
+    } else if (hasAssetRef) {
+      // Pas de photo produit mais la bibliothèque est remplie -> l'IA s'en sert comme références marque.
+      imageUrls = assetRefs.slice(0, 8);
+      prompt = scenePromptBrandRef(c, universeFor(i));
+      edit = true;
+    } else {
+      imageUrls = undefined;
+      prompt = scenePrompt(c, false, universeFor(i));
+      edit = false;
+    }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
       try {
-        const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit: o.cloneRefUrl ? true : o.editMode, count: 1 });
+        const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit, count: 1 });
         if (images[0]) return images[0];
       } catch { /* réessai */ }
     }
@@ -124,6 +148,13 @@ async function composeBatch(o: {
     } catch { /* best-effort */ }
   }
   return ads;
+}
+
+/** Prompt « références marque » : composer une nouvelle scène inspirée des assets de la bibliothèque. */
+function scenePromptBrandRef(c: AdConcept, universePrompt?: string): string {
+  const base = c.sceneBrief.slice(0, 650);
+  const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
+  return `The provided images are brand reference material (real brand/product/lifestyle shots). Compose a NEW premium advertising scene INSPIRED by their look, palette, materials and authenticity · do not copy them literally and do not reproduce any text or logo from them. New scene: ${base}. ${uni} Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. Composition: keep the main subject in the upper two thirds; keep the lower third calmer so a text panel can sit there. Vertical 4:5. Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
 }
 
 /** Prompt de clonage : recomposer la mise en page de la référence avec NOTRE produit. */
@@ -196,6 +227,8 @@ export async function generateAdsAction(input: {
 
   const productImageUrls = product ? (product.imageUrls && product.imageUrls.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : null)) : null;
   const editMode = !!(productImageUrls && productImageUrls.length);
+  // Bibliothèque Assets : images marque/communes utilisables par l'IA · quand c'est rempli, on s'en sert d'office.
+  const assetRefUrls = await listBrandAssetImageUrls(s.workspaceId, brand.id, 4);
 
   // Inspiration « ce qui fonctionne » : concurrents de la marque + copy des pubs sauvegardées (veille).
   const [brow] = await db.select({ competitors: schema.brands.competitors }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
@@ -220,7 +253,7 @@ export async function generateAdsAction(input: {
 
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
-    productImageUrls, editMode, concepts, universe: input.universe,
+    productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
     workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · pubs IA',
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });

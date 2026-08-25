@@ -89,6 +89,25 @@ export const products = pgTable('products', {
   imageUrls: text('image_urls').array(),
 });
 
+// Bibliothèque d'assets (rushs, images, vidéos, audio, imports Drive) · alimente l'IA.
+export const assetKindEnum = pgEnum('asset_kind', ['image', 'video', 'audio', 'other']);
+export const assetSourceEnum = pgEnum('asset_source', ['upload', 'url', 'drive']);
+export const assets = pgTable('assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'set null' }), // null = commun à l'espace
+  uploaderUserId: uuid('uploader_user_id').references(() => users.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  kind: assetKindEnum('kind').notNull().default('image'),
+  source: assetSourceEnum('source').notNull().default('upload'),
+  url: text('url').notNull(),                 // data URI (image téléversée) ou URL externe
+  mimeType: text('mime_type'),
+  sizeBytes: integer('size_bytes'),
+  tags: text('tags').array(),                 // tags IA (à venir)
+  useForAi: boolean('use_for_ai').notNull().default(true), // l'IA s'en sert par défaut
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ wsIdx: index('assets_ws_idx').on(t.workspaceId), brandIdx: index('assets_brand_idx').on(t.brandId) }));
+
 export const personas = pgTable('personas', {
   id: uuid('id').primaryKey().defaultRandom(),
   brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
