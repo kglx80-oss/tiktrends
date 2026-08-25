@@ -66,6 +66,8 @@ export const brands = pgTable('brands', {
   avoidWords: text('avoid_words').array(),
   competitors: text('competitors').array(),
   creativeRules: text('creative_rules'), // Règles maison Jarvis, injectées dans chaque génération.
+  jarvisLearnings: text('jarvis_learnings'), // Patterns gagnants distillés (entraînement Jarvis sur la veille).
+  jarvisTrainedAt: timestamp('jarvis_trained_at', { withTimezone: true }), // dernier entraînement
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
