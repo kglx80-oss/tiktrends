@@ -41,6 +41,7 @@ export interface AdConceptCtx {
   persona?: { name?: string; pains?: string[]; desires?: string[] };
   objective?: string;             // ex : « ventes », « notoriété », « trafic »
   angle?: string;                 // angle précis à décliner (itération ciblée)
+  offer?: string;                 // offre/promo concrète à afficher (ex : « -20% », « Code LANCEMENT », « 2+1 offert »)
   creativeRules?: string;         // règles maison Jarvis à respecter impérativement
   winningPatterns?: string;       // intelligence créative Jarvis (patterns gagnants distillés de la veille)
 }
@@ -240,14 +241,18 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
     ctx.angle
       ? "Toutes les exécutions servent le MÊME angle imposé, mais avec des accroches et des scènes NETTEMENT différentes."
       : "Pour chaque gabarit, un concept distinct, cohérent marque + persona.",
-    "Le sceneBrief est en anglais, décrit uniquement l'image (décor, sujet, cadrage, lumière), SANS aucun texte à incruster.",
+    "DIVERSITÉ OBLIGATOIRE entre les concepts : accroches TOUTES différentes (aucune répétition ni reformulation), angles différents, et surtout DÉCORS/SUJETS différents. NE répète JAMAIS le même personnage, lieu ou situation d'un concept à l'autre. Varie les personnes (âge, genre, métier), les lieux (bureau lumineux, cuisine, extérieur ville, salle de sport, salon, café, plein air…), les moments et les cadrages. Interdit de sortir deux fois la même scène 'personne fatiguée au bureau'.",
+    "Le sceneBrief est en anglais, décrit uniquement l'image (décor, sujet, cadrage, lumière), SANS aucun texte à incruster. Chaque sceneBrief doit poser un décor CONCRET et DIFFÉRENT des autres.",
     "problem_solution : accroche sur la douleur réelle du persona, scène qui montre le soulagement/produit.",
     "before_after : sceneBrief = split visuel gauche/droite AVANT (problème) vs APRÈS (résultat), badge « AVANT / APRÈS ».",
     "testimonial : quote client crédible et SPÉCIFIQUE (détail concret) + author + rating 5 ; scène d'une personne satisfaite avec le produit.",
     "benefits : 3 bénéfices très courts et concrets ; scène produit centrée, épurée, premium.",
     "ugc : caption courte et native (quote) + pseudo (author) ; scène contenu créateur authentique (selfie/à la main), non léchée.",
     "stat : un chiffre-clé fort et crédible (stat) + son libellé (statLabel) + headline ; scène produit épurée.",
-    "offer : promo/offre (badge, ex « -30% », « 2+1 offert ») + headline à urgence + CTA ; scène produit désirable.",
+    "offer : promo/offre CONCRÈTE dans le badge + headline à urgence + CTA ; scène produit désirable.",
+    ctx.offer?.trim()
+      ? `OFFRE À METTRE EN AVANT : « ${ctx.offer.trim().slice(0, 60)} ». Le gabarit 'offer' DOIT afficher cette offre TELLE QUELLE dans le champ badge, et l'accroche doit créer l'urgence autour d'elle. Si plusieurs gabarits conviennent, intègre l'offre aussi dans un badge secondaire quand c'est pertinent.`
+      : "Pour le gabarit 'offer', invente une promo crédible et concrète (ex « -20% », « 2+1 offert », « -15€ ») dans le badge · jamais de badge vide ou vague.",
     ctx.winningPatterns?.trim()
       ? `INTELLIGENCE CRÉATIVE JARVIS (patterns gagnants observés sur des pubs qui performent dans cette niche · applique-les pour maximiser la performance, sans plagier) : ${ctx.winningPatterns.trim().slice(0, 1400)}`
       : "",
@@ -271,6 +276,9 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
   });
   const tool = res.content.find((c) => c.type === 'tool_use') as { input?: { concepts?: AdConcept[] } } | undefined;
   const concepts = (tool?.input?.concepts ?? []).filter((c) => c?.headline && c?.sceneBrief);
-  // On conserve l'ordre (avec répétitions de gabarits possibles) et on aligne sur la longueur demandée.
-  return concepts.slice(0, templates.length);
+  // Dédoublonnage : on écarte les concepts dont l'accroche est identique (variété garantie).
+  const norm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const seen = new Set<string>();
+  const unique = concepts.filter((c) => { const k = norm(c.headline); if (seen.has(k)) return false; seen.add(k); return true; });
+  return unique.slice(0, templates.length);
 }

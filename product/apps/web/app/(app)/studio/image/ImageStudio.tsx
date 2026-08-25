@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from 'react';
 import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
 import type { FalAspect } from '@tiktrends/integrations';
+import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -53,6 +54,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [images, setImages] = useState<BrandImage[]>(initial);
+  const [imgPage, setImgPage] = useState(0);
   const [preview, setPreview] = useState<string | null>(null);
   const [suggesting, startSuggest] = useTransition();
   const [saving, startSave] = useTransition();
@@ -256,8 +258,8 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       {images.length === 0 ? (
         <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13.5 }}>Aucun visuel pour l'instant.</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
-          {images.map((im) => (
+        <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+          {images.slice(imgPage * PAGE_SIZE, (imgPage + 1) * PAGE_SIZE).map((im) => (
             <div key={im.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
               {im.url && (
                 <button type="button" onClick={() => setPreview(im.url)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
@@ -275,6 +277,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
             </div>
           ))}
         </div>
+        <Pager page={imgPage} total={images.length} onPage={setImgPage} /></>
       )}
 
       {preview && (

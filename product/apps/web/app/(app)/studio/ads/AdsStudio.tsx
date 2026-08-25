@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, type AdItem, type SavedAdRef } from '../../../actions/ads';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
+import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
@@ -73,6 +74,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const prodImgInput = useRef<HTMLInputElement>(null);
   const [personaId, setPersonaId] = useState('');
   const [objective, setObjective] = useState('Ventes');
+  const [offer, setOffer] = useState('');
   const [templates, setTemplates] = useState<AdTemplate[]>(['problem_solution', 'before_after', 'testimonial', 'benefits']);
   const [angle, setAngle] = useState('');
   const [universe, setUniverse] = useState('auto');
@@ -85,6 +87,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [ads, setAds] = useState<AdItem[]>(initial);
+  const [adsPage, setAdsPage] = useState(0);
+  const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
   const refInput = useRef<HTMLInputElement>(null);
 
@@ -179,7 +183,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     }
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count, assetIds: assetIds.length ? assetIds : undefined });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined });
     setBusy(false);
     applyResult(res);
   }
@@ -245,6 +249,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <select value={count} onChange={(e) => setCount(Number(e.target.value))} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
               {[1, 2, 3, 4, 5, 6, 8].map((n) => <option key={n} value={n}>{n} pub{n > 1 ? 's' : ''}</option>)}
             </select>
+          </div>
+          <div style={{ flex: '1 1 200px' }}>
+            <label style={lbl}>Offre / promo <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· pour le gabarit Offre</span></label>
+            <input value={offer} onChange={(e) => setOffer(e.target.value)} disabled={!ready} placeholder="Ex : -20%, Code LANCEMENT, 2+1 offert" style={{ ...fld, padding: '9px 10px' }} />
           </div>
         </div>
 
@@ -433,8 +441,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       {ads.length === 0 ? (
         <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13.5 }}>Aucune pub pour l'instant. Lance ta première série ci-dessus.</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {ads.map((a) => (
+        <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          {pagedAds.map((a) => (
             <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
               <button type="button" onClick={() => setPreview(a.url)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -453,6 +461,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             </div>
           ))}
         </div>
+        <Pager page={adsPage} total={ads.length} onPage={setAdsPage} /></>
       )}
 
       {preview && (

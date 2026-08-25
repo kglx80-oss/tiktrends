@@ -180,7 +180,7 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): 
 }
 
 export async function generateAdsAction(input: {
-  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[];
+  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[]; offer?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -246,7 +246,7 @@ export async function generateAdsAction(input: {
       productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
       hasProductPhoto: editMode,
       persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
-      objective: input.objective, angle: input.angle?.trim() || undefined, creativeRules: da?.creativeRules ?? undefined, winningPatterns: da?.jarvisLearnings ?? undefined,
+      objective: input.objective, angle: input.angle?.trim() || undefined, offer: input.offer?.trim() || undefined, creativeRules: da?.creativeRules ?? undefined, winningPatterns: da?.jarvisLearnings ?? undefined,
     }, { templates, winningCopy, competitors: brow?.competitors ?? undefined });
   } catch (e) {
     return { error: 'Écriture des concepts impossible : ' + (e as Error).message };
@@ -423,7 +423,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
   const rows = await db.select({ id: schema.generations.id, input: schema.generations.input, status: schema.generations.status, createdAt: schema.generations.createdAt })
     .from(schema.generations)
     .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad')))
-    .orderBy(desc(schema.generations.createdAt)).limit(60);
+    .orderBy(desc(schema.generations.createdAt)).limit(240);
   return rows
     .filter((r) => (r.status === 'archived') === wantArchived)
     .map((r) => {
