@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
+import { Pager, PAGE_SIZE } from '../../../components/Pager';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -60,10 +61,12 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
   const fileRef = useRef<HTMLInputElement>(null);
   const [, startTransition] = useTransition();
 
+  const [page, setPage] = useState(0);
   const q = search.trim().toLowerCase();
-  const shown = assets
+  const filtered = assets
     .filter((a) => filter === 'all' || a.kind === filter)
     .filter((a) => !q || a.name.toLowerCase().includes(q) || (a.tags || []).some((t) => t.toLowerCase().includes(q)));
+  const shown = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const untagged = assets.filter((a) => a.kind === 'image' && (!a.tags || a.tags.length === 0)).length;
   const refresh = () => startTransition(() => router.refresh());
 
@@ -189,7 +192,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
 
       {/* Recherche + tagging IA */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par nom ou tag (IA)…"
+        <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder="Rechercher par nom ou tag (IA)…"
           style={{ ...fld, flex: '1 1 260px', maxWidth: 420 }} />
         {untagged > 0 && (
           <button type="button" onClick={tagBulk} disabled={!!tagging} style={{ ...ghost, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)' }}>
@@ -205,7 +208,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
           const active = filter === k.key;
           const n = k.key === 'all' ? assets.length : assets.filter((a) => a.kind === k.key).length;
           return (
-            <button key={k.key} type="button" onClick={() => setFilter(k.key)} style={{ padding: '7px 13px', borderRadius: 999, border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent', color: active ? '#0d070c' : 'var(--ink-2)', fontWeight: active ? 800 : 600, fontSize: 12.5, cursor: 'pointer' }}>
+            <button key={k.key} type="button" onClick={() => { setFilter(k.key); setPage(0); }} style={{ padding: '7px 13px', borderRadius: 999, border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent', color: active ? '#0d070c' : 'var(--ink-2)', fontWeight: active ? 800 : 600, fontSize: 12.5, cursor: 'pointer' }}>
               {k.label} <span style={{ opacity: .7 }}>{n}</span>
             </button>
           );
@@ -262,6 +265,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
           ))}
         </div>
       )}
+      <Pager page={page} total={filtered.length} onPage={setPage} />
     </div>
   );
 }

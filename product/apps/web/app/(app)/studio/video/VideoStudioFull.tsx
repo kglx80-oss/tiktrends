@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
+import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 
 type Ratio = '9:16' | '1:1' | '16:9';
 const RATIOS: Ratio[] = ['9:16', '1:1', '16:9'];
@@ -23,6 +24,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   const [busy, setBusy] = useState(false);
   const [suggesting, startSuggest] = useTransition();
   const [videos, setVideos] = useState<BrandVideo[]>(initialVideos);
+  const [vidPage, setVidPage] = useState(0);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
   function suggestMotion() {
@@ -188,8 +190,8 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           Aucune vidéo pour l'instant. Génère la première ci-dessus.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
-          {videos.map((v) => {
+        <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
+          {videos.slice(vidPage * PAGE_SIZE, (vidPage + 1) * PAGE_SIZE).map((v) => {
             const st = STATUS_LABEL[v.status] ?? STATUS_LABEL.processing!;
             const pending = v.status === 'processing' || v.status === 'queued';
             return (
@@ -217,6 +219,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
             );
           })}
         </div>
+        <Pager page={vidPage} total={videos.length} onPage={setVidPage} /></>
       )}
       <style>{'@keyframes ttspin{to{transform:rotate(360deg)}}'}</style>
     </div>
