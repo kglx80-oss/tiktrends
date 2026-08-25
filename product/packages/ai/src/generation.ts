@@ -94,13 +94,13 @@ export interface ImagePromptOpts {
   headline?: string;        // texte exact à écrire sur l'image
   product?: boolean;        // mise en scène produit (image de départ)
   edit?: boolean;           // édition fidèle Kontext (garder le produit intact, restyler la scène)
-  edenRules?: string;       // règles créatives maison (EDEN), priorité absolue
+  edenRules?: string;       // règles créatives maison (Jarvis), priorité absolue
 }
 
-/** Formatte les règles maison EDEN en directive prioritaire pour le modèle. */
+/** Formatte les règles maison Jarvis en directive prioritaire pour le modèle. */
 function edenDirective(rules?: string): string {
   const r = (rules || '').trim();
-  return r ? `HOUSE RULES (EDEN) · absolute top priority, override anything else: ${r.replace(/\n/g, '; ').slice(0, 900)}.` : '';
+  return r ? `HOUSE RULES (Jarvis) · absolute top priority, override anything else: ${r.replace(/\n/g, '; ').slice(0, 900)}.` : '';
 }
 
 /** Transforme une description en prompt image optimisé (Flux/Ideogram), ancré sur la marque. */
@@ -192,7 +192,7 @@ export async function suggestVideoBrief(client: Anthropic, ctx: {
     ctx.productName ? `Produit : ${ctx.productName}${ctx.productDesc ? ` · ${ctx.productDesc.slice(0, 180)}` : ''}.` : '',
     ctx.brand ? `Marque : ${ctx.brand}.` : '',
     ctx.tone ? `Ambiance : ${ctx.tone}.` : '',
-    eden ? `RÈGLES MAISON (EDEN) à respecter en priorité absolue : ${eden.replace(/\n/g, '; ').slice(0, 700)}.` : '',
+    eden ? `RÈGLES MAISON (Jarvis) à respecter en priorité absolue : ${eden.replace(/\n/g, '; ').slice(0, 700)}.` : '',
   ].filter(Boolean).join(' ');
   const res = await client.messages.create({ model: GEN_MODEL, max_tokens: 220, system: sys, messages: [{ role: 'user', content: 'Rédige la consigne de mouvement.' }] });
   return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim().replace(/[—–]/g, ',');

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { saveEdenRulesAction } from '../../actions/eden';
+import { saveJarvisRulesAction } from '../../actions/jarvis';
 
 const PRESET = `Style visuel : premium, lumineux, épuré. Le produit toujours net, au premier plan, proportions réelles.
 Ton : direct, expert, chaleureux. Pas de superlatifs creux ni de promesses non tenables.
@@ -9,7 +9,7 @@ Toujours : accroche qui claque en 3-5 mots, CTA orienté action, packaging fidè
 Jamais : le mot « miracle », fausses réductions, texte illisible, mannequins hors-cible.
 Mentions obligatoires : « Complément alimentaire » si produit santé.`;
 
-export function EdenRules({ brandName, initial }: { brandName: string | null; initial: string }) {
+export function JarvisRules({ brandName, initial }: { brandName: string | null; initial: string }) {
   const [rules, setRules] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -18,10 +18,10 @@ export function EdenRules({ brandName, initial }: { brandName: string | null; in
   async function save() {
     if (busy) return;
     setBusy(true); setMsg('');
-    const r = await saveEdenRulesAction({ creativeRules: rules });
+    const r = await saveJarvisRulesAction({ creativeRules: rules });
     setBusy(false);
     if (r.error) { setOk(false); setMsg(r.error); return; }
-    setOk(true); setMsg('Règles EDEN enregistrées. Elles s\'appliquent dès la prochaine génération.');
+    setOk(true); setMsg('Règles Jarvis enregistrées. Elles s\'appliquent dès la prochaine génération.');
   }
 
   return (
@@ -31,7 +31,7 @@ export function EdenRules({ brandName, initial }: { brandName: string | null; in
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{brandName ? `· ${brandName}` : '· marque active'}</span>
       </div>
       <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-        Tes consignes maison, en langage naturel. EDEN les impose à <b>chaque</b> génération (image et vidéo), en priorité sur tout le reste : style, ton, obligations, interdits, mentions.
+        Tes consignes maison, en langage naturel. Jarvis les impose à <b>chaque</b> génération (image et vidéo), en priorité sur tout le reste : style, ton, obligations, interdits, mentions.
       </p>
       <textarea
         value={rules}

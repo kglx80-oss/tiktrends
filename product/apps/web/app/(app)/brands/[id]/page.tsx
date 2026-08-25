@@ -114,7 +114,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           { key: 'produits', label: 'Ajouter les produits', desc: 'Import Shopify / site ou saisie manuelle', done: products.length > 0, href: `/brands/${id}?tab=products`, cta: 'Ajouter' },
           { key: 'audience', label: "Décrire l'audience", desc: 'Personas et scénarios d’usage', done: personas.length > 0 && scenarios.length > 0, href: `/brands/${id}?tab=audience`, cta: 'Décrire' },
           { key: 'concurrents', label: 'Suivre les concurrents', desc: 'Les marques à surveiller', done: competitors.length > 0, href: `/brands/${id}?tab=competitors`, cta: 'Suivre' },
-          { key: 'eden', label: 'Poser les règles EDEN', desc: 'Tes consignes maison sur l’IA créative', done: !!(b.creativeRules && b.creativeRules.trim()), href: '/eden', cta: 'Configurer' },
+          { key: 'jarvis', label: 'Poser les règles Jarvis', desc: 'Tes consignes maison sur l’IA créative', done: !!(b.creativeRules && b.creativeRules.trim()), href: '/jarvis', cta: 'Configurer' },
           { key: 'crea', label: 'Générer ta première créa', desc: 'Une pub IA à partir du profil', done: gens.length > 0, href: '/studio/ads', cta: 'Générer' },
         ];
         const cards: Array<{ n: number; label: string; tab: Tab }> = [
