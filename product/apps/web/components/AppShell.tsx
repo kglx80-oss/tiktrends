@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense, useState, type CSSProperties, type ReactNode } from 'react';
 import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
@@ -98,13 +98,36 @@ function NavLink({ it, active }: { it: NavItem; active: boolean }) {
 }
 
 export function AppShell(props: Props) {
+  // useSearchParams (pour l'état actif des onglets de marque) nécessite une frontière Suspense.
+  return (
+    <Suspense fallback={null}>
+      <AppShellInner {...props} />
+    </Suspense>
+  );
+}
+
+function AppShellInner(props: Props) {
   const { nav, accountGroups, isAdmin: userIsAdmin, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
   // Menu profil épuré : seuls les éléments réellement personnels (section « Compte »).
   // Tout l'outillage admin/espace de travail vit désormais dans les coulisses ADMIN+ (/admin).
   const personalItems = accountGroups.find((g) => g.section === 'Compte')?.items ?? [];
   const pathname = usePathname();
+  const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
+
+  // État actif d'un item de nav : gère les routes imbriquées et l'onglet (?tab=) des marques.
+  const currentTab = search.get('tab') || 'overview';
+  const isNavActive = (href: string, isSub: boolean): boolean => {
+    const [path, query] = href.split('?');
+    if (query) {
+      const tab = new URLSearchParams(query).get('tab') || 'overview';
+      return pathname === path && currentTab === tab;
+    }
+    if (isSub) return pathname === path;
+    // Parent : actif en exact ou sur une sous-route (met en évidence le fil de navigation).
+    return pathname === path || pathname.startsWith(path + '/');
+  };
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '250px minmax(0,1fr)', minHeight: '100vh' }}>
@@ -126,7 +149,7 @@ export function AppShell(props: Props) {
           {nav.map((grp) => (
             <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>{grp.group}</div>
-              {grp.items.map((it) => <NavLink key={it.key} it={it} active={pathname === it.href} />)}
+              {grp.items.map((it) => <NavLink key={it.key} it={it} active={isNavActive(it.href, it.isSub)} />)}
             </div>
           ))}
         </nav>
