@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
-import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, AD_TEMPLATES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle } from '@tiktrends/ai';
+import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import type { AdRecipe } from '../../lib/ad-render';
@@ -37,20 +37,21 @@ function copyFromSnapshot(snap: unknown): string | null {
   return t ? t.slice(0, 240) : null;
 }
 
-function scenePrompt(c: AdConcept, editMode: boolean): string {
+function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): string {
   const base = c.sceneBrief.slice(0, 700);
   // Cadrage pensé pour l'overlay : sujet dans les 2/3 hauts, bas plus calme/sombre pour le texte.
   const framing = 'Composition: keep the main subject in the upper two thirds; keep the lower third calmer and less busy so a text panel can sit there. Vertical 4:5 framing, high-end commercial look, crisp focus, natural depth of field.';
   const realism = 'Ultra realistic, photorealistic, true-to-life scale and proportions: the product is shown at its real-world size relative to hands, people and objects, correct perspective, no distortion, no warping, no stretching, accurate label and cap proportions, physically plausible lighting, shadows and reflections.';
+  const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
   const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI added to the image.';
   if (editMode) {
-    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions — do not resize, stretch or reshape it). New scene: ${base}. ${realism} Premium advertising photography, soft studio lighting. ${framing} ${noText}`;
+    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions — do not resize, stretch or reshape it). New scene: ${base}. ${uni} ${realism} Premium advertising photography. ${framing} ${noText}`;
   }
-  return `${base}. ${realism} Premium advertising photography, cinematic lighting. ${framing} ${noText}`;
+  return `${base}. ${uni} ${realism} Premium advertising photography. ${framing} ${noText}`;
 }
 
 export async function generateAdsAction(input: {
-  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string;
+  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -110,11 +111,16 @@ export async function generateAdsAction(input: {
   }
   if (!concepts.length) return { error: "Aucun concept n'a pu être généré. Réessaie." };
 
-  // 2) Scènes (Fal) — en parallèle.
-  const scenes = await Promise.all(concepts.map(async (c) => {
+  // Univers visuel : soit imposé, soit varié automatiquement (chaque visuel un univers différent).
+  const chosen = input.universe && input.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === input.universe) : null;
+  const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
+  const universeFor = (i: number) => chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
+
+  // 2) Scènes (Fal) — en parallèle, chacune dans son univers.
+  const scenes = await Promise.all(concepts.map(async (c, i) => {
     try {
       const { images } = await falGenerateImage(cfg, {
-        prompt: scenePrompt(c, editMode), aspectRatio: '4:5',
+        prompt: scenePrompt(c, editMode, universeFor(i)), aspectRatio: '4:5',
         imageUrl: editMode ? product!.imageUrl! : undefined, edit: editMode, count: 1,
       });
       return images[0] || null;
