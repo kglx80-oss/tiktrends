@@ -204,7 +204,8 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
   const user = `${ctxLines(ctx)}\n\nProduis EXACTEMENT ${templates.length} concept(s), un par entrée, dans cet ordre de gabarits : ${templates.join(', ')}. Si un gabarit revient, propose une exécution nettement différente à chaque fois (accroche, scène, angle d'attaque).`;
 
   const res = await client.messages.create({
-    model: GEN_MODEL, max_tokens: 2000, system: sys,
+    // Assez de tokens pour N concepts complets (évite la troncature quand la quantité est élevée).
+    model: GEN_MODEL, max_tokens: Math.min(8000, 1200 + templates.length * 450), system: sys,
     tools: [AD_TOOL as unknown as Anthropic.Tool],
     tool_choice: { type: 'tool', name: 'return_ads' },
     messages: [{ role: 'user', content: user }],

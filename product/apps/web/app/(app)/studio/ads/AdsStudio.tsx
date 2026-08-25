@@ -80,6 +80,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [savedAdId, setSavedAdId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [ads, setAds] = useState<AdItem[]>(initial);
   const [preview, setPreview] = useState<string | null>(null);
   const refInput = useRef<HTMLInputElement>(null);
@@ -153,24 +154,31 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
   const hasRef = !!refUri || !!savedAdId;
 
+  function applyResult(res: { error?: string; ads?: AdItem[]; requested?: number }) {
+    if (res.error) { setError(res.error); return; }
+    const got = res.ads?.length ?? 0;
+    if (got) setAds((list) => [...res.ads!, ...list]);
+    if (res.requested && got < res.requested) {
+      setNotice(`${got}/${res.requested} pubs générées. Certaines scènes ont échoué (souvent un pic de charge du modèle). Relance pour compléter : tu n'es débité que des pubs réussies.`);
+    } else setNotice('');
+  }
+
   async function run() {
     if (busy) return;
-    setError('');
+    setError(''); setNotice('');
     if (mode === 'clone') {
       if (!hasRef) { setError('Choisis une pub de référence (veille ou upload).'); return; }
       setBusy(true);
       const res = await cloneAdAction({ referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined, productId: productId || undefined, personaId: personaId || undefined, objective, universe, count });
       setBusy(false);
-      if (res.error) { setError(res.error); return; }
-      if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
+      applyResult(res);
       return;
     }
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
     setBusy(true);
     const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count });
     setBusy(false);
-    if (res.error) { setError(res.error); return; }
-    if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
+    applyResult(res);
   }
 
   return (
@@ -393,6 +401,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           }}>{busy ? (mode === 'clone' ? 'Clonage…' : 'Création des pubs…') : mode === 'clone' ? `✨ Cloner en ${count}` : '✨ Générer les pubs'}</button>
         </div>
         {busy && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, déclinaison en variations et composition… (~20-40 s)' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
+        {notice && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}
         {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
       </div>
 
