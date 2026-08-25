@@ -8,6 +8,7 @@ import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integra
 import { anthropicFromEnv, enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
+import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string }
@@ -56,6 +57,10 @@ export async function generateImageAction(input: {
   const sourceImage = input.imageUrl?.trim() || (input.useProductImage ? product?.imageUrl || undefined : undefined);
   const editMode = !!sourceImage;
 
+  // Bibliothèque Assets : à défaut de source produit, l'IA s'appuie sur les images marque/communes.
+  const assetRefUrls = (db && brand && !sourceImage) ? await listBrandAssetImageUrls(s.workspaceId, brand.id, 3) : [];
+  const useAssetRefs = !sourceImage && assetRefUrls.length > 0;
+
   // Optimisation du prompt par Claude (ancrée marque + produit + texte).
   let prompt = desc;
   if (input.enhance) {
@@ -72,8 +77,13 @@ export async function generateImageAction(input: {
     }
   }
 
+  // Références marque venant de la bibliothèque (quand pas de source produit).
+  const finalPrompt = useAssetRefs
+    ? `${prompt}\nUse the provided images as brand reference material (style, palette, materials, authenticity); do not copy any text or logo from them.`
+    : prompt;
+
   try {
-    const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: input.aspectRatio ?? '1:1', imageUrl: sourceImage, withText: input.withText, count, edit: editMode });
+    const { images } = await falGenerateImage(cfg, { prompt: finalPrompt, aspectRatio: input.aspectRatio ?? '1:1', imageUrl: sourceImage, imageUrls: useAssetRefs ? assetRefUrls : undefined, withText: input.withText, count, edit: editMode || useAssetRefs });
     if (db) {
       if (brand) {
         try { await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1' }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }); } catch { /* ignore */ }
