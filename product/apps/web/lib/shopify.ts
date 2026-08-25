@@ -7,11 +7,11 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 
 export interface ShopifyProductNorm {
   handle: string; title: string; description: string | null;
-  price: number | null; url: string; imageUrl: string | null;
+  price: number | null; url: string; imageUrl: string | null; vendor: string | null;
 }
 
 type RawProduct = {
-  handle?: string; title?: string; body_html?: string;
+  handle?: string; title?: string; body_html?: string; vendor?: string;
   images?: { src?: string }[]; image?: { src?: string };
   variants?: { price?: string }[];
 };
@@ -40,6 +40,7 @@ function normOne(p: RawProduct, origin: string): ShopifyProductNorm | null {
     price: price != null && !Number.isNaN(price) ? price : null,
     url: `${origin}/products/${p.handle}`,
     imageUrl: p.images?.find((i) => i.src)?.src || p.image?.src || null,
+    vendor: p.vendor?.trim() || null,
   };
 }
 

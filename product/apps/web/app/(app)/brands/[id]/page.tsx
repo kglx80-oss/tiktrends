@@ -23,7 +23,7 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: 'overview', label: 'Aperçu' }, { key: 'audience', label: 'Audience' },
   { key: 'products', label: 'Produits' }, { key: 'competitors', label: 'Concurrents' },
 ];
-const OK: Record<string, string> = { saved: 'Profil mis à jour.', created: 'Marque créée.', generated: 'Profil généré depuis le site (profil, audience, concurrents).', persona: 'Persona ajouté.', scenario: 'Scénario ajouté.', product: 'Produit ajouté.', imported: 'Produits importés.' };
+const OK: Record<string, string> = { saved: 'Profil mis à jour.', created: 'Marque créée.', shopify: 'Boutique Shopify connectée : produits, images et DA importés.', generated: 'Profil généré depuis le site (profil, audience, concurrents).', persona: 'Persona ajouté.', scenario: 'Scénario ajouté.', product: 'Produit ajouté.', imported: 'Produits importés.' };
 const ERR: Record<string, string> = { nourl: 'Renseigne le site de la marque pour importer.', ai: "IA non configurée sur le serveur.", credits: 'Crédits insuffisants.', import: "L'import a échoué, réessaie.", generate: "La génération a échoué, réessaie." };
 
 const area = { ...input, minHeight: 74, resize: 'vertical' as const, lineHeight: 1.5, fontFamily: 'inherit' };
