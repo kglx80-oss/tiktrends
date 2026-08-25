@@ -8,6 +8,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { listBrandAds } from '../../../actions/ads';
+import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { AdsStudio } from './AdsStudio';
 import { PageInfo } from '../../../../components/PageInfo';
 
@@ -32,7 +33,10 @@ export default async function AdsStudioPage() {
     );
   }
 
-  const [brand, ads] = await Promise.all([getActiveBrand(s.workspaceId), listBrandAds()]);
+  const brand = await getActiveBrand(s.workspaceId);
+  // Enrichissement automatique (DA, produits, photos) — sans bouton, avant l'affichage.
+  if (brand) await ensureBrandEnriched(brand.id);
+  const ads = await listBrandAds();
   let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
   let personas: Array<{ id: string; name: string }> = [];
   if (db && brand) {
