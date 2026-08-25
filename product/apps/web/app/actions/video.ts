@@ -226,10 +226,12 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const brand = await getActiveBrand(s.workspaceId);
   let tone: string | null = null;
+  let creativeRules: string | null = null;
   let product: { name: string; description: string | null } | null = null;
   if (db && brand) {
-    const [row] = await db.select({ tone: schema.brands.tone }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    const [row] = await db.select({ tone: schema.brands.tone, creativeRules: schema.brands.creativeRules }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     tone = row?.tone ?? null;
+    creativeRules = row?.creativeRules ?? null;
     if (input.productId) {
       const [p] = await db.select({ name: schema.products.name, description: schema.products.description })
         .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
@@ -237,7 +239,7 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
     }
   }
   try {
-    const text = await suggestVideoBrief(client, { brand: brand?.name, tone: tone ?? undefined, productName: product?.name, productDesc: product?.description ?? undefined, fromImage: input.fromImage });
+    const text = await suggestVideoBrief(client, { brand: brand?.name, tone: tone ?? undefined, productName: product?.name, productDesc: product?.description ?? undefined, fromImage: input.fromImage, edenRules: creativeRules ?? undefined });
     return { text: text || undefined };
   } catch (e) {
     return { error: (e as Error).message };
