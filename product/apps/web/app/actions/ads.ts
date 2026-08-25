@@ -4,7 +4,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
-import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
+import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
@@ -24,7 +24,6 @@ function pickAccents(colors?: string[] | null): string[] {
   const ordered = [...vivid, ...list.filter((h) => !vivid.includes(h))];
   return ordered.length ? Array.from(new Set(ordered)) : ['#2563EB'];
 }
-function pickAccent(colors?: string[] | null): string { return pickAccents(colors)[0]!; }
 
 /** Rassemble des extraits de copy de pubs sauvegardées (veille) pour inspirer les angles. */
 function copyFromSnapshot(snap: unknown): string | null {
@@ -35,6 +34,80 @@ function copyFromSnapshot(snap: unknown): string | null {
     .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
   const t = parts.join(' · ').trim();
   return t ? t.slice(0, 240) : null;
+}
+
+/** Extrait une URL d'image exploitable d'un snapshot de pub sauvegardée (veille). */
+function imageUrlFromSnapshot(snap: unknown): string | null {
+  if (!snap || typeof snap !== 'object') return null;
+  const o = snap as Record<string, unknown>;
+  const media = Array.isArray(o.media) ? o.media : [];
+  const first = media.find((m) => typeof m === 'string') as string | undefined;
+  const cand = [o.imageUrl, o.thumbnailUrl, o.thumbUrl, o.mediaUrl, o.image, o.creativeUrl, o.previewUrl, first]
+    .find((x): x is string => typeof x === 'string' && /^https?:\/\//.test(x));
+  return cand ?? null;
+}
+
+/** Télécharge une image et la convertit en référence base64 pour l'analyse vision. */
+async function refFromUrl(url: string): Promise<CloneRefImage | null> {
+  try {
+    const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
+    const ct = (res.headers.get('content-type') || '').split(';')[0]!.trim();
+    if (!res.ok || !/^image\/(jpeg|png|webp)$/.test(ct)) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 6_000_000) return null;
+    return { mediaType: ct as CloneRefImage['mediaType'], base64: buf.toString('base64') };
+  } catch { return null; }
+}
+
+/** Compose une série : scènes (univers variés) + enregistrement + débit. Mutualisé par génération et clone. */
+async function composeBatch(o: {
+  cfg: FalConfig; brandId: string; brandName: string; colors?: string[] | null; logoUrl?: string | null;
+  productImageUrl: string | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
+  workspaceId: string; unlimited: boolean; credits: number; reason: string;
+  productId?: string; personaId?: string; objective?: string;
+}): Promise<AdItem[]> {
+  const accents = pickAccents(o.colors);
+  const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
+  const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
+  const universeFor = (i: number) => chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
+
+  const scenes = await Promise.all(o.concepts.map(async (c, i) => {
+    try {
+      const { images } = await falGenerateImage(o.cfg, {
+        prompt: scenePrompt(c, o.editMode, universeFor(i)), aspectRatio: '4:5',
+        imageUrl: o.editMode ? o.productImageUrl! : undefined, edit: o.editMode, count: 1,
+      });
+      return images[0] || null;
+    } catch { return null; }
+  }));
+
+  const ads: AdItem[] = [];
+  for (let i = 0; i < o.concepts.length; i++) {
+    const sceneUrl = scenes[i]; const c = o.concepts[i];
+    if (!sceneUrl || !c) continue;
+    const recipe: AdRecipe = {
+      template: c.template, sceneUrl, kicker: c.kicker, headline: c.headline, subhead: c.subhead, cta: c.cta,
+      badge: c.badge, quote: c.quote, author: c.author, rating: c.rating, benefits: c.benefits, stat: c.stat, statLabel: c.statLabel,
+      accent: accents[i % accents.length]!, brandName: o.brandName, logoUrl: o.logoUrl ?? null,
+      productId: o.productId, personaId: o.personaId, objective: o.objective,
+    };
+    try {
+      const [row] = await db!.insert(schema.generations).values({
+        brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
+        status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : costFor('image', 1),
+      }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: `/api/ad/${row.id}`, createdAt: (row.createdAt as Date).toISOString() });
+    } catch { /* ignore */ }
+  }
+
+  if (ads.length && !o.unlimited) {
+    const realCost = costFor('image', ads.length);
+    try {
+      await db!.update(schema.workspaces).set({ creditsBalance: Math.max(0, o.credits - realCost) }).where(eq(schema.workspaces.id, o.workspaceId));
+      await db!.insert(schema.creditLedger).values({ workspaceId: o.workspaceId, delta: -realCost, reason: o.reason });
+    } catch { /* best-effort */ }
+  }
+  return ads;
 }
 
 function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): string {
@@ -96,7 +169,6 @@ export async function generateAdsAction(input: {
   }
 
   const editMode = !!product?.imageUrl;
-  const accents = pickAccents(da?.colors);
 
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
@@ -114,55 +186,13 @@ export async function generateAdsAction(input: {
   }
   if (!concepts.length) return { error: "Aucun concept n'a pu être généré. Réessaie." };
 
-  // Univers visuel : soit imposé, soit varié automatiquement (chaque visuel un univers différent).
-  const chosen = input.universe && input.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === input.universe) : null;
-  const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
-  const universeFor = (i: number) => chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
-
-  // 2) Scènes (Fal) · en parallèle, chacune dans son univers.
-  const scenes = await Promise.all(concepts.map(async (c, i) => {
-    try {
-      const { images } = await falGenerateImage(cfg, {
-        prompt: scenePrompt(c, editMode, universeFor(i)), aspectRatio: '4:5',
-        imageUrl: editMode ? product!.imageUrl! : undefined, edit: editMode, count: 1,
-      });
-      return images[0] || null;
-    } catch { return null; }
-  }));
-
-  // 3) Enregistrement des recettes (rendu PNG à la demande via /api/ad/[id]).
-  const ads: AdItem[] = [];
-  for (let i = 0; i < concepts.length; i++) {
-    const sceneUrl = scenes[i];
-    const c = concepts[i];
-    if (!sceneUrl || !c) continue;
-    const recipe: AdRecipe = {
-      template: c.template, sceneUrl, kicker: c.kicker, headline: c.headline, subhead: c.subhead, cta: c.cta,
-      badge: c.badge, quote: c.quote, author: c.author, rating: c.rating, benefits: c.benefits, stat: c.stat, statLabel: c.statLabel,
-      accent: accents[i % accents.length]!, brandName: brand.name, logoUrl: da?.logoUrl ?? null,
-      productId: input.productId, personaId: input.personaId, objective: input.objective,
-    };
-    try {
-      const [row] = await db.insert(schema.generations).values({
-        brandId: brand.id, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
-        status: 'completed', assetUrls: [sceneUrl], creditsCost: unlimited ? 0 : costFor('image', 1),
-      }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (!row) continue;
-      ads.push({ id: row.id, template: c.template, headline: c.headline, url: `/api/ad/${row.id}`, createdAt: (row.createdAt as Date).toISOString() });
-    } catch { /* ignore */ }
-  }
-
+  const ads = await composeBatch({
+    cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
+    productImageUrl: product?.imageUrl ?? null, editMode, concepts, universe: input.universe,
+    workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · pubs IA',
+    productId: input.productId, personaId: input.personaId, objective: input.objective,
+  });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
-
-  // Débit crédits (best-effort), au prorata des pubs réellement produites.
-  if (!unlimited) {
-    const realCost = costFor('image', ads.length);
-    try {
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - realCost) }).where(eq(schema.workspaces.id, s.workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -realCost, reason: 'Studio · pubs IA' });
-    } catch { /* best-effort */ }
-  }
-
   return { ads };
 }
 
@@ -219,9 +249,29 @@ async function loadAdContext(brandId: string, productId?: string, personaId?: st
 
 const DATA_URI = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/;
 
-/** Clone une pub gagnante : analyse l'image de référence (vision) puis recompose avec ton produit. */
+/** Références de pubs gagnantes issues de la veille (pour le mode Clone). */
+export interface SavedAdRef { id: string; imageUrl: string; brandName: string | null }
+export async function listSavedAdRefs(): Promise<SavedAdRef[]> {
+  const s = await getSession();
+  if (!s || !db) return [];
+  const rows = await db.select({ id: schema.savedAds.id, snapshot: schema.savedAds.snapshot })
+    .from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)).orderBy(desc(schema.savedAds.createdAt)).limit(40);
+  const out: SavedAdRef[] = [];
+  for (const r of rows) {
+    const img = imageUrlFromSnapshot(r.snapshot);
+    const snap = (r.snapshot ?? {}) as Record<string, unknown>;
+    if (img) out.push({ id: r.id, imageUrl: img, brandName: typeof snap.brandName === 'string' ? snap.brandName : (typeof snap.advertiser === 'string' ? snap.advertiser : null) });
+  }
+  return out;
+}
+
+/**
+ * Clone une pub gagnante : analyse la référence (vision), en déduit l'angle + le gabarit,
+ * puis produit N variations sur ta marque/produit (même moteur que « Depuis la marque »).
+ */
 export async function cloneAdAction(input: {
-  referenceDataUri: string; productId?: string; personaId?: string; objective?: string;
+  referenceDataUri?: string; savedAdId?: string;
+  productId?: string; personaId?: string; objective?: string; universe?: string; count?: number;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -233,70 +283,62 @@ export async function cloneAdAction(input: {
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Aucune marque active.' };
 
-  const m = DATA_URI.exec(input.referenceDataUri?.trim() || '');
-  if (!m || !m[1] || !m[2]) return { error: 'Ajoute une image de pub de référence (jpg, png ou webp).' };
-  const ref: CloneRefImage = { mediaType: m[1] as CloneRefImage['mediaType'], base64: m[2] };
+  // Référence : upload direct OU pub sauvegardée de la veille.
+  let ref: CloneRefImage | null = null;
+  if (input.savedAdId) {
+    const [row] = await db.select({ snapshot: schema.savedAds.snapshot }).from(schema.savedAds)
+      .where(and(eq(schema.savedAds.id, input.savedAdId), eq(schema.savedAds.workspaceId, s.workspaceId))).limit(1);
+    const url = row ? imageUrlFromSnapshot(row.snapshot) : null;
+    if (url) ref = await refFromUrl(url);
+    if (!ref) return { error: "Impossible de charger l'image de cette pub sauvegardée. Utilise l'upload." };
+  } else {
+    const m = DATA_URI.exec(input.referenceDataUri?.trim() || '');
+    if (!m || !m[1] || !m[2]) return { error: 'Ajoute une pub de référence (upload ou depuis la veille).' };
+    ref = { mediaType: m[1] as CloneRefImage['mediaType'], base64: m[2] };
+  }
 
-  const cost = costFor('image', 1);
+  const count = Math.min(8, Math.max(1, Math.round(input.count ?? 4)));
+  const cost = costFor('image', count);
   const unlimited = unlimitedCredits(s.user.email);
   const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
   const credits = w?.c ?? 0;
-  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${count} pub(s)).` };
 
   const { da, product, persona } = await loadAdContext(brand.id, input.productId, input.personaId);
   const editMode = !!product?.imageUrl;
-  const accent = pickAccent(da?.colors);
-
-  let concept: AdConcept | null;
-  try {
-    concept = await cloneAdFromReference(client, ref, {
-      brand: brand.name, tone: da?.tone ?? undefined, colors: da?.colors ?? undefined, usp: da?.usp ?? undefined,
-      audience: da?.audience ?? undefined, category: da?.category ?? undefined,
-      productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
-      hasProductPhoto: editMode,
-      persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
-      objective: input.objective,
-    });
-  } catch (e) {
-    return { error: "Analyse de la référence impossible : " + (e as Error).message };
-  }
-  if (!concept) return { error: "La pub de référence n'a pas pu être interprétée. Réessaie." };
-
-  let sceneUrl: string | null = null;
-  try {
-    const { images } = await falGenerateImage(cfg, {
-      prompt: scenePrompt(concept, editMode), aspectRatio: '4:5',
-      imageUrl: editMode ? product!.imageUrl! : undefined, edit: editMode, count: 1,
-    });
-    sceneUrl = images[0] || null;
-  } catch { /* échec scène */ }
-  if (!sceneUrl) return { error: "La scène n'a pas pu être générée. Réessaie." };
-
-  const recipe: AdRecipe = {
-    template: concept.template, sceneUrl, kicker: concept.kicker, headline: concept.headline, subhead: concept.subhead, cta: concept.cta,
-    badge: concept.badge, quote: concept.quote, author: concept.author, rating: concept.rating, benefits: concept.benefits, stat: concept.stat, statLabel: concept.statLabel,
-    accent, brandName: brand.name, logoUrl: da?.logoUrl ?? null,
-    productId: input.productId, personaId: input.personaId, objective: input.objective,
+  const ctx = {
+    brand: brand.name, tone: da?.tone ?? undefined, colors: da?.colors ?? undefined, usp: da?.usp ?? undefined,
+    audience: da?.audience ?? undefined, category: da?.category ?? undefined,
+    productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
+    hasProductPhoto: editMode,
+    persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
+    objective: input.objective,
   };
-  let ad: AdItem;
-  try {
-    const [row] = await db.insert(schema.generations).values({
-      brandId: brand.id, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
-      status: 'completed', assetUrls: [sceneUrl], creditsCost: unlimited ? 0 : cost,
-    }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-    if (!row) return { error: "Enregistrement impossible. Réessaie." };
-    ad = { id: row.id, template: concept.template, headline: concept.headline, url: `/api/ad/${row.id}`, createdAt: (row.createdAt as Date).toISOString() };
-  } catch (e) {
-    return { error: 'Enregistrement impossible : ' + (e as Error).message };
-  }
 
-  if (!unlimited) {
-    try {
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio · clone de pub' });
-    } catch { /* best-effort */ }
+  // 1) Analyse de la référence -> gabarit + angle à répliquer.
+  let base: AdConcept | null;
+  try { base = await cloneAdFromReference(client, ref, ctx); }
+  catch (e) { return { error: "Analyse de la référence impossible : " + (e as Error).message }; }
+  if (!base) return { error: "La pub de référence n'a pas pu être interprétée. Réessaie." };
+  const angle = [base.kicker, base.headline].filter(Boolean).join(' · ') || base.headline;
+
+  // 2) N variations sur ce même angle + gabarit (moteur « Depuis la marque »).
+  let concepts: AdConcept[];
+  try {
+    concepts = await generateAdConcepts(client, { ...ctx, angle }, { templates: Array.from({ length: count }, () => base!.template) });
+  } catch (e) {
+    return { error: 'Écriture des variations impossible : ' + (e as Error).message };
   }
-  return { ads: [ad] };
+  if (!concepts.length) concepts = [base]; // repli : au moins la reproduction directe
+
+  const ads = await composeBatch({
+    cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
+    productImageUrl: product?.imageUrl ?? null, editMode, concepts, universe: input.universe,
+    workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · clone de pub',
+    productId: input.productId, personaId: input.personaId, objective: input.objective,
+  });
+  if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
+  return { ads };
 }
 
 /** Liste les publicités composées (actives par défaut, ou archivées). */

@@ -7,7 +7,7 @@ import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 import { anthropicConfigured } from '../../../../lib/ai-status';
-import { listBrandAds } from '../../../actions/ads';
+import { listBrandAds, listSavedAdRefs } from '../../../actions/ads';
 import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { AdsStudio } from './AdsStudio';
 import { PageInfo } from '../../../../components/PageInfo';
@@ -36,7 +36,7 @@ export default async function AdsStudioPage() {
   const brand = await getActiveBrand(s.workspaceId);
   // Enrichissement automatique (DA, produits, photos) · sans bouton, avant l'affichage.
   if (brand) await ensureBrandEnriched(brand.id);
-  const ads = await listBrandAds();
+  const [ads, savedRefs] = await Promise.all([listBrandAds(), listSavedAdRefs()]);
   let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
   let personas: Array<{ id: string; name: string }> = [];
   if (db && brand) {
@@ -61,11 +61,11 @@ export default async function AdsStudioPage() {
       <PageInfo title="générer des pubs">
         Deux logiques, comme Atria. <b>Depuis la marque</b> : choisis produit, persona, objectif et gabarits, l'IA
         écrit le concept, génère la scène avec ton produit et compose la pub finale (texte, bouton, logo).
-        <b> Cloner une pub gagnante</b> : importe une pub qui marche, l'IA en reprend l'angle et la structure pour ta
-        marque. Ajoute la photo du produit dans Image IA pour que ton vrai packaging apparaisse. 4 crédits par pub.
+        <b> Cloner une pub gagnante</b> : choisis une pub de ta <b>Veille</b> (ou importe une capture), l'IA en reprend
+        l'angle + la structure et te sort plusieurs variations sur ta marque et ton produit. 4 crédits par pub.
       </PageInfo>
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} />
     </main>
   );
 }

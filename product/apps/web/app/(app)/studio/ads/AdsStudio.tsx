@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, type AdItem } from '../../../actions/ads';
+import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, type AdItem, type SavedAdRef } from '../../../actions/ads';
 import { setProductImageAction, importProductImageAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 
@@ -51,9 +51,10 @@ const UNIVERSE_SWATCH: Record<string, string> = {
   flatlay: 'linear-gradient(135deg,#f0e6da,#cbb79b)', energy: 'linear-gradient(135deg,#ff8a3c,#ff3c6e)',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
+  savedRefs: SavedAdRef[];
 }) {
   const [mode, setMode] = useState<'brand' | 'clone'>('brand');
   const [prods, setProds] = useState(products);
@@ -75,6 +76,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
   const [refUri, setRefUri] = useState('');
+  const [savedAdId, setSavedAdId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [ads, setAds] = useState<AdItem[]>(initial);
@@ -149,16 +151,18 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     if (!file) return;
     setError('');
     if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) { setError('Formats acceptés : jpg, png, webp.'); return; }
-    try { setRefUri(await fileToDataUri(file)); } catch (err) { setError((err as Error).message); }
+    try { setRefUri(await fileToDataUri(file)); setSavedAdId(''); } catch (err) { setError((err as Error).message); }
   }
+
+  const hasRef = !!refUri || !!savedAdId;
 
   async function run() {
     if (busy) return;
     setError('');
     if (mode === 'clone') {
-      if (!refUri) { setError('Importe une pub de référence à cloner.'); return; }
+      if (!hasRef) { setError('Choisis une pub de référence (veille ou upload).'); return; }
       setBusy(true);
-      const res = await cloneAdAction({ referenceDataUri: refUri, productId: productId || undefined, personaId: personaId || undefined, objective });
+      const res = await cloneAdAction({ referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined, productId: productId || undefined, personaId: personaId || undefined, objective, universe, count });
       setBusy(false);
       if (res.error) { setError(res.error); return; }
       if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
@@ -289,24 +293,25 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </div>
         )}
 
+        {/* Univers visuel · commun aux deux modes */}
+        <label style={lbl}>Univers visuel <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'ambiance des visuels</span></label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 16 }}>
+          {[{ key: 'auto', label: '✦ Varié (auto)' }, ...VISUAL_UNIVERSES].map((u) => {
+            const on = universe === u.key;
+            return (
+              <button key={u.key} type="button" disabled={!ready} onClick={() => setUniverse(u.key)} style={{
+                display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 12, cursor: ready ? 'pointer' : 'default',
+                border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'var(--accent-soft)' : 'transparent', textAlign: 'left',
+              }}>
+                <span style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0, background: UNIVERSE_SWATCH[u.key] || 'var(--grad-accent)', border: '1px solid rgba(255,255,255,.15)' }} />
+                <span style={{ fontSize: 12, fontWeight: on ? 800 : 600, color: on ? 'var(--ink)' : 'var(--ink-2)' }}>{u.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {mode === 'brand' ? (
           <>
-            <label style={lbl}>Univers visuel <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'ambiance des visuels</span></label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 16 }}>
-              {[{ key: 'auto', label: '✦ Varié (auto)' }, ...VISUAL_UNIVERSES].map((u) => {
-                const on = universe === u.key;
-                return (
-                  <button key={u.key} type="button" disabled={!ready} onClick={() => setUniverse(u.key)} style={{
-                    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 12, cursor: ready ? 'pointer' : 'default',
-                    border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'var(--accent-soft)' : 'transparent', textAlign: 'left',
-                  }}>
-                    <span style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0, background: UNIVERSE_SWATCH[u.key] || 'var(--grad-accent)', border: '1px solid rgba(255,255,255,.15)' }} />
-                    <span style={{ fontSize: 12, fontWeight: on ? 800 : 600, color: on ? 'var(--ink)' : 'var(--ink-2)' }}>{u.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
             <label style={lbl}>Gabarits <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· exécutions autorisées ({templates.length} sélectionné{templates.length > 1 ? 's' : ''})</span></label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 4 }}>
               {TEMPLATES.map((t) => {
@@ -326,7 +331,28 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </>
         ) : (
           <div style={{ padding: 14, borderRadius: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
-            <label style={lbl}>Pub gagnante à cloner <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'IA reprend l'angle et la structure, avec TON produit</span></label>
+            <label style={lbl}>Pub gagnante à cloner <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'IA reprend l'angle + la structure, sur TON produit, en {count} variation{count > 1 ? 's' : ''}</span></label>
+
+            {savedRefs.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 6 }}>Depuis ta Veille (sauvegardes)</div>
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                  {savedRefs.map((r) => {
+                    const on = savedAdId === r.id;
+                    return (
+                      <button key={r.id} type="button" disabled={!ready || busy} onClick={() => { setSavedAdId(on ? '' : r.id); setRefUri(''); }} title={r.brandName ?? ''} style={{
+                        padding: 0, borderRadius: 10, flexShrink: 0, cursor: ready && !busy ? 'pointer' : 'default', background: 'transparent',
+                        border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
+                      }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.imageUrl} alt="" style={{ width: 74, height: 94, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               {refUri ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -339,9 +365,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 <button type="button" onClick={() => refInput.current?.click()} disabled={!ready || busy} style={{
                   fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
                   border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', opacity: ready ? 1 : .55,
-                }}>⬆ {refUri ? 'Changer la référence' : 'Importer une pub'}</button>
+                }}>⬆ {refUri ? 'Changer la capture' : 'Importer une capture'}</button>
                 <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
-                  Capture d'une pub qui marche (concurrent, veille, bibliothèque). L'IA en déduit le gabarit et recompose avec ta marque. Astuce : retrouve des gagnantes dans la <b>Veille</b>.
+                  {savedRefs.length ? 'Choisis une pub de ta Veille ci-dessus, ou importe une capture.' : "Capture d'une pub qui marche (concurrent, veille, bibliothèque)."} L'IA en déduit l'angle + le gabarit et produit {count} variation{count > 1 ? 's' : ''} sur ta marque et ton produit.
                 </p>
               </div>
             </div>
@@ -349,14 +375,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? '4 crédits · 1 pub clonée' : `4 crédits / pub · ${count} pub${count > 1 ? 's' : ''}`}</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>4 crédits / pub · {count} pub{count > 1 ? 's' : ''}</span>
           <span style={{ flex: 1 }} />
-          <button type="button" onClick={run} disabled={!ready || busy || (mode === 'brand' ? !templates.length : !refUri)} style={{
+          <button type="button" onClick={run} disabled={!ready || busy || (mode === 'brand' ? !templates.length : !hasRef)} style={{
             padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
-            cursor: ready && !busy ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && (mode === 'brand' ? templates.length : refUri) ? 1 : .5,
-          }}>{busy ? (mode === 'clone' ? 'Clonage…' : 'Création des pubs…') : mode === 'clone' ? '✨ Cloner la pub' : '✨ Générer les pubs'}</button>
+            cursor: ready && !busy ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && (mode === 'brand' ? templates.length : hasRef) ? 1 : .5,
+          }}>{busy ? (mode === 'clone' ? 'Clonage…' : 'Création des pubs…') : mode === 'clone' ? `✨ Cloner en ${count}` : '✨ Générer les pubs'}</button>
         </div>
-        {busy && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, génération de la scène et composition…' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
+        {busy && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, déclinaison en variations et composition… (~20-40 s)' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
         {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
       </div>
 
