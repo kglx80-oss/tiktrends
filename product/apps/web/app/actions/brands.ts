@@ -10,6 +10,8 @@ import { BRAND_COOKIE } from '../../lib/brands';
 import { anthropicFromEnv, generateBrandProfile, fetchSiteText, type BrandProfileDraft } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
+import { discoverShopify } from '../../lib/shopify';
+import { extractBrandDA } from '../../lib/brand-da';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const lines = (v: FormDataEntryValue | null) => norm(v).split('\n').map((x) => x.trim()).filter(Boolean);
@@ -119,6 +121,48 @@ export async function createBrandAction(formData: FormData): Promise<void> {
     const c = await cookies();
     c.set(BRAND_COOKIE, b.id, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 });
     redirect(`/brands/${b.id}?ok=created`);
+  }
+  redirect('/brands?ok=1');
+}
+
+/** Crée une marque directement depuis une boutique Shopify : produits + images + DA. */
+export async function createBrandFromShopifyAction(formData: FormData): Promise<void> {
+  const s = await getSession();
+  if (!s || !db) redirect('/login');
+  if (!roleAtLeast(s.role, 'admin')) redirect('/brands?e=forbidden');
+
+  const domain = norm(formData.get('domain'));
+  if (!domain) redirect('/brands/new?e=shopify_domain');
+
+  // NB : redirect() lève une exception Next -> il doit rester hors du try/catch.
+  const found = await discoverShopify(domain);
+  if (!found) redirect('/brands/new?e=shopify_notfound');
+  const { origin, products } = found!;
+
+  // Nom de marque : vendor le plus fréquent, sinon le domaine.
+  const host = origin.replace('https://', '');
+  const vendorCount = new Map<string, number>();
+  for (const p of products) if (p.vendor) vendorCount.set(p.vendor, (vendorCount.get(p.vendor) ?? 0) + 1);
+  const topVendor = [...vendorCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const name = topVendor || host.replace(/^www\./, '').split('.')[0]!.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  let da: { logoUrl: string | null; colors: string[]; fonts: string[] } = { logoUrl: null, colors: [], fonts: [] };
+  try { da = await extractBrandDA(origin); } catch { /* best-effort */ }
+
+  const [b] = await db.insert(schema.brands).values({
+    workspaceId: s.workspaceId, name, url: origin, shopifyDomain: host,
+    logoUrl: da.logoUrl, colors: da.colors, fonts: da.fonts,
+  }).returning({ id: schema.brands.id });
+
+  if (b) {
+    const rows = products.slice(0, 250).map((p) => ({
+      brandId: b.id, name: p.title, description: p.description, price: p.price, url: p.url, imageUrl: p.imageUrl,
+    }));
+    if (rows.length) { try { await db.insert(schema.products).values(rows); } catch { /* ignore */ } }
+
+    const c = await cookies();
+    c.set(BRAND_COOKIE, b.id, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 });
+    redirect(`/brands/${b.id}?ok=shopify&n=${rows.length}`);
   }
   redirect('/brands?ok=1');
 }
