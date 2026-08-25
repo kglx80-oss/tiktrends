@@ -63,6 +63,7 @@ async function refFromUrl(url: string): Promise<CloneRefImage | null> {
 async function composeBatch(o: {
   cfg: FalConfig; brandId: string; brandName: string; colors?: string[] | null; logoUrl?: string | null;
   productImageUrls: string[] | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
+  cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean; credits: number; reason: string;
   productId?: string; personaId?: string; objective?: string;
 }): Promise<AdItem[]> {
@@ -70,12 +71,17 @@ async function composeBatch(o: {
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   const universeFor = (i: number) => chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
+  const hasProduct = !!(o.productImageUrls && o.productImageUrls.length);
 
   const scenes = await Promise.all(o.concepts.map(async (c, i) => {
     try {
+      // Clone : on donne la référence EN PREMIER puis nos images produit -> Nano recompose la mise en page.
+      const imageUrls = o.cloneRefUrl
+        ? [o.cloneRefUrl, ...(o.productImageUrls ?? [])]
+        : (o.editMode ? (o.productImageUrls ?? undefined) : undefined);
+      const prompt = o.cloneRefUrl ? scenePromptClone(c, hasProduct) : scenePrompt(c, o.editMode, universeFor(i));
       const { images } = await falGenerateImage(o.cfg, {
-        prompt: scenePrompt(c, o.editMode, universeFor(i)), aspectRatio: '4:5',
-        imageUrls: o.editMode ? (o.productImageUrls ?? undefined) : undefined, edit: o.editMode, count: 1,
+        prompt, aspectRatio: '4:5', imageUrls, edit: o.cloneRefUrl ? true : o.editMode, count: 1,
       });
       return images[0] || null;
     } catch { return null; }
@@ -108,6 +114,15 @@ async function composeBatch(o: {
     } catch { /* best-effort */ }
   }
   return ads;
+}
+
+/** Prompt de clonage : recomposer la mise en page de la référence avec NOTRE produit. */
+function scenePromptClone(c: AdConcept, hasProduct: boolean): string {
+  const base = c.sceneBrief.slice(0, 500);
+  const product = hasProduct
+    ? 'The FIRST image is a winning reference ad. The OTHER image(s) show OUR product. Recreate the reference ad\'s exact composition, framing, camera angle, background, lighting and overall mood, but REPLACE its product with OUR product, keeping our product EXACTLY identical (same packaging shape, label, logo, text, colors and real proportions · do not distort it).'
+    : 'The image is a winning reference ad. Recreate its exact composition, framing, background, lighting and mood, adapted to our brand.';
+  return `${product} Scene notes: ${base}. Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
 }
 
 function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): string {
@@ -285,17 +300,21 @@ export async function cloneAdAction(input: {
   if (!brand) return { error: 'Aucune marque active.' };
 
   // Référence : upload direct OU pub sauvegardée de la veille.
+  // ref = base64 (analyse vision) ; refForModel = URL/data URI donnée au modèle image pour répliquer la mise en page.
   let ref: CloneRefImage | null = null;
+  let refForModel = '';
   if (input.savedAdId) {
     const [row] = await db.select({ snapshot: schema.savedAds.snapshot }).from(schema.savedAds)
       .where(and(eq(schema.savedAds.id, input.savedAdId), eq(schema.savedAds.workspaceId, s.workspaceId))).limit(1);
     const url = row ? imageUrlFromSnapshot(row.snapshot) : null;
-    if (url) ref = await refFromUrl(url);
+    if (url) { ref = await refFromUrl(url); refForModel = url; }
     if (!ref) return { error: "Impossible de charger l'image de cette pub sauvegardée. Utilise l'upload." };
   } else {
-    const m = DATA_URI.exec(input.referenceDataUri?.trim() || '');
+    const uri = input.referenceDataUri?.trim() || '';
+    const m = DATA_URI.exec(uri);
     if (!m || !m[1] || !m[2]) return { error: 'Ajoute une pub de référence (upload ou depuis la veille).' };
     ref = { mediaType: m[1] as CloneRefImage['mediaType'], base64: m[2] };
+    refForModel = uri;
   }
 
   const count = Math.min(8, Math.max(1, Math.round(input.count ?? 4)));
@@ -335,7 +354,7 @@ export async function cloneAdAction(input: {
 
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
-    productImageUrls, editMode, concepts, universe: input.universe,
+    productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
     workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · clone de pub',
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
