@@ -26,9 +26,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const png = await renderAdPng(recipe);
     return new Response(png, {
-      headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=3600' },
+      headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=86400' },
     });
-  } catch (e) {
-    return new Response('Composition impossible : ' + (e as Error).message, { status: 500 });
+  } catch {
+    // Repli : si la composition échoue, on affiche au moins la scène (sans la couche texte).
+    if (recipe.sceneUrl) return Response.redirect(recipe.sceneUrl, 302);
+    return new Response('Composition impossible', { status: 500 });
   }
 }
