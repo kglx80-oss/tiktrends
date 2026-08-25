@@ -44,10 +44,10 @@ Paiement à l'usage chez Fal (~2 à 8 centimes/image selon le modèle).
 
 Options (valeurs par défaut sinon) :
 ```
-FAL_IMAGE_MODEL=fal-ai/flux/dev                  # texte -> image (éco)
+FAL_IMAGE_MODEL=fal-ai/nano-banana-2             # texte -> image (réaliste)
 FAL_IMAGE_MODEL_I2I=fal-ai/flux/dev/image-to-image
 FAL_IMAGE_MODEL_TEXT=fal-ai/ideogram/v3          # image avec texte lisible
-FAL_IMAGE_MODEL_EDIT=fal-ai/flux-kontext/dev     # mise en scène produit : garde le vrai packaging
+FAL_IMAGE_MODEL_EDIT=fal-ai/nano-banana-2/edit   # mise en scène produit : proportions + réalisme
 ```
 
 **La vidéo (Kling 2) passe aussi par cette clé Fal** — image ET vidéo avec une seule clé.

@@ -41,11 +41,12 @@ function scenePrompt(c: AdConcept, editMode: boolean): string {
   const base = c.sceneBrief.slice(0, 700);
   // Cadrage pensé pour l'overlay : sujet dans les 2/3 hauts, bas plus calme/sombre pour le texte.
   const framing = 'Composition: keep the main subject in the upper two thirds; keep the lower third calmer and less busy so a text panel can sit there. Vertical 4:5 framing, high-end commercial look, crisp focus, natural depth of field.';
-  const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI in the image.';
+  const realism = 'Ultra realistic, photorealistic, true-to-life scale and proportions: the product is shown at its real-world size relative to hands, people and objects, correct perspective, no distortion, no warping, no stretching, accurate label and cap proportions, physically plausible lighting, shadows and reflections.';
+  const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI added to the image.';
   if (editMode) {
-    return `Keep the product EXACTLY as in the input photo (same packaging, label, logo, text, colors, proportions). Only restyle the surrounding scene: ${base}. Premium advertising photography, photoreal, soft studio lighting. ${framing} ${noText}`;
+    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions — do not resize, stretch or reshape it). New scene: ${base}. ${realism} Premium advertising photography, soft studio lighting. ${framing} ${noText}`;
   }
-  return `${base}. Premium advertising photography, photoreal, cinematic lighting. ${framing} ${noText}`;
+  return `${base}. ${realism} Premium advertising photography, cinematic lighting. ${framing} ${noText}`;
 }
 
 export async function generateAdsAction(input: {
