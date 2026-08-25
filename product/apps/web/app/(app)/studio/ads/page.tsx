@@ -8,6 +8,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { listBrandAds, listSavedAdRefs } from '../../../actions/ads';
+import { listAssets } from '../../../actions/assets';
 import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { AdsStudio } from './AdsStudio';
 import { PageInfo } from '../../../../components/PageInfo';
@@ -36,7 +37,8 @@ export default async function AdsStudioPage() {
   const brand = await getActiveBrand(s.workspaceId);
   // Enrichissement automatique (DA, produits, photos) · sans bouton, avant l'affichage.
   if (brand) await ensureBrandEnriched(brand.id);
-  const [ads, savedRefs] = await Promise.all([listBrandAds(), listSavedAdRefs()]);
+  const [ads, savedRefs, allAssets] = await Promise.all([listBrandAds(), listSavedAdRefs(), listAssets({ kind: 'image' })]);
+  const assetChoices = allAssets.slice(0, 24).map((a) => ({ id: a.id, name: a.name, url: a.url }));
   let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
   let personas: Array<{ id: string; name: string }> = [];
   let edenRules = '';
@@ -86,7 +88,7 @@ export default async function AdsStudioPage() {
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} />
     </main>
   );
 }

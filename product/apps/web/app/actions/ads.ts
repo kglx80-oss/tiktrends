@@ -8,7 +8,7 @@ import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integra
 import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
-import { listBrandAssetImageUrls } from './assets';
+import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 
 export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string }
@@ -180,7 +180,7 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): 
 }
 
 export async function generateAdsAction(input: {
-  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number;
+  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[];
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -227,8 +227,10 @@ export async function generateAdsAction(input: {
 
   const productImageUrls = product ? (product.imageUrls && product.imageUrls.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : null)) : null;
   const editMode = !!(productImageUrls && productImageUrls.length);
-  // Bibliothèque Assets : images marque/communes utilisables par l'IA · quand c'est rempli, on s'en sert d'office.
-  const assetRefUrls = await listBrandAssetImageUrls(s.workspaceId, brand.id, 4);
+  // Bibliothèque Assets : sélection explicite si fournie, sinon auto (images marque/communes).
+  const assetRefUrls = input.assetIds && input.assetIds.length
+    ? await resolveAssetImageUrls(s.workspaceId, input.assetIds, 6)
+    : await listBrandAssetImageUrls(s.workspaceId, brand.id, 4);
 
   // Inspiration « ce qui fonctionne » : concurrents de la marque + copy des pubs sauvegardées (veille).
   const [brow] = await db.select({ competitors: schema.brands.competitors }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);

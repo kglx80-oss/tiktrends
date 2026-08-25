@@ -216,6 +216,17 @@ export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: t
  * (images de la marque + images communes à l'espace), dédiées à l'IA (use_for_ai).
  * Sert à ce que « quand c'est rempli, l'IA s'en serve forcément ».
  */
+/** Résout des URLs d'images de la bibliothèque à partir d'IDs (sélection explicite). */
+export async function resolveAssetImageUrls(workspaceId: string, ids: string[], limit = 6): Promise<string[]> {
+  if (!db || !ids.length) return [];
+  const rows = await db.select({ id: schema.assets.id, url: schema.assets.url, kind: schema.assets.kind })
+    .from(schema.assets)
+    .where(and(eq(schema.assets.workspaceId, workspaceId), eq(schema.assets.kind, 'image')))
+    .limit(400);
+  const set = new Set(ids);
+  return rows.filter((r) => set.has(r.id) && r.url).map((r) => r.url).slice(0, limit);
+}
+
 export async function listBrandAssetImageUrls(workspaceId: string, brandId: string, limit = 4): Promise<string[]> {
   if (!db) return [];
   const rows = await db.select({ url: schema.assets.url })

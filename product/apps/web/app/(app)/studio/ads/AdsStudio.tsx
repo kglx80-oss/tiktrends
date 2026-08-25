@@ -51,11 +51,14 @@ const UNIVERSE_SWATCH: Record<string, string> = {
   flatlay: 'linear-gradient(135deg,#f0e6da,#cbb79b)', energy: 'linear-gradient(135deg,#ff8a3c,#ff3c6e)',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [] }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
+  assets?: Array<{ id: string; name: string; url: string }>;
 }) {
+  const [assetIds, setAssetIds] = useState<string[]>([]);
+  const toggleAsset = (id: string) => setAssetIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
   const [mode, setMode] = useState<'brand' | 'clone'>('brand');
   const [prods, setProds] = useState(products);
   // S'il n'y a qu'un seul produit, on le sélectionne d'office (évite le piège « Aucun »).
@@ -176,7 +179,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     }
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count, assetIds: assetIds.length ? assetIds : undefined });
     setBusy(false);
     applyResult(res);
   }
@@ -330,6 +333,24 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
         {mode === 'brand' ? (
           <>
+            {/* Références Assets · quand rien n'est coché, l'IA utilise automatiquement la bibliothèque. */}
+            {assets.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={lbl}>Références (Assets) <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· {assetIds.length ? `${assetIds.length} sélectionnée(s)` : 'auto · toute la bibliothèque'}</span></label>
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                  {assets.map((a) => {
+                    const on = assetIds.includes(a.id);
+                    return (
+                      <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 62, height: 62, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={a.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: on ? 1 : 0.85 }} />
+                        {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: '#0d070c', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <label style={lbl}>Gabarits <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· exécutions autorisées ({templates.length} sélectionné{templates.length > 1 ? 's' : ''})</span></label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 4 }}>
               {TEMPLATES.map((t) => {
