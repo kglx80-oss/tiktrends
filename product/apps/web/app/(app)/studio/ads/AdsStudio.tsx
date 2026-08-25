@@ -176,13 +176,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           ))}
         </div>
 
-        {prods.length > 0 && (
+        {/* Récupération auto au chargement ; ce rappel n'apparaît que s'il reste des photos manquantes. */}
+        {prods.some((p) => !p.hasImage) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
             <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>
-              📷 Photos produit : <b>{prods.filter((p) => p.hasImage).length}/{prods.length}</b> récupérées.
+              📷 Photos produit : <b>{prods.filter((p) => p.hasImage).length}/{prods.length}</b> · certaines manquent.
             </span>
             <button type="button" onClick={importAll} disabled={!ready || bulkBusy} style={{ ...miniBtn, opacity: ready && !bulkBusy ? 1 : .6 }}>
-              {bulkBusy ? 'Récupération…' : '🔗 Récupérer toutes les photos depuis le site'}
+              {bulkBusy ? 'Récupération…' : '🔗 Réessayer depuis le site'}
             </button>
             {bulkMsg && <span style={{ fontSize: 11.5, color: bulkOk ? '#9fe6b3' : '#f5b043' }}>{bulkMsg}</span>}
           </div>
