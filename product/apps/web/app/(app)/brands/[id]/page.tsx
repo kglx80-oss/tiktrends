@@ -13,6 +13,7 @@ import {
 } from '../../../actions/brand-detail';
 import { input, lbl, Msg } from '../../../../components/ui';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
+import { BrandOnboarding, type OnboardStep } from '../../../../components/BrandOnboarding';
 import { ShopifyConnect } from './ShopifyConnect';
 import { BrandDA } from './BrandDA';
 import { SubmitButton } from '../../../../components/SubmitButton';
@@ -53,11 +54,12 @@ export default async function BrandDetailPage({ params, searchParams }: {
   const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, id)).limit(1);
   if (!b) notFound();
 
-  const [personas, scenarios, products, adAccounts] = await Promise.all([
+  const [personas, scenarios, products, adAccounts, gens] = await Promise.all([
     db.select().from(schema.personas).where(eq(schema.personas.brandId, id)),
     db.select().from(schema.scenarios).where(eq(schema.scenarios.brandId, id)),
     db.select().from(schema.products).where(eq(schema.products.brandId, id)),
     db.select().from(schema.adAccounts).where(eq(schema.adAccounts.brandId, id)),
+    db.select({ id: schema.generations.id }).from(schema.generations).where(eq(schema.generations.brandId, id)).limit(1),
   ]);
   const competitors = b.competitors ?? [];
   const aiReady = anthropicConfigured();
@@ -105,6 +107,16 @@ export default async function BrandDetailPage({ params, searchParams }: {
           scenarios.length > 0, personas.length > 0, products.length > 0, competitors.length > 0,
         ];
         const score = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+        // Parcours de démarrage guidé · 7 étapes à respecter dans l'ordre.
+        const steps: OnboardStep[] = [
+          { key: 'profil', label: 'Compléter le profil', desc: 'Description, USP, audience et catégorie', done: !!(b.description && b.usp && b.audience && b.category), href: `/brands/${id}`, cta: 'Compléter' },
+          { key: 'charte', label: 'Définir la charte visuelle', desc: 'Logo, couleurs et polices de la marque', done: !!(b.logoUrl || (b.colors ?? []).length > 0 || (b.fonts ?? []).length > 0), href: `/brands/${id}`, cta: 'Définir' },
+          { key: 'produits', label: 'Ajouter les produits', desc: 'Import Shopify / site ou saisie manuelle', done: products.length > 0, href: `/brands/${id}?tab=products`, cta: 'Ajouter' },
+          { key: 'audience', label: "Décrire l'audience", desc: 'Personas et scénarios d’usage', done: personas.length > 0 && scenarios.length > 0, href: `/brands/${id}?tab=audience`, cta: 'Décrire' },
+          { key: 'concurrents', label: 'Suivre les concurrents', desc: 'Les marques à surveiller', done: competitors.length > 0, href: `/brands/${id}?tab=competitors`, cta: 'Suivre' },
+          { key: 'eden', label: 'Poser les règles EDEN', desc: 'Tes consignes maison sur l’IA créative', done: !!(b.creativeRules && b.creativeRules.trim()), href: '/eden', cta: 'Configurer' },
+          { key: 'crea', label: 'Générer ta première créa', desc: 'Une pub IA à partir du profil', done: gens.length > 0, href: '/studio/ads', cta: 'Générer' },
+        ];
         const cards: Array<{ n: number; label: string; tab: Tab }> = [
           { n: adAccounts.length, label: 'Comptes pub', tab: 'products' },
           { n: scenarios.length, label: 'Scénarios', tab: 'audience' },
@@ -114,6 +126,9 @@ export default async function BrandDetailPage({ params, searchParams }: {
         ];
         return (
         <div>
+          {/* Parcours de démarrage guidé (schéma étape par étape) */}
+          <BrandOnboarding steps={steps} />
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)' }}>
               <span style={{ position: 'relative', width: 30, height: 30, borderRadius: '50%', background: `conic-gradient(var(--accent-strong) ${score * 3.6}deg, var(--line-2) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>

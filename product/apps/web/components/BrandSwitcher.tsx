@@ -44,9 +44,14 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
             ))}
             {brands.length === 0 && <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--muted)' }}>Aucune marque pour l'instant.</div>}
             {canManage && (
-              <Link href="/brands" onClick={() => setOpen(false)} style={{ ...row(false), borderTop: '1px solid var(--line)', color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>
-                + Gérer les marques
-              </Link>
+              <>
+                <Link href="/brands/new" onClick={() => setOpen(false)} style={{ ...row(false), borderTop: '1px solid var(--line)', color: 'var(--accent-strong)', fontWeight: 800, textDecoration: 'none' }}>
+                  + Nouvelle marque
+                </Link>
+                <Link href="/brands" onClick={() => setOpen(false)} style={{ ...row(false), fontSize: 12, color: 'var(--muted)', fontWeight: 600, textDecoration: 'none' }}>
+                  Toutes mes marques
+                </Link>
+              </>
             )}
           </div>
         </>

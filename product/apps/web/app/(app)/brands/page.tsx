@@ -46,7 +46,7 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Marques</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
         <span style={{ flex: 1 }} />
-        <Link href="/brands/new" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>+ Créer une marque</Link>
+        <Link href="/brands/new" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>+ Nouvelle marque</Link>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>
         Chaque marque a son propre espace : sélectionne-la en haut du menu pour filtrer sauvegardes, suivis et analyses.
@@ -65,7 +65,7 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
       {rows.length === 0 && (
         <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '30px 22px', textAlign: 'center' }}>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, margin: '0 0 14px' }}>Aucune marque pour l'instant. Crée la première en quelques minutes.</p>
-          <Link href="/brands/new" style={{ padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>+ Créer une marque</Link>
+          <Link href="/brands/new" style={{ padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>+ Nouvelle marque</Link>
         </div>
       )}
 
