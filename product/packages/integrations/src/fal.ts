@@ -107,9 +107,10 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
 export interface FalVideoInput { prompt: string; imageUrl?: string; aspectRatio?: FalAspect; durationS?: number }
 export interface FalVideoJob { status: 'queued' | 'processing' | 'completed' | 'failed'; videoUrl?: string; error?: string }
 
-// jobId encode le modèle + l'identifiant de requête (le poll a besoin du modèle).
+// jobId : on encode les URLs de suivi renvoyées par Fal (« falq|statusUrl|responseUrl »),
+// c'est la seule méthode fiable ; sinon rétro-compat « model::id ».
 const encodeJob = (model: string, id: string) => `${model}::${id}`;
-export function isFalJob(jobId: string): boolean { return jobId.includes('::'); }
+export function isFalJob(jobId: string): boolean { return jobId.startsWith('falq|') || jobId.includes('::'); }
 
 /** Soumet une génération vidéo (Kling via file d'attente Fal) → renvoie le jobId. */
 export async function falSubmitVideo(cfg: FalConfig, input: FalVideoInput): Promise<{ jobId: string }> {
@@ -130,6 +131,10 @@ export async function falSubmitVideo(cfg: FalConfig, input: FalVideoInput): Prom
   });
   if (!res.ok) throw new Error(`Source vidéo : ${res.status} ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as Record<string, unknown>;
+  // Fal renvoie les URLs exactes de suivi : on les utilise telles quelles (fiable, pas de reconstruction).
+  const statusUrl = pickString(data, ['status_url']);
+  const responseUrl = pickString(data, ['response_url']);
+  if (statusUrl && responseUrl) return { jobId: `falq|${statusUrl}|${responseUrl}` };
   const id = pickString(data, ['request_id', 'requestId', 'id']);
   if (!id) throw new Error("Réponse inattendue de la source vidéo (identifiant absent).");
   return { jobId: encodeJob(model, id) };
@@ -137,11 +142,21 @@ export async function falSubmitVideo(cfg: FalConfig, input: FalVideoInput): Prom
 
 /** Interroge un job vidéo Fal. */
 export async function falGetVideo(cfg: FalConfig, jobId: string): Promise<FalVideoJob> {
-  const [model, id] = jobId.split('::');
-  if (!model || !id) return { status: 'failed', error: 'Job invalide.' };
-  const base = `${cfg.queueUrl}/${model}/requests/${encodeURIComponent(id)}`;
+  let statusUrl: string, responseUrl: string;
+  if (jobId.startsWith('falq|')) {
+    const parts = jobId.split('|');
+    if (!parts[1] || !parts[2]) return { status: 'failed', error: 'Job invalide.' };
+    statusUrl = parts[1]; responseUrl = parts[2];
+  } else {
+    const [model, id] = jobId.split('::');
+    if (!model || !id) return { status: 'failed', error: 'Job invalide.' };
+    // Rétro-compat : le suivi Fal se fait sur l'app de base (2 premiers segments), pas le chemin complet.
+    const app = model.split('/').slice(0, 2).join('/');
+    statusUrl = `${cfg.queueUrl}/${app}/requests/${encodeURIComponent(id)}/status`;
+    responseUrl = `${cfg.queueUrl}/${app}/requests/${encodeURIComponent(id)}`;
+  }
 
-  const st = await fetch(`${base}/status`, { headers: { authorization: `Key ${cfg.apiKey}` }, signal: AbortSignal.timeout(20000) });
+  const st = await fetch(statusUrl, { headers: { authorization: `Key ${cfg.apiKey}` }, signal: AbortSignal.timeout(20000) });
   // Job introuvable/expiré (404/410/422) : on considère l'échec plutôt que de tourner en rond.
   if (st.status === 404 || st.status === 410 || st.status === 422) return { status: 'failed', error: 'Job introuvable ou expiré côté fournisseur.' };
   if (!st.ok) return { status: 'processing' }; // erreur transitoire : on réessaiera
@@ -151,7 +166,7 @@ export async function falGetVideo(cfg: FalConfig, jobId: string): Promise<FalVid
   if (/QUEUE/.test(raw)) return { status: 'queued' };
   if (!/COMPLET/.test(raw)) return { status: 'processing' };
 
-  const rr = await fetch(base, { headers: { authorization: `Key ${cfg.apiKey}` }, signal: AbortSignal.timeout(20000) });
+  const rr = await fetch(responseUrl, { headers: { authorization: `Key ${cfg.apiKey}` }, signal: AbortSignal.timeout(20000) });
   if (!rr.ok) return { status: 'failed', error: `La vidéo n'a pas pu être récupérée (${rr.status}).` };
   const rd = (await rr.json()) as Record<string, unknown>;
   const nested = (rd.video ?? rd.output ?? rd.data ?? {}) as Record<string, unknown>;
