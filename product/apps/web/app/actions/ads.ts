@@ -51,7 +51,7 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): 
 }
 
 export async function generateAdsAction(input: {
-  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string;
+  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -65,13 +65,16 @@ export async function generateAdsAction(input: {
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Aucune marque active.' };
 
-  const templates = (input.templates && input.templates.length ? input.templates : AD_TEMPLATES).slice(0, 4);
-  const cost = costFor('image', templates.length);
+  // Pool de gabarits autorisés + quantité voulue -> liste ordonnée (avec répétitions).
+  const pool = (input.templates && input.templates.length ? input.templates : AD_TEMPLATES);
+  const count = Math.min(8, Math.max(1, Math.round(input.count ?? pool.length)));
+  const templates = Array.from({ length: count }, (_, i) => pool[i % pool.length]!);
+  const cost = costFor('image', count);
   const unlimited = unlimitedCredits(s.user.email);
   let credits = 0;
   const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
   credits = w?.c ?? 0;
-  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${templates.length} pub(s)).` };
+  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${count} pub(s)).` };
 
   // Contexte marque + produit + persona.
   const [da] = await db.select({
@@ -135,7 +138,7 @@ export async function generateAdsAction(input: {
     if (!sceneUrl || !c) continue;
     const recipe: AdRecipe = {
       template: c.template, sceneUrl, kicker: c.kicker, headline: c.headline, subhead: c.subhead, cta: c.cta,
-      badge: c.badge, quote: c.quote, author: c.author, rating: c.rating, benefits: c.benefits,
+      badge: c.badge, quote: c.quote, author: c.author, rating: c.rating, benefits: c.benefits, stat: c.stat, statLabel: c.statLabel,
       accent: accents[i % accents.length]!, brandName: brand.name, logoUrl: da?.logoUrl ?? null,
       productId: input.productId, personaId: input.personaId, objective: input.objective,
     };
@@ -271,7 +274,7 @@ export async function cloneAdAction(input: {
 
   const recipe: AdRecipe = {
     template: concept.template, sceneUrl, kicker: concept.kicker, headline: concept.headline, subhead: concept.subhead, cta: concept.cta,
-    badge: concept.badge, quote: concept.quote, author: concept.author, rating: concept.rating, benefits: concept.benefits,
+    badge: concept.badge, quote: concept.quote, author: concept.author, rating: concept.rating, benefits: concept.benefits, stat: concept.stat, statLabel: concept.statLabel,
     accent, brandName: brand.name, logoUrl: da?.logoUrl ?? null,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   };
@@ -296,18 +299,34 @@ export async function cloneAdAction(input: {
   return { ads: [ad] };
 }
 
-/** Liste les publicités déjà composées pour la marque active. */
-export async function listBrandAds(): Promise<AdItem[]> {
+/** Liste les publicités composées (actives par défaut, ou archivées). */
+export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdItem[]> {
   const s = await getSession();
   if (!s || !db) return [];
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return [];
-  const rows = await db.select({ id: schema.generations.id, input: schema.generations.input, createdAt: schema.generations.createdAt })
+  const wantArchived = !!opts?.archived;
+  const rows = await db.select({ id: schema.generations.id, input: schema.generations.input, status: schema.generations.status, createdAt: schema.generations.createdAt })
     .from(schema.generations)
     .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad')))
-    .orderBy(desc(schema.generations.createdAt)).limit(30);
-  return rows.map((r) => {
-    const rec = (r.input ?? {}) as Partial<AdRecipe>;
-    return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: `/api/ad/${r.id}`, createdAt: (r.createdAt as Date).toISOString() };
-  });
+    .orderBy(desc(schema.generations.createdAt)).limit(60);
+  return rows
+    .filter((r) => (r.status === 'archived') === wantArchived)
+    .map((r) => {
+      const rec = (r.input ?? {}) as Partial<AdRecipe>;
+      return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: `/api/ad/${r.id}`, createdAt: (r.createdAt as Date).toISOString() };
+    });
+}
+
+/** Archive (ou restaure) un rendu de pub. */
+export async function archiveAdAction(input: { id: string; archived?: boolean }): Promise<{ ok?: true; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+  const [g] = await db.select({ id: schema.generations.id }).from(schema.generations)
+    .where(and(eq(schema.generations.id, input.id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
+  if (!g) return { error: 'Rendu introuvable.' };
+  await db.update(schema.generations).set({ status: input.archived === false ? 'completed' : 'archived' }).where(eq(schema.generations.id, input.id));
+  return { ok: true };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import { generateAdsAction, cloneAdAction, suggestAnglesAction, type AdItem } from '../../../actions/ads';
+import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, type AdItem } from '../../../actions/ads';
 import { setProductImageAction, importProductImageAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 
@@ -34,10 +34,21 @@ const TEMPLATES: { key: AdTemplate; label: string; emoji: string }[] = [
   { key: 'before_after', label: 'Avant / après', emoji: '🔀' },
   { key: 'testimonial', label: 'Témoignage / note', emoji: '⭐' },
   { key: 'benefits', label: 'Bénéfices annotés', emoji: '✅' },
+  { key: 'ugc', label: 'UGC natif', emoji: '📱' },
+  { key: 'stat', label: 'Chiffre-clé', emoji: '📊' },
+  { key: 'offer', label: 'Offre / promo', emoji: '🏷️' },
 ];
-const OBJECTIVES = ['Ventes', 'Notoriété', 'Trafic', 'Considération'];
+const OBJECTIVES = ['Ventes', 'Prospection', 'Retargeting', 'Notoriété', 'Trafic', 'Considération', 'Lancement produit', 'Promo / soldes', 'Collecte d’avis', 'Génération de leads'];
 const TPL_LABEL: Record<AdTemplate, string> = {
   problem_solution: 'Problème / solution', before_after: 'Avant / après', testimonial: 'Témoignage', benefits: 'Bénéfices',
+  ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
+};
+// Aperçu couleur/gradient par univers (pour des cartes visuelles).
+const UNIVERSE_SWATCH: Record<string, string> = {
+  studio: 'linear-gradient(135deg,#e9e9ee,#c7c7d1)', lifestyle: 'linear-gradient(135deg,#f4c99a,#d98c5f)',
+  editorial: 'linear-gradient(135deg,#2b2b33,#6b6b7a)', nature: 'linear-gradient(135deg,#8fd39a,#4c8a5a)',
+  bold: 'linear-gradient(135deg,#ff5db1,#7a5bff)', cinematic: 'linear-gradient(135deg,#141420,#3a2b52)',
+  flatlay: 'linear-gradient(135deg,#f0e6da,#cbb79b)', energy: 'linear-gradient(135deg,#ff8a3c,#ff3c6e)',
 };
 
 export function AdsStudio({ ready, aiReady, brandName, initial, products, personas }: {
@@ -60,6 +71,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [templates, setTemplates] = useState<AdTemplate[]>(['problem_solution', 'before_after', 'testimonial', 'benefits']);
   const [angle, setAngle] = useState('');
   const [universe, setUniverse] = useState('auto');
+  const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
   const [refUri, setRefUri] = useState('');
@@ -73,6 +85,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
   function toggle(t: AdTemplate) {
     setTemplates((list) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t]));
+  }
+
+  async function archive(id: string) {
+    setAds((list) => list.filter((a) => a.id !== id)); // retrait optimiste
+    await archiveAdAction({ id });
   }
 
   function proposeAngles() {
@@ -149,7 +166,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     }
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
@@ -211,11 +228,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               {OBJECTIVES.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
           </div>
-          <div style={{ flex: '1 1 180px' }}>
-            <label style={lbl}>Univers visuel</label>
-            <select value={universe} onChange={(e) => setUniverse(e.target.value)} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
-              <option value="auto">✦ Varié (auto)</option>
-              {VISUAL_UNIVERSES.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
+          <div style={{ flex: '1 1 120px' }}>
+            <label style={lbl}>Quantité</label>
+            <select value={count} onChange={(e) => setCount(Number(e.target.value))} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
+              {[1, 2, 3, 4, 5, 6, 8].map((n) => <option key={n} value={n}>{n} pub{n > 1 ? 's' : ''}</option>)}
             </select>
           </div>
         </div>
@@ -275,16 +291,35 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
         {mode === 'brand' ? (
           <>
-            <label style={lbl}>Gabarits <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— exécutions autorisées pour décliner l'angle</span></label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <label style={lbl}>Univers visuel <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— l'ambiance des visuels</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 16 }}>
+              {[{ key: 'auto', label: '✦ Varié (auto)' }, ...VISUAL_UNIVERSES].map((u) => {
+                const on = universe === u.key;
+                return (
+                  <button key={u.key} type="button" disabled={!ready} onClick={() => setUniverse(u.key)} style={{
+                    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 12, cursor: ready ? 'pointer' : 'default',
+                    border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'var(--accent-soft)' : 'transparent', textAlign: 'left',
+                  }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0, background: UNIVERSE_SWATCH[u.key] || 'var(--grad-accent)', border: '1px solid rgba(255,255,255,.15)' }} />
+                    <span style={{ fontSize: 12, fontWeight: on ? 800 : 600, color: on ? 'var(--ink)' : 'var(--ink-2)' }}>{u.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <label style={lbl}>Gabarits <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— exécutions autorisées ({templates.length} sélectionné{templates.length > 1 ? 's' : ''})</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 4 }}>
               {TEMPLATES.map((t) => {
                 const on = templates.includes(t.key);
                 return (
                   <button key={t.key} type="button" disabled={!ready} onClick={() => toggle(t.key)} style={{
-                    fontSize: 12.5, fontWeight: on ? 800 : 600, padding: '9px 14px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
-                    border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, padding: '12px 13px', borderRadius: 14, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
+                    border: `1.5px solid ${on ? 'transparent' : 'var(--line-2)'}`,
                     background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
-                  }}>{t.emoji} {t.label}</button>
+                  }}>
+                    <span style={{ fontSize: 22 }}>{t.emoji}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: on ? 800 : 600 }}>{t.label}</span>
+                  </button>
                 );
               })}
             </div>
@@ -314,7 +349,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? '4 crédits · 1 pub clonée' : `4 crédits / pub · ${templates.length} pub${templates.length > 1 ? 's' : ''}`}</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? '4 crédits · 1 pub clonée' : `4 crédits / pub · ${count} pub${count > 1 ? 's' : ''}`}</span>
           <span style={{ flex: 1 }} />
           <button type="button" onClick={run} disabled={!ready || busy || (mode === 'brand' ? !templates.length : !refUri)} style={{
             padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
@@ -342,9 +377,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               <div style={{ padding: '9px 11px' }}>
                 <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
-                <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+                <div style={{ display: 'flex', gap: 12, marginTop: 6, alignItems: 'center' }}>
                   <button type="button" onClick={() => setPreview(a.url)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Aperçu ⛶</button>
                   <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>
+                  <span style={{ flex: 1 }} />
+                  <button type="button" onClick={() => archive(a.id)} title="Archiver ce rendu" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Archiver ✕</button>
                 </div>
               </div>
             </div>
