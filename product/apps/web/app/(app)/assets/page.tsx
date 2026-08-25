@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
+import { storageConfigured } from '@tiktrends/integrations';
 import { listAssets } from '../../actions/assets';
 import { PageInfo } from '../../../components/PageInfo';
 import { AssetsLibrary } from './AssetsLibrary';
@@ -15,6 +16,7 @@ export default async function AssetsPage() {
 
   const [assets, brand] = await Promise.all([listAssets(), getActiveBrand(s.workspaceId)]);
   const imgCount = assets.filter((a) => a.kind === 'image').length;
+  const storageOn = storageConfigured();
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1100, margin: '0 auto' }}>
@@ -30,11 +32,13 @@ export default async function AssetsPage() {
       <PageInfo title="bibliothèque d'assets">
         Centralise ici tes médias. Les <b>images</b> marquées « IA » servent automatiquement de références lors des
         générations (Pubs IA, Image IA) pour ta marque · quand la bibliothèque est remplie, l'IA s'en sert d'office.
-        Les vidéos et audio s'ajoutent par lien (Drive, URL) et servent de rushs de référence.
+        {storageOn
+          ? <> Le <b>stockage objet est actif</b> : téléverse directement images, <b>vidéos</b> et audio (jusqu'à 1 Go).</>
+          : <> Sans stockage objet configuré, les images sont optimisées et les vidéos/audio s'ajoutent par lien (Drive, URL).</>}
       </PageInfo>
 
       <div style={{ marginTop: 16 }}>
-        <AssetsLibrary initial={assets} brandName={brand?.name ?? null} />
+        <AssetsLibrary initial={assets} brandName={brand?.name ?? null} storageEnabled={storageConfigured()} />
       </div>
     </main>
   );

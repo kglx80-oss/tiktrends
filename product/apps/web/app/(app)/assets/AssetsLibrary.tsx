@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, type AssetItem, type AssetKind } from '../../actions/assets';
+import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, type AssetItem, type AssetKind } from '../../actions/assets';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -32,13 +32,27 @@ function fileToDataUri(file: File, maxSide = 1400, quality = 0.85): Promise<stri
 
 const kindIcon: Record<string, string> = { image: '🖼️', video: '🎬', audio: '🎵', other: '📎' };
 
-export function AssetsLibrary({ initial, brandName }: { initial: AssetItem[]; brandName: string | null }) {
+/** PUT direct vers le bucket avec suivi de progression. */
+function putWithProgress(url: string, file: File, onProgress: (pct: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error('HTTP ' + xhr.status)));
+    xhr.onerror = () => reject(new Error('Réseau / CORS'));
+    xhr.send(file);
+  });
+}
+
+export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial: AssetItem[]; brandName: string | null; storageEnabled: boolean }) {
   const router = useRouter();
   const [assets, setAssets] = useState(initial);
   const [filter, setFilter] = useState<AssetKind | 'all'>('all');
   const [common, setCommon] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [progress, setProgress] = useState<{ name: string; pct: number } | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [imp, setImp] = useState({ name: '', url: '', kind: 'video' as AssetKind });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -52,6 +66,28 @@ export function AssetsLibrary({ initial, brandName }: { initial: AssetItem[]; br
     if (fileRef.current) fileRef.current.value = '';
     if (!files.length) return;
     setMsg(''); setBusy(true);
+
+    // Stockage objet configuré : upload direct de TOUT type (images, vidéos, audio) vers le bucket.
+    if (storageEnabled) {
+      let ok = 0; const errs: string[] = [];
+      for (const f of files) {
+        try {
+          const pre = await presignAssetUploadAction({ filename: f.name, contentType: f.type || 'application/octet-stream', sizeBytes: f.size });
+          if (pre.error || !pre.uploadUrl || !pre.publicUrl) { errs.push(`${f.name}: ${pre.error || 'échec'}`); continue; }
+          setProgress({ name: f.name, pct: 0 });
+          await putWithProgress(pre.uploadUrl, f, (pct) => setProgress({ name: f.name, pct }));
+          const reg = await registerUploadedAssetAction({ name: f.name, url: pre.publicUrl, mimeType: f.type, sizeBytes: f.size, common });
+          if (reg.error) { errs.push(`${f.name}: ${reg.error}`); continue; }
+          ok++;
+        } catch (e) { errs.push(`${f.name}: ${(e as Error).message}`); }
+      }
+      setProgress(null); setBusy(false);
+      setMsg(errs.length ? `${ok} fichier(s) ajouté(s). Échecs : ${errs.slice(0, 3).join(' · ')}` : `${ok} fichier(s) ajouté(s).`);
+      refresh();
+      return;
+    }
+
+    // Fallback (pas de stockage objet) : images compressées en data URI, le reste par lien.
     try {
       const imgs = files.filter((f) => /^image\//.test(f.type));
       const others = files.filter((f) => !/^image\//.test(f.type));
@@ -62,7 +98,7 @@ export function AssetsLibrary({ initial, brandName }: { initial: AssetItem[]; br
       }
       setBusy(false);
       setMsg(others.length
-        ? `${imgs.length} image(s) ajoutée(s). Les vidéos/audio se rajoutent par lien (bouton « Importer par lien »).`
+        ? `${imgs.length} image(s) ajoutée(s). Sans stockage objet, les vidéos/audio s'ajoutent par lien.`
         : `${imgs.length} image(s) ajoutée(s).`);
       refresh();
     } catch { setBusy(false); setMsg('Échec du téléversement.'); }
@@ -91,9 +127,19 @@ export function AssetsLibrary({ initial, brandName }: { initial: AssetItem[]; br
     <div>
       {/* Barre d'actions */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFiles} style={{ display: 'none' }} />
-        <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>{busy ? 'Traitement…' : '⬆ Téléverser des images'}</button>
+        <input ref={fileRef} type="file" accept={storageEnabled ? 'image/*,video/*,audio/*' : 'image/*'} multiple onChange={onFiles} style={{ display: 'none' }} />
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>
+          {busy ? 'Traitement…' : storageEnabled ? '⬆ Téléverser des fichiers' : '⬆ Téléverser des images'}
+        </button>
         <button type="button" onClick={() => setShowImport((v) => !v)} style={ghost}>🔗 Importer par lien</button>
+        {progress && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)' }}>
+            <span style={{ width: 90, height: 6, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden' }}>
+              <span style={{ display: 'block', height: '100%', width: `${progress.pct}%`, background: 'var(--grad-accent)' }} />
+            </span>
+            {progress.pct}% · {progress.name.slice(0, 22)}
+          </span>
+        )}
         <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--ink-2)', cursor: 'pointer' }}>
           <input type="checkbox" checked={common} onChange={(e) => setCommon(e.target.checked)} />
           Commun à l'espace {brandName && <span style={{ color: 'var(--muted)' }}>(sinon rattaché à {brandName})</span>}
@@ -144,7 +190,9 @@ export function AssetsLibrary({ initial, brandName }: { initial: AssetItem[]; br
                 {a.kind === 'image'
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={a.url} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontSize: 40 }}>{kindIcon[a.kind]}</span>}
+                  : a.kind === 'video' && a.source === 'upload'
+                    ? <video src={a.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <span style={{ fontSize: 40 }}>{kindIcon[a.kind]}</span>}
               </div>
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</div>
