@@ -127,6 +127,21 @@ export async function listBrandVideos(): Promise<BrandVideo[]> {
 // Au-delà de ce délai sans complétion, on considère le job perdu (évite le spinner infini).
 const STALE_MS = 15 * 60 * 1000;
 
+/** Marque une génération vidéo en échec et rembourse les crédits (une seule fois). */
+async function failAndRefund(generationId: string, workspaceId: string, error: string): Promise<void> {
+  if (!db) return;
+  try {
+    const [g] = await db.select({ status: schema.generations.status, cost: schema.generations.creditsCost }).from(schema.generations).where(eq(schema.generations.id, generationId)).limit(1);
+    await db.update(schema.generations).set({ status: 'failed', output: { error } }).where(eq(schema.generations.id, generationId));
+    // Remboursement uniquement à la 1re bascule en échec, et si des crédits avaient été débités.
+    if (g && g.status !== 'failed' && g.status !== 'completed' && (g.cost ?? 0) > 0) {
+      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
+      await db.update(schema.workspaces).set({ creditsBalance: (w?.c ?? 0) + (g.cost ?? 0) }).where(eq(schema.workspaces.id, workspaceId));
+      await db.insert(schema.creditLedger).values({ workspaceId, delta: g.cost ?? 0, reason: 'Studio · vidéo échouée (remboursement)' });
+    }
+  } catch { /* best-effort */ }
+}
+
 /** Interroge le statut d'un job vidéo (appelé en polling par le client). */
 export async function pollVideoAction(jobId: string, generationId?: string): Promise<VideoStatus> {
   const s = await getSession();
@@ -149,17 +164,21 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
         const [g] = await db.select({ createdAt: schema.generations.createdAt }).from(schema.generations).where(eq(schema.generations.id, generationId)).limit(1);
         const age = g?.createdAt ? Date.now() - new Date(g.createdAt as Date).getTime() : 0;
         if (age > STALE_MS) {
-          const error = 'La génération a pris trop de temps et a été interrompue. Relance-la.';
-          await db.update(schema.generations).set({ status: 'failed', output: { error } }).where(eq(schema.generations.id, generationId));
+          const error = 'La génération a pris trop de temps et a été interrompue. Crédits remboursés, relance-la.';
+          await failAndRefund(generationId, s.workspaceId, error);
           return { status: 'failed', error };
         }
       } catch { /* best-effort */ }
     }
 
-    if (db && generationId && (job.status === 'completed' || job.status === 'failed')) {
+    if (db && generationId && job.status === 'failed') {
+      await failAndRefund(generationId, s.workspaceId, job.error || 'La génération vidéo a échoué.');
+      return { status: 'failed', error: (job.error ? job.error + ' · ' : '') + 'Crédits remboursés.' };
+    }
+    if (db && generationId && job.status === 'completed') {
       try {
         await db.update(schema.generations)
-          .set({ status: job.status, assetUrls: job.videoUrl ? [job.videoUrl] : [], output: job.error ? { error: job.error } : {} })
+          .set({ status: 'completed', assetUrls: job.videoUrl ? [job.videoUrl] : [] })
           .where(eq(schema.generations.id, generationId));
       } catch { /* best-effort */ }
     }
