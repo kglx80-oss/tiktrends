@@ -36,7 +36,8 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
   const ws = s.workspaceId;
   let members = 0, saved = 0, follows = 0, ticketsTotal = 0, ticketsOpen = 0, brands = 0, creditsBalance = 0;
   let recent: Array<typeof schema.tickets.$inferSelect> = [];
-  let roster: Array<{ name: string | null; email: string; role: Role }> = [];
+  let roster: Array<{ userId: string; name: string | null; email: string; role: Role; joinedAt: Date }> = [];
+  let ticketsByUser: Record<string, number> = {};
 
   if (db) {
     [members, saved, follows, ticketsTotal, ticketsOpen, brands] = await Promise.all([
@@ -50,10 +51,22 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
     const [w] = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, ws)).limit(1);
     creditsBalance = w?.creditsBalance ?? 0;
     recent = await db.select().from(schema.tickets).where(eq(schema.tickets.workspaceId, ws)).orderBy(desc(schema.tickets.createdAt)).limit(6);
-    roster = (await db.select({ name: schema.users.name, email: schema.users.email, role: schema.workspaceMembers.role })
+    roster = (await db.select({ userId: schema.users.id, name: schema.users.name, email: schema.users.email, role: schema.workspaceMembers.role, joinedAt: schema.users.createdAt })
       .from(schema.workspaceMembers).innerJoin(schema.users, eq(schema.users.id, schema.workspaceMembers.userId))
-      .where(eq(schema.workspaceMembers.workspaceId, ws)).limit(8)) as typeof roster;
+      .where(eq(schema.workspaceMembers.workspaceId, ws))) as typeof roster;
+    try {
+      const tc = await db.select({ uid: schema.tickets.userId, n: count() }).from(schema.tickets)
+        .where(eq(schema.tickets.workspaceId, ws)).groupBy(schema.tickets.userId);
+      ticketsByUser = Object.fromEntries(tc.filter((r) => r.uid).map((r) => [r.uid as string, Number(r.n)]));
+    } catch { /* ignore */ }
   }
+
+  // Répartition des accès par rôle (équipes / admins / clients).
+  const ROLE_GROUPS: Array<{ role: Role; label: string }> = [
+    { role: 'owner', label: 'Propriétaire' }, { role: 'admin', label: 'Administrateurs' },
+    { role: 'member', label: 'Membres' }, { role: 'client_viewer', label: 'Clients (lecture)' },
+  ];
+  const now = Date.now();
 
   return (
     <main style={{ ...ADMIN_THEME, padding: '30px 36px 60px', maxWidth: 1120, margin: '0 auto' }}>
@@ -186,26 +199,68 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
           <ManageCard href="/settings" title="Réglages & intégrations" desc="Clés serveur, abonnement, espace." />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Équipe</h3>
-              <Link href="/team" style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-strong)', textDecoration: 'none' }}>Gérer →</Link>
-            </div>
-            <div style={{ border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
-              {roster.map((m, i) => (
-                <div key={m.email} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i ? '1px solid var(--line)' : 'none' }}>
-                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{(m.name || m.email).slice(0, 1).toUpperCase()}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{m.name || '(sans nom)'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.email}</div>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: roleColor[m.role] }}>{ROLE_LABEL[m.role]}</span>
-                </div>
-              ))}
-            </div>
+        {/* ============ ÉQUIPES & ACCÈS ============ */}
+        <div style={{ marginBottom: 26 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>Équipes & accès <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{roster.length}</span></h3>
+            <Link href="/team" style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>Gérer les accès →</Link>
           </div>
 
+          {/* Compteurs par rôle */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginBottom: 14 }}>
+            {ROLE_GROUPS.map((g) => {
+              const n = roster.filter((m) => m.role === g.role).length;
+              return (
+                <div key={g.role} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: roleColor[g.role] }} />
+                    <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{g.label}</span>
+                  </div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', marginTop: 4 }}>{n}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Table détaillée avec suivi */}
+          <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 620 }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                    <th style={th}>Personne</th><th style={th}>Rôle</th><th style={th}>Inscrit</th><th style={th}>Tickets</th><th style={th}>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...roster].sort((a, b) => ({ owner: 0, admin: 1, member: 2, client_viewer: 3 } as Record<Role, number>)[a.role] - ({ owner: 0, admin: 1, member: 2, client_viewer: 3 } as Record<Role, number>)[b.role]).map((m) => {
+                    const joined = new Date(m.joinedAt);
+                    const isNew = now - joined.getTime() < 7 * 864e5;
+                    const tk = ticketsByUser[m.userId] ?? 0;
+                    return (
+                      <tr key={m.email} style={{ borderTop: '1px solid var(--line)' }}>
+                        <td style={td}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>{(m.name || m.email).slice(0, 1).toUpperCase()}</div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{m.name || '(sans nom)'}</div>
+                              <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>{m.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={td}><span style={{ fontSize: 11.5, fontWeight: 800, color: roleColor[m.role] }}>{ROLE_LABEL[m.role]}</span></td>
+                        <td style={{ ...td, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{joined.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })}</td>
+                        <td style={{ ...td, fontVariantNumeric: 'tabular-nums', color: tk ? 'var(--ink)' : 'var(--muted)' }}>{tk}</td>
+                        <td style={td}><span style={{ fontSize: 11, fontWeight: 700, color: isNew ? '#7aa2ff' : '#18cc8c' }}>{isNew ? 'Nouveau' : 'Actif'}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Derniers tickets</h3>

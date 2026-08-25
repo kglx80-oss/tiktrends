@@ -29,6 +29,9 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   name: text('name'),
   passwordHash: text('password_hash'),
+  avatarUrl: text('avatar_url'),                                  // photo de profil (URL)
+  hidePersonalInfo: boolean('hide_personal_info').notNull().default(false), // masquer les infos perso
+  locale: text('locale').notNull().default('fr'),                // langue d'affichage
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

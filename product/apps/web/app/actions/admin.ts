@@ -15,7 +15,11 @@ export async function updateProfileAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
   const name = norm(formData.get('name'));
-  await db.update(schema.users).set({ name: name || null }).where(eq(schema.users.id, s.user.id));
+  const avatarUrl = norm(formData.get('avatarUrl'));
+  const hide = formData.get('hidePersonalInfo') != null;
+  await db.update(schema.users)
+    .set({ name: name || null, avatarUrl: avatarUrl || null, hidePersonalInfo: hide })
+    .where(eq(schema.users.id, s.user.id));
   redirect('/profile?ok=1');
 }
 
