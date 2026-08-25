@@ -130,7 +130,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                     }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={a.url} alt="" style={{ width: 72, height: 92, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
-                      <span style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 8.5, fontWeight: 800, padding: '2px 5px', borderRadius: 6, color: '#fff', background: 'rgba(0,0,0,.6)' }}>{a.kind === 'ad' ? 'PUB' : 'PRODUIT'}</span>
+                      <span style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 8.5, fontWeight: 800, padding: '2px 5px', borderRadius: 6, color: '#fff', background: 'rgba(0,0,0,.6)' }}>{a.kind === 'ad' ? 'PUB' : a.kind === 'asset' ? 'ASSET' : 'PRODUIT'}</span>
                     </button>
                   );
                 })}

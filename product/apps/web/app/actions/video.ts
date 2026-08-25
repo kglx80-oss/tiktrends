@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, or, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
@@ -188,14 +188,28 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
   }
 }
 
-/** Éléments à animer (image → vidéo) : photos produit + scènes de pubs déjà générées. */
-export interface AnimatableAsset { url: string; label: string; kind: 'product' | 'ad' }
+/** Éléments à animer (image → vidéo) : photos produit + scènes de pubs + bibliothèque Assets. */
+export interface AnimatableAsset { url: string; label: string; kind: 'product' | 'ad' | 'asset' }
 export async function listAnimatableAssets(): Promise<AnimatableAsset[]> {
   const s = await getSession();
   if (!s || !db) return [];
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return [];
   const out: AnimatableAsset[] = [];
+
+  // Bibliothèque Assets : images (marque + communes) utilisables par l'IA, en URL http (i2v).
+  const libImgs = await db.select({ name: schema.assets.name, url: schema.assets.url })
+    .from(schema.assets)
+    .where(and(
+      eq(schema.assets.workspaceId, s.workspaceId),
+      eq(schema.assets.kind, 'image'),
+      eq(schema.assets.useForAi, true),
+      or(eq(schema.assets.brandId, brand.id), isNull(schema.assets.brandId)),
+    ))
+    .orderBy(desc(schema.assets.createdAt)).limit(24);
+  for (const a of libImgs) {
+    if (a.url && /^https?:\/\//.test(a.url)) out.push({ url: a.url, label: a.name, kind: 'asset' });
+  }
 
   const prods = await db.select({ name: schema.products.name, imageUrl: schema.products.imageUrl, imageUrls: schema.products.imageUrls })
     .from(schema.products).where(eq(schema.products.brandId, brand.id));
