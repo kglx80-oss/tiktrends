@@ -9,7 +9,7 @@ const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1p
 
 type Product = { id: string; name: string; hasImage: boolean };
 
-/** Redimensionne et compresse une image côté navigateur en data URI (jpeg) — léger et directement exploitable par Fal. */
+/** Redimensionne et compresse une image côté navigateur en data URI (jpeg) · léger et directement exploitable par Fal. */
 function fileToDataUri(file: File, maxSide = 1280, quality = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -148,7 +148,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
             <div>
               <label style={lbl}>Produit de la marque</label>
               <select value={productId} onChange={(e) => { setProductId(e.target.value); setUploadedUri(''); setNotice(''); }} disabled={!ready} style={{ ...fld, width: 'auto', minWidth: 200, padding: '9px 10px' }}>
-                <option value="">— Aucun (générique)</option>
+                <option value="">· Aucun (générique)</option>
                 {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · 📷' : ''}</option>)}
               </select>
             </div>
@@ -166,7 +166,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
 
         {mode === 'i2i' && (
           <div style={{ marginBottom: 12, padding: 14, borderRadius: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
-            <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— on garde ton vrai packaging, on ne change que la scène (Kontext)</span></label>
+            <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· on garde ton vrai packaging, on ne change que la scène (Kontext)</span></label>
 
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               {/* Aperçu : upload en cours, sinon photo déjà enregistrée sur le produit */}

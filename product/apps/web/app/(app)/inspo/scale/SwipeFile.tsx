@@ -129,11 +129,11 @@ function Card({ it }: { it: SwipeItem }) {
         )}
       </div>
 
-      {/* Bande d'analyse — mise en évidence */}
+      {/* Bande d'analyse · mise en évidence */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', background: 'var(--paper, rgba(255,255,255,.03))', borderBottom: '1px solid var(--line)' }}>
         <Cell v={'▲ ' + compact(g)} label="Croiss. 30j" accent />
         <Cell v={compact(ad.reach ?? 0)} label="Reach" />
-        <Cell v={ad.estimatedSpend != null ? compact(ad.estimatedSpend) + '€' : '—'} label="Spend" />
+        <Cell v={ad.estimatedSpend != null ? compact(ad.estimatedSpend) + '€' : '·'} label="Spend" />
         <Cell v={(ad.daysRunning ?? 0) + 'j'} label="Diffusion" />
       </div>
 

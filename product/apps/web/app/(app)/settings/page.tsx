@@ -67,11 +67,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <p style={sub}>Ce qui est branché côté serveur. Les clés se posent dans les variables d'environnement (jamais visibles ici).</p>
         <div style={{ display: 'grid', gap: 8 }}>
           {[
-            { label: 'IA — Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', on: !!process.env.ANTHROPIC_API_KEY, unlocks: 'Studio, assistant, pré-remplissage marque, analyse concurrent' },
-            { label: 'Bibliothèque pub — Trendtrack', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Veille, suivis, analyse concurrent' },
-            { label: 'Image & Vidéo IA — Fal.ai', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studio Image (Flux/Ideogram) et Vidéo (Kling 2)' },
-            { label: 'Vidéo IA — Higgsfield (option)', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Alternative vidéo (contrôles caméra)' },
-            { label: 'E-mails — SMTP', env: 'SMTP_URL', on: !!process.env.SMTP_URL, unlocks: 'Notifications par e-mail (à venir)' },
+            { label: 'IA · Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', on: !!process.env.ANTHROPIC_API_KEY, unlocks: 'Studio, assistant, pré-remplissage marque, analyse concurrent' },
+            { label: 'Bibliothèque pub · Trendtrack', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Veille, suivis, analyse concurrent' },
+            { label: 'Image & Vidéo IA · Fal.ai', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studio Image (Flux/Ideogram) et Vidéo (Kling 2)' },
+            { label: 'Vidéo IA · Higgsfield (option)', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Alternative vidéo (contrôles caméra)' },
+            { label: 'E-mails · SMTP', env: 'SMTP_URL', on: !!process.env.SMTP_URL, unlocks: 'Notifications par e-mail (à venir)' },
             { label: 'Slack', env: 'SLACK_BOT_TOKEN', on: !!process.env.SLACK_BOT_TOKEN, unlocks: 'Résumés et @TikTrends dans Slack (à venir)' },
           ].map((it) => (
             <div key={it.env} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 14px', flexWrap: 'wrap' }}>

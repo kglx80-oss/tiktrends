@@ -44,7 +44,7 @@ export function BrandDA({ brandId, logoUrl, colors, fonts }: { brandId: string; 
             {da.logoUrl
               // eslint-disable-next-line @next/next/no-img-element
               ? <img src={da.logoUrl} alt="" style={{ height: 44, maxWidth: 160, objectFit: 'contain', background: 'rgba(255,255,255,.06)', borderRadius: 8, padding: 6 }} />
-              : <span style={{ fontSize: 12, color: 'var(--muted)' }}>—</span>}
+              : <span style={{ fontSize: 12, color: 'var(--muted)' }}>·</span>}
           </div>
           <div>
             <div style={daLbl}>Couleurs</div>
@@ -54,13 +54,13 @@ export function BrandDA({ brandId, logoUrl, colors, fonts }: { brandId: string; 
                   <span style={{ width: 30, height: 30, borderRadius: 8, background: c, border: '1px solid var(--line-2)' }} />
                   <span style={{ fontSize: 9, color: 'var(--muted)' }}>{c}</span>
                 </span>
-              )) : <span style={{ fontSize: 12, color: 'var(--muted)' }}>—</span>}
+              )) : <span style={{ fontSize: 12, color: 'var(--muted)' }}>·</span>}
             </div>
           </div>
           <div>
             <div style={daLbl}>Polices</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {da.fonts.length ? da.fonts.map((f) => <span key={f} style={{ fontSize: 13, color: 'var(--ink-2)' }}>{f}</span>) : <span style={{ fontSize: 12, color: 'var(--muted)' }}>—</span>}
+              {da.fonts.length ? da.fonts.map((f) => <span key={f} style={{ fontSize: 13, color: 'var(--ink-2)' }}>{f}</span>) : <span style={{ fontSize: 12, color: 'var(--muted)' }}>·</span>}
             </div>
           </div>
         </div>

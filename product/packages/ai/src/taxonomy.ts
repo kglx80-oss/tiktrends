@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Taxonomie de tags — contrat de sortie de l'IA (CDC §5.5). JSON strict. */
+/** Taxonomie de tags · contrat de sortie de l'IA (CDC §5.5). JSON strict. */
 export const FORMAT = ['ugc_talking_head','pov','before_after','green_screen','listicle','storytime','demo','founder','testimonial','static_product','static_text','meme','comparison','unboxing','asmr','tutorial','street_interview','ai_generated'] as const;
 export const HOOK_TYPE = ['question','bold_claim','pattern_interrupt','curiosity_gap','problem_callout','result_first','social_proof','controversy','direct_address','visual_shock','text_overlay_statement'] as const;
 export const CORE_DESIRE = ['save_time','save_money','look_better','feel_better','status','belonging','safety','convenience','pleasure','mastery'] as const;

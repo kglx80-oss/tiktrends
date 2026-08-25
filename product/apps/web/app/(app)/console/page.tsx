@@ -135,7 +135,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
             </div>
           </div>
 
-          {/* Tarifs & allocations — éditables par le fondateur */}
+          {/* Tarifs & allocations · éditables par le fondateur */}
           <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: 18, marginTop: 16 }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Tarifs &amp; allocations par plan</h3>
             <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--muted)' }}>Modifiable ici. Le MRR et la répartition se recalculent sur ces valeurs.</p>

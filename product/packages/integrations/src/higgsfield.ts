@@ -1,5 +1,5 @@
 /**
- * Intégration Higgsfield — génération de vidéos IA (CDC §F9 bis).
+ * Intégration Higgsfield · génération de vidéos IA (CDC §F9 bis).
  *
  * Contrat d'API asynchrone : on POST une génération (prompt + options) → on reçoit
  * un identifiant de job → on interroge le statut jusqu'à obtenir l'URL de la vidéo.
@@ -7,7 +7,7 @@
  * Tout est configurable par variables d'environnement pour brancher la clé demain
  * sans redéployer de code :
  *   HIGGSFIELD_API_KEY      (obligatoire pour activer)
- *   HIGGSFIELD_API_SECRET   (optionnel — auth « Key id:secret » si fourni)
+ *   HIGGSFIELD_API_SECRET   (optionnel · auth « Key id:secret » si fourni)
  *   HIGGSFIELD_BASE_URL     (def: https://platform.higgsfield.ai)
  *   HIGGSFIELD_T2V_PATH     (def: /v1/text2video)
  *   HIGGSFIELD_I2V_PATH     (def: /v1/image2video)

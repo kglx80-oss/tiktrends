@@ -45,7 +45,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
       <PageInfo title="générer une vidéo">
         Deux modes : <b>Texte → Vidéo</b> (tu décris la scène) et <b>Image → Vidéo</b> (tu animes une image existante,
         ex : un visuel produit). Choisis le format (9:16 pour TikTok), lance, et retrouve tes vidéos dans la galerie
-        ci-dessous — le rendu prend en général 1 à 3 minutes. Chaque vidéo coûte 12 crédits.
+        ci-dessous · le rendu prend en général 1 à 3 minutes. Chaque vidéo coûte 12 crédits.
       </PageInfo>
 
       <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} />

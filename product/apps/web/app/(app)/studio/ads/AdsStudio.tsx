@@ -7,7 +7,7 @@ import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
-/** Redimensionne une image (navigateur) en data URI jpeg — léger pour l'analyse vision. */
+/** Redimensionne une image (navigateur) en data URI jpeg · léger pour l'analyse vision. */
 function fileToDataUri(file: File, maxSide = 1100, quality = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -211,14 +211,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           <div style={{ flex: '1 1 220px' }}>
             <label style={lbl}>Produit</label>
             <select value={productId} onChange={(e) => { setProductId(e.target.value); setProdThumb(''); setProdMsg(''); }} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
-              <option value="">— Aucun (générique)</option>
+              <option value="">· Aucun (générique)</option>
               {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · 📷' : ''}</option>)}
             </select>
           </div>
           <div style={{ flex: '1 1 200px' }}>
             <label style={lbl}>Persona</label>
             <select value={personaId} onChange={(e) => setPersonaId(e.target.value)} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
-              <option value="">— Auto</option>
+              <option value="">· Auto</option>
               {personas.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
@@ -252,7 +252,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             )}
             <div style={{ flex: '1 1 240px', minWidth: 220 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                {selected?.hasImage ? 'Photo produit prête ✓ — ton vrai packaging sera utilisé' : 'Ajoute la photo de ton produit pour un rendu fidèle'}
+                {selected?.hasImage ? 'Photo produit prête ✓ · ton vrai packaging sera utilisé' : 'Ajoute la photo de ton produit pour un rendu fidèle'}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                 <input ref={prodImgInput} type="file" accept="image/png,image/jpeg,image/webp" onChange={onProductFile} disabled={!ready || prodBusy} style={{ display: 'none' }} />
@@ -268,13 +268,13 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         {mode === 'brand' && (
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <label style={{ ...lbl, marginBottom: 0 }}>Angle <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— l'itération porte sur cet angle précis</span></label>
+              <label style={{ ...lbl, marginBottom: 0 }}>Angle <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'itération porte sur cet angle précis</span></label>
               <button type="button" onClick={proposeAngles} disabled={!ready || anglesBusy} style={{
                 fontSize: 11.5, fontWeight: 800, padding: '4px 10px', borderRadius: 999, cursor: ready && !anglesBusy ? 'pointer' : 'default',
                 border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--accent-strong)', opacity: ready ? 1 : .55,
               }}>✦ {anglesBusy ? 'Analyse veille…' : 'Proposer des angles'}</button>
             </div>
-            <input value={angle} onChange={(e) => setAngle(e.target.value)} disabled={!ready} placeholder="Ex : Focus sans caféine ni crash — pour créateurs en surrégime" style={{ ...fld, padding: '10px 12px' }} />
+            <input value={angle} onChange={(e) => setAngle(e.target.value)} disabled={!ready} placeholder="Ex : Focus sans caféine ni crash · pour créateurs en surrégime" style={{ ...fld, padding: '10px 12px' }} />
             {angles.length > 0 && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
                 {angles.map((a, i) => (
@@ -291,7 +291,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
         {mode === 'brand' ? (
           <>
-            <label style={lbl}>Univers visuel <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— l'ambiance des visuels</span></label>
+            <label style={lbl}>Univers visuel <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'ambiance des visuels</span></label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 16 }}>
               {[{ key: 'auto', label: '✦ Varié (auto)' }, ...VISUAL_UNIVERSES].map((u) => {
                 const on = universe === u.key;
@@ -307,7 +307,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               })}
             </div>
 
-            <label style={lbl}>Gabarits <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— exécutions autorisées ({templates.length} sélectionné{templates.length > 1 ? 's' : ''})</span></label>
+            <label style={lbl}>Gabarits <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· exécutions autorisées ({templates.length} sélectionné{templates.length > 1 ? 's' : ''})</span></label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 4 }}>
               {TEMPLATES.map((t) => {
                 const on = templates.includes(t.key);
@@ -326,7 +326,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </>
         ) : (
           <div style={{ padding: 14, borderRadius: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
-            <label style={lbl}>Pub gagnante à cloner <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— l'IA reprend l'angle et la structure, avec TON produit</span></label>
+            <label style={lbl}>Pub gagnante à cloner <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'IA reprend l'angle et la structure, avec TON produit</span></label>
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               {refUri ? (
                 // eslint-disable-next-line @next/next/no-img-element

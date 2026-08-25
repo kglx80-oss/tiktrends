@@ -15,7 +15,7 @@ async function clientIp(): Promise<string> {
 }
 
 // Inscription = amorçage du 1er compte propriétaire uniquement. Ensuite, l'accès
-// se fait sur invitation (/invite/[token]) — voir actions/invites.ts.
+// se fait sur invitation (/invite/[token]) · voir actions/invites.ts.
 export async function signupAction(formData: FormData): Promise<void> {
   const email = norm(formData.get('email')).toLowerCase();
   const password = norm(formData.get('password'));

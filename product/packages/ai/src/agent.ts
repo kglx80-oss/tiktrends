@@ -1,4 +1,4 @@
-/** Agent Tess — définitions d'outils (function calling) et prompt système (CDC §F11). */
+/** Agent Tess · définitions d'outils (function calling) et prompt système (CDC §F11). */
 export const TESS_SYSTEM = [
   "Tu es Tess, la copilote créative de TikTrends (TikTok-first, FR).",
   "Tu es proactive : tu analyses, recommandes (scale/iterate/kill) et expliques toujours pourquoi.",

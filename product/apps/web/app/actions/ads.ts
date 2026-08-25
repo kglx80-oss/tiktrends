@@ -33,7 +33,7 @@ function copyFromSnapshot(snap: unknown): string | null {
   const c = (o.copy && typeof o.copy === 'object' ? o.copy as Record<string, unknown> : {});
   const parts = [o.primaryText, o.headline, o.title, o.text, o.body, o.description, c.primaryText, c.headline, c.title, c.body]
     .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
-  const t = parts.join(' — ').trim();
+  const t = parts.join(' · ').trim();
   return t ? t.slice(0, 240) : null;
 }
 
@@ -45,7 +45,7 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): 
   const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
   const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI added to the image.';
   if (editMode) {
-    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions — do not resize, stretch or reshape it). New scene: ${base}. ${uni} ${realism} Premium advertising photography. ${framing} ${noText}`;
+    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions · do not resize, stretch or reshape it). New scene: ${base}. ${uni} ${realism} Premium advertising photography. ${framing} ${noText}`;
   }
   return `${base}. ${uni} ${realism} Premium advertising photography. ${framing} ${noText}`;
 }
@@ -98,7 +98,7 @@ export async function generateAdsAction(input: {
   const editMode = !!product?.imageUrl;
   const accents = pickAccents(da?.colors);
 
-  // 1) Concepts (Claude) — un par gabarit, tous au service de l'angle si fourni.
+  // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
   try {
     concepts = await generateAdConcepts(client, {
@@ -119,7 +119,7 @@ export async function generateAdsAction(input: {
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   const universeFor = (i: number) => chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
 
-  // 2) Scènes (Fal) — en parallèle, chacune dans son univers.
+  // 2) Scènes (Fal) · en parallèle, chacune dans son univers.
   const scenes = await Promise.all(concepts.map(async (c, i) => {
     try {
       const { images } = await falGenerateImage(cfg, {
@@ -159,7 +159,7 @@ export async function generateAdsAction(input: {
     const realCost = costFor('image', ads.length);
     try {
       await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - realCost) }).where(eq(schema.workspaces.id, s.workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -realCost, reason: 'Studio — pubs IA' });
+      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -realCost, reason: 'Studio · pubs IA' });
     } catch { /* best-effort */ }
   }
 
@@ -293,7 +293,7 @@ export async function cloneAdAction(input: {
   if (!unlimited) {
     try {
       await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio — clone de pub' });
+      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio · clone de pub' });
     } catch { /* best-effort */ }
   }
   return { ads: [ad] };

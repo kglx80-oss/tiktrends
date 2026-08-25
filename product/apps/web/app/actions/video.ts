@@ -31,7 +31,7 @@ async function debitAndRecord(
     try {
       const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
       await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId, delta: -cost, reason: 'Studio — vidéo IA' });
+      await db.insert(schema.creditLedger).values({ workspaceId, delta: -cost, reason: 'Studio · vidéo IA' });
     } catch { /* débit best-effort */ }
   }
   return generationId;

@@ -5,7 +5,7 @@ export type DiagnosisCode = 'hook_slow' | 'promise_broken' | 'cta_late' | 'offer
 
 export const DIAGNOSIS_FR: Record<DiagnosisCode, string> = {
   hook_slow: 'Hook lent / non différenciant sur les 3 premières secondes.',
-  promise_broken: 'Promesse non tenue après 3 s — l’attention décroche.',
+  promise_broken: 'Promesse non tenue après 3 s · l’attention décroche.',
   cta_late: 'CTA absent ou trop tardif malgré une bonne rétention.',
   offer_or_landing: 'Clics présents mais conversion faible : offre ou landing page (hors créa).',
   no_edge: 'Concept sans aspérité : aucun signal fort, aucun angle marqué.',

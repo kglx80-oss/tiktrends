@@ -39,7 +39,7 @@ export async function askAssistant(history: ChatMessage[], question: string): Pr
     if (db && !unlimited) {
       try {
         await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
-        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assistant IA — question' });
+        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assistant IA · question' });
       } catch { /* débit best-effort */ }
     }
     return { reply };

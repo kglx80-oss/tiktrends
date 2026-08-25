@@ -1,4 +1,4 @@
-// RBAC TikTrends — droits par rôle + gating par abonnement (CDC §F1).
+// RBAC TikTrends · droits par rôle + gating par abonnement (CDC §F1).
 // Pur (aucune dépendance serveur) : importable partout.
 
 export type Role = 'owner' | 'admin' | 'member' | 'client_viewer';
@@ -31,7 +31,7 @@ export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 // Allocation de crédits mensuelle par abonnement.
 export const PLAN_CREDITS: Record<Plan, number> = { starter: 200, core: 2000, plus: 10000, business: 50000 };
 
-// Tarif mensuel indicatif par abonnement (EUR HT) — paramétrable, sert au calcul du MRR.
+// Tarif mensuel indicatif par abonnement (EUR HT) · paramétrable, sert au calcul du MRR.
 export const PLAN_PRICE: Record<Plan, number> = { starter: 0, core: 99, plus: 299, business: 990 };
 
 export interface Feature {
@@ -61,14 +61,14 @@ export const FEATURES: Feature[] = [
   { key: 'ads',       label: 'Pubs IA',      href: '/studio/ads',   icon: 'spark', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
-  // Menu profil — Compte
+  // Menu profil · Compte
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
-  // Menu profil — Espace de travail
+  // Menu profil · Espace de travail
   { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   { key: 'team',      label: 'Membres',      href: '/team',        icon: 'users',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   { key: 'billing',   label: 'Abonnement',   href: '/billing',     icon: 'card',   group: 'account', section: 'Espace', minRole: 'owner',  minPlan: 'starter', soon: true },
-  // Menu profil — ADMIN+
+  // Menu profil · ADMIN+
   { key: 'console',   label: 'Console',      href: '/console',     icon: 'gauge',  group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
   { key: 'credits',   label: 'Crédits',      href: '/credits',     icon: 'coin',   group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
   { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },

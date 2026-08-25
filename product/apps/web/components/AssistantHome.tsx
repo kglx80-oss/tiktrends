@@ -117,7 +117,7 @@ export function AssistantHome({ firstName, credits, brandName, brandId, aiReady 
             <span style={{ color: 'var(--accent-strong)', fontSize: 15 }}>✦</span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{st.label}</span>
-              <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13 }}> — {st.desc}</span>
+              <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13 }}> · {st.desc}</span>
             </span>
             <span style={{ color: 'var(--muted)', fontSize: 16 }}>↗</span>
           </Link>

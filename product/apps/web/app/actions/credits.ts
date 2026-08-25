@@ -16,7 +16,7 @@ async function addCredits(workspaceId: string, delta: number, reason: string) {
   await db.insert(schema.creditLedger).values({ workspaceId, delta, reason });
 }
 
-/** Accorder / retirer des crédits (ajustement manuel) — propriétaire. */
+/** Accorder / retirer des crédits (ajustement manuel) · propriétaire. */
 export async function grantCreditsAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
@@ -28,7 +28,7 @@ export async function grantCreditsAction(formData: FormData): Promise<void> {
   redirect('/credits?ok=grant');
 }
 
-/** Recharger l'allocation mensuelle selon le plan — propriétaire. */
+/** Recharger l'allocation mensuelle selon le plan · propriétaire. */
 export async function rechargeAllocationAction(): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');

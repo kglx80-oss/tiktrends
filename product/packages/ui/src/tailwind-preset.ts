@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss';
 
-/** Preset Tailwind — DA TikTrends (repris 1:1 de la maquette). */
+/** Preset Tailwind · DA TikTrends (repris 1:1 de la maquette). */
 export const tikTrendsPreset: Partial<Config> = {
   theme: {
     extend: {

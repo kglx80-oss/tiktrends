@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Polices embarquées (Liberation Sans) — chargées depuis public/ (copié dans l'image standalone).
+// Polices embarquées (Liberation Sans) · chargées depuis public/ (copié dans l'image standalone).
 // On tente plusieurs emplacements pour couvrir dev (cwd=apps/web) et prod standalone (cwd=/app).
 function load(file: string): Buffer {
   const candidates = [

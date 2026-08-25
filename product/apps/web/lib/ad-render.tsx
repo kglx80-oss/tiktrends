@@ -13,7 +13,7 @@ export interface AdRecipe {
   accent: string;            // couleur d'accent / bouton (hex)
   brandName?: string;
   logoUrl?: string | null;
-  // Méta (non rendues) — pour décliner (« iterate ») une pub existante.
+  // Méta (non rendues) · pour décliner (« iterate ») une pub existante.
   productId?: string; personaId?: string; objective?: string;
 }
 
@@ -200,7 +200,7 @@ function pill(accent: string) {
   return { display: 'flex', background: accent, color: WHITE, fontSize: 23, fontWeight: 700, padding: '10px 20px', borderRadius: 999, letterSpacing: 0.5 } as const;
 }
 
-/** UGC : rendu natif « contenu créateur » — bulle de caption + pseudo. */
+/** UGC : rendu natif « contenu créateur » · bulle de caption + pseudo. */
 function Ugc(r: AdRecipe) {
   return (
     <Frame>
@@ -242,7 +242,7 @@ function Stat(r: AdRecipe) {
   );
 }
 
-/** Offer : promo — pastille d'offre saillante + titre urgence + CTA. */
+/** Offer : promo · pastille d'offre saillante + titre urgence + CTA. */
 function Offer(r: AdRecipe) {
   return (
     <Frame>

@@ -80,7 +80,7 @@ export async function generateImageAction(input: {
       if (!unlimited) {
         try {
           await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
-          await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio — image IA' });
+          await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio · image IA' });
         } catch { /* débit best-effort */ }
       }
     }
@@ -88,7 +88,7 @@ export async function generateImageAction(input: {
   } catch (e) {
     const msg = (e as Error).message || '';
     if (/image_load_error|Failed to load the image|422/.test(msg) && sourceImage) {
-      return { error: "Impossible de charger l'image de départ. L'URL doit pointer vers un fichier image direct (jpg, png, webp) et être public — pas une page produit. Astuce : clic droit sur l'image du produit → « Copier l'adresse de l'image »." };
+      return { error: "Impossible de charger l'image de départ. L'URL doit pointer vers un fichier image direct (jpg, png, webp) et être public · pas une page produit. Astuce : clic droit sur l'image du produit → « Copier l'adresse de l'image »." };
     }
     return { error: 'Échec de la génération : ' + msg };
   }
@@ -126,7 +126,7 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
   }
 }
 
-/** Enregistre (ou retire) la photo réelle d'un produit — réutilisée pour la mise en scène. */
+/** Enregistre (ou retire) la photo réelle d'un produit · réutilisée pour la mise en scène. */
 export async function setProductImageAction(input: { productId: string; dataUri?: string | null }): Promise<{ ok?: true; imageUrl?: string | null; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };

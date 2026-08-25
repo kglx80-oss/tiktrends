@@ -108,12 +108,12 @@ export async function enhanceImagePrompt(client: Anthropic, desc: string, opts: 
   if (opts.edit) {
     const sys = [
       'You write ONE concise English EDIT instruction for an image-editing model (Flux Kontext) that receives the real product photo as input.',
-      'Output the instruction only — no preamble, no quotes.',
-      'Absolute rule: keep the product EXACTLY as in the input photo — same bottle/packaging shape, same label, same logo, same text, same colors and proportions. Do NOT redesign, relabel, or replace the product.',
+      'Output the instruction only · no preamble, no quotes.',
+      'Absolute rule: keep the product EXACTLY as in the input photo · same bottle/packaging shape, same label, same logo, same text, same colors and proportions. Do NOT redesign, relabel, or replace the product.',
       'Only change the surrounding scene: background, surface, props, lighting and composition, to build a premium advertising shot.',
       'Be specific about the new scene, surface, lighting and mood. Photoreal, advertising quality.',
       textRule,
-      opts.productName ? `Product: ${opts.productName}${opts.productDesc ? ` — ${opts.productDesc.slice(0, 240)}` : ''}.` : '',
+      opts.productName ? `Product: ${opts.productName}${opts.productDesc ? ` · ${opts.productDesc.slice(0, 240)}` : ''}.` : '',
       opts.brand ? `Brand: ${opts.brand}.` : '',
       opts.tone ? `Brand tone/mood: ${opts.tone}.` : '',
       opts.colors && opts.colors.length ? `Bias the scene palette toward the brand colors: ${opts.colors.join(', ')}.` : '',
@@ -128,11 +128,11 @@ export async function enhanceImagePrompt(client: Anthropic, desc: string, opts: 
 
   const sys = [
     'You write ONE concise, high-quality English prompt for an ad-creative image model (Flux / Ideogram).',
-    'Output the prompt only — no preamble, no quotes.',
-    'Be specific about subject, composition, lighting, mood, lens and background — advertising quality, photoreal unless asked otherwise.',
+    'Output the prompt only · no preamble, no quotes.',
+    'Be specific about subject, composition, lighting, mood, lens and background · advertising quality, photoreal unless asked otherwise.',
     textRule,
     opts.product ? 'Feature the real product faithfully (do not distort its packaging or logo).' : '',
-    opts.productName ? `Product: ${opts.productName}${opts.productDesc ? ` — ${opts.productDesc.slice(0, 240)}` : ''}.` : '',
+    opts.productName ? `Product: ${opts.productName}${opts.productDesc ? ` · ${opts.productDesc.slice(0, 240)}` : ''}.` : '',
     opts.brand ? `Brand: ${opts.brand}.` : '',
     opts.tone ? `Brand tone/mood: ${opts.tone}.` : '',
     opts.colors && opts.colors.length ? `Use the brand color palette as the dominant colors: ${opts.colors.join(', ')}.` : '',
@@ -152,12 +152,12 @@ export async function suggestImageBrief(client: Anthropic, ctx: {
 }): Promise<string> {
   const sys = [
     "Tu proposes UNE idée de visuel publicitaire concret et tournable, en français, en 1 à 2 phrases.",
-    "Décris la scène : sujet, décor, ambiance, lumière, cadrage — pas de blabla, pas de guillemets, juste la description.",
+    "Décris la scène : sujet, décor, ambiance, lumière, cadrage · pas de blabla, pas de guillemets, juste la description.",
     "Reste fidèle à la marque et mets le produit en valeur.",
   ].join(' ');
   const info = [
     ctx.brand ? `Marque : ${ctx.brand}.` : '',
-    ctx.productName ? `Produit : ${ctx.productName}${ctx.productDesc ? ` — ${ctx.productDesc.slice(0, 240)}` : ''}.` : '',
+    ctx.productName ? `Produit : ${ctx.productName}${ctx.productDesc ? ` · ${ctx.productDesc.slice(0, 240)}` : ''}.` : '',
     ctx.tone ? `Ton : ${ctx.tone}.` : '',
     ctx.audience ? `Cible : ${ctx.audience}.` : '',
     ctx.usp ? `Atouts : ${ctx.usp.replace(/\n/g, '; ').slice(0, 300)}.` : '',

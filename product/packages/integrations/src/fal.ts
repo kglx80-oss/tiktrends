@@ -1,5 +1,5 @@
 /**
- * Intégration Fal.ai — génération d'images (et, plus tard, vidéos) IA.
+ * Intégration Fal.ai · génération d'images (et, plus tard, vidéos) IA.
  *
  * Fal expose une API synchrone simple : POST https://fal.run/{model} avec la clé
  * en en-tête « Authorization: Key <FAL_KEY> ». Les images reviennent directement.
@@ -7,10 +7,10 @@
  * Configurable par variables d'environnement :
  *   FAL_KEY              (obligatoire pour activer)
  *   FAL_BASE_URL         (def: https://fal.run)
- *   FAL_IMAGE_MODEL      (def: fal-ai/nano-banana-2)        — texte -> image (réaliste)
- *   FAL_IMAGE_MODEL_I2I  (def: fal-ai/flux/dev/image-to-image) — image -> image
- *   FAL_IMAGE_MODEL_TEXT (def: fal-ai/ideogram/v3)         — image avec texte lisible
- *   FAL_IMAGE_MODEL_EDIT (def: fal-ai/nano-banana-2/edit)  — édition produit fidèle (proportions + réalisme)
+ *   FAL_IMAGE_MODEL      (def: fal-ai/nano-banana-2)        · texte -> image (réaliste)
+ *   FAL_IMAGE_MODEL_I2I  (def: fal-ai/flux/dev/image-to-image) · image -> image
+ *   FAL_IMAGE_MODEL_TEXT (def: fal-ai/ideogram/v3)         · image avec texte lisible
+ *   FAL_IMAGE_MODEL_EDIT (def: fal-ai/nano-banana-2/edit)  · édition produit fidèle (proportions + réalisme)
  */
 
 export interface FalConfig {

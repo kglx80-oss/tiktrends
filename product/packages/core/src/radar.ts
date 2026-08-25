@@ -1,4 +1,4 @@
-/** Radar — scoring prescriptif (CDC §5.6). Logique pure, testable. */
+/** Radar · scoring prescriptif (CDC §5.6). Logique pure, testable. */
 export type Grade = 'A' | 'B' | 'C' | 'D';
 export type Bucket = 'winner' | 'high_potential' | 'iteration' | 'kill_candidate' | 'fatigued' | 'insufficient';
 
