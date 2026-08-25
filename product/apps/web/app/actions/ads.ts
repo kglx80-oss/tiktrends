@@ -178,6 +178,7 @@ export async function generateAdsAction(input: {
   const [da] = await db.select({
     colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp,
     audience: schema.brands.audience, category: schema.brands.category, logoUrl: schema.brands.logoUrl,
+    creativeRules: schema.brands.creativeRules,
   }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
 
   let product: { name: string; description: string | null; usp: string | null; imageUrl: string | null; imageUrls: string[] | null } | null = null;
@@ -210,7 +211,7 @@ export async function generateAdsAction(input: {
       productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
       hasProductPhoto: editMode,
       persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
-      objective: input.objective, angle: input.angle?.trim() || undefined,
+      objective: input.objective, angle: input.angle?.trim() || undefined, creativeRules: da?.creativeRules ?? undefined,
     }, { templates, winningCopy, competitors: brow?.competitors ?? undefined });
   } catch (e) {
     return { error: 'Écriture des concepts impossible : ' + (e as Error).message };
