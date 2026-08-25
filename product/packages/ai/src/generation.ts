@@ -198,6 +198,40 @@ export async function suggestVideoBrief(client: Anthropic, ctx: {
   return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim().replace(/[—–]/g, ',');
 }
 
+/* ============ Tagging d'assets (vision) ============ */
+const ASSET_TAG_TOOL = {
+  name: 'return_asset_tags',
+  description: 'Renvoie des mots-clés et une légende décrivant le média.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      tags: { type: 'array', items: { type: 'string' }, description: '5 à 10 mots-clés FR utiles à la recherche : sujet, décor, ambiance, couleurs dominantes, style, usage marketing' },
+      caption: { type: 'string', description: 'Légende courte en français (1 phrase)' },
+    },
+    required: ['tags'],
+  },
+} as const;
+
+/** Décrit/tague une image (data URI ou URL http) pour la recherche dans la bibliothèque. */
+export async function describeAssetImage(client: Anthropic, imageUrl: string): Promise<{ tags: string[]; caption?: string }> {
+  let source: unknown;
+  const m = /^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/.exec(imageUrl);
+  if (m) source = { type: 'base64', media_type: m[1], data: m[2] };
+  else if (/^https?:\/\//.test(imageUrl)) source = { type: 'url', url: imageUrl };
+  else return { tags: [] };
+
+  const res = await client.messages.create({
+    model: GEN_MODEL, max_tokens: 400,
+    system: "Tu tagues un média pour une bibliothèque créative (recherche interne). Donne des mots-clés FR concrets (sujet/objets, décor, ambiance, couleurs dominantes, style visuel, usage marketing possible) et une légende courte. Rends via l'outil return_asset_tags.",
+    tools: [ASSET_TAG_TOOL as unknown as Anthropic.Tool],
+    tool_choice: { type: 'tool', name: 'return_asset_tags' },
+    messages: [{ role: 'user', content: [{ type: 'image', source } as unknown as Anthropic.ImageBlockParam, { type: 'text', text: 'Tag ce visuel.' }] }],
+  });
+  const tool = res.content.find((c) => c.type === 'tool_use') as { input?: { tags?: string[]; caption?: string } } | undefined;
+  const tags = (tool?.input?.tags || []).map((t) => String(t).trim()).filter(Boolean).slice(0, 10);
+  return { tags, caption: tool?.input?.caption };
+}
+
 export interface ScriptInput { brandName: string; format: string; language?: string; angle?: string; hookCount?: number; }
 export function buildScriptPrompt(i: ScriptInput): string {
   return [

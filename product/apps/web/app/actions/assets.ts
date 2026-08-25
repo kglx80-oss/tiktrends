@@ -3,8 +3,11 @@
 import { and, desc, eq, or, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl } from '@tiktrends/integrations';
+import { anthropicFromEnv, describeAssetImage } from '@tiktrends/ai';
+import { costFor } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
+import { unlimitedCredits } from '../../lib/credits';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
@@ -18,13 +21,13 @@ function kindFromMime(mime: string): AssetKind {
 export type AssetKind = 'image' | 'video' | 'audio' | 'other';
 export interface AssetItem {
   id: string; name: string; kind: AssetKind; source: string; url: string;
-  brandId: string | null; useForAi: boolean; sizeBytes: number | null; createdAt: string;
+  brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[]; createdAt: string;
 }
 
 const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
 
 function toItem(r: typeof schema.assets.$inferSelect): AssetItem {
-  return { id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source, url: r.url, brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes, createdAt: r.createdAt.toISOString() };
+  return { id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source, url: r.url, brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes, tags: r.tags ?? [], createdAt: r.createdAt.toISOString() };
 }
 
 /** Liste les assets de l'espace (optionnellement filtrés). */
@@ -81,6 +84,81 @@ export async function toggleAssetAiAction(input: { id: string; useForAi: boolean
   if (!s || !db) return { error: 'Session expirée.' };
   await db.update(schema.assets).set({ useForAi: input.useForAi }).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
   return { ok: true };
+}
+
+/** Tague une image par l'IA (vision) · débite 1 crédit (tag_image). Rend les tags. */
+export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true; tags?: string[]; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const client = anthropicFromEnv();
+  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  const [a] = await db.select().from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
+  if (!a) return { error: 'Asset introuvable.' };
+  if (a.kind !== 'image') return { error: 'Le tagging IA ne concerne que les images pour l’instant.' };
+
+  const unlimited = unlimitedCredits(s.user.email);
+  const cost = costFor('tag_image', 1);
+  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+  const credits = w?.c ?? 0;
+  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+
+  let tags: string[] = [];
+  try { ({ tags } = await describeAssetImage(client, a.url)); }
+  catch (e) { return { error: 'Analyse impossible : ' + (e as Error).message }; }
+  if (!tags.length) return { error: "Aucun tag n'a pu être déduit." };
+
+  await db.update(schema.assets).set({ tags }).where(eq(schema.assets.id, a.id));
+  if (!unlimited) {
+    try {
+      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assets · tagging IA' });
+    } catch { /* débit best-effort */ }
+  }
+  return { ok: true, tags };
+}
+
+/** Nombre d'images non taguées (pour proposer le tagging en lot). */
+export async function countUntaggedImages(): Promise<number> {
+  const s = await getSession();
+  if (!s || !db) return 0;
+  const rows = await db.select({ id: schema.assets.id, tags: schema.assets.tags })
+    .from(schema.assets).where(and(eq(schema.assets.workspaceId, s.workspaceId), eq(schema.assets.kind, 'image')));
+  return rows.filter((r) => !r.tags || r.tags.length === 0).length;
+}
+
+/** Tague en lot les images non taguées (max 20 par appel), débit par image. */
+export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: number; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const client = anthropicFromEnv();
+  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  const unlimited = unlimitedCredits(s.user.email);
+  const cost = costFor('tag_image', 1);
+
+  const rows = await db.select().from(schema.assets)
+    .where(and(eq(schema.assets.workspaceId, s.workspaceId), eq(schema.assets.kind, 'image')))
+    .orderBy(desc(schema.assets.createdAt)).limit(200);
+  const todo = rows.filter((r) => !r.tags || r.tags.length === 0).slice(0, 20);
+  if (!todo.length) return { ok: true, tagged: 0 };
+
+  let tagged = 0;
+  for (const a of todo) {
+    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+    const credits = w?.c ?? 0;
+    if (!unlimited && credits < cost) break;
+    try {
+      const { tags } = await describeAssetImage(client, a.url);
+      if (tags.length) {
+        await db.update(schema.assets).set({ tags }).where(eq(schema.assets.id, a.id));
+        tagged++;
+        if (!unlimited) {
+          await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+          await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assets · tagging IA (lot)' });
+        }
+      }
+    } catch { /* on continue */ }
+  }
+  return { ok: true, tagged };
 }
 
 /** Le stockage objet est-il configuré côté serveur ? (upload direct des gros fichiers) */
