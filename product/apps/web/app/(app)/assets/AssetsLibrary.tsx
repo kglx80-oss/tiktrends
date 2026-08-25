@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, type AssetItem, type AssetKind } from '../../actions/assets';
+import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -55,11 +55,35 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
   const [progress, setProgress] = useState<{ name: string; pct: number } | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [imp, setImp] = useState({ name: '', url: '', kind: 'video' as AssetKind });
+  const [search, setSearch] = useState('');
+  const [tagging, setTagging] = useState<string | 'bulk' | ''>('');
   const fileRef = useRef<HTMLInputElement>(null);
   const [, startTransition] = useTransition();
 
-  const shown = filter === 'all' ? assets : assets.filter((a) => a.kind === filter);
+  const q = search.trim().toLowerCase();
+  const shown = assets
+    .filter((a) => filter === 'all' || a.kind === filter)
+    .filter((a) => !q || a.name.toLowerCase().includes(q) || (a.tags || []).some((t) => t.toLowerCase().includes(q)));
+  const untagged = assets.filter((a) => a.kind === 'image' && (!a.tags || a.tags.length === 0)).length;
   const refresh = () => startTransition(() => router.refresh());
+
+  async function tagOne(a: AssetItem) {
+    if (tagging) return;
+    setTagging(a.id); setMsg('');
+    const r = await tagAssetAction({ id: a.id });
+    setTagging('');
+    if (r.error) { setMsg(r.error); return; }
+    if (r.tags) setAssets((s) => s.map((x) => x.id === a.id ? { ...x, tags: r.tags! } : x));
+  }
+  async function tagBulk() {
+    if (tagging) return;
+    setTagging('bulk'); setMsg('');
+    const r = await tagUntaggedImagesAction();
+    setTagging('');
+    if (r.error) { setMsg(r.error); return; }
+    setMsg(`${r.tagged ?? 0} image(s) analysée(s).`);
+    refresh();
+  }
 
   async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
@@ -163,6 +187,18 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
         </div>
       )}
 
+      {/* Recherche + tagging IA */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par nom ou tag (IA)…"
+          style={{ ...fld, flex: '1 1 260px', maxWidth: 420 }} />
+        {untagged > 0 && (
+          <button type="button" onClick={tagBulk} disabled={!!tagging} style={{ ...ghost, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)' }}>
+            {tagging === 'bulk' ? 'Analyse…' : `✦ Analyser ${untagged} image(s)`}
+          </button>
+        )}
+        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>1 crédit / image</span>
+      </div>
+
       {/* Filtres */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         {KINDS.map((k) => {
@@ -201,6 +237,18 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
                   {a.brandId ? <span>· marque</span> : <span>· commun</span>}
                   {a.source !== 'upload' && <span>· lien</span>}
                 </div>
+                {/* Tags IA */}
+                {a.tags && a.tags.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {a.tags.slice(0, 4).map((t) => (
+                      <span key={t} style={{ fontSize: 10, color: 'var(--ink-2)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' }}>{t}</span>
+                    ))}
+                  </div>
+                ) : a.kind === 'image' ? (
+                  <button type="button" onClick={() => tagOne(a)} disabled={!!tagging} style={{ alignSelf: 'flex-start', fontSize: 10.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'transparent', border: '1px solid var(--line-2)', borderRadius: 999, padding: '3px 9px', cursor: tagging ? 'default' : 'pointer' }}>
+                    {tagging === a.id ? 'Analyse…' : '✦ Analyser (1 cr.)'}
+                  </button>
+                ) : null}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
                   <label title="Utilisable par l'IA" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: a.useForAi ? '#7ee8bf' : 'var(--muted)', cursor: 'pointer', flex: 1 }}>
                     <input type="checkbox" checked={a.useForAi} onChange={() => toggleAi(a)} style={{ accentColor: '#7ee8bf' }} />
