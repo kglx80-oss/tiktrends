@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
-import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
+import { FEATURES, canAccess, denyReason, roleAtLeast } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 import { anthropicConfigured } from '../../../../lib/ai-status';
@@ -70,8 +70,8 @@ export default async function AdsStudioPage() {
         l'angle + la structure et te sort plusieurs variations sur ta marque et ton produit. 4 crédits par pub.
       </PageInfo>
 
-      {/* Indicateur Jarvis : rappelle que les règles maison cadrent chaque génération. */}
-      {brand && (
+      {/* Indicateur Jarvis : visible seulement en ADMIN+ (couche secrète, jamais exposée aux membres/clients). */}
+      {brand && roleAtLeast(s.role, 'admin') && (
         <Link href="/jarvis" style={{ display: 'flex', alignItems: 'center', gap: 11, textDecoration: 'none', marginBottom: 16, padding: '11px 15px', borderRadius: 14, border: `1px solid ${edenCount ? 'rgba(120,220,150,.4)' : 'var(--line-2)'}`, background: edenCount ? 'linear-gradient(180deg, rgba(120,220,150,.08), var(--surface))' : 'var(--surface)' }}>
           <span style={{ fontSize: 17 }}>🧠</span>
           <span style={{ flex: 1, minWidth: 0 }}>

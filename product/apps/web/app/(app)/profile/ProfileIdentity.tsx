@@ -1,8 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { updateProfileAction } from '../../actions/admin';
 import { input, lbl } from '../../../components/ui';
+
+/** Redimensionne une photo (navigateur) en petit data URI carré · léger pour la BDD. */
+function avatarToDataUri(file: File, side = 256, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Lecture impossible.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Image illisible.'));
+      img.onload = () => {
+        // Recadrage centré carré.
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
+        const canvas = document.createElement('canvas'); canvas.width = side; canvas.height = side;
+        const ctx = canvas.getContext('2d'); if (!ctx) return reject(new Error('Canvas indisponible.'));
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, side, side);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export function ProfileIdentity({ init }: {
   init: { name: string; email: string; avatarUrl: string; hidePersonalInfo: boolean };
@@ -10,7 +33,21 @@ export function ProfileIdentity({ init }: {
   const [name, setName] = useState(init.name);
   const [avatarUrl, setAvatarUrl] = useState(init.avatarUrl);
   const [hide, setHide] = useState(init.hidePersonalInfo);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
   const initial = (init.name || init.email).slice(0, 1).toUpperCase();
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setErr('');
+    if (!/^image\//.test(file.type)) { setErr('Choisis un fichier image (jpg, png, webp).'); return; }
+    setBusy(true);
+    try { setAvatarUrl(await avatarToDataUri(file)); }
+    catch { setErr('Impossible de lire cette image.'); }
+    finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  }
 
   return (
     <form action={updateProfileAction} style={{ display: 'grid', gap: 18 }}>
@@ -23,8 +60,18 @@ export function ProfileIdentity({ init }: {
             : <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>{initial}</span>}
         </div>
         <div style={{ flex: 1, minWidth: 220 }}>
-          <label style={lbl}>Photo de profil <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· URL d'image</span></label>
-          <input name="avatarUrl" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://…/photo.jpg" style={input} />
+          <label style={lbl}>Photo de profil</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{ display: 'none' }} />
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: busy ? 'default' : 'pointer' }}>
+              {busy ? 'Traitement…' : '⬆ Téléverser une photo'}
+            </button>
+            {avatarUrl.trim() && <button type="button" onClick={() => setAvatarUrl('')} style={{ padding: '9px 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>Retirer</button>}
+          </div>
+          {err && <div style={{ fontSize: 12, color: '#ff9db0', marginTop: 6 }}>{err}</div>}
+          <p style={{ margin: '7px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>JPG, PNG ou WebP · recadrée en carré et optimisée automatiquement.</p>
+          {/* La valeur (data URI ou URL) est envoyée avec le formulaire. */}
+          <input type="hidden" name="avatarUrl" value={avatarUrl} />
         </div>
       </div>
 

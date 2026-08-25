@@ -26,7 +26,8 @@ const ENGINES: Array<{ tag: string; name: string; role: string }> = [
 export default async function JarvisPage() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
+  // Jarvis = notre couche secrète · réservée à l'ADMIN+ (jamais dans le menu général).
+  if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
 
   const brand = await getActiveBrand(s.workspaceId);
   let rules = '';
