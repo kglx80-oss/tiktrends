@@ -198,6 +198,48 @@ export async function suggestVideoBrief(client: Anthropic, ctx: {
   return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim().replace(/[—–]/g, ',');
 }
 
+/* ============ Jarvis · rédaction du règlement créatif maison ============ */
+export interface JarvisCtx {
+  brand: string; category?: string; audience?: string; usp?: string; tone?: string;
+  preferredWords?: string; avoidWords?: string; competitors?: string[]; winningCopy?: string[];
+}
+
+/**
+ * Rédige un RÈGLEMENT créatif maison (Jarvis) puissant et actionnable, qui démarque la marque
+ * de ses concurrents. Retourne un texte prêt à coller dans l'éditeur Jarvis.
+ */
+export async function proposeJarvisRules(client: Anthropic, ctx: JarvisCtx): Promise<string> {
+  const sys = [
+    "Tu es le directeur créatif en chef de TikTrends (niveau Atria/Raya). Tu écris le RÈGLEMENT créatif maison d'une marque · les consignes que l'IA devra respecter EN PRIORITÉ ABSOLUE à chaque génération d'image et de vidéo.",
+    "Objectif : un règlement PUISSANT, concret et actionnable, qui rend les créas reconnaissables et supérieures à celles des concurrents. Pas de blabla, pas de généralités creuses.",
+    "Structure EXACTE, en français, chaque section sur ses lignes :",
+    "Style visuel : … (lumière, cadrage, couleurs, matières, niveau de premium)",
+    "Ton : … (voix de marque, registre)",
+    "Toujours : … (3 à 6 obligations concrètes)",
+    "Jamais : … (3 à 6 interdits concrets)",
+    "Mentions obligatoires : … (légales/marque si pertinent, sinon « aucune »)",
+    "Edge concurrentiel : … (2 à 3 partis pris qui nous démarquent des concurrents cités)",
+    "12 à 22 lignes au total. Sois spécifique à CETTE marque et sa catégorie. N'invente pas de faits produits.",
+    "Rends UNIQUEMENT le règlement, sans préambule ni commentaire, sans tiret cadratin.",
+  ].join('\n');
+  const lines = [
+    `Marque : ${ctx.brand}.`,
+    ctx.category ? `Catégorie : ${ctx.category}.` : '',
+    ctx.audience ? `Audience : ${ctx.audience}.` : '',
+    ctx.usp ? `USP : ${ctx.usp.replace(/\n/g, '; ').slice(0, 400)}.` : '',
+    ctx.tone ? `Ton actuel : ${ctx.tone}.` : '',
+    ctx.preferredWords ? `Mots à privilégier : ${ctx.preferredWords}.` : '',
+    ctx.avoidWords ? `Mots à éviter : ${ctx.avoidWords}.` : '',
+    ctx.competitors?.length ? `Concurrents directs : ${ctx.competitors.slice(0, 8).join(', ')}. Démarque-nous d'eux.` : '',
+    ctx.winningCopy?.length ? `Mécaniques qui fonctionnent (à réinterpréter, pas copier) : ${ctx.winningCopy.slice(0, 6).map((c) => `« ${c.slice(0, 120)} »`).join(' ; ')}.` : '',
+  ].filter(Boolean).join('\n');
+  const res = await client.messages.create({
+    model: GEN_MODEL, max_tokens: 900, system: sys,
+    messages: [{ role: 'user', content: `Rédige le règlement créatif maison.\n\n${lines}` }],
+  });
+  return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('\n').trim().replace(/[—–]/g, ',');
+}
+
 /* ============ Tagging d'assets (vision) ============ */
 const ASSET_TAG_TOOL = {
   name: 'return_asset_tags',
