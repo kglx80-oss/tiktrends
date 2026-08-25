@@ -15,6 +15,7 @@ import { input, lbl, Msg } from '../../../../components/ui';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
 import { ShopifyConnect } from './ShopifyConnect';
 import { BrandDA } from './BrandDA';
+import { SubmitButton } from '../../../../components/SubmitButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,7 +142,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
                 {aiReady ? <>L'IA lit <b>{b.url || 'le site'}</b> et remplit profil, USP, audience, personas, scénarios et concurrents. Ne remplace pas ce que tu as déjà saisi.</> : <>Nécessite la clé IA serveur.</>}
               </div>
             </div>
-            <button type="submit" disabled={!aiReady} style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: aiReady ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: aiReady ? 1 : .5, whiteSpace: 'nowrap' }}>Générer maintenant</button>
+            <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} />
           </form>
 
           <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} colors={b.colors ?? []} fonts={b.fonts ?? []} />
