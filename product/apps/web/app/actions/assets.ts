@@ -2,8 +2,18 @@
 
 import { and, desc, eq, or, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { storageFromEnv, presignPutUrl, newAssetKey } from '@tiktrends/integrations';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
+
+const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
+
+function kindFromMime(mime: string): AssetKind {
+  if (/^image\//.test(mime)) return 'image';
+  if (/^video\//.test(mime)) return 'video';
+  if (/^audio\//.test(mime)) return 'audio';
+  return 'other';
+}
 
 export type AssetKind = 'image' | 'video' | 'audio' | 'other';
 export interface AssetItem {
@@ -70,6 +80,43 @@ export async function toggleAssetAiAction(input: { id: string; useForAi: boolean
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
   await db.update(schema.assets).set({ useForAi: input.useForAi }).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
+  return { ok: true };
+}
+
+/** Le stockage objet est-il configuré côté serveur ? (upload direct des gros fichiers) */
+export async function storageAvailableAction(): Promise<boolean> {
+  return !!storageFromEnv();
+}
+
+/** Demande une URL présignée pour téléverser un fichier directement vers le bucket. */
+export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; error?: string }> {
+  const s = await getSession();
+  if (!s) return { error: 'Session expirée.' };
+  const cfg = storageFromEnv();
+  if (!cfg) return { error: 'Stockage objet non configuré sur le serveur.' };
+  if (!input.filename || !input.contentType) return { error: 'Fichier invalide.' };
+  if (input.sizeBytes > MAX_UPLOAD_BYTES) return { error: 'Fichier trop lourd (max 1 Go).' };
+  const key = newAssetKey(s.workspaceId, input.filename);
+  try {
+    const { uploadUrl, publicUrl } = presignPutUrl(cfg, key);
+    return { uploadUrl, publicUrl };
+  } catch (e) {
+    return { error: 'Impossible de préparer le téléversement : ' + (e as Error).message };
+  }
+}
+
+/** Enregistre un fichier déjà téléversé sur le bucket comme asset. */
+export async function registerUploadedAssetAction(input: { name: string; url: string; mimeType: string; sizeBytes: number; common?: boolean }): Promise<{ ok?: true; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const url = (input.url || '').trim();
+  if (!/^https?:\/\//i.test(url)) return { error: 'URL invalide.' };
+  const brand = input.common ? null : await getActiveBrand(s.workspaceId);
+  await db.insert(schema.assets).values({
+    workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
+    name: (input.name || 'fichier').slice(0, 160), kind: kindFromMime(input.mimeType || ''),
+    source: 'upload', url, mimeType: input.mimeType || null, sizeBytes: input.sizeBytes || null,
+  });
   return { ok: true };
 }
 

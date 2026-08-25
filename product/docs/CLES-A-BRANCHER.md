@@ -115,6 +115,26 @@ SLACK_BOT_TOKEN=xoxb-...
 SLACK_SIGNING_SECRET=...
 ```
 
+## 5bis. Stockage objet — OVH Object Storage (S3)
+
+Active l'upload direct des gros fichiers (rushs vidéo jusqu'à 1 Go) dans **Assets**.
+
+```
+S3_ENDPOINT=s3.gra.io.cloud.ovh.net      # hôte du service (sans https://)
+S3_REGION=gra                            # gra, sbg, de, uk…
+S3_BUCKET=tiktrends-media
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_PUBLIC_BASE_URL=                       # optionnel (CDN) · défaut https://{endpoint}/{bucket}
+```
+
+Prérequis côté bucket / conteneur :
+- **Lecture publique** des objets (pour afficher images/vidéos dans l'app).
+- **CORS** autorisant la méthode **PUT** depuis `APP_URL` (upload direct navigateur).
+  Exemple de règle CORS : origine `https://app.tiktrends.co`, méthodes `PUT, GET`, headers `*`.
+
+Sans ces variables, Assets fonctionne quand même : images optimisées + vidéos/audio par lien.
+
 ## 6. (Plus tard) Paiement — Stripe
 
 ```

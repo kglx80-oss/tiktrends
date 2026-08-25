@@ -70,6 +70,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             { label: 'IA · Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', on: !!process.env.ANTHROPIC_API_KEY, unlocks: 'Studio, assistant, pré-remplissage marque, analyse concurrent' },
             { label: 'Bibliothèque pub · Trendtrack', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Veille, suivis, analyse concurrent' },
             { label: 'Image & Vidéo IA · Fal.ai', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studio Image (Flux/Ideogram) et Vidéo (Kling 2)' },
+            { label: 'Stockage objet · S3 / OVH', env: 'S3_BUCKET', on: !!(process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY && process.env.S3_ENDPOINT), unlocks: 'Upload direct des gros fichiers (rushs vidéo) dans Assets' },
             { label: 'Vidéo IA · Higgsfield (option)', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Alternative vidéo (contrôles caméra)' },
             { label: 'E-mails · SMTP', env: 'SMTP_URL', on: !!process.env.SMTP_URL, unlocks: 'Notifications par e-mail (à venir)' },
             { label: 'Slack', env: 'SLACK_BOT_TOKEN', on: !!process.env.SLACK_BOT_TOKEN, unlocks: 'Résumés et @TikTrends dans Slack (à venir)' },
