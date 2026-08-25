@@ -98,3 +98,99 @@ export function presignPutUrl(cfg: StorageConfig, key: string, expiresSeconds = 
   const uploadUrl = `https://${host}${canonicalUri}?${canonicalQuery}&X-Amz-Signature=${signature}`;
   return { uploadUrl, publicUrl: publicUrlFor(cfg, key) };
 }
+
+/* ============ Requêtes S3 signées (SigV4, header Authorization) ============ */
+
+function pad(n: number): string { return String(n).padStart(2, '0'); }
+function amzTimes(d = new Date()) {
+  const dateStamp = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`;
+  const amzDate = `${dateStamp}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+  return { dateStamp, amzDate };
+}
+
+/** Exécute une requête S3 signée (SigV4). `path` = chemin déjà encodé (ex: /bucket/key). */
+async function s3SignedFetch(cfg: StorageConfig, method: string, path: string, query: Record<string, string>, body: Buffer, extra: Record<string, string> = {}): Promise<{ status: number; text: string }> {
+  const host = cfg.endpoint;
+  const { dateStamp, amzDate } = amzTimes();
+  const payloadHash = createHash('sha256').update(body).digest('hex');
+
+  // En-têtes signés (noms en minuscules).
+  const headers: Record<string, string> = { host, 'x-amz-content-sha256': payloadHash, 'x-amz-date': amzDate };
+  for (const [k, v] of Object.entries(extra)) headers[k.toLowerCase()] = v;
+
+  const signedKeys = Object.keys(headers).sort();
+  const canonicalHeaders = signedKeys.map((k) => `${k}:${String(headers[k]).trim()}`).join('\n') + '\n';
+  const signedHeaders = signedKeys.join(';');
+  const canonicalQuery = Object.keys(query).sort().map((k) => `${enc(k)}=${enc(query[k]!)}`).join('&');
+  const canonicalRequest = [method, path, canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join('\n');
+
+  const scope = `${dateStamp}/${cfg.region}/s3/aws4_request`;
+  const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
+  const kDate = createHmac('sha256', 'AWS4' + cfg.secretAccessKey).update(dateStamp).digest();
+  const kRegion = createHmac('sha256', kDate).update(cfg.region).digest();
+  const kService = createHmac('sha256', kRegion).update('s3').digest();
+  const kSigning = createHmac('sha256', kService).update('aws4_request').digest();
+  const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
+  const authorization = `AWS4-HMAC-SHA256 Credential=${cfg.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const url = `https://${host}${path}${canonicalQuery ? '?' + canonicalQuery : ''}`;
+  // On ne repasse pas « host » à fetch (undici le pose depuis l'URL).
+  const sendHeaders: Record<string, string> = { authorization, 'x-amz-content-sha256': payloadHash, 'x-amz-date': amzDate };
+  for (const [k, v] of Object.entries(extra)) sendHeaders[k] = v;
+
+  const res = await fetch(url, { method, headers: sendHeaders, body: body.length ? new Uint8Array(body) : undefined });
+  return { status: res.status, text: await res.text() };
+}
+
+/** Applique une politique de lecture publique (GET) sur le bucket. */
+export async function putBucketPublicRead(cfg: StorageConfig): Promise<{ ok: boolean; status: number; detail: string }> {
+  const policy = JSON.stringify({
+    Version: '2012-10-17',
+    Statement: [{ Sid: 'PublicRead', Effect: 'Allow', Principal: '*', Action: 's3:GetObject', Resource: `arn:aws:s3:::${cfg.bucket}/*` }],
+  });
+  const r = await s3SignedFetch(cfg, 'PUT', `/${cfg.bucket}`, { policy: '' }, Buffer.from(policy), { 'content-type': 'application/json' });
+  return { ok: r.status >= 200 && r.status < 300, status: r.status, detail: r.text.slice(0, 400) };
+}
+
+/** Configure le CORS du bucket (PUT/GET/HEAD depuis les origines données). */
+export async function putBucketCors(cfg: StorageConfig, origins: string[]): Promise<{ ok: boolean; status: number; detail: string }> {
+  const originXml = origins.map((o) => `<AllowedOrigin>${o}</AllowedOrigin>`).join('');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><CORSConfiguration><CORSRule>${originXml}<AllowedMethod>PUT</AllowedMethod><AllowedMethod>GET</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3000</MaxAgeSeconds></CORSRule></CORSConfiguration>`;
+  const body = Buffer.from(xml);
+  const md5 = createHash('md5').update(body).digest('base64');
+  const r = await s3SignedFetch(cfg, 'PUT', `/${cfg.bucket}`, { cors: '' }, body, { 'content-type': 'application/xml', 'content-md5': md5 });
+  return { ok: r.status >= 200 && r.status < 300, status: r.status, detail: r.text.slice(0, 400) };
+}
+
+/** Test bout en bout : upload d'un objet témoin, lecture publique, suppression. */
+export async function storageSelfTest(cfg: StorageConfig): Promise<{ put: boolean; publicRead: boolean; deleted: boolean; publicUrl: string; error?: string }> {
+  const key = `assets/_healthcheck/${randomUUID()}.txt`;
+  const body = Buffer.from('tiktrends-ok');
+  const path = `/${cfg.bucket}/${encKey(key)}`;
+  const publicUrl = publicUrlFor(cfg, key);
+  try {
+    const put = await s3SignedFetch(cfg, 'PUT', path, {}, body, { 'content-type': 'text/plain' });
+    const putOk = put.status >= 200 && put.status < 300;
+    let publicRead = false;
+    if (putOk) {
+      try { const g = await fetch(publicUrl); publicRead = g.ok && (await g.text()).includes('tiktrends-ok'); } catch { publicRead = false; }
+    }
+    const del = await s3SignedFetch(cfg, 'DELETE', path, {}, Buffer.alloc(0));
+    return { put: putOk, publicRead, deleted: del.status >= 200 && del.status < 300, publicUrl, error: putOk ? undefined : `Upload refusé (HTTP ${put.status}) ${put.text.slice(0, 200)}` };
+  } catch (e) {
+    return { put: false, publicRead: false, deleted: false, publicUrl, error: (e as Error).message };
+  }
+}
+
+/** Supprime physiquement un objet du bucket (best-effort). */
+export async function deleteObjectByUrl(cfg: StorageConfig, url: string): Promise<boolean> {
+  // Retrouve la clé depuis l'URL publique.
+  const base = cfg.publicBaseUrl || `https://${cfg.endpoint}/${cfg.bucket}`;
+  if (!url.startsWith(base)) return false;
+  const key = decodeURIComponent(url.slice(base.length).replace(/^\/+/, ''));
+  if (!key) return false;
+  try {
+    const r = await s3SignedFetch(cfg, 'DELETE', `/${cfg.bucket}/${encKey(key)}`, {}, Buffer.alloc(0));
+    return r.status >= 200 && r.status < 300;
+  } catch { return false; }
+}

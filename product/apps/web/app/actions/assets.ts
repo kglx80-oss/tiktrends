@@ -2,7 +2,7 @@
 
 import { and, desc, eq, or, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, presignPutUrl, newAssetKey } from '@tiktrends/integrations';
+import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl } from '@tiktrends/integrations';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 
@@ -120,11 +120,16 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
   return { ok: true };
 }
 
-/** Supprime un asset. */
+/** Supprime un asset (+ l'objet physique sur le bucket si téléversé). */
 export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
+  const [row] = await db.select({ url: schema.assets.url, source: schema.assets.source })
+    .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   await db.delete(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
+  // Suppression physique best-effort du fichier stocké sur le bucket.
+  const cfg = storageFromEnv();
+  if (cfg && row?.source === 'upload' && row.url) { try { await deleteObjectByUrl(cfg, row.url); } catch { /* best-effort */ } }
   return { ok: true };
 }
 

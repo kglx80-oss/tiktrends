@@ -5,6 +5,8 @@ import { updateWorkspaceAction, setPlanAction } from '../../actions/admin';
 import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
 import { ADMIN_THEME } from '../../../lib/theme';
 import { PageInfo } from '../../../components/PageInfo';
+import { storageConfigured } from '@tiktrends/integrations';
+import { StorageConfigurator } from '../../../components/StorageConfigurator';
 
 const OK: Record<string, string> = { '1': 'Espace mis à jour.', plan: 'Abonnement modifié.' };
 const ERR: Record<string, string> = { forbidden: "Action réservée à l'administrateur.", plan: 'Abonnement invalide.' };
@@ -86,6 +88,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={panel}>
+        <h2 style={h2}>Stockage objet <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '2px 8px', borderRadius: 999, color: storageConfigured() ? '#18cc8c' : 'var(--muted)', background: storageConfigured() ? 'rgba(24,204,140,.14)' : 'var(--line)' }}>{storageConfigured() ? 'CLÉS DÉTECTÉES' : 'CLÉS ABSENTES'}</span></h2>
+        <p style={sub}>Une fois les clés S3 posées dans <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>.env.deploy</code>, configure la lecture publique + le CORS et teste, sans passer par la ligne de commande.</p>
+        <StorageConfigurator enabled={storageConfigured()} />
       </div>
 
       <div style={panel}>
