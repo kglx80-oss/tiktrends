@@ -111,7 +111,7 @@ function TopBar({ r, center = false }: { r: AdRecipe; center?: boolean }) {
   return (
     <div style={{ position: 'absolute', top: 46, left: 56, right: 56, display: 'flex', justifyContent: center ? 'center' : 'space-between', alignItems: 'flex-start' }}>
       <Logo recipe={r} />
-      {!center && r.badge ? <div style={pill(r.accent)}>{r.badge}</div> : null}
+      {!center && r.badge ? <div style={pill(r.accent, r.badge)}>{badgeText(r.badge, 22)}</div> : null}
     </div>
   );
 }
@@ -126,7 +126,7 @@ function ProblemSolution(r: AdRecipe) {
         <Bg url={r.sceneUrl} />
         <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '52%', display: 'flex', backgroundImage: 'linear-gradient(to bottom, rgba(8,8,11,.92) 30%, rgba(8,8,11,.5) 70%, rgba(8,8,11,0))' }} />
         <div style={{ position: 'absolute', top: 46, left: 56, right: 56, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Logo recipe={r} />{r.badge ? <div style={pill(r.accent)}>{r.badge}</div> : null}
+          <Logo recipe={r} />{r.badge ? <div style={pill(r.accent, r.badge)}>{badgeText(r.badge, 22)}</div> : null}
         </div>
         <div style={{ position: 'absolute', top: 116, left: 56, right: 56, display: 'flex', flexDirection: 'column' }}>
           {r.kicker ? <div style={{ display: 'flex', marginBottom: 14 }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
@@ -215,8 +215,34 @@ function Benefits(r: AdRecipe) {
   );
 }
 
-function pill(accent: string) {
-  return { display: 'flex', background: accent, color: WHITE, fontSize: 23, fontWeight: 700, padding: '10px 20px', borderRadius: 999, letterSpacing: 0.5 } as const;
+/** Coupe un badge trop long (le texte long va dans le kicker/headline, pas dans la pastille). */
+function badgeText(s: string | undefined, max = 20): string {
+  const t = (s || '').trim().replace(/\s+/g, ' ');
+  return t.length > max ? t.slice(0, max).trim() : t;
+}
+/** Taille de police d'un badge selon sa longueur (évite tout débordement). */
+function fitBadge(s: string, base = 40): number {
+  const n = (s || '').length;
+  if (n <= 5) return base;
+  if (n <= 9) return Math.round(base * 0.7);
+  if (n <= 14) return Math.round(base * 0.52);
+  return Math.round(base * 0.42);
+}
+
+// Pastille top-bar (AVANT/APRÈS, etc.) · une ligne, jamais de débordement.
+function pill(accent: string, text?: string) {
+  const t = badgeText(text, 22);
+  return { display: 'flex', maxWidth: 360, whiteSpace: 'nowrap', background: accent, color: WHITE, fontSize: fitBadge(t, 26), fontWeight: 700, padding: '9px 18px', borderRadius: 999, letterSpacing: 0.3 } as const;
+}
+
+/** Pastille d'offre saillante · sticker arrondi qui s'adapte au texte (jamais de débordement). */
+function OfferBadge({ r }: { r: AdRecipe }) {
+  const t = badgeText(r.badge, 22) || 'PROMO';
+  return (
+    <div style={{ display: 'flex', maxWidth: 320, alignItems: 'center', justifyContent: 'center', padding: '14px 22px', borderRadius: 24, background: r.accent, color: WHITE, boxShadow: '0 12px 30px rgba(0,0,0,.4)', transform: 'rotate(-4deg)' }}>
+      <div style={{ display: 'flex', textAlign: 'center', fontSize: fitBadge(t, 42), fontWeight: 800, lineHeight: 1.02, letterSpacing: -0.5 }}>{t}</div>
+    </div>
+  );
 }
 
 /** UGC : rendu natif « contenu créateur » · bulle de caption + pseudo. */
@@ -269,9 +295,7 @@ function Offer(r: AdRecipe) {
       <div style={scrimTop} />
       <div style={{ position: 'absolute', top: 46, left: 56, right: 56, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Logo recipe={r} />
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: 128, height: 128, borderRadius: 999, background: r.accent, color: WHITE, boxShadow: '0 12px 30px rgba(0,0,0,.4)' }}>
-          <div style={{ display: 'flex', fontSize: 40, fontWeight: 700, letterSpacing: -1 }}>{r.badge || 'PROMO'}</div>
-        </div>
+        <OfferBadge r={r} />
       </div>
       <BottomPanel>
         {r.kicker ? <div style={{ display: 'flex', marginBottom: 14 }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
