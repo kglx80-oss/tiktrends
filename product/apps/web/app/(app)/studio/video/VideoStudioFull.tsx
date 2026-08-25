@@ -40,7 +40,21 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
     if (!id.startsWith('tmp-')) await deleteVideoAction(id);
   }
 
+  // Nettoyage des timers au démontage.
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
+
+  // Au chargement : reprendre le suivi des vidéos encore « en cours » (sinon le spinner ne bouge jamais).
+  useEffect(() => {
+    const now = Date.now();
+    initialVideos.forEach((v) => {
+      if ((v.status !== 'processing' && v.status !== 'queued') || v.id.startsWith('tmp-')) return;
+      const ageMin = (now - new Date(v.createdAt).getTime()) / 60000;
+      // Trop vieux : on l'affiche en échec tout de suite (le serveur le confirmera aussi).
+      if (ageMin > 20) { setVideos((list) => list.map((x) => x.id === v.id ? { ...x, status: 'failed' } : x)); }
+      if (v.jobId) poll(v.id, v.jobId);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function poll(id: string, jobId: string, tries = 0) {
     const t = setTimeout(async () => {
