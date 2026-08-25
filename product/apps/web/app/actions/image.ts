@@ -38,10 +38,10 @@ export async function generateImageAction(input: {
   const brand = await getActiveBrand(s.workspaceId);
 
   // Contexte marque (DA) + produit sélectionné, pour ancrer la génération.
-  let da: { colors?: string[] | null; tone?: string | null; usp?: string | null; description?: string | null } = {};
+  let da: { colors?: string[] | null; tone?: string | null; usp?: string | null; description?: string | null; creativeRules?: string | null } = {};
   let product: { name: string; description: string | null; imageUrl: string | null } | null = null;
   if (db && brand) {
-    const [row] = await db.select({ colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp, description: schema.brands.description })
+    const [row] = await db.select({ colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp, description: schema.brands.description, creativeRules: schema.brands.creativeRules })
       .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     da = row ?? {};
     if (input.productId) {
@@ -66,6 +66,7 @@ export async function generateImageAction(input: {
           brand: brand?.name, tone: da.tone ?? undefined, colors: da.colors ?? undefined, usp: da.usp ?? undefined,
           productName: product?.name, productDesc: product?.description ?? undefined,
           withText: input.withText, headline: input.headline?.trim() || undefined, product: editMode, edit: editMode,
+          edenRules: da.creativeRules ?? undefined,
         });
       } catch { /* on garde la description brute */ }
     }
