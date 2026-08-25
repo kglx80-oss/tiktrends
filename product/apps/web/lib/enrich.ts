@@ -1,7 +1,7 @@
 /**
  * Enrichissement AUTOMATIQUE de la marque (sans bouton) : DA, produits Shopify, photos.
  * Idempotent et auto-limité : ne fait du réseau que si quelque chose manque, puis persiste.
- * Appelé au chargement des pages (marque, Pubs IA) — best-effort, jamais bloquant en cas d'échec.
+ * Appelé au chargement des pages (marque, Pubs IA) · best-effort, jamais bloquant en cas d'échec.
  */
 
 import { and, eq } from 'drizzle-orm';

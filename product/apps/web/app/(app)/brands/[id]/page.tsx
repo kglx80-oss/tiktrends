@@ -47,7 +47,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
   if (!db) notFound();
   const [b0] = await db.select({ id: schema.brands.id }).from(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
   if (!b0) notFound();
-  // Enrichissement automatique (DA, produits, photos) — sans bouton, avant l'affichage.
+  // Enrichissement automatique (DA, produits, photos) · sans bouton, avant l'affichage.
   await ensureBrandEnriched(id);
   const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, id)).limit(1);
   if (!b) notFound();
@@ -93,7 +93,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
       </div>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}{ok === 'imported' && n ? ` (${n})` : ''}</Msg>}
-      {e && ERR[e] && <Msg kind="err">{ERR[e]}{m ? ` — ${m}` : ''}</Msg>}
+      {e && ERR[e] && <Msg kind="err">{ERR[e]}{m ? ` · ${m}` : ''}</Msg>}
 
       {/* ---------------- APERÇU ---------------- */}
       {tab === 'overview' && (() => {
@@ -297,7 +297,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
         </form>
       )}
 
-      {/* Comptes pub — rappel */}
+      {/* Comptes pub · rappel */}
       {tab === 'products' && adAccounts.length === 0 && (
         <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 14, color: 'var(--muted)', fontSize: 12.5, marginTop: 6 }}>
           Aucun compte publicitaire branché. Connecte Meta / TikTok depuis <Link href="/connections" style={{ color: 'var(--accent-strong)' }}>Connexions</Link> pour analyser tes vraies performances.
@@ -310,7 +310,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
 function F({ label, hint, flex, children }: { label: string; hint?: string; flex?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14, flex: flex ?? '1 1 auto' }}>
-      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> — {hint}</span>}</label>
+      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {hint}</span>}</label>
       {children}
     </div>
   );

@@ -16,7 +16,7 @@ const chip = { fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius:
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> — {hint}</span>}</label>
+      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {hint}</span>}</label>
       {children}
     </div>
   );
@@ -95,7 +95,7 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
       <form action={(fd) => startCreate(() => createBrandAction(fd))}>
         {/* On garde tous les steps montés (display none) pour préserver les valeurs du POST. */}
 
-        {/* STEP 1 — Profil */}
+        {/* STEP 1 · Profil */}
         <section style={{ display: step === 0 ? 'block' : 'none' }}>
           <h2 style={hStep}>Parle-nous de la marque</h2>
           <p style={pStep}>L'IA peut pré-remplir tout le profil depuis le site. Tu gardes la main pour corriger.</p>
@@ -120,7 +120,7 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
             >
               ✦ {drafting ? 'Analyse en cours…' : 'Générer par IA depuis le site'}
             </button>
-            {!aiReady && <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--muted)' }}>IA non configurée — remplis le profil à la main.</span>}
+            {!aiReady && <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--muted)' }}>IA non configurée · remplis le profil à la main.</span>}
             {draftState.error && <span style={{ marginLeft: 10, fontSize: 12, color: '#ff9db0' }}>{draftState.error}</span>}
             {draftState.draft && <span style={{ marginLeft: 10, fontSize: 12, color: '#7ee8bf' }}>Profil pré-rempli{draftState.cost ? ` (${draftState.cost} crédits)` : ''}. Vérifie et ajuste.</span>}
           </div>
@@ -139,7 +139,7 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
           <Field label="En savoir plus sur la marque" hint="histoire, mission, contexte"><textarea name="moreAbout" value={f.moreAbout} onChange={set('moreAbout')} style={area} /></Field>
         </section>
 
-        {/* STEP 2 — Charte */}
+        {/* STEP 2 · Charte */}
         <section style={{ display: step === 1 ? 'block' : 'none' }}>
           <h2 style={hStep}>Charte de marque</h2>
           <p style={pStep}>Le style et le langage que l'IA doit respecter dans chaque créa.</p>
@@ -167,7 +167,7 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
           </div>
         </section>
 
-        {/* STEP 3 — Audience */}
+        {/* STEP 3 · Audience */}
         <section style={{ display: step === 2 ? 'block' : 'none' }}>
           <h2 style={hStep}>À qui parles-tu&nbsp;?</h2>
           <p style={pStep}>Scénarios d'usage et personas pour adapter chaque créa au bon contexte et à la bonne personne.</p>
@@ -202,7 +202,7 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
           {personas.length === 0 && <p style={emptyHint}>Aucun persona. L'IA en propose, ou ajoute-en un.</p>}
         </section>
 
-        {/* STEP 4 — Concurrents */}
+        {/* STEP 4 · Concurrents */}
         <section style={{ display: step === 3 ? 'block' : 'none' }}>
           <h2 style={hStep}>Avec qui es-tu en concurrence&nbsp;?</h2>
           <p style={pStep}>On surveille ces marques pour que tu saches toujours où tu te situes, et garder une longueur d'avance.</p>
@@ -210,7 +210,7 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
           <p style={{ fontSize: 12.5, color: 'var(--muted)' }}>Tu pourras les suivre en direct depuis l'Inspo une fois les bibliothèques branchées.</p>
         </section>
 
-        {/* STEP 5 — Comptes pub */}
+        {/* STEP 5 · Comptes pub */}
         <section style={{ display: step === 4 ? 'block' : 'none' }}>
           <h2 style={hStep}>Où tournent tes pubs&nbsp;?</h2>
           <p style={pStep}>Branche tes régies pour que l'analyse travaille sur tes vraies performances, pas des estimations.</p>
@@ -220,7 +220,7 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
           <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
             <b style={{ color: 'var(--ink)', fontSize: 14 }}>Récapitulatif</b>
             <ul style={{ margin: '8px 0 0', paddingLeft: 18, color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.8 }}>
-              <li>Marque : <b>{f.name || '—'}</b>{f.category ? ` · ${f.category}` : ''}</li>
+              <li>Marque : <b>{f.name || '·'}</b>{f.category ? ` · ${f.category}` : ''}</li>
               <li>{scenarios.filter((x) => x.title.trim()).length} scénario(s), {personas.filter((p) => p.name.trim()).length} persona(s)</li>
               <li>{f.competitors.split('\n').map((x) => x.trim()).filter(Boolean).length} concurrent(s) suivi(s)</li>
             </ul>

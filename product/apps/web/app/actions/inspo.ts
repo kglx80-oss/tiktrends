@@ -6,7 +6,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import type { InspoAd } from '@tiktrends/integrations';
 
-/* Appels directs (depuis des boutons client via useTransition) — pas de redirection,
+/* Appels directs (depuis des boutons client via useTransition) · pas de redirection,
    donc pas de rechargement de page ni de nouvelle recherche Trendtrack. */
 
 export async function saveAd(input: { platform: string; externalId: string; snapshot: InspoAd }): Promise<void> {

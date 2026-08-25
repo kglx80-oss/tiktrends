@@ -34,7 +34,7 @@ export default async function AdsStudioPage() {
   }
 
   const brand = await getActiveBrand(s.workspaceId);
-  // Enrichissement automatique (DA, produits, photos) — sans bouton, avant l'affichage.
+  // Enrichissement automatique (DA, produits, photos) · sans bouton, avant l'affichage.
   if (brand) await ensureBrandEnriched(brand.id);
   const ads = await listBrandAds();
   let products: Array<{ id: string; name: string; hasImage: boolean }> = [];

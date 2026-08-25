@@ -1,6 +1,6 @@
-/** Inspo via Trendtrack — API publique (CDC §F6).
+/** Inspo via Trendtrack · API publique (CDC §F6).
  *  Auth : `Authorization: Bearer <clé>` · Recherche : GET /v1/ads · Vérif : GET /v1/me.
- *  Doc : https://docs.trendtrack.io — structure de réponse mappée ci-dessous. */
+ *  Doc : https://docs.trendtrack.io · structure de réponse mappée ci-dessous. */
 
 const DEFAULT_BASE = 'https://api.trendtrack.io';
 

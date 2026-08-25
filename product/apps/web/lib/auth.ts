@@ -1,4 +1,4 @@
-// Authentification TikTrends — sessions (cookie signé) + mots de passe (bcrypt).
+// Authentification TikTrends · sessions (cookie signé) + mots de passe (bcrypt).
 // SERVEUR UNIQUEMENT (ne jamais importer depuis un composant client).
 import 'server-only';
 import { cookies } from 'next/headers';

@@ -48,7 +48,7 @@ export function FollowButton({ ad, initialFollowing }: { ad: InspoAd; initialFol
   );
 }
 
-/** Retrait d'une marque suivie (page Sauvegardes) — rafraîchit la liste après coup. */
+/** Retrait d'une marque suivie (page Sauvegardes) · rafraîchit la liste après coup. */
 export function BrandRemoveButton({ platform, name }: { platform: string; name: string }) {
   const router = useRouter();
   const [, start] = useTransition();

@@ -5,7 +5,7 @@ import { GEN_MODEL } from './generation';
 export type AdTemplate = 'problem_solution' | 'before_after' | 'testimonial' | 'benefits' | 'ugc' | 'stat' | 'offer';
 export const AD_TEMPLATES: AdTemplate[] = ['problem_solution', 'before_after', 'testimonial', 'benefits', 'ugc', 'stat', 'offer'];
 
-/** Univers de direction artistique — change complètement l'ambiance du visuel. */
+/** Univers de direction artistique · change complètement l'ambiance du visuel. */
 export interface VisualUniverse { key: string; label: string; prompt: string }
 export const VISUAL_UNIVERSES: VisualUniverse[] = [
   { key: 'studio',    label: 'Studio packshot',   prompt: 'Clean studio packshot on a seamless solid-color backdrop, soft gradient lighting, minimal props, premium e-commerce look.' },
@@ -131,13 +131,13 @@ function ctxLines(ctx: AdConceptCtx): string {
   const p = ctx.persona;
   return [
     ctx.brand ? `Marque : ${ctx.brand}.` : '',
-    ctx.productName ? `Produit : ${ctx.productName}${ctx.productDesc ? ` — ${ctx.productDesc.slice(0, 240)}` : ''}.` : '',
+    ctx.productName ? `Produit : ${ctx.productName}${ctx.productDesc ? ` · ${ctx.productDesc.slice(0, 240)}` : ''}.` : '',
     ctx.productUsp ? `Atouts produit : ${ctx.productUsp.slice(0, 240)}.` : '',
     ctx.usp ? `Promesses de marque : ${ctx.usp.replace(/\n/g, '; ').slice(0, 300)}.` : '',
     ctx.category ? `Catégorie : ${ctx.category}.` : '',
     ctx.tone ? `Ton : ${ctx.tone}.` : '',
     ctx.audience ? `Cible : ${ctx.audience}.` : '',
-    p?.name ? `Persona : ${p.name}${p.pains?.length ? ` — douleurs : ${p.pains.slice(0, 4).join(', ')}` : ''}${p.desires?.length ? ` ; désirs : ${p.desires.slice(0, 4).join(', ')}` : ''}.` : '',
+    p?.name ? `Persona : ${p.name}${p.pains?.length ? ` · douleurs : ${p.pains.slice(0, 4).join(', ')}` : ''}${p.desires?.length ? ` ; désirs : ${p.desires.slice(0, 4).join(', ')}` : ''}.` : '',
     ctx.objective ? `Objectif : ${ctx.objective}.` : '',
     ctx.angle ? `Angle imposé (à décliner sous plusieurs exécutions) : ${ctx.angle}.` : '',
     ctx.hasProductPhoto

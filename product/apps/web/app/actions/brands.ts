@@ -15,7 +15,7 @@ const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim()
 const lines = (v: FormDataEntryValue | null) => norm(v).split('\n').map((x) => x.trim()).filter(Boolean);
 const commas = (v: FormDataEntryValue | null) => norm(v).split(',').map((x) => x.trim()).filter(Boolean);
 
-/** Sélection de la marque active (tout membre) — pose un cookie, sans redirection. */
+/** Sélection de la marque active (tout membre) · pose un cookie, sans redirection. */
 export async function setActiveBrand(brandId: string): Promise<void> {
   const s = await getSession();
   if (!s) return;
@@ -60,7 +60,7 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
       try {
         const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
         await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
-        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Marque — génération IA du profil' });
+        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Marque · génération IA du profil' });
       } catch { /* la génération reste livrée même si le débit échoue */ }
     }
     return { draft, cost };

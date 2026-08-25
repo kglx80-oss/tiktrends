@@ -73,7 +73,7 @@ export function BrandOverviewForm({ init }: { init: BrandInitial }) {
 function F({ label, hint, flex, children }: { label: string; hint?: string; flex?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14, flex: flex ?? '1 1 auto' }}>
-      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> — {hint}</span>}</label>
+      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {hint}</span>}</label>
       {children}
     </div>
   );

@@ -60,7 +60,7 @@ export function capPerBrand<T>(items: T[], brandOf: (x: T) => string, growthOf: 
   const counts = new Map<string, number>();
   const out: T[] = [];
   for (const it of sorted) {
-    const b = brandOf(it) || '—';
+    const b = brandOf(it) || '·';
     const c = counts.get(b) ?? 0;
     if (c >= perBrand) continue;
     counts.set(b, c + 1);

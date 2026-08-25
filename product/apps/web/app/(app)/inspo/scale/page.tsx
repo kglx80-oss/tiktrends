@@ -150,7 +150,7 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
       </div>
 
       {sample && <div style={banner('rgba(245,166,35,.12)', 'rgba(245,166,35,.4)', '#f5c877')}>Mode démonstration (échantillon). La source de données n'est pas configurée sur le serveur.</div>}
-      {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur de la source : {error}{curated.length > 0 && ' — affichage du dernier résultat en cache.'}</div>}
+      {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur de la source : {error}{curated.length > 0 && ' · affichage du dernier résultat en cache.'}</div>}
 
       {!sample && curated.length > 0 && (
         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>

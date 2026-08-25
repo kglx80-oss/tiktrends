@@ -14,6 +14,6 @@ export function isFounder(email?: string | null): boolean {
   if (!email) return false;
   const list = founderEmails();
   // Si aucune liste n'est configurée, on n'accorde la vue plateforme à personne
-  // par défaut (sécurité) — à définir via FOUNDER_EMAILS.
+  // par défaut (sécurité) · à définir via FOUNDER_EMAILS.
   return list.includes(email.trim().toLowerCase());
 }

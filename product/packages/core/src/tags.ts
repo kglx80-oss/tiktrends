@@ -1,4 +1,4 @@
-/** Top Creative Tags — analyse par ingrédient créatif (CDC §2.2 / §F3).
+/** Top Creative Tags · analyse par ingrédient créatif (CDC §2.2 / §F3).
  *  Transforme l'analyse par ad en analyse par dimension (persona × hook…). */
 export interface TaggedCreative {
   id: string;

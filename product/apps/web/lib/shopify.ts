@@ -1,5 +1,5 @@
 /**
- * Import du catalogue public Shopify (/products.json) — sans OAuth.
+ * Import du catalogue public Shopify (/products.json) · sans OAuth.
  * La plupart des boutiques Shopify exposent ce point d'accès en lecture.
  */
 

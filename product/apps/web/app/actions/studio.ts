@@ -52,7 +52,7 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
       try {
         const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
         await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
-        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio — génération créative' });
+        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio · génération créative' });
       } catch { /* la génération reste livrée même si le débit échoue */ }
     }
     return { output };
