@@ -62,7 +62,7 @@ export const brands = pgTable('brands', {
   preferredWords: text('preferred_words').array(),
   avoidWords: text('avoid_words').array(),
   competitors: text('competitors').array(),
-  creativeRules: text('creative_rules'), // Règles maison EDEN, injectées dans chaque génération.
+  creativeRules: text('creative_rules'), // Règles maison Jarvis, injectées dans chaque génération.
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

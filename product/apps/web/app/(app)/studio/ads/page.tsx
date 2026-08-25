@@ -70,13 +70,13 @@ export default async function AdsStudioPage() {
         l'angle + la structure et te sort plusieurs variations sur ta marque et ton produit. 4 crédits par pub.
       </PageInfo>
 
-      {/* Indicateur EDEN : rappelle que les règles maison cadrent chaque génération. */}
+      {/* Indicateur Jarvis : rappelle que les règles maison cadrent chaque génération. */}
       {brand && (
-        <Link href="/eden" style={{ display: 'flex', alignItems: 'center', gap: 11, textDecoration: 'none', marginBottom: 16, padding: '11px 15px', borderRadius: 14, border: `1px solid ${edenCount ? 'rgba(120,220,150,.4)' : 'var(--line-2)'}`, background: edenCount ? 'linear-gradient(180deg, rgba(120,220,150,.08), var(--surface))' : 'var(--surface)' }}>
-          <span style={{ fontSize: 17 }}>🌿</span>
+        <Link href="/jarvis" style={{ display: 'flex', alignItems: 'center', gap: 11, textDecoration: 'none', marginBottom: 16, padding: '11px 15px', borderRadius: 14, border: `1px solid ${edenCount ? 'rgba(120,220,150,.4)' : 'var(--line-2)'}`, background: edenCount ? 'linear-gradient(180deg, rgba(120,220,150,.08), var(--surface))' : 'var(--surface)' }}>
+          <span style={{ fontSize: 17 }}>🧠</span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>
-              {edenCount ? `EDEN actif · ${edenCount} règle${edenCount > 1 ? 's' : ''} maison appliquée${edenCount > 1 ? 's' : ''}` : 'EDEN · aucune règle maison définie'}
+              {edenCount ? `Jarvis actif · ${edenCount} règle${edenCount > 1 ? 's' : ''} maison appliquée${edenCount > 1 ? 's' : ''}` : 'Jarvis · aucune règle maison définie'}
             </span>
             <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>
               {edenCount ? 'Tes consignes sont imposées en priorité sur chaque pub générée.' : 'Pose tes consignes maison pour cadrer le style, le ton et les interdits.'}

@@ -49,7 +49,7 @@ export default async function AdminBackstage() {
       title: 'IA maison',
       hint: 'Notre couche créative propriétaire',
       tools: [
-        { icon: '🌿', title: 'EDEN', desc: 'Règles créatives maison imposées à chaque génération, par marque.', href: '/eden' },
+        { icon: '🧠', title: 'Jarvis', desc: 'Règles créatives maison imposées à chaque génération, par marque.', href: '/jarvis' },
       ],
     },
     {

@@ -41,7 +41,7 @@ export interface AdConceptCtx {
   persona?: { name?: string; pains?: string[]; desires?: string[] };
   objective?: string;             // ex : « ventes », « notoriété », « trafic »
   angle?: string;                 // angle précis à décliner (itération ciblée)
-  creativeRules?: string;         // règles maison EDEN à respecter impérativement
+  creativeRules?: string;         // règles maison Jarvis à respecter impérativement
 }
 
 export interface AdAngle { title: string; rationale: string; template?: AdTemplate }
@@ -207,7 +207,7 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
     "stat : un chiffre-clé fort et crédible (stat) + son libellé (statLabel) + headline ; scène produit épurée.",
     "offer : promo/offre (badge, ex « -30% », « 2+1 offert ») + headline à urgence + CTA ; scène produit désirable.",
     ctx.creativeRules?.trim()
-      ? `RÈGLES MAISON (EDEN) À RESPECTER IMPÉRATIVEMENT, priorité absolue sur tout le reste : ${ctx.creativeRules.trim().slice(0, 1200)}`
+      ? `RÈGLES MAISON (Jarvis) À RESPECTER IMPÉRATIVEMENT, priorité absolue sur tout le reste : ${ctx.creativeRules.trim().slice(0, 1200)}`
       : "",
     "Rends TOUJOURS via l'outil return_ads, un concept par entrée, dans l'ordre.",
   ].filter(Boolean).join(' ');

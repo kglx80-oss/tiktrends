@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
-import { EdenRules } from './EdenRules';
+import { JarvisRules } from './JarvisRules';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ const ENGINES: Array<{ tag: string; name: string; role: string }> = [
   { tag: 'COPY', name: 'Claude', role: 'Concepts, angles, copywriting' },
 ];
 
-export default async function EdenPage() {
+export default async function JarvisPage() {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
@@ -40,21 +40,21 @@ export default async function EdenPage() {
       {/* Héro */}
       <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--line-2)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(230,0,126,.16), rgba(120,90,255,.10) 60%, var(--surface))', padding: '26px 28px', marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🌿</div>
+          <div style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🧠</div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>EDEN</h1>
+              <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Jarvis</h1>
               <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>IA CRÉATIVE MAISON</span>
             </div>
             <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 620, lineHeight: 1.5 }}>
-              Ta couche d’intelligence par-dessus les modèles (Nano Banana, Kling, Claude). Les modèles sont le moteur ; EDEN, c’est ta marque, tes règles et ton contrôle qualité qui transforment un rendu générique en créa à toi.
+              Ta couche d’intelligence par-dessus les modèles (Nano Banana, Kling, Claude). Les modèles sont le moteur ; Jarvis, c’est ta marque, tes règles et ton contrôle qualité qui transforment un rendu générique en créa à toi.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Ce qu'EDEN applique */}
-      <h2 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Ce qu’EDEN applique, à chaque génération</h2>
+      {/* Ce que Jarvis applique */}
+      <h2 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Ce que Jarvis applique, à chaque génération</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12, marginBottom: 26 }}>
         {LAYERS.map((l) => (
           <div key={l.title} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
@@ -66,7 +66,7 @@ export default async function EdenPage() {
       </div>
 
       {/* Éditeur de règles (le cœur) */}
-      <EdenRules brandName={brand?.name ?? null} initial={rules} />
+      <JarvisRules brandName={brand?.name ?? null} initial={rules} />
 
       {/* Moteurs orchestrés */}
       <h2 style={{ margin: '28px 0 12px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Moteurs orchestrés</h2>
@@ -79,7 +79,7 @@ export default async function EdenPage() {
           </div>
         ))}
       </div>
-      <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>Les moteurs sont interchangeables (surchargeables par configuration) : EDEN reste ta couche, quel que soit le fournisseur.</p>
+      <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>Les moteurs sont interchangeables (surchargeables par configuration) : Jarvis reste ta couche, quel que soit le fournisseur.</p>
     </main>
   );
 }
