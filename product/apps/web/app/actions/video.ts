@@ -5,6 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
+import { anthropicFromEnv, suggestVideoBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 
@@ -78,8 +79,8 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
   const prompt = input.prompt?.trim();
   const imageUrl = input.imageUrl?.trim();
-  if (!imageUrl) return { error: "Ajoute l'URL d'une image de départ." };
-  if (!/^https?:\/\//i.test(imageUrl)) return { error: "L'URL de l'image doit commencer par http(s)." };
+  if (!imageUrl) return { error: 'Choisis une image de départ (produit ou pub).' };
+  if (!/^https?:\/\//i.test(imageUrl) && !/^data:image\//i.test(imageUrl)) return { error: "L'image doit être un lien http(s) ou une image importée." };
 
   const fal = falFromEnv();
   const hf = fal ? null : higgsfieldFromEnv();
@@ -122,12 +123,15 @@ export async function listBrandVideos(): Promise<BrandVideo[]> {
   });
 }
 
+// Au-delà de ce délai sans complétion, on considère le job perdu (évite le spinner infini).
+const STALE_MS = 15 * 60 * 1000;
+
 /** Interroge le statut d'un job vidéo (appelé en polling par le client). */
 export async function pollVideoAction(jobId: string, generationId?: string): Promise<VideoStatus> {
   const s = await getSession();
   if (!s) return { status: 'unknown', error: 'Session expirée.' };
   try {
-    let job;
+    let job: VideoStatus;
     if (isFalJob(jobId)) {
       const fal = falFromEnv();
       if (!fal) return { status: 'unknown', error: 'Vidéo IA non configurée.' };
@@ -137,6 +141,19 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
       if (!hf) return { status: 'unknown', error: 'Vidéo IA non configurée.' };
       job = await hfGetJob(hf, jobId);
     }
+
+    // Garde-fou anti-blocage : un job « en cours » trop vieux est déclaré en échec.
+    if ((job.status === 'processing' || job.status === 'queued' || job.status === 'unknown') && db && generationId) {
+      try {
+        const [g] = await db.select({ createdAt: schema.generations.createdAt }).from(schema.generations).where(eq(schema.generations.id, generationId)).limit(1);
+        const age = g?.createdAt ? Date.now() - new Date(g.createdAt as Date).getTime() : 0;
+        if (age > STALE_MS) {
+          await db.update(schema.generations).set({ status: 'failed' }).where(eq(schema.generations.id, generationId));
+          return { status: 'failed', error: 'La génération a pris trop de temps et a été interrompue. Relance-la.' };
+        }
+      } catch { /* best-effort */ }
+    }
+
     if (db && generationId && (job.status === 'completed' || job.status === 'failed')) {
       try {
         await db.update(schema.generations)
@@ -148,4 +165,71 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
   } catch (e) {
     return { status: 'unknown', error: (e as Error).message };
   }
+}
+
+/** Éléments à animer (image → vidéo) : photos produit + scènes de pubs déjà générées. */
+export interface AnimatableAsset { url: string; label: string; kind: 'product' | 'ad' }
+export async function listAnimatableAssets(): Promise<AnimatableAsset[]> {
+  const s = await getSession();
+  if (!s || !db) return [];
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return [];
+  const out: AnimatableAsset[] = [];
+
+  const prods = await db.select({ name: schema.products.name, imageUrl: schema.products.imageUrl, imageUrls: schema.products.imageUrls })
+    .from(schema.products).where(eq(schema.products.brandId, brand.id));
+  for (const p of prods) {
+    const url = (p.imageUrls && p.imageUrls[0]) || p.imageUrl;
+    if (url) out.push({ url, label: p.name, kind: 'product' });
+  }
+
+  const ads = await db.select({ input: schema.generations.input, assetUrls: schema.generations.assetUrls })
+    .from(schema.generations)
+    .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad')))
+    .orderBy(desc(schema.generations.createdAt)).limit(12);
+  for (const a of ads) {
+    const url = a.assetUrls && a.assetUrls[0];
+    if (url && /^https?:\/\//.test(url)) {
+      const rec = (a.input ?? {}) as { headline?: string };
+      out.push({ url, label: rec.headline || 'Scène de pub', kind: 'ad' });
+    }
+  }
+  return out;
+}
+
+/** Propose une consigne de mouvement (ancrée marque/produit) pour la vidéo. */
+export async function suggestVideoBriefAction(input: { productId?: string; fromImage?: boolean }): Promise<{ text?: string; error?: string }> {
+  const s = await getSession();
+  if (!s) return { error: 'Session expirée.' };
+  const client = anthropicFromEnv();
+  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  const brand = await getActiveBrand(s.workspaceId);
+  let tone: string | null = null;
+  let product: { name: string; description: string | null } | null = null;
+  if (db && brand) {
+    const [row] = await db.select({ tone: schema.brands.tone }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    tone = row?.tone ?? null;
+    if (input.productId) {
+      const [p] = await db.select({ name: schema.products.name, description: schema.products.description })
+        .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
+      if (p) product = p;
+    }
+  }
+  try {
+    const text = await suggestVideoBrief(client, { brand: brand?.name, tone: tone ?? undefined, productName: product?.name, productDesc: product?.description ?? undefined, fromImage: input.fromImage });
+    return { text: text || undefined };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+/** Supprime une vidéo (rendu raté ou bloqué) de la galerie de la marque. */
+export async function deleteVideoAction(id: string): Promise<{ ok?: true; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+  await db.delete(schema.generations)
+    .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'video')));
+  return { ok: true };
 }
