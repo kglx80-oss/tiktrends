@@ -104,7 +104,7 @@ async function composeBatch(o: {
     const recipe: AdRecipe = {
       template: c.template, sceneUrl, kicker: c.kicker, headline: c.headline, subhead: c.subhead, cta: c.cta,
       badge: c.badge, quote: c.quote, author: c.author, rating: c.rating, benefits: c.benefits, stat: c.stat, statLabel: c.statLabel,
-      accent: accents[i % accents.length]!, brandName: o.brandName, logoUrl: o.logoUrl ?? null,
+      accent: accents[i % accents.length]!, variant: i % 3, brandName: o.brandName, logoUrl: o.logoUrl ?? null,
       productId: o.productId, personaId: o.personaId, objective: o.objective,
     };
     try {
@@ -139,7 +139,7 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): 
   const base = c.sceneBrief.slice(0, 700);
   // Cadrage pensé pour l'overlay : sujet dans les 2/3 hauts, bas plus calme/sombre pour le texte.
   const framing = 'Composition: keep the main subject in the upper two thirds; keep the lower third calmer and less busy so a text panel can sit there. Vertical 4:5 framing, high-end commercial look, crisp focus, natural depth of field.';
-  const realism = 'Ultra realistic, photorealistic, true-to-life scale and proportions: the product is shown at its real-world size relative to hands, people and objects, correct perspective, no distortion, no warping, no stretching, accurate label and cap proportions, physically plausible lighting, shadows and reflections.';
+  const realism = 'Ultra realistic, photorealistic, true-to-life scale and proportions. The product must be at a believable real-world size (a supplement bottle is roughly 12 cm tall): never gigantic, never tiny, never floating. Hands, fingers and faces must be anatomically correct. Correct perspective and grounding (real contact shadow), no distortion, no warping, no stretching, no duplicated or extra objects, accurate label and cap proportions, physically plausible lighting, shadows and reflections.';
   const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
   const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI added to the image.';
   if (editMode) {
@@ -196,6 +196,11 @@ export async function generateAdsAction(input: {
   const productImageUrls = product ? (product.imageUrls && product.imageUrls.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : null)) : null;
   const editMode = !!(productImageUrls && productImageUrls.length);
 
+  // Inspiration « ce qui fonctionne » : concurrents de la marque + copy des pubs sauvegardées (veille).
+  const [brow] = await db.select({ competitors: schema.brands.competitors }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+  const saved = await db.select({ snapshot: schema.savedAds.snapshot }).from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)).limit(20);
+  const winningCopy = saved.map((r) => copyFromSnapshot(r.snapshot)).filter((x): x is string => !!x);
+
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
   try {
@@ -206,7 +211,7 @@ export async function generateAdsAction(input: {
       hasProductPhoto: editMode,
       persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
       objective: input.objective, angle: input.angle?.trim() || undefined,
-    }, { templates });
+    }, { templates, winningCopy, competitors: brow?.competitors ?? undefined });
   } catch (e) {
     return { error: 'Écriture des concepts impossible : ' + (e as Error).message };
   }

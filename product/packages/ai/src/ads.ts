@@ -183,25 +183,35 @@ export async function cloneAdFromReference(client: Anthropic, ref: CloneRefImage
 }
 
 /** Génère des concepts publicitaires (accroche + CTA + brief de scène) pour les gabarits demandés. */
-export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, opts: { templates: AdTemplate[] }): Promise<AdConcept[]> {
+export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, opts: { templates: AdTemplate[]; winningCopy?: string[]; competitors?: string[] }): Promise<AdConcept[]> {
   const templates = opts.templates.length ? opts.templates : AD_TEMPLATES;
   const sys = [
-    "Tu es directeur créatif d'une agence pub TikTok-first (style Atria).",
-    "Tu écris en français, natif de la plateforme, orienté performance : accroches courtes qui claquent, CTA clairs.",
+    "Tu es un directeur créatif et copywriter direct-response d'élite (TikTok-first, style Atria/Raya).",
+    "Objectif : des créas qui STOPPENT le scroll et convertissent. Chaque accroche doit être PERCUTANTE.",
+    "Principes de copywriting à appliquer : accroche qui crée une tension ou une curiosité en 3 mots, spécificité (chiffres, détails concrets) plutôt que du générique, bénéfice émotionnel avant la feature, angle inattendu / pattern interrupt, promesse crédible, CTA orienté action.",
+    "INTERDIT : slogans plats et vagues (« Boostez votre énergie », « La qualité au meilleur prix »), superlatifs creux, langue de bois. Sois concret, humain, natif de la plateforme.",
+    "Tu écris en français. Kicker en MAJUSCULES très court. Headline = 3 à 6 mots max, qui claque.",
+    opts.winningCopy?.length
+      ? "On te fournit des accroches de PUBS QUI FONCTIONNENT (concurrents / veille) : analyse leurs MÉCANIQUES (type d'accroche, angle, déclencheur émotionnel, structure) et réutilise ces mécaniques gagnantes pour NOTRE produit. Ne recopie jamais les mots : transpose la mécanique."
+      : "",
     ctx.angle
-      ? "Toutes les exécutions doivent servir le MÊME angle imposé, mais avec des exécutions VISUELLEMENT et rédactionnellement DISTINCTES (accroches, scènes, compositions différentes)."
-      : "Pour CHAQUE gabarit demandé, produis UN concept complet et distinct, cohérent avec la marque et le persona.",
+      ? "Toutes les exécutions servent le MÊME angle imposé, mais avec des accroches et des scènes NETTEMENT différentes."
+      : "Pour chaque gabarit, un concept distinct, cohérent marque + persona.",
     "Le sceneBrief est en anglais, décrit uniquement l'image (décor, sujet, cadrage, lumière), SANS aucun texte à incruster.",
-    "problem_solution : accroche sur la douleur, scène qui montre le soulagement/produit.",
-    "before_after : le sceneBrief doit décrire un split visuel gauche/droite AVANT (problème) vs APRÈS (résultat), badge « AVANT / APRÈS ».",
-    "testimonial : quote client crédible + author + rating 5 ; scène d'une personne satisfaite avec le produit.",
-    "benefits : 3 bénéfices très courts ; scène produit centrée, épurée, premium.",
-    "ugc : caption courte et native (quote) + pseudo (author) ; scène type contenu créateur authentique (selfie/à la main), non léchée.",
-    "stat : un chiffre-clé fort (stat) + son libellé (statLabel) + headline ; scène produit épurée qui laisse respirer le chiffre.",
-    "offer : promo/offre (badge = ex « -30% », « 2+1 offert ») + headline orientée urgence + CTA ; scène produit désirable.",
-    "Rends TOUJOURS via l'outil return_ads, un concept par gabarit, dans l'ordre.",
-  ].join(' ');
-  const user = `${ctxLines(ctx)}\n\nProduis EXACTEMENT ${templates.length} concept(s), un par entrée, dans cet ordre de gabarits : ${templates.join(', ')}. Si un gabarit revient, propose une exécution nettement différente à chaque fois (accroche, scène, angle d'attaque).`;
+    "problem_solution : accroche sur la douleur réelle du persona, scène qui montre le soulagement/produit.",
+    "before_after : sceneBrief = split visuel gauche/droite AVANT (problème) vs APRÈS (résultat), badge « AVANT / APRÈS ».",
+    "testimonial : quote client crédible et SPÉCIFIQUE (détail concret) + author + rating 5 ; scène d'une personne satisfaite avec le produit.",
+    "benefits : 3 bénéfices très courts et concrets ; scène produit centrée, épurée, premium.",
+    "ugc : caption courte et native (quote) + pseudo (author) ; scène contenu créateur authentique (selfie/à la main), non léchée.",
+    "stat : un chiffre-clé fort et crédible (stat) + son libellé (statLabel) + headline ; scène produit épurée.",
+    "offer : promo/offre (badge, ex « -30% », « 2+1 offert ») + headline à urgence + CTA ; scène produit désirable.",
+    "Rends TOUJOURS via l'outil return_ads, un concept par entrée, dans l'ordre.",
+  ].filter(Boolean).join(' ');
+  const inspiration = opts.winningCopy?.length
+    ? `\n\nPubs qui fonctionnent (inspire-toi des mécaniques, ne recopie pas) :\n- ${opts.winningCopy.slice(0, 10).map((c) => c.slice(0, 180)).join('\n- ')}`
+    : '';
+  const compet = opts.competitors?.length ? `\nConcurrents à surclasser : ${opts.competitors.slice(0, 10).join(', ')}.` : '';
+  const user = `${ctxLines(ctx)}${compet}${inspiration}\n\nProduis EXACTEMENT ${templates.length} concept(s), un par entrée, dans cet ordre de gabarits : ${templates.join(', ')}. Si un gabarit revient, propose une exécution nettement différente (accroche, scène, angle). Priorise l'impact marketing : je veux des accroches qui claquent, pas des slogans plats.`;
 
   const res = await client.messages.create({
     // Assez de tokens pour N concepts complets (évite la troncature quand la quantité est élevée).

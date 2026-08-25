@@ -11,6 +11,7 @@ export interface AdRecipe {
   badge?: string; quote?: string; author?: string; rating?: number; benefits?: string[];
   stat?: string; statLabel?: string;
   accent: string;            // couleur d'accent / bouton (hex)
+  variant?: number;          // variante de mise en page (diversité)
   brandName?: string;
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.
@@ -118,6 +119,24 @@ function TopBar({ r, center = false }: { r: AdRecipe; center?: boolean }) {
 /* --------------------------- Gabarits --------------------------- */
 
 function ProblemSolution(r: AdRecipe) {
+  // Variante 1 : accroche EN HAUT (gros titre), CTA en bas · casse la monotonie « tout en bas ».
+  if ((r.variant ?? 0) % 3 === 1) {
+    return (
+      <Frame>
+        <Bg url={r.sceneUrl} />
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '52%', display: 'flex', backgroundImage: 'linear-gradient(to bottom, rgba(8,8,11,.92) 30%, rgba(8,8,11,.5) 70%, rgba(8,8,11,0))' }} />
+        <div style={{ position: 'absolute', top: 46, left: 56, right: 56, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Logo recipe={r} />{r.badge ? <div style={pill(r.accent)}>{r.badge}</div> : null}
+        </div>
+        <div style={{ position: 'absolute', top: 116, left: 56, right: 56, display: 'flex', flexDirection: 'column' }}>
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: 14 }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          <div style={{ display: 'flex', fontSize: fitHeadline(r.headline, 74), lineHeight: 1.0, fontWeight: 700, color: WHITE, letterSpacing: -1.4 }}>{r.headline}</div>
+          {r.subhead ? <div style={{ display: 'flex', marginTop: 16, fontSize: 30, lineHeight: 1.28, color: 'rgba(255,255,255,.9)', maxWidth: 840 }}>{r.subhead}</div> : null}
+        </div>
+        <div style={{ position: 'absolute', left: 56, right: 56, bottom: 52, display: 'flex' }}><Cta recipe={r} /></div>
+      </Frame>
+    );
+  }
   return (
     <Frame>
       <Bg url={r.sceneUrl} />
@@ -125,9 +144,9 @@ function ProblemSolution(r: AdRecipe) {
       <TopBar r={r} />
       <BottomPanel>
         {r.kicker ? <div style={{ display: 'flex', marginBottom: 16 }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
-        <div style={{ display: 'flex', fontSize: fitHeadline(r.headline), lineHeight: 1.0, fontWeight: 700, color: WHITE, letterSpacing: -1.5 }}>{r.headline}</div>
+        <div style={{ display: 'flex', fontSize: fitHeadline(r.headline), lineHeight: 1.0, fontWeight: 700, color: WHITE, letterSpacing: -1.5, textAlign: (r.variant ?? 0) % 3 === 2 ? 'center' : 'left', alignSelf: (r.variant ?? 0) % 3 === 2 ? 'center' : 'flex-start' }}>{r.headline}</div>
         {r.subhead ? <div style={{ display: 'flex', marginTop: 18, fontSize: 30, lineHeight: 1.28, color: 'rgba(255,255,255,.88)', maxWidth: 840 }}>{r.subhead}</div> : null}
-        <div style={{ display: 'flex', marginTop: 34 }}><Cta recipe={r} /></div>
+        <div style={{ display: 'flex', marginTop: 34, alignSelf: (r.variant ?? 0) % 3 === 2 ? 'center' : 'flex-start' }}><Cta recipe={r} /></div>
       </BottomPanel>
     </Frame>
   );
