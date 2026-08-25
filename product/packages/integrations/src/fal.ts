@@ -117,9 +117,10 @@ export async function falSubmitVideo(cfg: FalConfig, input: FalVideoInput): Prom
   const body: Record<string, unknown> = {
     prompt: input.prompt,
     duration: String(input.durationS ?? 5),
-    aspect_ratio: input.aspectRatio ?? '9:16',
   };
+  // aspect_ratio uniquement en texte -> vidéo (en image -> vidéo, Kling déduit le ratio de l'image).
   if (input.imageUrl) body.image_url = input.imageUrl;
+  else body.aspect_ratio = input.aspectRatio ?? '9:16';
 
   const res = await fetch(`${cfg.queueUrl}/${model}`, {
     method: 'POST',
