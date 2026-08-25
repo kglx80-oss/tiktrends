@@ -168,23 +168,23 @@ export async function suggestImageBrief(client: Anthropic, ctx: {
   return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim();
 }
 
-/** Propose une consigne de MOUVEMENT vidéo (EN) pour animer un visuel produit, ancrée marque. */
+/** Propose une consigne de MOUVEMENT vidéo (FR) pour animer un visuel produit, ancrée marque. */
 export async function suggestVideoBrief(client: Anthropic, ctx: {
   brand?: string; tone?: string; productName?: string; productDesc?: string; fromImage?: boolean;
 }): Promise<string> {
   const sys = [
-    'You write ONE concise English motion brief for a short vertical product ad video (Kling).',
-    'Output the brief only · no preamble, no quotes.',
+    "Tu écris UNE consigne de mouvement concise EN FRANÇAIS pour une courte vidéo pub verticale (modèle Kling).",
+    "Rends la consigne seule, sans préambule, sans guillemets, sans tiret cadratin.",
     ctx.fromImage
-      ? 'The starting frame already shows the product. Describe camera motion and micro-motion only: slow push-in or orbit, gentle parallax, soft light shifts, subtle product highlights. Keep the product identical and stable.'
-      : 'Describe a premium 5s product beauty-shot: subject, setting, lighting, and a smooth cinematic camera move.',
-    'Advertising quality, cinematic, photoreal, no text on screen.',
-    ctx.productName ? `Product: ${ctx.productName}${ctx.productDesc ? ` · ${ctx.productDesc.slice(0, 180)}` : ''}.` : '',
-    ctx.brand ? `Brand: ${ctx.brand}.` : '',
-    ctx.tone ? `Mood: ${ctx.tone}.` : '',
+      ? "L'image de départ montre déjà le produit. Décris uniquement le mouvement de caméra et les micro-animations : léger travelling avant lent, doux mouvement orbital, parallaxe subtile, variations de lumière, reflets discrets sur le produit. Le produit reste identique et stable."
+      : "Décris un joli plan produit de 5 s : sujet, décor, lumière, et un mouvement de caméra fluide et cinématographique.",
+    "Qualité publicitaire, cinématographique, photoréaliste, aucun texte à l'écran.",
+    ctx.productName ? `Produit : ${ctx.productName}${ctx.productDesc ? ` · ${ctx.productDesc.slice(0, 180)}` : ''}.` : '',
+    ctx.brand ? `Marque : ${ctx.brand}.` : '',
+    ctx.tone ? `Ambiance : ${ctx.tone}.` : '',
   ].filter(Boolean).join(' ');
-  const res = await client.messages.create({ model: GEN_MODEL, max_tokens: 220, system: sys, messages: [{ role: 'user', content: 'Write the motion brief.' }] });
-  return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim();
+  const res = await client.messages.create({ model: GEN_MODEL, max_tokens: 220, system: sys, messages: [{ role: 'user', content: 'Rédige la consigne de mouvement.' }] });
+  return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join(' ').trim().replace(/[—–]/g, ',');
 }
 
 export interface ScriptInput { brandName: string; format: string; language?: string; angle?: string; hookCount?: number; }
