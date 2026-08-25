@@ -88,3 +88,45 @@ export function analyzePlan(plan: string, priceEur: number, credits: number, mar
   const grossMarginPct = priceEur > 0 ? Math.round((1 - realCostCeilingEur / priceEur) * 100) : 0;
   return { plan, priceEur, credits, pricePerCreditEur, realCostCeilingEur, grossMarginPct };
 }
+
+/* ============ Rentabilité · analyse « chef d'entreprise » ============ */
+
+export interface PlanRisk {
+  plan: string;
+  priceEur: number;
+  credits: number;
+  bestMarginPct: number;     // meilleur cas (action la mieux margée)
+  worstMarginPct: number;    // pire cas (toute l'allocation sur l'action la moins margée)
+  worstAction: string;       // l'action qui plombe la marge
+  worstRealCostEur: number;  // coût réel dans le pire cas
+  recommendedPriceEur: number; // prix conseillé pour tenir la marge cible même au pire cas
+  healthy: boolean;          // pire cas ≥ marge cible ?
+}
+
+/**
+ * Marge « plancher » d'un plan : si le client dépense TOUTE son allocation sur l'action
+ * la moins rentable (souvent la vidéo), quelle marge reste-t-il ? C'est le vrai garde-fou.
+ */
+export function analyzePlanRisk(plan: string, priceEur: number, credits: number, targetMarginPct = 70): PlanRisk {
+  const perAction = COST_MODEL.map((c) => {
+    const unitCredits = CREDIT_COSTS[c.action] || 1;
+    const units = credits / unitCredits;
+    const realCost = units * c.realEur;
+    const marginPct = priceEur > 0 ? Math.round((1 - realCost / priceEur) * 100) : 100;
+    return { action: c.label, realCost, marginPct };
+  });
+  const worst = perAction.reduce((m, x) => (x.marginPct < m.marginPct ? x : m), perAction[0]!);
+  const best = perAction.reduce((m, x) => (x.marginPct > m.marginPct ? x : m), perAction[0]!);
+  const recommendedPriceEur = priceEur === 0 ? 0 : Math.max(priceEur, Math.ceil(worst.realCost / (1 - targetMarginPct / 100)));
+  return {
+    plan, priceEur, credits,
+    bestMarginPct: best.marginPct, worstMarginPct: worst.marginPct, worstAction: worst.action,
+    worstRealCostEur: worst.realCost, recommendedPriceEur,
+    healthy: priceEur === 0 || worst.marginPct >= targetMarginPct,
+  };
+}
+
+/** Actions dont le barème s'écarte de la marge cible (à corriger). */
+export function repricingSuggestions(markup = creditMarkup()): CostAnalysis[] {
+  return analyzeCosts(markup).filter((a) => !a.aligned);
+}
