@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, analyzeCosts, analyzePlan, creditMarkup, CREDIT_EUR } from '@tiktrends/core';
+import { CREDIT_COSTS, analyzeCosts, analyzePlan, analyzePlanRisk, repricingSuggestions, creditMarkup, CREDIT_EUR } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { grantCreditsAction, rechargeAllocationAction } from '../../actions/credits';
@@ -42,6 +42,11 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const plans: Plan[] = ['starter', 'core', 'plus', 'business'];
   const planEco = plans.map((p) => analyzePlan(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], markup));
   const eur = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: n < 1 ? 3 : 2, maximumFractionDigits: 3 }) + ' €';
+  // Rentabilité « chef d'entreprise » : marge plancher (pire cas) par formule + corrections de barème.
+  const TARGET_MARGIN = 70;
+  const planRisk = plans.filter((p) => PLAN_PRICE[p] > 0).map((p) => analyzePlanRisk(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], TARGET_MARGIN));
+  const suggestions = repricingSuggestions(markup);
+  const risky = planRisk.filter((p) => !p.healthy);
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 980, margin: '0 auto' }}>
@@ -167,6 +172,79 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* ============ RENTABILITÉ · MODE CHEF D'ENTREPRISE ============ */}
+      <section style={{ ...panel, borderColor: risky.length ? 'rgba(245,176,67,.45)' : 'rgba(126,232,191,.35)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h2 style={{ ...h2, fontSize: 18 }}>Rentabilité & optimisation</h2>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: risky.length ? '#0d070c' : '#0d3d2a', background: risky.length ? 'linear-gradient(135deg,#f5a623,#ff8c42)' : 'linear-gradient(135deg,#3ddc97,#7ee8bf)' }}>
+            {risky.length ? `${risky.length} formule(s) à surveiller` : 'Marges saines'}
+          </span>
+        </div>
+        <p style={{ margin: '8px 0 14px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 780 }}>
+          Le vrai risque n'est pas la marge moyenne, c'est le <b>pire cas</b> : si un client dépense <b>toute</b> son
+          allocation sur l'action la moins rentable (souvent la <b>vidéo</b>), quelle marge reste-t-il&nbsp;? On vise une
+          marge brute d'au moins <b>{TARGET_MARGIN}%</b> même dans ce scénario.
+        </p>
+
+        <div style={{ overflowX: 'auto', marginBottom: 8 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 660 }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
+                <th style={th}>Formule</th><th style={thR}>Prix</th><th style={thR}>Marge pleine</th>
+                <th style={thR}>Marge plancher</th><th style={th}>Action à risque</th><th style={thR}>Prix conseillé</th><th style={thR}>Santé</th>
+              </tr>
+            </thead>
+            <tbody>
+              {planRisk.map((p) => (
+                <tr key={p.plan} style={{ borderTop: '1px solid var(--line)' }}>
+                  <td style={{ ...td, color: 'var(--ink)', fontWeight: 700 }}>{p.plan}</td>
+                  <td style={tdR}>{p.priceEur} €</td>
+                  <td style={{ ...tdR, color: '#7ee8bf', fontWeight: 700 }}>{p.bestMarginPct} %</td>
+                  <td style={{ ...tdR, fontWeight: 800, color: p.worstMarginPct >= TARGET_MARGIN ? '#7ee8bf' : p.worstMarginPct >= 40 ? '#f5b043' : '#ff6b6b' }}>{p.worstMarginPct} %</td>
+                  <td style={{ ...td, color: 'var(--ink-2)' }}>{p.worstAction}<div style={{ fontSize: 10.5, color: 'var(--muted)' }}>coût max {eur(p.worstRealCostEur)}</div></td>
+                  <td style={tdR}>{p.recommendedPriceEur > p.priceEur ? <b style={{ color: 'var(--accent-strong)' }}>{p.recommendedPriceEur} €</b> : <span style={{ color: 'var(--muted)' }}>OK</span>}</td>
+                  <td style={tdR}><span style={{ fontWeight: 800, color: p.healthy ? '#7ee8bf' : '#f5b043' }}>{p.healthy ? '✓' : '⚠'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Corrections de barème conseillées */}
+        {suggestions.length > 0 && (
+          <div style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>Corrections de barème conseillées ({suggestions.length})</div>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {suggestions.map((a) => {
+                const up = a.recommendedCredits > a.credits;
+                return (
+                  <div key={a.action} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, flexWrap: 'wrap' }}>
+                    <span style={{ flex: 1, minWidth: 160, color: 'var(--ink-2)' }}>{a.label} <span style={{ color: 'var(--muted)' }}>· marge ×{a.marginX.toFixed(1)}</span></span>
+                    <span style={{ color: 'var(--muted)' }}>◈ {a.credits}</span>
+                    <span style={{ color: 'var(--muted)' }}>→</span>
+                    <span style={{ fontWeight: 800, color: up ? 'var(--accent-strong)' : '#7ee8bf' }}>◈ {a.recommendedCredits}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: up ? '#f5b043' : '#7ee8bf' }}>{up ? 'à augmenter' : 'baisse possible'}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <p style={{ margin: '10px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>
+              Pour appliquer : ajuste <code style={codeS}>CREDIT_COSTS</code> dans <code style={codeS}>packages/core</code> vers les valeurs « reco »,
+              et/ou relève le prix des formules à risque. Le multiplicateur global se règle via <code style={codeS}>CREDIT_MARKUP</code>.
+            </p>
+          </div>
+        )}
+
+        {/* Synthèse chef d'entreprise */}
+        <div style={{ marginTop: 12, padding: '13px 16px', borderRadius: 12, background: 'linear-gradient(135deg, rgba(254,44,85,.08), rgba(120,90,255,.05))', border: '1px solid var(--line-2)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+          <b style={{ color: 'var(--ink)' }}>Lecture directeur :</b> la marge « pleine » est confortable partout, mais la <b>vidéo</b> est
+          le poste qui tire la rentabilité vers le bas (coût réel élevé, sous-facturée en crédits). Deux leviers :
+          {' '}1) <b>reprix</b> la vidéo dans le barème (colonne reco) ; 2) <b>encadre</b> le volume vidéo par formule
+          (quota) pour protéger la marge plancher. Le reste des actions (image, copy, tags) est très margé et finance
+          l'ensemble.
         </div>
       </section>
 
