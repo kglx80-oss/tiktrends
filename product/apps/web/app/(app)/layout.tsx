@@ -38,6 +38,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <AppShell
       nav={[...railNav(access), ...brandNav]}
       accountGroups={accountSections(access)}
+      isAdmin={roleAtLeast(s.role, 'admin')}
       brands={brands}
       activeBrandId={activeBrand?.id ?? null}
       canManageBrands={roleAtLeast(s.role, 'admin')}
