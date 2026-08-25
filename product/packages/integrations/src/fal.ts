@@ -7,10 +7,10 @@
  * Configurable par variables d'environnement :
  *   FAL_KEY              (obligatoire pour activer)
  *   FAL_BASE_URL         (def: https://fal.run)
- *   FAL_IMAGE_MODEL      (def: fal-ai/flux/dev)            — texte -> image
+ *   FAL_IMAGE_MODEL      (def: fal-ai/nano-banana-2)        — texte -> image (réaliste)
  *   FAL_IMAGE_MODEL_I2I  (def: fal-ai/flux/dev/image-to-image) — image -> image
  *   FAL_IMAGE_MODEL_TEXT (def: fal-ai/ideogram/v3)         — image avec texte lisible
- *   FAL_IMAGE_MODEL_EDIT (def: fal-ai/flux-kontext/dev)    — édition fidèle (garde le produit)
+ *   FAL_IMAGE_MODEL_EDIT (def: fal-ai/nano-banana-2/edit)  — édition produit fidèle (proportions + réalisme)
  */
 
 export interface FalConfig {
@@ -36,10 +36,10 @@ export function falFromEnv(): FalConfig | null {
     apiKey,
     baseUrl: process.env.FAL_BASE_URL || 'https://fal.run',
     queueUrl: process.env.FAL_QUEUE_URL || 'https://queue.fal.run',
-    imageModel: process.env.FAL_IMAGE_MODEL || 'fal-ai/flux/dev',
+    imageModel: process.env.FAL_IMAGE_MODEL || 'fal-ai/nano-banana-2',
     imageModelI2I: process.env.FAL_IMAGE_MODEL_I2I || 'fal-ai/flux/dev/image-to-image',
     imageModelText: process.env.FAL_IMAGE_MODEL_TEXT || 'fal-ai/ideogram/v3',
-    imageModelEdit: process.env.FAL_IMAGE_MODEL_EDIT || 'fal-ai/flux-kontext/dev',
+    imageModelEdit: process.env.FAL_IMAGE_MODEL_EDIT || 'fal-ai/nano-banana-2/edit',
     videoModel: process.env.FAL_VIDEO_MODEL || 'fal-ai/kling-video/v2/master/text-to-video',
     videoModelI2V: process.env.FAL_VIDEO_MODEL_I2V || 'fal-ai/kling-video/v2/master/image-to-video',
   };
@@ -53,6 +53,9 @@ export function falConfigured(): boolean {
 const IMAGE_SIZE: Record<FalAspect, string> = {
   '9:16': 'portrait_16_9', '4:5': 'portrait_4_3', '1:1': 'square_hd', '16:9': 'landscape_16_9',
 };
+// Nano Banana / modèles récents : ratio natif (le modèle choisit la résolution -> proportions respectées).
+const ASPECT_STR: Record<FalAspect, string> = { '9:16': '9:16', '4:5': '4:5', '1:1': '1:1', '16:9': '16:9' };
+const isNano = (model: string) => /nano-banana/i.test(model);
 
 function pickString(obj: Record<string, unknown>, keys: string[]): string | undefined {
   for (const k of keys) { const v = obj[k]; if (typeof v === 'string' && v) return v; }
@@ -67,17 +70,22 @@ function collectUrls(data: Record<string, unknown>): string[] {
 
 /** Génère une ou plusieurs images. Choisit le modèle selon le besoin (image de départ / texte lisible). */
 export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Promise<FalImageResult> {
-  // Avec une photo produit : Kontext (édition fidèle, garde le packaging) si demandé, sinon i2i classique.
+  // Avec une photo produit : édition fidèle (Nano Banana / Kontext) si demandé, sinon i2i classique.
   const model = input.imageUrl
     ? (input.edit ? cfg.imageModelEdit : cfg.imageModelI2I)
     : input.withText ? cfg.imageModelText : cfg.imageModel;
-  const body: Record<string, unknown> = {
-    prompt: input.prompt,
-    image_size: IMAGE_SIZE[input.aspectRatio ?? '1:1'],
-    num_images: Math.min(4, Math.max(1, input.count ?? 1)),
-    output_format: 'jpeg', // jpeg = lisible par tous les composants (aperçu + compositeur pub)
-  };
-  if (input.imageUrl) body.image_url = input.imageUrl;
+  const ratio = input.aspectRatio ?? '1:1';
+  const num = Math.min(4, Math.max(1, input.count ?? 1));
+  const body: Record<string, unknown> = { prompt: input.prompt, num_images: num };
+  if (isNano(model)) {
+    // Ratio natif : le modèle calcule la résolution -> pas de déformation.
+    body.aspect_ratio = ASPECT_STR[ratio];
+    if (input.imageUrl) body.image_urls = [input.imageUrl];
+  } else {
+    body.image_size = IMAGE_SIZE[ratio];
+    body.output_format = 'jpeg';
+    if (input.imageUrl) body.image_url = input.imageUrl;
+  }
 
   const res = await fetch(`${cfg.baseUrl}/${model}`, {
     method: 'POST',
