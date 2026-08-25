@@ -5,6 +5,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { JarvisRules } from './JarvisRules';
+import { JarvisTraining } from './JarvisTraining';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,10 +31,13 @@ export default async function JarvisPage() {
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
 
   const brand = await getActiveBrand(s.workspaceId);
-  let rules = '';
+  let rules = '', learnings = '';
+  let trainedAt: string | null = null;
   if (db && brand) {
-    const [row] = await db.select({ creativeRules: schema.brands.creativeRules }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    const [row] = await db.select({ creativeRules: schema.brands.creativeRules, jarvisLearnings: schema.brands.jarvisLearnings, jarvisTrainedAt: schema.brands.jarvisTrainedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     rules = row?.creativeRules ?? '';
+    learnings = row?.jarvisLearnings ?? '';
+    trainedAt = row?.jarvisTrainedAt ? row.jarvisTrainedAt.toISOString() : null;
   }
 
   return (
@@ -66,8 +70,13 @@ export default async function JarvisPage() {
         ))}
       </div>
 
+      {/* Entraînement Jarvis (performance) */}
+      <JarvisTraining brandName={brand?.name ?? null} initial={learnings} trainedAt={trainedAt} />
+
       {/* Éditeur de règles (le cœur) */}
-      <JarvisRules brandName={brand?.name ?? null} initial={rules} />
+      <div style={{ marginTop: 22 }}>
+        <JarvisRules brandName={brand?.name ?? null} initial={rules} />
+      </div>
 
       {/* Moteurs orchestrés */}
       <h2 style={{ margin: '28px 0 12px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Moteurs orchestrés</h2>

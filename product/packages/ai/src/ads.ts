@@ -42,9 +42,51 @@ export interface AdConceptCtx {
   objective?: string;             // ex : « ventes », « notoriété », « trafic »
   angle?: string;                 // angle précis à décliner (itération ciblée)
   creativeRules?: string;         // règles maison Jarvis à respecter impérativement
+  winningPatterns?: string;       // intelligence créative Jarvis (patterns gagnants distillés de la veille)
 }
 
 export interface AdAngle { title: string; rationale: string; template?: AdTemplate }
+
+/* ============ Entraînement Jarvis · distillation des patterns gagnants ============ */
+export interface WinningAdSummary { advertiser?: string; body?: string; cta?: string; daysRunning?: number; reach?: number; mediaType?: string }
+
+/**
+ * Distille des PATTERNS GAGNANTS à partir de pubs qui performent (longévité + reach = signaux
+ * de performance). Retourne une « intelligence créative » actionnable, injectée ensuite dans
+ * chaque génération pour tirer la performance vers le haut.
+ */
+export async function distillWinningPatterns(client: Anthropic, ctx: { brand?: string; category?: string; audience?: string }, ads: WinningAdSummary[]): Promise<string> {
+  const sorted = [...ads].sort((a, b) => (b.daysRunning ?? 0) - (a.daysRunning ?? 0) || (b.reach ?? 0) - (a.reach ?? 0)).slice(0, 30);
+  const corpus = sorted.map((a, i) => {
+    const perf = [a.daysRunning ? `${a.daysRunning} j de diffusion` : '', a.reach ? `reach ${a.reach}` : '', a.mediaType].filter(Boolean).join(', ');
+    return `${i + 1}. [${a.advertiser || 'annonceur'} · ${perf}] ${(a.body || '').replace(/\s+/g, ' ').slice(0, 200)}${a.cta ? ` · CTA: ${a.cta}` : ''}`;
+  }).join('\n');
+
+  const sys = [
+    "Tu es analyste créatif PERFORMANCE (niveau Atria/Motion). On te donne des publicités qui PERFORMENT · une longue durée de diffusion et un reach élevé sont des signaux forts de rentabilité (une marque ne laisse pas tourner une pub qui perd).",
+    "Distille les PATTERNS GAGNANTS de cette niche, de façon ACTIONNABLE, pour qu'une IA génère des créas plus performantes. Généralise les mécaniques · ne recopie jamais le texte.",
+    "Structure EXACTE, en français, sections courtes en puces :",
+    "Hooks gagnants : … (types d'accroches qui reviennent)",
+    "Angles gagnants : … (promesses/angles récurrents)",
+    "Formats gagnants : … (gabarits/mécaniques : témoignage, avant/après, UGC, stat, offre…)",
+    "Codes visuels : … (mise en scène, lumière, cadrage qui reviennent)",
+    "CTA efficaces : … (formulations d'appel à l'action)",
+    "Directives Jarvis : … (3 à 5 consignes concrètes à appliquer pour performer sur cette marque)",
+    "Sois spécifique et concis. Pas de blabla, pas de tiret cadratin.",
+  ].join('\n');
+  const user = [
+    ctx.brand ? `Marque à faire performer : ${ctx.brand}.` : '',
+    ctx.category ? `Catégorie : ${ctx.category}.` : '',
+    ctx.audience ? `Audience : ${ctx.audience}.` : '',
+    `\nCorpus de pubs performantes :\n${corpus || '(aucune)'}`,
+  ].filter(Boolean).join('\n');
+
+  const res = await client.messages.create({
+    model: GEN_MODEL, max_tokens: 1100, system: sys,
+    messages: [{ role: 'user', content: user }],
+  });
+  return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('\n').trim().replace(/[—–]/g, ',');
+}
 
 const ANGLES_TOOL = {
   name: 'return_angles',
@@ -206,6 +248,9 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
     "ugc : caption courte et native (quote) + pseudo (author) ; scène contenu créateur authentique (selfie/à la main), non léchée.",
     "stat : un chiffre-clé fort et crédible (stat) + son libellé (statLabel) + headline ; scène produit épurée.",
     "offer : promo/offre (badge, ex « -30% », « 2+1 offert ») + headline à urgence + CTA ; scène produit désirable.",
+    ctx.winningPatterns?.trim()
+      ? `INTELLIGENCE CRÉATIVE JARVIS (patterns gagnants observés sur des pubs qui performent dans cette niche · applique-les pour maximiser la performance, sans plagier) : ${ctx.winningPatterns.trim().slice(0, 1400)}`
+      : "",
     ctx.creativeRules?.trim()
       ? `RÈGLES MAISON (Jarvis) À RESPECTER IMPÉRATIVEMENT, priorité absolue sur tout le reste : ${ctx.creativeRules.trim().slice(0, 1200)}`
       : "",
