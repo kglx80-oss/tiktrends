@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, type AdItem } from '../../../actions/ads';
 import { setProductImageAction, importProductImageAction, importAllProductImagesAction } from '../../../actions/image';
-import type { AdTemplate, AdAngle } from '@tiktrends/ai';
+import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
@@ -59,6 +59,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [objective, setObjective] = useState('Ventes');
   const [templates, setTemplates] = useState<AdTemplate[]>(['problem_solution', 'before_after', 'testimonial', 'benefits']);
   const [angle, setAngle] = useState('');
+  const [universe, setUniverse] = useState('auto');
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
   const [refUri, setRefUri] = useState('');
@@ -148,7 +149,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     }
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
@@ -208,6 +209,13 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <label style={lbl}>Objectif</label>
             <select value={objective} onChange={(e) => setObjective(e.target.value)} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
               {OBJECTIVES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: '1 1 180px' }}>
+            <label style={lbl}>Univers visuel</label>
+            <select value={universe} onChange={(e) => setUniverse(e.target.value)} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
+              <option value="auto">✦ Varié (auto)</option>
+              {VISUAL_UNIVERSES.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
             </select>
           </div>
         </div>

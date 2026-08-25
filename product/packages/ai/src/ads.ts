@@ -5,6 +5,19 @@ import { GEN_MODEL } from './generation';
 export type AdTemplate = 'problem_solution' | 'before_after' | 'testimonial' | 'benefits';
 export const AD_TEMPLATES: AdTemplate[] = ['problem_solution', 'before_after', 'testimonial', 'benefits'];
 
+/** Univers de direction artistique — change complètement l'ambiance du visuel. */
+export interface VisualUniverse { key: string; label: string; prompt: string }
+export const VISUAL_UNIVERSES: VisualUniverse[] = [
+  { key: 'studio',    label: 'Studio packshot',   prompt: 'Clean studio packshot on a seamless solid-color backdrop, soft gradient lighting, minimal props, premium e-commerce look.' },
+  { key: 'lifestyle', label: 'Lifestyle / UGC',   prompt: 'Authentic lifestyle UGC scene, a real person in a natural everyday setting, candid smartphone-style photography, warm natural window light.' },
+  { key: 'editorial', label: 'Éditorial premium', prompt: 'High-end editorial magazine style, dramatic directional lighting, elegant negative space, luxury feel, refined color grading.' },
+  { key: 'nature',    label: 'Nature / organique',prompt: 'Organic natural setting with fresh plants, stone or wood surfaces, sunlight and soft leaf shadows, healthy and clean mood.' },
+  { key: 'bold',      label: 'Couleur pop',       prompt: 'Bold vibrant color-blocked background using the brand colors, playful modern pop aesthetic, strong graphic contrast, studio light.' },
+  { key: 'cinematic', label: 'Sombre cinématique',prompt: 'Dark cinematic scene, moody dramatic lighting, deep shadows, crisp rim light on the product, premium nighttime atmosphere.' },
+  { key: 'flatlay',   label: 'Flat lay',          prompt: 'Top-down flat-lay composition on a styled surface with a few complementary props arranged around the product, even soft daylight.' },
+  { key: 'energy',    label: 'Énergie / sport',   prompt: 'Dynamic energetic active-lifestyle setting (gym or outdoor sport vibe), sense of motion and vitality, bright punchy lighting.' },
+];
+
 export interface AdConcept {
   template: AdTemplate;
   kicker?: string;         // eyebrow court en MAJUSCULES (2-4 mots), couleur d'accent
