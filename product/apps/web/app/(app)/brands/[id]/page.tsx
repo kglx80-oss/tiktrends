@@ -13,6 +13,7 @@ import {
 import { input, lbl, Msg } from '../../../../components/ui';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
 import { ShopifyConnect } from './ShopifyConnect';
+import { BrandDA } from './BrandDA';
 
 export const dynamic = 'force-dynamic';
 
@@ -137,6 +138,8 @@ export default async function BrandDetailPage({ params, searchParams }: {
             </div>
             <button type="submit" disabled={!aiReady} style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: aiReady ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: aiReady ? 1 : .5, whiteSpace: 'nowrap' }}>Générer maintenant</button>
           </form>
+
+          <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} colors={b.colors ?? []} fonts={b.fonts ?? []} />
 
         <BrandOverviewForm init={{
           id: b.id, name: b.name, url: b.url ?? '', description: b.description ?? '', usp: b.usp ?? '',

@@ -21,9 +21,22 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     db ? db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1) : Promise.resolve([]),
   ]);
 
+  // Espace « Marque » (rail) : accès direct aux sections de la marque active.
+  const bid = activeBrand?.id;
+  const brandNav = roleAtLeast(s.role, 'admin') && bid ? [{
+    group: 'Marque',
+    items: [
+      { key: 'm-home', label: 'Ma marque',      href: `/brands/${bid}?tab=overview`,    icon: 'store', locked: false, isSub: false },
+      { key: 'm-da',   label: 'Identité / DA',   href: `/brands/${bid}?tab=overview`,    icon: 'image', locked: false, isSub: true },
+      { key: 'm-aud',  label: 'Audience',        href: `/brands/${bid}?tab=audience`,    icon: 'users', locked: false, isSub: true },
+      { key: 'm-prod', label: 'Produits',        href: `/brands/${bid}?tab=products`,    icon: 'store', locked: false, isSub: true },
+      { key: 'm-comp', label: 'Concurrents',     href: `/brands/${bid}?tab=competitors`, icon: 'trend', locked: false, isSub: true },
+    ],
+  }] : [];
+
   return (
     <AppShell
-      nav={railNav(access)}
+      nav={[...railNav(access), ...brandNav]}
       accountGroups={accountSections(access)}
       brands={brands}
       activeBrandId={activeBrand?.id ?? null}
