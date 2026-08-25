@@ -2,8 +2,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GEN_MODEL } from './generation';
 
 /** Un gabarit de composition publicitaire (couche design posée sur la scène IA). */
-export type AdTemplate = 'problem_solution' | 'before_after' | 'testimonial' | 'benefits';
-export const AD_TEMPLATES: AdTemplate[] = ['problem_solution', 'before_after', 'testimonial', 'benefits'];
+export type AdTemplate = 'problem_solution' | 'before_after' | 'testimonial' | 'benefits' | 'ugc' | 'stat' | 'offer';
+export const AD_TEMPLATES: AdTemplate[] = ['problem_solution', 'before_after', 'testimonial', 'benefits', 'ugc', 'stat', 'offer'];
 
 /** Univers de direction artistique — change complètement l'ambiance du visuel. */
 export interface VisualUniverse { key: string; label: string; prompt: string }
@@ -25,10 +25,12 @@ export interface AdConcept {
   subhead?: string;        // ligne de soutien courte
   cta: string;             // bouton d'action (FR)
   badge?: string;          // pastille (ex : « AVANT / APRÈS », « -30 % »)
-  quote?: string;          // témoignage (gabarit testimonial)
-  author?: string;         // auteur du témoignage (ex : « Marie, 34 ans »)
+  quote?: string;          // témoignage / caption UGC (gabarits testimonial, ugc)
+  author?: string;         // auteur / handle (ex : « Marie, 34 ans », « @lucas »)
   rating?: number;         // note 1..5 (gabarit testimonial)
   benefits?: string[];     // 3 bénéfices courts (gabarit benefits)
+  stat?: string;           // chiffre-clé (gabarit stat, ex : « -73% », « x3 »)
+  statLabel?: string;      // libellé du chiffre (gabarit stat, ex : « de crashs en moins »)
   sceneBrief: string;      // brief EN de la scène à générer (sans texte incrusté)
 }
 
@@ -109,10 +111,12 @@ const AD_TOOL = {
             subhead: { type: 'string', description: 'Ligne de soutien courte (optionnelle).' },
             cta: { type: 'string', description: "Appel à l'action court (FR), ex : « Je découvre », « J'en profite »." },
             badge: { type: 'string', description: 'Pastille courte (ex : « AVANT / APRÈS », « -30 % », « NOUVEAU »).' },
-            quote: { type: 'string', description: 'Témoignage client crédible (gabarit testimonial).' },
-            author: { type: 'string', description: "Auteur du témoignage, ex : « Marie, 34 ans »." },
+            quote: { type: 'string', description: 'Témoignage client (testimonial) OU caption courte et native (ugc).' },
+            author: { type: 'string', description: "Auteur / pseudo, ex : « Marie, 34 ans », « @lucas »." },
             rating: { type: 'number', description: 'Note sur 5 (gabarit testimonial), ex 5.' },
             benefits: { type: 'array', items: { type: 'string' }, description: '3 bénéfices très courts (gabarit benefits).' },
+            stat: { type: 'string', description: 'Chiffre-clé marquant (gabarit stat), ex : « -73% », « x3 », « 4.9/5 ».' },
+            statLabel: { type: 'string', description: 'Libellé sous le chiffre (gabarit stat), ex : « de coups de barre en moins ».' },
             sceneBrief: { type: 'string', description: 'Brief EN de la scène publicitaire à générer (décor, sujet, lumière, ambiance). AUCUN texte incrusté : le texte est ajouté par-dessus.' },
           },
           required: ['template', 'headline', 'cta', 'sceneBrief'],
@@ -192,9 +196,12 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
     "before_after : le sceneBrief doit décrire un split visuel gauche/droite AVANT (problème) vs APRÈS (résultat), badge « AVANT / APRÈS ».",
     "testimonial : quote client crédible + author + rating 5 ; scène d'une personne satisfaite avec le produit.",
     "benefits : 3 bénéfices très courts ; scène produit centrée, épurée, premium.",
+    "ugc : caption courte et native (quote) + pseudo (author) ; scène type contenu créateur authentique (selfie/à la main), non léchée.",
+    "stat : un chiffre-clé fort (stat) + son libellé (statLabel) + headline ; scène produit épurée qui laisse respirer le chiffre.",
+    "offer : promo/offre (badge = ex « -30% », « 2+1 offert ») + headline orientée urgence + CTA ; scène produit désirable.",
     "Rends TOUJOURS via l'outil return_ads, un concept par gabarit, dans l'ordre.",
   ].join(' ');
-  const user = `${ctxLines(ctx)}\n\nGabarits à produire, dans cet ordre : ${templates.join(', ')}.`;
+  const user = `${ctxLines(ctx)}\n\nProduis EXACTEMENT ${templates.length} concept(s), un par entrée, dans cet ordre de gabarits : ${templates.join(', ')}. Si un gabarit revient, propose une exécution nettement différente à chaque fois (accroche, scène, angle d'attaque).`;
 
   const res = await client.messages.create({
     model: GEN_MODEL, max_tokens: 2000, system: sys,
@@ -203,8 +210,7 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
     messages: [{ role: 'user', content: user }],
   });
   const tool = res.content.find((c) => c.type === 'tool_use') as { input?: { concepts?: AdConcept[] } } | undefined;
-  const concepts = tool?.input?.concepts ?? [];
-  // On garde l'ordre demandé et on complète les manquants au besoin.
-  const byTpl = new Map(concepts.filter((c) => c?.template).map((c) => [c.template, c]));
-  return templates.map((t) => byTpl.get(t)).filter((c): c is AdConcept => !!c && !!c.headline && !!c.sceneBrief);
+  const concepts = (tool?.input?.concepts ?? []).filter((c) => c?.headline && c?.sceneBrief);
+  // On conserve l'ordre (avec répétitions de gabarits possibles) et on aligne sur la longueur demandée.
+  return concepts.slice(0, templates.length);
 }

@@ -9,6 +9,7 @@ export interface AdRecipe {
   kicker?: string;
   headline: string; subhead?: string; cta: string;
   badge?: string; quote?: string; author?: string; rating?: number; benefits?: string[];
+  stat?: string; statLabel?: string;
   accent: string;            // couleur d'accent / bouton (hex)
   brandName?: string;
   logoUrl?: string | null;
@@ -199,11 +200,78 @@ function pill(accent: string) {
   return { display: 'flex', background: accent, color: WHITE, fontSize: 23, fontWeight: 700, padding: '10px 20px', borderRadius: 999, letterSpacing: 0.5 } as const;
 }
 
+/** UGC : rendu natif « contenu créateur » — bulle de caption + pseudo. */
+function Ugc(r: AdRecipe) {
+  return (
+    <Frame>
+      <Bg url={r.sceneUrl} />
+      <div style={scrimTop} />
+      <div style={{ position: 'absolute', top: 46, left: 56, right: 56, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', width: 44, height: 44, borderRadius: 999, background: r.accent, alignItems: 'center', justifyContent: 'center', color: WHITE, fontSize: 22, fontWeight: 700 }}>{(r.author || r.brandName || '@').replace('@', '').slice(0, 1).toUpperCase()}</div>
+          <div style={{ display: 'flex', marginLeft: 12, fontSize: 26, fontWeight: 700, color: WHITE, textShadow: shadow }}>{r.author || r.brandName || ''}</div>
+        </div>
+      </div>
+      <div style={{ position: 'absolute', left: 56, right: 56, bottom: 52, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,.97)', borderRadius: 22, padding: '24px 26px', fontSize: fitHeadline(r.quote || r.headline, 44, 32), lineHeight: 1.24, fontWeight: 700, color: '#15151b', letterSpacing: -0.4 }}>{r.quote || r.headline}</div>
+        <div style={{ display: 'flex', marginTop: 22 }}><Cta recipe={r} full /></div>
+      </div>
+    </Frame>
+  );
+}
+
+/** Stat : un chiffre-clé hero + libellé + titre. */
+function Stat(r: AdRecipe) {
+  return (
+    <Frame>
+      <Bg url={r.sceneUrl} />
+      <div style={scrimTop} />
+      <TopBar r={r} />
+      <div style={{ position: 'absolute', top: 150, left: 56, right: 56, display: 'flex', flexDirection: 'column' }}>
+        {r.kicker ? <div style={{ display: 'flex', marginBottom: 16 }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+        <div style={{ display: 'flex', alignItems: 'baseline' }}>
+          <div style={{ display: 'flex', fontSize: 150, lineHeight: 0.9, fontWeight: 700, color: r.accent, letterSpacing: -3, textShadow: shadow }}>{r.stat || '92%'}</div>
+        </div>
+        {r.statLabel ? <div style={{ display: 'flex', marginTop: 10, fontSize: 38, fontWeight: 700, color: WHITE, maxWidth: 640, lineHeight: 1.1, textShadow: shadow }}>{r.statLabel}</div> : null}
+      </div>
+      <BottomPanel>
+        <div style={{ display: 'flex', fontSize: fitHeadline(r.headline, 60), lineHeight: 1.03, fontWeight: 700, color: WHITE, letterSpacing: -1.2 }}>{r.headline}</div>
+        <div style={{ display: 'flex', marginTop: 28 }}><Cta recipe={r} /></div>
+      </BottomPanel>
+    </Frame>
+  );
+}
+
+/** Offer : promo — pastille d'offre saillante + titre urgence + CTA. */
+function Offer(r: AdRecipe) {
+  return (
+    <Frame>
+      <Bg url={r.sceneUrl} />
+      <div style={scrimTop} />
+      <div style={{ position: 'absolute', top: 46, left: 56, right: 56, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Logo recipe={r} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: 128, height: 128, borderRadius: 999, background: r.accent, color: WHITE, boxShadow: '0 12px 30px rgba(0,0,0,.4)' }}>
+          <div style={{ display: 'flex', fontSize: 40, fontWeight: 700, letterSpacing: -1 }}>{r.badge || 'PROMO'}</div>
+        </div>
+      </div>
+      <BottomPanel>
+        {r.kicker ? <div style={{ display: 'flex', marginBottom: 14 }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+        <div style={{ display: 'flex', fontSize: fitHeadline(r.headline), lineHeight: 1.0, fontWeight: 700, color: WHITE, letterSpacing: -1.5 }}>{r.headline}</div>
+        {r.subhead ? <div style={{ display: 'flex', marginTop: 16, fontSize: 30, lineHeight: 1.28, color: 'rgba(255,255,255,.88)', maxWidth: 840 }}>{r.subhead}</div> : null}
+        <div style={{ display: 'flex', marginTop: 32 }}><Cta recipe={r} /></div>
+      </BottomPanel>
+    </Frame>
+  );
+}
+
 function element(r: AdRecipe) {
   switch (r.template) {
     case 'before_after': return BeforeAfter(r);
     case 'testimonial': return Testimonial(r);
     case 'benefits': return Benefits(r);
+    case 'ugc': return Ugc(r);
+    case 'stat': return Stat(r);
+    case 'offer': return Offer(r);
     default: return ProblemSolution(r);
   }
 }
