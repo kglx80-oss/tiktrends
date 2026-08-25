@@ -10,7 +10,7 @@ import { SupportWidget } from './SupportWidget';
 // Console ADMIN+ uniquement : fond ambré + accent orange (même univers sombre).
 // Les pages « espace de travail » (marques, connexions, membres, abonnement)
 // gardent la DA magenta standard.
-const ADMIN_ROUTES = ['/console', '/credits', '/settings'];
+const ADMIN_ROUTES = ['/admin', '/console', '/credits', '/settings'];
 const ADMIN_CONTENT = {
   '--accent': '#f5a623',
   '--accent-strong': '#ffca6b',
@@ -33,6 +33,7 @@ interface AccountGroup { section: string; items: NavItem[] }
 interface Props {
   nav: Group[];
   accountGroups: AccountGroup[];
+  isAdmin: boolean;
   brands: Brand[];
   activeBrandId: string | null;
   canManageBrands: boolean;
@@ -97,7 +98,10 @@ function NavLink({ it, active }: { it: NavItem; active: boolean }) {
 }
 
 export function AppShell(props: Props) {
-  const { nav, accountGroups, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
+  const { nav, accountGroups, isAdmin: userIsAdmin, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
+  // Menu profil épuré : seuls les éléments réellement personnels (section « Compte »).
+  // Tout l'outillage admin/espace de travail vit désormais dans les coulisses ADMIN+ (/admin).
+  const personalItems = accountGroups.find((g) => g.section === 'Compte')?.items ?? [];
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
@@ -144,16 +148,22 @@ export function AppShell(props: Props) {
                 </div>
                 <div style={{ padding: 6 }}>
                   <Link href="/profile" onClick={() => setMenuOpen(false)} style={menuItem}>Mon profil</Link>
-                  {accountGroups.map((grp) => (
-                    <div key={grp.section}>
-                      <div style={{ padding: '8px 12px 2px', fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: grp.section === 'Admin' ? '#f5c877' : 'var(--muted)' }}>
-                        {grp.section === 'Admin' ? 'ADMIN+' : grp.section === 'Espace' ? 'Espace de travail' : grp.section}
-                      </div>
-                      {grp.items.map((it) => (it.locked || it.soon)
-                        ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
-                        : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={{ ...menuItem, ...(grp.section === 'Admin' ? { color: '#f5c877' } : null) }}>{it.label}</Link>)}
-                    </div>
-                  ))}
+                  {personalItems.map((it) => (it.locked || it.soon)
+                    ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
+                    : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>)}
+
+                  {/* ADMIN+ · une seule porte vers les coulisses (console, crédits, réglages, espace). */}
+                  {userIsAdmin && (
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '6px 0 2px', borderRadius: 11, textDecoration: 'none', background: 'linear-gradient(135deg, rgba(245,166,35,.16), rgba(255,140,66,.08))', border: '1px solid rgba(245,166,35,.32)' }}>
+                      <span style={{ fontSize: 15 }}>🎛️</span>
+                      <span style={{ flex: 1 }}>
+                        <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#ffca6b' }}>ADMIN+ · Coulisses</span>
+                        <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>Console, crédits, réglages, espace</span>
+                      </span>
+                      <span style={{ color: '#ffca6b', fontSize: 13 }}>›</span>
+                    </Link>
+                  )}
+
                   <div style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default', display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>Langue<span style={{ fontSize: 11 }}>FR</span></div>
                 </div>
                 <form action={logout} style={{ borderTop: '1px solid var(--line)', padding: 6, margin: 0 }}>
