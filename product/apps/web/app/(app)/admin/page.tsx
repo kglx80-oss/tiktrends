@@ -39,17 +39,18 @@ export default async function AdminBackstage() {
     },
     {
       title: 'Crédits & facturation',
-      hint: 'Consommation et abonnement',
+      hint: 'Coûts réels, marges et abonnement',
       tools: [
-        { icon: '◈', title: 'Crédits', desc: 'Suivi de la consommation, allocation et historique des débits.', href: '/credits', badge: `${credits.toLocaleString('fr-FR')} restants` },
-        { icon: '💳', title: 'Abonnement', desc: 'Formule, facturation et limites mensuelles.', href: '/settings', soon: true },
+        { icon: '◈', title: 'Crédits & marges', desc: 'Solde, allocation, coût réel API, règle × markup et marge par action.', href: '/credits', badge: `${credits.toLocaleString('fr-FR')} restants` },
+        { icon: '💳', title: 'Plans & Facturation', desc: 'Formules, prix, allocations et abonnement de l’espace.', href: '/billing' },
       ],
     },
     {
-      title: 'IA maison',
-      hint: 'Notre couche créative propriétaire',
+      title: 'Intelligence & IA maison',
+      hint: 'Notre couche créative et le marché',
       tools: [
         { icon: '🧠', title: 'Jarvis', desc: 'Règles créatives maison imposées à chaque génération, par marque.', href: '/jarvis' },
+        { icon: '🔭', title: 'Intelligence marché', desc: 'Concurrents (Atria, Foreplay, Higgsfield) et notre positionnement.', href: '/admin/intelligence' },
       ],
     },
     {

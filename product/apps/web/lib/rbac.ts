@@ -68,7 +68,7 @@ export const FEATURES: Feature[] = [
   { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   { key: 'team',      label: 'Membres',      href: '/team',        icon: 'users',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
-  { key: 'billing',   label: 'Abonnement',   href: '/billing',     icon: 'card',   group: 'account', section: 'Espace', minRole: 'owner',  minPlan: 'starter', soon: true },
+  { key: 'billing',   label: 'Plans & Facturation', href: '/billing', icon: 'card',  group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
   // Menu profil · ADMIN+
   { key: 'console',   label: 'Console',      href: '/console',     icon: 'gauge',  group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
   { key: 'credits',   label: 'Crédits',      href: '/credits',     icon: 'coin',   group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },

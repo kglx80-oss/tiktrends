@@ -4,6 +4,7 @@ export * from './ingest';
 export * from './tags';
 export * from './diagnostic';
 export * from './credits';
+export * from './economics';
 export * from './launch';
 export * from './briefs';
 export * from './angles';
