@@ -40,6 +40,7 @@ interface Props {
   creditBalance: number;
   userName: string;
   userEmail: string;
+  avatarUrl?: string;
   roleLabel: string;
   planLabel: string;
   workspaceName: string;
@@ -108,7 +109,7 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, isAdmin: userIsAdmin, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, roleLabel, planLabel, workspaceName, logout, children } = props;
+  const { nav, accountGroups, isAdmin: userIsAdmin, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, avatarUrl, roleLabel, planLabel, workspaceName, logout, children } = props;
   // Menu profil épuré : seuls les éléments réellement personnels (section « Compte »).
   // Tout l'outillage admin/espace de travail vit désormais dans les coulisses ADMIN+ (/admin).
   const personalItems = accountGroups.find((g) => g.section === 'Compte')?.items ?? [];
@@ -197,7 +198,12 @@ function AppShellInner(props: Props) {
             </>
           )}
           <button type="button" onClick={() => setMenuOpen((o) => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer' }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{(userName || userEmail).slice(0, 1).toUpperCase()}</div>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
+              {avatarUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (userName || userEmail).slice(0, 1).toUpperCase()}
+            </div>
             <div style={{ lineHeight: 1.2, minWidth: 0, textAlign: 'left', flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName || userEmail}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>{roleLabel} · {planLabel}</div>

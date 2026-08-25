@@ -15,11 +15,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!s) redirect('/login');
 
   const access = { role: s.role, plan: s.plan };
-  const [brands, activeBrand, ws] = await Promise.all([
+  const [brands, activeBrand, ws, meRow] = await Promise.all([
     listBrands(s.workspaceId),
     getActiveBrand(s.workspaceId),
     db ? db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1) : Promise.resolve([]),
+    db ? db.select({ a: schema.users.avatarUrl }).from(schema.users).where(eq(schema.users.id, s.user.id)).limit(1) : Promise.resolve([]),
   ]);
+  const avatarUrl = (meRow as Array<{ a: string | null }>)[0]?.a ?? '';
 
   // Espace « Marque » (rail) : accès direct aux sections de la marque active.
   const bid = activeBrand?.id;
@@ -44,6 +46,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       creditBalance={ws[0]?.c ?? 0}
       userName={s.user.name || ''}
       userEmail={s.user.email}
+      avatarUrl={avatarUrl}
       roleLabel={ROLE_LABEL[s.role]}
       planLabel={PLAN_LABEL[s.plan]}
       workspaceName={s.workspaceName}
