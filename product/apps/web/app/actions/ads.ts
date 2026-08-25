@@ -11,7 +11,7 @@ import { unlimitedCredits } from '../../lib/credits';
 import type { AdRecipe } from '../../lib/ad-render';
 
 export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string }
-export interface AdsResult { error?: string; ads?: AdItem[] }
+export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
 
 /** Ordonne les couleurs d'accent lisibles (bouton/CTA) de la DA ; défaut si aucune. */
 function pickAccents(colors?: string[] | null): string[] {
@@ -73,19 +73,29 @@ async function composeBatch(o: {
   const universeFor = (i: number) => chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
   const hasProduct = !!(o.productImageUrls && o.productImageUrls.length);
 
-  const scenes = await Promise.all(o.concepts.map(async (c, i) => {
-    try {
-      // Clone : on donne la référence EN PREMIER puis nos images produit -> Nano recompose la mise en page.
-      const imageUrls = o.cloneRefUrl
-        ? [o.cloneRefUrl, ...(o.productImageUrls ?? [])]
-        : (o.editMode ? (o.productImageUrls ?? undefined) : undefined);
-      const prompt = o.cloneRefUrl ? scenePromptClone(c, hasProduct) : scenePrompt(c, o.editMode, universeFor(i));
-      const { images } = await falGenerateImage(o.cfg, {
-        prompt, aspectRatio: '4:5', imageUrls, edit: o.cloneRefUrl ? true : o.editMode, count: 1,
-      });
-      return images[0] || null;
-    } catch { return null; }
-  }));
+  const genScene = async (c: AdConcept, i: number): Promise<string | null> => {
+    // Clone : on donne la référence EN PREMIER puis nos images produit -> Nano recompose la mise en page.
+    const imageUrls = o.cloneRefUrl
+      ? [o.cloneRefUrl, ...(o.productImageUrls ?? [])]
+      : (o.editMode ? (o.productImageUrls ?? undefined) : undefined);
+    const prompt = o.cloneRefUrl ? scenePromptClone(c, hasProduct) : scenePrompt(c, o.editMode, universeFor(i));
+    for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
+      try {
+        const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit: o.cloneRefUrl ? true : o.editMode, count: 1 });
+        if (images[0]) return images[0];
+      } catch { /* réessai */ }
+    }
+    return null;
+  };
+
+  // Génération par petits lots (max 3 en parallèle) pour éviter les rate-limits qui font perdre des pubs.
+  const scenes: (string | null)[] = new Array(o.concepts.length).fill(null);
+  const LOT = 3;
+  for (let start = 0; start < o.concepts.length; start += LOT) {
+    const slice = o.concepts.slice(start, start + LOT);
+    const done = await Promise.all(slice.map((c, k) => genScene(c, start + k)));
+    done.forEach((url, k) => { scenes[start + k] = url; });
+  }
 
   const ads: AdItem[] = [];
   for (let i = 0; i < o.concepts.length; i++) {
@@ -209,7 +219,7 @@ export async function generateAdsAction(input: {
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
-  return { ads };
+  return { ads, requested: count };
 }
 
 /** Propose des angles précis en s'appuyant sur la marque + les sauvegardes de veille + les concurrents. */
@@ -359,7 +369,7 @@ export async function cloneAdAction(input: {
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
-  return { ads };
+  return { ads, requested: count };
 }
 
 /** Liste les publicités composées (actives par défaut, ou archivées). */
