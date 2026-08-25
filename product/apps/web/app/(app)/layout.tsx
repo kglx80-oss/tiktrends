@@ -26,11 +26,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const brandNav = roleAtLeast(s.role, 'admin') && bid ? [{
     group: 'Marque',
     items: [
-      { key: 'm-home', label: 'Ma marque',      href: `/brands/${bid}?tab=overview`,    icon: 'store', locked: false, isSub: false },
-      { key: 'm-da',   label: 'Identité / DA',   href: `/brands/${bid}?tab=overview`,    icon: 'image', locked: false, isSub: true },
-      { key: 'm-aud',  label: 'Audience',        href: `/brands/${bid}?tab=audience`,    icon: 'users', locked: false, isSub: true },
-      { key: 'm-prod', label: 'Produits',        href: `/brands/${bid}?tab=products`,    icon: 'store', locked: false, isSub: true },
-      { key: 'm-comp', label: 'Concurrents',     href: `/brands/${bid}?tab=competitors`, icon: 'trend', locked: false, isSub: true },
+      { key: 'm-home', label: 'Aperçu',      href: `/brands/${bid}?tab=overview`,    icon: 'store', locked: false, isSub: false },
+      { key: 'm-aud',  label: 'Audience',    href: `/brands/${bid}?tab=audience`,    icon: 'users', locked: false, isSub: true },
+      { key: 'm-prod', label: 'Produits',    href: `/brands/${bid}?tab=products`,    icon: 'store', locked: false, isSub: true },
+      { key: 'm-comp', label: 'Concurrents', href: `/brands/${bid}?tab=competitors`, icon: 'trend', locked: false, isSub: true },
     ],
   }] : [];
 
