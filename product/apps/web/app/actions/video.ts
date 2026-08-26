@@ -238,6 +238,12 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
   if (!s) return { error: 'Session expirée.' };
   const client = anthropicFromEnv();
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  const unlimited = unlimitedCredits(s.user.email);
+  const cost = costFor('suggest');
+  if (!unlimited && db) {
+    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+    if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  }
   const brand = await getActiveBrand(s.workspaceId);
   let tone: string | null = null;
   let creativeRules: string | null = null;
@@ -254,6 +260,10 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
   }
   try {
     const text = await suggestVideoBrief(client, { brand: brand?.name, tone: tone ?? undefined, productName: product?.name, productDesc: product?.description ?? undefined, fromImage: input.fromImage, edenRules: creativeRules ?? undefined });
+    if (!unlimited && db) {
+      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+    }
     return { text: text || undefined };
   } catch (e) {
     return { error: (e as Error).message };

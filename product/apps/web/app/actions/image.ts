@@ -112,6 +112,13 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
   const client = anthropicFromEnv();
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
 
+  const unlimited = unlimitedCredits(s.user.email);
+  const cost = costFor('suggest');
+  if (!unlimited && db) {
+    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+    if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  }
+
   const brand = await getActiveBrand(s.workspaceId);
   let da: { colors?: string[] | null; tone?: string | null; usp?: string | null; audience?: string | null } = {};
   let product: { name: string; description: string | null } | null = null;
@@ -131,6 +138,10 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
       usp: da.usp ?? undefined, audience: da.audience ?? undefined,
       productName: product?.name, productDesc: product?.description ?? undefined,
     });
+    if (!unlimited && db) {
+      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+    }
     return { text: text || undefined };
   } catch (e) {
     return { error: (e as Error).message };
