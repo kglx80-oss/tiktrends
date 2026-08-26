@@ -82,8 +82,8 @@ function Tile({ c }: { c: Connector }) {
   );
 }
 
-const OAUTH_OK: Record<string, string> = { meta: 'Meta Ads connecté. Lance une synchro pour remonter les performances.', meta_noacct: 'Meta connecté, mais aucun compte publicitaire trouvé · renseigne l’ID manuellement.' };
-const OAUTH_ERR: Record<string, string> = { meta_config: 'OAuth Meta non configuré côté serveur (META_APP_ID/SECRET).', meta_state: 'Session OAuth expirée, réessaie.', meta_session: 'Session invalide, reconnecte-toi.', meta_token: 'Échange du token Meta impossible.', meta_exchange: 'Erreur lors de la connexion Meta.', nobrand: 'Sélectionne une marque active.' };
+const OAUTH_OK: Record<string, string> = { meta: 'Meta Ads connecté. Lance une synchro pour remonter les performances.', meta_noacct: 'Meta connecté, mais aucun compte publicitaire trouvé · renseigne l’ID manuellement.', shopify: 'Boutique Shopify connectée. Lance une synchro pour remonter les ventes.' };
+const OAUTH_ERR: Record<string, string> = { meta_config: 'OAuth Meta non configuré côté serveur (META_APP_ID/SECRET).', meta_state: 'Session OAuth expirée, réessaie.', meta_session: 'Session invalide, reconnecte-toi.', meta_token: 'Échange du token Meta impossible.', meta_exchange: 'Erreur lors de la connexion Meta.', nobrand: 'Sélectionne une marque active.', shopify_config: 'OAuth Shopify non configuré (SHOPIFY_API_KEY/SECRET).', shopify_shop: 'Domaine .myshopify.com attendu.', shopify_state: 'Session OAuth expirée, réessaie.', shopify_hmac: 'Vérification Shopify échouée.', shopify_token: 'Échange du token Shopify impossible.', shopify_exchange: 'Erreur lors de la connexion Shopify.', shopify_session: 'Session invalide, reconnecte-toi.' };
 
 export default async function ConnectionsPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const s = await getSession();
@@ -92,6 +92,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const brand = await getActiveBrand(s.workspaceId);
   const connState = await getConnectionState();
   const metaOAuth = !!(process.env.META_APP_ID && process.env.APP_URL);
+  const shopifyOAuth = !!(process.env.SHOPIFY_API_KEY && process.env.APP_URL);
   const { ok, e } = await searchParams;
 
   return (
@@ -115,7 +116,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       <p style={{ margin: '2px 0 12px', fontSize: 12.5, color: 'var(--muted)' }}>Branche ta boutique Shopify et ton compte Meta Ads : les vraies données remontent et nourrissent l'analyse et Jarvis.</p>
       {ok && OAUTH_OK[ok] && <div style={{ border: '1px solid rgba(24,204,140,.4)', background: 'rgba(24,204,140,.08)', color: '#7ee8bf', borderRadius: 12, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>{OAUTH_OK[ok]}</div>}
       {e && OAUTH_ERR[e] && <div style={{ border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.08)', color: '#ff9db0', borderRadius: 12, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>{OAUTH_ERR[e]}</div>}
-      <DataConnections initial={connState} brandName={brand?.name ?? null} metaOAuth={metaOAuth} />
+      <DataConnections initial={connState} brandName={brand?.name ?? null} metaOAuth={metaOAuth} shopifyOAuth={shopifyOAuth} />
 
       {/* Catalogue */}
       {CATS.map(({ cat, items }) => (
