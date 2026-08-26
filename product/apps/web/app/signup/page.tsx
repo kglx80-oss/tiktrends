@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { db, schema } from '@tiktrends/db';
-import { getSession } from '../../lib/auth';
+import { getSession, signupOpen } from '../../lib/auth';
 import { signupAction } from '../actions/auth';
 import { AuthShell, field, primaryBtn, errorBox } from '../../components/AuthShell';
 
@@ -9,7 +8,8 @@ const ERRORS: Record<string, string> = {
   missing: 'Renseigne au moins un e-mail et un mot de passe.',
   weak: 'Le mot de passe doit faire au moins 8 caractères.',
   exists: 'Un compte existe déjà avec cet e-mail.',
-  closed: "L'inscription est fermée : l'accès se fait désormais sur invitation.",
+  closed: "L'inscription est fermée : l'accès se fait sur invitation.",
+  throttled: 'Trop de tentatives. Réessaie dans un moment.',
   server: 'Base de données indisponible. Réessaie dans un instant.',
 };
 
@@ -19,12 +19,8 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   if (await getSession()) redirect('/dashboard');
   const { e } = await searchParams;
 
-  // Inscription ouverte uniquement tant qu'aucun compte n'existe (amorçage).
-  let open = true;
-  if (db) {
-    const [firstUser] = await db.select({ id: schema.users.id }).from(schema.users).limit(1);
-    open = !firstUser;
-  }
+  // Inscription self-service (ouverte par défaut · fermable via SIGNUP_OPEN=false).
+  const open = signupOpen();
 
   if (!open) {
     return (
@@ -42,7 +38,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   }
 
   return (
-    <AuthShell title="Créer l'espace" subtitle="Premier compte : tu en seras le propriétaire.">
+    <AuthShell title="Créer ton espace" subtitle="Gratuit pour démarrer · essai inclus, sans carte bancaire.">
       {e && errorBox(ERRORS[e] || 'Une erreur est survenue.')}
       <form action={signupAction} style={{ display: 'grid', gap: 14 }}>
         <label style={{ display: 'grid', gap: 6 }}>
