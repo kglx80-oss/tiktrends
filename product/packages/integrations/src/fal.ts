@@ -26,7 +26,7 @@ export interface FalConfig {
 }
 
 export type FalAspect = '9:16' | '1:1' | '16:9' | '4:5';
-export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; imageUrls?: string[]; withText?: boolean; count?: number; edit?: boolean }
+export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; imageUrls?: string[]; withText?: boolean; count?: number; edit?: boolean; model?: string }
 export interface FalImageResult { images: string[] }
 
 export function falFromEnv(): FalConfig | null {
@@ -73,10 +73,11 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
   // Références produit : liste (jusqu'à plusieurs angles) ou image unique.
   const refs = (input.imageUrls && input.imageUrls.length ? input.imageUrls : (input.imageUrl ? [input.imageUrl] : [])).slice(0, 8);
   const hasRef = refs.length > 0;
-  // Avec une photo produit : édition fidèle (Nano Banana / Kontext) si demandé, sinon i2i classique.
-  const model = hasRef
-    ? (input.edit ? cfg.imageModelEdit : cfg.imageModelI2I)
-    : input.withText ? cfg.imageModelText : cfg.imageModel;
+  // Modèle : override explicite (choix utilisateur) sinon sélection auto selon le contexte.
+  const model = input.model
+    || (hasRef
+      ? (input.edit ? cfg.imageModelEdit : cfg.imageModelI2I)
+      : input.withText ? cfg.imageModelText : cfg.imageModel);
   const ratio = input.aspectRatio ?? '1:1';
   const num = Math.min(4, Math.max(1, input.count ?? 1));
   const body: Record<string, unknown> = { prompt: input.prompt, num_images: num };

@@ -6,7 +6,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle } from '@tiktrends/ai';
-import { costFor } from '@tiktrends/core';
+import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
@@ -67,6 +67,7 @@ async function composeBatch(o: {
   assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean; credits: number; reason: string;
+  falModel?: string; creditsPerImage: number; // modèle choisi + crédits par variante (calé sur le coût réel)
   productId?: string; personaId?: string; objective?: string;
 }): Promise<AdItem[]> {
   const accents = pickAccents(o.colors);
@@ -105,7 +106,7 @@ async function composeBatch(o: {
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
       try {
-        const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit, count: 1 });
+        const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit, count: 1, model: o.falModel });
         if (images[0]) return images[0];
       } catch { /* réessai */ }
     }
@@ -134,14 +135,14 @@ async function composeBatch(o: {
     try {
       const [row] = await db!.insert(schema.generations).values({
         brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
-        status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : costFor('image', 1),
+        status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
       if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: `/api/ad/${row.id}`, createdAt: (row.createdAt as Date).toISOString() });
     } catch { /* ignore */ }
   }
 
   if (ads.length && !o.unlimited) {
-    const realCost = costFor('image', ads.length);
+    const realCost = o.creditsPerImage * ads.length;
     try {
       await db!.update(schema.workspaces).set({ creditsBalance: Math.max(0, o.credits - realCost) }).where(eq(schema.workspaces.id, o.workspaceId));
       await db!.insert(schema.creditLedger).values({ workspaceId: o.workspaceId, delta: -realCost, reason: o.reason });
@@ -180,7 +181,7 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): 
 }
 
 export async function generateAdsAction(input: {
-  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[]; offer?: string;
+  productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[]; offer?: string; model?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -198,7 +199,8 @@ export async function generateAdsAction(input: {
   const pool = (input.templates && input.templates.length ? input.templates : AD_TEMPLATES);
   const count = Math.min(8, Math.max(1, Math.round(input.count ?? pool.length)));
   const templates = Array.from({ length: count }, (_, i) => pool[i % pool.length]!);
-  const cost = costFor('image', count);
+  const modelSpec = imageModelByKey(input.model);
+  const cost = modelSpec.credits * count;
   const unlimited = unlimitedCredits(s.user.email);
   let credits = 0;
   const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
@@ -257,6 +259,7 @@ export async function generateAdsAction(input: {
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
     workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · pubs IA',
+    falModel: modelSpec.falModel, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
@@ -349,7 +352,7 @@ export async function listSavedAdRefs(): Promise<SavedAdRef[]> {
  */
 export async function cloneAdAction(input: {
   referenceDataUri?: string; savedAdId?: string;
-  productId?: string; personaId?: string; objective?: string; universe?: string; count?: number;
+  productId?: string; personaId?: string; objective?: string; universe?: string; count?: number; model?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -380,7 +383,8 @@ export async function cloneAdAction(input: {
   }
 
   const count = Math.min(8, Math.max(1, Math.round(input.count ?? 4)));
-  const cost = costFor('image', count);
+  const modelSpec = imageModelByKey(input.model);
+  const cost = modelSpec.credits * count;
   const unlimited = unlimitedCredits(s.user.email);
   const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
   const credits = w?.c ?? 0;
@@ -418,6 +422,7 @@ export async function cloneAdAction(input: {
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
     workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · clone de pub',
+    falModel: modelSpec.falModel, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
