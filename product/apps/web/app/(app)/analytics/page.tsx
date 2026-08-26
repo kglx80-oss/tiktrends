@@ -1,7 +1,13 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
+import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { getSession } from '../../../lib/auth';
+import { getActiveBrand } from '../../../lib/brands';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
 import { PageInfo } from '../../../components/PageInfo';
+import { MetaKeyMetrics } from './MetaKeyMetrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +18,16 @@ const num = (n: number) => n.toLocaleString('fr-FR');
 export default async function AnalyticsPage() {
   const s = await getSession();
   if (!s) redirect('/login');
+
+  // Données Meta réelles (si la marque active a connecté + synchronisé).
+  let metaInsights: MetaAdsInsights | null = null;
+  let syncedAt: string | null = null;
+  const brand = await getActiveBrand(s.workspaceId);
+  if (db && brand) {
+    const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.insightsSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    if (b?.ads && (b.ads as MetaAdsInsights).window) metaInsights = b.ads as MetaAdsInsights;
+    syncedAt = b?.syncedAt ? b.syncedAt.toISOString() : null;
+  }
 
   const rows = buildAnalysis();
   const t = analysisTotals(rows);
@@ -45,7 +61,25 @@ export default async function AnalyticsPage() {
         ou à couper, et le tableau liste tes <b>meilleures créas par ROAS</b> avec leur recommandation.
       </PageInfo>
 
-      {/* KPI */}
+      {/* ===== Données Meta réelles (Key Metrics façon Atria) ===== */}
+      {metaInsights ? (
+        <MetaKeyMetrics insights={metaInsights} syncedAt={syncedAt} />
+      ) : (
+        <div style={{ border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 22 }}>📊</span>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Branche Meta Ads pour tes vrais KPI</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Dépense, ROAS, CPA, panier moyen, CPC, CPM et tes top créas, avec les variations vs période précédente.</div>
+          </div>
+          <Link href="/connections" style={{ padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>Connecter Meta Ads ›</Link>
+        </div>
+      )}
+
+      {/* KPI (démo / fixtures) */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>données d'exemple</span>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 26 }}>
         {kpis.map(([label, value, sub]) => (
           <div key={label} style={card}>
