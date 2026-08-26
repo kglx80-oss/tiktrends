@@ -60,7 +60,7 @@ export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number;
         return new Set(rows.map((r) => r.id).filter((x): x is string => !!x));
       },
       insertAsset: async (a) => { await db!.insert(schema.assets).values({ workspaceId: ws, brandId: null, uploaderUserId: g.s.user.id, ...a }); },
-    }, { storage: storageFromEnv(), refreshToken: rt, folderId: w.fid, workspaceId: ws, maxFiles: 60 });
+    }, { storage: storageFromEnv(), refreshToken: rt, folderId: w.fid, workspaceId: ws, maxFiles: 200 });
     await db!.update(schema.workspaces).set({ driveSyncedAt: new Date() }).where(eq(schema.workspaces.id, ws));
     return { ok: true, added: res.added, skipped: res.skipped };
   } catch (e) { return { error: (e as Error).message }; }

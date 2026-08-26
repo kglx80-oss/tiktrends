@@ -5,7 +5,7 @@
  */
 import type { StorageConfig } from './storage';
 import { putObject } from './storage';
-import { googleAccessToken, driveListFiles, driveDownload } from './google-drive';
+import { googleAccessToken, driveListFilesDeep, driveDownload } from './google-drive';
 
 export type DriveAssetKind = 'image' | 'video' | 'audio' | 'other';
 export interface DriveAssetInput {
@@ -23,11 +23,13 @@ export async function syncDriveAssets(deps: SyncDriveDeps, o: {
   storage: StorageConfig | null; refreshToken: string; folderId: string; workspaceId: string; maxFiles?: number;
 }): Promise<{ added: number; skipped: number; errors: number }> {
   const token = await googleAccessToken(o.refreshToken);
-  const files = await driveListFiles(token, o.folderId);
+  const cap = o.maxFiles ?? 100;
+  // Parcours récursif : le dossier choisi + tous ses sous-dossiers.
+  const files = await driveListFilesDeep(token, o.folderId, { maxFiles: cap });
   const existing = await deps.existingDriveIds();
   let added = 0, skipped = 0, errors = 0;
 
-  for (const f of files.slice(0, o.maxFiles ?? 100)) {
+  for (const f of files.slice(0, cap)) {
     if (existing.has(f.id)) { skipped++; continue; }
     const kind = kindOf(f.mimeType);
     try {
