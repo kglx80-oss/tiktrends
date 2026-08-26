@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, type AdItem, type SavedAdRef } from '../../../actions/ads';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
+import { costFor } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 
@@ -91,7 +92,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [adsPage, setAdsPage] = useState(0);
   const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
+  const [quickOpen, setQuickOpen] = useState(false);
   const refInput = useRef<HTMLInputElement>(null);
+
+  async function quickGenerate() {
+    if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
+    setMode('brand');
+    setQuickOpen(false);
+    await run();
+  }
 
   const selected = prods.find((p) => p.id === productId) || null;
 
@@ -197,6 +206,23 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
   return (
     <div>
+      {/* Hero CTA · démarrage rapide (façon Atria) */}
+      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 20, marginBottom: 20, padding: '22px 24px', border: '1px solid var(--accent-strong)', background: 'linear-gradient(120deg, rgba(255,60,120,.16), rgba(255,140,66,.08) 60%, var(--surface))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: 'var(--accent-strong)' }}>DÉMARRAGE RAPIDE</div>
+            <h2 style={{ margin: '4px 0 4px', fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>Crée des pubs qui performent, en 1 clic</h2>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', maxWidth: 520, lineHeight: 1.5 }}>
+              Choisis des gabarits gagnants, on applique ta marque{brandName ? <> <b>{brandName}</b></> : null} et ton produit, puis on génère plusieurs variantes.
+            </p>
+          </div>
+          <button type="button" disabled={!ready} onClick={() => setQuickOpen(true)} style={{
+            padding: '14px 24px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
+            background: 'var(--grad-accent)', color: '#0d070c', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
+          }}>✨ Créer des pubs</button>
+        </div>
+      </div>
+
       <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
         {!ready && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
@@ -476,6 +502,70 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
           <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
+        </div>
+      )}
+
+      {/* Modal « Démarrage rapide · gabarits qui performent » (façon Atria) */}
+      {quickOpen && (
+        <div onMouseDown={() => setQuickOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(6,4,8,.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px 16px', overflowY: 'auto' }}>
+          <div onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(880px, 96vw)', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '88vh' }}>
+            {/* En-tête */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '18px 22px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>Démarrage rapide · gabarits qui performent</h3>
+                <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--ink-2)' }}>Choisis un ou plusieurs gabarits, règle marque &amp; produit, puis génère.</p>
+              </div>
+              <button type="button" onClick={() => setQuickOpen(false)} aria-label="Fermer" style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 17, cursor: 'pointer' }}>×</button>
+            </div>
+
+            {/* Grille de gabarits */}
+            <div style={{ padding: '16px 22px', overflowY: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                {TEMPLATES.map((t) => {
+                  const on = templates.includes(t.key);
+                  return (
+                    <button key={t.key} type="button" onClick={() => toggle(t.key)} style={{
+                      position: 'relative', textAlign: 'left', padding: '14px 14px', borderRadius: 14, cursor: 'pointer',
+                      border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
+                      background: on ? 'var(--accent-soft)' : 'var(--paper)',
+                    }}>
+                      <span style={{ position: 'absolute', top: 10, right: 10, width: 20, height: 20, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, background: on ? '#18cc8c' : 'transparent', color: on ? '#04140d' : 'transparent', border: on ? 'none' : '1.5px solid var(--line-2)' }}>{on ? '✓' : ''}</span>
+                      <div style={{ fontSize: 26 }}>{t.emoji}</div>
+                      <div style={{ marginTop: 8, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{t.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              {error && <div style={{ marginTop: 12, fontSize: 12.5, color: '#ff9db0' }}>{error}</div>}
+            </div>
+
+            {/* Barre d'action (marque · produit · objectif · variantes · générer) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '14px 22px', borderTop: '1px solid var(--line)', background: 'var(--paper)' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>Marque <b style={{ color: 'var(--ink)' }}>{brandName || '—'}</b></div>
+              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Produit&nbsp;
+                <select value={productId} onChange={(e) => setProductId(e.target.value)} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
+                  <option value="">· Aucun</option>
+                  {prods.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Objectif&nbsp;
+                <select value={objective} onChange={(e) => setObjective(e.target.value)} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
+                  {OBJECTIVES.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Variantes&nbsp;
+                <select value={count} onChange={(e) => setCount(Number(e.target.value))} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
+                  {[1, 2, 3, 4, 5, 6, 8].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{templates.length} gabarit{templates.length > 1 ? 's' : ''} · {costFor('image', count)} cr.</span>
+              <button type="button" onClick={quickGenerate} disabled={!ready || busy || !templates.length} style={{
+                padding: '12px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 14, cursor: ready && !busy && templates.length ? 'pointer' : 'default',
+                background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && templates.length ? 1 : .5,
+              }}>{busy ? 'Génération…' : `✨ Générer ${count} variante${count > 1 ? 's' : ''}`}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
