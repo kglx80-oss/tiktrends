@@ -33,6 +33,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         Pas encore de compte ?{' '}
         <Link href="/signup" style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>Créer un espace</Link>
       </p>
+      <p style={{ marginTop: 14, fontSize: 11.5, color: 'var(--muted)' }}>
+        <Link href="/legal/mentions-legales" style={{ color: 'var(--muted)' }}>Mentions légales</Link> ·{' '}
+        <Link href="/legal/cgv" style={{ color: 'var(--muted)' }}>CGV</Link> ·{' '}
+        <Link href="/legal/confidentialite" style={{ color: 'var(--muted)' }}>Confidentialité</Link>
+      </p>
     </AuthShell>
   );
 }
