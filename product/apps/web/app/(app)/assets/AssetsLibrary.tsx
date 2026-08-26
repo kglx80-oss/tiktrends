@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
 import { Pager, PAGE_SIZE } from '../../../components/Pager';
+import { GoogleDriveIcon } from '../../../components/BrandIcons';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -179,7 +180,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
           {busy ? 'Traitement…' : storageEnabled ? '⬆ Téléverser des fichiers' : '⬆ Téléverser des images'}
         </button>
         <button type="button" onClick={() => { setShowDrive((v) => !v); setShowImport(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-          <span aria-hidden style={{ fontSize: 14 }}>🟢</span> Google Drive
+          <GoogleDriveIcon size={15} /> Google Drive
         </button>
         <button type="button" onClick={() => { setShowImport((v) => !v); setShowDrive(false); }} style={ghost}>🔗 Importer par lien</button>
         {progress && (
@@ -201,7 +202,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
       {showDrive && (
         <div style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 16 }}>🟢</span>
+            <GoogleDriveIcon size={18} />
             <b style={{ fontSize: 14, color: 'var(--ink)' }}>Importer depuis Google Drive</b>
           </div>
           <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>

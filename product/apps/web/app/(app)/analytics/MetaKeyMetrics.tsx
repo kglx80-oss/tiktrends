@@ -1,4 +1,5 @@
 import type { MetaAdsInsights, MetaKpiSet, MetaBreakdownRow } from '@tiktrends/integrations';
+import { MetaIcon } from '../../../components/BrandIcons';
 
 function BreakdownCard({ title, rows, cur }: { title: string; rows: MetaBreakdownRow[]; cur: string }) {
   const max = Math.max(1, ...rows.map((r) => r.spend));
@@ -51,7 +52,8 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
   const w = insights.window; const p = insights.previous;
   return (
     <section style={{ marginBottom: 30 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <MetaIcon size={18} />
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Key Metrics <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· Meta Ads · 30 j vs 30 j précédents</span></h2>
         <span style={{ flex: 1 }} />
         {insights.accountName && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{insights.accountName}{syncedAt ? ` · synchro ${new Date(syncedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}` : ''}</span>}

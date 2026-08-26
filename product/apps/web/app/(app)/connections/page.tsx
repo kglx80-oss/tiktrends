@@ -5,6 +5,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { getConnectionState } from '../../actions/connections';
 import { DataConnections } from './DataConnections';
 import { PageInfo } from '../../../components/PageInfo';
+import { BrandTile } from '../../../components/BrandIcons';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,10 +77,7 @@ const CATS: Array<{ cat: string; items: Connector[] }> = [
 const TOTAL = CATS.reduce((n, c) => n + c.items.length, 0);
 
 function Tile({ c }: { c: Connector }) {
-  const dark = ['#FFFC00', '#FFE01B'].includes(c.color);
-  return (
-    <span style={{ width: 34, height: 34, borderRadius: 9, background: c.color, color: dark ? '#111' : '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: c.glyph.length > 1 ? 12 : 15, flexShrink: 0 }}>{c.glyph}</span>
-  );
+  return <BrandTile name={c.name} color={c.color} glyph={c.glyph} />;
 }
 
 const OAUTH_OK: Record<string, string> = { meta: 'Meta Ads connecté. Lance une synchro pour remonter les performances.', meta_noacct: 'Meta connecté, mais aucun compte publicitaire trouvé · renseigne l’ID manuellement.', shopify: 'Boutique Shopify connectée. Lance une synchro pour remonter les ventes.' };

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, connectMetaAction, syncMetaAction, disconnectMetaAction, type ConnectionState } from '../../actions/connections';
+import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
@@ -27,11 +28,11 @@ export function DataConnections({ initial, brandName, metaOAuth = false, shopify
   );
 }
 
-function Wrap({ color, glyph, title, badge, children }: { color: string; glyph: string; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+function Wrap({ icon, title, badge, children }: { icon: React.ReactNode; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <span style={{ width: 34, height: 34, borderRadius: 9, background: color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15 }}>{glyph}</span>
+        <span style={{ width: 34, height: 34, borderRadius: 9, background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,.18)' }}>{icon}</span>
         <b style={{ fontSize: 15, color: 'var(--ink)', flex: 1 }}>{title}</b>
         {badge}
       </div>
@@ -67,7 +68,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
 
   const ins = sh?.insights;
   return (
-    <Wrap color="#95BF47" glyph="S" title="Shopify · ventes" badge={sh?.connected ? connectedBadge : undefined}>
+    <Wrap icon={<ShopifyIcon size={21} />} title="Shopify · ventes" badge={sh?.connected ? connectedBadge : undefined}>
       {!sh?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           <div><label style={lbl}>Domaine de la boutique</label><input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
@@ -140,7 +141,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
 
   const ins = mt?.insights;
   return (
-    <Wrap color="#0668E1" glyph="f" title="Meta Ads · performance" badge={mt?.connected ? connectedBadge : undefined}>
+    <Wrap icon={<MetaIcon size={22} />} title="Meta Ads · performance" badge={mt?.connected ? connectedBadge : undefined}>
       {!mt?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           {oauth && (
