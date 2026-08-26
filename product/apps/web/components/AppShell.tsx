@@ -6,6 +6,7 @@ import { Suspense, useState, type CSSProperties, type ReactNode } from 'react';
 import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
+import { CommandPalette, openCommandPalette, type Command } from './CommandPalette';
 
 // Console ADMIN+ uniquement : fond ambré + accent orange (même univers sombre).
 // Les pages « espace de travail » (marques, connexions, membres, abonnement)
@@ -168,8 +169,31 @@ function AppShellInner(props: Props) {
     return pathname === path || pathname.startsWith(path + '/');
   };
 
+  // Commandes de la palette ⌘K : navigation (rail + compte) + actions + admin.
+  const emojiFor: Record<string, string> = {
+    grid: '🏠', chart: '📊', radar: '🛰️', tag: '🏷️', bulb: '💡', spark: '✨', film: '🎬',
+    image: '🖼️', trend: '📈', store: '🏪', plug: '🔌', users: '👥', card: '💳', help: '🆘', bookmark: '🔖', layers: '🗂️',
+  };
+  const commands: Command[] = [];
+  for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });
+  commands.push({ id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', emoji: '➕', keywords: 'créer marque ajouter' });
+  commands.push({ id: 'act-profile', label: 'Mon profil', group: 'Compte', href: '/profile', emoji: '👤', keywords: 'profil compte photo' });
+  for (const it of personalItems) commands.push({ id: 'acc-' + it.key, label: it.label, group: 'Compte', href: it.href, emoji: '›', locked: it.locked, keywords: it.label });
+  if (userIsAdmin) {
+    commands.push(
+      { id: 'adm-home', label: 'ADMIN+ · Coulisses', group: 'Admin', href: '/admin', emoji: '🎛️', keywords: 'admin backstage console' },
+      { id: 'adm-fin', label: 'Finance · MRR & marges', group: 'Admin', href: '/admin/finance', emoji: '📈', keywords: 'mrr revenu marge chiffre' },
+      { id: 'adm-credits', label: 'Crédits & marges', group: 'Admin', href: '/credits', emoji: '◈', keywords: 'crédits coût' },
+      { id: 'adm-jarvis', label: 'Jarvis', group: 'Admin', href: '/jarvis', emoji: '🧠', keywords: 'jarvis règles ia' },
+      { id: 'adm-intel', label: 'Intelligence marché', group: 'Admin', href: '/admin/intelligence', emoji: '🔭', keywords: 'concurrents atria' },
+      { id: 'adm-settings', label: 'Réglages', group: 'Admin', href: '/settings', emoji: '⚙️', keywords: 'settings paramètres clés' },
+      { id: 'adm-team', label: 'Membres & rangs', group: 'Admin', href: '/team', emoji: '👥', keywords: 'équipe rôles invitation' },
+    );
+  }
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '250px minmax(0,1fr)', minHeight: '100vh' }}>
+      <CommandPalette commands={commands} />
       <aside style={{ background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: '16px 12px', position: 'sticky', top: 0, height: '100vh' }}>
         {/* Marque + workspace */}
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', textDecoration: 'none' }}>
@@ -182,6 +206,18 @@ function AppShellInner(props: Props) {
 
         {/* Sélecteur de marque */}
         <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />
+
+        {/* Recherche universelle ⌘K */}
+        <button type="button" onClick={openCommandPalette} style={{
+          marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 10,
+          border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
+        }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+          <span style={{ flex: 1, textAlign: 'left' }}>Rechercher…</span>
+          <span style={{ display: 'inline-flex', gap: 2 }}>
+            <kbd style={kbdRail}>⌘</kbd><kbd style={kbdRail}>K</kbd>
+          </span>
+        </button>
 
         {/* Navigation groupée */}
         <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', flex: 1 }}>
@@ -267,6 +303,7 @@ function AppShellInner(props: Props) {
 }
 
 const menuItem = { display: 'block', padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
+const kbdRail = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 16, height: 16, fontSize: 10, fontWeight: 700, color: 'var(--ink-2)', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 4 } as const;
 function pill(color: string, bg: string) {
   return { fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, color, background: bg } as const;
 }
