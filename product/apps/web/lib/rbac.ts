@@ -29,7 +29,9 @@ export const RAIL_GROUPS: NavGroup[] = ['Analyse', 'Création'];
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
 // Allocation de crédits mensuelle par abonnement.
-export const PLAN_CREDITS: Record<Plan, number> = { starter: 200, core: 2000, plus: 10000, business: 50000 };
+// Calibrée pour garder une marge brute saine (~57-66 %) même si le client consomme
+// 100 % de ses crédits, avec une remise volume légère sur les paliers hauts.
+export const PLAN_CREDITS: Record<Plan, number> = { starter: 200, core: 2000, plus: 7000, business: 24000 };
 
 // Tarif mensuel indicatif par abonnement (EUR HT) · paramétrable, sert au calcul du MRR.
 export const PLAN_PRICE: Record<Plan, number> = { starter: 0, core: 99, plus: 299, business: 990 };
