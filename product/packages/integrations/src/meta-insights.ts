@@ -9,12 +9,14 @@ export interface MetaKpiSet {
   spend: number; revenue: number; purchases: number; roas: number; cpa: number; aov: number;
   impressions: number; clicks: number; linkClicks: number; cpcAll: number; cpcLink: number; cpm: number; ctr: number;
 }
+export interface MetaBreakdownRow { key: string; spend: number; roas: number; purchases: number }
 export interface MetaAdsInsights {
   accountName?: string;
   currency?: string;
   window: MetaKpiSet;    // 30 derniers jours
   previous: MetaKpiSet;  // 30 jours précédents
   topAds: Array<{ name: string; spend: number; roas: number; purchases: number; cpa: number }>;
+  breakdowns?: { platform: MetaBreakdownRow[]; ageGender: MetaBreakdownRow[] };
   // Rétro-compat (anciens champs plats lus ailleurs).
   spend30d: number; purchases30d: number; revenue30d: number; roas30d: number;
 }
@@ -76,10 +78,14 @@ export async function metaAdsSync(adAccountId: string, token: string): Promise<M
   const d60 = new Date(now.getTime() - 60 * 86_400_000);
   const d31 = new Date(now.getTime() - 31 * 86_400_000);
 
-  const [cur, prev, ads] = await Promise.all([
-    graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: JSON.stringify({ since: ymd(d30), until: ymd(now) }) }),
+  const tr = JSON.stringify({ since: ymd(d30), until: ymd(now) });
+  type BRow = Row & { publisher_platform?: string; age?: string; gender?: string };
+  const [cur, prev, ads, plat, ageG] = await Promise.all([
+    graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: tr }),
     graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: JSON.stringify({ since: ymd(d60), until: ymd(d31) }) }).catch(() => ({ data: [] as Row[] })),
-    graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'ad', fields: 'ad_name,' + fields, time_range: JSON.stringify({ since: ymd(d30), until: ymd(now) }), limit: '50' }).catch(() => ({ data: [] as Row[] })),
+    graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'ad', fields: 'ad_name,' + fields, time_range: tr, limit: '50' }).catch(() => ({ data: [] as Row[] })),
+    graph<{ data: BRow[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: tr, breakdowns: 'publisher_platform' }).catch(() => ({ data: [] as BRow[] })),
+    graph<{ data: BRow[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: tr, breakdowns: 'age,gender' }).catch(() => ({ data: [] as BRow[] })),
   ]);
 
   const window = kpiFromRow(cur.data?.[0]);
@@ -89,8 +95,16 @@ export async function metaAdsSync(adAccountId: string, token: string): Promise<M
     return { name: r.ad_name || '(sans nom)', spend: k.spend, roas: k.roas, purchases: k.purchases, cpa: k.cpa };
   }).filter((x) => x.spend > 0).sort((a, b) => b.roas - a.roas).slice(0, 12);
 
+  const brk = (rows: BRow[], keyOf: (r: BRow) => string): MetaBreakdownRow[] =>
+    (rows || []).map((r) => { const k = kpiFromRow(r); return { key: keyOf(r) || '—', spend: k.spend, roas: k.roas, purchases: k.purchases }; })
+      .filter((x) => x.spend > 0).sort((a, b) => b.spend - a.spend);
+
   return {
     accountName: info.accountName, currency: info.currency, window, previous, topAds,
+    breakdowns: {
+      platform: brk(plat.data, (r) => r.publisher_platform || '—'),
+      ageGender: brk(ageG.data, (r) => [r.age, r.gender].filter(Boolean).join(' · ')),
+    },
     spend30d: window.spend, purchases30d: window.purchases, revenue30d: window.revenue, roas30d: window.roas,
   };
 }

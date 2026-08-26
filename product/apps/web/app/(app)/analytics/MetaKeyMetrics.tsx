@@ -1,4 +1,26 @@
-import type { MetaAdsInsights, MetaKpiSet } from '@tiktrends/integrations';
+import type { MetaAdsInsights, MetaKpiSet, MetaBreakdownRow } from '@tiktrends/integrations';
+
+function BreakdownCard({ title, rows, cur }: { title: string; rows: MetaBreakdownRow[]; cur: string }) {
+  const max = Math.max(1, ...rows.map((r) => r.spend));
+  return (
+    <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px' }}>
+      <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{title}</h3>
+      <div style={{ display: 'grid', gap: 9 }}>
+        {rows.map((r) => (
+          <div key={r.key}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+              <span style={{ color: 'var(--ink-2)', textTransform: 'capitalize' }}>{r.key}</span>
+              <span style={{ color: 'var(--muted)' }}>{Math.round(r.spend).toLocaleString('fr-FR')} {cur}{r.roas ? ` · ${r.roas}×` : ''}</span>
+            </div>
+            <div style={{ height: 8, background: 'var(--bg)', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${(r.spend / max) * 100}%`, height: '100%', background: 'var(--grad-accent)', borderRadius: 999 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function fmt(n: number, cur: string, kind: 'money' | 'x' | 'num' | 'pct'): string {
   if (kind === 'x') return `${n.toFixed(2)}×`;
@@ -54,6 +76,14 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
           );
         })}
       </div>
+
+      {/* Breakdowns (plateforme, âge & genre) */}
+      {insights.breakdowns && (insights.breakdowns.platform.length > 0 || insights.breakdowns.ageGender.length > 0) ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 24 }}>
+          {insights.breakdowns.platform.length > 0 && <BreakdownCard title="Par plateforme" rows={insights.breakdowns.platform} cur={cur} />}
+          {insights.breakdowns.ageGender.length > 0 && <BreakdownCard title="Par âge & genre" rows={insights.breakdowns.ageGender.slice(0, 8)} cur={cur} />}
+        </div>
+      ) : null}
 
       {/* Top performing ads */}
       {insights.topAds?.length ? (

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { getSession } from '../../../lib/auth';
@@ -8,6 +8,9 @@ import { getActiveBrand } from '../../../lib/brands';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
 import { PageInfo } from '../../../components/PageInfo';
 import { MetaKeyMetrics } from './MetaKeyMetrics';
+import { CreativeIntel, type CreativeStats } from './CreativeIntel';
+
+const TPL_LABEL: Record<string, string> = { problem_solution: 'Problème/solution', before_after: 'Avant/après', testimonial: 'Témoignage', benefits: 'Bénéfices', ugc: 'UGC', stat: 'Stat', offer: 'Offre' };
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +30,36 @@ export default async function AnalyticsPage() {
     const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.insightsSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     if (b?.ads && (b.ads as MetaAdsInsights).window) metaInsights = b.ads as MetaAdsInsights;
     syncedAt = b?.syncedAt ? b.syncedAt.toISOString() : null;
+  }
+
+  // Intelligence créative maison : diversité + top tags, à partir de NOS générations et assets.
+  let creative: CreativeStats | null = null;
+  if (db && brand) {
+    const gens = await db.select({ input: schema.generations.input })
+      .from(schema.generations)
+      .where(and(eq(schema.generations.brandId, brand.id), inArray(schema.generations.kind, ['ad', 'image'])))
+      .orderBy(desc(schema.generations.createdAt)).limit(200);
+    const tplCount = new Map<string, number>();
+    const headlines = new Set<string>();
+    for (const g of gens) {
+      const rec = (g.input ?? {}) as { template?: string; headline?: string };
+      if (rec.template) tplCount.set(rec.template, (tplCount.get(rec.template) ?? 0) + 1);
+      if (rec.headline) headlines.add(rec.headline.toLowerCase().trim());
+    }
+    const total = gens.length;
+    const distinctTpl = tplCount.size;
+    const templates = [...tplCount.entries()].map(([k, n]) => ({ key: k, label: TPL_LABEL[k] ?? k, n })).sort((a, b) => b.n - a.n);
+    // Diversité : moitié = variété de gabarits (sur 7), moitié = unicité des accroches.
+    const tplScore = Math.min(1, distinctTpl / 7);
+    const headScore = total ? Math.min(1, headlines.size / total) : 0;
+    const score = Math.round((tplScore * 0.5 + headScore * 0.5) * 100);
+
+    const assetRows = await db.select({ tags: schema.assets.tags }).from(schema.assets).where(eq(schema.assets.workspaceId, s.workspaceId)).limit(400);
+    const tagCount = new Map<string, number>();
+    for (const a of assetRows) for (const t of (a.tags ?? [])) { const k = t.trim().toLowerCase(); if (k) tagCount.set(k, (tagCount.get(k) ?? 0) + 1); }
+    const tags = [...tagCount.entries()].map(([tag, n]) => ({ tag, n })).sort((a, b) => b.n - a.n).slice(0, 14);
+
+    if (total > 0 || tags.length > 0) creative = { score, total, templates, tags };
   }
 
   const rows = buildAnalysis();
@@ -74,6 +107,9 @@ export default async function AnalyticsPage() {
           <Link href="/connections" style={{ padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>Connecter Meta Ads ›</Link>
         </div>
       )}
+
+      {/* Intelligence créative maison (diversité + top tags) */}
+      {creative && <CreativeIntel stats={creative} />}
 
       {/* KPI (démo / fixtures) */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
