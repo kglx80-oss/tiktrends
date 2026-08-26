@@ -21,11 +21,12 @@ const kindOf = (mime: string): DriveAssetKind =>
 
 export async function syncDriveAssets(deps: SyncDriveDeps, o: {
   storage: StorageConfig | null; refreshToken: string; folderId: string; workspaceId: string; maxFiles?: number;
-}): Promise<{ added: number; skipped: number; errors: number }> {
+}): Promise<{ added: number; skipped: number; errors: number; found: number }> {
   const token = await googleAccessToken(o.refreshToken);
   const cap = o.maxFiles ?? 100;
   // Parcours récursif : le dossier choisi + tous ses sous-dossiers.
   const files = await driveListFilesDeep(token, o.folderId, { maxFiles: cap });
+  const found = files.length;
   const existing = await deps.existingDriveIds();
   let added = 0, skipped = 0, errors = 0;
 
@@ -45,5 +46,5 @@ export async function syncDriveAssets(deps: SyncDriveDeps, o: {
       added++;
     } catch { errors++; }
   }
-  return { added, skipped, errors };
+  return { added, skipped, errors, found };
 }
