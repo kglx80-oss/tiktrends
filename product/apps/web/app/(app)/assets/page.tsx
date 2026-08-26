@@ -17,6 +17,7 @@ const DRIVE_ERR: Record<string, string> = {
   drive_session: 'Session expirée, reconnecte-toi puis relance la connexion Drive.',
   drive_norefresh: 'Google n’a pas renvoyé de jeton. Révoque l’accès dans ton compte Google puis reconnecte.',
   drive_exchange: 'Échec de l’échange OAuth avec Google. Réessaie.',
+  drive_nobrand: 'Sélectionne une marque active avant de connecter son Drive.',
 };
 
 export default async function AssetsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
