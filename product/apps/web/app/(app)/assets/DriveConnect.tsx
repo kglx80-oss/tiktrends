@@ -2,44 +2,74 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { listDriveFoldersAction, setDriveFolderAction, syncDriveNowAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
+import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 
-type Folder = { id: string; name: string };
+/* eslint-disable @typescript-eslint/no-explicit-any */
+declare global { interface Window { gapi?: any; google?: any } }
 
-/** Connexion automatique Google Drive : dossier synchronisé en continu vers la bibliothèque. */
+/** Charge le script Google API + le module Picker (une seule fois). */
+function loadPicker(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const w = window;
+    if (w.google?.picker) return resolve(w.google.picker);
+    const done = () => w.gapi.load('picker', { callback: () => resolve(w.google.picker), onerror: () => reject(new Error('Picker indisponible.')) });
+    if (w.gapi) return done();
+    const s = document.createElement('script');
+    s.src = 'https://apis.google.com/js/api.js';
+    s.onload = done;
+    s.onerror = () => reject(new Error('Chargement du sélecteur Google impossible.'));
+    document.body.appendChild(s);
+  });
+}
+
+/** Connexion automatique Google Drive : dossier choisi via le sélecteur natif, synchronisé en continu. */
 export function DriveConnect({ state }: { state: DriveState }) {
   const router = useRouter();
-  const [folders, setFolders] = useState<Folder[] | null>(null);
   const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState<'' | 'folders' | 'pick' | 'sync'>('');
-  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<'' | 'pick' | 'sync'>('');
   const [, startTransition] = useTransition();
   const refresh = () => startTransition(() => router.refresh());
 
-  // Après connexion OAuth (?ok=drive), on ouvre d'office le sélecteur de dossier.
+  // Après connexion OAuth (?ok=drive), on ouvre d'office le sélecteur si aucun dossier choisi.
   useEffect(() => {
-    if (state.connected && !state.folderId) setOpen(true);
-  }, [state.connected, state.folderId]);
+    if (state.connected && !state.folderId && state.pickerReady) void openPicker();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.connected, state.folderId, state.pickerReady]);
 
-  async function loadFolders() {
-    setBusy('folders'); setMsg('');
-    const r = await listDriveFoldersAction();
-    setBusy('');
-    if (r.error) { setMsg(r.error); return; }
-    setFolders(r.folders ?? []);
-    setOpen(true);
-  }
-  async function pick(f: Folder) {
+  async function openPicker() {
+    if (busy) return;
     setBusy('pick'); setMsg('');
-    const r = await setDriveFolderAction({ folderId: f.id, folderName: f.name });
-    setBusy('');
+    try {
+      const cfg = await getDrivePickerConfigAction();
+      if (cfg.error || !cfg.token) { setMsg(cfg.error || 'Connexion Drive requise.'); setBusy(''); return; }
+      const picker = await loadPicker();
+      const view = new picker.DocsView(picker.ViewId.FOLDERS).setSelectFolderEnabled(true).setMode(picker.DocsViewMode.LIST);
+      const builder = new picker.PickerBuilder()
+        .enableFeature(picker.Feature.SUPPORT_DRIVES)
+        .setDeveloperKey(cfg.apiKey)
+        .setOAuthToken(cfg.token)
+        .addView(view)
+        .setTitle('Choisis le dossier à synchroniser')
+        .setCallback(async (data: any) => {
+          if (data.action === picker.Action.PICKED) {
+            const doc = data.docs?.[0];
+            if (doc?.id) { await onFolderPicked(doc.id, doc.name || 'Dossier Drive'); }
+          }
+          if (data.action === picker.Action.PICKED || data.action === picker.Action.CANCEL) setBusy('');
+        });
+      if (cfg.appId) builder.setAppId(cfg.appId);
+      builder.build().setVisible(true);
+    } catch (e) { setMsg((e as Error).message); setBusy(''); }
+  }
+
+  async function onFolderPicked(folderId: string, folderName: string) {
+    const r = await setDriveFolderAction({ folderId, folderName });
     if (r.error) { setMsg(r.error); return; }
-    setOpen(false);
     refresh();
-    // Première synchro immédiate.
     void doSync();
   }
+
   async function doSync() {
     setBusy('sync'); setMsg('');
     const r = await syncDriveNowAction();
@@ -48,10 +78,11 @@ export function DriveConnect({ state }: { state: DriveState }) {
     setMsg(`${r.added ?? 0} asset(s) ajouté(s)${r.skipped ? ` · ${r.skipped} déjà présent(s)` : ''}.`);
     refresh();
   }
+
   async function disconnect() {
     setBusy('sync'); setMsg('');
     await disconnectDriveAction();
-    setBusy(''); setFolders(null); setOpen(false);
+    setBusy('');
     refresh();
   }
 
@@ -73,10 +104,13 @@ export function DriveConnect({ state }: { state: DriveState }) {
       {!state.connected ? (
         <div style={{ marginTop: 10 }}>
           <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-            Connecte ton compte Google et choisis un dossier : ses images, vidéos et audio remontent automatiquement
-            dans la bibliothèque et deviennent mobilisables par l'IA. Synchro quotidienne + à la demande.
+            Connecte ton compte Google en 1 clic, puis choisis un dossier via le sélecteur Google : ses images, vidéos et audio
+            remontent automatiquement dans la bibliothèque et deviennent mobilisables par l'IA. Synchro quotidienne + à la demande.
           </p>
-          <a href="/api/oauth/google" style={{ ...primary, textDecoration: 'none', display: 'inline-block' }}>Connecter Google Drive</a>
+          <a href="/api/oauth/google" style={{ ...primary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <GoogleDriveIcon size={15} /> Connecter Google Drive
+          </a>
+          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>Accès limité au seul dossier que tu choisis (scope <code>drive.file</code>) · aucune autre donnée n'est lue.</p>
         </div>
       ) : (
         <div style={{ marginTop: 10 }}>
@@ -91,9 +125,13 @@ export function DriveConnect({ state }: { state: DriveState }) {
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-            <button type="button" onClick={loadFolders} disabled={!!busy} style={ghost}>
-              {busy === 'folders' ? 'Chargement…' : state.folderId ? 'Changer de dossier' : 'Choisir un dossier'}
-            </button>
+            {state.pickerReady ? (
+              <button type="button" onClick={openPicker} disabled={!!busy} style={ghost}>
+                {busy === 'pick' ? 'Sélecteur…' : state.folderId ? 'Changer de dossier' : 'Choisir un dossier'}
+              </button>
+            ) : (
+              <span style={{ fontSize: 11.5, color: '#ffcf8f' }}>Sélecteur non configuré (GOOGLE_API_KEY / GOOGLE_APP_ID).</span>
+            )}
             {state.folderId && (
               <button type="button" onClick={doSync} disabled={!!busy} style={primary}>
                 {busy === 'sync' ? 'Synchro…' : '⟳ Synchroniser maintenant'}
@@ -101,20 +139,6 @@ export function DriveConnect({ state }: { state: DriveState }) {
             )}
             <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Déconnecter</button>
           </div>
-
-          {open && folders && (
-            <div style={{ marginTop: 12, border: '1px solid var(--line-2)', borderRadius: 12, background: 'var(--surface)', maxHeight: 240, overflow: 'auto' }}>
-              {folders.length === 0
-                ? <p style={{ margin: 0, padding: 14, fontSize: 12.5, color: 'var(--muted)' }}>Aucun dossier trouvé sur ce compte Drive.</p>
-                : folders.map((f) => (
-                  <button key={f.id} type="button" onClick={() => pick(f)} disabled={!!busy}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--line)', color: 'var(--ink)', fontSize: 13, cursor: 'pointer' }}>
-                    <span aria-hidden>📁</span> {f.name}
-                    {state.folderId === f.id && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#7ee8bf' }}>actuel</span>}
-                  </button>
-                ))}
-            </div>
-          )}
         </div>
       )}
       {msg && <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--ink-2)' }}>{msg}</p>}

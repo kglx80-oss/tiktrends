@@ -1,18 +1,25 @@
 /**
- * Google Drive · OAuth (accès offline, refresh token) + lecture de fichiers d'un dossier.
- * Sert à synchroniser automatiquement un dossier Drive dans la bibliothèque d'assets.
+ * Google Drive · OAuth (accès offline, refresh token) + lecture des fichiers d'un dossier choisi.
+ * Modèle « drive.file » (comme Atria) : scope NON sensible, aucune vérification Google requise.
+ * L'utilisateur choisit son dossier via le sélecteur Google natif (Picker) ; l'app n'accède
+ * ensuite qu'à ce dossier et à son contenu. N'importe quel client se connecte en 1 clic.
  *
- * Env : GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_URL.
+ * Env : GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_URL (OAuth) · GOOGLE_API_KEY, GOOGLE_APP_ID (Picker).
  * Redirect URI : {APP_URL}/api/oauth/google/callback
- * Scope : https://www.googleapis.com/auth/drive.readonly
+ * Scope : https://www.googleapis.com/auth/drive.file
  */
 const OAUTH = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN = 'https://oauth2.googleapis.com/token';
 const DRIVE = 'https://www.googleapis.com/drive/v3';
-export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
 export function googleConfigured(): boolean {
   return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.APP_URL);
+}
+
+/** Le Picker exige en plus une clé API et l'ID de projet (numéro) côté navigateur. */
+export function drivePickerConfigured(): boolean {
+  return googleConfigured() && !!process.env.GOOGLE_API_KEY && !!process.env.GOOGLE_APP_ID;
 }
 
 export function buildGoogleAuthUrl(state: string): string {
