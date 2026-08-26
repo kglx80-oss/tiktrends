@@ -76,13 +76,51 @@ export async function driveListFolders(accessToken: string): Promise<DriveFolder
   return j.files || [];
 }
 
-/** Liste les fichiers média d'un dossier (images, vidéos, audio). */
+/** Liste les fichiers média d'un dossier (images, vidéos, audio) · niveau direct uniquement. */
 export async function driveListFiles(accessToken: string, folderId: string): Promise<DriveFile[]> {
   const j = await driveGet<{ files: DriveFile[] }>(accessToken, 'files', {
     q: `'${folderId}' in parents and trashed=false and (mimeType contains 'image/' or mimeType contains 'video/' or mimeType contains 'audio/')`,
     fields: 'files(id,name,mimeType,size,webViewLink,thumbnailLink)', pageSize: '200', orderBy: 'createdTime desc',
   });
   return (j.files || []).map((f) => ({ ...f, size: f.size ? Number(f.size) : undefined }));
+}
+
+const FOLDER_MIME = 'application/vnd.google-apps.folder';
+
+/**
+ * Parcourt un dossier ET ses sous-dossiers (arborescence) et remonte tous les fichiers média.
+ * Borné pour rester sûr : maxFiles fichiers et maxFolders dossiers visités au total.
+ */
+export async function driveListFilesDeep(accessToken: string, rootId: string, o?: { maxFiles?: number; maxFolders?: number }): Promise<DriveFile[]> {
+  const maxFiles = o?.maxFiles ?? 500;
+  const maxFolders = o?.maxFolders ?? 200;
+  const out: DriveFile[] = [];
+  const queue: string[] = [rootId];
+  let visited = 0;
+
+  while (queue.length && out.length < maxFiles && visited < maxFolders) {
+    const folderId = queue.shift()!;
+    visited++;
+    let pageToken: string | undefined;
+    do {
+      const params: Record<string, string> = {
+        q: `'${folderId}' in parents and trashed=false`,
+        fields: 'nextPageToken,files(id,name,mimeType,size,webViewLink,thumbnailLink)',
+        pageSize: '200', orderBy: 'folder,createdTime desc',
+      };
+      if (pageToken) params.pageToken = pageToken;
+      const j = await driveGet<{ files: DriveFile[]; nextPageToken?: string }>(accessToken, 'files', params);
+      for (const f of j.files || []) {
+        if (f.mimeType === FOLDER_MIME) { if (queue.length + visited < maxFolders) queue.push(f.id); continue; }
+        if (/^(image|video|audio)\//.test(f.mimeType)) {
+          out.push({ ...f, size: f.size ? Number(f.size) : undefined });
+          if (out.length >= maxFiles) break;
+        }
+      }
+      pageToken = j.nextPageToken;
+    } while (pageToken && out.length < maxFiles);
+  }
+  return out;
 }
 
 /** Télécharge le contenu binaire d'un fichier Drive. */
