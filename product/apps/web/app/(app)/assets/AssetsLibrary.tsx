@@ -149,6 +149,11 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
     if (busy) return;
     const links = driveText.split('\n').map((l) => l.trim()).filter((l) => /^https?:\/\//.test(l));
     if (!links.length) { setMsg('Colle au moins un lien Google Drive valide.'); return; }
+    // Un lien de DOSSIER ne peut pas être déplié ici : on oriente vers la connexion automatique.
+    if (links.some((l) => /\/folders\//i.test(l))) {
+      setMsg('Un des liens est un DOSSIER Drive. Pour synchroniser tout un dossier, utilise « Google Drive · connexion automatique » en haut. Ici, colle plutôt le lien de partage de chaque fichier.');
+      return;
+    }
     setMsg(''); setBusy(true);
     let ok = 0; const errs: string[] = [];
     for (const url of links) {
@@ -157,8 +162,8 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
       if (r.error) errs.push(r.error); else ok++;
     }
     setBusy(false);
-    setMsg(errs.length ? `${ok} importé(s). ${errs.length} échec(s).` : `${ok} fichier(s) importé(s) depuis Drive.`);
-    setDriveText(''); setShowDrive(false);
+    setMsg(errs.length ? `${ok} importé(s) · ${errs[0]}` : `${ok} fichier(s) importé(s) depuis Drive.`);
+    if (ok) { setDriveText(''); setShowDrive(false); }
     refresh();
   }
 

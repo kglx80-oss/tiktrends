@@ -62,18 +62,37 @@ export async function uploadImageAssetsAction(input: { items: Array<{ name: stri
 }
 
 /** Importe un asset par URL (image/vidéo/audio externe ou lien Drive). */
+/** Analyse un lien Google Drive : dossier (à rejeter) ou fichier (id + lien direct). */
+function parseDriveUrl(url: string): { isDrive: boolean; isFolder: boolean; fileId?: string } {
+  const isDrive = /drive\.google\.com|docs\.google\.com/i.test(url);
+  if (!isDrive) return { isDrive: false, isFolder: false };
+  if (/\/folders\//i.test(url)) return { isDrive: true, isFolder: true };
+  const m = url.match(/\/file\/d\/([\w-]+)/) || url.match(/[?&]id=([\w-]+)/);
+  return { isDrive: true, isFolder: false, fileId: m?.[1] };
+}
+
 export async function importAssetAction(input: { name: string; url: string; kind: AssetKind; common?: boolean }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
-  const url = (input.url || '').trim();
+  let url = (input.url || '').trim();
   if (!/^https?:\/\//i.test(url)) return { error: 'Entre une URL valide (https://…).' };
-  const isDrive = /drive\.google\.com|docs\.google\.com/i.test(url);
-  const brand = input.common ? null : await getActiveBrand(s.workspaceId);
   const kind: AssetKind = (['image', 'video', 'audio', 'other'] as AssetKind[]).includes(input.kind) ? input.kind : 'other';
+
+  const drive = parseDriveUrl(url);
+  if (drive.isFolder) {
+    return { error: 'Ce lien est un DOSSIER Drive, pas un fichier. Pour importer tout un dossier automatiquement, utilise « Google Drive · connexion automatique » ci-dessus. Sinon, colle le lien de partage de chaque fichier (un par ligne).' };
+  }
+  // Lien de fichier Drive : on le convertit en lien direct pour que l'image s'affiche vraiment.
+  if (drive.isDrive && drive.fileId && kind === 'image') {
+    url = `https://drive.google.com/uc?export=view&id=${drive.fileId}`;
+  }
+
+  const brand = input.common ? null : await getActiveBrand(s.workspaceId);
+  const rawName = (input.name || '').trim();
+  const name = (rawName && rawName.toLowerCase() !== 'folders' ? rawName : (url.split('/').pop()?.split('?')[0] || 'asset')).slice(0, 160);
   await db.insert(schema.assets).values({
     workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
-    name: (input.name || url.split('/').pop() || 'asset').slice(0, 160), kind,
-    source: isDrive ? 'drive' : 'url', url,
+    name, kind, source: drive.isDrive ? 'drive' : 'url', url,
   });
   return { ok: true };
 }
