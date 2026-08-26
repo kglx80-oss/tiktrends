@@ -1,11 +1,12 @@
 /** Crédits & ledger (CDC §F14). 1 crédit = coût API réel × 3. Report 25 %. */
 export type CreditAction =
   | 'tag_video' | 'tag_image' | 'transcription_min' | 'script' | 'brief'
-  | 'image' | 'review_mining' | 'report' | 'clone_image' | 'chat' | 'video';
+  | 'image' | 'review_mining' | 'report' | 'clone_image' | 'chat' | 'video' | 'suggest';
 
 export const CREDIT_COSTS: Record<CreditAction, number> = {
   tag_video: 2, tag_image: 1, transcription_min: 1, script: 3, brief: 5,
   image: 4, review_mining: 20, report: 5, clone_image: 5, chat: 1, video: 12,
+  suggest: 1, // suggestion IA courte (angle, brief image/vidéo)
 };
 
 export function costFor(action: CreditAction, units = 1): number {

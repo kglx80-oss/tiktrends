@@ -272,6 +272,13 @@ export async function suggestAnglesAction(input: { productId?: string }): Promis
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Aucune marque active.' };
 
+  const unlimited = unlimitedCredits(s.user.email);
+  const cost = costFor('suggest');
+  if (!unlimited) {
+    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+    if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  }
+
   const { da, product } = await loadAdContext(brand.id, input.productId);
 
   // Concurrents (DA) + copy des pubs sauvegardées (veille).
@@ -286,6 +293,10 @@ export async function suggestAnglesAction(input: { productId?: string }): Promis
       audience: da?.audience ?? undefined, category: da?.category ?? undefined,
       productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
     }, { winningCopy, competitors: brow?.competitors ?? undefined });
+    if (!unlimited) {
+      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+    }
     return { angles };
   } catch (e) {
     return { error: 'Proposition d’angles impossible : ' + (e as Error).message };
