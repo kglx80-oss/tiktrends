@@ -7,3 +7,5 @@ export * from './trendtrack';
 export * from './higgsfield';
 export * from './fal';
 export * from './storage';
+export * from './shopify-admin';
+export * from './meta-insights';
