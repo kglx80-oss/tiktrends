@@ -65,6 +65,35 @@ export const COST_MODEL: CostItem[] = [
   { action: 'suggest',          label: 'Suggestion IA',       provider: 'Anthropic · Claude',              realEur: 0.005, unit: 'suggestion', note: 'Angle, brief image/vidéo proposé par l’IA.' },
 ];
 
+/* ============ Catalogue de modèles image · coût réel -> crédits par variante ============ */
+
+export interface ImageModelSpec {
+  key: string;          // identifiant interne
+  label: string;        // nom affiché
+  falModel: string;     // modèle Fal (env-surchargable côté intégration)
+  realEur: number;      // coût API réel estimé par image
+  credits: number;      // crédits facturés par variante (≈ réel × markup)
+  note: string;         // description courte
+  recommended?: boolean;
+  supportsRef?: boolean; // gère les images de référence (produit / clone)
+}
+
+/**
+ * Modèles d'image proposés à l'utilisateur, avec un prix en crédits calé sur leur coût réel.
+ * Le nombre de crédits suit la même logique que le reste (coût réel × marge), arrondi.
+ */
+export const IMAGE_MODELS: ImageModelSpec[] = [
+  { key: 'nano',         label: 'Nano Banana 2',       falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.039, credits: 4,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
+  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.09, credits: 8, note: 'Détail & cohérence renforcés', supportsRef: true },
+  { key: 'flux_kontext', label: 'FLUX Pro · Kontext',  falModel: 'fal-ai/flux-pro/kontext',   realEur: 0.04,  credits: 4,  note: 'Style précis avec références', supportsRef: true },
+  { key: 'ideogram',     label: 'Ideogram v3',         falModel: 'fal-ai/ideogram/v3',        realEur: 0.06,  credits: 6,  note: 'Texte net dans l’image' },
+  { key: 'seedream',     label: 'Seedream v4',         falModel: 'fal-ai/bytedance/seedream/v4', realEur: 0.02, credits: 2, note: 'Rapide & net · pubs produit', supportsRef: true },
+];
+
+export function imageModelByKey(key?: string | null): ImageModelSpec {
+  return IMAGE_MODELS.find((m) => m.key === key) || IMAGE_MODELS[0]!;
+}
+
 export interface CostAnalysis extends CostItem {
   credits: number;         // crédits actuellement facturés (barème)
   resaleEur: number;       // prix de revente actuel (crédits × CREDIT_EUR)

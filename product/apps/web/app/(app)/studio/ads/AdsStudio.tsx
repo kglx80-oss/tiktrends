@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, type AdItem, type SavedAdRef } from '../../../actions/ads';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { costFor } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 
@@ -93,6 +93,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [model, setModel] = useState('nano');
+  const modelSpec = imageModelByKey(model);
   const refInput = useRef<HTMLInputElement>(null);
 
   async function quickGenerate() {
@@ -192,14 +194,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     if (mode === 'clone') {
       if (!hasRef) { setError('Choisis une pub de référence (veille ou upload).'); return; }
       setBusy(true);
-      const res = await cloneAdAction({ referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined, productId: productId || undefined, personaId: personaId || undefined, objective, universe, count });
+      const res = await cloneAdAction({ referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined, productId: productId || undefined, personaId: personaId || undefined, objective, universe, count, model });
       setBusy(false);
       applyResult(res);
       return;
     }
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model });
     setBusy(false);
     applyResult(res);
   }
@@ -455,7 +457,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>4 crédits / pub · {count} pub{count > 1 ? 's' : ''}</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{modelSpec.label} · {modelSpec.credits} cr/pub · {modelSpec.credits * count} cr. total</span>
           <span style={{ flex: 1 }} />
           <button type="button" onClick={run} disabled={!ready || busy || (mode === 'brand' ? !templates.length : !hasRef)} style={{
             padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
@@ -558,8 +560,13 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   {[1, 2, 3, 4, 5, 6, 8].map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </label>
+              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Modèle&nbsp;
+                <select value={model} onChange={(e) => setModel(e.target.value)} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
+                  {IMAGE_MODELS.map((m) => <option key={m.key} value={m.key}>{m.label} · {m.credits} cr/variante{m.recommended ? ' · recommandé' : ''}</option>)}
+                </select>
+              </label>
               <span style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{templates.length} gabarit{templates.length > 1 ? 's' : ''} · {costFor('image', count)} cr.</span>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{templates.length} gabarit{templates.length > 1 ? 's' : ''} · {modelSpec.credits * count} cr.</span>
               <button type="button" onClick={quickGenerate} disabled={!ready || busy || !templates.length} style={{
                 padding: '12px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 14, cursor: ready && !busy && templates.length ? 'pointer' : 'default',
                 background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && templates.length ? 1 : .5,
