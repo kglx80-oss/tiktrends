@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
+import { DropZone } from '../../../../components/DropZone';
 
 type Ratio = '9:16' | '1:1' | '16:9';
 const RATIOS: Ratio[] = ['9:16', '1:1', '16:9'];
@@ -19,6 +20,16 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   const [mode, setMode] = useState<'t2v' | 'i2v'>(assets.length ? 'i2v' : 't2v');
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [imageUrl, setImageUrl] = useState(assets[0]?.url ?? '');
+  const [dropped, setDropped] = useState<AnimatableAsset[]>([]);
+  const shownAssets = [...dropped, ...assets];
+
+  function onDropImages(uris: string[]) {
+    const uri = uris[0];
+    if (!uri) return;
+    setDropped((l) => [{ url: uri, label: 'Importé', kind: 'asset' }, ...l]);
+    setImageUrl(uri);
+    setError('');
+  }
   const [ratio, setRatio] = useState<Ratio>('9:16');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -120,26 +131,28 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
 
         {mode === 'i2v' && (
           <div style={{ marginBottom: 12 }}>
-            <label style={lbl}>Image de départ à animer <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· ton produit ou une pub déjà générée</span></label>
-            {assets.length > 0 ? (
-              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-                {assets.map((a) => {
-                  const on = imageUrl === a.url;
-                  return (
-                    <button key={a.url} type="button" disabled={!ready || busy} onClick={() => setImageUrl(a.url)} title={a.label} style={{
-                      padding: 0, borderRadius: 10, flexShrink: 0, cursor: ready && !busy ? 'pointer' : 'default', background: 'transparent', position: 'relative',
-                      border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
-                    }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={a.url} alt="" style={{ width: 72, height: 92, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
-                      <span style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 8.5, fontWeight: 800, padding: '2px 5px', borderRadius: 6, color: '#fff', background: 'rgba(0,0,0,.6)' }}>{a.kind === 'ad' ? 'PUB' : a.kind === 'asset' ? 'ASSET' : 'PRODUIT'}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>Aucun visuel à animer pour l'instant. Génère d'abord une pub (Pubs IA) ou ajoute une photo produit.</p>
-            )}
+            <label style={lbl}>Image de départ à animer <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· ton produit ou une pub déjà générée · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une image</b></span></label>
+            <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer l'image de départ" style={{ padding: 6, border: '1px dashed var(--line-2)' }}>
+              {shownAssets.length > 0 ? (
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                  {shownAssets.map((a) => {
+                    const on = imageUrl === a.url;
+                    return (
+                      <button key={a.url} type="button" disabled={!ready || busy} onClick={() => setImageUrl(a.url)} title={a.label} style={{
+                        padding: 0, borderRadius: 10, flexShrink: 0, cursor: ready && !busy ? 'pointer' : 'default', background: 'transparent', position: 'relative',
+                        border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
+                      }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={a.url} alt="" style={{ width: 72, height: 92, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
+                        <span style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 8.5, fontWeight: 800, padding: '2px 5px', borderRadius: 6, color: '#fff', background: 'rgba(0,0,0,.6)' }}>{a.kind === 'ad' ? 'PUB' : a.kind === 'asset' ? 'ASSET' : 'PRODUIT'}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ margin: 0, padding: '18px 8px', fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>Glisse-dépose une image ici, ou génère d'abord une pub (Pubs IA) / ajoute une photo produit.</p>
+              )}
+            </DropZone>
             <details style={{ marginTop: 8 }}>
               <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien d'image</summary>
               <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={!ready || busy} placeholder="https://…/mon-image.jpg" style={{ ...fld, marginTop: 8 }} />

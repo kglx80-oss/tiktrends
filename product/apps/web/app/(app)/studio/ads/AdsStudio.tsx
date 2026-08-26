@@ -5,6 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
+import { DropZone } from '../../../../components/DropZone';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
@@ -157,6 +158,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     setError('');
     if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) { setError('Formats acceptés : jpg, png, webp.'); return; }
     try { setRefUri(await fileToDataUri(file)); setSavedAdId(''); } catch (err) { setError((err as Error).message); }
+  }
+
+  function onDropRef(uris: string[]) {
+    const uri = uris[0];
+    if (!uri || !/^data:/.test(uri)) return;
+    setError(''); setRefUri(uri); setSavedAdId('');
   }
 
   const hasRef = !!refUri || !!savedAdId;
@@ -377,8 +384,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             </div>
           </>
         ) : (
-          <div style={{ padding: 14, borderRadius: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
-            <label style={lbl}>Pub gagnante à cloner <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'IA reprend l'angle + la structure, sur TON produit, en {count} variation{count > 1 ? 's' : ''}</span></label>
+          <DropZone onImages={onDropRef} onError={setError} disabled={!ready || busy} hint="Déposer la pub à cloner" style={{ padding: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
+            <label style={lbl}>Pub gagnante à cloner <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'IA reprend l'angle + la structure, sur TON produit, en {count} variation{count > 1 ? 's' : ''} · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose la capture</b></span></label>
 
             {savedRefs.length > 0 && (
               <div style={{ marginBottom: 12 }}>
@@ -418,7 +425,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 </p>
               </div>
             </div>
-          </div>
+          </DropZone>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
