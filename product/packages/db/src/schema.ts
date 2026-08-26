@@ -82,6 +82,10 @@ export const brands = pgTable('brands', {
   creativeRules: text('creative_rules'), // Règles maison Jarvis, injectées dans chaque génération.
   jarvisLearnings: text('jarvis_learnings'), // Patterns gagnants distillés (entraînement Jarvis sur la veille).
   jarvisTrainedAt: timestamp('jarvis_trained_at', { withTimezone: true }), // dernier entraînement
+  driveRefreshToken: text('drive_refresh_token_enc'), // Google Drive OAuth (chiffré) · par marque
+  driveFolderId: text('drive_folder_id'),             // dossier Drive synchronisé pour la marque
+  driveFolderName: text('drive_folder_name'),
+  driveSyncedAt: timestamp('drive_synced_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -38,15 +38,19 @@ function toItem(r: typeof schema.assets.$inferSelect): AssetItem {
   return { id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source, url, brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes, tags: r.tags ?? [], createdAt: r.createdAt.toISOString() };
 }
 
-/** Liste les assets de l'espace (optionnellement filtrés). */
+/**
+ * Liste les assets. Par défaut, scope sur la MARQUE active (+ assets communs sans marque) :
+ * chaque marque voit sa propre bibliothèque. Sans marque active, renvoie tout l'espace.
+ * `brandOnly` force le strict-marque (exclut les communs).
+ */
 export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean }): Promise<AssetItem[]> {
   const s = await getSession();
   if (!s || !db) return [];
   const conds = [eq(schema.assets.workspaceId, s.workspaceId)];
   if (filter?.kind) conds.push(eq(schema.assets.kind, filter.kind));
-  if (filter?.brandOnly) {
-    const brand = await getActiveBrand(s.workspaceId);
-    if (brand) conds.push(eq(schema.assets.brandId, brand.id));
+  const brand = await getActiveBrand(s.workspaceId);
+  if (brand) {
+    conds.push((filter?.brandOnly ? eq(schema.assets.brandId, brand.id) : or(eq(schema.assets.brandId, brand.id), isNull(schema.assets.brandId)))!);
   }
   const rows = await db.select().from(schema.assets).where(and(...conds)).orderBy(desc(schema.assets.createdAt)).limit(400);
   return rows.map(toItem);

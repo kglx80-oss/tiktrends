@@ -1,30 +1,31 @@
 import { db, schema, eq, and } from '@tiktrends/db';
 import { decryptSecret, shopifyCommerceSync, metaAdsSync, storageFromEnv, syncDriveAssets } from '@tiktrends/integrations';
 
-/** Synchro des dossiers Google Drive connectés vers la bibliothèque d'assets. */
+/** Synchro des dossiers Google Drive connectés (par MARQUE) vers la bibliothèque d'assets. */
 async function runDriveSync(): Promise<{ drive: number; errors: number }> {
   if (!db) return { drive: 0, errors: 0 };
-  const spaces = await db.select({
-    id: schema.workspaces.id, tok: schema.workspaces.driveRefreshToken, fid: schema.workspaces.driveFolderId,
-  }).from(schema.workspaces);
+  const brands = await db.select({
+    id: schema.brands.id, workspaceId: schema.brands.workspaceId,
+    tok: schema.brands.driveRefreshToken, fid: schema.brands.driveFolderId,
+  }).from(schema.brands);
 
   let drive = 0, errors = 0;
   const storage = storageFromEnv();
-  for (const w of spaces) {
-    const rt = decryptSecret(w.tok);
-    if (!rt || !w.fid) continue;
+  for (const b of brands) {
+    const rt = decryptSecret(b.tok);
+    if (!rt || !b.fid) continue;
     try {
       const res = await syncDriveAssets({
         existingDriveIds: async () => {
           const rows = await db!.select({ id: schema.assets.externalId }).from(schema.assets)
-            .where(and(eq(schema.assets.workspaceId, w.id), eq(schema.assets.source, 'drive')));
+            .where(and(eq(schema.assets.brandId, b.id), eq(schema.assets.source, 'drive')));
           return new Set(rows.map((r) => r.id).filter((x): x is string => !!x));
         },
-        insertAsset: async (a) => { await db!.insert(schema.assets).values({ workspaceId: w.id, brandId: null, uploaderUserId: null, ...a }); },
-      }, { storage, refreshToken: rt, folderId: w.fid, workspaceId: w.id, maxFiles: 100 });
-      await db.update(schema.workspaces).set({ driveSyncedAt: new Date() }).where(eq(schema.workspaces.id, w.id));
+        insertAsset: async (a) => { await db!.insert(schema.assets).values({ workspaceId: b.workspaceId, brandId: b.id, uploaderUserId: null, ...a }); },
+      }, { storage, refreshToken: rt, folderId: b.fid, workspaceId: b.workspaceId, maxFiles: 100 });
+      await db.update(schema.brands).set({ driveSyncedAt: new Date() }).where(eq(schema.brands.id, b.id));
       drive += res.added;
-    } catch (e) { errors++; console.error('[sync] drive', w.id, (e as Error).message); }
+    } catch (e) { errors++; console.error('[sync] drive', b.id, (e as Error).message); }
   }
   return { drive, errors };
 }

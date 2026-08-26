@@ -134,7 +134,7 @@ export function DriveConnect({ state }: { state: DriveState }) {
   if (!state.available) {
     return (
       <div style={card}>
-        <Head />
+        <Head brandName={state.brandName} />
         <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>
           La connexion Drive automatique n'est pas encore configurée (variables <code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code>).
           En attendant, l'import par lien reste disponible ci-dessous.
@@ -143,14 +143,26 @@ export function DriveConnect({ state }: { state: DriveState }) {
     );
   }
 
+  if (state.needBrand) {
+    return (
+      <div style={card}>
+        <Head brandName={null} />
+        <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#ffcf8f', lineHeight: 1.5 }}>
+          Sélectionne d'abord une <b>marque active</b> (sélecteur de marque en haut) : le Drive se branche <b>marque par marque</b>,
+          et ses fichiers sont rattachés à cette marque.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div style={card}>
-      <Head />
+      <Head brandName={state.brandName} />
       {!state.connected ? (
         <div style={{ marginTop: 10 }}>
           <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-            Connecte ton compte Google en 1 clic, puis choisis un dossier via le sélecteur Google : ses images, vidéos et audio
-            remontent automatiquement dans la bibliothèque et deviennent mobilisables par l'IA. Synchro quotidienne + à la demande.
+            Connecte le compte Google de <b>{state.brandName}</b> en 1 clic, puis choisis ses fichiers/dossier : les images, vidéos et audio
+            remontent dans la bibliothèque de cette marque et deviennent mobilisables par l'IA.
           </p>
           <a href="/api/oauth/google" style={{ ...primary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <GoogleDriveIcon size={15} /> Connecter Google Drive
@@ -201,11 +213,11 @@ export function DriveConnect({ state }: { state: DriveState }) {
   );
 }
 
-function Head() {
+function Head({ brandName }: { brandName: string | null }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       <GoogleDriveIcon size={19} />
-      <b style={{ fontSize: 14, color: 'var(--ink)' }}>Google Drive · connexion automatique</b>
+      <b style={{ fontSize: 14, color: 'var(--ink)' }}>Google Drive{brandName ? ` · ${brandName}` : ''}</b>
       <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 8px', borderRadius: 999, color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>ADMIN+</span>
     </div>
   );
