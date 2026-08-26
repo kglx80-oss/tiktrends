@@ -4,17 +4,36 @@ import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { storageConfigured } from '@tiktrends/integrations';
 import { listAssets } from '../../actions/assets';
+import { getDriveState } from '../../actions/drive';
 import { PageInfo } from '../../../components/PageInfo';
 import { AssetsLibrary } from './AssetsLibrary';
+import { DriveConnect } from './DriveConnect';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AssetsPage() {
+const DRIVE_ERR: Record<string, string> = {
+  drive_config: 'Connexion Drive non configurée (variables Google manquantes).',
+  drive_state: 'Session OAuth invalide, réessaie la connexion Drive.',
+  drive_session: 'Session expirée, reconnecte-toi puis relance la connexion Drive.',
+  drive_norefresh: 'Google n’a pas renvoyé de jeton. Révoque l’accès dans ton compte Google puis reconnecte.',
+  drive_exchange: 'Échec de l’échange OAuth avec Google. Réessaie.',
+};
+
+export default async function AssetsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
 
-  const [assets, brand] = await Promise.all([listAssets(), getActiveBrand(s.workspaceId)]);
+  const sp = (await searchParams) ?? {};
+  const okDrive = sp.ok === 'drive';
+  const errDrive = typeof sp.e === 'string' && sp.e.startsWith('drive') ? (DRIVE_ERR[sp.e] || 'Erreur de connexion Drive.') : '';
+
+  const isAdmin = roleAtLeast(s.role, 'admin');
+  const [assets, brand, driveState] = await Promise.all([
+    listAssets(),
+    getActiveBrand(s.workspaceId),
+    isAdmin ? getDriveState() : Promise.resolve(null),
+  ]);
   const imgCount = assets.filter((a) => a.kind === 'image').length;
   const storageOn = storageConfigured();
 
@@ -36,6 +55,18 @@ export default async function AssetsPage() {
           ? <> Le <b>stockage objet est actif</b> : téléverse directement images, <b>vidéos</b> et audio (jusqu'à 1 Go).</>
           : <> Sans stockage objet configuré, les images sont optimisées et les vidéos/audio s'ajoutent par lien (Drive, URL).</>}
       </PageInfo>
+
+      {(okDrive || errDrive) && (
+        <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 12, fontSize: 12.5, border: '1px solid var(--line-2)', background: errDrive ? 'rgba(255,120,140,.08)' : 'rgba(126,232,191,.08)', color: errDrive ? '#ff9db0' : '#7ee8bf' }}>
+          {errDrive || 'Google Drive connecté · choisis un dossier à synchroniser ci-dessous.'}
+        </div>
+      )}
+
+      {driveState && (
+        <div style={{ marginTop: 16 }}>
+          <DriveConnect state={driveState} />
+        </div>
+      )}
 
       <div style={{ marginTop: 16 }}>
         <AssetsLibrary initial={assets} brandName={brand?.name ?? null} storageEnabled={storageConfigured()} />

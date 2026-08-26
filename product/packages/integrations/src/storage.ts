@@ -182,6 +182,13 @@ export async function storageSelfTest(cfg: StorageConfig): Promise<{ put: boolea
   }
 }
 
+/** Téléverse des octets vers le bucket (serveur -> S3) et renvoie l'URL publique. */
+export async function putObject(cfg: StorageConfig, key: string, bytes: Buffer, contentType: string): Promise<string> {
+  const r = await s3SignedFetch(cfg, 'PUT', `/${cfg.bucket}/${encKey(key)}`, {}, bytes, { 'content-type': contentType || 'application/octet-stream' });
+  if (r.status < 200 || r.status >= 300) throw new Error(`Upload S3 échoué (HTTP ${r.status})`);
+  return publicUrlFor(cfg, key);
+}
+
 /** Supprime physiquement un objet du bucket (best-effort). */
 export async function deleteObjectByUrl(cfg: StorageConfig, url: string): Promise<boolean> {
   // Retrouve la clé depuis l'URL publique.

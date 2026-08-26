@@ -10,3 +10,5 @@ export * from './storage';
 export * from './shopify-admin';
 export * from './meta-insights';
 export * from './secrets';
+export * from './google-drive';
+export * from './drive-sync';
