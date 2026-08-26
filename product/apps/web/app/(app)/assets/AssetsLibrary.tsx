@@ -218,7 +218,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
             </label>
             <button type="button" onClick={importDrive} disabled={busy} style={primary}>{busy ? 'Import…' : 'Importer depuis Drive'}</button>
           </div>
-          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>Connexion Drive automatique (dossier synchronisé en continu) : bientôt · en attendant, l'import par lien est immédiat.</p>
+          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>Astuce : pour une synchro continue d'un dossier entier, utilise la <b>connexion Drive automatique</b> (encadré ci-dessus, ADMIN+). Cet import par lien reste pratique pour quelques fichiers ponctuels.</p>
         </div>
       )}
 

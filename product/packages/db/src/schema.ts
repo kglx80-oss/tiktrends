@@ -25,6 +25,10 @@ export const workspaces = pgTable('workspaces', {
   accountKind: accountKindEnum('account_kind').notNull().default('normal'), // normal / beta / staff
   trialCredits: integer('trial_credits').notNull().default(0),               // crédits de test accordés
   trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),           // fin de la période d'essai
+  driveRefreshToken: text('drive_refresh_token_enc'),                         // Google Drive OAuth (chiffré)
+  driveFolderId: text('drive_folder_id'),                                     // dossier Drive synchronisé
+  driveFolderName: text('drive_folder_name'),
+  driveSyncedAt: timestamp('drive_synced_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -113,6 +117,7 @@ export const assets = pgTable('assets', {
   kind: assetKindEnum('kind').notNull().default('image'),
   source: assetSourceEnum('source').notNull().default('upload'),
   url: text('url').notNull(),                 // data URI (image téléversée) ou URL externe
+  externalId: text('external_id'),            // id source (ex : fichier Google Drive) pour dédup
   mimeType: text('mime_type'),
   sizeBytes: integer('size_bytes'),
   tags: text('tags').array(),                 // tags IA (à venir)
