@@ -46,7 +46,7 @@ export async function setDriveFolderAction(input: { folderId: string; folderName
   return { ok: true };
 }
 
-export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number; skipped?: number; error?: string }> {
+export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number; skipped?: number; found?: number; error?: string }> {
   const g = await guard();
   if ('error' in g) return { error: g.error };
   const ws = g.s.workspaceId;
@@ -62,7 +62,7 @@ export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number;
       insertAsset: async (a) => { await db!.insert(schema.assets).values({ workspaceId: ws, brandId: null, uploaderUserId: g.s.user.id, ...a }); },
     }, { storage: storageFromEnv(), refreshToken: rt, folderId: w.fid, workspaceId: ws, maxFiles: 200 });
     await db!.update(schema.workspaces).set({ driveSyncedAt: new Date() }).where(eq(schema.workspaces.id, ws));
-    return { ok: true, added: res.added, skipped: res.skipped };
+    return { ok: true, added: res.added, skipped: res.skipped, found: res.found };
   } catch (e) { return { error: (e as Error).message }; }
 }
 

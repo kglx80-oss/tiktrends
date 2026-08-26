@@ -75,7 +75,11 @@ export function DriveConnect({ state }: { state: DriveState }) {
     const r = await syncDriveNowAction();
     setBusy('');
     if (r.error) { setMsg(r.error); return; }
-    setMsg(`${r.added ?? 0} asset(s) ajouté(s)${r.skipped ? ` · ${r.skipped} déjà présent(s)` : ''}.`);
+    if ((r.found ?? 0) === 0) {
+      setMsg('0 fichier média trouvé dans ce dossier. Google (scope drive.file) ne renvoie que les fichiers/dossiers que TU as sélectionnés dans le sélecteur. Clique « Changer de dossier » et re-sélectionne le dossier (ou choisis un sous-dossier qui contient directement des images/vidéos).');
+      return;
+    }
+    setMsg(`${r.found} fichier(s) trouvé(s) · ${r.added ?? 0} ajouté(s)${r.skipped ? ` · ${r.skipped} déjà présent(s)` : ''}.`);
     refresh();
   }
 
