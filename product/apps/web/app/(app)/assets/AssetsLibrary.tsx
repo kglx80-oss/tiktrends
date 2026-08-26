@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
 import { Pager, PAGE_SIZE } from '../../../components/Pager';
@@ -66,6 +66,11 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
   const [, startTransition] = useTransition();
 
   const [page, setPage] = useState(0);
+
+  // Après un router.refresh() (import Drive, upload…), adopter les données serveur fraîches.
+  const initialIds = initial.map((a) => a.id).join(',');
+  useEffect(() => { setAssets(initial); setPage(0); }, [initialIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const q = search.trim().toLowerCase();
   const filtered = assets
     .filter((a) => filter === 'all' || a.kind === filter)
