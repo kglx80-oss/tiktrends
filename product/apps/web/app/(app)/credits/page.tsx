@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, analyzeCosts, analyzePlan, analyzePlanRisk, repricingSuggestions, creditMarkup, CREDIT_EUR } from '@tiktrends/core';
+import { CREDIT_COSTS, analyzeCosts, analyzePlan, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { grantCreditsAction, rechargeAllocationAction } from '../../actions/credits';
@@ -41,6 +41,8 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const analysis = analyzeCosts(markup);
   const plans: Plan[] = ['starter', 'core', 'plus', 'business'];
   const planEco = plans.map((p) => analyzePlan(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], markup));
+  const taxRate = corporateTaxRate();
+  const planNet = plans.filter((p) => PLAN_PRICE[p] > 0).map((p) => analyzePlanNet(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], markup, taxRate));
   const eur = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: n < 1 ? 3 : 2, maximumFractionDigits: 3 }) + ' €';
   // Rentabilité « chef d'entreprise » : marge plancher (pire cas) par formule + corrections de barème.
   const TARGET_MARGIN = 70;
@@ -144,35 +146,58 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         </p>
       </section>
 
-      {/* ============ ÉCONOMIE DES ABONNEMENTS ============ */}
-      <section style={{ ...panel }}>
-        <h2 style={{ ...h2, fontSize: 18 }}>Formules & marge brute</h2>
-        <p style={{ margin: '6px 0 14px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 760 }}>
-          Marge brute maximale par formule si toute l'allocation est consommée (au markup ×{markup}). En pratique la marge
-          réelle est supérieure : peu de clients consomment 100 % de leurs crédits, et le report est plafonné à 25 %.
+      {/* ============ MARGE NETTE · CE QU'ON GAGNE VRAIMENT ============ */}
+      <section style={{ ...panel, borderColor: 'rgba(126,232,191,.35)', background: 'linear-gradient(180deg, rgba(61,220,151,.05), var(--surface))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h2 style={{ ...h2, fontSize: 18 }}>Ce qu'on gagne vraiment · marge nette</h2>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d3d2a', background: 'linear-gradient(135deg,#3ddc97,#7ee8bf)' }}>SAS · IS {Math.round(taxRate * 100)}%</span>
+        </div>
+        <p style={{ margin: '8px 0 16px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 820 }}>
+          Bénéfice net par abonnement, une fois déduits le <b>coût API</b> (cas max, tout consommé au markup ×{markup}),
+          les <b>frais de paiement</b> (~{Math.round(PAYMENT_FEE_PCT * 100)}% + 0,30 €) et l'<b>impôt sur les sociétés</b> ({Math.round(taxRate * 100)}%).
+          La TVA (20 %) est collectée puis reversée : neutre. En pratique la marge est plus élevée (peu de clients consomment 100 % de leurs crédits).
         </p>
+
+        {/* Cartes « net par formule » */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+          {planNet.map((p) => (
+            <div key={p.plan} style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{p.plan}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>{p.priceEur} € / mois HT</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#7ee8bf', lineHeight: 1 }}>+{Math.round(p.netEur)} €</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>net / mois · {p.netPct}% du prix</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-2)', marginTop: 8, lineHeight: 1.5 }}>soit <b style={{ color: 'var(--ink)' }}>{Math.round(p.netEur * 12)} €</b> net / an par client</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Détail du calcul */}
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 560 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 640 }}>
             <thead>
               <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
-                <th style={th}>Formule</th><th style={thR}>Prix / mois</th><th style={thR}>Crédits</th>
-                <th style={thR}>€ / crédit</th><th style={thR}>Coût réel max</th><th style={thR}>Marge brute</th>
+                <th style={th}>Formule</th><th style={thR}>Prix HT</th><th style={thR}>− Coût API</th>
+                <th style={thR}>− Frais paiement</th><th style={thR}>= Marge brute</th><th style={thR}>− Impôt (IS)</th><th style={thR}>= Marge nette</th>
               </tr>
             </thead>
             <tbody>
-              {planEco.map((p) => (
+              {planNet.map((p) => (
                 <tr key={p.plan} style={{ borderTop: '1px solid var(--line)' }}>
                   <td style={{ ...td, color: 'var(--ink)', fontWeight: 700 }}>{p.plan}</td>
-                  <td style={tdR}>{p.priceEur === 0 ? 'Gratuit' : `${p.priceEur} €`}</td>
-                  <td style={tdR}>{p.credits.toLocaleString('fr-FR')}</td>
-                  <td style={tdR}>{p.priceEur === 0 ? '·' : eur(p.pricePerCreditEur)}</td>
-                  <td style={tdR}>{eur(p.realCostCeilingEur)}</td>
-                  <td style={{ ...tdR, fontWeight: 800, color: p.grossMarginPct >= 60 ? '#7ee8bf' : p.priceEur === 0 ? 'var(--muted)' : '#f5b043' }}>{p.priceEur === 0 ? '·' : `${p.grossMarginPct} %`}</td>
+                  <td style={tdR}>{p.priceEur} €</td>
+                  <td style={{ ...tdR, color: '#f5b043' }}>{eur(p.apiCostEur)}</td>
+                  <td style={{ ...tdR, color: '#f5b043' }}>{eur(p.paymentFeeEur)}</td>
+                  <td style={{ ...tdR, fontWeight: 700 }}>{Math.round(p.grossEur)} € <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({p.grossPct}%)</span></td>
+                  <td style={{ ...tdR, color: '#f5b043' }}>{eur(p.taxEur)}</td>
+                  <td style={{ ...tdR, fontWeight: 800, color: '#7ee8bf' }}>{Math.round(p.netEur)} € <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({p.netPct}%)</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <p style={{ margin: '10px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>
+          Réglable : <code style={codeS}>CREDIT_MARKUP</code> (marge), <code style={codeS}>CORPORATE_TAX_RATE</code> (IS · 0.15 réduit sous 42 500 € de bénéfice, 0.25 normal).
+        </p>
       </section>
 
       {/* ============ RENTABILITÉ · MODE CHEF D'ENTREPRISE ============ */}

@@ -17,6 +17,19 @@ export const CREDIT_EUR = 0.05;
 /** Marge cible par défaut appliquée au coût réel (× coût API). */
 export const DEFAULT_MARKUP = 3;
 
+/** Frais de paiement (Stripe : ~2,9 % + 0,30 € par transaction). */
+export const PAYMENT_FEE_PCT = 0.029;
+export const PAYMENT_FEE_FIXED_EUR = 0.30;
+
+/** Taux d'impôt sur les sociétés (SAS · France) · réglable via CORPORATE_TAX_RATE. */
+export const IS_REDUCED = 0.15;   // jusqu'à 42 500 € de bénéfice (sous conditions)
+export const IS_NORMAL = 0.25;    // au-delà
+export function corporateTaxRate(): number {
+  const v = Number(process.env.CORPORATE_TAX_RATE);
+  if (Number.isFinite(v) && v > 0 && v < 1) return v;
+  return IS_NORMAL;
+}
+
 /** Multiplicateur de marge effectif (réglable via CREDIT_MARKUP, borné à [1, 20]). */
 export function creditMarkup(): number {
   const v = Number(process.env.CREDIT_MARKUP);
@@ -129,4 +142,36 @@ export function analyzePlanRisk(plan: string, priceEur: number, credits: number,
 /** Actions dont le barème s'écarte de la marge cible (à corriger). */
 export function repricingSuggestions(markup = creditMarkup()): CostAnalysis[] {
   return analyzeCosts(markup).filter((a) => !a.aligned);
+}
+
+/* ============ Marge NETTE · « combien on gagne vraiment » (SAS France) ============ */
+
+export interface PlanNet {
+  plan: string;
+  priceEur: number;        // prix HT / mois
+  apiCostEur: number;      // coût API estimé (si allocation pleinement consommée, au markup)
+  paymentFeeEur: number;   // frais de paiement (Stripe)
+  grossEur: number;        // marge brute € = prix - coût API - frais paiement
+  grossPct: number;
+  taxEur: number;          // impôt sur les sociétés (IS) sur le bénéfice
+  netEur: number;          // marge NETTE € (ce qu'on garde après IS)
+  netPct: number;
+}
+
+/**
+ * Marge nette par formule : prix - coût API - frais de paiement, puis IS (SAS France).
+ * Donne « combien on gagne vraiment » par abonnement, une fois toutes les charges directes
+ * et l'impôt société déduits. La TVA (20 %) est collectée puis reversée : neutre sur la marge.
+ */
+export function analyzePlanNet(plan: string, priceEur: number, credits: number, markup = creditMarkup(), taxRate = corporateTaxRate()): PlanNet {
+  const apiCostEur = (credits * CREDIT_EUR) / markup;
+  const paymentFeeEur = priceEur > 0 ? priceEur * PAYMENT_FEE_PCT + PAYMENT_FEE_FIXED_EUR : 0;
+  const grossEur = priceEur - apiCostEur - paymentFeeEur;
+  const taxEur = Math.max(0, grossEur) * taxRate;
+  const netEur = grossEur - taxEur;
+  return {
+    plan, priceEur, apiCostEur, paymentFeeEur,
+    grossEur, grossPct: priceEur > 0 ? Math.round((grossEur / priceEur) * 100) : 0,
+    taxEur, netEur, netPct: priceEur > 0 ? Math.round((netEur / priceEur) * 100) : 0,
+  };
 }
