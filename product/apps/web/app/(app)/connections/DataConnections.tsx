@@ -10,7 +10,7 @@ const primary = { padding: '9px 15px', borderRadius: 999, border: 'none', backgr
 const ghost = { padding: '9px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' } as const;
 const eur = (n: number, c?: string) => `${n.toLocaleString('fr-FR')} ${c || '€'}`;
 
-export function DataConnections({ initial, brandName }: { initial: ConnectionState | null; brandName: string | null }) {
+export function DataConnections({ initial, brandName, metaOAuth = false }: { initial: ConnectionState | null; brandName: string | null; metaOAuth?: boolean }) {
   const router = useRouter();
   const [state, setState] = useState(initial);
   const refresh = () => router.refresh();
@@ -22,7 +22,7 @@ export function DataConnections({ initial, brandName }: { initial: ConnectionSta
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14, marginBottom: 28 }}>
       <ShopifyCard state={state} setState={setState} refresh={refresh} />
-      <MetaCard state={state} setState={setState} refresh={refresh} />
+      <MetaCard state={state} setState={setState} refresh={refresh} oauth={metaOAuth} />
     </div>
   );
 }
@@ -104,7 +104,7 @@ function ShopifyCard({ state, setState, refresh }: { state: ConnectionState | nu
   );
 }
 
-function MetaCard({ state, setState, refresh }: { state: ConnectionState | null; setState: (s: ConnectionState) => void; refresh: () => void }) {
+function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState | null; setState: (s: ConnectionState) => void; refresh: () => void; oauth?: boolean }) {
   const mt = state?.meta;
   const [acct, setAcct] = useState(mt?.adAccountId ?? '');
   const [token, setToken] = useState('');
@@ -133,6 +133,14 @@ function MetaCard({ state, setState, refresh }: { state: ConnectionState | null;
     <Wrap color="#0668E1" glyph="f" title="Meta Ads · performance" badge={mt?.connected ? connectedBadge : undefined}>
       {!mt?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
+          {oauth && (
+            <>
+              <a href="/api/oauth/meta" style={{ ...primary, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⚡ Connexion en un clic (OAuth)</a>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 0' }}>
+                <span style={{ height: 1, flex: 1, background: 'var(--line)' }} /><span style={{ fontSize: 11, color: 'var(--muted)' }}>ou par token</span><span style={{ height: 1, flex: 1, background: 'var(--line)' }} />
+              </div>
+            </>
+          )}
           <div><label style={lbl}>ID compte publicitaire</label><input value={acct} onChange={(e) => setAcct(e.target.value)} placeholder="act_1234567890" style={fld} /></div>
           <div><label style={lbl}>Token d'accès <span style={{ color: 'var(--muted)' }}>· System User (BM)</span></label><input value={token} onChange={(e) => setToken(e.target.value)} placeholder="EAAB••••••••" style={fld} /></div>
           <button type="button" onClick={connect} disabled={!!busy} style={primary}>{busy === 'connect' ? 'Test…' : 'Connecter'}</button>
