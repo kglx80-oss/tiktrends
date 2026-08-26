@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from 'react';
 import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
 import type { FalAspect } from '@tiktrends/integrations';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
+import { DropZone } from '../../../../components/DropZone';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -84,6 +85,14 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       setUploadedUri(uri);
       setImageUrl('');
     } catch (err) { setError((err as Error).message); }
+  }
+
+  function onDropImages(uris: string[]) {
+    const uri = uris[0];
+    if (!uri) return;
+    setError(''); setNotice('');
+    if (/^data:/.test(uri)) { setUploadedUri(uri); setImageUrl(''); }
+    else { setImageUrl(uri); setUploadedUri(''); }
   }
 
   function saveForProduct() {
@@ -167,8 +176,8 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         </div>
 
         {mode === 'i2i' && (
-          <div style={{ marginBottom: 12, padding: 14, borderRadius: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
-            <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· on garde ton vrai packaging, on ne change que la scène (Kontext)</span></label>
+          <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer la photo produit" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
+            <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· on garde ton vrai packaging, on ne change que la scène (Kontext) · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une photo</b></span></label>
 
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               {/* Aperçu : upload en cours, sinon photo déjà enregistrée sur le produit */}
@@ -207,7 +216,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 </details>
               </div>
             </div>
-          </div>
+          </DropZone>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
