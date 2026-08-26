@@ -2,7 +2,8 @@
 
 import { and, desc, eq, or, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl } from '@tiktrends/integrations';
+import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
+import { decryptSecret } from '../../lib/secrets';
 import { anthropicFromEnv, describeAssetImage } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -242,20 +243,53 @@ export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: t
  * (images de la marque + images communes à l'espace), dédiées à l'IA (use_for_ai).
  * Sert à ce que « quand c'est rempli, l'IA s'en serve forcément ».
  */
+/**
+ * Convertit des lignes d'assets en URLs exploitables PAR L'IA (Fal).
+ * Une image Drive privée n'est pas récupérable par Fal : on la télécharge et on
+ * l'inline en data URI (comme les photos uploadées). Les images déjà publiques (bucket,
+ * URL externe) passent telles quelles. Ce qu'on ne peut pas résoudre est ignoré (jamais bloquant).
+ */
+async function toAiImageUrls(workspaceId: string, rows: Array<{ url: string; externalId: string | null; mimeType: string | null }>): Promise<string[]> {
+  const needsDrive = rows.some((r) => r.url && isPrivateDriveUrl(r.url) && r.externalId);
+  let token: string | null = null;
+  if (needsDrive && db) {
+    const [w] = await db.select({ tok: schema.workspaces.driveRefreshToken }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
+    const rt = decryptSecret(w?.tok);
+    if (rt) { try { token = await googleAccessToken(rt); } catch { token = null; } }
+  }
+  const out: string[] = [];
+  for (const r of rows) {
+    if (!r.url) continue;
+    if (isPrivateDriveUrl(r.url)) {
+      if (r.externalId && token) {
+        try {
+          const bytes = await driveDownload(token, r.externalId);
+          if (bytes.length <= 15_000_000) out.push(`data:${r.mimeType || 'image/jpeg'};base64,${bytes.toString('base64')}`);
+        } catch { /* image non résolue : ignorée */ }
+      }
+      // sinon : on ignore (Fal ne peut pas récupérer un lien Drive privé)
+    } else {
+      out.push(r.url);
+    }
+  }
+  return out;
+}
+
 /** Résout des URLs d'images de la bibliothèque à partir d'IDs (sélection explicite). */
 export async function resolveAssetImageUrls(workspaceId: string, ids: string[], limit = 6): Promise<string[]> {
   if (!db || !ids.length) return [];
-  const rows = await db.select({ id: schema.assets.id, url: schema.assets.url, kind: schema.assets.kind })
+  const rows = await db.select({ id: schema.assets.id, url: schema.assets.url, externalId: schema.assets.externalId, mimeType: schema.assets.mimeType })
     .from(schema.assets)
     .where(and(eq(schema.assets.workspaceId, workspaceId), eq(schema.assets.kind, 'image')))
     .limit(400);
   const set = new Set(ids);
-  return rows.filter((r) => set.has(r.id) && r.url).map((r) => r.url).slice(0, limit);
+  const picked = rows.filter((r) => set.has(r.id) && r.url).slice(0, limit);
+  return toAiImageUrls(workspaceId, picked);
 }
 
 export async function listBrandAssetImageUrls(workspaceId: string, brandId: string, limit = 4): Promise<string[]> {
   if (!db) return [];
-  const rows = await db.select({ url: schema.assets.url })
+  const rows = await db.select({ url: schema.assets.url, externalId: schema.assets.externalId, mimeType: schema.assets.mimeType })
     .from(schema.assets)
     .where(and(
       eq(schema.assets.workspaceId, workspaceId),
@@ -265,5 +299,5 @@ export async function listBrandAssetImageUrls(workspaceId: string, brandId: stri
     ))
     .orderBy(desc(schema.assets.createdAt))
     .limit(limit);
-  return rows.map((r) => r.url).filter(Boolean);
+  return toAiImageUrls(workspaceId, rows);
 }
