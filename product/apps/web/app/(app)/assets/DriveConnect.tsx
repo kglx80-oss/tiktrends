@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { listDriveFoldersAction, setDriveFolderAction, syncDriveNowAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
+import { GoogleDriveIcon } from '../../../components/BrandIcons';
 
 type Folder = { id: string; name: string };
 
@@ -124,7 +125,7 @@ export function DriveConnect({ state }: { state: DriveState }) {
 function Head() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 16 }}>🟢</span>
+      <GoogleDriveIcon size={19} />
       <b style={{ fontSize: 14, color: 'var(--ink)' }}>Google Drive · connexion automatique</b>
       <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 8px', borderRadius: 999, color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>ADMIN+</span>
     </div>
