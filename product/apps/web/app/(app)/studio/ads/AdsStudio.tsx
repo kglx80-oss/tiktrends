@@ -76,7 +76,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [personaId, setPersonaId] = useState('');
   const [objective, setObjective] = useState('Ventes');
   const [offer, setOffer] = useState('');
-  const [templates, setTemplates] = useState<AdTemplate[]>(['problem_solution', 'before_after', 'testimonial', 'benefits']);
+  const [templates, setTemplates] = useState<AdTemplate[]>([]);
   const [angle, setAngle] = useState('');
   const [universe, setUniverse] = useState('auto');
   const [count, setCount] = useState(4);
