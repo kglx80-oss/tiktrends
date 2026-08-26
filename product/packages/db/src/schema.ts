@@ -15,12 +15,16 @@ export const generationKindEnum = pgEnum('generation_kind', ['script', 'copy', '
 export const channelEnum = pgEnum('agent_channel', ['web', 'slack', 'whatsapp']);
 
 /* ============================ CORE ============================ */
+export const accountKindEnum = pgEnum('account_kind', ['normal', 'beta', 'staff']);
 export const workspaces = pgTable('workspaces', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   plan: text('plan').notNull().default('starter'),
   creditsBalance: integer('credits_balance').notNull().default(0),
   whiteLabel: jsonb('white_label_json'),
+  accountKind: accountKindEnum('account_kind').notNull().default('normal'), // normal / beta / staff
+  trialCredits: integer('trial_credits').notNull().default(0),               // crédits de test accordés
+  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),           // fin de la période d'essai
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

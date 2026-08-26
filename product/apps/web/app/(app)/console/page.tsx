@@ -9,6 +9,8 @@ import { isFounder } from '../../../lib/founder';
 import { computePlatformMetrics } from '../../../lib/platform-metrics';
 import { getPlanConfig } from '../../../lib/settings';
 import { updatePlanConfigAction } from '../../actions/platform';
+import { grantTestPackAction, revokeTrialAction } from '../../actions/beta';
+import { trialStatus, TRIAL_DEFAULT_CREDITS, TRIAL_DEFAULT_DAYS } from '../../../lib/trial';
 import { input, Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 
@@ -61,6 +63,13 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
     } catch { /* ignore */ }
   }
 
+  // Comptes de test / beta (fondateur) : tous les espaces avec statut d'essai.
+  let betaRows: Array<{ id: string; name: string; plan: string; creditsBalance: number; accountKind: string; trialEndsAt: Date | null }> = [];
+  if (db && founder) {
+    betaRows = await db.select({ id: schema.workspaces.id, name: schema.workspaces.name, plan: schema.workspaces.plan, creditsBalance: schema.workspaces.creditsBalance, accountKind: schema.workspaces.accountKind, trialEndsAt: schema.workspaces.trialEndsAt })
+      .from(schema.workspaces).orderBy(desc(schema.workspaces.createdAt)).limit(60);
+  }
+
   // Répartition des accès par rôle (équipes / admins / clients).
   const ROLE_GROUPS: Array<{ role: Role; label: string }> = [
     { role: 'owner', label: 'Propriétaire' }, { role: 'admin', label: 'Administrateurs' },
@@ -85,6 +94,8 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
       </PageInfo>
 
       {ok === 'config' && <Msg kind="ok">Tarifs et allocations mis à jour.</Msg>}
+      {ok === 'testpack' && <Msg kind="ok">Crédits de test accordés.</Msg>}
+      {ok === 'revoked' && <Msg kind="ok">Période de test terminée.</Msg>}
       {e === 'forbidden' && <Msg kind="err">Action réservée au fondateur.</Msg>}
 
       {/* ============ VUE PLATEFORME (fondateur) ============ */}
@@ -175,6 +186,74 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                 <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Enregistrer les tarifs</button>
               </div>
             </form>
+          </div>
+        </section>
+      )}
+
+      {/* ============ COMPTES DE TEST & BETA (fondateur) ============ */}
+      {founder && (
+        <section style={{ marginBottom: 34 }}>
+          <h2 style={sectionH}>Comptes de test & beta</h2>
+          <p style={{ margin: '-6px 0 14px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 720 }}>
+            Provisionne les premiers accès (membres, staff, beta testeurs) : accorde des <b>crédits de test</b> valables une <b>période</b> donnée. À l'échéance, tu peux couper l'accès en un clic.
+          </p>
+
+          {/* Provisionner */}
+          <form action={grantTestPackAction} style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: '2 1 200px' }}>
+              <label style={{ ...lblC }}>Espace</label>
+              <select name="workspaceId" style={{ ...input, padding: '9px 10px' }}>
+                {betaRows.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </div>
+            <div><label style={lblC}>Crédits de test</label><input name="credits" type="number" defaultValue={TRIAL_DEFAULT_CREDITS} style={{ ...input, width: 130, padding: '9px 10px' }} /></div>
+            <div><label style={lblC}>Durée (jours)</label><input name="days" type="number" defaultValue={TRIAL_DEFAULT_DAYS} style={{ ...input, width: 110, padding: '9px 10px' }} /></div>
+            <div><label style={lblC}>Type</label>
+              <select name="kind" defaultValue="beta" style={{ ...input, width: 130, padding: '9px 10px' }}>
+                <option value="beta">Beta testeur</option><option value="staff">Staff</option><option value="normal">Normal</option>
+              </select>
+            </div>
+            <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Accorder</button>
+          </form>
+
+          {/* Table des comptes */}
+          <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 640 }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                    <th style={th}>Espace</th><th style={th}>Type</th><th style={th}>Plan</th><th style={th}>Crédits</th><th style={th}>Essai</th><th style={th}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {betaRows.map((r) => {
+                    const ts = trialStatus(r);
+                    const kindColor = r.accountKind === 'beta' ? '#7aa2ff' : r.accountKind === 'staff' ? '#c9b8ff' : 'var(--muted)';
+                    return (
+                      <tr key={r.id} style={{ borderTop: '1px solid var(--line)' }}>
+                        <td style={{ ...td, fontWeight: 700, color: 'var(--ink)' }}>{r.name}</td>
+                        <td style={td}><span style={{ fontSize: 11, fontWeight: 800, color: kindColor }}>{r.accountKind === 'normal' ? '—' : r.accountKind}</span></td>
+                        <td style={td}>{PLAN_LABEL[r.plan as Plan] ?? r.plan}</td>
+                        <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{r.creditsBalance.toLocaleString('fr-FR')}</td>
+                        <td style={td}>
+                          {ts.daysLeft == null ? <span style={{ color: 'var(--muted)' }}>—</span>
+                            : ts.expired ? <span style={{ fontSize: 11, fontWeight: 700, color: '#ff6b6b' }}>Expiré</span>
+                            : <span style={{ fontSize: 11, fontWeight: 700, color: ts.daysLeft <= 3 ? '#f5a623' : '#18cc8c' }}>{ts.daysLeft} j restants</span>}
+                        </td>
+                        <td style={{ ...td, textAlign: 'right' }}>
+                          {ts.isTrial && !ts.expired && (
+                            <form action={revokeTrialAction} style={{ display: 'inline' }}>
+                              <input type="hidden" name="workspaceId" value={r.id} />
+                              <button style={{ fontSize: 11, fontWeight: 700, color: '#ff9db0', background: 'transparent', border: '1px solid rgba(255,77,109,.3)', borderRadius: 999, padding: '4px 11px', cursor: 'pointer' }}>Couper</button>
+                            </form>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       )}
@@ -309,5 +388,6 @@ function ManageCard({ href, title, desc }: { href: string; title: string; desc: 
 }
 
 const sectionH = { margin: '0 0 14px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' } as const;
+const lblC = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
 const th = { padding: '9px 16px', fontWeight: 700 } as const;
 const td = { padding: '10px 16px' } as const;
