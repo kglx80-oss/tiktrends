@@ -26,8 +26,15 @@ export interface AssetItem {
 
 const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
 
+/** Vrai si l'URL est un lien Drive privé (non affichable directement dans une balise <img>). */
+function isPrivateDriveUrl(url: string): boolean {
+  return /drive\.google\.com|googleusercontent\.com/.test(url);
+}
+
 function toItem(r: typeof schema.assets.$inferSelect): AssetItem {
-  return { id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source, url: r.url, brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes, tags: r.tags ?? [], createdAt: r.createdAt.toISOString() };
+  // Image Drive privée : servie via notre proxy authentifié (sinon l'aperçu casse).
+  const url = r.kind === 'image' && r.source === 'drive' && isPrivateDriveUrl(r.url) ? `/api/drive-img/${r.id}` : r.url;
+  return { id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source, url, brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes, tags: r.tags ?? [], createdAt: r.createdAt.toISOString() };
 }
 
 /** Liste les assets de l'espace (optionnellement filtrés). */
