@@ -46,7 +46,12 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const planEco = plans.map((p) => analyzePlan(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], markup));
   const taxRate = corporateTaxRate();
   const planNet = plans.filter((p) => PLAN_PRICE[p] > 0).map((p) => analyzePlanNet(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], markup, taxRate));
-  const eur = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: n < 1 ? 3 : 2, maximumFractionDigits: 3 }) + ' €';
+  // Décimales par palier : petits coûts (<1 €) au centime/millime, montants courants à 2 décimales,
+  // gros montants (≥100 €) sans décimale — évite l'illusion « 33,333 € » (= 33,33 €).
+  const eur = (n: number) => {
+    const d = n < 1 ? 3 : n >= 100 ? 0 : 2;
+    return n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+  };
   // Rentabilité « chef d'entreprise » : marge plancher (pire cas) par formule + corrections de barème.
   const TARGET_MARGIN = 70;
   const planRisk = plans.filter((p) => PLAN_PRICE[p] > 0).map((p) => analyzePlanRisk(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], TARGET_MARGIN));
