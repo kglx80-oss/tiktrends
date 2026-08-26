@@ -9,3 +9,4 @@ export * from './fal';
 export * from './storage';
 export * from './shopify-admin';
 export * from './meta-insights';
+export * from './secrets';
