@@ -55,6 +55,9 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
   const [msg, setMsg] = useState('');
   const [progress, setProgress] = useState<{ name: string; pct: number } | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showDrive, setShowDrive] = useState(false);
+  const [driveText, setDriveText] = useState('');
+  const [driveKind, setDriveKind] = useState<AssetKind>('video');
   const [imp, setImp] = useState({ name: '', url: '', kind: 'video' as AssetKind });
   const [search, setSearch] = useState('');
   const [tagging, setTagging] = useState<string | 'bulk' | ''>('');
@@ -141,6 +144,23 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
     refresh();
   }
 
+  async function importDrive() {
+    if (busy) return;
+    const links = driveText.split('\n').map((l) => l.trim()).filter((l) => /^https?:\/\//.test(l));
+    if (!links.length) { setMsg('Colle au moins un lien Google Drive valide.'); return; }
+    setMsg(''); setBusy(true);
+    let ok = 0; const errs: string[] = [];
+    for (const url of links) {
+      const name = decodeURIComponent(url.split('/').filter(Boolean).slice(-2, -1)[0] || 'Drive');
+      const r = await importAssetAction({ name, url, kind: driveKind, common });
+      if (r.error) errs.push(r.error); else ok++;
+    }
+    setBusy(false);
+    setMsg(errs.length ? `${ok} importé(s). ${errs.length} échec(s).` : `${ok} fichier(s) importé(s) depuis Drive.`);
+    setDriveText(''); setShowDrive(false);
+    refresh();
+  }
+
   async function toggleAi(a: AssetItem) {
     setAssets((s) => s.map((x) => x.id === a.id ? { ...x, useForAi: !x.useForAi } : x));
     await toggleAssetAiAction({ id: a.id, useForAi: !a.useForAi });
@@ -158,7 +178,10 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
         <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>
           {busy ? 'Traitement…' : storageEnabled ? '⬆ Téléverser des fichiers' : '⬆ Téléverser des images'}
         </button>
-        <button type="button" onClick={() => setShowImport((v) => !v)} style={ghost}>🔗 Importer par lien</button>
+        <button type="button" onClick={() => { setShowDrive((v) => !v); setShowImport(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          <span aria-hidden style={{ fontSize: 14 }}>🟢</span> Google Drive
+        </button>
+        <button type="button" onClick={() => { setShowImport((v) => !v); setShowDrive(false); }} style={ghost}>🔗 Importer par lien</button>
         {progress && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)' }}>
             <span style={{ width: 90, height: 6, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden' }}>
@@ -173,6 +196,31 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
         </label>
         {msg && <span style={{ fontSize: 12.5, color: 'var(--ink-2)', flexBasis: '100%' }}>{msg}</span>}
       </div>
+
+      {/* Google Drive · import de liens (fichiers ou dossier partagé) */}
+      {showDrive && (
+        <div style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 16 }}>🟢</span>
+            <b style={{ fontSize: 14, color: 'var(--ink)' }}>Importer depuis Google Drive</b>
+          </div>
+          <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            Colle un ou plusieurs <b>liens de partage Drive</b> (un par ligne). Assure-toi que le partage est réglé sur
+            « Tous les utilisateurs disposant du lien ». Les fichiers deviennent des assets utilisables par l'IA.
+          </p>
+          <textarea value={driveText} onChange={(e) => setDriveText(e.target.value)} placeholder={'https://drive.google.com/file/d/…\nhttps://drive.google.com/file/d/…'}
+            style={{ ...fld, minHeight: 90, resize: 'vertical', fontFamily: 'inherit' }} />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12, color: 'var(--ink-2)' }}>Type&nbsp;
+              <select value={driveKind} onChange={(e) => setDriveKind(e.target.value as AssetKind)} style={{ ...fld, width: 130, padding: '7px 9px', display: 'inline-block' }}>
+                <option value="video">Vidéo</option><option value="image">Image</option><option value="audio">Audio</option><option value="other">Autre</option>
+              </select>
+            </label>
+            <button type="button" onClick={importDrive} disabled={busy} style={primary}>{busy ? 'Import…' : 'Importer depuis Drive'}</button>
+          </div>
+          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>Connexion Drive automatique (dossier synchronisé en continu) : bientôt · en attendant, l'import par lien est immédiat.</p>
+        </div>
+      )}
 
       {/* Import par lien */}
       {showImport && (
