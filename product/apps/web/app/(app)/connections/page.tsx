@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
+import { getConnectionState } from '../../actions/connections';
+import { DataConnections } from './DataConnections';
 import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
@@ -85,6 +87,7 @@ export default async function ConnectionsPage() {
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
   const brand = await getActiveBrand(s.workspaceId);
+  const connState = await getConnectionState();
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1040, margin: '0 auto' }}>
@@ -102,11 +105,10 @@ export default async function ConnectionsPage() {
         créas dans le Radar). La connexion se fait en OAuth sécurisé ; l'activation arrive marque par marque.
       </PageInfo>
 
-      {/* Connectés */}
-      <h2 style={h2}>Connectés</h2>
-      <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: '18px', color: 'var(--muted)', fontSize: 13, marginBottom: 26 }}>
-        Aucun compte connecté pour {brand ? <b>{brand.name}</b> : 'cette vue'} pour l'instant. Branche-en un ci-dessous.
-      </div>
+      {/* Sources de données (réelles) · Shopify + Meta Ads pour la marque active */}
+      <h2 style={h2}>Sources de données <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· ventes & performance</span></h2>
+      <p style={{ margin: '2px 0 12px', fontSize: 12.5, color: 'var(--muted)' }}>Branche ta boutique Shopify et ton compte Meta Ads : les vraies données remontent et nourrissent l'analyse et Jarvis.</p>
+      <DataConnections initial={connState} brandName={brand?.name ?? null} />
 
       {/* Catalogue */}
       {CATS.map(({ cat, items }) => (

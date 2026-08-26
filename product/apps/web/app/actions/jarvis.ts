@@ -122,12 +122,22 @@ export async function trainJarvisAction(): Promise<{ learnings?: string; adsAnal
   const saved = await db.select({ snapshot: schema.savedAds.snapshot }).from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)).limit(20);
   for (const r of saved) { const t = textFromSnapshot(r.snapshot); if (t) ads.push({ body: t, daysRunning: 0 }); }
 
+  // 3) NOS vraies performances (Meta Ads) : nos créas qui convertissent = signal le plus fort.
+  const metaTop = (b.adsInsights as { topAds?: Array<{ name: string; roas: number; purchases: number }> } | null)?.topAds ?? [];
+  for (const a of metaTop.slice(0, 8)) {
+    if (a.roas > 0) ads.push({ advertiser: b.name, body: `NOTRE créa qui performe : « ${a.name} » · ROAS ${a.roas}x, ${a.purchases} achats.`, reach: Math.round(a.roas * 1000), daysRunning: 30 });
+  }
+  // Contexte produits qui vendent (Shopify).
+  const commerceTop = (b.commerceInsights as { topProducts?: Array<{ title: string; revenue: number }> } | null)?.topProducts ?? [];
+  const bestSellers = commerceTop.slice(0, 5).map((p) => p.title);
+
   const uniq = ads.filter((a) => (a.body || '').trim().length > 8);
   if (uniq.length < 3) return { error: apiKey ? "Pas assez de pubs performantes trouvées. Ajoute des concurrents à la marque, ou sauvegarde des pubs dans la Veille." : "Veille non branchée (clé serveur) et trop peu de pubs sauvegardées pour entraîner Jarvis." };
 
   let learnings: string;
   try {
-    learnings = await distillWinningPatterns(client, { brand: b.name, category: b.category ?? b.industry ?? undefined, audience: b.audience ?? undefined }, uniq);
+    const cat = [b.category ?? b.industry ?? undefined, bestSellers.length ? `Produits phares (à mettre en avant) : ${bestSellers.join(', ')}` : undefined].filter(Boolean).join('. ') || undefined;
+    learnings = await distillWinningPatterns(client, { brand: b.name, category: cat, audience: b.audience ?? undefined }, uniq);
   } catch (e) {
     return { error: 'Analyse impossible : ' + (e as Error).message };
   }
