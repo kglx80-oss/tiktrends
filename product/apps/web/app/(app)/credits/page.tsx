@@ -7,6 +7,7 @@ import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '..
 import { grantCreditsAction, rechargeAllocationAction } from '../../actions/credits';
 import { input, btn, btnGhost, panel, Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
+import { trialStatus } from '../../../lib/trial';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,10 +28,12 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const isOwner = s.role === 'owner';
 
   let balance = 0;
+  let trialEndsAt: Date | null = null; let accountKind = 'normal';
   let ledger: Array<typeof schema.creditLedger.$inferSelect> = [];
   if (db) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+    const [w] = await db.select({ c: schema.workspaces.creditsBalance, t: schema.workspaces.trialEndsAt, k: schema.workspaces.accountKind }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
     balance = w?.c ?? 0;
+    trialEndsAt = w?.t ?? null; accountKind = w?.k ?? 'normal';
     ledger = await db.select().from(schema.creditLedger).where(eq(schema.creditLedger.workspaceId, s.workspaceId)).orderBy(desc(schema.creditLedger.createdAt)).limit(12);
   }
   const alloc = PLAN_CREDITS[s.plan as Plan] ?? 0;
@@ -67,6 +70,23 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
       {e && ERR[e] && <Msg kind="err">{ERR[e]}</Msg>}
+
+      {/* Bandeau période d'essai / compte de test */}
+      {(() => {
+        const ts = trialStatus({ trialEndsAt, accountKind });
+        if (!ts.isTrial || ts.daysLeft == null) return null;
+        const warn = ts.expired || ts.daysLeft <= 3;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${warn ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`, background: warn ? 'rgba(245,166,35,.08)' : 'var(--surface)', borderRadius: 14, padding: '12px 16px', marginBottom: 16 }}>
+            <span style={{ fontSize: 18 }}>{ts.expired ? '⌛' : '🎟️'}</span>
+            <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 700 }}>
+              {accountKind === 'staff' ? 'Compte staff' : 'Compte de test / beta'}
+              {ts.expired ? ' · période terminée' : ` · ${ts.daysLeft} jour${ts.daysLeft > 1 ? 's' : ''} restant${ts.daysLeft > 1 ? 's' : ''}`}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>{ts.expired ? 'Contacte-nous pour continuer.' : 'Profite de tes crédits de test pour explorer TikTrends.'}</span>
+          </div>
+        );
+      })()}
 
       {/* Solde + allocation */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
