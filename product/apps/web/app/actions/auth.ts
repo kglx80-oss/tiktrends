@@ -4,8 +4,9 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { db, schema } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
-import { hashPassword, verifyPassword, createSession, destroySession } from '../../lib/auth';
+import { hashPassword, verifyPassword, createSession, destroySession, signupOpen } from '../../lib/auth';
 import { hit, reset } from '../../lib/rate-limit';
+import { TRIAL_DEFAULT_CREDITS, TRIAL_DEFAULT_DAYS } from '../../lib/trial';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
@@ -14,8 +15,8 @@ async function clientIp(): Promise<string> {
   return (h.get('x-forwarded-for') || '').split(',')[0]!.trim() || 'unknown';
 }
 
-// Inscription = amorçage du 1er compte propriétaire uniquement. Ensuite, l'accès
-// se fait sur invitation (/invite/[token]) · voir actions/invites.ts.
+// Inscription self-service : chacun crée son espace (propriétaire) sans invitation.
+// Fermable via SIGNUP_OPEN=false. Rejoindre une équipe existante = invitation (/invite/[token]).
 export async function signupAction(formData: FormData): Promise<void> {
   const email = norm(formData.get('email')).toLowerCase();
   const password = norm(formData.get('password'));
@@ -25,16 +26,18 @@ export async function signupAction(formData: FormData): Promise<void> {
   if (!email || !password) redirect('/signup?e=missing');
   if (password.length < 8) redirect('/signup?e=weak');
   if (!db) redirect('/signup?e=server');
+  if (!signupOpen()) redirect('/signup?e=closed');
 
-  // Verrou : si un compte existe déjà, l'inscription ouverte est fermée.
-  const [firstUser] = await db.select({ id: schema.users.id }).from(schema.users).limit(1);
-  if (firstUser) redirect('/signup?e=closed');
+  // Anti-abus : borne le nombre de créations d'espace par IP.
+  if (!hit(`signup:${await clientIp()}`, 5, 60 * 60 * 1000).ok) redirect('/signup?e=throttled');
 
   const [existing] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
   if (existing) redirect('/signup?e=exists');
 
   const passwordHash = await hashPassword(password);
-  const [ws] = await db.insert(schema.workspaces).values({ name: workspaceName }).returning();
+  // Nouvel espace + période d'essai (crédits de test) pour démarrer sans friction.
+  const trialEndsAt = new Date(Date.now() + TRIAL_DEFAULT_DAYS * 86400_000);
+  const [ws] = await db.insert(schema.workspaces).values({ name: workspaceName, creditsBalance: TRIAL_DEFAULT_CREDITS, trialCredits: TRIAL_DEFAULT_CREDITS, trialEndsAt }).returning();
   const [user] = await db.insert(schema.users).values({ email, name: name || null, passwordHash }).returning();
   if (!ws || !user) redirect('/signup?e=server');
   await db.insert(schema.workspaceMembers).values({ workspaceId: ws.id, userId: user.id, role: 'owner' });

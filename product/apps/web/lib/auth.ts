@@ -21,6 +21,14 @@ export interface Session {
 }
 
 /* ----------------------------- Mots de passe ----------------------------- */
+/**
+ * Inscription self-service ouverte par défaut (chacun crée son espace, sans invitation).
+ * Fermable via SIGNUP_OPEN=false (accès alors uniquement sur invitation).
+ */
+export function signupOpen(): boolean {
+  return process.env.SIGNUP_OPEN !== 'false';
+}
+
 export async function hashPassword(pw: string): Promise<string> {
   return bcrypt.hash(pw, 10);
 }
