@@ -100,6 +100,41 @@ function NavLink({ it, active }: { it: NavItem; active: boolean }) {
     : <Link href={it.href} style={{ textDecoration: 'none' }}>{inner}</Link>;
 }
 
+interface Branch { head: NavItem; subs: NavItem[] }
+/** Reconstitue l'arborescence parent → sous-items à partir de la liste plate (ordre : parent puis ses subs). */
+function branchesOf(items: NavItem[]): Branch[] {
+  const out: Branch[] = [];
+  for (const it of items) {
+    if (it.isSub && out.length) out[out.length - 1]!.subs.push(it);
+    else out.push({ head: it, subs: [] });
+  }
+  return out;
+}
+
+/** Menu dépliable : parent + chevron, sous-items révélés au clic. Ouvert d'office si la branche est active. */
+function NavBranch({ b, isActive, open, onToggle }: { b: Branch; isActive: (href: string, isSub: boolean) => boolean; open: boolean; onToggle: () => void }) {
+  const headActive = isActive(b.head.href, false);
+  if (!b.subs.length) return <NavLink it={b.head} active={headActive} />;
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <div style={{ flex: 1, minWidth: 0 }}><NavLink it={b.head} active={headActive} /></div>
+        <button type="button" onClick={onToggle} aria-label={open ? 'Replier' : 'Déplier'} style={{
+          width: 26, height: 26, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', borderRadius: 8,
+        }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+      </div>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginLeft: 4, borderLeft: '1px solid var(--line)', paddingLeft: 2 }}>
+          {b.subs.map((su) => <NavLink key={su.key} it={su} active={isActive(su.href, true)} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppShell(props: Props) {
   // useSearchParams (pour l'état actif des onglets de marque) nécessite une frontière Suspense.
   return (
@@ -117,6 +152,7 @@ function AppShellInner(props: Props) {
   const pathname = usePathname();
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
 
   // État actif d'un item de nav : gère les routes imbriquées et l'onglet (?tab=) des marques.
@@ -152,7 +188,14 @@ function AppShellInner(props: Props) {
           {nav.map((grp) => (
             <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>{grp.group}</div>
-              {grp.items.map((it) => <NavLink key={it.key} it={it} active={isNavActive(it.href, it.isSub)} />)}
+              {branchesOf(grp.items).map((b) => {
+                const branchActive = isNavActive(b.head.href, false) || b.subs.some((su) => isNavActive(su.href, true));
+                const open = expanded[b.head.key] ?? branchActive;
+                return (
+                  <NavBranch key={b.head.key} b={b} isActive={isNavActive} open={open}
+                    onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? branchActive) }))} />
+                );
+              })}
             </div>
           ))}
         </nav>
