@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
+import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -27,7 +27,7 @@ function loadPicker(): Promise<any> {
 export function DriveConnect({ state }: { state: DriveState }) {
   const router = useRouter();
   const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState<'' | 'pick' | 'sync'>('');
+  const [busy, setBusy] = useState<'' | 'pick' | 'sync' | 'files'>('');
   const [, startTransition] = useTransition();
   const refresh = () => startTransition(() => router.refresh());
 
@@ -68,6 +68,47 @@ export function DriveConnect({ state }: { state: DriveState }) {
     if (r.error) { setMsg(r.error); return; }
     refresh();
     void doSync();
+  }
+
+  // Mode fiable : sélection directe de fichiers (marche même pour « Partagé avec moi »).
+  async function openFilePicker() {
+    if (busy) return;
+    setBusy('files'); setMsg('');
+    try {
+      const cfg = await getDrivePickerConfigAction();
+      if (cfg.error || !cfg.token) { setMsg(cfg.error || 'Connexion Drive requise.'); setBusy(''); return; }
+      const picker = await loadPicker();
+      const mimes = 'image/png,image/jpeg,image/webp,image/gif,image/avif,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/wav';
+      const mine = new picker.DocsView(picker.ViewId.DOCS).setIncludeFolders(true).setSelectFolderEnabled(false).setMimeTypes(mimes);
+      const shared = new picker.DocsView(picker.ViewId.DOCS).setOwnedByMe(false).setIncludeFolders(true).setSelectFolderEnabled(false).setMimeTypes(mimes);
+      const builder = new picker.PickerBuilder()
+        .enableFeature(picker.Feature.MULTISELECT_ENABLED)
+        .enableFeature(picker.Feature.SUPPORT_DRIVES)
+        .setDeveloperKey(cfg.apiKey)
+        .setOAuthToken(cfg.token)
+        .addView(mine)
+        .addView(shared)
+        .setTitle('Choisis les fichiers à importer (multi-sélection)')
+        .setCallback(async (data: any) => {
+          if (data.action === picker.Action.PICKED) {
+            const files = (data.docs || []).map((d: any) => ({ id: d.id, name: d.name, mimeType: d.mimeType, sizeBytes: d.sizeBytes }));
+            await syncPickedFiles(files);
+          }
+          if (data.action === picker.Action.CANCEL) setBusy('');
+        });
+      if (cfg.appId) builder.setAppId(cfg.appId);
+      builder.build().setVisible(true);
+    } catch (e) { setMsg((e as Error).message); setBusy(''); }
+  }
+
+  async function syncPickedFiles(files: Array<{ id: string; name: string; mimeType: string; sizeBytes?: number }>) {
+    if (!files.length) { setBusy(''); return; }
+    setMsg(`Import de ${files.length} fichier(s)…`);
+    const r = await syncDriveFilesAction(files);
+    setBusy('');
+    if (r.error) { setMsg(r.error); return; }
+    setMsg(`${r.added ?? 0} fichier(s) importé(s)${r.skipped ? ` · ${r.skipped} déjà présent(s)` : ''}.`);
+    refresh();
   }
 
   async function doSync() {
@@ -128,21 +169,31 @@ export function DriveConnect({ state }: { state: DriveState }) {
             {state.syncedAt && <span style={{ color: 'var(--muted)' }}>· Dernière synchro {new Date(state.syncedAt).toLocaleString('fr-FR')}</span>}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-            {state.pickerReady ? (
+          {state.pickerReady ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              <button type="button" onClick={openFilePicker} disabled={!!busy} style={primary}>
+                {busy === 'files' ? 'Sélecteur…' : '✓ Choisir des fichiers'}
+              </button>
               <button type="button" onClick={openPicker} disabled={!!busy} style={ghost}>
                 {busy === 'pick' ? 'Sélecteur…' : state.folderId ? 'Changer de dossier' : 'Choisir un dossier'}
               </button>
-            ) : (
+              {state.folderId && (
+                <button type="button" onClick={doSync} disabled={!!busy} style={ghost}>
+                  {busy === 'sync' ? 'Synchro…' : '⟳ Synchroniser le dossier'}
+                </button>
+              )}
+              <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Déconnecter</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
               <span style={{ fontSize: 11.5, color: '#ffcf8f' }}>Sélecteur non configuré (GOOGLE_API_KEY / GOOGLE_APP_ID).</span>
-            )}
-            {state.folderId && (
-              <button type="button" onClick={doSync} disabled={!!busy} style={primary}>
-                {busy === 'sync' ? 'Synchro…' : '⟳ Synchroniser maintenant'}
-              </button>
-            )}
-            <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Déconnecter</button>
-          </div>
+              <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Déconnecter</button>
+            </div>
+          )}
+          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+            <b>Choisir des fichiers</b> = le plus fiable (marche aussi pour « Partagé avec moi » · multi-sélection).
+            <b> Choisir un dossier</b> = synchro auto d'un dossier que tu possèdes.
+          </p>
         </div>
       )}
       {msg && <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--ink-2)' }}>{msg}</p>}
