@@ -10,7 +10,7 @@ const primary = { padding: '9px 15px', borderRadius: 999, border: 'none', backgr
 const ghost = { padding: '9px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' } as const;
 const eur = (n: number, c?: string) => `${n.toLocaleString('fr-FR')} ${c || '€'}`;
 
-export function DataConnections({ initial, brandName, metaOAuth = false }: { initial: ConnectionState | null; brandName: string | null; metaOAuth?: boolean }) {
+export function DataConnections({ initial, brandName, metaOAuth = false, shopifyOAuth = false }: { initial: ConnectionState | null; brandName: string | null; metaOAuth?: boolean; shopifyOAuth?: boolean }) {
   const router = useRouter();
   const [state, setState] = useState(initial);
   const refresh = () => router.refresh();
@@ -21,7 +21,7 @@ export function DataConnections({ initial, brandName, metaOAuth = false }: { ini
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14, marginBottom: 28 }}>
-      <ShopifyCard state={state} setState={setState} refresh={refresh} />
+      <ShopifyCard state={state} setState={setState} refresh={refresh} oauth={shopifyOAuth} />
       <MetaCard state={state} setState={setState} refresh={refresh} oauth={metaOAuth} />
     </div>
   );
@@ -41,7 +41,7 @@ function Wrap({ color, glyph, title, badge, children }: { color: string; glyph: 
 }
 const connectedBadge = <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: '#18cc8c', background: 'rgba(24,204,140,.14)' }}>CONNECTÉ</span>;
 
-function ShopifyCard({ state, setState, refresh }: { state: ConnectionState | null; setState: (s: ConnectionState) => void; refresh: () => void }) {
+function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionState | null; setState: (s: ConnectionState) => void; refresh: () => void; oauth?: boolean }) {
   const sh = state?.shopify;
   const [domain, setDomain] = useState(sh?.domain ?? '');
   const [token, setToken] = useState('');
@@ -71,6 +71,16 @@ function ShopifyCard({ state, setState, refresh }: { state: ConnectionState | nu
       {!sh?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           <div><label style={lbl}>Domaine de la boutique</label><input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
+          {oauth && (
+            <>
+              <a href={/\.myshopify\.com/.test(domain) ? `/api/oauth/shopify?shop=${encodeURIComponent(domain.trim().replace(/^https?:\/\//, ''))}` : undefined}
+                onClick={(e) => { if (!/\.myshopify\.com/.test(domain)) { e.preventDefault(); setMsg('Renseigne d’abord ton domaine .myshopify.com.'); } }}
+                style={{ ...primary, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⚡ Connexion en un clic (OAuth)</a>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 0' }}>
+                <span style={{ height: 1, flex: 1, background: 'var(--line)' }} /><span style={{ fontSize: 11, color: 'var(--muted)' }}>ou par token</span><span style={{ height: 1, flex: 1, background: 'var(--line)' }} />
+              </div>
+            </>
+          )}
           <div><label style={lbl}>Token Admin API <span style={{ color: 'var(--muted)' }}>· app perso (shpat_…)</span></label><input value={token} onChange={(e) => setToken(e.target.value)} placeholder="shpat_••••••••" style={fld} /></div>
           <button type="button" onClick={connect} disabled={!!busy} style={primary}>{busy === 'connect' ? 'Test…' : 'Connecter'}</button>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>Shopify → Paramètres → Applications et canaux de vente → Développer des applications → créer une app, scopes lecture (orders, products), installer, copier le token Admin API.</p>
