@@ -18,6 +18,16 @@ function Copy({ text }: { text: string }) {
   );
 }
 
+/** Envoie un angle/hook directement au studio Pubs IA (pré-rempli comme angle). */
+function ToAds({ text }: { text: string }) {
+  return (
+    <a href={`/studio/ads?angle=${encodeURIComponent(text)}`} title="Créer la pub à partir de cet angle"
+      style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: '1px solid rgba(254,44,85,.35)', background: 'transparent', color: 'var(--accent-strong)', fontWeight: 700, cursor: 'pointer', flexShrink: 0, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+      ✨ Pubs IA
+    </a>
+  );
+}
+
 export function StudioClient({ hasKey, prefillProduct, prefillInspiration }: { hasKey: boolean; prefillProduct?: string; prefillInspiration?: string }) {
   const [state, formAction, pending] = useActionState<StudioState, FormData>(generateAction, {});
   const out = state.output;
@@ -57,14 +67,14 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration }: { h
             <section style={card}>
               <h2 style={h2}>Angles</h2>
               <div style={{ display: 'grid', gap: 8 }}>
-                {out.angles.map((a, i) => <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}><span style={{ fontSize: 13, color: 'var(--ink-2)', flex: 1 }}>• {a}</span><Copy text={a} /></div>)}
+                {out.angles.map((a, i) => <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}><span style={{ fontSize: 13, color: 'var(--ink-2)', flex: 1 }}>• {a}</span><ToAds text={a} /><Copy text={a} /></div>)}
               </div>
             </section>
 
             <section style={card}>
               <h2 style={h2}>Hooks (0-3 s)</h2>
               <div style={{ display: 'grid', gap: 8 }}>
-                {out.hooks.map((hk, i) => <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}><span style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600, flex: 1 }}>{hk}</span><Copy text={hk} /></div>)}
+                {out.hooks.map((hk, i) => <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}><span style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600, flex: 1 }}>{hk}</span><ToAds text={hk} /><Copy text={hk} /></div>)}
               </div>
             </section>
 

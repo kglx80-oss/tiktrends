@@ -16,10 +16,12 @@ import { PageInfo } from '../../../../components/PageInfo';
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
 
-export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
+export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
-  const initialMode = (await searchParams).mode === 'clone' ? 'clone' : 'brand';
+  const sp = await searchParams;
+  const initialMode = sp.mode === 'clone' ? 'clone' : 'brand';
+  const initialAngle = (sp.angle ?? '').slice(0, 300);
   if (!canAccess({ role: s.role, plan: s.plan }, feature)) {
     const why = denyReason({ role: s.role, plan: s.plan }, feature);
     return (
@@ -89,7 +91,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} />
     </main>
   );
 }
