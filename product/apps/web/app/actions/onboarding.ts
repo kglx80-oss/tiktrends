@@ -5,6 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { setActiveBrand } from './brands';
+import { klaviyoOnboarded } from '../../lib/klaviyo';
 
 export interface OnboardingData {
   profile?: string;       // brand | agency | freelancer | ai_artist | other
@@ -48,5 +49,14 @@ export async function saveOnboardingAction(data: OnboardingData): Promise<{ ok?:
       if (b) { brandId = b.id; try { await setActiveBrand(b.id); } catch { /* cookie best-effort */ } }
     }
   }
+  // Synchro marketing Klaviyo · enrichit le profil avec les données d'onboarding (best-effort).
+  try {
+    await klaviyoOnboarded({
+      email: s.user.email, name: s.user.name,
+      profile: payload.profile ?? undefined, aiLevel: payload.aiLevel ?? undefined,
+      goals: payload.goals, brandName: payload.brandName ?? undefined, siteUrl: payload.siteUrl ?? undefined,
+    });
+  } catch { /* ignore */ }
+
   return { ok: true, brandId };
 }
