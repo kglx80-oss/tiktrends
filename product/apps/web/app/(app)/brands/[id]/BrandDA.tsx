@@ -73,7 +73,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts }: { brand
           <div>
             <div style={daLbl}>Logo</div>
             {da.logoUrl
-              // eslint-disable-next-line @next/next/no-img-element
+               
               ? <img src={da.logoUrl} alt="" style={{ height: 44, maxWidth: 160, objectFit: 'contain', background: 'rgba(255,255,255,.06)', borderRadius: 8, padding: 6 }} />
               : <span style={{ fontSize: 12, color: 'var(--muted)' }}>·</span>}
           </div>

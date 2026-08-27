@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 declare global { interface Window { gapi?: any; google?: any } }
 
 /** Charge le script Google API + le module Picker (une seule fois). */

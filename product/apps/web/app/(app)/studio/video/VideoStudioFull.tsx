@@ -143,7 +143,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                         padding: 0, borderRadius: 10, flexShrink: 0, cursor: ready && !busy ? 'pointer' : 'default', background: 'transparent', position: 'relative',
                         border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
                       }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        { }
                         <img src={a.url} alt="" style={{ width: 72, height: 92, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
                         <span style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 8.5, fontWeight: 800, padding: '2px 5px', borderRadius: 6, color: '#fff', background: 'rgba(0,0,0,.6)' }}>{a.kind === 'ad' ? 'PUB' : a.kind === 'asset' ? 'ASSET' : 'PRODUIT'}</span>
                       </button>

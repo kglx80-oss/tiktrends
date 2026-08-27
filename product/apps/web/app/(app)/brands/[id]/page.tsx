@@ -248,7 +248,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <div key={p.id} style={card}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 {p.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={p.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line-2)' }} />
                 )}
                 <b style={{ color: 'var(--ink)', fontSize: 14, flex: 1, minWidth: 160 }}>{p.name}</b>
@@ -328,11 +328,3 @@ export default async function BrandDetailPage({ params, searchParams }: {
   );
 }
 
-function F({ label, hint, flex, children }: { label: string; hint?: string; flex?: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 14, flex: flex ?? '1 1 auto' }}>
-      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {hint}</span>}</label>
-      {children}
-    </div>
-  );
-}

@@ -47,7 +47,7 @@ export function BrandGuidelines({
                 <button type="button" onClick={() => onDefaultLogo(u)} title={isDefault ? 'Logo par défaut' : 'Définir par défaut'}
                   style={{ width: 74, height: 74, borderRadius: 14, cursor: 'pointer', overflow: 'hidden', padding: 6,
                     border: `2px solid ${isDefault ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  { }
                   <img src={u} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
                 {isDefault && <span style={badge}>Défaut</span>}

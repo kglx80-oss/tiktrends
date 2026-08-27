@@ -376,7 +376,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             {prodThumbs.length > 0 ? (
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 {prodThumbs.slice(0, 4).map((u, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img key={i} src={u} alt="" style={{ width: 56, height: 56, borderRadius: 9, objectFit: 'cover', border: '1px solid var(--line-2)' }} />
                 ))}
               </div>
@@ -448,7 +448,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     const on = assetIds.includes(a.id);
                     return (
                       <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 62, height: 62, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        { }
                         <img src={a.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: on ? 1 : 0.85 }} />
                         {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: '#0d070c', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
                       </button>
@@ -489,7 +489,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                         padding: 0, borderRadius: 10, flexShrink: 0, cursor: ready && !busy ? 'pointer' : 'default', background: 'transparent',
                         border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
                       }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        { }
                         <img src={r.imageUrl} alt="" style={{ width: 74, height: 94, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
                       </button>
                     );
@@ -500,7 +500,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               {refUri ? (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img src={refUri} alt="" style={{ width: 96, height: 120, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--line-2)', flexShrink: 0 }} />
               ) : (
                 <div style={{ width: 96, height: 120, borderRadius: 10, border: '1px dashed var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--muted)', flexShrink: 0 }}>🏆</div>
@@ -544,7 +544,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
               <div style={{ position: 'relative' }}>
                 <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  { }
                   <img src={a.url} alt={a.headline} loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '4/5', objectFit: 'cover' }} />
                 </button>
                 {/* Score Jarvis · notre signature, visible directement sur la carte */}
@@ -565,7 +565,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
       {preview && (
         <div onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          { }
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
           <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div>
@@ -580,7 +580,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               {detailIdx != null && detailIdx > 0 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); setScoreFor(null); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              { }
               <img src={detailSrc} alt={detailAd.headline} style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 10, objectFit: 'contain' }} />
               {detailIdx != null && detailIdx < ads.length - 1 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1)); setEditText(false); setScoreFor(null); }} aria-label="Suivant" style={navArrow('right')}>›</button>
@@ -698,7 +698,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                       const on = assetIds.includes(a.id);
                       return (
                         <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', padding: 0, borderRadius: 10, flexShrink: 0, cursor: 'pointer', background: 'transparent', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}` }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          { }
                           <img src={a.url} alt="" style={{ width: 60, height: 76, objectFit: 'cover', borderRadius: 8, display: 'block', opacity: on ? 1 : 0.85 }} />
                           {on && <span style={{ position: 'absolute', top: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: '#18cc8c', color: '#04140d', fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
                         </button>

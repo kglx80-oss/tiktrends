@@ -32,7 +32,7 @@ export function AdCard({ ad, saved = false, following = false }: { ad: InspoAd; 
       <div style={{ padding: '11px 12px', display: 'grid', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {ad.advertiserLogo && (
-            // eslint-disable-next-line @next/next/no-img-element
+             
             <img src={ad.advertiserLogo} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
           )}
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ad.advertiserName || 'Annonceur'}</span>

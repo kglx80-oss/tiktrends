@@ -64,7 +64,7 @@ export default async function SavedPage() {
         {brands.map((b) => (
           <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 8px 6px 6px', background: 'var(--surface)' }}>
             {b.logoUrl
-              // eslint-disable-next-line @next/next/no-img-element
+               
               ? <img src={b.logoUrl} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
               : <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--paper)' }} />}
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{b.name}</span>

@@ -36,7 +36,7 @@ function Row({ r }: { r: AnalysisRow }) {
     <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px', display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         {r.thumbUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={r.thumbUrl} alt="" loading="lazy" style={{ width: 46, height: 46, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--line)' }} />
         )}
         <div style={{ flex: 1, minWidth: 160 }}>

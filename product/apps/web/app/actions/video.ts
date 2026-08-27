@@ -10,9 +10,6 @@ import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 
-/** Fournisseur vidéo actif : Fal (Kling) en priorité, sinon Higgsfield. */
-function videoReady(): boolean { return !!falFromEnv() || !!higgsfieldFromEnv(); }
-
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
 export interface BrandVideo { id: string; prompt: string; mode: string; status: string; jobId: string | null; videoUrl: string | null; error?: string; createdAt: string; rating?: import('./creatives').Rating }

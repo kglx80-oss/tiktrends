@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, analyzeCosts, analyzePlan, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT } from '@tiktrends/core';
+import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { panel, Msg } from '../../../components/ui';
@@ -27,7 +27,6 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
   if (!isFounder(s.user.email)) redirect('/billing'); // marges/coûts réels · staff · clients → abonnement
   const { ok, e } = await searchParams;
-  const isOwner = s.role === 'owner';
 
   let balance = 0;
   let trialEndsAt: Date | null = null; let accountKind = 'normal';
@@ -45,7 +44,6 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const markup = creditMarkup();
   const analysis = analyzeCosts(markup);
   const plans: Plan[] = ['starter', 'core', 'plus', 'business'];
-  const planEco = plans.map((p) => analyzePlan(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], markup));
   const taxRate = corporateTaxRate();
   const planNet = plans.filter((p) => PLAN_PRICE[p] > 0).map((p) => analyzePlanNet(PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p], markup, taxRate));
   // Décimales par palier : petits coûts (<1 €) au centime/millime, montants courants à 2 décimales,
@@ -324,7 +322,6 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
 const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
 const cl = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 6 } as const;
 const h2 = { margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' } as const;
-const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
 const th = { padding: '4px 10px 8px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' } as const;
 const thR = { ...th, textAlign: 'right' } as const;
 const td = { padding: '9px 10px', verticalAlign: 'top' } as const;

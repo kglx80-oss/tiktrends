@@ -21,7 +21,7 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
   const inner = (
     <>
       {thumbnailUrl
-        // eslint-disable-next-line @next/next/no-img-element
+         
         ? <img src={thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
       {daysRunning != null && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>{daysRunning} j actifs</span>}

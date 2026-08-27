@@ -44,7 +44,7 @@ export function ProfileModal({ open, onClose, init }: { open: boolean; onClose: 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {avatarUrl.trim()
-              // eslint-disable-next-line @next/next/no-img-element
+               
               ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>{initial}</span>}
           </div>
