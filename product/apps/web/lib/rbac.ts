@@ -64,6 +64,8 @@ export const FEATURES: Feature[] = [
   { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Création', minRole: 'member',        minPlan: 'core' },
+  // ADSMAP · carte de creative strategy (hypothèse -> test -> verdict -> itération).
+  { key: 'adsmap',    label: 'ADSMAP',       href: '/adsmap',      icon: 'radar',  group: 'Analyse',  minRole: 'member',        minPlan: 'plus' },
   // Menu profil · Compte (personnel · tous les rôles)
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
   // Menu profil · Espace de travail (client · propriétaire/admin de l'espace)
