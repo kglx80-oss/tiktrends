@@ -18,6 +18,18 @@ export async function saveAd(input: { platform: string; externalId: string; snap
     .onConflictDoNothing();
 }
 
+/** Range une créa sauvegardée dans un board/dossier (null = « Sans dossier »). */
+export async function setSavedAdFolder(input: { platform: string; externalId: string; folder: string | null }): Promise<void> {
+  const s = await getSession();
+  if (!s || !db) return;
+  const folder = input.folder?.trim().slice(0, 60) || null;
+  await db.update(schema.savedAds).set({ folder }).where(and(
+    eq(schema.savedAds.workspaceId, s.workspaceId),
+    eq(schema.savedAds.platform, input.platform),
+    eq(schema.savedAds.externalId, input.externalId),
+  ));
+}
+
 export async function unsaveAd(input: { platform: string; externalId: string }): Promise<void> {
   const s = await getSession();
   if (!s || !db) return;

@@ -476,6 +476,7 @@ export const savedAds = pgTable('saved_ads', {
   externalId: text('external_id').notNull(),
   snapshot: jsonb('snapshot_json').notNull(),     // champs InspoAd pour l'affichage
   note: text('note'),
+  folder: text('folder'),                          // board/dossier de rangement (null = non classé)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ uniq: unique().on(t.workspaceId, t.platform, t.externalId) }));
 
