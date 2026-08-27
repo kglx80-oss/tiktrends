@@ -133,11 +133,13 @@ export async function createBrandFromShopifyAction(formData: FormData): Promise<
   if (!roleAtLeast(s.role, 'admin')) redirect('/brands?e=forbidden');
 
   const domain = norm(formData.get('domain'));
-  if (!domain) redirect('/brands/new?e=shopify_domain');
+  // D'où vient la demande : on renvoie l'erreur sur la page d'origine.
+  const back = norm(formData.get('back')) === 'brands' ? '/brands' : '/brands/new';
+  if (!domain) redirect(`${back}?e=shopify_domain`);
 
   // NB : redirect() lève une exception Next -> il doit rester hors du try/catch.
   const found = await discoverShopify(domain);
-  if (!found) redirect('/brands/new?e=shopify_notfound');
+  if (!found) redirect(`${back}?e=shopify_notfound`);
   const { origin, products } = found!;
 
   // Nom de marque : vendor le plus fréquent, sinon le domaine.

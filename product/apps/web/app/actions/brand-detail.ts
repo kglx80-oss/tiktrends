@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
@@ -161,8 +161,9 @@ export async function generateScenarioImageAction(input: { brandId: string; scen
     .from(schema.scenarios).where(and(eq(schema.scenarios.id, input.scenarioId), eq(schema.scenarios.brandId, input.brandId))).limit(1);
   if (!sc) return { error: 'Scénario introuvable.' };
 
-  const model = imageModelByKey('nano');
-  const cost = model.credits;
+  // Texte -> image : on laisse falGenerateImage choisir le modèle « texte » adapté.
+  // (Forcer le modèle « /edit » sans image source ferait échouer l'appel.)
+  const cost = imageModelByKey('nano').credits;
   const unlimited = unlimitedCredits(g.email);
   const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
   if (!unlimited && (w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
@@ -170,12 +171,15 @@ export async function generateScenarioImageAction(input: { brandId: string; scen
   const prompt = `Photographie lifestyle réaliste illustrant ce contexte d'usage : ${sc.title}. ${sc.context || ''} `
     + 'Cadrage naturel, lumière douce et crédible, ambiance authentique. Aucun texte, aucun logo, aucune marque visible.';
   try {
-    const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: '1:1', count: 1, model: model.falModel });
+    const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: '1:1', count: 1 });
     const url = images?.[0];
     if (!url) return { error: 'Aucune image générée.' };
     await db.update(schema.scenarios).set({ imageUrl: url }).where(eq(schema.scenarios.id, input.scenarioId));
     if (!unlimited) try {
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
+      // Débit ATOMIQUE : plusieurs visuels lancés en parallèle doivent tous être facturés.
+      await db.update(schema.workspaces)
+        .set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` })
+        .where(eq(schema.workspaces.id, g.workspaceId));
       await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque · visuel de scénario' });
     } catch { /* débit best-effort */ }
     return { url };

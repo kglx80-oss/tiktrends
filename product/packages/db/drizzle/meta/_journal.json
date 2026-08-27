@@ -211,6 +211,13 @@
       "when": 1787780000000,
       "tag": "0029_scenario_image",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1787785000000,
+      "tag": "0030_stripe_safety",
+      "breakpoints": true
     }
   ]
 }

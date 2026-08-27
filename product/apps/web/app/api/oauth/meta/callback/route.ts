@@ -44,11 +44,16 @@ export async function GET(req: NextRequest) {
       .map((a) => ({ id: `act_${a.account_id}`, name: a.name || `act_${a.account_id}`, currency: a.currency }));
 
     // Un seul compte : on le sélectionne d'office. Plusieurs : l'utilisateur choisit.
-    const only = list.length === 1 ? list[0]!.id : null;
+    // Un compte mémorisé qui n'appartient plus à la liste (reconnexion avec un autre
+    // utilisateur Meta) est effacé, sinon on synchroniserait le mauvais compte.
+    const [prev] = await db.select({ acct: schema.brands.metaAdAccountId }).from(schema.brands)
+      .where(and(eq(schema.brands.id, st.brandId), eq(schema.brands.workspaceId, st.ws))).limit(1);
+    const kept = prev?.acct && list.some((a) => a.id === prev.acct) ? prev.acct : null;
+    const only = list.length === 1 ? list[0]!.id : kept;
     await db.update(schema.brands).set({
       metaToken: encryptSecret(token),
       metaAdAccounts: list,
-      ...(only ? { metaAdAccountId: only } : {}),
+      metaAdAccountId: only,
     }).where(and(eq(schema.brands.id, st.brandId), eq(schema.brands.workspaceId, st.ws)));
 
     if (!list.length) return back('?ok=meta_noacct');

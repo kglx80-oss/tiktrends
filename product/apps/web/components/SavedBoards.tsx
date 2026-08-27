@@ -27,8 +27,14 @@ export function SavedBoards({ items, followKeys }: { items: SavedItem[]; followK
   const shown = list.filter((it) => tab === '__all' ? true : tab === '__none' ? !it.folder : it.folder === tab);
 
   const move = (it: SavedItem, folder: string | null) => {
-    const value = folder?.trim() || null;
-    setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: value } : x)));
+    // Même troncature que côté serveur, pour que l'affichage corresponde après rechargement.
+    const value = folder?.trim().slice(0, 60) || null;
+    setList((l) => {
+      const next = l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: value } : x));
+      // Board vidé de sa dernière créa : on revient sur « Toutes » (l'onglet disparaît).
+      if (tab !== '__all' && tab !== '__none' && !next.some((x) => x.folder === tab)) setTab('__all');
+      return next;
+    });
     start(async () => { await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value }); });
   };
 

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
@@ -567,8 +567,14 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
       category: da?.category ?? undefined, objective: r.objective, creativeRules: da?.creativeRules ?? undefined, winningPatterns: da?.jarvisLearnings ?? undefined,
     }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge });
     if (!score) return { error: "Score indisponible, réessaie." };
-    // Mémorise le score sur la génération (affichage direct sur la carte, pas de re-débit).
-    try { await db.update(schema.generations).set({ input: { ...(g.input as Record<string, unknown>), jarvisScore: score } }).where(eq(schema.generations.id, id)); } catch { /* best-effort */ }
+    // Mémorise le score (affichage direct sur la carte, pas de re-débit).
+    // Fusion côté SQL : l'analyse dure plusieurs secondes, une note ou une édition de
+    // texte faite pendant ce temps ne doit pas être écrasée par un instantané périmé.
+    try {
+      await db.update(schema.generations)
+        .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ jarvisScore: score })}::jsonb` })
+        .where(eq(schema.generations.id, id));
+    } catch { /* best-effort */ }
     if (!unlimited) {
       const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
       await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));

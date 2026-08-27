@@ -15,7 +15,11 @@ import { costFor } from '@tiktrends/core';
 export const dynamic = 'force-dynamic';
 
 const OK: Record<string, string> = { '1': 'Marque créée.', created: 'Marque créée et sélectionnée.', renamed: 'Marque renommée.', deleted: 'Marque supprimée.', saved: 'Marque mise à jour.' };
-const ERR: Record<string, string> = { forbidden: 'Action réservée aux administrateurs.', name: 'Donne un nom à la marque.' };
+const ERR: Record<string, string> = {
+  forbidden: 'Action réservée aux administrateurs.', name: 'Donne un nom à la marque.',
+  shopify_domain: 'Indique l’adresse de ton site.',
+  shopify_notfound: "Impossible de lire cette boutique automatiquement. Vérifie l'adresse, ou crée la marque puis complète le profil.",
+};
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
