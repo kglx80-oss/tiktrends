@@ -4,9 +4,9 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
-import { AdCard } from '../../../components/AdCard';
 import { BrandRemoveButton } from '../../../components/InspoButtons';
 import { PageInfo } from '../../../components/PageInfo';
+import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -16,9 +16,9 @@ export default async function SavedPage() {
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
 
-  let ads: InspoAd[] = [];
+  let items: SavedItem[] = [];
   let brands: Array<typeof schema.followedBrands.$inferSelect> = [];
-  const followSet = new Set<string>();
+  const followKeys: string[] = [];
   const activeBrand = db ? await getActiveBrand(s.workspaceId) : null;
   if (db) {
     const savedWhere = activeBrand
@@ -31,9 +31,9 @@ export default async function SavedPage() {
       db.select().from(schema.savedAds).where(savedWhere).orderBy(desc(schema.savedAds.createdAt)),
       db.select().from(schema.followedBrands).where(followWhere).orderBy(desc(schema.followedBrands.createdAt)),
     ]);
-    ads = sv.map((r) => r.snapshot as InspoAd);
+    items = sv.map((r) => ({ ad: r.snapshot as InspoAd, folder: r.folder ?? null, externalId: r.externalId, platform: r.platform }));
     brands = fl;
-    for (const b of fl) followSet.add(b.platform + ':' + b.name);
+    for (const b of fl) followKeys.push(b.platform + ':' + b.name);
   }
 
   return (
@@ -44,9 +44,9 @@ export default async function SavedPage() {
       </p>
 
       <PageInfo title="tes créas & marques gardées">
-        Retrouve ici tout ce que tu as sauvegardé depuis l'<b>Inspo</b>. Clique <b>★</b> pour retirer une créa,
-        <b> voir</b> pour relancer une recherche sur une marque suivie, et <b>✨ Générer une variante</b> pour
-        envoyer une créa gardée au Studio. Les dossiers de rangement arrivent bientôt.
+        Retrouve ici tout ce que tu as sauvegardé depuis l'<b>Inspo</b>. Range tes créas dans des <b>boards</b>
+        (dossiers) pour organiser ta veille par angle, campagne ou concurrent. Clique <b>★</b> pour retirer une créa,
+        <b> voir</b> pour relancer une recherche sur une marque suivie, et <b>✨ Générer une variante</b> pour l'envoyer au Studio.
       </PageInfo>
 
       {/* Marques suivies */}
@@ -67,14 +67,9 @@ export default async function SavedPage() {
         ))}
       </div>
 
-      {/* Créas sauvegardées */}
-      <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Créas sauvegardées ({ads.length})</h2>
-      {ads.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucune créa sauvegardée. Va dans l'Inspo et clique ★ sur une annonce.</p>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
-        {ads.map((ad) => (
-          <AdCard key={ad.platform + ad.id} ad={ad} saved following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
-        ))}
-      </div>
+      {/* Créas sauvegardées · organisées en boards */}
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Créas sauvegardées ({items.length})</h2>
+      <SavedBoards items={items} followKeys={followKeys} />
     </main>
   );
 }
