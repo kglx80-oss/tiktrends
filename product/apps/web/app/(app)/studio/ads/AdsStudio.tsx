@@ -130,13 +130,17 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [scoreData, setScoreData] = useState<CreativeScore | null>(null);
   const [scoreFor, setScoreFor] = useState<string | null>(null);
 
-  async function runScore(a: AdItem) {
+  async function runScore(a: AdItem, force = false) {
     if (scoring) return;
     setScoring(true); setError('');
-    const r = await scoreCreativeAction(a.id);
+    const r = await scoreCreativeAction(a.id, force ? { force: true } : undefined);
     setScoring(false);
     if (r.error) { setError(r.error); return; }
-    if (r.score) { setScoreData(r.score); setScoreFor(a.id); }
+    if (r.score) {
+      setScoreData(r.score); setScoreFor(a.id);
+      // Reflète le score sur la carte (pastille) sans recharger.
+      setAds((list) => list.map((x) => (x.id === a.id ? { ...x, score: r.score!.score } : x)));
+    }
   }
 
   function copyLink(path: string) {
@@ -535,10 +539,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
           {pagedAds.map((a, li) => (
             <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
-              <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={a.url} alt={a.headline} loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '4/5', objectFit: 'cover' }} />
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={a.url} alt={a.headline} loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '4/5', objectFit: 'cover' }} />
+                </button>
+                {/* Score Jarvis · notre signature, visible directement sur la carte */}
+                {typeof a.score === 'number' && <ScoreBadge score={a.score} />}
+              </div>
               <div style={{ padding: '9px 11px' }}>
                 <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
@@ -623,10 +631,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
                   {/* Score Jarvis · notre signature */}
                   {scoreFor === detailAd.id && scoreData ? (
-                    <ScoreCard s={scoreData} onRedo={() => runScore(detailAd)} busy={scoring} />
+                    <ScoreCard s={scoreData} onRedo={() => runScore(detailAd, true)} busy={scoring} />
                   ) : (
                     <button type="button" onClick={() => runScore(detailAd)} disabled={scoring || !aiReady} style={{ ...toolBtn, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)', fontWeight: 800 }}>
-                      {scoring ? 'Analyse Jarvis…' : '✦ Score Jarvis · 2 cr.'}
+                      {scoring ? 'Analyse Jarvis…' : typeof detailAd.score === 'number' ? `✦ Voir le Score Jarvis (${detailAd.score}/100)` : '✦ Score Jarvis · 2 cr.'}
                     </button>
                   )}
 
@@ -751,6 +759,18 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         </div>
       )}
     </div>
+  );
+}
+
+/** Pastille de Score Jarvis affichée sur la vignette d'une créa (0-100). */
+function ScoreBadge({ score }: { score: number }) {
+  const color = score >= 75 ? '#18cc8c' : score >= 55 ? '#f5a623' : '#ff4d6d';
+  return (
+    <span title={`Score Jarvis · ${score}/100`} style={{
+      position: 'absolute', top: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 9px', borderRadius: 999, background: 'rgba(8,5,10,.72)', border: `1px solid ${color}`,
+      color, fontSize: 11.5, fontWeight: 800, backdropFilter: 'blur(4px)',
+    }}>✦ {score}</span>
   );
 }
 

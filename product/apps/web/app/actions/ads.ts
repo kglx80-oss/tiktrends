@@ -11,7 +11,7 @@ import { unlimitedCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 
-export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string; rating?: import('./creatives').Rating }
+export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string; rating?: import('./creatives').Rating; score?: number }
 export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
 
 /** Ordonne les couleurs d'accent lisibles (bouton/CTA) de la DA ; défaut si aucune. */
@@ -472,8 +472,8 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
   return rows
     .filter((r) => (r.status === 'archived') === wantArchived)
     .map((r) => {
-      const rec = (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating };
-      return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: `/api/ad/${r.id}`, createdAt: (r.createdAt as Date).toISOString(), rating: rec.rating ?? null };
+      const rec = (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore };
+      return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: `/api/ad/${r.id}`, createdAt: (r.createdAt as Date).toISOString(), rating: rec.rating ?? null, score: rec.jarvisScore?.score };
     });
 }
 
@@ -535,7 +535,7 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
  * Score Jarvis · évalue le POTENTIEL DE PERFORMANCE d'une créa (scroll-stop, clarté, adéquation),
  * en s'appuyant sur les règles maison + les patterns gagnants appris. Débite 2 crédits.
  */
-export async function scoreCreativeAction(id: string): Promise<{ score?: CreativeScore; cost?: number; error?: string }> {
+export async function scoreCreativeAction(id: string, opts?: { force?: boolean }): Promise<{ score?: CreativeScore; cost?: number; cached?: true; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
   const client = anthropicFromEnv();
@@ -543,15 +543,18 @@ export async function scoreCreativeAction(id: string): Promise<{ score?: Creativ
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Aucune marque active.' };
 
+  const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
+    .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
+  if (!g) return { error: 'Rendu introuvable.' };
+  const r = (g.input ?? {}) as Partial<AdRecipe> & { jarvisScore?: CreativeScore };
+
+  // Score déjà calculé : on le renvoie sans redébiter (sauf nouvelle analyse demandée).
+  if (r.jarvisScore && !opts?.force) return { score: r.jarvisScore, cost: 0, cached: true };
+
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('score');
   const [w0] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
   if (!unlimited && (w0?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
-
-  const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
-    .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
-  if (!g) return { error: 'Rendu introuvable.' };
-  const r = (g.input ?? {}) as Partial<AdRecipe>;
 
   const [da] = await db.select({
     tone: schema.brands.tone, usp: schema.brands.usp, audience: schema.brands.audience, category: schema.brands.category,
@@ -564,6 +567,8 @@ export async function scoreCreativeAction(id: string): Promise<{ score?: Creativ
       category: da?.category ?? undefined, objective: r.objective, creativeRules: da?.creativeRules ?? undefined, winningPatterns: da?.jarvisLearnings ?? undefined,
     }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge });
     if (!score) return { error: "Score indisponible, réessaie." };
+    // Mémorise le score sur la génération (affichage direct sur la carte, pas de re-débit).
+    try { await db.update(schema.generations).set({ input: { ...(g.input as Record<string, unknown>), jarvisScore: score } }).where(eq(schema.generations.id, id)); } catch { /* best-effort */ }
     if (!unlimited) {
       const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
       await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
