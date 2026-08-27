@@ -34,6 +34,8 @@ export const workspaces = pgTable('workspaces', {
   stripeCustomerId: text('stripe_customer_id'),                              // client Stripe (paiement)
   stripeSubscriptionId: text('stripe_subscription_id'),                      // abonnement Stripe en cours
   subscriptionStatus: text('subscription_status'),                           // active / trialing / past_due / canceled…
+  lastPlanCredits: integer('last_plan_credits').notNull().default(0),        // dernière allocation d'abonnement accordée
+                                                                              // (permet de renouveler SANS effacer les crédits achetés)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -384,6 +386,16 @@ export const creditLedger = pgTable('credit_ledger', {
   delta: integer('delta').notNull(),
   reason: text('reason').notNull(),
   refId: text('ref_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Événements Stripe déjà traités · Stripe livre « au moins une fois » et rejoue en cas
+ * d'erreur : cette table garantit qu'un paiement n'est jamais crédité deux fois.
+ */
+export const stripeEvents = pgTable('stripe_events', {
+  eventId: text('event_id').primaryKey(),
+  type: text('type').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

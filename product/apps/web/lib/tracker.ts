@@ -32,7 +32,10 @@ export async function scanWorkspaceTracker(workspaceId: string): Promise<{ scann
     const ads = await fetchCurrentAds(apiKey, fb.platform, fb.name);
     if (!ads.length) continue;
     const currentIds = ads.map((a) => a.id).filter((x): x is string => !!x);
-    const seen = Array.isArray(fb.seenAdIds) ? (fb.seenAdIds as string[]) : null;
+    if (!currentIds.length) continue; // rien d'exploitable : on ne pose pas de base vide
+    // Une base vide serait traitée comme « rien vu » et signalerait tout à chaque passage.
+    const stored = Array.isArray(fb.seenAdIds) ? (fb.seenAdIds as string[]) : null;
+    const seen = stored && stored.length ? stored : null;
 
     if (seen === null) {
       // Baseline : on mémorise sans rien signaler.
@@ -48,7 +51,10 @@ export async function scanWorkspaceTracker(workspaceId: string): Promise<{ scann
       })));
       newAds += fresh.length;
     }
-    const merged = [...currentIds, ...seen];
+    // On ne mémorise que les annonces RÉELLEMENT signalées (+ l'historique) : au-delà du
+    // plafond, les nouveautés restantes seront remontées au prochain passage, pas perdues.
+    const reported = fresh.map((a) => a.id).filter((x): x is string => !!x);
+    const merged = [...reported, ...seen];
     const dedup = Array.from(new Set(merged)).slice(0, SEEN_CAP);
     await db.update(schema.followedBrands).set({ seenAdIds: dedup, lastCheckedAt: new Date() }).where(eq(schema.followedBrands.id, fb.id));
   }

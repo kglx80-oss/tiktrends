@@ -124,6 +124,10 @@ export async function syncMetaAction(): Promise<{ ok?: true; insights?: MetaAdsI
 export async function disconnectMetaAction(): Promise<{ ok?: true; error?: string }> {
   const g = await guard();
   if ('error' in g) return { error: g.error };
-  await db!.update(schema.brands).set({ metaToken: null, adsInsights: null }).where(eq(schema.brands.id, g.brand.id));
+  // On efface aussi le compte retenu et la liste : sinon une reconnexion avec un autre
+  // utilisateur Meta garderait un compte qui ne lui appartient pas.
+  await db!.update(schema.brands)
+    .set({ metaToken: null, adsInsights: null, insightsSyncedAt: null, metaAdAccountId: null, metaAdAccounts: null })
+    .where(eq(schema.brands.id, g.brand.id));
   return { ok: true };
 }
