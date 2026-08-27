@@ -105,6 +105,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [textForm, setTextForm] = useState<AdText | null>(null);
   const [textBusy, setTextBusy] = useState(false);
   const [bump, setBump] = useState(0); // cache-bust de l'aperçu après édition texte
+  const [ratio, setRatio] = useState<'4:5' | '1:1' | '9:16'>('4:5');
+  const detailSrc = detailAd ? `${detailAd.url}?r=${ratio}${bump ? `&v=${bump}` : ''}` : '';
 
   async function openTextEditor(a: AdItem) {
     setEditText(true); setTextForm(null);
@@ -120,8 +122,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     setBump((n) => n + 1); setEditText(false);
   }
 
-  function copyLink(a: AdItem) {
-    try { void navigator.clipboard.writeText(location.origin + a.url); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* clipboard indispo */ }
+  function copyLink(path: string) {
+    try { void navigator.clipboard.writeText(location.origin + path); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* clipboard indispo */ }
   }
 
   // « Varier » : régénère des variantes de cette créa (même gabarit + son accroche comme angle).
@@ -554,11 +556,20 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={detailAd.url + (bump ? `?v=${bump}` : '')} alt={detailAd.headline} style={{ maxWidth: '100%', maxHeight: '84vh', borderRadius: 10, objectFit: 'contain' }} />
+              <img src={detailSrc} alt={detailAd.headline} style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 10, objectFit: 'contain' }} />
               {detailIdx != null && detailIdx < ads.length - 1 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1)); setEditText(false); }} aria-label="Suivant" style={navArrow('right')}>›</button>
               )}
-              <span style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 11.5, color: 'var(--muted)', background: 'rgba(0,0,0,.45)', padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
+              {/* Sélecteur de ratio (façon Atria) */}
+              <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, background: 'rgba(0,0,0,.5)', padding: 5, borderRadius: 999 }}>
+                {(['9:16', '4:5', '1:1'] as const).map((r) => (
+                  <button key={r} type="button" onClick={() => setRatio(r)} style={{
+                    fontSize: 11.5, fontWeight: 800, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', border: 'none',
+                    background: ratio === r ? 'var(--grad-accent)' : 'transparent', color: ratio === r ? '#0d070c' : '#fff',
+                  }}>{r}</button>
+                ))}
+              </div>
+              <span style={{ position: 'absolute', top: 12, left: 16, fontSize: 11.5, color: 'var(--muted)', background: 'rgba(0,0,0,.45)', padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
             </div>
 
             {/* Rail d'outils */}
@@ -597,8 +608,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   <p style={{ margin: '6px 0 12px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 variantes de cette créa (même gabarit · {modelSpec.credits * 3} cr.).</p>
 
                   <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}>✎ Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></button>
-                  <button type="button" onClick={() => copyLink(detailAd)} style={toolBtn}>{copied ? '✓ Lien copié' : '🔗 Copier le lien'}</button>
-                  <a href={detailAd.url} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⬇ Télécharger</a>
+                  <button type="button" onClick={() => copyLink(detailSrc)} style={toolBtn}>{copied ? '✓ Lien copié' : '🔗 Copier le lien'}</button>
+                  <a href={detailSrc} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⬇ Télécharger ({ratio})</a>
                   <span style={{ flex: 1 }} />
                   <button type="button" onClick={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }} style={{ ...toolBtn, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Archiver</button>
                 </>
