@@ -14,9 +14,27 @@ const RATIO_SIZE: Record<string, { width: number; height: number }> = {
 };
 
 // Cache mémoire des PNG rendus (le rendu satori est coûteux). Clé = id:ratio:hash(texte+scène).
-// Bornée pour éviter toute fuite mémoire. Invalidé de fait quand un texte change (le hash change).
+// Borné en OCTETS, pas en nombre d'entrées : un 9:16 pèse plusieurs Mo, donc 300
+// entrées suffisaient à faire tomber le process. Éviction LRU (Map = ordre d'insertion,
+// et on réinsère à chaque lecture).
 const RENDER_CACHE = new Map<string, ArrayBuffer>();
-const CACHE_MAX = 300;
+const CACHE_MAX_BYTES = 128 * 1024 * 1024; // 128 Mo
+let cacheBytes = 0;
+
+function cachePut(key: string, png: ArrayBuffer): void {
+  if (png.byteLength > CACHE_MAX_BYTES) return; // trop gros pour être mis en cache
+  const prev = RENDER_CACHE.get(key);
+  if (prev) cacheBytes -= prev.byteLength;
+  RENDER_CACHE.set(key, png);
+  cacheBytes += png.byteLength;
+  while (cacheBytes > CACHE_MAX_BYTES) {
+    const oldest = RENDER_CACHE.keys().next();
+    if (oldest.done) break;
+    const victim = RENDER_CACHE.get(oldest.value)!;
+    RENDER_CACHE.delete(oldest.value);
+    cacheBytes -= victim.byteLength;
+  }
+}
 function recipeHash(r: AdRecipe): string {
   const t = `${r.headline}|${r.subhead ?? ''}|${r.cta}|${r.kicker ?? ''}|${r.badge ?? ''}|${r.sceneUrl}`;
   let h = 5381;
@@ -47,13 +65,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const cached = RENDER_CACHE.get(cacheKey);
   if (cached) {
+    RENDER_CACHE.delete(cacheKey); RENDER_CACHE.set(cacheKey, cached); // remonte en tête (LRU)
     return new Response(cached, { headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=86400', 'x-cache': 'HIT' } });
   }
 
   try {
     const png = await renderAdPng(recipe);
-    if (RENDER_CACHE.size >= CACHE_MAX) RENDER_CACHE.delete(RENDER_CACHE.keys().next().value!);
-    RENDER_CACHE.set(cacheKey, png);
+    cachePut(cacheKey, png);
     return new Response(png, {
       headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=86400', 'x-cache': 'MISS' },
     });
