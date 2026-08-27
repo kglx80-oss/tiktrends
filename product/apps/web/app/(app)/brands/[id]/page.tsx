@@ -17,6 +17,8 @@ import { BrandOnboarding, type OnboardStep } from '../../../../components/BrandO
 import { ShopifyConnect } from './ShopifyConnect';
 import { BrandDA } from './BrandDA';
 import { SubmitButton } from '../../../../components/SubmitButton';
+import { BrandCreated } from '../../../../components/BrandCreated';
+import { costFor } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,7 +97,10 @@ export default async function BrandDetailPage({ params, searchParams }: {
         })}
       </div>
 
-      {ok && OK[ok] && <Msg kind="ok">{OK[ok]}{ok === 'imported' && n ? ` (${n})` : ''}</Msg>}
+      {/* Fin de création : célébration + enchaînement sur l'import produits. */}
+      {ok === 'created' && <BrandCreated brandId={b.id} brandName={b.name} hasSite={!!b.url} importCost={costFor('brief')} />}
+
+      {ok && OK[ok] && ok !== 'created' && <Msg kind="ok">{OK[ok]}{ok === 'imported' && n ? ` (${n})` : ''}</Msg>}
       {e && ERR[e] && <Msg kind="err">{ERR[e]}{m ? ` · ${m}` : ''}</Msg>}
 
       {/* ---------------- APERÇU ---------------- */}

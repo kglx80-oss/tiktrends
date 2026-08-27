@@ -4,6 +4,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { BrandWizard } from '../../../../components/BrandWizard';
+import { costFor } from '@tiktrends/core';
 import { PageInfo } from '../../../../components/PageInfo';
 import { createBrandFromShopifyAction } from '../../../actions/brands';
 
@@ -61,7 +62,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
       </div>
 
       <div style={{ marginTop: 4 }}>
-        <BrandWizard aiReady={anthropicConfigured()} />
+        <BrandWizard aiReady={anthropicConfigured()} draftCost={costFor('brief')} />
       </div>
     </main>
   );

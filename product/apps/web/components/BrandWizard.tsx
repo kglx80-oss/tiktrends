@@ -22,8 +22,10 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export function BrandWizard({ aiReady }: { aiReady: boolean }) {
+export function BrandWizard({ aiReady, draftCost = 5 }: { aiReady: boolean; draftCost?: number }) {
   const [step, setStep] = useState(0);
+  // Écran d'entrée « IA d'abord » : nom + site -> Jarvis pré-remplit tout, on révise ensuite.
+  const [gate, setGate] = useState(true);
   const [pending, startCreate] = useTransition();
 
   // Champs texte simples (contrôlés pour permettre le pré-remplissage IA).
@@ -69,60 +71,109 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
   })));
   const scenariosJson = JSON.stringify(scenarios.filter((x) => x.title.trim()));
 
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 0 }}>
-      {/* Stepper */}
-      <ol style={{ display: 'flex', gap: 6, listStyle: 'none', padding: 0, margin: '0 0 22px', flexWrap: 'wrap' }}>
-        {STEPS.map((label, i) => {
-          const done = i < step, active = i === step;
-          return (
-            <li key={label}>
-              <button type="button" onClick={() => (i <= step || f.name.trim()) && setStep(i)} style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px', borderRadius: 999, cursor: 'pointer',
-                border: `1px solid ${active ? 'transparent' : 'var(--line)'}`,
-                background: active ? 'var(--grad-accent)' : done ? 'rgba(255,255,255,.04)' : 'transparent',
-                color: active ? '#0d070c' : done ? 'var(--ink)' : 'var(--muted)',
-                fontWeight: active ? 800 : 600, fontSize: 12.5,
-              }}>
-                <span style={{ width: 18, height: 18, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, background: active ? 'rgba(0,0,0,.18)' : done ? 'var(--grad-accent)' : 'var(--line-2)', color: active ? '#0d070c' : done ? '#0d070c' : 'var(--muted)' }}>{done ? '✓' : i + 1}</span>
-                {label}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+  // ---- Écran d'entrée : Jarvis pré-remplit depuis le site (ou saisie manuelle) ----
+  if (gate) {
+    const ready = aiReady && f.name.trim().length > 0;
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) minmax(0,1fr)', gap: 0, border: '1px solid var(--line-2)', borderRadius: 20, overflow: 'hidden', background: 'var(--surface)' }}>
+        {/* Panneau valeur */}
+        <div style={{ background: 'linear-gradient(180deg, rgba(254,44,85,.10), var(--paper))', padding: '26px 22px', borderRight: '1px solid var(--line)' }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 14 }}>✦</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.35 }}>Jarvis pré-remplit depuis ton site</div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'grid', gap: 11 }}>
+            {[['🎨', 'Charte de marque'], ['👥', 'Audience & personas'], ['🔭', 'Concurrents']].map(([e, t]) => (
+              <li key={t} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: 'var(--ink-2)' }}>
+                <span style={{ fontSize: 15 }}>{e}</span>{t}
+              </li>
+            ))}
+          </ul>
+          <div style={{ marginTop: 18, fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ color: '#7ee8bf' }}>✓</span> Tu n'as plus qu'à vérifier
+          </div>
+        </div>
 
-      <form action={(fd) => startCreate(() => createBrandAction(fd))}>
+        {/* Formulaire minimal */}
+        <div style={{ padding: '26px 26px 24px' }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>Présente ta marque</h2>
+          <p style={{ margin: '6px 0 20px', fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            On part de l'essentiel. Ton site suffit à bâtir le profil complet.
+          </p>
+          <div style={{ display: 'grid', gap: 14, maxWidth: 420 }}>
+            <div><label style={lbl}>Nom de la marque *</label><input value={f.name} onChange={set('name')} placeholder="Ex : Studio Nova" style={input} autoFocus /></div>
+            <div><label style={lbl}>Site web</label><input value={f.url} onChange={set('url')} placeholder="ta-marque.com" style={input} /></div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 18 }}>
+            <button type="button" disabled={!ready || drafting}
+              onClick={() => { const fd = new FormData(); fd.set('name', f.name); fd.set('url', f.url); runDraft(fd); setGate(false); }}
+              title={aiReady ? `Analyse le site et déduit le profil · ${draftCost} crédits` : 'IA non configurée sur le serveur'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: 999, border: 'none',
+                background: ready ? 'var(--grad-accent)' : 'var(--line-2)', color: ready ? '#0d070c' : 'var(--muted)',
+                fontWeight: 800, fontSize: 13.5, cursor: ready && !drafting ? 'pointer' : 'default' }}>
+              ✦ {drafting ? 'Analyse…' : 'Générer avec Jarvis'}
+              <span style={{ fontSize: 11, fontWeight: 700, opacity: .75 }}>· {draftCost} cr.</span>
+            </button>
+            <button type="button" onClick={() => setGate(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}>
+              Ou remplir le profil manuellement
+            </button>
+          </div>
+          {!aiReady && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>IA non configurée sur le serveur · la saisie manuelle reste disponible.</p>}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(190px, 230px) minmax(0,1fr)', gap: 0, border: '1px solid var(--line-2)', borderRadius: 20, overflow: 'hidden', background: 'var(--surface)' }}>
+      {/* Étapes · barre latérale */}
+      <aside style={{ background: 'var(--paper)', borderRight: '1px solid var(--line)', padding: '22px 16px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginBottom: 16 }}>Créer une marque</div>
+        <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4, flex: 1 }}>
+          {STEPS.map((label, i) => {
+            const done = i < step, active = i === step;
+            return (
+              <li key={label}>
+                <button type="button" onClick={() => (i <= step || f.name.trim()) && setStep(i)} style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer',
+                  border: 'none', background: active ? 'var(--accent-soft)' : 'transparent', textAlign: 'left',
+                  color: active ? 'var(--ink)' : done ? 'var(--ink-2)' : 'var(--muted)', fontWeight: active ? 800 : 600, fontSize: 13,
+                }}>
+                  <span style={{ width: 21, height: 21, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800,
+                    background: active ? 'var(--grad-accent)' : done ? 'rgba(126,232,191,.18)' : 'var(--line-2)',
+                    color: active ? '#0d070c' : done ? '#7ee8bf' : 'var(--muted)' }}>{done ? '✓' : i + 1}</span>
+                  {label}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 6 }}>Étape {step + 1} sur {STEPS.length}</div>
+          <div style={{ height: 4, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden' }}>
+            <div style={{ width: `${((step + 1) / STEPS.length) * 100}%`, height: '100%', background: 'var(--grad-accent)' }} />
+          </div>
+        </div>
+      </aside>
+
+      <form action={(fd) => startCreate(() => createBrandAction(fd))} style={{ padding: '24px 26px 22px', minWidth: 0 }}>
+        {/* Champs nom/site saisis à l'entrée : conservés pour le POST. */}
+        <input type="hidden" name="name" value={f.name} />
+        <input type="hidden" name="url" value={f.url} />
         {/* On garde tous les steps montés (display none) pour préserver les valeurs du POST. */}
 
         {/* STEP 1 · Profil */}
         <section style={{ display: step === 0 ? 'block' : 'none' }}>
-          <h2 style={hStep}>Parle-nous de la marque</h2>
-          <p style={pStep}>L'IA peut pré-remplir tout le profil depuis le site. Tu gardes la main pour corriger.</p>
+          <h2 style={hStep}>{f.name.trim() ? f.name : 'Parle-nous de la marque'}</h2>
+          <p style={pStep}>C'est le socle sur lequel Jarvis construit tout le reste. Vérifie et ajuste.</p>
 
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
-            <div style={{ flex: '2 1 220px' }}><label style={lbl}>Nom de la marque *</label><input name="name" value={f.name} onChange={set('name')} placeholder="Ex : Grüns" style={input} /></div>
-            <div style={{ flex: '2 1 220px' }}><label style={lbl}>Site web</label><input name="url" value={f.url} onChange={set('url')} placeholder="gruns.co" style={input} /></div>
-          </div>
+          {/* État de la génération IA lancée à l'entrée */}
+          {drafting && <div style={noticeBox('rgba(245,166,35,.4)', 'rgba(245,166,35,.10)', '#f5b043')}>✦ Jarvis analyse ton site et compose le profil…</div>}
+          {draftState.error && <div style={noticeBox('rgba(255,77,109,.4)', 'rgba(255,77,109,.10)', '#ff9db0')}>{draftState.error}</div>}
+          {draftState.draft && !drafting && <div style={noticeBox('rgba(24,204,140,.4)', 'rgba(24,204,140,.08)', '#7ee8bf')}>Profil pré-rempli par Jarvis{draftState.cost ? ` · ${draftState.cost} crédits` : ''}. Vérifie et ajuste ci-dessous.</div>}
 
-          <div style={{ margin: '4px 0 18px' }}>
-            <button
-              type="button"
-              disabled={!aiReady || drafting || !f.name.trim()}
-              onClick={() => { const fd = new FormData(); fd.set('name', f.name); fd.set('url', f.url); runDraft(fd); }}
-              title={aiReady ? 'Analyse le site et déduit le profil' : "IA non configurée sur le serveur"}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 15px', borderRadius: 999, border: 'none',
-                background: aiReady && f.name.trim() ? 'var(--grad-accent)' : 'var(--line-2)',
-                color: aiReady && f.name.trim() ? '#0d070c' : 'var(--muted)', fontWeight: 800, fontSize: 13,
-                cursor: aiReady && f.name.trim() && !drafting ? 'pointer' : 'default',
-              }}
-            >
-              ✦ {drafting ? 'Analyse en cours…' : 'Générer par IA depuis le site'}
-            </button>
-            {!aiReady && <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--muted)' }}>IA non configurée · remplis le profil à la main.</span>}
-            {draftState.error && <span style={{ marginLeft: 10, fontSize: 12, color: '#ff9db0' }}>{draftState.error}</span>}
-            {draftState.draft && <span style={{ marginLeft: 10, fontSize: 12, color: '#7ee8bf' }}>Profil pré-rempli{draftState.cost ? ` (${draftState.cost} crédits)` : ''}. Vérifie et ajuste.</span>}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 14 }}>
+            <div style={{ flex: '2 1 220px' }}><label style={lbl}>Nom de la marque *</label><input value={f.name} onChange={set('name')} placeholder="Ex : Studio Nova" style={input} /></div>
+            <div style={{ flex: '2 1 220px' }}><label style={lbl}>Site web</label><input value={f.url} onChange={set('url')} placeholder="ta-marque.com" style={input} /></div>
           </div>
 
           <Field label="Description produit / service"><textarea name="description" value={f.description} onChange={set('description')} placeholder="Ce que vend la marque, en quelques phrases." style={area} /></Field>
@@ -233,9 +284,8 @@ export function BrandWizard({ aiReady }: { aiReady: boolean }) {
 
         {/* Barre d'actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 26, paddingTop: 18, borderTop: '1px solid var(--line)' }}>
-          {step > 0 && <button type="button" onClick={() => setStep((s) => s - 1)} style={{ ...chip, padding: '9px 15px', fontSize: 13 }}>‹ Retour</button>}
+          <button type="button" onClick={() => (step > 0 ? setStep((s) => s - 1) : setGate(true))} style={{ ...chip, padding: '9px 15px', fontSize: 13 }}>‹ Retour</button>
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Étape {step + 1} sur {STEPS.length}</span>
           {step < STEPS.length - 1 ? (
             <button type="button" disabled={!canNext} onClick={() => setStep((s) => s + 1)} style={{ ...primaryBtn, opacity: canNext ? 1 : .5, cursor: canNext ? 'pointer' : 'default' }}>Continuer ›</button>
           ) : (
@@ -258,6 +308,9 @@ function Row({ title, count, onAdd, addLabel }: { title: string; count: number; 
   );
 }
 
+const noticeBox = (border: string, bg: string, color: string) => ({
+  border: `1px solid ${border}`, background: bg, color, borderRadius: 12, padding: '10px 13px', fontSize: 13, marginBottom: 16,
+} as const);
 const hStep = { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: 'var(--ink)' } as const;
 const pStep = { margin: '0 0 18px', fontSize: 13.5, color: 'var(--ink-2)' } as const;
 const emptyHint = { fontSize: 13, color: 'var(--muted)', margin: '0 0 4px' } as const;
