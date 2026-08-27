@@ -99,6 +99,7 @@ export const brands = pgTable('brands', {
   vertical: text('vertical'),                          // FASHION, BEAUTY, HOME… (priors de portefeuille)
   namingPattern: text('naming_pattern'),               // {brand}_B{batch}_{concept}_{variant}_{variable}
   portfolioOptIn: boolean('portfolio_opt_in').notNull().default(false),
+  adsmapSyncedAt: timestamp('adsmap_synced_at', { withTimezone: true }), // dernière mesure de la carte
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -216,7 +217,11 @@ export const adInstances = pgTable('ad_instances', {
   adsetDailyBudget: doublePrecision('adset_daily_budget'),
   platform: platformEnum('platform').notNull().default('meta'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-}, (t) => ({ extIdx: index('ad_instances_external_idx').on(t.externalAdId) }));
+}, (t) => ({
+  extIdx: index('ad_instances_external_idx').on(t.externalAdId),
+  // Clé de l'upsert quotidien · sans elle, chaque passage créerait un doublon.
+  extUk: unique('ad_instances_external_uk').on(t.platform, t.externalAdId),
+}));
 
 export const metricsDaily = pgTable('metrics_daily', {
   adInstanceId: uuid('ad_instance_id').notNull().references(() => adInstances.id, { onDelete: 'cascade' }),

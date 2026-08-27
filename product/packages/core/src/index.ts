@@ -23,3 +23,4 @@ export * from './adsmap/sheet';
 export * from './adsmap/import-sheet';
 export * from './adsmap/protocol';
 export * from './adsmap/brand-stats';
+export * from './adsmap/rollup';
