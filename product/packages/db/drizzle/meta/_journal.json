@@ -232,6 +232,13 @@
       "when": 1787850000000,
       "tag": "0032_error_log",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787854626364,
+      "tag": "0033_panoramic_agent_zero",
+      "breakpoints": true
     }
   ]
 }
