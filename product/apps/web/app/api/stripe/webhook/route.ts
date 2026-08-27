@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { PLAN_CREDITS, type Plan } from '../../../../lib/rbac';
 import { getStripe, planForPrice } from '../../../../lib/stripe';
@@ -50,6 +50,17 @@ export async function POST(req: Request) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const workspaceId = session.metadata?.workspaceId || (await workspaceIdFromCustomer(session.customer as string));
+        if (session.metadata?.kind === 'topup') {
+          // Recharge ponctuelle : on crédite l'espace du nombre de crédits acheté.
+          const credits = Number(session.metadata?.credits) || 0;
+          if (workspaceId && credits > 0 && db) {
+            await db.update(schema.workspaces)
+              .set({ creditsBalance: sql`${schema.workspaces.creditsBalance} + ${credits}` })
+              .where(eq(schema.workspaces.id, workspaceId));
+            await db.insert(schema.creditLedger).values({ workspaceId, delta: credits, reason: 'Recharge de crédits (Stripe)' });
+          }
+          break;
+        }
         const plan = (session.metadata?.plan as Plan) || null;
         if (workspaceId && plan) {
           await applyPlan(workspaceId, plan, { status: 'active', subscriptionId: (session.subscription as string) ?? null, refill: true });

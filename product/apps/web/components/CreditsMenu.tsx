@@ -2,13 +2,8 @@
 
 import Link from 'next/link';
 import { useState, type CSSProperties } from 'react';
-
-/** Recharges ponctuelles (en plus de l'abonnement). Prix indicatifs · paiement à venir. */
-const PACKS = [
-  { credits: 1000, eur: 19 },
-  { credits: 5000, eur: 79 },
-  { credits: 20000, eur: 279 },
-];
+import { CREDIT_PACKS } from '../lib/credit-packs';
+import { createTopupCheckoutAction } from '../app/actions/stripe';
 
 /**
  * Puce de crédits (solde réel) façon Pletor + menu au clic :
@@ -61,18 +56,19 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
                 )}
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 2px 8px' }}>Recharge ponctuelle</div>
                 <div style={{ display: 'grid', gap: 6 }}>
-                  {PACKS.map((p) => (
-                    <div key={p.credits} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 11, padding: '9px 12px' }}>
+                  {CREDIT_PACKS.map((p) => (
+                    <form key={p.key} action={createTopupCheckoutAction} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 11, padding: '8px 10px 8px 12px' }}>
+                      <input type="hidden" name="pack" value={p.key} />
                       <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>+{p.credits.toLocaleString('fr-FR')}</span>
                       <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>crédits</span>
                       <span style={{ flex: 1 }} />
                       <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>{p.eur} €</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', padding: '2px 7px', borderRadius: 999, color: 'var(--muted)', background: 'rgba(255,255,255,.06)' }}>BIENTÔT</span>
-                    </div>
+                      <button type="submit" style={{ fontSize: 11.5, fontWeight: 800, padding: '5px 12px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', cursor: 'pointer' }}>Acheter</button>
+                    </form>
                   ))}
                 </div>
                 <p style={{ margin: '10px 2px 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
-                  Les recharges à l'unité arrivent bientôt. En attendant, monte d'offre pour plus de crédits mensuels.
+                  Paiement sécurisé par Stripe · crédités instantanément. Idéal pour un pic ponctuel sans changer d'offre.
                 </p>
               </div>
             )}
