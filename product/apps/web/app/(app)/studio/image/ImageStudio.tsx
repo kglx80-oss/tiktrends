@@ -273,7 +273,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               {im.url && (
                 <button type="button" onClick={() => setPreview(im.url)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={im.url} alt="" style={{ width: '100%', display: 'block', aspectRatio: '1/1', objectFit: 'cover' }} />
+                  <img src={im.url} alt="" loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '1/1', objectFit: 'cover' }} />
                 </button>
               )}
               <div style={{ padding: '9px 11px' }}>

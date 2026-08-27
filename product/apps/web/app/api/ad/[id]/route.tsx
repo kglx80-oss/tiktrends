@@ -13,6 +13,17 @@ const RATIO_SIZE: Record<string, { width: number; height: number }> = {
   '9:16': { width: 1080, height: 1920 },
 };
 
+// Cache mémoire des PNG rendus (le rendu satori est coûteux). Clé = id:ratio:hash(texte+scène).
+// Bornée pour éviter toute fuite mémoire. Invalidé de fait quand un texte change (le hash change).
+const RENDER_CACHE = new Map<string, ArrayBuffer>();
+const CACHE_MAX = 300;
+function recipeHash(r: AdRecipe): string {
+  const t = `${r.headline}|${r.subhead ?? ''}|${r.cta}|${r.kicker ?? ''}|${r.badge ?? ''}|${r.sceneUrl}`;
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
 /** Rend la publicité composée (scène IA + couche design) en PNG, à la demande. Ratio via ?r=. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,11 +43,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const base = g.input as unknown as AdRecipe;
   if (!base?.sceneUrl) return new Response('Recette invalide', { status: 422 });
   const recipe: AdRecipe = size ? { ...base, width: size.width, height: size.height } : base;
+  const cacheKey = `${id}:${r || '4:5'}:${recipeHash(recipe)}`;
+
+  const cached = RENDER_CACHE.get(cacheKey);
+  if (cached) {
+    return new Response(cached, { headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=86400', 'x-cache': 'HIT' } });
+  }
 
   try {
     const png = await renderAdPng(recipe);
+    if (RENDER_CACHE.size >= CACHE_MAX) RENDER_CACHE.delete(RENDER_CACHE.keys().next().value!);
+    RENDER_CACHE.set(cacheKey, png);
     return new Response(png, {
-      headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=86400' },
+      headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=86400', 'x-cache': 'MISS' },
     });
   } catch {
     // Repli : si la composition échoue, on affiche au moins la scène (sans la couche texte).
