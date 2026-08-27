@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { listAdsAction, exportAdsCsvAction, type AdRow, type AdFilters } from '../../actions/adsmap';
 import { conceptBriefAction } from '../../actions/adsmap-bridge';
+import { AdDrawer } from './AdDrawer';
 
 /**
  * Vue Table d'ADSMAP.
@@ -42,6 +43,9 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   const [briefBusy, setBriefBusy] = useState('');
+  const [ouverte, setOuverte] = useState<string | null>(null);
+  // Change à chaque arbitrage · relance le chargement de la liste sans la vider.
+  const [version, setVersion] = useState(0);
 
   /**
    * ADSMAP → Studio · l'itération part de l'angle mesuré, pas d'une page blanche.
@@ -67,7 +71,7 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
       setError(''); setRows(r.rows ?? []);
     })();
     return () => { vivant = false; };
-  }, [filters]);
+  }, [filters, version]);
 
   async function exporter() {
     if (busy) return;
@@ -95,6 +99,8 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
       comparablePct: comparables.length ? Math.round((comparables.filter((r) => r.comparable).length / comparables.length) * 100) : null,
       sansHypothese: l.filter((r) => ['ready', 'live'].includes(r.status) && !r.hypothesis).length,
       aCouper: l.filter((r) => r.killFlag).length,
+      // Un verdict calculé mais jamais arbitré n'a encore rien appris à personne.
+      aArbitrer: l.filter((r) => r.verdict && r.verdictStatus === 'computed').length,
     };
   }, [rows]);
 
@@ -108,7 +114,15 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
         <Stat label="Hit rate" value={stats.hitRate === null ? '—' : `${stats.hitRate} %`} sub="gagnantes / concluantes" strong />
         <Stat label="Verdicts comparables" value={stats.comparablePct === null ? '—' : `${stats.comparablePct} %`} sub="protocole respecté" />
         <Stat label="À couper" value={String(stats.aCouper)} sub="budget qui brûle" alerte={stats.aCouper > 0} />
+        <Stat label="À arbitrer" value={String(stats.aArbitrer)} sub="verdicts sans apprentissage" strong={stats.aArbitrer > 0} />
       </div>
+
+      {stats.aArbitrer > 0 && (
+        <div style={{ padding: '10px 14px', borderRadius: 11, background: 'var(--accent-soft)', border: '1px solid rgba(254,44,85,.25)', fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 14, lineHeight: 1.55 }}>
+          {stats.aArbitrer} verdict(s) calculé(s) attendent d’être arbitrés. Tant qu’aucun apprentissage n’en est tiré,
+          le test a coûté son budget sans rien apprendre à personne · ni à toi, ni à Jarvis. Clique <b>Arbitrer</b> sur la ligne.
+        </div>
+      )}
 
       {stats.sansHypothese > 0 && (
         <div style={{ padding: '10px 14px', borderRadius: 11, background: 'rgba(245,166,35,.09)', border: '1px solid rgba(245,166,35,.3)', fontSize: 12.5, color: '#ffcf8f', marginBottom: 14 }}>
@@ -200,13 +214,20 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
                       {r.launchedAt ? new Date(r.launchedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—'}
                     </td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      {r.conceptId && (
-                        <button type="button" onClick={() => iterer(r)} disabled={!!briefBusy}
-                          title="Reprendre cet angle dans le Studio pour en générer une variante"
-                          style={{ padding: '4px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--accent-strong)', fontSize: 11.5, fontWeight: 700, cursor: briefBusy ? 'default' : 'pointer', opacity: briefBusy === r.id ? 0.5 : 1 }}>
-                          {briefBusy === r.id ? '…' : '✨ Itérer'}
+                      <span style={{ display: 'inline-flex', gap: 6 }}>
+                        <button type="button" onClick={() => setOuverte(r.id)}
+                          title={r.verdict ? 'Arbitrer ce test · verdict, apprentissage, itération' : 'Ouvrir la fiche du test'}
+                          style={{ ...rowBtn, color: r.verdict ? 'var(--ink)' : 'var(--muted)', borderColor: r.verdict ? 'var(--line-2)' : 'var(--line)' }}>
+                          {r.verdict ? 'Arbitrer' : 'Ouvrir'}
                         </button>
-                      )}
+                        {r.conceptId && (
+                          <button type="button" onClick={() => iterer(r)} disabled={!!briefBusy}
+                            title="Reprendre cet angle dans le Studio pour en générer une variante"
+                            style={{ ...rowBtn, color: 'var(--accent-strong)', cursor: briefBusy ? 'default' : 'pointer', opacity: briefBusy === r.id ? 0.5 : 1 }}>
+                            {briefBusy === r.id ? '…' : '✨ Studio'}
+                          </button>
+                        )}
+                      </span>
                     </td>
                   </tr>
                 );
@@ -218,6 +239,10 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
 
       {rows.length >= 1000 && (
         <p style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)' }}>1 000 ads les plus récentes affichées · affine par lot pour voir le reste.</p>
+      )}
+
+      {ouverte && (
+        <AdDrawer adId={ouverte} onClose={() => setOuverte(null)} onChanged={() => setVersion((v) => v + 1)} />
       )}
     </div>
   );
@@ -252,3 +277,8 @@ const th: CSSProperties = {
   textTransform: 'uppercase', color: 'var(--muted)', borderBottom: '1px solid var(--line)', whiteSpace: 'nowrap',
 };
 const td: CSSProperties = { padding: '9px 12px', borderTop: '1px solid var(--line)', verticalAlign: 'top' };
+
+const rowBtn: CSSProperties = {
+  padding: '4px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)',
+  fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+};

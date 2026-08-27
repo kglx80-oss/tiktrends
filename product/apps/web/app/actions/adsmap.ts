@@ -42,6 +42,8 @@ export interface AdRow {
   launchedAt: string | null;
   // Calculé
   verdict: string | null;
+  /** « computed » = calculé mais jamais arbitré · c'est la file de travail. */
+  verdictStatus: string | null;
   comparable: boolean | null;
   failedStage: string | null;
   killFlag: string | null;
@@ -147,6 +149,7 @@ export async function listAdsAction(filters: AdFilters = {}): Promise<{ rows?: A
         platform: r.ad.platform,
         launchedAt: r.ad.launchedAt ? (r.ad.launchedAt as Date).toISOString() : null,
         verdict: r.verdict?.validated ?? r.verdict?.computed ?? null,
+        verdictStatus: r.verdict?.status ?? null,
         comparable: r.verdict?.comparable ?? null,
         failedStage: r.verdict?.failedStage ?? null,
         killFlag: r.verdict?.killFlag ?? null,
