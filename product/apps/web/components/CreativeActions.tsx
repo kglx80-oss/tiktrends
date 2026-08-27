@@ -17,15 +17,15 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
   archiveLabel?: string;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {onOpen && (
-        <button type="button" onClick={onOpen} style={actBtn} title="Ouvrir en grand">
-          <span aria-hidden style={{ fontSize: 13 }}>⛶</span> Ouvrir
+        <button type="button" onClick={onOpen} style={actBtn} title="Ouvrir en grand" aria-label="Ouvrir">
+          <span aria-hidden style={{ fontSize: 14 }}>⛶</span>
         </button>
       )}
       {downloadUrl && (
-        <a href={downloadUrl} download={downloadName} target="_blank" rel="noreferrer" style={{ ...actBtn, color: 'var(--accent-strong)', borderColor: 'rgba(254,44,85,.35)' }} title="Télécharger">
-          <span aria-hidden style={{ fontSize: 13 }}>↗</span> Télécharger
+        <a href={downloadUrl} download={downloadName} target="_blank" rel="noreferrer" style={{ ...actBtn, color: 'var(--accent-strong)', borderColor: 'rgba(254,44,85,.35)' }} title="Télécharger" aria-label="Télécharger">
+          <span aria-hidden style={{ fontSize: 14 }}>↗</span>
         </a>
       )}
 
@@ -34,8 +34,8 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
       <RatingControl genId={genId} rating={initial} />
 
       {onArchive && (
-        <button type="button" onClick={onArchive} style={{ ...actBtn, color: 'var(--muted)' }} title={archiveLabel + ' ce rendu'}>
-          <span aria-hidden style={{ fontSize: 12 }}>✕</span> {archiveLabel}
+        <button type="button" onClick={onArchive} style={{ ...actBtn, color: 'var(--muted)' }} title={archiveLabel} aria-label={archiveLabel}>
+          <span aria-hidden style={{ fontSize: 13 }}>✕</span>
         </button>
       )}
     </div>
@@ -63,9 +63,9 @@ export function RatingControl({ genId, rating: initial = null, label }: { genId:
 }
 
 const actBtn: CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 999,
+  width: 30, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9,
   border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink-2)',
-  fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap', lineHeight: 1,
+  cursor: 'pointer', textDecoration: 'none', flexShrink: 0, lineHeight: 1,
 };
 
 function ratePill(active: boolean, kind: 'up' | 'down'): CSSProperties {
