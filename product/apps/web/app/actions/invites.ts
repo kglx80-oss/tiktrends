@@ -5,7 +5,9 @@ import { randomBytes } from 'crypto';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession, hashPassword, createSession } from '../../lib/auth';
-import { roleAtLeast, type Role } from '../../lib/rbac';
+import { roleAtLeast, ROLE_LABEL, type Role } from '../../lib/rbac';
+import { sendMail } from '../../lib/mailer';
+import { inviteEmail } from '../../lib/emails';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const ASSIGNABLE: Role[] = ['admin', 'member', 'client_viewer']; // on n'invite pas un 2e owner ici
@@ -30,6 +32,11 @@ export async function createInviteAction(formData: FormData): Promise<void> {
   await db.insert(schema.invites).values({
     workspaceId: s.workspaceId, email, role, token, invitedBy: s.user.id, expiresAt,
   });
+  // E-mail d'invitation avec le lien · best-effort (le lien reste affiché côté Équipe).
+  try {
+    const m = inviteEmail({ inviterName: s.user.name, workspaceName: s.workspaceName, roleLabel: ROLE_LABEL[role], token });
+    await sendMail({ to: email, subject: m.subject, html: m.html, text: m.text });
+  } catch { /* ignore */ }
   redirect('/team?ok=invite');
 }
 

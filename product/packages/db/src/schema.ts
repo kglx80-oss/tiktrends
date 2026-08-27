@@ -453,6 +453,16 @@ export const invites = pgTable('invites', {
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
 });
 
+/** Jetons de réinitialisation de mot de passe (usage unique · courte durée). */
+export const passwordResets = pgTable('password_resets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+});
+
 /* ============== Inspo : créas sauvegardées & marques suivies ============== */
 export const savedAds = pgTable('saved_ads', {
   id: uuid('id').primaryKey().defaultRandom(),
