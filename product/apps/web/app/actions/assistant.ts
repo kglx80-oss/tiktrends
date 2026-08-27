@@ -1,12 +1,12 @@
 'use server';
 
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { anthropicFromEnv, chatAssistant, type ChatMessage } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 
 export interface AskResult { reply?: string; error?: string }
 
@@ -20,13 +20,18 @@ export async function askAssistant(history: ChatMessage[], question: string): Pr
   const client = anthropicFromEnv();
   if (!client) return { error: "L'assistant IA n'est pas encore activé (clé serveur manquante)." };
 
+  // Débit atomique avant l'appel (remboursé en cas d'échec) : la vérification puis
+  // le débit en deux temps laissait passer deux questions simultanées pour un crédit.
   const cost = costFor('chat');
   const unlimited = unlimitedCredits(s.user.email);
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Assistant IA · question'))) {
+    return { error: `Crédits insuffisants (${cost} requis).` };
+  }
+  // Solde restant : l'assistant s'en sert pour répondre « il te reste X crédits ».
   let credits = 0;
   if (db) {
     const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
     credits = w?.c ?? 0;
-    if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis).` };
   }
 
   const brand = await getActiveBrand(s.workspaceId);
@@ -36,14 +41,9 @@ export async function askAssistant(history: ChatMessage[], question: string): Pr
       [...history, { role: 'user', content: q }],
       { brandName: brand?.name ?? null, credits, plan: s.plan },
     );
-    if (db && !unlimited) {
-      try {
-        await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assistant IA · question' });
-      } catch { /* débit best-effort */ }
-    }
     return { reply };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · assistant IA');
     return { error: 'Échec de la réponse : ' + (e as Error).message };
   }
 }

@@ -7,7 +7,7 @@ import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey } from '@tiktrends/core';
-import { unlimitedCredits, settleCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 
@@ -66,7 +66,8 @@ async function composeBatch(o: {
   productImageUrls: string[] | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
   assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
-  workspaceId: string; unlimited: boolean; credits: number; reason: string;
+  workspaceId: string; unlimited: boolean;
+  reservedCredits: number; // deja debite par l'appelant : on rembourse ce qui n'a pas ete produit
   falModel?: string; falParams?: Record<string, string | number>; creditsPerImage: number; // modèle choisi (+ ses paramètres) et crédits par variante
   productId?: string; personaId?: string; objective?: string;
 }): Promise<AdItem[]> {
@@ -141,12 +142,11 @@ async function composeBatch(o: {
     } catch { /* ignore */ }
   }
 
-  if (ads.length && !o.unlimited) {
-    const realCost = o.creditsPerImage * ads.length;
-    try {
-      await db!.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${realCost})` }).where(eq(schema.workspaces.id, o.workspaceId));
-      await db!.insert(schema.creditLedger).values({ workspaceId: o.workspaceId, delta: -realCost, reason: o.reason });
-    } catch { /* best-effort */ }
+  // Les crédits ont été réservés en bloc avant la génération (débit atomique) : on
+  // ne facture au final que les visuels réellement produits et on rend le reste.
+  if (!o.unlimited) {
+    const unused = o.reservedCredits - o.creditsPerImage * ads.length;
+    if (unused > 0) await refundCredits(o.workspaceId, unused, 'Remboursement · pubs non générées');
   }
   return ads;
 }
@@ -227,10 +227,12 @@ export async function generateAdsAction(input: {
   const modelSpec = imageModelByKey(input.model);
   const cost = modelSpec.credits * count;
   const unlimited = unlimitedCredits(s.user.email);
-  let credits = 0;
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-  credits = w?.c ?? 0;
-  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${count} pub(s)).` };
+  // Débit atomique en bloc avant la génération ; composeBatch rembourse les visuels
+  // qui n'ont pas abouti. Vérifier puis débiter en deux temps laissait deux lots
+  // lancés simultanément passer pour un seul débit.
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · pubs IA'))) {
+    return { error: `Crédits insuffisants (${cost} requis pour ${count} pub(s)).` };
+  }
 
   // Contexte marque + produit + persona.
   const [da] = await db.select({
@@ -287,7 +289,7 @@ export async function generateAdsAction(input: {
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
-    workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · pubs IA',
+    workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
@@ -306,9 +308,8 @@ export async function suggestAnglesAction(input: { productId?: string }): Promis
 
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('suggest');
-  if (!unlimited) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-    if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · angles suggérés'))) {
+    return { error: `Crédits insuffisants (${cost} requis).` };
   }
 
   const { da, product } = await loadAdContext(brand.id, input.productId);
@@ -325,9 +326,9 @@ export async function suggestAnglesAction(input: { productId?: string }): Promis
       audience: da?.audience ?? undefined, category: da?.category ?? undefined,
       productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
     }, { winningCopy, competitors: brow?.competitors ?? undefined });
-    if (!unlimited) await settleCredits(s.workspaceId, cost, 'Studio · angles suggérés');
     return { angles };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · angles suggérés');
     return { error: 'Proposition d’angles impossible : ' + (e as Error).message };
   }
 }
@@ -412,9 +413,9 @@ export async function cloneAdAction(input: {
   const modelSpec = imageModelByKey(input.model);
   const cost = modelSpec.credits * count;
   const unlimited = unlimitedCredits(s.user.email);
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-  const credits = w?.c ?? 0;
-  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${count} pub(s)).` };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · clone de pub'))) {
+    return { error: `Crédits insuffisants (${cost} requis pour ${count} pub(s)).` };
+  }
 
   const { da, product, persona } = await loadAdContext(brand.id, input.productId, input.personaId);
   const productImageUrls = product ? (product.imageUrls && product.imageUrls.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : null)) : null;
@@ -447,7 +448,7 @@ export async function cloneAdAction(input: {
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
-    workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · clone de pub',
+    workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
@@ -550,8 +551,9 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
 
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('score');
-  const [w0] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-  if (!unlimited && (w0?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Jarvis · analyse de créa'))) {
+    return { error: `Crédits insuffisants (${cost} requis).` };
+  }
 
   const [da] = await db.select({
     tone: schema.brands.tone, usp: schema.brands.usp, audience: schema.brands.audience, category: schema.brands.category,
@@ -563,7 +565,10 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
       brand: brand.name, tone: da?.tone ?? undefined, usp: da?.usp ?? undefined, audience: da?.audience ?? undefined,
       category: da?.category ?? undefined, objective: r.objective, creativeRules: da?.creativeRules ?? undefined, winningPatterns: da?.jarvisLearnings ?? undefined,
     }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge });
-    if (!score) return { error: "Score indisponible, réessaie." };
+    if (!score) {
+      if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
+      return { error: "Score indisponible, réessaie." };
+    }
     // Mémorise le score (affichage direct sur la carte, pas de re-débit).
     // Fusion côté SQL : l'analyse dure plusieurs secondes, une note ou une édition de
     // texte faite pendant ce temps ne doit pas être écrasée par un instantané périmé.
@@ -572,7 +577,9 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
         .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ jarvisScore: score })}::jsonb` })
         .where(eq(schema.generations.id, id));
     } catch { /* best-effort */ }
-    if (!unlimited) await settleCredits(s.workspaceId, cost, 'Jarvis · analyse de créa');
     return { score, cost: unlimited ? 0 : cost };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
+    return { error: (e as Error).message };
+  }
 }

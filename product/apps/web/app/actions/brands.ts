@@ -2,14 +2,14 @@
 
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { BRAND_COOKIE } from '../../lib/brands';
 import { anthropicFromEnv, generateBrandProfile, fetchSiteText, type BrandProfileDraft } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { discoverShopify } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
 
@@ -48,25 +48,20 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
 
   const cost = costFor('brief');
   const unlimited = unlimitedCredits(s.user.email);
-  if (db && !unlimited) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-    if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis). Recharge depuis Crédits.` };
-  }
 
   let siteText: string | undefined;
   if (url) { try { siteText = await fetchSiteText(url); } catch { /* on continue sans le contenu du site */ } }
 
+  // Débit atomique avant l'appel IA (remboursé en cas d'échec).
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Marque · génération IA du profil'))) {
+    return { error: `Crédits insuffisants (${cost} requis). Recharge depuis Crédits.` };
+  }
+
   try {
     const draft = await generateBrandProfile(client, { name, url: url || undefined, siteText });
-    if (db && !unlimited) {
-      try {
-        const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-        await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Marque · génération IA du profil' });
-      } catch { /* la génération reste livrée même si le débit échoue */ }
-    }
     return { draft, cost };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · profil de marque');
     return { error: 'Échec de la génération : ' + (e as Error).message };
   }
 }

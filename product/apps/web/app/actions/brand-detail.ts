@@ -1,14 +1,14 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { anthropicFromEnv, generateProducts, generateBrandProfile, fetchSiteText } from '@tiktrends/ai';
 import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
 import { costFor, imageModelByKey } from '@tiktrends/core';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
@@ -34,9 +34,9 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
 
   const unlimited = unlimitedCredits(g.email);
   const cost = costFor('brief');
-  if (!unlimited) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
-    if ((w?.c ?? 0) < cost) redirect(`/brands/${brandId}?tab=overview&e=credits`);
+  // Débit atomique avant l'appel IA (remboursé plus bas si la génération échoue).
+  if (!unlimited && !(await reserveCredits(g.workspaceId, cost, 'Marque · génération complète du profil'))) {
+    redirect(`/brands/${brandId}?tab=overview&e=credits`);
   }
 
   let siteText: string | undefined;
@@ -76,16 +76,10 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
     const sRows = scenarios.filter((x) => x?.title?.trim()).map((x) => ({ brandId, title: String(x.title).trim(), context: x.context || null }));
     if (!sc && sRows.length) await db.insert(schema.scenarios).values(sRows);
 
-    if (!unlimited) {
-      try {
-        const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
-        await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, g.workspaceId));
-        await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque · génération complète du profil' });
-      } catch { /* best-effort */ }
-    }
   } catch (e) {
     errMsg = (e as Error)?.message || 'inconnue';
     console.error('[generateFullBrand] ERREUR:', errMsg);
+    if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · profil de marque');
   }
 
   if (errMsg) redirect(`/brands/${brandId}?tab=overview&e=generate&m=${encodeURIComponent(errMsg.slice(0, 160))}`);
@@ -165,25 +159,25 @@ export async function generateScenarioImageAction(input: { brandId: string; scen
   // (Forcer le modèle « /edit » sans image source ferait échouer l'appel.)
   const cost = imageModelByKey('nano').credits;
   const unlimited = unlimitedCredits(g.email);
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
-  if (!unlimited && (w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  if (!unlimited && !(await reserveCredits(g.workspaceId, cost, 'Marque · visuel de scénario'))) {
+    return { error: `Crédits insuffisants (${cost} requis).` };
+  }
 
   const prompt = `Photographie lifestyle réaliste illustrant ce contexte d'usage : ${sc.title}. ${sc.context || ''} `
     + 'Cadrage naturel, lumière douce et crédible, ambiance authentique. Aucun texte, aucun logo, aucune marque visible.';
   try {
     const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: '1:1', count: 1 });
     const url = images?.[0];
-    if (!url) return { error: 'Aucune image générée.' };
+    if (!url) {
+      if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · visuel de scénario');
+      return { error: 'Aucune image générée.' };
+    }
     await db.update(schema.scenarios).set({ imageUrl: url }).where(eq(schema.scenarios.id, input.scenarioId));
-    if (!unlimited) try {
-      // Débit ATOMIQUE : plusieurs visuels lancés en parallèle doivent tous être facturés.
-      await db.update(schema.workspaces)
-        .set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` })
-        .where(eq(schema.workspaces.id, g.workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque · visuel de scénario' });
-    } catch { /* débit best-effort */ }
     return { url };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) {
+    if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · visuel de scénario');
+    return { error: (e as Error).message };
+  }
 }
 
 /* ---------------- Produits ---------------- */
@@ -298,12 +292,17 @@ export async function importProductsAction(formData: FormData): Promise<void> {
 
   const cost = costFor('brief');
   const unlimited = unlimitedCredits(g.email);
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
-  if (!unlimited && (w?.c ?? 0) < cost) redirect(`/brands/${brandId}?tab=products&e=credits`);
+  if (!unlimited && !(await reserveCredits(g.workspaceId, cost, 'Marque · import produits IA'))) {
+    redirect(`/brands/${brandId}?tab=products&e=credits`);
+  }
 
   let siteText: string | undefined;
   try { siteText = await fetchSiteText(brand.url); } catch { /* on tente quand même */ }
 
+  // NB : redirect() lève une exception Next · il doit rester HORS du try/catch,
+  // sinon la redirection de succès est avalée par le catch et l'utilisateur reçoit
+  // toujours l'écran d'erreur.
+  let imported: number | null = null;
   try {
     const products = await generateProducts(client, { name: brand.name, url: brand.url, siteText });
     const rows = products.filter((p) => p.name?.trim()).slice(0, 30).map((p) => ({
@@ -319,12 +318,10 @@ export async function importProductsAction(formData: FormData): Promise<void> {
         if (img) { try { await db!.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, p.id)); } catch { /* ignore */ } }
       }));
     }
-    if (!unlimited) try {
-      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, g.workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque · import produits IA' });
-    } catch { /* débit best-effort */ }
-    redirect(`/brands/${brandId}?tab=products&ok=imported&n=${rows.length}`);
+    imported = rows.length;
   } catch {
-    redirect(`/brands/${brandId}?tab=products&e=import`);
+    if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · import produits');
   }
+  if (imported === null) redirect(`/brands/${brandId}?tab=products&e=import`);
+  redirect(`/brands/${brandId}?tab=products&ok=imported&n=${imported}`);
 }

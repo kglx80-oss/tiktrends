@@ -1,12 +1,10 @@
 'use server';
 
-import { eq, sql } from 'drizzle-orm';
-import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { FEATURES, canAccess } from '../../lib/rbac';
 import { anthropicFromEnv, generateCreative, type CreativeOutput } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 
 const feature = FEATURES.find((f) => f.key === 'studio')!;
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
@@ -29,12 +27,13 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
   const client = anthropicFromEnv();
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur (ANTHROPIC_API_KEY manquante)." };
 
-  // Vérification des crédits (une génération = coût d'un script).
+  // Débit atomique AVANT la génération : un seul UPDATE conditionnel, donc deux
+  // requêtes lancées en même temps ne peuvent pas passer la même vérification de
+  // solde et générer gratuitement. Remboursé si la génération échoue.
   const cost = costFor('script');
   const unlimited = unlimitedCredits(s.user.email);
-  if (db && !unlimited) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-    if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis). Recharge depuis Crédits.` };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · génération créative'))) {
+    return { error: `Crédits insuffisants (${cost} requis). Recharge depuis Crédits.` };
   }
 
   try {
@@ -47,16 +46,9 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
       language: 'fr',
       inspiration: norm(formData.get('inspiration')) || undefined,
     });
-    // Débit des crédits + trace (best-effort, ne bloque pas la sortie).
-    if (db && !unlimited) {
-      try {
-        const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-        await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-        await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio · génération créative' });
-      } catch { /* la génération reste livrée même si le débit échoue */ }
-    }
     return { output };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · génération créative');
     return { error: 'Échec de la génération : ' + (e as Error).message };
   }
 }

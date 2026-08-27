@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { isFounder } from '../../lib/founder';
@@ -9,11 +9,13 @@ import { PLAN_CREDITS, type Plan } from '../../lib/rbac';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
+/** Ajustement manuel (positif ou négatif) · appliqué en SQL pour ne pas écraser
+ *  une consommation concurrente entre la lecture et l'écriture du solde. */
 async function addCredits(workspaceId: string, delta: number, reason: string) {
   if (!db || !delta) return;
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-  const next = Math.max(0, (w?.c ?? 0) + delta);
-  await db.update(schema.workspaces).set({ creditsBalance: next }).where(eq(schema.workspaces.id, workspaceId));
+  await db.update(schema.workspaces)
+    .set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} + ${delta})` })
+    .where(eq(schema.workspaces.id, workspaceId));
   await db.insert(schema.creditLedger).values({ workspaceId, delta, reason });
 }
 
