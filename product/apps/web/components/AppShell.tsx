@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, useState, type CSSProperties, type ReactNode } from 'react';
+import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
@@ -159,9 +159,14 @@ function AppShellInner(props: Props) {
   const pathname = usePathname();
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // Barre repliable (« plus d'espace ») · préférence mémorisée par navigateur.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => { try { setCollapsed(localStorage.getItem('tt_rail_collapsed') === '1'); } catch { /* stockage indispo */ } }, []);
+  const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('tt_rail_collapsed', n ? '1' : '0'); } catch { /* ignore */ } return n; });
   const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
 
   // État actif d'un item de nav : gère les routes imbriquées et l'onglet (?tab=) des marques.
@@ -201,58 +206,118 @@ function AppShellInner(props: Props) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '250px minmax(0,1fr)', minHeight: '100vh' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `${collapsed ? 72 : 250}px minmax(0,1fr)`, minHeight: '100vh' }}>
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
-      <aside style={{ background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: '16px 12px', position: 'sticky', top: 0, height: '100vh' }}>
-        {/* Marque + workspace */}
-        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', textDecoration: 'none' }}>
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--grad-accent)' }} />
-          <div style={{ lineHeight: 1.1 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)' }}>TikTrends</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{workspaceName}</div>
-          </div>
-        </Link>
+      <aside style={{ background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: collapsed ? '16px 10px' : '16px 12px', position: 'sticky', top: 0, height: '100vh' }}>
+        {/* En-tête : menu d'espace (façon Pletor) + repli de la barre */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button type="button" onClick={() => collapsed ? toggleCollapsed() : setWsMenuOpen((o) => !o)}
+            title={collapsed ? workspaceName : undefined}
+            style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: collapsed ? 4 : '6px 8px', borderRadius: 10, border: 'none', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--grad-accent)', flexShrink: 0 }} />
+            {!collapsed && (
+              <>
+                <div style={{ lineHeight: 1.1, minWidth: 0, flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)' }}>TikTrends</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</div>
+                </div>
+                <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>⌄</span>
+              </>
+            )}
+          </button>
+          {!collapsed && (
+            <button type="button" onClick={toggleCollapsed} title="Replier la barre" aria-label="Replier la barre" style={collapseBtn}>
+              <CollapseIcon dir="left" />
+            </button>
+          )}
 
-        {/* Sélecteur de marque */}
-        <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />
+          {/* Menu d'espace */}
+          {wsMenuOpen && !collapsed && (
+            <>
+              <div onClick={() => setWsMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
+              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden' }}>
+                <div style={{ padding: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px' }}>
+                    <div style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</span>
+                    <span style={{ color: 'var(--accent-strong)', fontSize: 13 }}>✓</span>
+                  </div>
+                  {workspaceItems.length > 0 && <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />}
+                  {workspaceItems.map((it) => {
+                    if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
+                    if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { setWsMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItem, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>{it.label}</button>;
+                    return <Link key={it.key} href={it.href} onClick={() => setWsMenuOpen(false)} style={menuItem}>{it.label}</Link>;
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Sélecteur de marque (masqué en mode replié) */}
+        {!collapsed && <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />}
 
         {/* Recherche universelle ⌘K */}
-        <button type="button" onClick={openCommandPalette} style={{
-          marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 10,
-          border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
-        }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-          <span style={{ flex: 1, textAlign: 'left' }}>Rechercher…</span>
-          <span style={{ display: 'inline-flex', gap: 2 }}>
-            <kbd style={kbdRail}>⌘</kbd><kbd style={kbdRail}>K</kbd>
-          </span>
-        </button>
+        {collapsed ? (
+          <button type="button" onClick={openCommandPalette} title="Rechercher · ⌘K" style={{ ...railIconBtn, marginTop: 10 }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+          </button>
+        ) : (
+          <button type="button" onClick={openCommandPalette} style={{
+            marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 10,
+            border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
+          }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+            <span style={{ flex: 1, textAlign: 'left' }}>Rechercher…</span>
+            <span style={{ display: 'inline-flex', gap: 2 }}>
+              <kbd style={kbdRail}>⌘</kbd><kbd style={kbdRail}>K</kbd>
+            </span>
+          </button>
+        )}
 
         {/* Navigation groupée */}
-        <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', flex: 1 }}>
-          {nav.map((grp) => (
-            <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>{grp.group}</div>
-              {branchesOf(grp.items).map((b) => {
-                const branchActive = isNavActive(b.head.href, false) || b.subs.some((su) => isNavActive(su.href, true));
-                const open = expanded[b.head.key] ?? branchActive;
-                return (
-                  <NavBranch key={b.head.key} b={b} isActive={isNavActive} open={open}
-                    onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? branchActive) }))} />
-                );
-              })}
-            </div>
-          ))}
+        <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : 10, alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
+          {collapsed
+            ? nav.flatMap((grp) => branchesOf(grp.items).map((b) => (
+                <Link key={b.head.key} href={b.head.locked || b.head.soon ? '#' : b.head.href} title={b.head.label} style={{
+                  ...railIconBtn,
+                  color: isNavActive(b.head.href, false) ? 'var(--ink)' : 'var(--ink-2)',
+                  background: isNavActive(b.head.href, false) ? 'var(--accent-soft)' : 'transparent',
+                  opacity: (b.head.locked || b.head.soon) ? .5 : 1,
+                }}>
+                  <Icon name={b.head.icon} />
+                </Link>
+              )))
+            : nav.map((grp) => (
+              <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>{grp.group}</div>
+                {branchesOf(grp.items).map((b) => {
+                  const branchActive = isNavActive(b.head.href, false) || b.subs.some((su) => isNavActive(su.href, true));
+                  const open = expanded[b.head.key] ?? branchActive;
+                  return (
+                    <NavBranch key={b.head.key} b={b} isActive={isNavActive} open={open}
+                      onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? branchActive) }))} />
+                  );
+                })}
+              </div>
+            ))}
         </nav>
+
+        {/* Ré-ouvrir la barre (mode replié) */}
+        {collapsed && (
+          <button type="button" onClick={toggleCollapsed} title="Déplier la barre" aria-label="Déplier la barre" style={{ ...railIconBtn, marginBottom: 8 }}>
+            <CollapseIcon dir="right" />
+          </button>
+        )}
 
         {/* Compte : chip + menu déroulant */}
         <div style={{ position: 'relative', borderTop: '1px solid var(--line)', paddingTop: 10 }}>
           {menuOpen && (
             <>
               <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-              <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: 'var(--sh-lift, 0 14px 34px -10px rgba(0,0,0,.6))', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, width: collapsed ? 240 : 'auto', right: collapsed ? 'auto' : 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: 'var(--sh-lift, 0 14px 34px -10px rgba(0,0,0,.6))', overflow: 'hidden' }}>
                 <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -280,19 +345,6 @@ function AppShellInner(props: Props) {
                     ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
                     : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>)}
 
-                  {/* Espace de travail : marques, membres, connexions, abonnement, réglages. */}
-                  {workspaceItems.length > 0 && (
-                    <>
-                      <div style={menuLabel}>Espace de travail</div>
-                      {workspaceItems.map((it) => {
-                        if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
-                        // Réglages : ouverture en pop-up (réglages rapides) plutôt qu'une page.
-                        if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { setMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItem, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>{it.label}</button>;
-                        return <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>;
-                      })}
-                    </>
-                  )}
-
                   {/* ADMIN+ · coulisses plateforme, réservées au fondateur/staff. */}
                   {isStaff && (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '8px 0 2px', borderRadius: 11, textDecoration: 'none', background: 'linear-gradient(135deg, rgba(245,166,35,.16), rgba(255,140,66,.08))', border: '1px solid rgba(245,166,35,.32)' }}>
@@ -313,18 +365,22 @@ function AppShellInner(props: Props) {
               </div>
             </>
           )}
-          <button type="button" onClick={() => setMenuOpen((o) => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer' }}>
+          <button type="button" onClick={() => setMenuOpen((o) => !o)} title={collapsed ? (userName || userEmail) : undefined} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
             <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
               {avatarUrl
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : (userName || userEmail).slice(0, 1).toUpperCase()}
             </div>
-            <div style={{ lineHeight: 1.2, minWidth: 0, textAlign: 'left', flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName || userEmail}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>{roleLabel} · {planLabel}</div>
-            </div>
-            <span style={{ color: 'var(--muted)', fontSize: 12 }}>{menuOpen ? '▾' : '▴'}</span>
+            {!collapsed && (
+              <>
+                <div style={{ lineHeight: 1.2, minWidth: 0, textAlign: 'left', flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName || userEmail}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{roleLabel} · {planLabel}</div>
+                </div>
+                <span style={{ color: 'var(--muted)', fontSize: 12 }}>{menuOpen ? '▾' : '▴'}</span>
+              </>
+            )}
           </button>
         </div>
       </aside>
@@ -339,7 +395,19 @@ function AppShellInner(props: Props) {
 }
 
 const menuItem = { display: 'block', padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
-const menuLabel = { padding: '9px 12px 3px', fontSize: 10, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)' } as const;
+// Bouton icône (rail replié) : carré centré, tooltip via title.
+const railIconBtn = { width: 44, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer', textDecoration: 'none', flexShrink: 0 } as const;
+const collapseBtn = { width: 28, height: 28, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer' } as const;
+/** Icône « replier / déplier le panneau » (barre verticale + flèche). */
+function CollapseIcon({ dir }: { dir: 'left' | 'right' }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+      {dir === 'left' ? <path d="M16 9l-3 3 3 3" /> : <path d="M14 9l3 3-3 3" />}
+    </svg>
+  );
+}
 const kbdRail = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 16, height: 16, fontSize: 10, fontWeight: 700, color: 'var(--ink-2)', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 4 } as const;
 function pill(color: string, bg: string) {
   return { fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, color, background: bg } as const;
