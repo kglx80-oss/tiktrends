@@ -1,0 +1,58 @@
+name: CI
+
+# Vérifie le produit à chaque poussée et à chaque pull request.
+# Le VPS déploie automatiquement ce qui arrive sur main : ce garde-fou est donc
+# la dernière étape avant la production.
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths: ['product/**', '.github/workflows/ci.yml']
+  pull_request:
+    branches: [main]
+    paths: ['product/**', '.github/workflows/ci.yml']
+  workflow_dispatch:
+
+# Une poussée plus récente annule la vérification précédente de la même branche.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: product
+
+jobs:
+  verify:
+    name: Typecheck · tests · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.7.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: product/pnpm-lock.yaml
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Types
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      # Le build Next ne touche ni la base ni les API : les variables absentes
+      # sont traitées comme « intégration non configurée », pas comme une erreur.
+      - name: Build
+        run: pnpm build
