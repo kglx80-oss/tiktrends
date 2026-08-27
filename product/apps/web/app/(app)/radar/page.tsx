@@ -92,6 +92,16 @@ export default async function RadarPage() {
         recommandation : <b>scaler, pousser, itérer, rafraîchir, couper</b>. <a href="/connections" style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>Branche un compte</a> pour des données live.
       </p>
 
+      {/* Bandeau démo · le Radar tourne sur des données d'exemple tant qu'aucun compte pub n'est branché. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid rgba(245,166,35,.3)', borderRadius: 14, background: 'rgba(245,166,35,.08)', padding: '12px 16px', margin: '0 0 20px' }}>
+        <span style={{ fontSize: 18 }}>🧪</span>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>Mode démonstration</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ink-2)', marginLeft: 8 }}>Ces créas sont des exemples. Branche un compte pub pour noter tes vraies créas.</span>
+        </div>
+        <a href="/connections" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Brancher un compte ›</a>
+      </div>
+
       <PageInfo title="comment lire le Radar">
         Le Radar note chaque créa sur 4 axes : <b>Hook</b> (accroche 3 s), <b>Hold</b> (rétention),
         <b>CTR</b> (clics) et <b>Conv</b> (ROAS), en <b>A→D</b> comparés aux autres créas de ton compte.

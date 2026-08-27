@@ -82,7 +82,7 @@ export default async function AnalyticsPage() {
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Analytics</h1>
-        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>KPI créas · fixtures</span>
+        <span style={{ fontSize: 12, color: metaInsights ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{metaInsights ? 'Meta Ads · live' : 'aperçu démo'}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
         Vue agrégée de tes créas : dépense, portée, efficacité, et répartition Radar. Branche un compte pour des données live.
@@ -111,10 +111,12 @@ export default async function AnalyticsPage() {
       {/* Intelligence créative maison (diversité + top tags) */}
       {creative && <CreativeIntel stats={creative} />}
 
-      {/* KPI (démo / fixtures) */}
+      {/* Aperçu de démonstration : masqué dès que de vraies données Meta sont connectées. */}
+      {!metaInsights && (<>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
-        <span style={{ fontSize: 11, color: 'var(--muted)' }}>données d'exemple</span>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: '#f5b043', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', borderRadius: 999, padding: '2px 8px' }}>DÉMO</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>· exemple tant qu'aucun compte n'est branché</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 26 }}>
         {kpis.map(([label, value, sub]) => (
@@ -185,6 +187,7 @@ export default async function AnalyticsPage() {
           );
         })}
       </div>
+      </>)}
     </main>
   );
 }
