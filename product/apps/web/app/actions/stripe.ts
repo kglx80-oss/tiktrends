@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import type Stripe from 'stripe';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
@@ -23,12 +24,22 @@ export async function createCheckoutAction(formData: FormData): Promise<void> {
   const [ws] = await db.select({ cust: schema.workspaces.stripeCustomerId, name: schema.workspaces.name })
     .from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
 
-  // Réutilise le client Stripe existant, sinon le crée et le mémorise.
+  // Réutilise le client Stripe mémorisé s'il existe DANS CE MODE (test/réel).
+  // Un client créé dans l'autre mode est invalide ici : on le recrée proprement.
   let customerId = ws?.cust ?? null;
+  if (customerId) {
+    try {
+      const existing = await stripe.customers.retrieve(customerId);
+      if ((existing as Stripe.DeletedCustomer).deleted) customerId = null;
+    } catch {
+      customerId = null; // n'existe pas dans ce mode → on repart à neuf
+    }
+  }
   if (!customerId) {
     const customer = await stripe.customers.create({ email: s.user.email, name: ws?.name ?? undefined, metadata: { workspaceId: s.workspaceId } });
     customerId = customer.id;
-    await db.update(schema.workspaces).set({ stripeCustomerId: customerId }).where(eq(schema.workspaces.id, s.workspaceId));
+    // On recale l'espace sur le nouveau client et on oublie l'ancien abonnement (autre mode).
+    await db.update(schema.workspaces).set({ stripeCustomerId: customerId, stripeSubscriptionId: null, subscriptionStatus: null }).where(eq(schema.workspaces.id, s.workspaceId));
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -55,6 +66,13 @@ export async function createPortalAction(): Promise<void> {
   const [ws] = await db.select({ cust: schema.workspaces.stripeCustomerId }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
   if (!stripe || !ws?.cust) redirect('/billing?e=nosub');
 
-  const portal = await stripe.billingPortal.sessions.create({ customer: ws.cust, return_url: `${appUrl()}/billing` });
-  redirect(portal.url);
+  // Le client peut être invalide (créé dans l'autre mode) : on échoue proprement plutôt que de planter.
+  let url: string;
+  try {
+    const portal = await stripe.billingPortal.sessions.create({ customer: ws.cust, return_url: `${appUrl()}/billing` });
+    url = portal.url;
+  } catch {
+    redirect('/billing?e=nosub');
+  }
+  redirect(url);
 }
