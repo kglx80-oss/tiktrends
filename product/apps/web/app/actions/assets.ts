@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, or, isNull } from 'drizzle-orm';
+import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { decryptSecret } from '../../lib/secrets';
@@ -141,7 +141,7 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
   await db.update(schema.assets).set({ tags }).where(eq(schema.assets.id, a.id));
   if (!unlimited) {
     try {
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
       await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assets · tagging IA' });
     } catch { /* débit best-effort */ }
   }
@@ -183,7 +183,7 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
         await db.update(schema.assets).set({ tags }).where(eq(schema.assets.id, a.id));
         tagged++;
         if (!unlimited) {
-          await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+          await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
           await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assets · tagging IA (lot)' });
         }
       }

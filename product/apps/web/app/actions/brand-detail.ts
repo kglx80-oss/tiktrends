@@ -79,7 +79,7 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
     if (!unlimited) {
       try {
         const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
-        await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
+        await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, g.workspaceId));
         await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque · génération complète du profil' });
       } catch { /* best-effort */ }
     }
@@ -320,7 +320,7 @@ export async function importProductsAction(formData: FormData): Promise<void> {
       }));
     }
     if (!unlimited) try {
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, g.workspaceId));
       await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque · import produits IA' });
     } catch { /* débit best-effort */ }
     redirect(`/brands/${brandId}?tab=products&ok=imported&n=${rows.length}`);

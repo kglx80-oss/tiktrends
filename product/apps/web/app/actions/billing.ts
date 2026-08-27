@@ -23,12 +23,17 @@ export async function changePlanAction(formData: FormData): Promise<void> {
 
   await db.update(schema.workspaces).set({ plan }).where(eq(schema.workspaces.id, s.workspaceId));
 
-  // Recale le solde sur l'allocation du nouveau plan + trace le mouvement.
+  // Nouvelle allocation SANS effacer les recharges payées : on retire l'ancienne
+  // allocation du solde (les crédits d'abonnement ne se cumulent pas) et on ajoute
+  // la nouvelle ; ce qui restait au-dessus, ce sont les crédits achetés.
   const alloc = PLAN_CREDITS[plan] ?? 0;
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-  const delta = alloc - (w?.c ?? 0);
+  const [w] = await db.select({ c: schema.workspaces.creditsBalance, last: schema.workspaces.lastPlanCredits })
+    .from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+  const balance = w?.c ?? 0;
+  const next = Math.max(0, balance - (w?.last ?? 0)) + alloc;
+  const delta = next - balance;
+  await db.update(schema.workspaces).set({ creditsBalance: next, lastPlanCredits: alloc }).where(eq(schema.workspaces.id, s.workspaceId));
   if (delta !== 0) {
-    await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, alloc) }).where(eq(schema.workspaces.id, s.workspaceId));
     await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta, reason: `Changement de formule -> ${plan}` });
   }
   redirect('/billing?ok=changed');

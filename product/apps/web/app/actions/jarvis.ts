@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { anthropicFromEnv, proposeJarvisRules, distillWinningPatterns, type WinningAdSummary } from '@tiktrends/ai';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
@@ -69,7 +69,7 @@ export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost
 
   if (!unlimited) {
     try {
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
       await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Jarvis · rédaction des règles (IA)' });
     } catch { /* débit best-effort */ }
   }
@@ -146,7 +146,7 @@ export async function trainJarvisAction(): Promise<{ learnings?: string; adsAnal
   await db.update(schema.brands).set({ jarvisLearnings: learnings.slice(0, 4000), jarvisTrainedAt: new Date() }).where(eq(schema.brands.id, brand.id));
   if (!unlimited) {
     try {
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
       await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Jarvis · entraînement (veille)' });
     } catch { /* best-effort */ }
   }

@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
@@ -99,7 +99,7 @@ export async function analyzeCompetitorAction(formData: FormData): Promise<void>
       try {
         insights = await analyzeCompetitor(client, { name, ads: ads.map((a) => ({ body: a.body, callToAction: a.callToAction, format: a.format, platform: a.platform })) });
         if (!unlimited) try {
-          await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
+          await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, g.workspaceId));
           await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: `Analyse concurrent · ${name}` });
         } catch { /* débit best-effort */ }
       } catch {

@@ -144,7 +144,7 @@ async function composeBatch(o: {
   if (ads.length && !o.unlimited) {
     const realCost = o.creditsPerImage * ads.length;
     try {
-      await db!.update(schema.workspaces).set({ creditsBalance: Math.max(0, o.credits - realCost) }).where(eq(schema.workspaces.id, o.workspaceId));
+      await db!.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${realCost})` }).where(eq(schema.workspaces.id, o.workspaceId));
       await db!.insert(schema.creditLedger).values({ workspaceId: o.workspaceId, delta: -realCost, reason: o.reason });
     } catch { /* best-effort */ }
   }
@@ -327,7 +327,7 @@ export async function suggestAnglesAction(input: { productId?: string }): Promis
     }, { winningCopy, competitors: brow?.competitors ?? undefined });
     if (!unlimited) {
       const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
     }
     return { angles };
   } catch (e) {
@@ -577,7 +577,7 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
     } catch { /* best-effort */ }
     if (!unlimited) {
       const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
     }
     return { score, cost: unlimited ? 0 : cost };
   } catch (e) { return { error: (e as Error).message }; }
