@@ -43,7 +43,7 @@ export async function signupAction(formData: FormData): Promise<void> {
   await db.insert(schema.workspaceMembers).values({ workspaceId: ws.id, userId: user.id, role: 'owner' });
 
   await createSession(user.id);
-  redirect('/dashboard');
+  redirect('/onboarding');
 }
 
 export async function loginAction(formData: FormData): Promise<void> {
