@@ -8,6 +8,7 @@ import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 import { IMAGE_MODELS, imageModelByKey } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
+import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
@@ -539,11 +540,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               <div style={{ padding: '9px 11px' }}>
                 <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
-                <div style={{ display: 'flex', gap: 12, marginTop: 6, alignItems: 'center' }}>
-                  <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Ouvrir ⛶</button>
-                  <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>
-                  <span style={{ flex: 1 }} />
-                  <button type="button" onClick={() => archive(a.id)} title="Archiver ce rendu" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Archiver ✕</button>
+                <div style={{ marginTop: 8 }}>
+                  <CreativeActions genId={a.id} rating={a.rating} onOpen={() => setDetailIdx(adsPage * PAGE_SIZE + li)} downloadUrl={a.url} onArchive={() => archive(a.id)} />
                 </div>
               </div>
             </div>
@@ -633,6 +631,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}>✎ Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></button>
                   <button type="button" onClick={() => copyLink(detailSrc)} style={toolBtn}>{copied ? '✓ Lien copié' : '🔗 Copier le lien'}</button>
                   <a href={detailSrc} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⬇ Télécharger ({ratio})</a>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 2px 2px', borderTop: '1px solid var(--line)', marginTop: 4 }}>
+                    <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>Pertinence · entraîne Jarvis</span>
+                    <RatingControl genId={detailAd.id} rating={detailAd.rating} />
+                  </div>
                   <span style={{ flex: 1 }} />
                   <button type="button" onClick={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }} style={{ ...toolBtn, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Archiver</button>
                 </>

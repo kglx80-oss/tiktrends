@@ -11,7 +11,7 @@ import { unlimitedCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 
-export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string }
+export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string; rating?: import('./creatives').Rating }
 export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
 
 /** Ordonne les couleurs d'accent lisibles (bouton/CTA) de la DA ; défaut si aucune. */
@@ -180,6 +180,31 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): 
   return `${base}. ${uni} ${realism} Premium advertising photography. ${framing} ${noText}`;
 }
 
+/**
+ * Distille les notes de pertinence (👍/👎) du client en consignes pour Jarvis :
+ * apprentissage en contexte, par marque · « ce qui plaît / ne plaît pas ».
+ */
+async function learnedPreferences(brandId: string): Promise<string | undefined> {
+  if (!db) return undefined;
+  const rows = await db.select({ input: schema.generations.input })
+    .from(schema.generations)
+    .where(and(eq(schema.generations.brandId, brandId), eq(schema.generations.kind, 'ad')))
+    .orderBy(desc(schema.generations.createdAt)).limit(80);
+  const liked: string[] = [], disliked: string[] = [];
+  for (const r of rows) {
+    const rec = (r.input ?? {}) as { rating?: 'up' | 'down'; headline?: string; template?: string };
+    if (!rec.rating || !rec.headline) continue;
+    const line = `${rec.template ? '[' + rec.template + '] ' : ''}${rec.headline}`.slice(0, 120);
+    (rec.rating === 'up' ? liked : disliked).push(line);
+    if (liked.length >= 8 && disliked.length >= 8) break;
+  }
+  if (!liked.length && !disliked.length) return undefined;
+  const parts: string[] = [];
+  if (liked.length) parts.push("Créas jugées PERTINENTES par le client (reprends l'esprit, l'angle, le ton) :\n- " + liked.slice(0, 8).join('\n- '));
+  if (disliked.length) parts.push('Créas jugées NON pertinentes (évite ces angles/formulations) :\n- ' + disliked.slice(0, 8).join('\n- '));
+  return parts.join('\n\n');
+}
+
 export async function generateAdsAction(input: {
   productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[]; offer?: string; model?: string;
 }): Promise<AdsResult> {
@@ -239,6 +264,10 @@ export async function generateAdsAction(input: {
   const saved = await db.select({ snapshot: schema.savedAds.snapshot }).from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)).limit(20);
   const winningCopy = saved.map((r) => copyFromSnapshot(r.snapshot)).filter((x): x is string => !!x);
 
+  // Apprentissage Jarvis : notes de pertinence du client (👍/👎) + learnings existants.
+  const prefs = await learnedPreferences(brand.id);
+  const winningPatterns = [da?.jarvisLearnings, prefs].filter(Boolean).join('\n\n') || undefined;
+
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
   try {
@@ -248,7 +277,7 @@ export async function generateAdsAction(input: {
       productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
       hasProductPhoto: editMode,
       persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
-      objective: input.objective, angle: input.angle?.trim() || undefined, offer: input.offer?.trim() || undefined, creativeRules: da?.creativeRules ?? undefined, winningPatterns: da?.jarvisLearnings ?? undefined,
+      objective: input.objective, angle: input.angle?.trim() || undefined, offer: input.offer?.trim() || undefined, creativeRules: da?.creativeRules ?? undefined, winningPatterns,
     }, { templates, winningCopy, competitors: brow?.competitors ?? undefined });
   } catch (e) {
     return { error: 'Écriture des concepts impossible : ' + (e as Error).message };
@@ -443,8 +472,8 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
   return rows
     .filter((r) => (r.status === 'archived') === wantArchived)
     .map((r) => {
-      const rec = (r.input ?? {}) as Partial<AdRecipe>;
-      return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: `/api/ad/${r.id}`, createdAt: (r.createdAt as Date).toISOString() };
+      const rec = (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating };
+      return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: `/api/ad/${r.id}`, createdAt: (r.createdAt as Date).toISOString(), rating: rec.rating ?? null };
     });
 }
 

@@ -2,9 +2,11 @@
 
 import { useMemo, useRef, useState, useTransition } from 'react';
 import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
+import { archiveCreativeAction } from '../../../actions/creatives';
 import type { FalAspect } from '@tiktrends/integrations';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
+import { CreativeActions } from '../../../../components/CreativeActions';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -125,9 +127,15 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.images) {
-      const fresh: BrandImage[] = res.images.map((url, i) => ({ id: 'new-' + i + '-' + url, prompt: res.prompt || prompt, url, createdAt: new Date().toISOString() }));
+      // Id réel « genId:url » quand disponible (permet note Jarvis + archivage immédiats).
+      const fresh: BrandImage[] = res.images.map((url, i) => ({ id: res.generationId ? `${res.generationId}:${url}` : 'new-' + i + '-' + url, prompt: res.prompt || prompt, url, createdAt: new Date().toISOString(), rating: null }));
       setImages((list) => [...fresh, ...list]);
     }
+  }
+
+  async function archiveImage(id: string) {
+    setImages((list) => list.filter((im) => im.id !== id));
+    if (!id.startsWith('new-')) await archiveCreativeAction({ id });
   }
 
   return (
@@ -278,9 +286,8 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               )}
               <div style={{ padding: '9px 11px' }}>
                 <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{im.prompt}</p>
-                <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
-                  {im.url && <button type="button" onClick={() => setPreview(im.url)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Aperçu ⛶</button>}
-                  {im.url && <a href={im.url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>}
+                <div style={{ marginTop: 8 }}>
+                  <CreativeActions genId={im.id} rating={im.rating} onOpen={im.url ? () => setPreview(im.url) : undefined} downloadUrl={im.url} onArchive={() => archiveImage(im.id)} />
                 </div>
               </div>
             </div>
