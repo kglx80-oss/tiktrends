@@ -19,12 +19,23 @@ function Grade({ label, g }: { label: string; g: string }) {
   );
 }
 
+// Action du Studio selon le verdict : on transforme le diagnostic en geste concret.
+const ACTION_CTA: Record<string, string> = {
+  scaler: '✨ Décliner les gagnantes', pousser: '✨ Pousser au Studio', iterer: '✨ Itérer au Studio',
+  rafraichir: '✨ Rafraîchir au Studio', couper: '✨ Remplacer au Studio',
+};
+
 function Row({ r }: { r: AnalysisRow }) {
   const b = bucketDef(r.bucket);
+  const studioHref = `/studio/ads?inspo=${encodeURIComponent(r.title)}`;
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px', display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 180 }}>
+        {r.thumbUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={r.thumbUrl} alt="" loading="lazy" style={{ width: 46, height: 46, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--line)' }} />
+        )}
+        <div style={{ flex: 1, minWidth: 160 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{r.title}</span>
             <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' }}>{r.platform}</span>
@@ -43,8 +54,9 @@ function Row({ r }: { r: AnalysisRow }) {
         </div>
         <span style={{ fontSize: 12, fontWeight: 800, padding: '6px 14px', borderRadius: 999, color: '#fff', background: b.color }}>{b.action}</span>
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-2)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-2)' }}>
         {r.diagnosis.map((d, i) => <span key={i} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, padding: '4px 9px' }}>→ {d}</span>)}
+        <a href={studioHref} style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>{ACTION_CTA[r.bucket] ?? '✨ Retravailler au Studio'} ›</a>
       </div>
     </div>
   );
@@ -77,7 +89,7 @@ export default async function RadarPage() {
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 20 }}>
         Chaque créa est notée <b>Hook / Hold / CTR / Conv</b> (A→D, en percentiles du compte) puis rangée en
-        recommandation : <b>scaler, pousser, itérer, rafraîchir, couper</b>. Branche un compte pour des données live.
+        recommandation : <b>scaler, pousser, itérer, rafraîchir, couper</b>. <a href="/connections" style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>Branche un compte</a> pour des données live.
       </p>
 
       <PageInfo title="comment lire le Radar">

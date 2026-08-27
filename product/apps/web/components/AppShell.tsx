@@ -206,7 +206,18 @@ function AppShellInner(props: Props) {
   };
   const commands: Command[] = [];
   for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });
-  commands.push({ id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', emoji: '➕', keywords: 'créer marque ajouter' });
+  // Verbes d'action : lancer une tâche directement depuis ⌘K (pas seulement naviguer).
+  commands.push(
+    { id: 'do-ads', label: 'Générer des pubs IA', group: 'Actions', href: '/studio/ads', emoji: '✨', keywords: 'créer pub génération ads publicité' },
+    { id: 'do-clone', label: 'Cloner une pub gagnante', group: 'Actions', href: '/studio/ads?mode=clone', emoji: '🧬', keywords: 'cloner copier pub concurrent référence' },
+    { id: 'do-image', label: 'Générer une image', group: 'Actions', href: '/studio/image', emoji: '🖼️', keywords: 'image visuel produit scène' },
+    { id: 'do-video', label: 'Générer une vidéo', group: 'Actions', href: '/studio/video', emoji: '🎬', keywords: 'vidéo animation clip' },
+    { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/inspo', emoji: '🔎', keywords: 'inspo veille concurrent recherche pub' },
+    { id: 'do-scale', label: 'Voir ce qui scale', group: 'Actions', href: '/inspo/scale', emoji: '📈', keywords: 'scale tendance croissance winner' },
+    { id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', emoji: '➕', keywords: 'créer marque ajouter' },
+  );
+  // Sauter à une marque de l'espace.
+  for (const b of brands) commands.push({ id: 'brand-' + b.id, label: b.name, group: 'Marques', href: `/brands/${b.id}`, emoji: '🏷️', keywords: 'marque ' + b.name });
   commands.push({ id: 'act-profile', label: 'Mon profil', group: 'Compte', href: '/profile', emoji: '👤', keywords: 'profil compte photo' });
   for (const it of personalItems) commands.push({ id: 'acc-' + it.key, label: it.label, group: 'Compte', href: it.href, emoji: '›', locked: it.locked, keywords: it.label });
   for (const it of workspaceItems) commands.push({ id: 'ws-' + it.key, label: it.label, group: 'Espace de travail', href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });
