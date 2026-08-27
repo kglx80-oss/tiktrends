@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
-import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle } from '@tiktrends/ai';
+import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -500,4 +500,45 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
   };
   await db.update(schema.generations).set({ input: next as Record<string, unknown> }).where(eq(schema.generations.id, id));
   return { ok: true, version: Date.now() };
+}
+
+/**
+ * Score Jarvis · évalue le POTENTIEL DE PERFORMANCE d'une créa (scroll-stop, clarté, adéquation),
+ * en s'appuyant sur les règles maison + les patterns gagnants appris. Débite 2 crédits.
+ */
+export async function scoreCreativeAction(id: string): Promise<{ score?: CreativeScore; cost?: number; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const client = anthropicFromEnv();
+  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+
+  const unlimited = unlimitedCredits(s.user.email);
+  const cost = costFor('score');
+  const [w0] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+  if (!unlimited && (w0?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+
+  const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
+    .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
+  if (!g) return { error: 'Rendu introuvable.' };
+  const r = (g.input ?? {}) as Partial<AdRecipe>;
+
+  const [da] = await db.select({
+    tone: schema.brands.tone, usp: schema.brands.usp, audience: schema.brands.audience, category: schema.brands.category,
+    creativeRules: schema.brands.creativeRules, jarvisLearnings: schema.brands.jarvisLearnings,
+  }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+
+  try {
+    const score = await scoreCreative(client, {
+      brand: brand.name, tone: da?.tone ?? undefined, usp: da?.usp ?? undefined, audience: da?.audience ?? undefined,
+      category: da?.category ?? undefined, objective: r.objective, creativeRules: da?.creativeRules ?? undefined, winningPatterns: da?.jarvisLearnings ?? undefined,
+    }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge });
+    if (!score) return { error: "Score indisponible, réessaie." };
+    if (!unlimited) {
+      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+    }
+    return { score, cost: unlimited ? 0 : cost };
+  } catch (e) { return { error: (e as Error).message }; }
 }
