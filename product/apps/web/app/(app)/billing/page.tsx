@@ -11,7 +11,7 @@ import { Msg } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
-const OK: Record<string, string> = { changed: 'Formule mise à jour.', same: 'C’est déjà ta formule actuelle.', subscribed: 'Abonnement activé · bienvenue !' };
+const OK: Record<string, string> = { changed: 'Formule mise à jour.', same: 'C’est déjà ta formule actuelle.', subscribed: 'Abonnement activé · bienvenue !', topup: 'Crédits ajoutés · merci !' };
 const ERR: Record<string, string> = { forbidden: 'Réservé au propriétaire.', plan: 'Formule inconnue.', stripe: 'Paiement indisponible pour le moment.', cancel: 'Paiement annulé.', nosub: 'Aucun abonnement à gérer.' };
 
 const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];

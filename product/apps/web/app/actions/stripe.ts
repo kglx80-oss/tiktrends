@@ -7,8 +7,31 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { type Plan } from '../../lib/rbac';
 import { getStripe, priceIdFor } from '../../lib/stripe';
+import { packByKey } from '../../lib/credit-packs';
 
 const appUrl = () => (process.env.APP_URL || 'https://app.tiktrends.co').replace(/\/$/, '');
+
+/**
+ * Renvoie l'id du client Stripe de l'espace, valide DANS LE MODE COURANT (test/réel).
+ * Recrée le client s'il vient de l'autre mode (évite « No such customer »).
+ */
+async function ensureCustomer(stripe: Stripe, workspaceId: string, email: string): Promise<string> {
+  const [ws] = await db!.select({ cust: schema.workspaces.stripeCustomerId, name: schema.workspaces.name })
+    .from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
+  let customerId = ws?.cust ?? null;
+  if (customerId) {
+    try {
+      const existing = await stripe.customers.retrieve(customerId);
+      if ((existing as Stripe.DeletedCustomer).deleted) customerId = null;
+    } catch { customerId = null; }
+  }
+  if (!customerId) {
+    const customer = await stripe.customers.create({ email, name: ws?.name ?? undefined, metadata: { workspaceId } });
+    customerId = customer.id;
+    await db!.update(schema.workspaces).set({ stripeCustomerId: customerId, stripeSubscriptionId: null, subscriptionStatus: null }).where(eq(schema.workspaces.id, workspaceId));
+  }
+  return customerId;
+}
 
 /** Démarre un paiement d'abonnement (Stripe Checkout hébergé) pour une formule payante. */
 export async function createCheckoutAction(formData: FormData): Promise<void> {
@@ -21,26 +44,7 @@ export async function createCheckoutAction(formData: FormData): Promise<void> {
   const price = priceIdFor(plan);
   if (!stripe || !price) redirect('/billing?e=stripe');
 
-  const [ws] = await db.select({ cust: schema.workspaces.stripeCustomerId, name: schema.workspaces.name })
-    .from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-
-  // Réutilise le client Stripe mémorisé s'il existe DANS CE MODE (test/réel).
-  // Un client créé dans l'autre mode est invalide ici : on le recrée proprement.
-  let customerId = ws?.cust ?? null;
-  if (customerId) {
-    try {
-      const existing = await stripe.customers.retrieve(customerId);
-      if ((existing as Stripe.DeletedCustomer).deleted) customerId = null;
-    } catch {
-      customerId = null; // n'existe pas dans ce mode → on repart à neuf
-    }
-  }
-  if (!customerId) {
-    const customer = await stripe.customers.create({ email: s.user.email, name: ws?.name ?? undefined, metadata: { workspaceId: s.workspaceId } });
-    customerId = customer.id;
-    // On recale l'espace sur le nouveau client et on oublie l'ancien abonnement (autre mode).
-    await db.update(schema.workspaces).set({ stripeCustomerId: customerId, stripeSubscriptionId: null, subscriptionStatus: null }).where(eq(schema.workspaces.id, s.workspaceId));
-  }
+  const customerId = await ensureCustomer(stripe, s.workspaceId, s.user.email);
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -75,4 +79,35 @@ export async function createPortalAction(): Promise<void> {
     redirect('/billing?e=nosub');
   }
   redirect(url);
+}
+
+/** Achat ponctuel d'un pack de crédits (paiement unique, prix inline · aucun produit Stripe à créer). */
+export async function createTopupCheckoutAction(formData: FormData): Promise<void> {
+  const s = await getSession();
+  if (!s || !db) redirect('/login');
+  if (s.role !== 'owner') redirect('/billing?e=forbidden');
+
+  const pack = packByKey(String(formData.get('pack') || ''));
+  const stripe = getStripe();
+  if (!stripe || !pack) redirect('/billing?e=stripe');
+
+  const customerId = await ensureCustomer(stripe, s.workspaceId, s.user.email);
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    customer: customerId,
+    line_items: [{
+      quantity: 1,
+      price_data: {
+        currency: 'eur',
+        unit_amount: Math.round(pack.eur * 100),
+        product_data: { name: `Recharge · ${pack.credits.toLocaleString('fr-FR')} crédits TikTrends` },
+      },
+    }],
+    success_url: `${appUrl()}/billing?ok=topup`,
+    cancel_url: `${appUrl()}/billing?e=cancel`,
+    metadata: { workspaceId: s.workspaceId, kind: 'topup', credits: String(pack.credits) },
+    payment_intent_data: { metadata: { workspaceId: s.workspaceId, kind: 'topup', credits: String(pack.credits) } },
+  });
+  if (!session.url) redirect('/billing?e=stripe');
+  redirect(session.url);
 }
