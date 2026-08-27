@@ -70,6 +70,9 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
                 <p style={{ margin: '10px 2px 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
                   Paiement sécurisé par Stripe · crédités instantanément. Idéal pour un pic ponctuel sans changer d'offre.
                 </p>
+                <Link href="/usage" onClick={() => setOpen(false)} style={{ ...linkRow, marginTop: 8, color: 'var(--accent-strong)', textAlign: 'center' }}>
+                  Voir mon utilisation détaillée ›
+                </Link>
               </div>
             )}
           </div>
