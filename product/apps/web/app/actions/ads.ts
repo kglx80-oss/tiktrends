@@ -9,6 +9,7 @@ import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
+import { jarvisMeasuredMemory } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate } from '../../lib/error-log';
@@ -286,8 +287,14 @@ export async function generateAdsAction(input: {
   const winningCopy = saved.map((r) => copyFromSnapshot(r.snapshot)).filter((x): x is string => !!x);
 
   // Apprentissage Jarvis : notes de pertinence du client (👍/👎) + learnings existants.
-  const prefs = await learnedPreferences(brand.id);
-  const winningPatterns = [da?.jarvisLearnings, prefs].filter(Boolean).join('\n\n') || undefined;
+  // Ordre d'autorité, du plus fort au plus faible : ce que la marque a MESURÉ
+  // (verdicts ADSMAP), puis ce qu'elle a distillé de la veille, puis les créas
+  // notées au pouce. Le premier bloc n'existe qu'à partir de vrais verdicts.
+  const [mesure, prefs] = await Promise.all([
+    jarvisMeasuredMemory(brand.id, s.workspaceId),
+    learnedPreferences(brand.id),
+  ]);
+  const winningPatterns = [mesure, da?.jarvisLearnings, prefs].filter(Boolean).join('\n\n') || undefined;
 
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
@@ -357,6 +364,9 @@ async function loadAdContext(brandId: string, productId?: string, personaId?: st
   const [da] = await db!.select({
     colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp,
     audience: schema.brands.audience, category: schema.brands.category, logoUrl: schema.brands.logoUrl,
+    // Le clone en a besoin comme la génération : les règles maison et les patterns
+    // distillés ne doivent pas dépendre du chemin emprunté.
+    creativeRules: schema.brands.creativeRules, jarvisLearnings: schema.brands.jarvisLearnings,
   }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
 
   let product: { name: string; description: string | null; usp: string | null; imageUrl: string | null; imageUrls: string[] | null } | null = null;
@@ -439,6 +449,12 @@ export async function cloneAdAction(input: {
   const { da, product, persona } = await loadAdContext(brand.id, input.productId, input.personaId);
   const productImageUrls = product ? (product.imageUrls && product.imageUrls.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : null)) : null;
   const editMode = !!(productImageUrls && productImageUrls.length);
+  // Le clone bénéficie de la même mémoire mesurée : reproduire une pub qui a
+  // marché ailleurs sans tenir compte de ce qui marche ICI serait une régression.
+  const [mesureClone, prefsClone] = await Promise.all([
+    jarvisMeasuredMemory(brand.id, s.workspaceId),
+    learnedPreferences(brand.id),
+  ]);
   const ctx = {
     brand: brand.name, tone: da?.tone ?? undefined, colors: da?.colors ?? undefined, usp: da?.usp ?? undefined,
     audience: da?.audience ?? undefined, category: da?.category ?? undefined,
@@ -446,6 +462,8 @@ export async function cloneAdAction(input: {
     hasProductPhoto: editMode,
     persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
     objective: input.objective,
+    creativeRules: da?.creativeRules ?? undefined,
+    winningPatterns: [mesureClone, da?.jarvisLearnings, prefsClone].filter(Boolean).join('\n\n') || undefined,
   };
 
   // 1) Analyse de la référence -> gabarit + angle à répliquer.
@@ -581,10 +599,15 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
     creativeRules: schema.brands.creativeRules, jarvisLearnings: schema.brands.jarvisLearnings,
   }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
 
+  // La note s'appuie sur ce que la marque a mesuré, pas seulement sur son ton :
+  // sans ça, Jarvis évalue une créa à l'aune de règles générales de copywriting.
+  const mesureScore = await jarvisMeasuredMemory(brand.id, s.workspaceId);
+
   try {
     const score = await scoreCreative(client, {
       brand: brand.name, tone: da?.tone ?? undefined, usp: da?.usp ?? undefined, audience: da?.audience ?? undefined,
-      category: da?.category ?? undefined, objective: r.objective, creativeRules: da?.creativeRules ?? undefined, winningPatterns: da?.jarvisLearnings ?? undefined,
+      category: da?.category ?? undefined, objective: r.objective, creativeRules: da?.creativeRules ?? undefined,
+      winningPatterns: [mesureScore, da?.jarvisLearnings].filter(Boolean).join('\n\n') || undefined,
     }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge });
     if (!score) {
       if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
