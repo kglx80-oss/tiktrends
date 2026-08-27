@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { input, lbl } from './ui';
+import { BrandGuidelines } from './BrandGuidelines';
 import { createBrandAction, generateBrandDraftAction, type BrandDraftState } from '../app/actions/brands';
 
 interface Persona { name: string; description: string; pains: string; desires: string }
@@ -22,7 +23,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export function BrandWizard({ aiReady, draftCost = 5 }: { aiReady: boolean; draftCost?: number }) {
+export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiReady: boolean; draftCost?: number; embedded?: boolean }) {
   const [step, setStep] = useState(0);
   // Écran d'entrée « IA d'abord » : nom + site -> Jarvis pré-remplit tout, on révise ensuite.
   const [gate, setGate] = useState(true);
@@ -38,6 +39,11 @@ export function BrandWizard({ aiReady, draftCost = 5 }: { aiReady: boolean; draf
 
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [logos, setLogos] = useState<string[]>([]);
+  // Couleurs / polices : stockées en texte (compat POST) mais éditées en listes.
+  const splitList = (v: string) => v.split(',').map((x) => x.trim()).filter(Boolean);
+  const colorList = splitList(f.colors);
+  const fontList = splitList(f.fonts);
 
   const [draftState, runDraft, drafting] = useActionState<BrandDraftState, FormData>(async (_p, fd) => {
     const res = await generateBrandDraftAction(_p, fd);
@@ -75,7 +81,7 @@ export function BrandWizard({ aiReady, draftCost = 5 }: { aiReady: boolean; draf
   if (gate) {
     const ready = aiReady && f.name.trim().length > 0;
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) minmax(0,1fr)', gap: 0, border: '1px solid var(--line-2)', borderRadius: 20, overflow: 'hidden', background: 'var(--surface)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 260px) minmax(0,1fr)', gap: 0, ...shell(embedded) }}>
         {/* Panneau valeur */}
         <div style={{ background: 'linear-gradient(180deg, rgba(254,44,85,.10), var(--paper))', padding: '26px 22px', borderRight: '1px solid var(--line)' }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 14 }}>✦</div>
@@ -124,7 +130,7 @@ export function BrandWizard({ aiReady, draftCost = 5 }: { aiReady: boolean; draf
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(190px, 230px) minmax(0,1fr)', gap: 0, border: '1px solid var(--line-2)', borderRadius: 20, overflow: 'hidden', background: 'var(--surface)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) minmax(0,1fr)', gap: 0, ...shell(embedded) }}>
       {/* Étapes · barre latérale */}
       <aside style={{ background: 'var(--paper)', borderRight: '1px solid var(--line)', padding: '22px 16px', display: 'flex', flexDirection: 'column' }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginBottom: 16 }}>Créer une marque</div>
@@ -194,28 +200,21 @@ export function BrandWizard({ aiReady, draftCost = 5 }: { aiReady: boolean; draf
         <section style={{ display: step === 1 ? 'block' : 'none' }}>
           <h2 style={hStep}>Charte de marque</h2>
           <p style={pStep}>Le style et le langage que l'IA doit respecter dans chaque créa.</p>
+          {/* Identité visuelle · édition directe (logos, pastilles de couleur, polices) */}
+          <BrandGuidelines
+            logos={logos} onLogos={setLogos}
+            defaultLogo={f.logoUrl} onDefaultLogo={(v) => setF((s) => ({ ...s, logoUrl: v }))}
+            colors={colorList} onColors={(v) => setF((s) => ({ ...s, colors: v.join(', ') }))}
+            fonts={fontList} onFonts={(v) => setF((s) => ({ ...s, fonts: v.join(', ') }))}
+          />
+
+          <div style={{ height: 18 }} />
           <Field label="Ton de voix"><input name="tone" value={f.tone} onChange={set('tone')} placeholder="Chaleureux, expert, direct" style={input} /></Field>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 240px' }}><Field label="Couleurs de marque" hint="codes hex, virgules"><input name="colors" value={f.colors} onChange={set('colors')} placeholder="#7A1E4B, #F5C877" style={input} /></Field></div>
-            <div style={{ flex: '1 1 240px' }}><Field label="Polices" hint="virgules"><input name="fonts" value={f.fonts} onChange={set('fonts')} placeholder="Inter, Playfair Display" style={input} /></Field></div>
-          </div>
-          {f.colors.trim() && (
-            <div style={{ display: 'flex', gap: 8, margin: '-4px 0 14px', flexWrap: 'wrap' }}>
-              {f.colors.split(',').map((c) => c.trim()).filter(Boolean).map((c, i) => (
-                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-2)' }}>
-                  <span style={{ width: 18, height: 18, borderRadius: 5, border: '1px solid var(--line-2)', background: c }} />{c}
-                </span>
-              ))}
-            </div>
-          )}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 240px' }}><Field label="Mots à privilégier" hint="virgules"><input name="preferredWords" value={f.preferredWords} onChange={set('preferredWords')} placeholder="naturel, simple, énergie" style={input} /></Field></div>
             <div style={{ flex: '1 1 240px' }}><Field label="Mots à éviter" hint="virgules"><input name="avoidWords" value={f.avoidWords} onChange={set('avoidWords')} placeholder="miracle, garanti" style={input} /></Field></div>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 240px' }}><Field label="Langue(s) par défaut" hint="virgules"><input name="languages" value={f.languages} onChange={set('languages')} placeholder="Français" style={input} /></Field></div>
-            <div style={{ flex: '1 1 240px' }}><Field label="Logo (URL)" hint="optionnel"><input name="logoUrl" value={f.logoUrl} onChange={set('logoUrl')} placeholder="https://…/logo.png" style={input} /></Field></div>
-          </div>
+          <Field label="Langue(s) par défaut" hint="virgules"><input name="languages" value={f.languages} onChange={set('languages')} placeholder="Français" style={input} /></Field>
         </section>
 
         {/* STEP 3 · Audience */}
@@ -308,6 +307,10 @@ function Row({ title, count, onAdd, addLabel }: { title: string; count: number; 
   );
 }
 
+/** Coquille du wizard : encadrée en page, à nu dans une pop-up (la modale porte déjà le cadre). */
+const shell = (embedded: boolean): React.CSSProperties => (embedded
+  ? { margin: '-4px -4px 0', minHeight: 380 }
+  : { border: '1px solid var(--line-2)', borderRadius: 20, overflow: 'hidden', background: 'var(--surface)' });
 const noticeBox = (border: string, bg: string, color: string) => ({
   border: `1px solid ${border}`, background: bg, color, borderRadius: 12, padding: '10px 13px', fontSize: 13, marginBottom: 16,
 } as const);

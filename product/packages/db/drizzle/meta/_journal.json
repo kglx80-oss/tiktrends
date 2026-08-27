@@ -197,6 +197,20 @@
       "when": 1787770000000,
       "tag": "0027_meta_ad_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1787775000000,
+      "tag": "0028_brand_logos",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1787780000000,
+      "tag": "0029_scenario_image",
+      "breakpoints": true
     }
   ]
 }
