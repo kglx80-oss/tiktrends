@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
+import { isFounder } from '../../../lib/founder';
 import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { updateWorkspaceAction, setPlanAction } from '../../actions/admin';
 import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
@@ -19,7 +20,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard'); // garde : accès admin+ uniquement
   const { ok, e } = await searchParams;
-  const isOwner = s.role === 'owner';
+  // La bascule directe de formule est un outil de pilotage plateforme : elle attribue
+  // les crédits du plan sans paiement. Tout inscrit est « owner » de son espace, donc
+  // seul le fondateur y a accès ; les clients passent par /billing (Stripe).
+  const canPilotPlan = isFounder(s.user.email);
 
   return (
     <main style={{ ...ADMIN_THEME, ...pageWrap }}>
@@ -50,9 +54,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <h2 style={h2}>Abonnement</h2>
         <p style={sub}>
           Plan actuel : <b>{PLAN_LABEL[s.plan]}</b>. Le plan débloque les fonctionnalités
-          (Inspo & Studio IA dès <b>Core</b>).{!isOwner && ' Seul le propriétaire peut le changer.'}
+          (Inspo & Studio IA dès <b>Core</b>).
         </p>
-        {isOwner ? (
+        {canPilotPlan ? (
           <form action={setPlanAction} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <select name="plan" defaultValue={s.plan} style={{ ...input, width: 'auto', minWidth: 180 }}>
               {PLANS.map((p) => <option key={p} value={p}>{PLAN_LABEL[p]}</option>)}
@@ -60,7 +64,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <button type="submit" style={btn}>Changer d'abonnement</button>
           </form>
         ) : (
-          <div style={{ fontSize: 13, color: 'var(--muted)' }}>Contacte le propriétaire de l'espace pour faire évoluer le plan.</div>
+          <a href="/billing" style={{ ...btn, display: 'inline-block', textDecoration: 'none' }}>Voir les formules ›</a>
         )}
       </div>
 

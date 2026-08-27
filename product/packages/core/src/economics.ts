@@ -77,6 +77,11 @@ export interface ImageModelSpec {
   note: string;         // description courte
   recommended?: boolean;
   supportsRef?: boolean; // gère les images de référence (produit / clone)
+  // Paramètres supplémentaires envoyés au modèle (ex : resolution). C'est ce qui
+  // différencie réellement deux variantes qui partagent le même identifiant Fal :
+  // sans ça, la variante « Haute » enverrait la même requête et coûterait le double
+  // au client pour un résultat identique.
+  params?: Record<string, string | number>;
 }
 
 /**
@@ -85,7 +90,7 @@ export interface ImageModelSpec {
  */
 export const IMAGE_MODELS: ImageModelSpec[] = [
   { key: 'nano',         label: 'Nano Banana 2',         falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.039, credits: 4,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
-  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.09,  credits: 8,  note: 'Détail & cohérence renforcés', supportsRef: true },
+  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.09,  credits: 8,  note: 'Rendu 2K · détail & cohérence renforcés', supportsRef: true, params: { resolution: '2K' } },
   { key: 'gpt_image',    label: 'GPT Image',             falModel: 'fal-ai/gpt-image-1/edit-image/byok', realEur: 0.08,  credits: 8,  note: 'Texte net & respect du brief', supportsRef: true },
   // Note : l'identifiant du modèle GPT Image est surchargeable via FAL_IMAGE_MODEL_GPT
   // (les variantes « byok » de Fal réclament une clé OpenAI côté serveur).

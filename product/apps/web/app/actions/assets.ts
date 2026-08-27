@@ -4,6 +4,7 @@ import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { decryptSecret } from '../../lib/secrets';
+import { driveRefreshTokenFor } from '../../lib/drive-token';
 import { anthropicFromEnv, describeAssetImage } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -253,12 +254,12 @@ export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: t
  * l'inline en data URI (comme les photos uploadées). Les images déjà publiques (bucket,
  * URL externe) passent telles quelles. Ce qu'on ne peut pas résoudre est ignoré (jamais bloquant).
  */
-async function toAiImageUrls(workspaceId: string, rows: Array<{ url: string; externalId: string | null; mimeType: string | null }>): Promise<string[]> {
+async function toAiImageUrls(workspaceId: string, rows: Array<{ url: string; externalId: string | null; mimeType: string | null }>, brandId?: string | null): Promise<string[]> {
   const needsDrive = rows.some((r) => r.url && isPrivateDriveUrl(r.url) && r.externalId);
   let token: string | null = null;
   if (needsDrive && db) {
-    const [w] = await db.select({ tok: schema.workspaces.driveRefreshToken }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-    const rt = decryptSecret(w?.tok);
+    // Le jeton Drive vit sur la marque (jamais sur l'espace) · cf. lib/drive-token.
+    const rt = await driveRefreshTokenFor(workspaceId, brandId);
     if (rt) { try { token = await googleAccessToken(rt); } catch { token = null; } }
   }
   const out: string[] = [];
@@ -303,5 +304,5 @@ export async function listBrandAssetImageUrls(workspaceId: string, brandId: stri
     ))
     .orderBy(desc(schema.assets.createdAt))
     .limit(limit);
-  return toAiImageUrls(workspaceId, rows);
+  return toAiImageUrls(workspaceId, rows, brandId);
 }
