@@ -11,7 +11,7 @@ import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
-import { logAndTranslate } from '../../lib/user-error';
+import { logAndTranslate } from '../../lib/error-log';
 
 export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string; rating?: import('./creatives').Rating; score?: number }
 export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
@@ -301,7 +301,7 @@ export async function generateAdsAction(input: {
       objective: input.objective, angle: input.angle?.trim() || undefined, offer: input.offer?.trim() || undefined, creativeRules: da?.creativeRules ?? undefined, winningPatterns,
     }, { templates, winningCopy, competitors: brow?.competitors ?? undefined });
   } catch (e) {
-    return { error: logAndTranslate('ads:concepts', e, { subject: "l'écriture des concepts" }) };
+    return { error: logAndTranslate('ads:concepts', e, { subject: "l'écriture des concepts", workspaceId: s.workspaceId }) };
   }
   if (!concepts.length) return { error: "Aucun concept n'a pu être généré. Réessaie." };
 
@@ -348,7 +348,7 @@ export async function suggestAnglesAction(input: { productId?: string }): Promis
     return { angles };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · angles suggérés');
-    return { error: logAndTranslate('ads:angles', e, { subject: 'la proposition d’angles' }) };
+    return { error: logAndTranslate('ads:angles', e, { subject: 'la proposition d’angles', workspaceId: s.workspaceId }) };
   }
 }
 
@@ -451,7 +451,7 @@ export async function cloneAdAction(input: {
   // 1) Analyse de la référence -> gabarit + angle à répliquer.
   let base: AdConcept | null;
   try { base = await cloneAdFromReference(client, ref, ctx); }
-  catch (e) { return { error: logAndTranslate('ads:ref', e, { subject: 'l’analyse de la pub de référence' }) }; }
+  catch (e) { return { error: logAndTranslate('ads:ref', e, { subject: 'l’analyse de la pub de référence', workspaceId: s.workspaceId }) }; }
   if (!base) return { error: "La pub de référence n'a pas pu être interprétée. Réessaie." };
   const angle = [base.kicker, base.headline].filter(Boolean).join(' · ') || base.headline;
 
@@ -460,7 +460,7 @@ export async function cloneAdAction(input: {
   try {
     concepts = await generateAdConcepts(client, { ...ctx, angle }, { templates: Array.from({ length: count }, () => base!.template) });
   } catch (e) {
-    return { error: logAndTranslate('ads:clone', e, { subject: 'l’écriture des variations' }) };
+    return { error: logAndTranslate('ads:clone', e, { subject: 'l’écriture des variations', workspaceId: s.workspaceId }) };
   }
   if (!concepts.length) concepts = [base]; // repli : au moins la reproduction directe
 
@@ -601,6 +601,6 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
     return { score, cost: unlimited ? 0 : cost };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
-    return { error: logAndTranslate('ads:score', e, { subject: 'l’analyse de la créa' }) };
+    return { error: logAndTranslate('ads:score', e, { subject: 'l’analyse de la créa', workspaceId: s.workspaceId }) };
   }
 }

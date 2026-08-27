@@ -13,7 +13,7 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
-import { logAndTranslate } from '../../lib/user-error';
+import { logAndTranslate } from '../../lib/error-log';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -178,7 +178,7 @@ export async function generateScenarioImageAction(input: { brandId: string; scen
     return { url };
   } catch (e) {
     if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · visuel de scénario');
-    return { error: logAndTranslate('brand:scenario-visual', e, { subject: 'la génération du visuel' }) };
+    return { error: logAndTranslate('brand:scenario-visual', e, { subject: 'la génération du visuel', workspaceId: g.workspaceId }) };
   }
 }
 

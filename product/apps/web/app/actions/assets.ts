@@ -9,7 +9,7 @@ import { costFor } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
-import { logAndTranslate } from '../../lib/user-error';
+import { logAndTranslate } from '../../lib/error-log';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
@@ -139,7 +139,7 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
   try { ({ tags } = await describeAssetImage(client, a.url)); }
   catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · tagging IA');
-    return { error: logAndTranslate('assets:tag', e, { subject: 'l’analyse de l’image' }) };
+    return { error: logAndTranslate('assets:tag', e, { subject: 'l’analyse de l’image', workspaceId: s.workspaceId }) };
   }
   if (!tags.length) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · tagging IA');
@@ -210,7 +210,7 @@ export async function presignAssetUploadAction(input: { filename: string; conten
     const { uploadUrl, publicUrl } = presignPutUrl(cfg, key);
     return { uploadUrl, publicUrl };
   } catch (e) {
-    return { error: logAndTranslate('assets:upload', e, { subject: 'la préparation du téléversement' }) };
+    return { error: logAndTranslate('assets:upload', e, { subject: 'la préparation du téléversement', workspaceId: s.workspaceId }) };
   }
 }
 

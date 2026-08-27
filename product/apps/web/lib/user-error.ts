@@ -7,7 +7,7 @@
  * famille d'échec à une phrase qui dit CE QUI s'est passé et CE QU'IL FAUT FAIRE.
  *
  * Volontairement pur (aucun import serveur) pour rester testable et utilisable
- * partout · la trace technique, elle, part dans les logs via `logAndTranslate`.
+ * partout · l'enregistrement de la trace vit dans `lib/error-log`.
  */
 
 export interface UserErrorOptions {
@@ -91,11 +91,37 @@ export function userError(e: unknown, opts: UserErrorOptions = {}): string {
   return opts.fallback ?? `${Sujet} n'a pas abouti. Réessaie · si le problème persiste, écris-nous depuis le Support.`;
 }
 
-/**
- * Variante côté serveur : trace le détail technique (indispensable pour
- * diagnostiquer) et ne renvoie que la version lisible.
- */
-export function logAndTranslate(scope: string, e: unknown, opts: UserErrorOptions = {}): string {
-  console.error(`[${scope}]`, raw(e));
-  return userError(e, opts);
+/** Message technique d'origine (utile pour le journal · jamais affiché tel quel). */
+export function rawMessage(e: unknown): string {
+  return raw(e);
 }
+
+/**
+ * Famille normalisée d'un échec · sert à regrouper le journal ADMIN+ pour voir
+ * d'un coup d'œil si c'est le réseau, un quota ou une clé qui déraille.
+ */
+export type ErrorFamily = 'delai' | 'reseau' | 'saturation' | 'quota' | 'acces' | 'image' | 'adresse' | 'contenu' | 'service' | 'requete' | 'autre';
+
+export function errorFamily(e: unknown): ErrorFamily {
+  const low = raw(e).toLowerCase();
+  if (/timeout|timedout|aborted|abort ?error|etimedout|deadline/.test(low)) return 'delai';
+  if (/fetch failed|econnrefused|enotfound|econnreset|eai_again|network|socket hang up|dns/.test(low)) return 'reseau';
+  if (/rate.?limit|429|too many requests|overloaded/.test(low)) return 'saturation';
+  if (/insufficient|credit balance|quota|billing|payment required|402/.test(low)) return 'quota';
+  if (/unauthorized|invalid.?api.?key|authentication|forbidden|401|403/.test(low)) return 'acces';
+  if (/image_load_error|failed to load the image|invalid image|unsupported image/.test(low)) return 'image';
+  if (/adresse refusée|site inaccessible/.test(low)) return 'adresse';
+  if (/content.?polic|safety|moderation|nsfw|blocked|prohibited/.test(low)) return 'contenu';
+  const status = statusIn(low);
+  if (status && status >= 500) return 'service';
+  if (status === 422 || status === 400) return 'requete';
+  return 'autre';
+}
+
+/** Libellés lisibles des familles (menu et regroupements ADMIN+). */
+export const FAMILY_LABEL: Record<ErrorFamily, string> = {
+  delai: 'Délai dépassé', reseau: 'Service injoignable', saturation: 'Service saturé',
+  quota: 'Quota fournisseur', acces: 'Clé / accès refusé', image: 'Image de départ',
+  adresse: 'Adresse refusée', contenu: 'Contenu refusé', service: 'Panne fournisseur',
+  requete: 'Requête refusée', autre: 'Autre',
+};

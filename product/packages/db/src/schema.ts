@@ -399,6 +399,26 @@ export const stripeEvents = pgTable('stripe_events', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Journal des echecs techniques · alimente par logAndTranslate.
+ *
+ * Les erreurs partaient uniquement dans les logs du conteneur, que personne ne
+ * lit : un fournisseur qui deraille se decouvrait par un client mecontent. On
+ * garde ici de quoi voir la tendance (quelle famille, quel scope, quel espace),
+ * pas de quoi rejouer : le detail technique reste tronque et purge a 30 jours.
+ */
+export const errorLog = pgTable('error_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  scope: text('scope').notNull(),                 // ex : « studio:script », « video:start »
+  family: text('family').notNull(),               // famille normalisee (timeout, reseau, quota…)
+  detail: text('detail').notNull(),               // message technique tronque
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  atIdx: index('error_log_at_idx').on(t.createdAt),
+  famIdx: index('error_log_family_idx').on(t.family),
+}));
+
 export const apiKeys = pgTable('api_keys', {
   id: uuid('id').primaryKey().defaultRandom(),
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
