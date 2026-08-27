@@ -6,6 +6,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { listBatchesAction } from '../../actions/adsmap';
 import { PageInfo } from '../../../components/PageInfo';
 import { AdsMapTable } from './AdsMapTable';
+import { effectiveAccess } from '../../../lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,8 +23,8 @@ export default async function AdsMapPage() {
   const s = await getSession();
   if (!s) redirect('/login');
 
-  if (!canAccess({ role: s.role, plan: s.plan }, feature)) {
-    const why = denyReason({ role: s.role, plan: s.plan }, feature);
+  if (!canAccess(effectiveAccess(s), feature)) {
+    const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={{ padding: '30px 36px 60px', maxWidth: 700, margin: '0 auto' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>ADSMAP</h1>

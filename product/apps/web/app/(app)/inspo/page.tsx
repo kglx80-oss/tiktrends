@@ -7,6 +7,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdSort, type AdPlatform } from '@tiktrends/integrations';
 import { AdCard, compact } from '../../../components/AdCard';
 import { PageInfo } from '../../../components/PageInfo';
+import { effectiveAccess } from '../../../lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +48,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   const s = await getSession();
   if (!s) redirect('/login');
 
-  const access = { role: s.role, plan: s.plan };
+  const access = effectiveAccess(s);
   if (!canAccess(access, feature)) {
     const why = denyReason(access, feature);
     return (

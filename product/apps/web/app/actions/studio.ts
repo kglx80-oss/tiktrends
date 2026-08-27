@@ -6,6 +6,7 @@ import { anthropicFromEnv, generateCreative, type CreativeOutput } from '@tiktre
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
+import { effectiveAccess } from '../../lib/access';
 
 const feature = FEATURES.find((f) => f.key === 'studio')!;
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
@@ -18,7 +19,7 @@ export interface StudioState {
 export async function generateAction(_prev: StudioState, formData: FormData): Promise<StudioState> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
-  if (!canAccess({ role: s.role, plan: s.plan }, feature)) {
+  if (!canAccess(effectiveAccess(s), feature)) {
     return { error: "Le Studio IA nécessite l'abonnement Core et un rôle Membre minimum." };
   }
 
