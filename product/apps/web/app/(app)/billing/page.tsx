@@ -4,7 +4,6 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { isFounder } from '../../../lib/founder';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
-import { changePlanAction } from '../../actions/billing';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
 import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
 import { Msg } from '../../../components/ui';
@@ -140,8 +139,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   if (planPurchasable(p)) return cta(`S'abonner · ${PLAN_PRICE[p]} €/mois`, createCheckoutAction, 'plan', p);
                   return disabledBtn('Bientôt');
                 }
-                // Sans Stripe : bascule directe réservée au pilotage plateforme.
-                if (canPilotPlan) return cta('Choisir cette formule', changePlanAction, 'plan', p);
+                // Sans Stripe : aucune bascule directe ici. Le pilotage interne
+                // (qui crédite sans paiement) vit dans ADMIN+ · voir /admin/plans.
                 return disabledBtn('Bientôt disponible');
               })()}
             </div>
@@ -154,7 +153,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         {stripeOn ? (
           <><b style={{ color: 'var(--ink)' }}>🔒 Paiement sécurisé par Stripe.</b> Carte bancaire, factures automatiques et TVA gérées par Stripe · aucune donnée de carte ne transite par TikTrends. Le changement de formule et la résiliation se font dans <b>« Gérer mon abonnement »</b>.</>
         ) : (
-          <><b style={{ color: 'var(--ink)' }}>Pilotage interne.</b> Le paiement en ligne (Stripe) n'est pas encore activé sur ce serveur · le changement de formule est appliqué directement ici.</>
+          <><b style={{ color: 'var(--ink)' }}>Paiement en préparation.</b> Le règlement en ligne n'est pas encore activé sur ce serveur · écris-nous depuis le Support pour faire évoluer ta formule en attendant.{canPilotPlan && <> <a href="/admin/plans" style={{ color: 'var(--accent-strong)' }}>Pilotage interne (ADMIN+) ›</a></>}</>
         )}
       </div>
     </main>

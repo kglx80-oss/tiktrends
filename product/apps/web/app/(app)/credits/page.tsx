@@ -1,11 +1,11 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { CREDIT_COSTS, analyzeCosts, analyzePlan, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
-import { grantCreditsAction, rechargeAllocationAction } from '../../actions/credits';
-import { input, btn, btnGhost, panel, Msg } from '../../../components/ui';
+import { panel, Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { trialStatus } from '../../../lib/trial';
 import { isFounder } from '../../../lib/founder';
@@ -108,22 +108,11 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
-      {/* Contrôles propriétaire */}
-      {isOwner && (
-        <div style={panel}>
-          <h2 style={h2}>Gérer les crédits</h2>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <form action={rechargeAllocationAction}>
-              <button type="submit" style={btn}>Recharger l'allocation du mois</button>
-            </form>
-            <form action={grantCreditsAction} style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-              <div><label style={lbl}>Ajustement (+/−)</label><input name="amount" type="number" placeholder="ex : 500" style={{ ...input, width: 120 }} /></div>
-              <div><label style={lbl}>Motif</label><input name="reason" placeholder="Bonus, correction…" style={{ ...input, width: 180 }} /></div>
-              <button type="submit" style={btnGhost}>Appliquer</button>
-            </form>
-          </div>
-        </div>
-      )}
+      <p style={{ margin: '0 0 22px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.7 }}>
+        Pour appliquer une formule ou ajuster le solde de cet espace, voir
+        {' '}<Link href="/admin/plans" style={{ color: 'var(--accent-strong)' }}>Formules & crédits · pilotage</Link>.
+        Cette page reste dédiée aux coûts réels et aux marges.
+      </p>
 
       {/* ============ ÉCONOMIE RÉELLE (ADMIN) ============ */}
       <section style={{ ...panel, borderColor: 'rgba(245,166,35,.3)', background: 'linear-gradient(180deg, rgba(245,166,35,.06), var(--surface))' }}>

@@ -21,10 +21,13 @@ const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 export async function changePlanAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
-  if (!isFounder(s.user.email)) redirect('/billing?e=forbidden');
+  // Page d'origine : le pilotage vit dans ADMIN+, mais l'action reste appelable
+  // depuis /billing tant qu'un fondateur y passe.
+  const home = formData.get('back') === 'admin' ? '/admin/plans' : '/billing';
+  if (!isFounder(s.user.email)) redirect(`${home}?e=forbidden`);
   const plan = String(formData.get('plan') || '') as Plan;
-  if (!PLANS.includes(plan)) redirect('/billing?e=plan');
-  if (plan === s.plan) redirect('/billing?ok=same');
+  if (!PLANS.includes(plan)) redirect(`${home}?e=plan`);
+  if (plan === s.plan) redirect(`${home}?ok=same`);
 
   await db.update(schema.workspaces).set({ plan }).where(eq(schema.workspaces.id, s.workspaceId));
 
@@ -41,5 +44,5 @@ export async function changePlanAction(formData: FormData): Promise<void> {
   if (delta !== 0) {
     await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta, reason: `Changement de formule -> ${plan}` });
   }
-  redirect('/billing?ok=changed');
+  redirect(`${home}?ok=changed`);
 }

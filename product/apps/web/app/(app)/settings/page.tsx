@@ -1,17 +1,15 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
-import { isFounder } from '../../../lib/founder';
-import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../lib/rbac';
-import { updateWorkspaceAction, setPlanAction } from '../../actions/admin';
+import { roleAtLeast, PLAN_LABEL } from '../../../lib/rbac';
+import { updateWorkspaceAction } from '../../actions/admin';
 import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
 import { ADMIN_THEME } from '../../../lib/theme';
 import { PageInfo } from '../../../components/PageInfo';
 import { storageConfigured } from '@tiktrends/integrations';
 import { StorageConfigurator } from '../../../components/StorageConfigurator';
 
-const OK: Record<string, string> = { '1': 'Espace mis à jour.', plan: 'Abonnement modifié.' };
-const ERR: Record<string, string> = { forbidden: "Action réservée à l'administrateur.", plan: 'Abonnement invalide.' };
-const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
+const OK: Record<string, string> = { '1': 'Espace mis à jour.' };
+const ERR: Record<string, string> = { forbidden: "Action réservée à l'administrateur." };
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +18,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard'); // garde : accès admin+ uniquement
   const { ok, e } = await searchParams;
-  // La bascule directe de formule est un outil de pilotage plateforme : elle attribue
-  // les crédits du plan sans paiement. Tout inscrit est « owner » de son espace, donc
-  // seul le fondateur y a accès ; les clients passent par /billing (Stripe).
-  const canPilotPlan = isFounder(s.user.email);
 
   return (
     <main style={{ ...ADMIN_THEME, ...pageWrap }}>
@@ -34,8 +28,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <p style={sub}>Administration de <b>{s.workspaceName}</b>.</p>
 
       <PageInfo title="réglages de l'espace">
-        Configure ici le <b>nom de l'espace</b> et, en tant que propriétaire, l'<b>abonnement</b> (qui débloque
-        les fonctionnalités comme Inspo et le Studio). Les changements s'appliquent immédiatement à tout ton espace.
+        Configure ici le <b>nom de l'espace</b> et les intégrations serveur. Le changement
+        d'abonnement se fait dans <b>Abonnement & factures</b>, avec paiement sécurisé.
       </PageInfo>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
@@ -53,19 +47,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <div style={panel}>
         <h2 style={h2}>Abonnement</h2>
         <p style={sub}>
-          Plan actuel : <b>{PLAN_LABEL[s.plan]}</b>. Le plan débloque les fonctionnalités
-          (Inspo & Studio IA dès <b>Core</b>).
+          Formule actuelle : <b>{PLAN_LABEL[s.plan]}</b>. Elle débloque les fonctionnalités
+          (Veille & Studio IA dès <b>Core</b>) et l'allocation de crédits mensuelle.
         </p>
-        {canPilotPlan ? (
-          <form action={setPlanAction} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <select name="plan" defaultValue={s.plan} style={{ ...input, width: 'auto', minWidth: 180 }}>
-              {PLANS.map((p) => <option key={p} value={p}>{PLAN_LABEL[p]}</option>)}
-            </select>
-            <button type="submit" style={btn}>Changer d'abonnement</button>
-          </form>
-        ) : (
-          <a href="/billing" style={{ ...btn, display: 'inline-block', textDecoration: 'none' }}>Voir les formules ›</a>
-        )}
+        <a href="/billing" style={{ ...btn, display: 'inline-block', textDecoration: 'none' }}>Gérer mon abonnement ›</a>
       </div>
 
       <div style={panel}>
