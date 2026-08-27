@@ -10,6 +10,7 @@ import { hit, reset } from '../../lib/rate-limit';
 import { TRIAL_DEFAULT_CREDITS, TRIAL_DEFAULT_DAYS } from '../../lib/trial';
 import { sendMail } from '../../lib/mailer';
 import { welcomeEmail, resetEmail } from '../../lib/emails';
+import { klaviyoSignedUp } from '../../lib/klaviyo';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
@@ -45,8 +46,9 @@ export async function signupAction(formData: FormData): Promise<void> {
   if (!ws || !user) redirect('/signup?e=server');
   await db.insert(schema.workspaceMembers).values({ workspaceId: ws.id, userId: user.id, role: 'owner' });
 
-  // E-mail de bienvenue · best-effort (n'empêche jamais la création du compte).
+  // E-mail de bienvenue + synchro marketing Klaviyo · best-effort (jamais bloquant).
   try { const m = welcomeEmail(name, workspaceName); await sendMail({ to: email, subject: m.subject, html: m.html, text: m.text }); } catch { /* ignore */ }
+  try { await klaviyoSignedUp({ email, name, workspaceName, plan: 'starter' }); } catch { /* ignore */ }
 
   await createSession(user.id);
   redirect('/onboarding');
