@@ -11,12 +11,7 @@
  * lisible, ce qu'elle refuserait de toute façon.
  */
 
-export type AdStatus = 'draft' | 'proposed' | 'ready' | 'live' | 'paused' | 'done';
-export type AdType = 'ideation' | 'iteration' | 'imitation' | 'new';
-export type VerdictValue = 'winner' | 'baby_winner' | 'loser' | 'inconclusive' | 'insufficient_delivery' | 'relative_winner';
-export type TestedVariable =
-  | 'hook' | 'opening_visual' | 'body' | 'length' | 'cta' | 'format' | 'offer' | 'landing'
-  | 'avatar_on_screen' | 'proof' | 'audio' | 'angle' | 'desire' | 'none_control';
+import type { AdStatus, AdType, VerdictValue, TestedVariable } from './types';
 
 /** Une violation nommée, avec un message affichable tel quel. */
 export interface Violation { rule: string; message: string }
@@ -134,4 +129,32 @@ export function iterationDepth(edges: Array<{ child: string; parent: string }>, 
     cur = parentOf.get(cur);
   }
   return depth;
+}
+
+/**
+ * Compose UN message listant tous les champs manquants d'un coup.
+ *
+ * Exigence C3 de l'addendum v2.1 : afficher la première violation seulement fait
+ * corriger l'utilisateur en quatre allers-retours. On énumère donc ce qui manque,
+ * puis on rappelle pourquoi en une phrase.
+ */
+export function formatViolations(violations: Violation[]): string | null {
+  if (!violations.length) return null;
+  if (violations.length === 1) return violations[0]!.message;
+
+  const MANQUE: Record<string, string> = {
+    'ad.hypothesis': "l'hypothèse testée",
+    'ad.tested_variable': 'la variable testée',
+    'ad.offer': "l'offre",
+    'ad.landing_page': 'la page de destination',
+  };
+  const champs = violations.map((v) => MANQUE[v.rule]).filter(Boolean);
+  if (champs.length !== violations.length) {
+    // Violations hétérogènes : on les rend telles quelles, une par ligne.
+    return violations.map((v) => v.message).join(' ');
+  }
+  const liste = champs.length > 1
+    ? `${champs.slice(0, -1).join(', ')} et ${champs[champs.length - 1]}`
+    : champs[0];
+  return `Il manque ${liste} pour passer cette ad en prêt. Sans ces éléments, le résultat du test ne pourra être attribué à rien.`;
 }

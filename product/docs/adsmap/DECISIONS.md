@@ -138,3 +138,64 @@ affichable et exportable.
 
 **Décision proposée :** ne pas ouvrir cette intégration en v1. À reconsidérer si l'équipe de
 production travaille réellement dans Notion au quotidien.
+
+---
+
+## D11 — Intervalles unilatéraux à 80 % (addendum v2.1 · C1)
+
+**Statut :** PRISE
+
+Le bilatéral à 90 % de la v2 exigeait environ 25 conversions par ad pour conclure,
+hors d'atteinte d'un budget de test à 3 × le CPA cible : la règle WINNER échouait sur son
+propre cas de référence. Remplacé par l'intervalle exact de Garwood, unilatéral à 80 %,
+et Wilson unilatéral au même niveau pour les taux.
+
+Le quantile chi² est écrit à la main (option B du C1.3, sans dépendance nouvelle) et
+vérifié contre la table C1.4 : **écart maximum 0,06 %**, pour une tolérance de 0,5 %.
+
+`ciLevelOneSided` porte un avertissement dans le code : ne pas le remonter pour
+« conclure plus vite ». C'est `babyTolerance` qu'il faut ajuster si le seuil WINNER se
+révèle trop strict après deux lots, comme le note l'addendum.
+
+---
+
+## D12 — Le seuil relatif des indicateurs avancés relève la barre, il ne l'abaisse pas
+
+**Statut :** PROPOSÉE · à confirmer par Kévin
+
+Le §6.6 règle 5 écrit « ≥ seuil absolu **ou** ≥ `leading_relative` × médiane marque ».
+
+Pris à la lettre, le « ou » abaisse la barre pour une marque médiocre : avec une médiane
+de hook à 22 %, le seuil relatif tombe à 26,4 %, et une ad à 27 % passerait alors que le
+seuil absolu est à 30 %. C'est l'inverse de l'intention.
+
+C'est aussi la seule lecture qui **contredit l'Annexe A** : le cas « bordure de fenêtre »
+(hook 30,0 %, hold 10,0 %, CTR 1,20 %) tombe pile sur les trois seuils absolus et doit
+rester INCONCLUSIVE ; avec le « ou » littéral, il ressort BABY_WINNER par le seuil
+relatif.
+
+**Décision appliquée :** un indicateur est au vert s'il dépasse **le plus exigeant des
+deux** seuils, en comparaison stricte. Les deux cas de référence de l'Annexe A
+(« baby via leading » et « bordure de fenêtre ») passent alors tous les deux.
+
+C'est la deuxième incohérence trouvée dans le moteur, après celle du C1 : si tu
+préfères la lecture littérale, dis-le et je bascule · mais alors l'Annexe A doit être
+corrigée en conséquence.
+
+---
+
+## D13 — Budget IA : la décision est pure, l'exécution ailleurs
+
+**Statut :** PRISE · addendum v2.1 (C2)
+
+`planAiCalls` décide quels appels l'orchestrateur exécute, dans l'ordre de priorité du
+C2.2 §3, en respectant les plafonds nocturne et mensuel, la pause manuelle et
+l'idempotence par empreinte d'état. Aucune base, aucun réseau : testable directement.
+
+Deux points de conception, au-delà de la lettre de l'addendum :
+
+- un appel sauté parce que **rien n'a changé** (idempotence) ne déclenche pas de
+  `DecisionItem` · ce n'est pas un manque de budget, c'est une nuit calme ;
+- le résumé affiché rappelle explicitement que **les verdicts et les alertes sont à
+  jour** même quand le plafond est atteint. Sans cette phrase, un plafond ressemble à
+  une panne.
