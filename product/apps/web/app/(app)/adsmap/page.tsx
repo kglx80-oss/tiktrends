@@ -66,6 +66,9 @@ export default async function AdsMapPage() {
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>ADSMAP</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
         <span style={{ flex: 1 }} />
+        <Link href="/adsmap/jarvis" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
+          Ce que Jarvis a appris
+        </Link>
         <Link href="/adsmap/import" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
           Importer le tableau
         </Link>
