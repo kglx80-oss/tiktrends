@@ -5,12 +5,14 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { CREDIT_EUR, creditMarkup } from '@tiktrends/core';
 import { changePlanAction } from '../../actions/billing';
+import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
+import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
 import { Msg } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
-const OK: Record<string, string> = { changed: 'Formule mise à jour.', same: 'C’est déjà ta formule actuelle.' };
-const ERR: Record<string, string> = { forbidden: 'Réservé au propriétaire.', plan: 'Formule inconnue.' };
+const OK: Record<string, string> = { changed: 'Formule mise à jour.', same: 'C’est déjà ta formule actuelle.', subscribed: 'Abonnement activé · bienvenue !' };
+const ERR: Record<string, string> = { forbidden: 'Réservé au propriétaire.', plan: 'Formule inconnue.', stripe: 'Paiement indisponible pour le moment.', cancel: 'Paiement annulé.', nosub: 'Aucun abonnement à gérer.' };
 
 const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 
@@ -32,13 +34,18 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const { ok, e } = await searchParams;
   const isOwner = s.role === 'owner';
 
-  let balance = 0;
+  let balance = 0, subStatus: string | null = null, hasSub = false;
   if (db) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
+    const [w] = await db.select({ c: schema.workspaces.creditsBalance, st: schema.workspaces.subscriptionStatus, sub: schema.workspaces.stripeSubscriptionId })
+      .from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
     balance = w?.c ?? 0;
+    subStatus = w?.st ?? null;
+    hasSub = !!w?.sub && ['active', 'trialing', 'past_due'].includes(w?.st ?? '');
   }
   const current = s.plan as Plan;
   const markup = creditMarkup();
+  const stripeOn = stripeConfigured();
+  const STATUS_FR: Record<string, string> = { active: 'Actif', trialing: 'Essai', past_due: 'Paiement en retard', canceled: 'Annulé' };
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1080, margin: '0 auto' }}>
@@ -72,6 +79,19 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
+      {/* Abonnement en cours · gestion via le portail Stripe */}
+      {isOwner && hasSub && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', border: '1px solid rgba(24,204,140,.35)', borderRadius: 16, background: 'rgba(24,204,140,.06)', padding: '14px 18px', marginBottom: 22 }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Abonnement {PLAN_LABEL[current]} · <span style={{ color: '#18cc8c' }}>{STATUS_FR[subStatus ?? ''] ?? subStatus}</span></div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Change de formule, mets à jour ta carte, télécharge tes factures ou résilie.</div>
+          </div>
+          <form action={createPortalAction}>
+            <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Gérer mon abonnement ›</button>
+          </form>
+        </div>
+      )}
+
       {/* Grille des formules */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14, marginBottom: 24 }}>
         {PLANS.map((p) => {
@@ -100,29 +120,40 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   </li>
                 ))}
               </ul>
-              {isOwner ? (
-                <form action={changePlanAction} style={{ marginTop: 16 }}>
-                  <input type="hidden" name="plan" value={p} />
-                  <button type="submit" disabled={isCurrent} style={{
-                    width: '100%', padding: '10px 14px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13,
-                    cursor: isCurrent ? 'default' : 'pointer',
-                    background: isCurrent ? 'var(--line-2)' : 'var(--grad-accent)',
-                    color: isCurrent ? 'var(--muted)' : '#0d070c', opacity: isCurrent ? 0.7 : 1,
-                  }}>{isCurrent ? 'Formule actuelle' : 'Choisir cette formule'}</button>
-                </form>
-              ) : (
-                <div style={{ marginTop: 16, fontSize: 11.5, color: 'var(--muted)', textAlign: 'center' }}>{isCurrent ? 'Formule actuelle' : 'Le propriétaire gère la formule'}</div>
-              )}
+              {(() => {
+                const cta = (label: string, action: unknown, name?: string, val?: string, primary = true) => (
+                  <form action={action as never} style={{ marginTop: 16 }}>
+                    {name && <input type="hidden" name={name} value={val} />}
+                    <button type="submit" style={{ width: '100%', padding: '10px 14px', borderRadius: 999, border: primary ? 'none' : '1px solid var(--line-2)', fontWeight: 800, fontSize: 13, cursor: 'pointer', background: primary ? 'var(--grad-accent)' : 'var(--paper)', color: primary ? '#0d070c' : 'var(--ink)' }}>{label}</button>
+                  </form>
+                );
+                const disabledBtn = (label: string) => (
+                  <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 999, background: 'var(--line-2)', color: 'var(--muted)', fontWeight: 800, fontSize: 13, textAlign: 'center', opacity: .8 }}>{label}</div>
+                );
+                if (!isOwner) return <div style={{ marginTop: 16, fontSize: 11.5, color: 'var(--muted)', textAlign: 'center' }}>{isCurrent ? 'Formule actuelle' : 'Le propriétaire gère la formule'}</div>;
+                if (isCurrent) return disabledBtn('Formule actuelle');
+                // Paiement Stripe branché : abonnement (Checkout) ou gestion (Portail).
+                if (stripeOn) {
+                  if (hasSub) return cta('Gérer mon abonnement', createPortalAction, undefined, undefined, false); // upgrade/downgrade via le portail
+                  if (p === 'starter') return disabledBtn('Formule gratuite');
+                  if (planPurchasable(p)) return cta(`S'abonner · ${PLAN_PRICE[p]} €/mois`, createCheckoutAction, 'plan', p);
+                  return disabledBtn('Bientôt');
+                }
+                // Sans Stripe : pilotage interne (fondateur) via changePlanAction.
+                return cta('Choisir cette formule', changePlanAction, 'plan', p);
+              })()}
             </div>
           );
         })}
       </div>
 
       {/* Facturation / paiement */}
-      <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '16px 20px', color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.6 }}>
-        <b style={{ color: 'var(--ink)' }}>Paiement en ligne · à venir.</b> Le branchement Stripe (carte, factures automatiques, TVA)
-        arrive prochainement. En attendant, le changement de formule est appliqué directement par le propriétaire ici, et
-        la facturation se fait hors plateforme. La logique de coûts et de marges est détaillée dans <b>Crédits & marges</b>.
+      <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, padding: '16px 20px', color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.6 }}>
+        {stripeOn ? (
+          <><b style={{ color: 'var(--ink)' }}>🔒 Paiement sécurisé par Stripe.</b> Carte bancaire, factures automatiques et TVA gérées par Stripe · aucune donnée de carte ne transite par TikTrends. Le changement de formule et la résiliation se font dans <b>« Gérer mon abonnement »</b>.</>
+        ) : (
+          <><b style={{ color: 'var(--ink)' }}>Pilotage interne.</b> Le paiement en ligne (Stripe) n'est pas encore activé sur ce serveur · le changement de formule est appliqué directement ici. La logique de coûts et de marges est détaillée dans <b>Crédits & marges</b>.</>
+        )}
       </div>
     </main>
   );

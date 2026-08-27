@@ -31,6 +31,9 @@ export const workspaces = pgTable('workspaces', {
   driveSyncedAt: timestamp('drive_synced_at', { withTimezone: true }),
   onboarding: jsonb('onboarding_json'),                                       // réponses d'onboarding (profil, niveau IA, objectifs…)
   onboardedAt: timestamp('onboarded_at', { withTimezone: true }),            // date de fin d'onboarding (null = à faire)
+  stripeCustomerId: text('stripe_customer_id'),                              // client Stripe (paiement)
+  stripeSubscriptionId: text('stripe_subscription_id'),                      // abonnement Stripe en cours
+  subscriptionStatus: text('subscription_status'),                           // active / trialing / past_due / canceled…
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
