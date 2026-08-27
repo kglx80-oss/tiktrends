@@ -1,7 +1,11 @@
 import { redirect } from 'next/navigation';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
+import { getActiveBrand } from '../../../lib/brands';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
-import { buildAnalysis, BUCKETS, bucketDef, type AnalysisRow } from '../../../lib/analysis';
+import { buildAnalysis, buildLiveAnalysis, BUCKETS, bucketDef, type AnalysisRow } from '../../../lib/analysis';
+import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
 
 export const dynamic = 'force-dynamic';
@@ -78,29 +82,48 @@ export default async function RadarPage() {
     );
   }
 
-  const rows = buildAnalysis();
+  // Données réelles si la marque active a synchronisé Meta Ads, sinon démonstration.
+  let live: AnalysisRow[] = [];
+  let syncedAt: Date | null = null;
+  if (db) {
+    const brand = await getActiveBrand(s.workspaceId);
+    if (brand) {
+      const [b] = await db.select({ ads: schema.brands.adsInsights, at: schema.brands.insightsSyncedAt })
+        .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+      const ins = (b?.ads ?? null) as MetaAdsInsights | null;
+      if (ins?.ads?.length) { live = buildLiveAnalysis(ins.ads); syncedAt = (b?.at as Date) ?? null; }
+    }
+  }
+  const isLive = live.length > 0;
+  const rows = isLive ? live : buildAnalysis();
   const byBucket = BUCKETS.map((b) => ({ b, items: rows.filter((r) => r.bucket === b.key) })).filter((g) => g.items.length > 0);
 
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Radar</h1>
-        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>scoring prescriptif · fixtures</span>
+        <span style={{ fontSize: 12, color: isLive ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+          {isLive ? `Meta Ads · live${syncedAt ? ' · maj ' + new Date(syncedAt).toLocaleDateString('fr-FR') : ''}` : 'scoring prescriptif · démo'}
+        </span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 20 }}>
         Chaque créa est notée <b>Hook / Hold / CTR / Conv</b> (A→D, en percentiles du compte) puis rangée en
-        recommandation : <b>scaler, pousser, itérer, rafraîchir, couper</b>. <a href="/connections" style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>Branche un compte</a> pour des données live.
+        recommandation : <b>scaler, pousser, itérer, rafraîchir, couper</b>.{isLive
+          ? <> Ces notes portent sur <b>tes vraies créas Meta Ads</b> des 30 derniers jours.</>
+          : <> <a href="/connections" style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>Branche un compte</a> pour des données live.</>}
       </p>
 
-      {/* Bandeau démo · le Radar tourne sur des données d'exemple tant qu'aucun compte pub n'est branché. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid rgba(245,166,35,.3)', borderRadius: 14, background: 'rgba(245,166,35,.08)', padding: '12px 16px', margin: '0 0 20px' }}>
-        <span style={{ fontSize: 18 }}>🧪</span>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>Mode démonstration</span>
-          <span style={{ fontSize: 12.5, color: 'var(--ink-2)', marginLeft: 8 }}>Ces créas sont des exemples. Branche un compte pub pour noter tes vraies créas.</span>
+      {/* Bandeau démo · uniquement tant qu'aucune donnée réelle n'est synchronisée. */}
+      {!isLive && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid rgba(245,166,35,.3)', borderRadius: 14, background: 'rgba(245,166,35,.08)', padding: '12px 16px', margin: '0 0 20px' }}>
+          <span style={{ fontSize: 18 }}>🧪</span>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>Mode démonstration</span>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-2)', marginLeft: 8 }}>Ces créas sont des exemples. Branche Meta Ads pour noter tes vraies créas.</span>
+          </div>
+          <a href="/connections" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Brancher un compte ›</a>
         </div>
-        <a href="/connections" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Brancher un compte ›</a>
-      </div>
+      )}
 
       <PageInfo title="comment lire le Radar">
         Le Radar note chaque créa sur 4 axes : <b>Hook</b> (accroche 3 s), <b>Hold</b> (rétention),

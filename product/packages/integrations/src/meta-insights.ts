@@ -10,12 +10,23 @@ export interface MetaKpiSet {
   impressions: number; clicks: number; linkClicks: number; cpcAll: number; cpcLink: number; cpm: number; ctr: number;
 }
 export interface MetaBreakdownRow { key: string; spend: number; roas: number; purchases: number }
+/** Perf par annonce (niveau créa) · alimente le Radar sur données réelles. */
+export interface MetaAdPerf {
+  adId?: string;
+  name: string;
+  spend: number; impressions: number; clicks: number; ctr: number;
+  roas: number; purchases: number; cpa: number;
+  hookRate: number;   // % d'impressions ayant vu ≥ 3 s (vidéo) · 0 si non vidéo
+  holdRate: number;   // % des vues 3 s ayant tenu jusqu'à 75 %
+  daysActive: number;
+}
 export interface MetaAdsInsights {
   accountName?: string;
   currency?: string;
   window: MetaKpiSet;    // 30 derniers jours
   previous: MetaKpiSet;  // 30 jours précédents
   topAds: Array<{ name: string; spend: number; roas: number; purchases: number; cpa: number }>;
+  ads?: MetaAdPerf[];    // perf détaillée par annonce (Radar live)
   breakdowns?: { platform: MetaBreakdownRow[]; ageGender: MetaBreakdownRow[] };
   // Rétro-compat (anciens champs plats lus ailleurs).
   spend30d: number; purchases30d: number; revenue30d: number; roas30d: number;
@@ -45,7 +56,12 @@ function pick(arr: ActArr, key: string): number {
   const a = (arr || []).find((x) => x.action_type === key || x.action_type.endsWith(key));
   return num(a?.value);
 }
-interface Row { spend?: string; impressions?: string; clicks?: string; inline_link_clicks?: string; cpm?: string; ctr?: string; actions?: ActArr; action_values?: ActArr; ad_name?: string }
+interface Row {
+  spend?: string; impressions?: string; clicks?: string; inline_link_clicks?: string; cpm?: string; ctr?: string;
+  actions?: ActArr; action_values?: ActArr; ad_name?: string; ad_id?: string;
+  date_start?: string; date_stop?: string;
+  video_3_sec_watched_actions?: ActArr; video_p75_watched_actions?: ActArr;
+}
 
 function kpiFromRow(r: Row | undefined): MetaKpiSet {
   const spend = num(r?.spend);
@@ -83,7 +99,11 @@ export async function metaAdsSync(adAccountId: string, token: string): Promise<M
   const [cur, prev, ads, plat, ageG] = await Promise.all([
     graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: tr }),
     graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: JSON.stringify({ since: ymd(d60), until: ymd(d31) }) }).catch(() => ({ data: [] as Row[] })),
-    graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'ad', fields: 'ad_name,' + fields, time_range: tr, limit: '50' }).catch(() => ({ data: [] as Row[] })),
+    graph<{ data: Row[] }>(`${acct}/insights`, token, {
+      level: 'ad',
+      fields: 'ad_id,ad_name,video_3_sec_watched_actions,video_p75_watched_actions,' + fields,
+      time_range: tr, limit: '100',
+    }).catch(() => ({ data: [] as Row[] })),
     graph<{ data: BRow[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: tr, breakdowns: 'publisher_platform' }).catch(() => ({ data: [] as BRow[] })),
     graph<{ data: BRow[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: tr, breakdowns: 'age,gender' }).catch(() => ({ data: [] as BRow[] })),
   ]);
@@ -95,12 +115,29 @@ export async function metaAdsSync(adAccountId: string, token: string): Promise<M
     return { name: r.ad_name || '(sans nom)', spend: k.spend, roas: k.roas, purchases: k.purchases, cpa: k.cpa };
   }).filter((x) => x.spend > 0).sort((a, b) => b.roas - a.roas).slice(0, 12);
 
+  // Perf par annonce (Radar live) : on ajoute la rétention vidéo quand elle existe.
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const days = Math.max(1, Math.round((now.getTime() - d30.getTime()) / 86_400_000));
+  const adPerf: MetaAdPerf[] = (ads.data || []).map((r) => {
+    const k = kpiFromRow(r);
+    const v3 = pick(r.video_3_sec_watched_actions, 'video_view') || num(r.video_3_sec_watched_actions?.[0]?.value);
+    const v75 = pick(r.video_p75_watched_actions, 'video_view') || num(r.video_p75_watched_actions?.[0]?.value);
+    return {
+      adId: r.ad_id, name: r.ad_name || '(sans nom)',
+      spend: k.spend, impressions: k.impressions, clicks: k.clicks, ctr: k.ctr,
+      roas: k.roas, purchases: k.purchases, cpa: k.cpa,
+      hookRate: k.impressions && v3 ? r2((v3 / k.impressions) * 100) : 0,
+      holdRate: v3 && v75 ? r2((v75 / v3) * 100) : 0,
+      daysActive: days,
+    };
+  }).filter((x) => x.spend > 0 || x.impressions > 0);
+
   const brk = (rows: BRow[], keyOf: (r: BRow) => string): MetaBreakdownRow[] =>
     (rows || []).map((r) => { const k = kpiFromRow(r); return { key: keyOf(r) || '—', spend: k.spend, roas: k.roas, purchases: k.purchases }; })
       .filter((x) => x.spend > 0).sort((a, b) => b.spend - a.spend);
 
   return {
-    accountName: info.accountName, currency: info.currency, window, previous, topAds,
+    accountName: info.accountName, currency: info.currency, window, previous, topAds, ads: adPerf,
     breakdowns: {
       platform: brk(plat.data, (r) => r.publisher_platform || '—'),
       ageGender: brk(ageG.data, (r) => [r.age, r.gender].filter(Boolean).join(' · ')),
