@@ -10,7 +10,6 @@ import { extractBrandDA } from './brand-da';
 import { resolveProductImage } from './product-image';
 import { discoverShopify } from './shopify';
 
-const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 /** S'assure que la marque a sa DA, ses produits et leurs photos. Silencieux. */
 export async function ensureBrandEnriched(brandId: string): Promise<void> {

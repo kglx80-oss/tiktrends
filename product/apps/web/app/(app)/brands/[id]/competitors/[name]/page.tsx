@@ -162,7 +162,7 @@ function Creatives({ report }: { report: CompetitorReport }) {
           <div key={ad.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
             <div style={{ aspectRatio: '4 / 5', background: '#140f18', position: 'relative' }}>
               {ad.thumbnailUrl
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 ? <img src={ad.thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
               {ad.daysRunning ? <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(0,0,0,.6)', color: '#fff' }}>{ad.daysRunning} j</span> : null}

@@ -10,7 +10,7 @@ import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
-import { logAndTranslate } from '../../lib/user-error';
+import { logAndTranslate } from '../../lib/error-log';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string; generationId?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string; rating?: import('./creatives').Rating }
@@ -93,7 +93,7 @@ export async function generateImageAction(input: {
     return { images, prompt, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · image IA');
-    return { error: logAndTranslate('image:generate', e, { subject: 'la génération' }) };
+    return { error: logAndTranslate('image:generate', e, { subject: 'la génération', workspaceId: s.workspaceId }) };
   }
 }
 
@@ -132,7 +132,7 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
     return { text: text || undefined };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · brief image');
-    return { error: logAndTranslate('image:brief', e, { subject: 'la proposition de brief' }) };
+    return { error: logAndTranslate('image:brief', e, { subject: 'la proposition de brief', workspaceId: s.workspaceId }) };
   }
 }
 

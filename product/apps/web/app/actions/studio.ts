@@ -5,7 +5,7 @@ import { FEATURES, canAccess } from '../../lib/rbac';
 import { anthropicFromEnv, generateCreative, type CreativeOutput } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
-import { logAndTranslate } from '../../lib/user-error';
+import { logAndTranslate } from '../../lib/error-log';
 
 const feature = FEATURES.find((f) => f.key === 'studio')!;
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
@@ -50,6 +50,6 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
     return { output };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · génération créative');
-    return { error: logAndTranslate('studio:script', e, { subject: 'la génération' }) };
+    return { error: logAndTranslate('studio:script', e, { subject: 'la génération', workspaceId: s.workspaceId }) };
   }
 }

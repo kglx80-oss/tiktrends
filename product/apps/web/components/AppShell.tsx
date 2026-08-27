@@ -21,6 +21,7 @@ const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: string 
   { key: 'a-signups', label: 'Inscriptions', href: '/admin/signups', icon: 'users' },
   { key: 'a-plans', label: 'Formules & crédits', href: '/admin/plans', icon: 'card' },
   { key: 'a-pay', label: 'Chaîne de paiement', href: '/admin/paiement', icon: 'gauge' },
+  { key: 'a-incid', label: 'Incidents', href: '/admin/incidents', icon: 'radar' },
   { key: 'a-credits', label: 'Coûts & marges', href: '/credits', icon: 'coin' },
   { key: 'a-console', label: 'Console', href: '/console', icon: 'gauge' },
   { key: 'a-jarvis', label: 'Jarvis', href: '/jarvis', icon: 'brain' },
@@ -231,6 +232,7 @@ function AppShellInner(props: Props) {
       { id: 'adm-signups', label: 'Inscriptions & onboarding', group: 'Plateforme', href: '/admin/signups', emoji: '🧭', keywords: 'inscriptions comptes profils' },
       { id: 'adm-plans', label: 'Formules & crédits · pilotage', group: 'Plateforme', href: '/admin/plans', emoji: '◈', keywords: 'formule plan crédit offrir ajuster' },
       { id: 'adm-pay', label: 'Vérifier la chaîne de paiement', group: 'Plateforme', href: '/admin/paiement', emoji: '💳', keywords: 'stripe paiement webhook prix test carte' },
+      { id: 'adm-incid', label: 'Incidents techniques', group: 'Plateforme', href: '/admin/incidents', emoji: '⚠️', keywords: 'erreur panne echec quota fournisseur log' },
       { id: 'adm-credits', label: 'Coûts & marges', group: 'Plateforme', href: '/credits', emoji: '％', keywords: 'crédits coût marge rentabilité' },
       { id: 'adm-jarvis', label: 'Jarvis', group: 'Plateforme', href: '/jarvis', emoji: '🧠', keywords: 'jarvis règles ia' },
       { id: 'adm-intel', label: 'Intelligence marché', group: 'Plateforme', href: '/admin/intelligence', emoji: '🔭', keywords: 'concurrents atria' },
@@ -412,7 +414,7 @@ function AppShellInner(props: Props) {
           <button type="button" onClick={() => setMenuOpen((o) => !o)} title={collapsed ? (userName || userEmail) : undefined} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
             <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
               {avatarUrl
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : (userName || userEmail).slice(0, 1).toUpperCase()}
             </div>

@@ -29,7 +29,7 @@ export function ScenarioCard({ brandId, scenarioId, title, context, imageUrl, co
       {/* Vignette */}
       <div style={{ width: 86, height: 86, flexShrink: 0, borderRadius: 11, overflow: 'hidden', background: 'var(--paper)', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {url
-          // eslint-disable-next-line @next/next/no-img-element
+           
           ? <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : busy
             ? <span style={{ fontSize: 10.5, color: 'var(--muted)', textAlign: 'center', padding: 6 }}>Création…</span>

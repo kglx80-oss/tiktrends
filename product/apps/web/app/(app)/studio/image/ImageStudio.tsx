@@ -204,7 +204,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               {/* Aperçu : upload en cours, sinon photo déjà enregistrée sur le produit */}
               {uploadedUri ? (
-                // eslint-disable-next-line @next/next/no-img-element
+                 
                 <img src={uploadedUri} alt="" style={thumb} />
               ) : selected?.hasImage ? (
                 <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 11, color: 'var(--muted)', padding: 8 }}>📷 Photo<br />enregistrée</div>
@@ -294,7 +294,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
             <div key={im.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
               {im.url && (
                 <button type="button" onClick={() => setPreview(im.url)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  { }
                   <img src={im.url} alt="" loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '1/1', objectFit: 'cover' }} />
                 </button>
               )}
@@ -319,7 +319,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
 
       {preview && (
         <div onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          { }
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
           <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div>

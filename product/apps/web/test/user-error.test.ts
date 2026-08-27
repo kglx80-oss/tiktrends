@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { userError } from '../lib/user-error';
+import { userError, errorFamily, FAMILY_LABEL } from '../lib/user-error';
 
 /**
  * Ce qu'on vérifie : un message affiché ne doit jamais contenir de jargon
@@ -60,5 +60,37 @@ describe('traduction des échecs', () => {
   it('la priorité va au diagnostic précis, pas au code HTTP générique', () => {
     // Fal renvoie « 422 image_load_error » : c'est l'image qu'il faut mentionner.
     expect(userError(new Error('422 image_load_error'))).toMatch(/image de départ/i);
+  });
+});
+
+describe('classification par famille', () => {
+  const cas: Array<[unknown, string]> = [
+    [new Error('AbortError: timeout'), 'delai'],
+    [new Error('fetch failed'), 'reseau'],
+    [new Error('429 rate_limit_error'), 'saturation'],
+    [new Error('credit balance is too low'), 'quota'],
+    [new Error('401 invalid_api_key'), 'acces'],
+    [new Error('image_load_error'), 'image'],
+    [new Error('Site inaccessible ou adresse refusée.'), 'adresse'],
+    [new Error('content_policy_violation'), 'contenu'],
+    [new Error('503 Service Unavailable'), 'service'],
+    [new Error('422 Unprocessable'), 'requete'],
+    [new Error('kaboom'), 'autre'],
+  ];
+  for (const [err, attendu] of cas) {
+    it(`« ${String((err as Error).message).slice(0, 30)} » → ${attendu}`, () => {
+      expect(errorFamily(err)).toBe(attendu);
+    });
+  }
+
+  it('chaque famille a un libellé lisible', () => {
+    for (const f of Object.keys(FAMILY_LABEL)) {
+      expect(FAMILY_LABEL[f as keyof typeof FAMILY_LABEL]).toMatch(/\S/);
+    }
+  });
+
+  it('la famille suit le même ordre de priorité que le message', () => {
+    // « 422 image_load_error » : c'est l'image qui prime, pas le code HTTP.
+    expect(errorFamily(new Error('422 image_load_error'))).toBe('image');
   });
 });

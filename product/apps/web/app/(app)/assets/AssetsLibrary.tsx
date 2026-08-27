@@ -286,7 +286,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
             <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <div style={{ aspectRatio: '1 / 1', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 {a.kind === 'image'
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   ? <img src={a.url} alt={a.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : a.kind === 'video' && a.source === 'upload'
                     ? <video src={a.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

@@ -8,10 +8,7 @@ import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFrom
 import { anthropicFromEnv, suggestVideoBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
-import { logAndTranslate } from '../../lib/user-error';
-
-/** Fournisseur vidéo actif : Fal (Kling) en priorité, sinon Higgsfield. */
-function videoReady(): boolean { return !!falFromEnv() || !!higgsfieldFromEnv(); }
+import { logAndTranslate } from '../../lib/error-log';
 
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
@@ -59,7 +56,7 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
-    return { error: logAndTranslate('video:start', e, { subject: 'le lancement de la vidéo' }) };
+    return { error: logAndTranslate('video:start', e, { subject: 'le lancement de la vidéo', workspaceId: s.workspaceId }) };
   }
 }
 
@@ -92,7 +89,7 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
-    return { error: logAndTranslate('video:start', e, { subject: 'le lancement de la vidéo' }) };
+    return { error: logAndTranslate('video:start', e, { subject: 'le lancement de la vidéo', workspaceId: s.workspaceId }) };
   }
 }
 
@@ -174,7 +171,7 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
     }
     return { status: job.status, videoUrl: job.videoUrl, error: job.error };
   } catch (e) {
-    return { status: 'unknown', error: logAndTranslate('video:poll', e, { subject: 'le suivi du rendu' }) };
+    return { status: 'unknown', error: logAndTranslate('video:poll', e, { subject: 'le suivi du rendu', workspaceId: s.workspaceId }) };
   }
 }
 
@@ -252,7 +249,7 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
     return { text: text || undefined };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · consigne vidéo');
-    return { error: logAndTranslate('video:brief', e, { subject: 'la proposition de consigne' }) };
+    return { error: logAndTranslate('video:brief', e, { subject: 'la proposition de consigne', workspaceId: s.workspaceId }) };
   }
 }
 

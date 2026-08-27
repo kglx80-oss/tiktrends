@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSession } from '../../lib/auth';
 import { scanWorkspaceTracker, markTrackerSeen } from '../../lib/tracker';
-import { logAndTranslate } from '../../lib/user-error';
+import { logAndTranslate } from '../../lib/error-log';
 
 /** Scan à la demande des marques suivies de l'espace (bouton « Scanner maintenant »). */
 export async function scanTrackerAction(): Promise<{ newAds?: number; scanned?: number; error?: string }> {
@@ -14,7 +14,7 @@ export async function scanTrackerAction(): Promise<{ newAds?: number; scanned?: 
     revalidatePath('/saved');
     return res;
   } catch (e) {
-    return { error: logAndTranslate('tracker', e, { subject: 'la veille concurrentielle' }) };
+    return { error: logAndTranslate('tracker', e, { subject: 'la veille concurrentielle', workspaceId: s.workspaceId }) };
   }
 }
 

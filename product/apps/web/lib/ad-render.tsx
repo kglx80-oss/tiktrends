@@ -66,7 +66,7 @@ function Kicker({ text, accent }: { text: string; accent: string }) {
 
 function Logo({ recipe, onDark = true }: { recipe: AdRecipe; onDark?: boolean }) {
   if (recipe.logoUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
+     
     return <img src={recipe.logoUrl} alt="" width={128} height={42} style={{ objectFit: 'contain', display: 'flex' }} />;
   }
   if (recipe.brandName) {
@@ -85,7 +85,7 @@ function Cta({ recipe, full = false }: { recipe: AdRecipe; full?: boolean }) {
 }
 
 function Bg({ url }: { url: string }) {
-  // eslint-disable-next-line @next/next/no-img-element
+   
   return <img src={url} alt="" width={1080} height={1350} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'flex' }} />;
 }
 const scrimTop = { position: 'absolute' as const, left: 0, right: 0, top: 0, height: '30%', display: 'flex', backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,.6), rgba(0,0,0,0))' };
@@ -325,7 +325,7 @@ export async function renderAdPng(recipe: AdRecipe): Promise<ArrayBuffer> {
   const height = recipe.height ?? 1350;
   const res = new ImageResponse(element(recipe), {
     width, height,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     fonts: adFonts() as any,
   });
   return res.arrayBuffer();

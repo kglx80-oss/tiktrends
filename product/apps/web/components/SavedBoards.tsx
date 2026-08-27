@@ -42,7 +42,7 @@ export function SavedBoards({ items, followKeys }: { items: SavedItem[]; followK
     return <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucune créa sauvegardée. Va dans l'Inspo et clique ★ sur une annonce.</p>;
   }
 
-  const tabBtn = (key: string, label: string): CSSProperties => ({
+  const tabBtn = (key: string): CSSProperties => ({
     padding: '6px 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
     border: '1px solid ' + (tab === key ? 'transparent' : 'var(--line-2)'),
     background: tab === key ? 'var(--grad-accent)' : 'var(--surface)',
@@ -53,11 +53,11 @@ export function SavedBoards({ items, followKeys }: { items: SavedItem[]; followK
     <>
       {/* Onglets des boards */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
-        <button type="button" onClick={() => setTab('__all')} style={tabBtn('__all', 'Toutes')}>Toutes · {countIn('__all')}</button>
+        <button type="button" onClick={() => setTab('__all')} style={tabBtn('__all')}>Toutes · {countIn('__all')}</button>
         {folders.map((f) => (
-          <button key={f} type="button" onClick={() => setTab(f)} style={tabBtn(f, f)}>📁 {f} · {countIn(f)}</button>
+          <button key={f} type="button" onClick={() => setTab(f)} style={tabBtn(f)}>📁 {f} · {countIn(f)}</button>
         ))}
-        {list.some((i) => !i.folder) && <button type="button" onClick={() => setTab('__none')} style={tabBtn('__none', 'Sans dossier')}>Sans dossier · {countIn('__none')}</button>}
+        {list.some((i) => !i.folder) && <button type="button" onClick={() => setTab('__none')} style={tabBtn('__none')}>Sans dossier · {countIn('__none')}</button>}
       </div>
 
       {/* Grille */}
