@@ -5,6 +5,7 @@ import { canAccess, roleAtLeast, FEATURES } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { getSettingsAction } from '../../../actions/adsmap-protocol';
 import { ProtocolForm } from './ProtocolForm';
+import { effectiveAccess } from '../../../../lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,7 @@ const feature = FEATURES.find((f) => f.key === 'adsmap')!;
 export default async function ProtocolePage() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!canAccess({ role: s.role, plan: s.plan }, feature)) redirect('/adsmap');
+  if (!canAccess(effectiveAccess(s), feature)) redirect('/adsmap');
 
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) redirect('/adsmap');

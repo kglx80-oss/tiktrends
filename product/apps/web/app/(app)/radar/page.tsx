@@ -7,6 +7,7 @@ import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { buildAnalysis, buildLiveAnalysis, BUCKETS, bucketDef, type AnalysisRow } from '../../../lib/analysis';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
+import { effectiveAccess } from '../../../lib/access';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'radar')!;
@@ -69,8 +70,8 @@ function Row({ r }: { r: AnalysisRow }) {
 export default async function RadarPage() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!canAccess({ role: s.role, plan: s.plan }, feature)) {
-    const why = denyReason({ role: s.role, plan: s.plan }, feature);
+  if (!canAccess(effectiveAccess(s), feature)) {
+    const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={wrap}>
         <h1 style={h1}>Radar</h1>

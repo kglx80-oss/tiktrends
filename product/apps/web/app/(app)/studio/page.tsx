@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { StudioClient } from './StudioClient';
 import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
+import { effectiveAccess } from '../../../lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,8 +15,8 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
   const s = await getSession();
   if (!s) redirect('/login');
 
-  if (!canAccess({ role: s.role, plan: s.plan }, feature)) {
-    const why = denyReason({ role: s.role, plan: s.plan }, feature);
+  if (!canAccess(effectiveAccess(s), feature)) {
+    const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={wrap}>
         <h1 style={h1}>Studio IA</h1>

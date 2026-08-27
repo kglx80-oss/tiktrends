@@ -8,6 +8,7 @@ import { listBrands, getActiveBrand } from '../../lib/brands';
 import { AppShell } from '../../components/AppShell';
 import { logoutAction } from '../actions/auth';
 import { isFounder } from '../../lib/founder';
+import { effectiveAccess } from '../../lib/access';
 import { unlimitedCredits } from '../../lib/credits';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const s = await getSession();
   if (!s) redirect('/login');
 
-  const access = { role: s.role, plan: s.plan };
+  // Le fondateur voit tout, quelle que soit l'offre de son espace · cf. lib/access.
+  const access = effectiveAccess(s);
   const [brands, activeBrand, ws, meRow] = await Promise.all([
     listBrands(s.workspaceId),
     getActiveBrand(s.workspaceId),
@@ -46,7 +48,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       nav={[...railNav(access), ...brandNav]}
       accountGroups={accountSections(access)}
       isStaff={isFounder(s.user.email)}
-      showUpgrade={roleAtLeast(s.role, 'admin') && !planAtLeast(s.plan, 'business')}
+      showUpgrade={roleAtLeast(s.role, 'admin') && !planAtLeast(access.plan, 'business')}
       brands={brands}
       activeBrandId={activeBrand?.id ?? null}
       canManageBrands={roleAtLeast(s.role, 'admin')}

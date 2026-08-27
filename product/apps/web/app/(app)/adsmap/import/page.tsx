@@ -4,6 +4,7 @@ import { getSession } from '../../../../lib/auth';
 import { canAccess, roleAtLeast, FEATURES } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { ImportPanel } from './ImportPanel';
+import { effectiveAccess } from '../../../../lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ const feature = FEATURES.find((f) => f.key === 'adsmap')!;
 export default async function ImportPage() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!canAccess({ role: s.role, plan: s.plan }, feature)) redirect('/adsmap');
+  if (!canAccess(effectiveAccess(s), feature)) redirect('/adsmap');
   if (!roleAtLeast(s.role, 'admin')) redirect('/adsmap');
 
   const brand = await getActiveBrand(s.workspaceId);

@@ -9,6 +9,7 @@ import { anthropicConfigured } from '../../../../lib/ai-status';
 import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { VideoStudioFull } from './VideoStudioFull';
 import { PageInfo } from '../../../../components/PageInfo';
+import { effectiveAccess } from '../../../../lib/access';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'video')!;
@@ -16,8 +17,8 @@ const feature = FEATURES.find((f) => f.key === 'video')!;
 export default async function VideoStudioPage({ searchParams }: { searchParams: Promise<{ prompt?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!canAccess({ role: s.role, plan: s.plan }, feature)) {
-    const why = denyReason({ role: s.role, plan: s.plan }, feature);
+  if (!canAccess(effectiveAccess(s), feature)) {
+    const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={wrap}>
         <h1 style={h1}>Vidéo IA</h1>

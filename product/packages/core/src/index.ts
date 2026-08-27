@@ -21,3 +21,4 @@ export * from './adsmap/verdict';
 export * from './adsmap/ai-budget';
 export * from './adsmap/sheet';
 export * from './adsmap/import-sheet';
+export * from './adsmap/protocol';
