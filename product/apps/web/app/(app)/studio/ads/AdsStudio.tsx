@@ -56,12 +56,13 @@ const UNIVERSE_SWATCH: Record<string, string> = {
   flatlay: 'linear-gradient(135deg,#f0e6da,#cbb79b)', energy: 'linear-gradient(135deg,#ff8a3c,#ff3c6e)',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand' }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '' }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
   assets?: Array<{ id: string; name: string; url: string }>;
   initialMode?: 'brand' | 'clone';
+  initialAngle?: string;
 }) {
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const toggleAsset = (id: string) => setAssetIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
@@ -81,7 +82,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [objective, setObjective] = useState('Ventes');
   const [offer, setOffer] = useState('');
   const [templates, setTemplates] = useState<AdTemplate[]>([]);
-  const [angle, setAngle] = useState('');
+  const [angle, setAngle] = useState(initialAngle);
   const [universe, setUniverse] = useState('auto');
   const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
