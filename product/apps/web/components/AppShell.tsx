@@ -9,6 +9,7 @@ import { SupportWidget } from './SupportWidget';
 import { CommandPalette, openCommandPalette, type Command } from './CommandPalette';
 import { ProfileModal } from './ProfileModal';
 import { QuickSettingsModal } from './QuickSettingsModal';
+import { CreditsMenu } from './CreditsMenu';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
 // Les pages « espace de travail » du client (marques, connexions, membres,
@@ -42,6 +43,7 @@ interface Props {
   activeBrandId: string | null;
   canManageBrands: boolean;
   creditBalance: number;
+  creditsUnlimited: boolean;
   userName: string;
   userEmail: string;
   avatarUrl?: string;
@@ -76,6 +78,8 @@ function Icon({ name }: { name: string }) {
     leaf: 'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10zM2 21c0-3 1.85-5.36 5.08-6',
     brain: 'M9.5 2a3 3 0 0 0-3 3 3 3 0 0 0-1.5 5.6A3 3 0 0 0 6 16a3 3 0 0 0 3.5 3V2zM14.5 2a3 3 0 0 1 3 3 3 3 0 0 1 1.5 5.6A3 3 0 0 1 18 16a3 3 0 0 1-3.5 3V2z',
     layers: 'M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+    user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
+    logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
   };
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -150,7 +154,7 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, logout, children } = props;
+  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, logout, children } = props;
   // Menu profil : « Compte » (personnel) + « Espace de travail » (marques, membres,
   // connexions, abonnement, réglages). Les coulisses plateforme (ADMIN+) restent
   // réservées au fondateur/staff.
@@ -246,9 +250,9 @@ function AppShellInner(props: Props) {
                   </div>
                   {workspaceItems.length > 0 && <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />}
                   {workspaceItems.map((it) => {
-                    if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
-                    if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { setWsMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItem, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>{it.label}</button>;
-                    return <Link key={it.key} href={it.href} onClick={() => setWsMenuOpen(false)} style={menuItem}>{it.label}</Link>;
+                    if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItemIcon, color: 'var(--muted)', opacity: .6, cursor: 'default' }}><Icon name={it.icon} />{it.label}{it.soon && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
+                    if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { setWsMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name={it.icon} />{it.label}</button>;
+                    return <Link key={it.key} href={it.href} onClick={() => setWsMenuOpen(false)} style={menuItemIcon}><Icon name={it.icon} />{it.label}</Link>;
                   })}
                 </div>
               </div>
@@ -312,38 +316,26 @@ function AppShellInner(props: Props) {
           </button>
         )}
 
+        {/* Crédits (solde réel) · visible en direct, clic = recharge / offre */}
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginBottom: 8 }}>
+          <CreditsMenu balance={creditBalance} unlimited={creditsUnlimited} planLabel={planLabel} showUpgrade={showUpgrade} collapsed={collapsed} />
+        </div>
+
         {/* Compte : chip + menu déroulant */}
-        <div style={{ position: 'relative', borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+        <div style={{ position: 'relative' }}>
           {menuOpen && (
             <>
               <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
               <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, width: collapsed ? 240 : 'auto', right: collapsed ? 'auto' : 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: 'var(--sh-lift, 0 14px 34px -10px rgba(0,0,0,.6))', overflow: 'hidden' }}>
                 <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{workspaceName}</div>
-                      <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
-                    </div>
-                    <span title="Crédits restants" style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: '#f5c877', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', whiteSpace: 'nowrap' }}>◈ {creditBalance.toLocaleString('fr-FR')}</span>
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{userName || workspaceName}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
                 </div>
                 <div style={{ padding: 6 }}>
-                  {/* Améliorer l'offre : accès direct à l'abonnement (masqué au palier max). */}
-                  {showUpgrade && (
-                    <Link href="/billing" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '0 0 6px', borderRadius: 11, textDecoration: 'none', background: 'var(--grad-accent)', boxShadow: '0 6px 18px -8px rgba(254,44,85,.55)' }}>
-                      <span style={{ fontSize: 15 }}>⚡</span>
-                      <span style={{ flex: 1 }}>
-                        <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#0d070c' }}>Améliorer mon offre</span>
-                        <span style={{ display: 'block', fontSize: 11, color: 'rgba(13,7,12,.72)' }}>Plus de crédits · plus de marques</span>
-                      </span>
-                      <span style={{ color: '#0d070c', fontSize: 13, fontWeight: 800 }}>›</span>
-                    </Link>
-                  )}
-
-                  <button type="button" onClick={() => { setMenuOpen(false); setProfileOpen(true); }} style={{ ...menuItem, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>Mon profil</button>
+                  <button type="button" onClick={() => { setMenuOpen(false); setProfileOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name="user" />Mon profil</button>
                   {personalItems.map((it) => (it.locked || it.soon)
-                    ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
-                    : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>)}
+                    ? <div key={it.key} style={{ ...menuItemIcon, color: 'var(--muted)', opacity: .6, cursor: 'default' }}><Icon name={it.icon} />{it.label}{it.soon && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
+                    : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItemIcon}><Icon name={it.icon} />{it.label}</Link>)}
 
                   {/* ADMIN+ · coulisses plateforme, réservées au fondateur/staff. */}
                   {isStaff && (
@@ -360,7 +352,7 @@ function AppShellInner(props: Props) {
                   <div style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default', display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>Langue<span style={{ fontSize: 11 }}>FR</span></div>
                 </div>
                 <form action={logout} style={{ borderTop: '1px solid var(--line)', padding: 6, margin: 0 }}>
-                  <button type="submit" style={{ ...menuItem, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', color: '#ff9db0', cursor: 'pointer' }}>Déconnexion</button>
+                  <button type="submit" style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', color: '#ff9db0', cursor: 'pointer' }}><Icon name="logout" />Déconnexion</button>
                 </form>
               </div>
             </>
@@ -395,6 +387,7 @@ function AppShellInner(props: Props) {
 }
 
 const menuItem = { display: 'block', padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
+const menuItemIcon = { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
 // Bouton icône (rail replié) : carré centré, tooltip via title.
 const railIconBtn = { width: 44, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer', textDecoration: 'none', flexShrink: 0 } as const;
 const collapseBtn = { width: 28, height: 28, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer' } as const;

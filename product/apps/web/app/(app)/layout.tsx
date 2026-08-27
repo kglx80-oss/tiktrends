@@ -8,6 +8,7 @@ import { listBrands, getActiveBrand } from '../../lib/brands';
 import { AppShell } from '../../components/AppShell';
 import { logoutAction } from '../actions/auth';
 import { isFounder } from '../../lib/founder';
+import { unlimitedCredits } from '../../lib/credits';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       activeBrandId={activeBrand?.id ?? null}
       canManageBrands={roleAtLeast(s.role, 'admin')}
       creditBalance={ws[0]?.c ?? 0}
+      creditsUnlimited={unlimitedCredits(s.user.email)}
       userName={s.user.name || ''}
       userEmail={s.user.email}
       avatarUrl={avatarUrl}
