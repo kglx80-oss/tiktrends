@@ -29,6 +29,8 @@ export const workspaces = pgTable('workspaces', {
   driveFolderId: text('drive_folder_id'),                                     // dossier Drive synchronisé
   driveFolderName: text('drive_folder_name'),
   driveSyncedAt: timestamp('drive_synced_at', { withTimezone: true }),
+  onboarding: jsonb('onboarding_json'),                                       // réponses d'onboarding (profil, niveau IA, objectifs…)
+  onboardedAt: timestamp('onboarded_at', { withTimezone: true }),            // date de fin d'onboarding (null = à faire)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

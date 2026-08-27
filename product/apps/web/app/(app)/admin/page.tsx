@@ -43,6 +43,7 @@ export default async function AdminBackstage() {
       hint: 'Coûts réels, marges et abonnement',
       tools: [
         ...(isFounder(s.user.email) ? [{ icon: '📈', title: 'Finance · MRR & marges', desc: 'Revenu récurrent (MRR/ARR), bénéfice net réel et optimisation des marges par formule.', href: '/admin/finance', badge: 'Fondateur' }] : []),
+        ...(isFounder(s.user.email) ? [{ icon: '🧭', title: 'Inscriptions & onboarding', desc: 'Nouveaux comptes, profils déclarés (marque/agence…), niveau IA et objectifs.', href: '/admin/signups', badge: 'Fondateur' }] : []),
         { icon: '◈', title: 'Crédits & marges', desc: 'Solde, allocation, coût réel API, règle × markup et marge par action.', href: '/credits', badge: `${credits.toLocaleString('fr-FR')} restants` },
         { icon: '💳', title: 'Plans & Facturation', desc: 'Formules, prix, allocations et abonnement de l’espace.', href: '/billing' },
       ],

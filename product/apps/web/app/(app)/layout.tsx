@@ -18,9 +18,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const [brands, activeBrand, ws, meRow] = await Promise.all([
     listBrands(s.workspaceId),
     getActiveBrand(s.workspaceId),
-    db ? db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1) : Promise.resolve([]),
+    db ? db.select({ c: schema.workspaces.creditsBalance, ob: schema.workspaces.onboardedAt }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1) : Promise.resolve([]),
     db ? db.select({ a: schema.users.avatarUrl }).from(schema.users).where(eq(schema.users.id, s.user.id)).limit(1) : Promise.resolve([]),
   ]);
+  // Onboarding non fait (nouveau propriétaire self-service) : on l'y envoie d'abord.
+  const wsRow = (ws as Array<{ c: number; ob: Date | null }>)[0];
+  if (roleAtLeast(s.role, 'owner') && wsRow && !wsRow.ob) redirect('/onboarding');
   const avatarUrl = (meRow as Array<{ a: string | null }>)[0]?.a ?? '';
 
   // Espace « Marque » (rail) : accès direct aux sections de la marque active.
