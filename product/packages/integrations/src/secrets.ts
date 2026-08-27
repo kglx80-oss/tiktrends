@@ -4,8 +4,16 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypt
  * Chiffrement AES-256-GCM des secrets (tokens Shopify/Meta) stockés en base.
  * Clé dérivée de TOKEN_ENC_KEY (ou AUTH_SECRET en repli). Partagé web + workers.
  */
+/**
+ * Pas de clé de repli en dur : elle est publique (dépôt), donc n'importe qui
+ * pourrait déchiffrer les tokens Shopify/Meta d'une base exfiltrée. Sans clé
+ * configurée, on refuse de chiffrer (et le déchiffrement renvoie '' comme avant).
+ */
 function key(): Buffer {
-  const src = process.env.TOKEN_ENC_KEY || process.env.AUTH_SECRET || 'tiktrends-dev-key';
+  const src = process.env.TOKEN_ENC_KEY || process.env.AUTH_SECRET;
+  if (!src || src === 'change-me') {
+    throw new Error('Chiffrement des tokens indisponible : pose TOKEN_ENC_KEY (ou AUTH_SECRET) dans l’environnement.');
+  }
   return createHash('sha256').update(src).digest();
 }
 

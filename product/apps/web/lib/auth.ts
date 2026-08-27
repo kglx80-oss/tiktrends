@@ -2,6 +2,7 @@
 // SERVEUR UNIQUEMENT (ne jamais importer depuis un composant client).
 import 'server-only';
 import { cookies } from 'next/headers';
+import { randomBytes } from 'crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import { db, schema } from '@tiktrends/db';
@@ -10,7 +11,28 @@ import type { Role, Plan } from './rbac';
 
 const COOKIE = 'tt_session';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 jours
-const secretKey = () => new TextEncoder().encode(process.env.AUTH_SECRET || 'dev-insecure-secret');
+
+/**
+ * Clé de signature des sessions.
+ *
+ * Il n'y a volontairement AUCUN secret de repli en dur : une valeur publique
+ * (présente dans le dépôt) permettrait de forger un cookie de session pour
+ * n'importe quel compte. Si AUTH_SECRET manque, on tire une clé aléatoire au
+ * démarrage du process : le service reste debout, mais les sessions ne survivent
+ * pas à un redémarrage · le message ci-dessous rappelle de poser la variable.
+ */
+const FALLBACK_SECRET = randomBytes(48).toString('base64url');
+let warned = false;
+function authSecret(): string {
+  const fromEnv = process.env.AUTH_SECRET;
+  if (fromEnv && fromEnv !== 'change-me') return fromEnv;
+  if (!warned) {
+    warned = true;
+    console.error('[auth] AUTH_SECRET absent (ou laissé à « change-me ») : clé de session aléatoire générée pour ce process. Pose AUTH_SECRET dans .env.deploy.');
+  }
+  return FALLBACK_SECRET;
+}
+const secretKey = () => new TextEncoder().encode(authSecret());
 
 export interface Session {
   user: { id: string; email: string; name: string | null };

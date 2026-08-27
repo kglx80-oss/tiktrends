@@ -7,7 +7,7 @@ import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey } from '@tiktrends/core';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, settleCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 
@@ -67,7 +67,7 @@ async function composeBatch(o: {
   assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean; credits: number; reason: string;
-  falModel?: string; creditsPerImage: number; // modèle choisi + crédits par variante (calé sur le coût réel)
+  falModel?: string; falParams?: Record<string, string | number>; creditsPerImage: number; // modèle choisi (+ ses paramètres) et crédits par variante
   productId?: string; personaId?: string; objective?: string;
 }): Promise<AdItem[]> {
   const accents = pickAccents(o.colors);
@@ -106,7 +106,7 @@ async function composeBatch(o: {
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
       try {
-        const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit, count: 1, model: o.falModel });
+        const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit, count: 1, model: o.falModel, params: o.falParams });
         if (images[0]) return images[0];
       } catch { /* réessai */ }
     }
@@ -288,7 +288,7 @@ export async function generateAdsAction(input: {
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
     workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · pubs IA',
-    falModel: modelSpec.falModel, creditsPerImage: modelSpec.credits,
+    falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
@@ -325,10 +325,7 @@ export async function suggestAnglesAction(input: { productId?: string }): Promis
       audience: da?.audience ?? undefined, category: da?.category ?? undefined,
       productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
     }, { winningCopy, competitors: brow?.competitors ?? undefined });
-    if (!unlimited) {
-      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-    }
+    if (!unlimited) await settleCredits(s.workspaceId, cost, 'Studio · angles suggérés');
     return { angles };
   } catch (e) {
     return { error: 'Proposition d’angles impossible : ' + (e as Error).message };
@@ -451,7 +448,7 @@ export async function cloneAdAction(input: {
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
     workspaceId: s.workspaceId, unlimited, credits, reason: 'Studio · clone de pub',
-    falModel: modelSpec.falModel, creditsPerImage: modelSpec.credits,
+    falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
@@ -575,10 +572,7 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
         .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ jarvisScore: score })}::jsonb` })
         .where(eq(schema.generations.id, id));
     } catch { /* best-effort */ }
-    if (!unlimited) {
-      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-    }
+    if (!unlimited) await settleCredits(s.workspaceId, cost, 'Jarvis · analyse de créa');
     return { score, cost: unlimited ? 0 : cost };
   } catch (e) { return { error: (e as Error).message }; }
 }

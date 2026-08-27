@@ -26,7 +26,7 @@ export interface FalConfig {
 }
 
 export type FalAspect = '9:16' | '1:1' | '16:9' | '4:5';
-export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; imageUrls?: string[]; withText?: boolean; count?: number; edit?: boolean; model?: string }
+export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; imageUrls?: string[]; withText?: boolean; count?: number; edit?: boolean; model?: string; params?: Record<string, string | number> }
 export interface FalImageResult { images: string[] }
 
 export function falFromEnv(): FalConfig | null {
@@ -101,12 +101,25 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
     if (hasRef) body.image_url = refs[0]; // Flux i2i : une seule image de départ
   }
 
-  const res = await fetch(`${cfg.baseUrl}/${model}`, {
+  // Paramètres propres à la variante choisie (ex : resolution 2K sur Nano Banana).
+  const extras = input.params && Object.keys(input.params).length ? input.params : null;
+  if (extras) Object.assign(body, extras);
+
+  const call = (payload: Record<string, unknown>) => fetch(`${cfg.baseUrl}/${model}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Key ${cfg.apiKey}` },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
     signal: AbortSignal.timeout(90000),
   });
+
+  let res = await call(body);
+  // Un paramètre de variante refusé par le modèle (422) ne doit jamais faire perdre
+  // la génération au client : on rejoue une fois sans les extras.
+  if (!res.ok && extras && (res.status === 422 || res.status === 400)) {
+    const base = { ...body };
+    for (const k of Object.keys(extras)) delete base[k];
+    res = await call(base);
+  }
   if (!res.ok) throw new Error(`Source image : ${res.status} ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as Record<string, unknown>;
   const images = collectUrls(data);

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db, schema, eq, and } from '@tiktrends/db';
 import { googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
-import { decryptSecret } from '../../../../lib/secrets';
+import { driveRefreshTokenFor } from '../../../../lib/drive-token';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (!s || !db) return new NextResponse('unauthorized', { status: 401 });
   const { id } = await ctx.params;
 
-  const [a] = await db.select({ ext: schema.assets.externalId, mime: schema.assets.mimeType, url: schema.assets.url })
+  const [a] = await db.select({ ext: schema.assets.externalId, mime: schema.assets.mimeType, url: schema.assets.url, brandId: schema.assets.brandId })
     .from(schema.assets).where(and(eq(schema.assets.id, id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   if (!a) return new NextResponse('not found', { status: 404 });
 
@@ -25,8 +25,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (a.url && !/drive\.google\.com|googleusercontent\.com/.test(a.url)) return NextResponse.redirect(a.url);
   if (!a.ext) return new NextResponse('not found', { status: 404 });
 
-  const [w] = await db.select({ tok: schema.workspaces.driveRefreshToken }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-  const rt = decryptSecret(w?.tok);
+  // Le jeton Drive est stocké sur la marque, pas sur l'espace.
+  const rt = await driveRefreshTokenFor(s.workspaceId, a.brandId);
   if (!rt) return new NextResponse('drive not connected', { status: 404 });
 
   try {

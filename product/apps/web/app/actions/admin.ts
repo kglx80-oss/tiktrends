@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession, hashPassword, verifyPassword } from '../../lib/auth';
+import { isFounder } from '../../lib/founder';
 import { roleAtLeast, type Plan } from '../../lib/rbac';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
@@ -73,10 +74,16 @@ export async function saveWorkspaceNameAction(_prev: { ok?: boolean; error?: str
   return { ok: true };
 }
 
+/**
+ * Bascule directe de la formule · pilotage interne plateforme uniquement.
+ * Le rôle « owner » est attribué automatiquement à chaque inscription : il ne peut
+ * donc pas garder une action qui débloque des fonctionnalités payantes. Les clients
+ * changent de formule via Stripe (/billing).
+ */
 export async function setPlanAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
-  if (s.role !== 'owner') redirect('/settings?e=forbidden'); // seul le propriétaire change le plan
+  if (!isFounder(s.user.email)) redirect('/settings?e=forbidden');
   const plan = norm(formData.get('plan')) as Plan;
   if (!PLANS.includes(plan)) redirect('/settings?e=plan');
   await db.update(schema.workspaces).set({ plan }).where(eq(schema.workspaces.id, s.workspaceId));

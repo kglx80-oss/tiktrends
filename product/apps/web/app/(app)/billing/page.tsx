@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
+import { isFounder } from '../../../lib/founder';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { changePlanAction } from '../../actions/billing';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
@@ -32,6 +33,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
   const { ok, e } = await searchParams;
   const isOwner = s.role === 'owner';
+  // Bascule directe de formule (sans paiement) : pilotage plateforme uniquement.
+  const canPilotPlan = isFounder(s.user.email);
 
   let balance = 0, subStatus: string | null = null, hasSub = false;
   if (db) {
@@ -137,8 +140,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   if (planPurchasable(p)) return cta(`S'abonner · ${PLAN_PRICE[p]} €/mois`, createCheckoutAction, 'plan', p);
                   return disabledBtn('Bientôt');
                 }
-                // Sans Stripe : pilotage interne (fondateur) via changePlanAction.
-                return cta('Choisir cette formule', changePlanAction, 'plan', p);
+                // Sans Stripe : bascule directe réservée au pilotage plateforme.
+                if (canPilotPlan) return cta('Choisir cette formule', changePlanAction, 'plan', p);
+                return disabledBtn('Bientôt disponible');
               })()}
             </div>
           );
