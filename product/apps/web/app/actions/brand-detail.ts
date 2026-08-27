@@ -6,7 +6,8 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { anthropicFromEnv, generateProducts, generateBrandProfile, fetchSiteText } from '@tiktrends/ai';
-import { costFor } from '@tiktrends/core';
+import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
+import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
@@ -144,6 +145,41 @@ export async function deleteScenarioAction(formData: FormData): Promise<void> {
   const id = norm(formData.get('id'));
   if (id) await db.delete(schema.scenarios).where(and(eq(schema.scenarios.id, id), eq(schema.scenarios.brandId, brandId)));
   redirect(`/brands/${brandId}?tab=audience`);
+}
+
+/**
+ * Génère une vignette d'illustration pour un scénario d'usage : le contexte devient
+ * visuel, ce qui aide à choisir le bon décor avant de lancer une créa. Débite l'image.
+ */
+export async function generateScenarioImageAction(input: { brandId: string; scenarioId: string }): Promise<{ url?: string; error?: string }> {
+  const g = await guardBrand(input.brandId);
+  if (!g || !db) return { error: 'Accès refusé.' };
+  const cfg = falFromEnv();
+  if (!cfg) return { error: "La génération d'image n'est pas activée." };
+
+  const [sc] = await db.select({ title: schema.scenarios.title, context: schema.scenarios.context })
+    .from(schema.scenarios).where(and(eq(schema.scenarios.id, input.scenarioId), eq(schema.scenarios.brandId, input.brandId))).limit(1);
+  if (!sc) return { error: 'Scénario introuvable.' };
+
+  const model = imageModelByKey('nano');
+  const cost = model.credits;
+  const unlimited = unlimitedCredits(g.email);
+  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
+  if (!unlimited && (w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+
+  const prompt = `Photographie lifestyle réaliste illustrant ce contexte d'usage : ${sc.title}. ${sc.context || ''} `
+    + 'Cadrage naturel, lumière douce et crédible, ambiance authentique. Aucun texte, aucun logo, aucune marque visible.';
+  try {
+    const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: '1:1', count: 1, model: model.falModel });
+    const url = images?.[0];
+    if (!url) return { error: 'Aucune image générée.' };
+    await db.update(schema.scenarios).set({ imageUrl: url }).where(eq(schema.scenarios.id, input.scenarioId));
+    if (!unlimited) try {
+      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, g.workspaceId));
+      await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: 'Marque · visuel de scénario' });
+    } catch { /* débit best-effort */ }
+    return { url };
+  } catch (e) { return { error: (e as Error).message }; }
 }
 
 /* ---------------- Produits ---------------- */

@@ -85,6 +85,7 @@ export async function createBrandAction(formData: FormData): Promise<void> {
     name,
     url: norm(formData.get('url')) || null,
     logoUrl: norm(formData.get('logoUrl')) || null,
+    logos: commas(formData.get('logos')),
     industry: norm(formData.get('industry')) || null,
     description: norm(formData.get('description')) || null,
     usp: norm(formData.get('usp')) || null,

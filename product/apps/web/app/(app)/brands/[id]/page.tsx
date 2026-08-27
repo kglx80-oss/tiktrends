@@ -18,7 +18,9 @@ import { ShopifyConnect } from './ShopifyConnect';
 import { BrandDA } from './BrandDA';
 import { SubmitButton } from '../../../../components/SubmitButton';
 import { BrandCreated } from '../../../../components/BrandCreated';
-import { costFor } from '@tiktrends/core';
+import { ScenarioCard } from '../../../../components/ScenarioCard';
+import { costFor, imageModelByKey } from '@tiktrends/core';
+import { falConfigured } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +67,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
   ]);
   const competitors = b.competitors ?? [];
   const aiReady = anthropicConfigured();
+  const imgReady = falConfigured();
 
   const initials = b.name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 
@@ -184,13 +187,10 @@ export default async function BrandDetailPage({ params, searchParams }: {
           <h2 style={sectionH}>Scénarios <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{scenarios.length}</span></h2>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>Contextes d'usage pour adapter chaque créa au bon moment.</p>
           {scenarios.map((sc) => (
-            <div key={sc.id} style={card}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <b style={{ color: 'var(--ink)', fontSize: 14, flex: 1 }}>{sc.title}</b>
-                <form action={deleteScenarioAction}><input type="hidden" name="brandId" value={id} /><input type="hidden" name="id" value={sc.id} /><button style={delBtn}>Retirer</button></form>
-              </div>
-              {sc.context && <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--ink-2)' }}>{sc.context}</p>}
-            </div>
+            <ScenarioCard key={sc.id} brandId={id} scenarioId={sc.id} title={sc.title} context={sc.context}
+              imageUrl={sc.imageUrl ?? null} cost={imageModelByKey('nano').credits} canGenerate={imgReady}>
+              <form action={deleteScenarioAction}><input type="hidden" name="brandId" value={id} /><input type="hidden" name="id" value={sc.id} /><button style={delBtn}>Retirer</button></form>
+            </ScenarioCard>
           ))}
           <form action={addScenarioAction} style={{ ...card, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <input type="hidden" name="brandId" value={id} />

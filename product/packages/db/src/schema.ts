@@ -59,7 +59,8 @@ export const brands = pgTable('brands', {
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   url: text('url'),
-  logoUrl: text('logo_url'),
+  logoUrl: text('logo_url'),                        // logo par défaut (celui posé sur les créas)
+  logos: text('logos').array(),                     // variantes de logo (clair, foncé, icône…)
   shopifyDomain: text('shopify_domain'),
   shopifyToken: text('shopify_token_enc'),          // token Admin API Shopify (chiffré)
   metaToken: text('meta_token_enc'),                // token Meta Marketing API (chiffré)
@@ -101,6 +102,7 @@ export const scenarios = pgTable('scenarios', {
   brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   context: text('context'),
+  imageUrl: text('image_url'),                      // vignette d'illustration (générée par l'IA)
 });
 
 export const products = pgTable('products', {
