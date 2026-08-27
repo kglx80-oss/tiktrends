@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, type AdItem, type SavedAdRef } from '../../../actions/ads';
+import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 import { IMAGE_MODELS, imageModelByKey } from '@tiktrends/core';
@@ -101,6 +101,24 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const refInput = useRef<HTMLInputElement>(null);
 
   const detailAd = detailIdx != null ? ads[detailIdx] ?? null : null;
+  const [editText, setEditText] = useState(false);
+  const [textForm, setTextForm] = useState<AdText | null>(null);
+  const [textBusy, setTextBusy] = useState(false);
+  const [bump, setBump] = useState(0); // cache-bust de l'aperçu après édition texte
+
+  async function openTextEditor(a: AdItem) {
+    setEditText(true); setTextForm(null);
+    const r = await getAdTextAction(a.id);
+    if (r.text) setTextForm(r.text);
+  }
+  async function applyText(a: AdItem) {
+    if (!textForm || textBusy) return;
+    setTextBusy(true); setError('');
+    const r = await updateAdTextAction(a.id, textForm);
+    setTextBusy(false);
+    if (r.error) { setError(r.error); return; }
+    setBump((n) => n + 1); setEditText(false);
+  }
 
   function copyLink(a: AdItem) {
     try { void navigator.clipboard.writeText(location.origin + a.url); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* clipboard indispo */ }
@@ -533,12 +551,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             {/* Aperçu + navigation */}
             <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
               {detailIdx != null && detailIdx > 0 && (
-                <button type="button" onClick={() => setDetailIdx((i) => Math.max(0, (i ?? 0) - 1))} aria-label="Précédent" style={navArrow('left')}>‹</button>
+                <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={detailAd.url} alt={detailAd.headline} style={{ maxWidth: '100%', maxHeight: '84vh', borderRadius: 10, objectFit: 'contain' }} />
+              <img src={detailAd.url + (bump ? `?v=${bump}` : '')} alt={detailAd.headline} style={{ maxWidth: '100%', maxHeight: '84vh', borderRadius: 10, objectFit: 'contain' }} />
               {detailIdx != null && detailIdx < ads.length - 1 && (
-                <button type="button" onClick={() => setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1))} aria-label="Suivant" style={navArrow('right')}>›</button>
+                <button type="button" onClick={() => { setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1)); setEditText(false); }} aria-label="Suivant" style={navArrow('right')}>›</button>
               )}
               <span style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 11.5, color: 'var(--muted)', background: 'rgba(0,0,0,.45)', padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
             </div>
@@ -549,18 +567,42 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 <b style={{ flex: 1, fontSize: 14, color: 'var(--ink)' }}>Créa</b>
                 <button type="button" onClick={() => setDetailIdx(null)} aria-label="Fermer" style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 16, cursor: 'pointer' }}>×</button>
               </div>
-              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[detailAd.template]}</span>
-              <p style={{ margin: '4px 0 14px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{detailAd.headline}</p>
+              {editText ? (
+                /* Panneau d'édition de texte (gratuit · l'overlay est recomposé) */
+                <>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>Éditer le texte</span>
+                  {!textForm ? (
+                    <p style={{ margin: '10px 0', fontSize: 12.5, color: 'var(--muted)' }}>Chargement…</p>
+                  ) : (
+                    <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+                      <TextField label="Kicker" value={textForm.kicker ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, kicker: v }))} />
+                      <TextField label="Accroche" value={textForm.headline ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, headline: v }))} area />
+                      <TextField label="Sous-titre" value={textForm.subhead ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, subhead: v }))} area />
+                      <TextField label="CTA" value={textForm.cta ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, cta: v }))} />
+                      <TextField label="Badge (offre)" value={textForm.badge ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, badge: v }))} />
+                    </div>
+                  )}
+                  <p style={{ margin: '8px 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>Modifie le texte sans régénérer l'image · <b>gratuit</b>.</p>
+                  <button type="button" onClick={() => applyText(detailAd)} disabled={textBusy || !textForm} style={toolPrimary}>{textBusy ? 'Application…' : '✓ Appliquer'}</button>
+                  <button type="button" onClick={() => setEditText(false)} style={{ ...toolBtn, marginTop: 8 }}>Annuler</button>
+                </>
+              ) : (
+                <>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[detailAd.template]}</span>
+                  <p style={{ margin: '4px 0 14px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{detailAd.headline}</p>
 
-              <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={toolPrimary}>
-                {varyBusy ? 'Génération…' : '✨ Varier (3)'}
-              </button>
-              <p style={{ margin: '6px 0 12px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>Génère 3 variantes de cette créa (même gabarit · {modelSpec.credits * 3} cr.).</p>
+                  <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={toolPrimary}>
+                    {varyBusy ? 'Génération…' : '✨ Varier (3)'}
+                  </button>
+                  <p style={{ margin: '6px 0 12px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 variantes de cette créa (même gabarit · {modelSpec.credits * 3} cr.).</p>
 
-              <button type="button" onClick={() => copyLink(detailAd)} style={toolBtn}>{copied ? '✓ Lien copié' : '🔗 Copier le lien'}</button>
-              <a href={detailAd.url} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⬇ Télécharger</a>
-              <span style={{ flex: 1 }} />
-              <button type="button" onClick={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }} style={{ ...toolBtn, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Archiver</button>
+                  <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}>✎ Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></button>
+                  <button type="button" onClick={() => copyLink(detailAd)} style={toolBtn}>{copied ? '✓ Lien copié' : '🔗 Copier le lien'}</button>
+                  <a href={detailAd.url} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⬇ Télécharger</a>
+                  <span style={{ flex: 1 }} />
+                  <button type="button" onClick={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }} style={{ ...toolBtn, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Archiver</button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -671,6 +713,18 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         </div>
       )}
     </div>
+  );
+}
+
+function TextField({ label, value, onChange, area }: { label: string; value: string; onChange: (v: string) => void; area?: boolean }) {
+  const st: React.CSSProperties = { width: '100%', padding: '7px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 12.5, outline: 'none', fontFamily: 'inherit' };
+  return (
+    <label style={{ display: 'grid', gap: 3 }}>
+      <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>{label}</span>
+      {area
+        ? <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} style={{ ...st, resize: 'vertical' }} />
+        : <input value={value} onChange={(e) => onChange(e.target.value)} style={st} />}
+    </label>
   );
 }
 

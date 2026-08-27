@@ -460,3 +460,44 @@ export async function archiveAdAction(input: { id: string; archived?: boolean })
   await db.update(schema.generations).set({ status: input.archived === false ? 'completed' : 'archived' }).where(eq(schema.generations.id, input.id));
   return { ok: true };
 }
+
+export interface AdText { kicker?: string; headline?: string; subhead?: string; cta?: string; badge?: string }
+
+/** Lit les textes éditables d'une pub (accroche, sous-titre, CTA…). */
+export async function getAdTextAction(id: string): Promise<{ text?: AdText; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+  const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
+    .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
+  if (!g) return { error: 'Rendu introuvable.' };
+  const r = (g.input ?? {}) as Partial<AdRecipe>;
+  return { text: { kicker: r.kicker ?? '', headline: r.headline ?? '', subhead: r.subhead ?? '', cta: r.cta ?? '', badge: r.badge ?? '' } };
+}
+
+/**
+ * Met à jour les textes d'une pub SANS régénérer l'image (l'overlay est recomposé à la volée) :
+ * aucun crédit débité. Renvoie une version pour rafraîchir l'aperçu (cache-bust).
+ */
+export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok?: true; version?: number; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'Session expirée.' };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: 'Aucune marque active.' };
+  const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
+    .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
+  if (!g) return { error: 'Rendu introuvable.' };
+  const r = (g.input ?? {}) as Record<string, unknown>;
+  const clean = (v?: string) => (typeof v === 'string' ? v.trim() : undefined);
+  const next = {
+    ...r,
+    kicker: clean(text.kicker) || undefined,
+    headline: clean(text.headline) || (r.headline as string) || '',
+    subhead: clean(text.subhead) || undefined,
+    cta: clean(text.cta) || (r.cta as string) || '',
+    badge: clean(text.badge) || undefined,
+  };
+  await db.update(schema.generations).set({ input: next as Record<string, unknown> }).where(eq(schema.generations.id, id));
+  return { ok: true, version: Date.now() };
+}
