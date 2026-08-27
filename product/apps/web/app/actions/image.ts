@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
@@ -91,7 +91,7 @@ export async function generateImageAction(input: {
       }
       if (!unlimited) {
         try {
-          await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, credits - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+          await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
           await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio · image IA' });
         } catch { /* débit best-effort */ }
       }
@@ -141,7 +141,7 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
     });
     if (!unlimited && db) {
       const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
     }
     return { text: text || undefined };
   } catch (e) {

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, or, isNull } from 'drizzle-orm';
+import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
@@ -31,7 +31,7 @@ async function debitAndRecord(
   if (!unlimited) {
     try {
       const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, workspaceId));
       await db.insert(schema.creditLedger).values({ workspaceId, delta: -cost, reason: 'Studio · vidéo IA' });
     } catch { /* débit best-effort */ }
   }
@@ -262,7 +262,7 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
     const text = await suggestVideoBrief(client, { brand: brand?.name, tone: tone ?? undefined, productName: product?.name, productDesc: product?.description ?? undefined, fromImage: input.fromImage, edenRules: creativeRules ?? undefined });
     if (!unlimited && db) {
       const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: Math.max(0, (w?.c ?? 0) - cost) }).where(eq(schema.workspaces.id, s.workspaceId));
+      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
     }
     return { text: text || undefined };
   } catch (e) {
