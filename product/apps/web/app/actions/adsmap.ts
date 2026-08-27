@@ -3,7 +3,7 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  toCsv, SHEET_STATUS, SHEET_VERDICT, SHEET_STAGE, SHEET_VARIABLE, SHEET_FORMAT, SHEET_AD_TYPE,
+  toCsv, COL_HYPOTHESIS, SHEET_STATUS, SHEET_VERDICT, SHEET_STAGE, SHEET_VARIABLE, SHEET_FORMAT, SHEET_AD_TYPE,
   sheetDate, sheetNumber, type SheetRow,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -190,20 +190,20 @@ export async function exportAdsCsvAction(filters: AdFilters = {}, withComputed =
     'BATCH #': r.batchNumber ?? '',
     'Autheur': r.author ?? '',
     'Ad Concept': r.concept,
-    'Désire': r.desire ?? '',
-    'Angle(s)': r.angle ?? '',
+    '📎 Désire': r.desire ?? '',
+    '📎 Angle(s)': r.angle ?? '',
     "Motif d'Iteration": r.iterationReason ?? '',
-    'Hypothèse': r.hypothesis ?? '',
+    [COL_HYPOTHESIS]: r.hypothesis ?? '',
     'Ad Format': SHEET_FORMAT[r.format] ?? r.format,
     'Ad Type': SHEET_AD_TYPE[r.adType] ?? r.adType,
-    'Brief': r.briefUrl ?? '',
+    'Lien du Brief créa': r.briefUrl ?? '',
     "Lien de l'Ad": r.assetUrl ?? '',
     'Résultats': r.verdict ? (SHEET_VERDICT[r.verdict] ?? r.verdict) : '',
     'Apprentissages': r.learnings.join(' · '),
-    'Variable': r.testedVariable ? (SHEET_VARIABLE[r.testedVariable] ?? r.testedVariable) : '',
-    'Test result': r.verdict ? (SHEET_VERDICT[r.verdict] ?? r.verdict) : '',
+    'Ad Variable': r.testedVariable ? (SHEET_VARIABLE[r.testedVariable] ?? r.testedVariable) : '',
+    'Test Result': r.verdict ? (SHEET_VERDICT[r.verdict] ?? r.verdict) : '',
     'Learnings': r.learnings.join(' · '),
-    'Date': sheetDate(r.launchedAt),
+    'Date de lancement': sheetDate(r.launchedAt),
     'Plateforme': r.platform === 'meta' ? 'Meta' : 'TikTok',
     // Colonnes ADSMAP, après les 19.
     'Verdict calculé': r.verdict ? (SHEET_VERDICT[r.verdict] ?? r.verdict) : '',

@@ -813,7 +813,10 @@ export const verdictConfigs = pgTable('adsmap_verdict_configs', {
 export const verdicts = pgTable('adsmap_verdicts', {
   adId: uuid('ad_id').primaryKey().references(() => ads.id, { onDelete: 'cascade' }),
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-  computed: verdictValueEnum('computed').notNull(),
+  // Nullable : le §13 importe des verdicts HUMAINS (colonne « Résultats ») sans
+  // qu'aucun calcul n'ait eu lieu · `computed` reste vide jusqu'au premier passage
+  // du moteur sur des métriques réelles.
+  computed: verdictValueEnum('computed'),
   validated: verdictValueEnum('validated'),
   status: verdictStatusEnum('status').notNull().default('computed'),
   comparable: boolean('comparable').notNull().default(false),

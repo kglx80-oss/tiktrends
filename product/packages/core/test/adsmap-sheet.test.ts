@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SHEET_COLUMNS, COMPUTED_COLUMNS, toCsv, csvCell, sheetDate, sheetNumber, SHEET_VERDICT } from '../src/adsmap/sheet';
+import { SHEET_COLUMNS, COMPUTED_COLUMNS, COL_HYPOTHESIS, toCsv, csvCell, sheetDate, sheetNumber, SHEET_VERDICT } from '../src/adsmap/sheet';
 
 /**
  * L'export doit rester un remplaçant exact du tableur : c'est la porte de sortie
@@ -12,6 +12,10 @@ describe('colonnes', () => {
     expect(SHEET_COLUMNS).toHaveLength(19);
     expect(SHEET_COLUMNS[0]).toBe('Status');
     expect(SHEET_COLUMNS[18]).toBe('Plateforme');
+    // Intitulés relevés sur le fichier réel, pas sur la description du §1.1.
+    expect(SHEET_COLUMNS[4]).toBe('📎 Désire');
+    expect(SHEET_COLUMNS[14]).toBe('Ad Variable');
+    expect(SHEET_COLUMNS[17]).toBe('Date de lancement');
   });
 
   it('les colonnes calculées viennent APRÈS, jamais entre', () => {
@@ -43,7 +47,7 @@ describe('échappement CSV', () => {
   });
 
   it('une hypothèse contenant un point-virgule ne casse pas la ligne', () => {
-    const csv = toCsv([{ 'Hypothèse': 'Hook question ; cible 30 % de hook rate', Status: 'Prête' }]);
+    const csv = toCsv([{ [COL_HYPOTHESIS]: 'Hook question ; cible 30 % de hook rate', Status: 'Prête' }]);
     const lignes = csv.replace('﻿', '').split('\r\n');
     expect(lignes).toHaveLength(3);          // en-tête + 1 ligne + fin
     expect(lignes[1]).toContain('"Hook question ; cible 30 % de hook rate"');

@@ -1,0 +1,1 @@
+ALTER TABLE "adsmap_verdicts" ALTER COLUMN "computed" DROP NOT NULL;

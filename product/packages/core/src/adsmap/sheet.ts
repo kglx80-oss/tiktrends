@@ -13,15 +13,29 @@
  * Pur : pas de base, pas de fichier. L'appelant fournit des lignes déjà résolues.
  */
 
-/** Les 19 colonnes du Sheet, dans l'ordre exact des trois blocs d'origine. */
+/**
+ * Les 19 colonnes du Sheet, dans l'ordre exact des trois blocs d'origine.
+ *
+ * Ce sont les intitulés RÉELS du fichier TrueFords, relevés dessus · ils diffèrent
+ * de ceux décrits au §1.1 du cahier des charges (« Ad Variable » et non
+ * « Variable », « Date de lancement » et non « Date », et une colonne d'hypothèse
+ * dont l'intitulé est une phrase entière). Un export qui ne les reprend pas ne se
+ * recolle pas au fichier d'origine, ce qui est tout l'objet de cette compatibilité.
+ */
 export const SHEET_COLUMNS = [
   // CRÉATION & STRATÉGIE
-  'Status', 'BATCH #', 'Autheur', 'Ad Concept', 'Désire', 'Angle(s)', "Motif d'Iteration", 'Hypothèse',
-  // PRODUCTION
-  'Ad Format', 'Ad Type', 'Brief', "Lien de l'Ad",
+  'Status', 'BATCH #', 'Autheur', 'Ad Concept', '📎 Désire', '📎 Angle(s)', "Motif d'Iteration",
+  "Que testez-vous et qu'est-ce qui vous donne confiance dans le fait que ce test améliorera les performances globales ?",
+  // PRODUCTION & LIVRAISON
+  'Ad Format', 'Ad Type', 'Lien du Brief créa', "Lien de l'Ad",
   // TEST & ANALYSE
-  'Résultats', 'Apprentissages', 'Variable', 'Test result', 'Learnings', 'Date', 'Plateforme',
+  'Résultats', 'Apprentissages', 'Ad Variable', 'Test Result', 'Learnings', 'Date de lancement', 'Plateforme',
 ] as const;
+
+/** Raccourcis lisibles vers les colonnes dont l'intitulé réel est verbeux. */
+export const COL_HYPOTHESIS = SHEET_COLUMNS[7];
+export const COL_DESIRE = SHEET_COLUMNS[4];
+export const COL_ANGLE = SHEET_COLUMNS[5];
 
 /** Colonnes ajoutées par ADSMAP · toujours après les 19 d'origine. */
 export const COMPUTED_COLUMNS = [
