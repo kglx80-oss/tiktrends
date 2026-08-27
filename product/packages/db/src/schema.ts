@@ -632,7 +632,7 @@ export const openingTypeEnum = pgEnum('adsmap_opening_type', ['face_talking', 'p
 export const talentTypeEnum = pgEnum('adsmap_talent_type', ['ugc_creator', 'founder', 'actor', 'voice_over_only', 'none']);
 export const decisionTypeEnum = pgEnum('adsmap_decision_type', [
   'validate_verdict', 'review_learning', 'accept_iteration', 'kill_suggested', 'coverage_gap',
-  'unmapped_ad', 'protocol_violation', 'cro_handoff', 'prelaunch_warning', 'budget_exhausted',
+  'unmapped_ad', 'protocol_violation', 'cro_handoff', 'prelaunch_warning', 'ai_budget_reached',
 ]);
 export const decisionStatusEnum = pgEnum('adsmap_decision_status', ['open', 'done', 'dismissed', 'snoozed']);
 export const agentNameEnum = pgEnum('adsmap_agent', ['a0_tagger', 'a1_research', 'a2_concept', 'a3_brief', 'a4_analyst', 'a5_iteration', 'a6_coverage', 'a7_prelaunch', 'a8_report']);
@@ -928,10 +928,35 @@ export const agentRuns = pgTable('adsmap_agent_runs', {
   tokensIn: integer('tokens_in'),
   tokensOut: integer('tokens_out'),
   credits: integer('credits').notNull().default(0),
+  costEur: doublePrecision('cost_eur'),                   // coût réel, d'après les tokens renvoyés
+  estimatedEur: doublePrecision('estimated_eur'),         // estimation préalable · l'écart se mesure (cible < 25 %)
   accepted: boolean('accepted'),                          // mesure du taux d'acceptation (§16)
   error: text('error'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ wsIdx: index('adsmap_agent_runs_ws_idx').on(t.workspaceId, t.agent) }));
+
+/**
+ * Plafond de dépense IA par marque (addendum v2.1 · C2).
+ *
+ * L'orchestrateur tourne la nuit, sans personne devant l'écran : sans plafond,
+ * une marque avec beaucoup d'assets non taggés peut consommer un mois de budget
+ * en une nuit, et on l'apprend sur la facture. Les étapes déterministes
+ * (verdicts, kill rules, contrôle de protocole) ne sont jamais bloquées : elles
+ * ne coûtent rien et portent l'essentiel de la valeur.
+ */
+export const aiBudgets = pgTable('adsmap_ai_budgets', {
+  brandId: uuid('brand_id').primaryKey().references(() => brands.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  monthlyCapEur: doublePrecision('monthly_cap_eur').notNull().default(40),
+  nightlyCapEur: doublePrecision('nightly_cap_eur').notNull().default(3),
+  softWarnRatio: doublePrecision('soft_warn_ratio').notNull().default(0.8),
+  spentMonthEur: doublePrecision('spent_month_eur').notNull().default(0),   // recalculé depuis agent_runs
+  spentNightEur: doublePrecision('spent_night_eur').notNull().default(0),   // remis à zéro à chaque run
+  paused: boolean('paused').notNull().default(false),
+  dryRun: boolean('dry_run').notNull().default(false),   // la 1re semaine d'une marque : on liste sans exécuter
+  periodMonth: text('period_month'),                     // « 2026-08 » · bascule = remise à zéro du mois
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Lien de partage de la vue client en marque blanche (§12). */
 export const clientShareLinks = pgTable('adsmap_client_share_links', {
