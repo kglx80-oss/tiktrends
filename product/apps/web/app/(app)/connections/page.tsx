@@ -80,7 +80,7 @@ function Tile({ c }: { c: Connector }) {
   return <BrandTile name={c.name} color={c.color} glyph={c.glyph} />;
 }
 
-const OAUTH_OK: Record<string, string> = { meta: 'Meta Ads connecté. Lance une synchro pour remonter les performances.', meta_noacct: 'Meta connecté, mais aucun compte publicitaire trouvé · renseigne l’ID manuellement.', shopify: 'Boutique Shopify connectée. Lance une synchro pour remonter les ventes.' };
+const OAUTH_OK: Record<string, string> = { meta: 'Meta Ads connecté. Lance une synchro pour remonter les performances.', meta_pick: 'Meta connecté · plusieurs comptes publicitaires trouvés : choisis celui de cette marque ci-dessous.', meta_noacct: 'Meta connecté, mais aucun compte publicitaire trouvé · renseigne l’ID manuellement.', shopify: 'Boutique Shopify connectée. Lance une synchro pour remonter les ventes.' };
 const OAUTH_ERR: Record<string, string> = { meta_config: 'OAuth Meta non configuré côté serveur (META_APP_ID/SECRET).', meta_state: 'Session OAuth expirée, réessaie.', meta_session: 'Session invalide, reconnecte-toi.', meta_token: 'Échange du token Meta impossible.', meta_exchange: 'Erreur lors de la connexion Meta.', nobrand: 'Sélectionne une marque active.', shopify_config: 'OAuth Shopify non configuré (SHOPIFY_API_KEY/SECRET).', shopify_shop: 'Domaine .myshopify.com attendu.', shopify_state: 'Session OAuth expirée, réessaie.', shopify_hmac: 'Vérification Shopify échouée.', shopify_token: 'Échange du token Shopify impossible.', shopify_exchange: 'Erreur lors de la connexion Shopify.', shopify_session: 'Session invalide, reconnecte-toi.' };
 
 export default async function ConnectionsPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {

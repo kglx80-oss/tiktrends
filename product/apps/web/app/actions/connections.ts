@@ -17,9 +17,10 @@ async function guard() {
   return { s, brand };
 }
 
+export interface MetaAdAccountChoice { id: string; name: string; currency?: string }
 export interface ConnectionState {
   shopify: { connected: boolean; domain: string | null; insights: ShopifyCommerceInsights | null };
-  meta: { connected: boolean; adAccountId: string | null; insights: MetaAdsInsights | null };
+  meta: { connected: boolean; adAccountId: string | null; insights: MetaAdsInsights | null; accounts: MetaAdAccountChoice[] };
   syncedAt: string | null;
 }
 
@@ -31,13 +32,13 @@ export async function getConnectionState(): Promise<ConnectionState | null> {
   if (!brand) return null;
   const [b] = await db.select({
     shopifyDomain: schema.brands.shopifyDomain, shopifyToken: schema.brands.shopifyToken,
-    metaToken: schema.brands.metaToken, metaAdAccountId: schema.brands.metaAdAccountId,
+    metaToken: schema.brands.metaToken, metaAdAccountId: schema.brands.metaAdAccountId, metaAccounts: schema.brands.metaAdAccounts,
     commerce: schema.brands.commerceInsights, ads: schema.brands.adsInsights, syncedAt: schema.brands.insightsSyncedAt,
   }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
   if (!b) return null;
   return {
     shopify: { connected: !!b.shopifyToken, domain: b.shopifyDomain ?? null, insights: (b.commerce as ShopifyCommerceInsights) ?? null },
-    meta: { connected: !!b.metaToken, adAccountId: b.metaAdAccountId ?? null, insights: (b.ads as MetaAdsInsights) ?? null },
+    meta: { connected: !!b.metaToken, adAccountId: b.metaAdAccountId ?? null, insights: (b.ads as MetaAdsInsights) ?? null, accounts: (b.metaAccounts as MetaAdAccountChoice[]) ?? [] },
     syncedAt: b.syncedAt ? b.syncedAt.toISOString() : null,
   };
 }
@@ -86,6 +87,23 @@ export async function connectMetaAction(input: { adAccountId: string; token: str
   try {
     const { accountName } = await metaAdsTest(adAccountId, token);
     await db!.update(schema.brands).set({ metaAdAccountId: adAccountId, metaToken: encryptSecret(token) }).where(eq(schema.brands.id, g.brand.id));
+    return { ok: true, accountName };
+  } catch (e) { return { error: (e as Error).message }; }
+}
+
+/** Choisit le compte publicitaire Meta rattaché à la marque (parmi ceux accessibles). */
+export async function selectMetaAccountAction(adAccountId: string): Promise<{ ok?: true; accountName?: string; error?: string }> {
+  const g = await guard();
+  if ('error' in g) return { error: g.error };
+  const id = (adAccountId || '').trim();
+  if (!id) return { error: 'Compte publicitaire manquant.' };
+  const [b] = await db!.select({ token: schema.brands.metaToken }).from(schema.brands).where(eq(schema.brands.id, g.brand.id)).limit(1);
+  const token = decryptSecret(b?.token);
+  if (!token) return { error: 'Connecte d’abord ton compte Meta.' };
+  try {
+    const { accountName } = await metaAdsTest(id, token);
+    // Changement de compte : les anciens KPI ne valent plus rien, on repart propre.
+    await db!.update(schema.brands).set({ metaAdAccountId: id, adsInsights: null, insightsSyncedAt: null }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, accountName };
   } catch (e) { return { error: (e as Error).message }; }
 }

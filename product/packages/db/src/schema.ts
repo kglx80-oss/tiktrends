@@ -64,6 +64,7 @@ export const brands = pgTable('brands', {
   shopifyToken: text('shopify_token_enc'),          // token Admin API Shopify (chiffré)
   metaToken: text('meta_token_enc'),                // token Meta Marketing API (chiffré)
   metaAdAccountId: text('meta_ad_account_id'),       // ex : act_1234567890
+  metaAdAccounts: jsonb('meta_ad_accounts_json'),    // comptes pub accessibles (choix par l'utilisateur)
   commerceInsights: jsonb('commerce_insights_json'), // KPIs Shopify synchronisés
   adsInsights: jsonb('ads_insights_json'),           // KPIs Meta Ads synchronisés
   insightsSyncedAt: timestamp('insights_synced_at', { withTimezone: true }),
