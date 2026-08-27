@@ -92,10 +92,29 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [adsPage, setAdsPage] = useState(0);
   const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
+  const [detailIdx, setDetailIdx] = useState<number | null>(null);
+  const [varyBusy, setVaryBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [model, setModel] = useState('nano');
   const modelSpec = imageModelByKey(model);
   const refInput = useRef<HTMLInputElement>(null);
+
+  const detailAd = detailIdx != null ? ads[detailIdx] ?? null : null;
+
+  function copyLink(a: AdItem) {
+    try { void navigator.clipboard.writeText(location.origin + a.url); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* clipboard indispo */ }
+  }
+
+  // « Varier » : régénère des variantes de cette créa (même gabarit + son accroche comme angle).
+  async function vary(a: AdItem) {
+    if (varyBusy) return;
+    setVaryBusy(true); setError('');
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates: [a.template], angle: a.headline, count: 3, model });
+    setVaryBusy(false);
+    if (res.error) { setError(res.error); return; }
+    if (res.ads?.length) { setAds((list) => [...res.ads!, ...list]); setDetailIdx(0); setAdsPage(0); }
+  }
 
   async function quickGenerate() {
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
@@ -477,9 +496,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13.5 }}>Aucune pub pour l'instant. Lance ta première série ci-dessus.</div>
       ) : (
         <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {pagedAds.map((a) => (
+          {pagedAds.map((a, li) => (
             <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
-              <button type="button" onClick={() => setPreview(a.url)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
+              <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={a.url} alt={a.headline} style={{ width: '100%', display: 'block', aspectRatio: '4/5', objectFit: 'cover' }} />
               </button>
@@ -487,7 +506,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
                 <div style={{ display: 'flex', gap: 12, marginTop: 6, alignItems: 'center' }}>
-                  <button type="button" onClick={() => setPreview(a.url)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Aperçu ⛶</button>
+                  <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Ouvrir ⛶</button>
                   <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>
                   <span style={{ flex: 1 }} />
                   <button type="button" onClick={() => archive(a.id)} title="Archiver ce rendu" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Archiver ✕</button>
@@ -504,6 +523,46 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
           <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
+        </div>
+      )}
+
+      {/* Vue détail d'une créa (façon Atria) : grand aperçu + outils à droite + navigation */}
+      {detailAd && (
+        <div onMouseDown={() => setDetailIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(6,4,8,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
+            {/* Aperçu + navigation */}
+            <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
+              {detailIdx != null && detailIdx > 0 && (
+                <button type="button" onClick={() => setDetailIdx((i) => Math.max(0, (i ?? 0) - 1))} aria-label="Précédent" style={navArrow('left')}>‹</button>
+              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={detailAd.url} alt={detailAd.headline} style={{ maxWidth: '100%', maxHeight: '84vh', borderRadius: 10, objectFit: 'contain' }} />
+              {detailIdx != null && detailIdx < ads.length - 1 && (
+                <button type="button" onClick={() => setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1))} aria-label="Suivant" style={navArrow('right')}>›</button>
+              )}
+              <span style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 11.5, color: 'var(--muted)', background: 'rgba(0,0,0,.45)', padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
+            </div>
+
+            {/* Rail d'outils */}
+            <div style={{ width: 230, flexShrink: 0, borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: 16, overflowY: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <b style={{ flex: 1, fontSize: 14, color: 'var(--ink)' }}>Créa</b>
+                <button type="button" onClick={() => setDetailIdx(null)} aria-label="Fermer" style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 16, cursor: 'pointer' }}>×</button>
+              </div>
+              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[detailAd.template]}</span>
+              <p style={{ margin: '4px 0 14px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{detailAd.headline}</p>
+
+              <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={toolPrimary}>
+                {varyBusy ? 'Génération…' : '✨ Varier (3)'}
+              </button>
+              <p style={{ margin: '6px 0 12px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>Génère 3 variantes de cette créa (même gabarit · {modelSpec.credits * 3} cr.).</p>
+
+              <button type="button" onClick={() => copyLink(detailAd)} style={toolBtn}>{copied ? '✓ Lien copié' : '🔗 Copier le lien'}</button>
+              <a href={detailAd.url} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⬇ Télécharger</a>
+              <span style={{ flex: 1 }} />
+              <button type="button" onClick={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }} style={{ ...toolBtn, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Archiver</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -581,3 +640,6 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
 const lbl = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBottom: 6 } as const;
 const miniBtn = { fontSize: 12, fontWeight: 800, padding: '7px 12px', borderRadius: 999, cursor: 'pointer', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)' } as const;
+const toolPrimary = { width: '100%', padding: '11px 14px', borderRadius: 11, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
+const toolBtn = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 } as const;
+const navArrow = (side: 'left' | 'right'): React.CSSProperties => ({ position: 'absolute', [side]: 12, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 22, cursor: 'pointer', zIndex: 2 });
