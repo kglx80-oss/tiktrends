@@ -597,6 +597,42 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   );
                 })}
               </div>
+
+              {/* Références de la bibliothèque (influencent le style · façon "pick references" Atria) */}
+              {assets.length > 0 && (
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Références · style de marque <span style={{ color: 'var(--ink-2)' }}>({assetIds.length} sélectionnée{assetIds.length > 1 ? 's' : ''})</span></div>
+                  <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                    {assets.slice(0, 24).map((a) => {
+                      const on = assetIds.includes(a.id);
+                      return (
+                        <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', padding: 0, borderRadius: 10, flexShrink: 0, cursor: 'pointer', background: 'transparent', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}` }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={a.url} alt="" style={{ width: 60, height: 76, objectFit: 'cover', borderRadius: 8, display: 'block', opacity: on ? 1 : 0.85 }} />
+                          {on && <span style={{ position: 'absolute', top: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: '#18cc8c', color: '#04140d', fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)' }}>Sinon, l'IA pioche automatiquement dans la bibliothèque de la marque.</p>
+                </div>
+              )}
+
+              {/* Réglages avancés (Persona · Offre) */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18 }}>
+                <div style={{ flex: '1 1 200px' }}>
+                  <label style={lbl}>Persona <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· optionnel</span></label>
+                  <select value={personaId} onChange={(e) => setPersonaId(e.target.value)} style={{ ...fld, padding: '9px 10px' }}>
+                    <option value="">· Auto</option>
+                    {personas.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex: '1 1 200px' }}>
+                  <label style={lbl}>Offre / promo <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· si gabarit Offre</span></label>
+                  <input value={offer} onChange={(e) => setOffer(e.target.value)} placeholder="Ex : -20%, 2+1 offert" style={{ ...fld, padding: '9px 10px' }} />
+                </div>
+              </div>
+
               {error && <div style={{ marginTop: 12, fontSize: 12.5, color: '#ff9db0' }}>{error}</div>}
             </div>
 
