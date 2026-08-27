@@ -7,6 +7,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { BrandRemoveButton } from '../../../components/InspoButtons';
 import { PageInfo } from '../../../components/PageInfo';
 import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
+import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export default async function SavedPage() {
 
   let items: SavedItem[] = [];
   let brands: Array<typeof schema.followedBrands.$inferSelect> = [];
+  let trackerEvents: TrackerEvent[] = [];
   const followKeys: string[] = [];
   const activeBrand = db ? await getActiveBrand(s.workspaceId) : null;
   if (db) {
@@ -27,14 +29,17 @@ export default async function SavedPage() {
     const followWhere = activeBrand
       ? and(eq(schema.followedBrands.workspaceId, s.workspaceId), eq(schema.followedBrands.brandId, activeBrand.id))
       : eq(schema.followedBrands.workspaceId, s.workspaceId);
-    const [sv, fl] = await Promise.all([
+    const [sv, fl, ev] = await Promise.all([
       db.select().from(schema.savedAds).where(savedWhere).orderBy(desc(schema.savedAds.createdAt)),
       db.select().from(schema.followedBrands).where(followWhere).orderBy(desc(schema.followedBrands.createdAt)),
+      db.select().from(schema.brandTrackerEvents).where(eq(schema.brandTrackerEvents.workspaceId, s.workspaceId)).orderBy(desc(schema.brandTrackerEvents.createdAt)).limit(48),
     ]);
     items = sv.map((r) => ({ ad: r.snapshot as InspoAd, folder: r.folder ?? null, externalId: r.externalId, platform: r.platform }));
     brands = fl;
+    trackerEvents = ev.map((r) => ({ ad: r.snapshot as InspoAd, advertiserName: r.advertiserName, unseen: !r.seenAt }));
     for (const b of fl) followKeys.push(b.platform + ':' + b.name);
   }
+  const trackingEnabled = !!process.env.TRENDTRACK_API_KEY;
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
@@ -48,6 +53,9 @@ export default async function SavedPage() {
         (dossiers) pour organiser ta veille par angle, campagne ou concurrent. Clique <b>★</b> pour retirer une créa,
         <b> voir</b> pour relancer une recherche sur une marque suivie, et <b>✨ Générer une variante</b> pour l'envoyer au Studio.
       </PageInfo>
+
+      {/* Fil des nouveautés concurrents (tracking) */}
+      <TrackerFeed events={trackerEvents} followedCount={brands.length} trackingEnabled={trackingEnabled} />
 
       {/* Marques suivies */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>

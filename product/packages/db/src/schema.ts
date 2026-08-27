@@ -488,5 +488,20 @@ export const followedBrands = pgTable('followed_brands', {
   name: text('name').notNull(),
   externalId: text('external_id'),
   logoUrl: text('logo_url'),
+  seenAdIds: jsonb('seen_ad_ids'),                 // ids d'annonces déjà vues (baseline anti-flood)
+  lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ uniq: unique().on(t.workspaceId, t.platform, t.name) }));
+
+/** Nouveautés détectées chez une marque suivie (nouvelles pubs) · alimente le fil de veille. */
+export const brandTrackerEvents = pgTable('brand_tracker_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  followedBrandId: uuid('followed_brand_id').references(() => followedBrands.id, { onDelete: 'cascade' }),
+  platform: text('platform').notNull(),
+  advertiserName: text('advertiser_name').notNull(),
+  kind: text('kind').notNull().default('new'),     // new (nouvelle pub) · scaling (à venir)
+  snapshot: jsonb('snapshot_json').notNull(),      // InspoAd pour l'affichage
+  seenAt: timestamp('seen_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ wsIdx: index('tracker_ws_idx').on(t.workspaceId, t.createdAt) }));
