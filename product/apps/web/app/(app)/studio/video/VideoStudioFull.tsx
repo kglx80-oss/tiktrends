@@ -183,7 +183,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
             ))}
           </div>
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>12 crédits / vidéo</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>20 crédits / vidéo</span>
           <button type="button" onClick={generate} disabled={!ready || busy} style={{
             padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
             cursor: ready && !busy ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy ? 1 : .5,
