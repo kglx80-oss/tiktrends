@@ -133,6 +133,20 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
     }
   }
 
+  /** Décline 3 variantes d'un visuel existant : même brief, nouvelles interprétations. */
+  async function vary(im: BrandImage) {
+    if (busy || !im.prompt) return;
+    setError(''); setNotice(''); setBusy(true);
+    const res = await generateImageAction({ prompt: im.prompt, aspectRatio: ratio, count: 3 });
+    setBusy(false);
+    if (res.error) { setError(res.error); return; }
+    if (res.images) {
+      const fresh: BrandImage[] = res.images.map((url, i) => ({ id: res.generationId ? `${res.generationId}:${url}` : 'new-' + i + '-' + url, prompt: res.prompt || im.prompt, url, createdAt: new Date().toISOString(), rating: null }));
+      setImages((list) => [...fresh, ...list]);
+      setNotice('3 variantes ajoutées.');
+    }
+  }
+
   async function archiveImage(id: string) {
     setImages((list) => list.filter((im) => im.id !== id));
     if (!id.startsWith('new-')) await archiveCreativeAction({ id });
@@ -289,6 +303,13 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 <div style={{ marginTop: 8 }}>
                   <CreativeActions genId={im.id} rating={im.rating} onOpen={im.url ? () => setPreview(im.url) : undefined} downloadUrl={im.url} onArchive={() => archiveImage(im.id)} />
                 </div>
+                {im.prompt && (
+                  <button type="button" onClick={() => vary(im)} disabled={busy || !ready} title="3 variantes du même brief" style={{
+                    marginTop: 6, width: '100%', padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
+                    border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)',
+                    cursor: busy || !ready ? 'default' : 'pointer', opacity: busy || !ready ? .5 : 1,
+                  }}>✨ Varier (3)</button>
+                )}
               </div>
             </div>
           ))}

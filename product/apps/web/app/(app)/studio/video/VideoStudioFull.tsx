@@ -224,10 +224,21 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                   {v.status === 'failed' && v.error && <p style={{ margin: '6px 0 0', fontSize: 11, color: '#ff9db0', lineHeight: 1.4 }}>{v.error}</p>}
                   <div style={{ marginTop: 8 }}>
                     {v.status === 'completed' && v.videoUrl ? (
-                      <CreativeActions genId={v.id} rating={v.rating} downloadUrl={v.videoUrl} onArchive={() => removeVideo(v.id)} archiveLabel="Supprimer" />
+                      <>
+                        <CreativeActions genId={v.id} rating={v.rating} downloadUrl={v.videoUrl} onArchive={() => removeVideo(v.id)} archiveLabel="Supprimer" />
+                        {v.prompt && (
+                          <button type="button" onClick={() => { setPrompt(v.prompt); window.scrollTo({ top: 0, behavior: 'smooth' }); }} title="Repartir de ce brief pour une nouvelle vidéo" style={{
+                            marginTop: 6, width: '100%', padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
+                            border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)', cursor: 'pointer',
+                          }}>✨ Reprendre ce brief</button>
+                        )}
+                      </>
                     ) : (
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         {pending && v.jobId && <button type="button" onClick={() => recheck(v)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Vérifier</button>}
+                        {v.status === 'failed' && v.prompt && (
+                          <button type="button" onClick={() => { setPrompt(v.prompt); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Reprendre ce brief</button>
+                        )}
                         <span style={{ flex: 1 }} />
                         <button type="button" onClick={() => removeVideo(v.id)} title="Supprimer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Supprimer ✕</button>
                       </div>
