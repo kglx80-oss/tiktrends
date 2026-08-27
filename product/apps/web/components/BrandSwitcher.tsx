@@ -3,13 +3,16 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { setActiveBrand } from '../app/actions/brands';
+import { setActiveBrand, createBrandAction } from '../app/actions/brands';
+import { Modal } from './Modal';
+import { SubmitButton } from './SubmitButton';
 
 interface Brand { id: string; name: string; logoUrl?: string | null }
 
 export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]; activeId: string | null; canManage: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [quick, setQuick] = useState(false);
   const [, start] = useTransition();
   const active = brands.find((b) => b.id === activeId) || null;
 
@@ -45,9 +48,9 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
             {brands.length === 0 && <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--muted)' }}>Aucune marque pour l'instant.</div>}
             {canManage && (
               <>
-                <Link href="/brands/new" onClick={() => setOpen(false)} style={{ ...row(false), borderTop: '1px solid var(--line)', color: 'var(--accent-strong)', fontWeight: 800, textDecoration: 'none' }}>
+                <button type="button" onClick={() => { setOpen(false); setQuick(true); }} style={{ ...row(false), borderTop: '1px solid var(--line)', color: 'var(--accent-strong)', fontWeight: 800, cursor: 'pointer' }}>
                   + Nouvelle marque
-                </Link>
+                </button>
                 <Link href="/brands" onClick={() => setOpen(false)} style={{ ...row(false), fontSize: 12, color: 'var(--muted)', fontWeight: 600, textDecoration: 'none' }}>
                   Toutes mes marques
                 </Link>
@@ -56,9 +59,32 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
           </div>
         </>
       )}
+
+      {/* Création rapide en pop-up · le parcours détaillé (5 étapes) reste accessible. */}
+      <Modal open={quick} onClose={() => setQuick(false)} icon="🏷️" title="Nouvelle marque"
+        subtitle="Crée la marque en un instant. Tu complètes le profil (audience, charte, concurrents) juste après.">
+        <form action={createBrandAction} style={{ display: 'grid', gap: 12 }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>Nom de la marque</span>
+            <input name="name" required autoFocus placeholder="Ex : Studio Nova" style={quickField} />
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>Site web <span style={{ color: 'var(--muted)' }}>· optionnel</span></span>
+            <input name="url" placeholder="ta-marque.com" style={quickField} />
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
+            <Link href="/brands/new" onClick={() => setQuick(false)} style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>
+              Créer en détail (5 étapes) ›
+            </Link>
+            <SubmitButton label="Créer la marque" pendingLabel="Création…" />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
+
+const quickField = { padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
 function row(active: boolean) {
   return {
