@@ -56,15 +56,16 @@ const UNIVERSE_SWATCH: Record<string, string> = {
   flatlay: 'linear-gradient(135deg,#f0e6da,#cbb79b)', energy: 'linear-gradient(135deg,#ff8a3c,#ff3c6e)',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [] }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand' }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
   assets?: Array<{ id: string; name: string; url: string }>;
+  initialMode?: 'brand' | 'clone';
 }) {
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const toggleAsset = (id: string) => setAssetIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
-  const [mode, setMode] = useState<'brand' | 'clone'>('brand');
+  const [mode, setMode] = useState<'brand' | 'clone'>(initialMode);
   const [prods, setProds] = useState(products);
   // S'il n'y a qu'un seul produit, on le sélectionne d'office (évite le piège « Aucun »).
   const [productId, setProductId] = useState(products.length === 1 ? products[0]!.id : '');

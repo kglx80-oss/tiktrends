@@ -16,9 +16,10 @@ import { PageInfo } from '../../../../components/PageInfo';
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
 
-export default async function AdsStudioPage() {
+export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
+  const initialMode = (await searchParams).mode === 'clone' ? 'clone' : 'brand';
   if (!canAccess({ role: s.role, plan: s.plan }, feature)) {
     const why = denyReason({ role: s.role, plan: s.plan }, feature);
     return (
@@ -88,7 +89,7 @@ export default async function AdsStudioPage() {
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} />
     </main>
   );
 }
