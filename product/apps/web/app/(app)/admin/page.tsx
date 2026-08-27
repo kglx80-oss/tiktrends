@@ -15,6 +15,7 @@ export default async function AdminBackstage() {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
+  if (!isFounder(s.user.email)) redirect('/dashboard'); // coulisses plateforme · staff uniquement
 
   // Quelques chiffres de contexte pour l'entrée en coulisses.
   let credits = 0, members = 0, brandCount = 0;

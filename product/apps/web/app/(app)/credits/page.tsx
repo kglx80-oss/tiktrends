@@ -8,6 +8,7 @@ import { grantCreditsAction, rechargeAllocationAction } from '../../actions/cred
 import { input, btn, btnGhost, panel, Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { trialStatus } from '../../../lib/trial';
+import { isFounder } from '../../../lib/founder';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
+  if (!isFounder(s.user.email)) redirect('/billing'); // marges/coûts réels · staff · clients → abonnement
   const { ok, e } = await searchParams;
   const isOwner = s.role === 'owner';
 

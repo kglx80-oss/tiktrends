@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
+import { isFounder } from '../../../../lib/founder';
 import { COMPETITORS, AI_STACK, CAPABILITIES, GAPS, ADVANTAGES, type Cap } from '../../../../lib/intel';
 
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,7 @@ export default async function IntelligencePage() {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
+  if (!isFounder(s.user.email)) redirect('/dashboard');
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1080, margin: '0 auto' }}>
