@@ -56,13 +56,15 @@ const UNIVERSE_SWATCH: Record<string, string> = {
   flatlay: 'linear-gradient(135deg,#f0e6da,#cbb79b)', energy: 'linear-gradient(135deg,#ff8a3c,#ff3c6e)',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '' }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
   assets?: Array<{ id: string; name: string; url: string }>;
   initialMode?: 'brand' | 'clone';
   initialAngle?: string;
+  /** La carte ADSMAP est ouverte à cet espace · conditionne le bouton « Suivre ». */
+  adsmap?: boolean;
 }) {
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const toggleAsset = (id: string) => setAssetIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
@@ -554,7 +556,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
                 <div style={{ marginTop: 8 }}>
-                  <CreativeActions genId={a.id} rating={a.rating} onOpen={() => setDetailIdx(adsPage * PAGE_SIZE + li)} downloadUrl={a.url} onArchive={() => archive(a.id)} />
+                  <CreativeActions genId={a.id} rating={a.rating} onOpen={() => setDetailIdx(adsPage * PAGE_SIZE + li)} downloadUrl={a.url} onArchive={() => archive(a.id)} trackable={adsmap} />
                 </div>
               </div>
             </div>

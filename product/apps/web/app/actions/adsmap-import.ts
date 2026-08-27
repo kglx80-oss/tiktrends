@@ -3,9 +3,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { buildImportPlan, type ImportPlan, type ImportReport } from '@tiktrends/core';
-import { getSession } from '../../lib/auth';
-import { getActiveBrand } from '../../lib/brands';
-import { roleAtLeast } from '../../lib/rbac';
+import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 
 /**
@@ -21,14 +19,8 @@ import { logAndTranslate } from '../../lib/error-log';
 
 const MAX_CSV_BYTES = 4_000_000;
 
-async function guard() {
-  const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' as const };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'L’import est réservé aux administrateurs de l’espace.' as const };
-  const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Sélectionne la marque dans laquelle importer.' as const };
-  return { s, brand };
-}
+/** L'import écrit toute la taxonomie de la marque · on le réserve aux admins. */
+const guard = () => adsmapGuard({ minRole: 'admin' });
 
 export interface PreviewResult {
   report?: ImportReport;

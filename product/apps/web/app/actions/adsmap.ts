@@ -6,9 +6,7 @@ import {
   toCsv, COL_HYPOTHESIS, SHEET_STATUS, SHEET_VERDICT, SHEET_STAGE, SHEET_VARIABLE, SHEET_FORMAT, SHEET_AD_TYPE,
   sheetDate, sheetNumber, type SheetRow,
 } from '@tiktrends/core';
-import { getSession } from '../../lib/auth';
-import { getActiveBrand } from '../../lib/brands';
-import { roleAtLeast } from '../../lib/rbac';
+import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 
 /**
@@ -26,6 +24,8 @@ export interface AdRow {
   batchNumber: number | null;
   author: string | null;
   concept: string;
+  /** Sert la passerelle ADSMAP → Studio · null si le concept a été supprimé. */
+  conceptId: string | null;
   desire: string | null;
   angle: string | null;
   iterationReason: string | null;   // « Itération HOOK depuis v1 »
@@ -58,14 +58,7 @@ export interface AdFilters {
   comparableOnly?: boolean;
 }
 
-async function guard() {
-  const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' as const };
-  if (!roleAtLeast(s.role, 'member')) return { error: 'Accès réservé aux membres de l’espace.' as const };
-  const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Sélectionne une marque active pour ouvrir ADSMAP.' as const };
-  return { s, brand };
-}
+const guard = adsmapGuard;
 
 /**
  * Lit les ads de la marque active avec tout leur contexte (concept, angle, désir,
@@ -138,6 +131,7 @@ export async function listAdsAction(filters: AdFilters = {}): Promise<{ rows?: A
         batchNumber: r.batchNumber ?? null,
         author: r.authorName || r.authorEmail || null,
         concept: r.conceptTitle ?? '(concept supprimé)',
+        conceptId: r.ad.conceptId ?? null,
         desire: r.desireLabel ?? null,
         angle: r.angleLabel ?? null,
         iterationReason: e ? `${SHEET_VARIABLE[e.changedVariable] ?? e.changedVariable} depuis ${e.parentVariant ?? 'parent'}` : null,
