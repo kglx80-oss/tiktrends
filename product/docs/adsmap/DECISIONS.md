@@ -199,3 +199,47 @@ Deux points de conception, au-delà de la lettre de l'addendum :
 - le résumé affiché rappelle explicitement que **les verdicts et les alertes sont à
   jour** même quand le plafond est atteint. Sans cette phrase, un plafond ressemble à
   une panne.
+
+---
+
+## D14 — Le moteur de mesure vit côté web, le worker ne fait que déclencher
+
+**Contexte.** La mesure quotidienne a besoin de trois choses à la fois : la base
+(`@tiktrends/db`), le connecteur Meta (`@tiktrends/integrations`) et le moteur pur
+(`@tiktrends/core`). Seules les deux applications réunissent les trois · aucun
+package ne dépend de `db`, et introduire cette arête pour un seul fichier aurait
+inversé la couche la plus stable du dépôt.
+
+**Décision.** Le moteur vit dans `apps/web/lib/adsmap-sync.ts`. Le worker garde ce
+qu'il sait faire, planifier, et appelle `/api/cron/adsmap` (protégé par
+`CRON_SECRET`) par le nom de service Docker `web:3000`.
+
+**Pourquoi pas l'inverse.** Mettre le moteur dans le worker aurait obligé à en
+faire une seconde copie pour le bouton « Mesurer maintenant », que quelqu'un
+attend à l'écran. Deux copies d'une logique qui décide de VERDICTS finissent par
+diverger, et personne ne saurait laquelle a produit le chiffre affiché.
+
+**Conséquence.** Un seul chemin de code produit les verdicts, qu'ils viennent du
+cron de 7h ou du bouton. `INTERNAL_APP_URL` permet de pointer ailleurs en
+développement.
+
+---
+
+## D15 — Un rattachement ambigu n'est jamais tranché
+
+**Contexte.** Relier une annonce Meta à une ad de la carte est le maillon faible
+de tout le module. Trois voies existent : l'identifiant déjà posé, le nom généré
+(§8.6), et le repli lot + variante.
+
+**Décision.** Une ambiguïté renvoie `null` et l'ad reste non rattachée. Deux
+annonces qui collent aussi bien ne sont jamais départagées, même au hasard.
+
+**Pourquoi.** Un mauvais rattachement ne produit pas une erreur, il produit des
+chiffres. Ces chiffres s'affichent dans une interface qui les présente comme
+mesurés, alimentent la mémoire de Jarvis et orientent le lot suivant · personne
+n'a de raison de les contester. Une ad manquante, elle, se voit : le compte rendu
+la nomme.
+
+**Conséquence.** L'identifiant est ÉPINGLÉ dès le premier rattachement réussi
+(`ads.external_ids_json`). Le flou n'a lieu qu'une fois, même si l'équipe renomme
+l'annonce ensuite.

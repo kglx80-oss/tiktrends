@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
-import { canAccess, denyReason, FEATURES } from '../../../lib/rbac';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
+import { canAccess, denyReason, FEATURES, roleAtLeast } from '../../../lib/rbac';
+import { SyncButton } from './SyncButton';
 import { getActiveBrand } from '../../../lib/brands';
 import { listBatchesAction } from '../../actions/adsmap';
 import { PageInfo } from '../../../components/PageInfo';
@@ -59,6 +62,12 @@ export default async function AdsMapPage() {
   }
 
   const batches = await listBatchesAction();
+  // Date de dernière mesure · un verdict de la semaine dernière présenté sans
+  // date se lit comme un verdict d'aujourd'hui.
+  const [row] = db
+    ? await db.select({ at: schema.brands.adsmapSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1)
+    : [];
+  const peutMesurer = roleAtLeast(s.role, 'admin');
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1320, margin: '0 auto' }}>
@@ -75,6 +84,7 @@ export default async function AdsMapPage() {
         <Link href="/adsmap/protocole" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
           Protocole & seuils
         </Link>
+        {peutMesurer && <SyncButton syncedAt={row?.at ? row.at.toISOString() : null} />}
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18, maxWidth: 760, lineHeight: 1.6 }}>
         Chaque test et son résultat, de l’hypothèse au verdict. Les lots {batches.length > 0 && `· ${batches.length} lot(s) `}

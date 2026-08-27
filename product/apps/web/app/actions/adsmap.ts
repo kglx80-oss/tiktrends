@@ -8,6 +8,8 @@ import {
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
+import { runAdsMapSyncForBrand } from '../../lib/adsmap-sync';
+import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 
 /**
  * ADSMAP · lecture du graphe pour la vue Table et l'export.
@@ -233,4 +235,54 @@ export async function listBatchesAction(): Promise<Array<{ id: string; number: n
     .groupBy(schema.batches.id)
     .orderBy(desc(schema.batches.number));
   return rows.map((r) => ({ ...r, ads: Number(r.ads) }));
+}
+
+export interface SyncResult {
+  ok?: true;
+  /** Une phrase qui dit ce qui s'est passé, y compris quand il ne s'est rien passé. */
+  summary?: string;
+  unmatched?: number;
+  error?: string;
+}
+
+/**
+ * Mesure la carte de la marque active, à la demande.
+ *
+ * Le job nocturne suffit au régime de croisière, mais pas au lancement d'un lot :
+ * on ne demande pas à quelqu'un qui vient de mettre trois ads en ligne d'attendre
+ * demain matin pour savoir si le rattachement a fonctionné.
+ *
+ * Réservé aux admins · l'appel consomme du quota d'API sur un compte publicitaire.
+ */
+export async function syncAdsMapAction(): Promise<SyncResult> {
+  const g = await adsmapGuard({ minRole: 'admin' });
+  if ('error' in g) return { error: g.error };
+
+  try {
+    const r = await runAdsMapSyncForBrand(g.brand.id);
+    invalidateJarvisMemory(g.brand.id);
+
+    if (!r.adsMatched && !r.adsUnmatched) {
+      return { ok: true, summary: 'Aucune ad en test dans la carte · passe une ad en « En test » pour qu’elle soit mesurée.' };
+    }
+    if (!r.adsMatched) {
+      return {
+        ok: true, unmatched: r.adsUnmatched,
+        summary: `Aucune des ${r.adsUnmatched} ad(s) en test n’a pu être reliée à une annonce du compte. Vérifie le nom généré, ou colle l’identifiant Meta sur l’ad.`,
+      };
+    }
+    const parts = [
+      `${r.adsMatched} ad(s) rattachée(s)`,
+      `${r.daysIngested} journée(s) de données`,
+      r.batchesChecked ? `${r.batchesChecked} lot(s) contrôlé(s)` : null,
+      `${r.verdicts} verdict(s) recalculé(s)`,
+    ].filter(Boolean);
+    const reste = r.adsUnmatched ? ` · ${r.adsUnmatched} ad(s) non rattachée(s).` : '';
+    return { ok: true, unmatched: r.adsUnmatched, summary: parts.join(' · ') + '.' + reste };
+  } catch (e) {
+    if ((e as Error).message === 'meta_not_connected') {
+      return { error: 'Le compte publicitaire Meta n’est pas connecté pour cette marque · va dans Connexions.' };
+    }
+    return { error: logAndTranslate('adsmap:sync', e, { subject: 'la mesure de la carte', workspaceId: g.s.workspaceId }) };
+  }
 }

@@ -46,11 +46,11 @@ Vérification : `grep` sur `schema.creatives`, `schema.adInstances`, `schema.met
 | Domaine | Réalité du dépôt | Conséquence pour ADSMAP |
 |---|---|---|
 | Front | Next.js 15 App Router, React 19, **styles inline** (pas de Tailwind en pratique, bien qu'installé), aucune bibliothèque de composants | Le canvas §7 impose deux dépendances nouvelles : `@xyflow/react` et `elkjs`. Recommandation du CDC applicable telle quelle. |
-| Données | Drizzle ORM + Postgres, migrations SQL à la main appliquées au déploiement, journal `_journal.json` | Pseudo-Prisma du §4 à transposer en Drizzle. Migration courante : **0032**. |
+| Données | Drizzle ORM + Postgres, migrations SQL à la main appliquées au déploiement, journal `_journal.json` | Pseudo-Prisma du §4 à transposer en Drizzle. Migration courante : **0036**. |
 | Vecteurs | **`CREATE EXTENSION vector` déjà posé (migration 0000)**, colonnes `vector(1536)` sur `creatives` et une autre table | Les `embedding` du CDC (`CreativeElement`, `Learning`) passent de COULD à faisables d'emblée. La dédup sémantique §9 n'a pas besoin de repli lexical. |
 | Auth / RBAC | Cookie JWT signé (`jose`) + bcrypt ; rôles `owner \| admin \| member \| **client_viewer**` | Le rôle de la vue client §12 **existe déjà**. Reste à créer `ClientShareLink` (aucune table de partage à ce jour). |
 | Jobs | BullMQ + IORedis, service `workers` en production (docker-compose), files `ingest \| tag \| radar \| generate \| cron`, job répétable déjà en place (`daily-sync`, 06:00) | `nightly_orchestrator` (§10) et la file A0 s'insèrent dans l'existant. Rien à monter. |
-| Cron HTTP | `/api/cron/tracker` protégé par `Authorization: Bearer $CRON_SECRET` | Motif à réutiliser pour un déclenchement externe. |
+| Cron HTTP | `/api/cron/tracker` et `/api/cron/adsmap`, protégés par `Authorization: Bearer $CRON_SECRET` | La mesure quotidienne de la carte passe par là · le worker planifie, le web calcule (D14). |
 | IA | `packages/ai`, modèle via `ANTHROPIC_GEN_MODEL` (défaut `claude-sonnet-5`) | **Le JSON strict du §8 est déjà résolu** : le dépôt force la sortie par `tools` + `tool_choice: { type: 'tool' }`. Motif à reprendre pour A0-A8, pas à réinventer. |
 | Vision | `describeAssetImage` accepte `data:` et `url` | A0 peut s'appuyer dessus pour les frames. |
 | Stockage | S3 compatible, URL présignées (`presignPutUrl`) | Stockage des frames échantillonnées d'A0. |
