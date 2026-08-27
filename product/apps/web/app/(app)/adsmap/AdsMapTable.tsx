@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useRouter } from 'next/navigation';
 import { listAdsAction, exportAdsCsvAction, type AdRow, type AdFilters } from '../../actions/adsmap';
+import { conceptBriefAction } from '../../actions/adsmap-bridge';
 
 /**
  * Vue Table d'ADSMAP.
@@ -38,6 +40,23 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
   const [error, setError] = useState('');
   const [filters, setFilters] = useState<AdFilters>({});
   const [busy, setBusy] = useState(false);
+  const router = useRouter();
+  const [briefBusy, setBriefBusy] = useState('');
+
+  /**
+   * ADSMAP → Studio · l'itération part de l'angle mesuré, pas d'une page blanche.
+   *
+   * On passe par le serveur plutôt que par le libellé affiché : le brief assemble
+   * angle + call-out, et c'est cette formulation-là qui a produit le verdict.
+   */
+  async function iterer(r: AdRow) {
+    if (!r.conceptId || briefBusy) return;
+    setBriefBusy(r.id);
+    const b = await conceptBriefAction(r.conceptId);
+    setBriefBusy('');
+    if (b.error) { setError(b.error); return; }
+    router.push(`/studio/ads?angle=${encodeURIComponent(b.angle ?? r.concept)}`);
+  }
 
   useEffect(() => {
     let vivant = true;
@@ -129,11 +148,11 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
         </div>
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1180, fontSize: 12.5 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1270, fontSize: 12.5 }}>
             <thead>
               <tr>
-                {['Statut', 'Lot', 'Concept', 'Variante', 'Désir', 'Angle', 'Variable', 'Hypothèse', 'Filiation', 'Verdict', 'CPA', 'Étape', 'Date'].map((h) => (
-                  <th key={h} style={th}>{h}</th>
+                {['Statut', 'Lot', 'Concept', 'Variante', 'Désir', 'Angle', 'Variable', 'Hypothèse', 'Filiation', 'Verdict', 'CPA', 'Étape', 'Date', ''].map((h, i) => (
+                  <th key={h || `c${i}`} style={th}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -179,6 +198,15 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
                     <td style={{ ...td, color: r.failedStage ? '#ffcf8f' : 'var(--muted)' }}>{r.failedStage ? STAGE_LABEL[r.failedStage] : '—'}</td>
                     <td style={{ ...td, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                       {r.launchedAt ? new Date(r.launchedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—'}
+                    </td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                      {r.conceptId && (
+                        <button type="button" onClick={() => iterer(r)} disabled={!!briefBusy}
+                          title="Reprendre cet angle dans le Studio pour en générer une variante"
+                          style={{ padding: '4px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--accent-strong)', fontSize: 11.5, fontWeight: 700, cursor: briefBusy ? 'default' : 'pointer', opacity: briefBusy === r.id ? 0.5 : 1 }}>
+                          {briefBusy === r.id ? '…' : '✨ Itérer'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

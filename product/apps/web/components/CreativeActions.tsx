@@ -2,12 +2,13 @@
 
 import { useState, useTransition, type CSSProperties } from 'react';
 import { rateCreativeAction, type Rating } from '../app/actions/creatives';
+import { trackGeneratedAdAction } from '../app/actions/adsmap-bridge';
 
 /**
  * Barre d'actions d'une créa (Pubs / Image / Vidéo IA) : vrais boutons + raccourcis.
- * Ouvrir ⛶ · Télécharger ↗ · note de pertinence 👍/👎 (entraîne Jarvis) · Archiver ✕
+ * Ouvrir ⛶ · Télécharger ↗ · Suivre dans ADSMAP 🗺 · note 👍/👎 · Archiver ✕
  */
-export function CreativeActions({ genId, rating: initial = null, onOpen, downloadUrl, onArchive, downloadName, archiveLabel = 'Archiver' }: {
+export function CreativeActions({ genId, rating: initial = null, onOpen, downloadUrl, onArchive, downloadName, archiveLabel = 'Archiver', trackable }: {
   genId: string;
   rating?: Rating;
   onOpen?: () => void;
@@ -15,7 +16,21 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
   onArchive?: () => void;
   downloadName?: string;
   archiveLabel?: string;
+  /** Affiche « Suivre dans ADSMAP » · réservé aux créas de type pub. */
+  trackable?: boolean;
 }) {
+  const [suivi, setSuivi] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
+  const [note, setNote] = useState('');
+
+  async function suivre() {
+    if (suivi === 'busy' || suivi === 'done') return;
+    setSuivi('busy');
+    const r = await trackGeneratedAdAction(genId);
+    if (r.error) { setSuivi('err'); setNote(r.error); return; }
+    setSuivi('done');
+    setNote(r.prelaunch ?? 'Ajoutée à la carte · complète son hypothèse avant de la lancer.');
+  }
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {onOpen && (
@@ -33,6 +48,14 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
 
       <RatingControl genId={genId} rating={initial} />
 
+      {trackable && (
+        <button type="button" onClick={suivre} disabled={suivi === 'busy' || suivi === 'done'}
+          style={{ ...actBtn, color: suivi === 'done' ? '#7ee8bf' : 'var(--ink-2)', borderColor: suivi === 'done' ? 'rgba(126,232,191,.4)' : undefined, cursor: suivi === 'done' ? 'default' : 'pointer' }}
+          title={suivi === 'done' ? note || 'Suivie dans ADSMAP' : suivi === 'err' ? note : 'Suivre dans ADSMAP · mesurer cette créa'}
+          aria-label="Suivre dans ADSMAP">
+          <span aria-hidden style={{ fontSize: 13 }}>{suivi === 'done' ? '✓' : suivi === 'busy' ? '…' : '🗺'}</span>
+        </button>
+      )}
       {onArchive && (
         <button type="button" onClick={onArchive} style={{ ...actBtn, color: 'var(--muted)' }} title={archiveLabel} aria-label={archiveLabel}>
           <span aria-hidden style={{ fontSize: 13 }}>✕</span>

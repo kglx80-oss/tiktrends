@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
 import type { InspoAd } from '@tiktrends/integrations';
 import { AdCard } from './AdCard';
 import { setSavedAdFolder } from '../app/actions/inspo';
@@ -11,7 +12,7 @@ export interface SavedItem { ad: InspoAd; folder: string | null; externalId: str
  * Boards / dossiers de rangement pour les créas sauvegardées (façon Foreplay/Atria).
  * Onglets par board + rangement d'une créa dans un board (existant ou nouveau), en direct.
  */
-export function SavedBoards({ items, followKeys }: { items: SavedItem[]; followKeys: string[] }) {
+export function SavedBoards({ items, followKeys, adsmap = false }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean }) {
   const [list, setList] = useState<SavedItem[]>(items);
   const [tab, setTab] = useState<string>('__all');
   const [, start] = useTransition();
@@ -25,6 +26,16 @@ export function SavedBoards({ items, followKeys }: { items: SavedItem[]; followK
 
   const countIn = (f: string) => f === '__all' ? list.length : f === '__none' ? list.filter((i) => !i.folder).length : list.filter((i) => i.folder === f).length;
   const shown = list.filter((it) => tab === '__all' ? true : tab === '__none' ? !it.folder : it.folder === tab);
+
+  // Veille → ADSMAP : une pub concurrente devient un concept « imitation ».
+  const [suivi, setSuivi] = useState<Record<string, 'busy' | 'done' | string>>({});
+  const suivre = async (it: SavedItem) => {
+    const cle = `${it.platform}:${it.externalId}`;
+    if (suivi[cle]) return;
+    setSuivi((x) => ({ ...x, [cle]: 'busy' }));
+    const r = await trackSavedAdAction({ platform: it.platform, externalId: it.externalId });
+    setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
+  };
 
   const move = (it: SavedItem, folder: string | null) => {
     // Même troncature que côté serveur, pour que l'affichage corresponde après rechargement.
@@ -66,10 +77,39 @@ export function SavedBoards({ items, followKeys }: { items: SavedItem[]; followK
           <div key={it.platform + it.externalId} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <AdCard ad={it.ad} saved following={following.has(it.ad.platform + ':' + (it.ad.advertiserName || ''))} />
             <FolderPicker current={it.folder} folders={folders} onPick={(f) => move(it, f)} />
+            {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} />}
           </div>
         ))}
       </div>
     </>
+  );
+}
+
+/**
+ * « Suivre dans ADSMAP » · la pub concurrente devient un concept `imitation`.
+ *
+ * Le libellé dit ce qui se passe vraiment : rien n'est lancé, un brouillon entre
+ * dans la carte. C'est important, parce qu'un bouton qui promet plus que ça se
+ * traduit par des ads fantômes que personne n'assume.
+ */
+function TrackButton({ state, onClick }: { state: string | undefined; onClick: () => void }) {
+  const done = state === 'done';
+  const busy = state === 'busy';
+  const err = state && !done && !busy ? state : null;
+  return (
+    <div>
+      <button type="button" onClick={onClick} disabled={busy || done} title="Créer un concept « imitation » dans ADSMAP" style={{
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px', borderRadius: 9,
+        border: '1px solid ' + (done ? 'transparent' : 'var(--line-2)'),
+        background: done ? 'var(--accent-soft)' : 'var(--paper)',
+        color: done ? 'var(--accent-strong)' : 'var(--ink-2)',
+        cursor: busy || done ? 'default' : 'pointer', fontSize: 12, fontWeight: 600, opacity: busy ? 0.6 : 1,
+      }}>
+        <span>🗺</span>
+        <span>{done ? 'Dans ADSMAP' : busy ? 'Ajout…' : 'Suivre dans ADSMAP'}</span>
+      </button>
+      {err && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--danger, #e5484d)', lineHeight: 1.4 }}>{err}</p>}
+    </div>
   );
 }
 

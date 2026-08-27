@@ -58,6 +58,9 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   }
   // Nombre de « règles » (lignes non vides) pour l'indicateur EDEN.
   const edenCount = edenRules ? edenRules.split('\n').map((l) => l.trim()).filter(Boolean).length : 0;
+  // Passerelle Studio → ADSMAP : proposée seulement si la carte est ouverte et
+  // qu'une marque active peut la recevoir.
+  const adsmapOpen = !!brand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
 
   return (
     <main style={wrap}>
@@ -92,7 +95,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} adsmap={adsmapOpen} />
     </main>
   );
 }

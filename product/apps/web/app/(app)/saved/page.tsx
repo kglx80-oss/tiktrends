@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
-import { roleAtLeast } from '../../../lib/rbac';
+import { canAccess, FEATURES, roleAtLeast } from '../../../lib/rbac';
+import { effectiveAccess } from '../../../lib/access';
 import { getActiveBrand } from '../../../lib/brands';
 import { BrandRemoveButton } from '../../../components/InspoButtons';
 import { PageInfo } from '../../../components/PageInfo';
@@ -40,6 +41,10 @@ export default async function SavedPage() {
     for (const b of fl) followKeys.push(b.platform + ':' + b.name);
   }
   const trackingEnabled = !!process.env.TRENDTRACK_API_KEY;
+  // Le bouton « Suivre dans ADSMAP » ne s'affiche que si la carte est ouverte à
+  // cet espace ET qu'une marque est active · sinon l'action n'aurait nulle part
+  // où écrire, et on proposerait un geste qui échoue.
+  const adsmapOpen = !!activeBrand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
@@ -77,7 +82,7 @@ export default async function SavedPage() {
 
       {/* Créas sauvegardées · organisées en boards */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Créas sauvegardées ({items.length})</h2>
-      <SavedBoards items={items} followKeys={followKeys} />
+      <SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} />
     </main>
   );
 }
