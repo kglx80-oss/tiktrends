@@ -95,6 +95,10 @@ export const brands = pgTable('brands', {
   driveFolderId: text('drive_folder_id'),             // dossier Drive synchronisé pour la marque
   driveFolderName: text('drive_folder_name'),
   driveSyncedAt: timestamp('drive_synced_at', { withTimezone: true }),
+  // ADSMAP · cf. docs/adsmap/STACK.md
+  vertical: text('vertical'),                          // FASHION, BEAUTY, HOME… (priors de portefeuille)
+  namingPattern: text('naming_pattern'),               // {brand}_B{batch}_{concept}_{variant}_{variable}
+  portfolioOptIn: boolean('portfolio_opt_in').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -139,6 +143,10 @@ export const assets = pgTable('assets', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ wsIdx: index('assets_ws_idx').on(t.workspaceId), brandIdx: index('assets_brand_idx').on(t.brandId) }));
 
+/**
+ * Persona · c'est le modèle « Avatar » du cahier des charges ADSMAP, champ pour
+ * champ (décision D2). On l'étend plutôt que d'en créer un second.
+ */
 export const personas = pgTable('personas', {
   id: uuid('id').primaryKey().defaultRandom(),
   brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
@@ -146,6 +154,9 @@ export const personas = pgTable('personas', {
   description: text('description'),
   pains: text('pains').array(),
   desires: text('desires').array(),
+  objections: text('objections').array(),              // ADSMAP
+  sources: jsonb('sources_json'),                      // ADSMAP · avis, veille, entretien
+  status: text('status').notNull().default('validated'), // proposed | validated | rejected | archived
 });
 
 /* ======================= AD ACCOUNTS / DATA ======================= */
@@ -171,8 +182,26 @@ export const creatives = pgTable('creatives', {
   transcript: text('transcript'),
   ocrText: text('ocr_text'),
   embedding: vector('embedding', { dimensions: 1536 }),
+  // ADSMAP · analyse d'asset produite par l'agent A0, corrigeable à la main.
+  analysis: jsonb('analysis_json'),                    // hook_spoken, claims[], proof_elements[], frames[]…
+  hookType: text('hook_type'),                         // question | statement | callout | number | negative…
+  openingType: text('opening_type'),                   // face_talking | product | problem_scene…
+  talent: text('talent'),                              // ugc_creator | founder | actor | voice_over_only | none
+  productFirstSec: doublePrecision('product_first_sec'),
+  ctaFirstSec: doublePrecision('cta_first_sec'),
+  cutsFirst10s: integer('cuts_first_10s'),
+  hasCaptions: boolean('has_captions'),
+  analysisModel: text('analysis_model'),
+  analysisConfidence: doublePrecision('analysis_confidence'),
+  analyzedAt: timestamp('analyzed_at', { withTimezone: true }),
 }, (t) => ({ fpIdx: index('creatives_fp_idx').on(t.brandId, t.fingerprintHash) }));
 
+/**
+ * Face plateforme d'une annonce (l'objet côté régie). Déclarée lors d'un sprint
+ * antérieur et restée inutilisée : ADSMAP la réveille plutôt que d'en créer une
+ * jumelle (décision D1). `nameDims` reçoit la sortie du parser de nommage (§8.6),
+ * les colonnes ad set / campagne servent au contrôle de protocole (§6.2).
+ */
 export const adInstances = pgTable('ad_instances', {
   id: uuid('id').primaryKey().defaultRandom(),
   creativeId: uuid('creative_id').notNull().references(() => creatives.id, { onDelete: 'cascade' }),
@@ -181,8 +210,13 @@ export const adInstances = pgTable('ad_instances', {
   adsetName: text('adset_name'),
   nameDims: jsonb('name_dims_json'),
   status: text('status'),
+  // ADSMAP
+  externalAdsetId: text('external_adset_id'),
+  externalCampaignId: text('external_campaign_id'),
+  adsetDailyBudget: doublePrecision('adset_daily_budget'),
+  platform: platformEnum('platform').notNull().default('meta'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => ({ extIdx: index('ad_instances_external_idx').on(t.externalAdId) }));
 
 export const metricsDaily = pgTable('metrics_daily', {
   adInstanceId: uuid('ad_instance_id').notNull().references(() => adInstances.id, { onDelete: 'cascade' }),
@@ -205,6 +239,11 @@ export const metricsDaily = pgTable('metrics_daily', {
   likes: integer('likes').default(0),
   comments: integer('comments').default(0),
   shares: integer('shares').default(0),
+  // ADSMAP · nécessaires au funnel (§2.2) et au diagnostic CONVERT (§8.4).
+  thruplays: integer('thruplays').default(0),
+  linkClicks: integer('link_clicks').default(0),
+  landingViews: integer('landing_views').default(0),
+  addToCart: integer('add_to_cart').default(0),
   // NB: table à partitionner par mois (RANGE sur date) via migration SQL.
 }, (t) => ({ pk: primaryKey({ columns: [t.adInstanceId, t.date] }) }));
 
@@ -540,3 +579,368 @@ export const brandTrackerEvents = pgTable('brand_tracker_events', {
   seenAt: timestamp('seen_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ wsIdx: index('tracker_ws_idx').on(t.workspaceId, t.createdAt) }));
+
+/* ========================================================================== *
+ *                                  ADSMAP                                    *
+ * Module de creative strategy · cf. docs/adsmap/STACK.md et DECISIONS.md.
+ *
+ * Le graphe est la donnée : Persona -> Desire -> Angle -> Concept -> Ad,
+ * plus les arêtes d'itération, les verdicts et les apprentissages.
+ *
+ * Principe d'intégration (décision D1) : on ÉTEND l'existant plutôt que de le
+ * doubler. `personas` est le modèle Avatar du cahier des charges ; `creatives`,
+ * `ad_instances` et `metrics_daily` (déclarées mais jamais branchées) portent
+ * l'analyse d'asset, la face plateforme d'une ad et ses métriques quotidiennes.
+ * ========================================================================== */
+
+export const nodeStatusEnum = pgEnum('adsmap_node_status', ['proposed', 'validated', 'rejected', 'archived']);
+export const awarenessEnum = pgEnum('adsmap_awareness', ['unaware', 'problem_aware', 'solution_aware', 'product_aware', 'most_aware']);
+export const desireTypeEnum = pgEnum('adsmap_desire_type', ['gain', 'pain_relief', 'status', 'control', 'belonging', 'safety']);
+export const angleMechanismEnum = pgEnum('adsmap_angle_mechanism', [
+  'problem_agitate', 'demo', 'social_proof', 'comparison', 'story', 'curiosity', 'authority',
+  'scarcity', 'reverse', 'statistic_shock', 'diagnostic', 'us_vs_them', 'listicle',
+]);
+export const valenceEnum = pgEnum('adsmap_valence', ['negative', 'positive', 'neutral']);
+export const adTypeEnum = pgEnum('adsmap_ad_type', ['ideation', 'iteration', 'imitation', 'new']);
+export const adFormatEnum = pgEnum('adsmap_ad_format', ['video_ugc', 'video_vsl', 'video_demo', 'video_story', 'static', 'image_carousel', 'gif']);
+export const adStatusEnum = pgEnum('adsmap_ad_status', ['draft', 'proposed', 'ready', 'live', 'paused', 'done']);
+export const testedVariableEnum = pgEnum('adsmap_tested_variable', [
+  'hook', 'opening_visual', 'body', 'length', 'cta', 'format', 'offer', 'landing',
+  'avatar_on_screen', 'proof', 'audio', 'angle', 'desire', 'none_control',
+]);
+export const funnelStageEnum = pgEnum('adsmap_funnel_stage', ['hook', 'hold', 'click', 'convert']);
+export const iterationModeEnum = pgEnum('adsmap_iteration_mode', ['more', 'better', 'new']);
+export const batchStatusEnum = pgEnum('adsmap_batch_status', ['planned', 'in_production', 'ready', 'testing', 'analyzed']);
+export const verdictValueEnum = pgEnum('adsmap_verdict_value', [
+  'winner', 'baby_winner', 'loser', 'inconclusive', 'insufficient_delivery', 'relative_winner',
+]);
+export const verdictStatusEnum = pgEnum('adsmap_verdict_status', ['computed', 'validated']);
+export const killReasonEnum = pgEnum('adsmap_kill_reason', ['hook', 'click', 'convert', 'cost']);
+export const protocolStructureEnum = pgEnum('adsmap_protocol_structure', ['abo_one_adset_per_ad', 'abo_single_adset', 'cbo_tolerated']);
+export const pageTypeEnum = pgEnum('adsmap_page_type', ['pdp', 'collection', 'advertorial', 'listicle', 'quiz', 'home']);
+export const croStatusEnum = pgEnum('adsmap_cro_status', ['ok', 'to_audit', 'in_optimization']);
+export const learningScopeEnum = pgEnum('adsmap_learning_scope', [
+  'ad', 'concept', 'angle', 'desire', 'avatar', 'format', 'element', 'landing', 'offer',
+]);
+export const statDimensionEnum = pgEnum('adsmap_stat_dimension', [
+  'mechanism', 'hook_type', 'format', 'length_bucket', 'awareness', 'avatar', 'talent', 'opening_type', 'element',
+]);
+export const elementTypeEnum = pgEnum('adsmap_element_type', ['hook_spoken', 'hook_text', 'opening_visual', 'proof', 'cta', 'offer_line', 'sound']);
+export const elementOriginEnum = pgEnum('adsmap_element_origin', ['extracted', 'authored', 'ai_proposed']);
+export const hookTypeEnum = pgEnum('adsmap_hook_type', ['question', 'statement', 'callout', 'number', 'negative', 'curiosity', 'command']);
+export const openingTypeEnum = pgEnum('adsmap_opening_type', ['face_talking', 'product', 'problem_scene', 'text_card', 'before_after', 'pattern_interrupt']);
+export const talentTypeEnum = pgEnum('adsmap_talent_type', ['ugc_creator', 'founder', 'actor', 'voice_over_only', 'none']);
+export const decisionTypeEnum = pgEnum('adsmap_decision_type', [
+  'validate_verdict', 'review_learning', 'accept_iteration', 'kill_suggested', 'coverage_gap',
+  'unmapped_ad', 'protocol_violation', 'cro_handoff', 'prelaunch_warning', 'budget_exhausted',
+]);
+export const decisionStatusEnum = pgEnum('adsmap_decision_status', ['open', 'done', 'dismissed', 'snoozed']);
+export const agentNameEnum = pgEnum('adsmap_agent', ['a0_tagger', 'a1_research', 'a2_concept', 'a3_brief', 'a4_analyst', 'a5_iteration', 'a6_coverage', 'a7_prelaunch', 'a8_report']);
+
+/* ------------------------------ Graphe ----------------------------------- */
+
+/** Désir d'un persona, porteur du stade de conscience (Schwartz). */
+export const desires = pgTable('adsmap_desires', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  personaId: uuid('persona_id').notNull().references(() => personas.id, { onDelete: 'cascade' }),
+  awarenessStage: awarenessEnum('awareness_stage').notNull().default('problem_aware'),
+  label: text('label').notNull(),
+  type: desireTypeEnum('type').notNull().default('gain'),
+  intensity: integer('intensity').notNull().default(3),   // 1 à 5
+  status: nodeStatusEnum('status').notNull().default('proposed'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ personaIdx: index('adsmap_desires_persona_idx').on(t.personaId) }));
+
+/** Angle : la manière d'attaquer un désir. `valueScore` = équation de valeur (§2.1). */
+export const angles = pgTable('adsmap_angles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  desireId: uuid('desire_id').notNull().references(() => desires.id, { onDelete: 'cascade' }),
+  label: text('label').notNull(),
+  mechanism: angleMechanismEnum('mechanism').notNull(),
+  valence: valenceEnum('valence').notNull().default('neutral'),
+  valueScore: jsonb('value_score_json'),                  // { dream, probability, delay, effort, total }
+  status: nodeStatusEnum('status').notNull().default('proposed'),
+  lastTestedAt: timestamp('last_tested_at', { withTimezone: true }), // grisage au-delà de 60 j (§7.5)
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ desireIdx: index('adsmap_angles_desire_idx').on(t.desireId) }));
+
+/** Offre testée (prix, remise, garantie, bundle). Rend la variable OFFER testable. */
+export const offers = pgTable('adsmap_offers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  label: text('label').notNull(),
+  price: doublePrecision('price'),
+  discount: text('discount'),
+  guarantee: text('guarantee'),
+  bundle: boolean('bundle').notNull().default(false),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ brandIdx: index('adsmap_offers_brand_idx').on(t.brandId) }));
+
+/**
+ * Page de destination. `cvr30d` est saisi à la main en v1 : l'Admin API Shopify
+ * branchée lit les commandes, pas les sessions (décision D5).
+ */
+export const landingPages = pgTable('adsmap_landing_pages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  url: text('url').notNull(),
+  label: text('label').notNull(),
+  pageType: pageTypeEnum('page_type').notNull().default('pdp'),
+  cvr30d: doublePrecision('cvr_30d'),
+  aov30d: doublePrecision('aov_30d'),
+  croStatus: croStatusEnum('cro_status').notNull().default('ok'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ brandIdx: index('adsmap_landing_brand_idx').on(t.brandId) }));
+
+/** Concept : la promesse écrite (call-out / value / CTA), avant production. */
+export const concepts = pgTable('adsmap_concepts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  angleId: uuid('angle_id').notNull().references(() => angles.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  callout: text('callout'),
+  valueBlock: text('value_block'),
+  cta: text('cta'),
+  hookOptions: text('hook_options').array(),
+  adType: adTypeEnum('ad_type').notNull().default('ideation'),
+  sourceRef: jsonb('source_ref_json'),                    // ad Trendtrack imitée, asset d'origine…
+  prelaunchScore: jsonb('prelaunch_score_json'),          // { band, p_hook_ok, p_conclusive_win, drivers[] }
+  status: nodeStatusEnum('status').notNull().default('proposed'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ angleIdx: index('adsmap_concepts_angle_idx').on(t.angleId) }));
+
+/** Lot de test : une campagne dédiée, une fenêtre, un protocole vérifié. */
+export const batches = pgTable('adsmap_batches', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  number: integer('number').notNull(),
+  authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+  goal: text('goal'),
+  status: batchStatusEnum('status').notNull().default('planned'),
+  launchedAt: timestamp('launched_at', { withTimezone: true }),
+  plannedEndAt: timestamp('planned_end_at', { withTimezone: true }),
+  testCampaignIds: jsonb('test_campaign_ids_json'),
+  protocolCheck: jsonb('protocol_check_json'),            // { compliant, violations[] } · §6.2
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ brandNum: unique('adsmap_batches_brand_number').on(t.brandId, t.number) }));
+
+/**
+ * Une annonce testée. `hypothesis`, `testedVariable`, `offerId` et `landingPageId`
+ * sont obligatoires dès READY (invariant §2.4, décision de Kévin) · la contrainte
+ * est posée en SQL plus bas.
+ *
+ * `creativeId` relie à la table `creatives` (asset + transcript + embedding), et
+ * `ad_instances` porte la face plateforme. Rien n'est dupliqué.
+ */
+export const ads = pgTable('adsmap_ads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  conceptId: uuid('concept_id').notNull().references(() => concepts.id, { onDelete: 'cascade' }),
+  batchId: uuid('batch_id').references(() => batches.id, { onDelete: 'set null' }),
+  creativeId: uuid('creative_id').references(() => creatives.id, { onDelete: 'set null' }),
+  variantCode: text('variant_code').notNull(),            // v1, v2, h2…
+  format: adFormatEnum('format').notNull().default('video_ugc'),
+  adType: adTypeEnum('ad_type').notNull().default('ideation'),
+  hypothesis: text('hypothesis'),
+  testedVariable: testedVariableEnum('tested_variable'),
+  variableValue: text('variable_value'),
+  offerId: uuid('offer_id').references(() => offers.id, { onDelete: 'set null' }),
+  landingPageId: uuid('landing_page_id').references(() => landingPages.id, { onDelete: 'set null' }),
+  briefUrl: text('brief_url'),
+  assetUrl: text('asset_url'),
+  platform: platformEnum('platform').notNull().default('meta'),
+  externalIds: jsonb('external_ids_json'),                // { ad_id, adset_id, campaign_id }
+  generatedName: text('generated_name'),                  // nom attendu côté régie (§8.6)
+  launchedAt: timestamp('launched_at', { withTimezone: true }),
+  status: adStatusEnum('status').notNull().default('draft'),
+  legacyFlags: text('legacy_flags').array(),              // ex : legacy_missing_hypothesis (import §13)
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  variant: unique('adsmap_ads_variant').on(t.conceptId, t.batchId, t.variantCode),
+  batchIdx: index('adsmap_ads_batch_idx').on(t.batchId),
+  statusIdx: index('adsmap_ads_status_idx').on(t.workspaceId, t.status),
+}));
+
+/** Filiation : une itération pointe toujours vers son parent (invariant §2.4). */
+export const iterationEdges = pgTable('adsmap_iteration_edges', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  childAdId: uuid('child_ad_id').notNull().references(() => ads.id, { onDelete: 'cascade' }),
+  parentAdId: uuid('parent_ad_id').notNull().references(() => ads.id, { onDelete: 'cascade' }),
+  mode: iterationModeEnum('mode').notNull().default('better'),
+  changedVariable: testedVariableEnum('changed_variable').notNull(),
+  stageTargeted: funnelStageEnum('stage_targeted'),
+  rationale: text('rationale'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  child: unique('adsmap_iteration_child').on(t.childAdId),
+  parentIdx: index('adsmap_iteration_parent_idx').on(t.parentAdId),
+}));
+
+/* --------------------------- Test et verdict ------------------------------ */
+
+/** Protocole de test par marque · rend les verdicts comparables (§6.2). */
+export const testProtocols = pgTable('adsmap_test_protocols', {
+  brandId: uuid('brand_id').primaryKey().references(() => brands.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  structure: protocolStructureEnum('structure').notNull().default('abo_one_adset_per_ad'),
+  dailyBudgetPerAd: doublePrecision('daily_budget_per_ad').notNull().default(20),
+  durationDays: integer('duration_days').notNull().default(7),
+  audienceRule: text('audience_rule').notNull().default('broad, même audience pour toutes les ads du batch'),
+  campaignNamePattern: text('campaign_name_pattern').notNull().default('[ADSMAP] TEST {brand} B{batch}'),
+  budgetVarianceTolerance: doublePrecision('budget_variance_tolerance').notNull().default(0.2),
+});
+
+/** Seuils de verdict par marque (§6.3). Réglés par l'assistant à la création. */
+export const verdictConfigs = pgTable('adsmap_verdict_configs', {
+  brandId: uuid('brand_id').primaryKey().references(() => brands.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  config: jsonb('config_json').notNull(),                 // cf. VerdictConfig, validé par schéma en code
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Verdict calculé, éventuellement corrigé à la main avec motif obligatoire. */
+export const verdicts = pgTable('adsmap_verdicts', {
+  adId: uuid('ad_id').primaryKey().references(() => ads.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  computed: verdictValueEnum('computed').notNull(),
+  validated: verdictValueEnum('validated'),
+  status: verdictStatusEnum('status').notNull().default('computed'),
+  comparable: boolean('comparable').notNull().default(false),
+  metricsAgg: jsonb('metrics_agg_json'),                  // agrégats, intervalles, rangs, seuils appliqués
+  failedStage: funnelStageEnum('failed_stage'),
+  killFlag: killReasonEnum('kill_flag'),
+  computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
+  validatedBy: uuid('validated_by').references(() => users.id, { onDelete: 'set null' }),
+  overrideReason: text('override_reason'),
+}, (t) => ({ wsIdx: index('adsmap_verdicts_ws_idx').on(t.workspaceId, t.computed) }));
+
+/** Apprentissage validé · un verdict validé en exige au moins un (invariant §2.4). */
+export const learnings = pgTable('adsmap_learnings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  adId: uuid('ad_id').references(() => ads.id, { onDelete: 'set null' }),
+  conceptId: uuid('concept_id').references(() => concepts.id, { onDelete: 'set null' }),
+  angleId: uuid('angle_id').references(() => angles.id, { onDelete: 'set null' }),
+  elementId: uuid('element_id').references(() => creativeElements.id, { onDelete: 'set null' }),
+  scope: learningScopeEnum('scope').notNull(),
+  stage: funnelStageEnum('stage'),
+  statement: text('statement').notNull(),
+  evidence: jsonb('evidence_json'),                       // chiffre obligatoire (§8.3 A4)
+  confidence: integer('confidence').notNull().default(3), // 1 à 5
+  refuted: boolean('refuted').notNull().default(false),   // ne pas reproposer sur la même étape
+  status: nodeStatusEnum('status').notNull().default('proposed'),
+  embedding: vector('embedding', { dimensions: 1536 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ brandIdx: index('adsmap_learnings_brand_idx').on(t.brandId, t.scope) }));
+
+/* --------------------- Mémoire calculée et bibliothèque ------------------- */
+
+/** Statistiques recalculées chaque nuit · mémoire principale des agents (§8.1). */
+export const brandStats = pgTable('adsmap_brand_stats', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  dimension: statDimensionEnum('dimension').notNull(),
+  key: text('key').notNull(),
+  nAds: integer('n_ads').notNull().default(0),
+  nConclusive: integer('n_conclusive').notNull().default(0),
+  nWinners: integer('n_winners').notNull().default(0),
+  nBaby: integer('n_baby').notNull().default(0),
+  hitRate: doublePrecision('hit_rate'),
+  hookRateMedian: doublePrecision('hook_rate_median'),
+  holdRateMedian: doublePrecision('hold_rate_median'),
+  ctrMedian: doublePrecision('ctr_median'),
+  cpaMedian: doublePrecision('cpa_median'),
+  computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniq: unique('adsmap_brand_stats_key').on(t.brandId, t.dimension, t.key) }));
+
+/** Élément créatif réutilisable (hook, ouverture, preuve, CTA…) · §9. */
+export const creativeElements = pgTable('adsmap_creative_elements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  type: elementTypeEnum('type').notNull(),
+  content: text('content').notNull(),
+  fingerprint: text('fingerprint').notNull(),             // hash du contenu normalisé (dédup)
+  origin: elementOriginEnum('origin').notNull().default('extracted'),
+  embedding: vector('embedding', { dimensions: 1536 }),   // pgvector actif depuis la migration 0000
+  stats: jsonb('stats_json'),                             // { uses, conclusive, winners, hit_rate, … }
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniq: unique('adsmap_elements_fingerprint').on(t.brandId, t.type, t.fingerprint) }));
+
+/** Rattachement d'un élément à une ad (permet de mesurer ce qui marche). */
+export const adElements = pgTable('adsmap_ad_elements', {
+  adId: uuid('ad_id').notNull().references(() => ads.id, { onDelete: 'cascade' }),
+  elementId: uuid('element_id').notNull().references(() => creativeElements.id, { onDelete: 'cascade' }),
+  position: integer('position'),
+}, (t) => ({ pk: primaryKey({ columns: [t.adId, t.elementId] }) }));
+
+/** Prior anonymisé, jamais rattaché à une marque (§11). */
+export const portfolioInsights = pgTable('adsmap_portfolio_insights', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  vertical: text('vertical'),
+  dimension: statDimensionEnum('dimension').notNull(),
+  key: text('key').notNull(),
+  nBrands: integer('n_brands').notNull(),
+  nAds: integer('n_ads').notNull(),
+  hitRate: doublePrecision('hit_rate'),
+  hookRateMedian: doublePrecision('hook_rate_median'),
+  computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniq: unique('adsmap_portfolio_key').on(t.vertical, t.dimension, t.key) }));
+
+/* ------------------------ Décisions et exécution -------------------------- */
+
+/** File de décisions produite chaque nuit · l'humain arbitre, il ne lance pas (§10). */
+export const decisionItems = pgTable('adsmap_decision_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  type: decisionTypeEnum('type').notNull(),
+  priority: integer('priority').notNull().default(3),     // 1 = argent qui brûle
+  payload: jsonb('payload_json'),
+  spendAtStake: doublePrecision('spend_at_stake'),        // tri secondaire de l'inbox
+  status: decisionStatusEnum('status').notNull().default('open'),
+  dueAt: timestamp('due_at', { withTimezone: true }),
+  resolvedBy: uuid('resolved_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ inbox: index('adsmap_decisions_inbox_idx').on(t.brandId, t.status, t.priority) }));
+
+/** Trace d'un appel d'agent · coût rattaché au grand livre de crédits (décision D7). */
+export const agentRuns = pgTable('adsmap_agent_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'set null' }),
+  agent: agentNameEnum('agent').notNull(),
+  inputRef: jsonb('input_ref_json'),
+  output: jsonb('output_json'),
+  model: text('model'),
+  tokensIn: integer('tokens_in'),
+  tokensOut: integer('tokens_out'),
+  credits: integer('credits').notNull().default(0),
+  accepted: boolean('accepted'),                          // mesure du taux d'acceptation (§16)
+  error: text('error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ wsIdx: index('adsmap_agent_runs_ws_idx').on(t.workspaceId, t.agent) }));
+
+/** Lien de partage de la vue client en marque blanche (§12). */
+export const clientShareLinks = pgTable('adsmap_client_share_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  scopes: jsonb('scopes_json'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
