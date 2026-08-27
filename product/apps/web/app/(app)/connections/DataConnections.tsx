@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, connectMetaAction, syncMetaAction, disconnectMetaAction, type ConnectionState } from '../../actions/connections';
+import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, connectMetaAction, syncMetaAction, disconnectMetaAction, selectMetaAccountAction, type ConnectionState } from '../../actions/connections';
 import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
@@ -138,6 +138,14 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
     setMsg('Données synchronisées.');
   }
   async function disconnect() { await disconnectMetaAction(); refresh(); }
+  async function pickAccount(id: string) {
+    if (!id) return;
+    setBusy('connect'); setMsg('');
+    const r = await selectMetaAccountAction(id);
+    setBusy('');
+    if (r.error) { setMsg(r.error); return; }
+    setMsg(`Compte « ${r.accountName} » sélectionné · lance une synchro.`); refresh();
+  }
 
   const ins = mt?.insights;
   return (
@@ -159,7 +167,19 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
         </div>
       ) : (
         <div>
-          <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 10 }}>{ins?.accountName || mt.adAccountId}</div>
+          {/* Sélecteur de compte publicitaire : une agence en a souvent plusieurs. */}
+          {(mt.accounts?.length ?? 0) > 1 ? (
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>Compte publicitaire <span style={{ color: 'var(--muted)' }}>· {mt.accounts.length} accessibles</span></label>
+              <select value={mt.adAccountId ?? ''} disabled={!!busy} onChange={(e) => void pickAccount(e.target.value)} style={{ ...fld, width: '100%' }}>
+                <option value="" disabled>Choisis un compte…</option>
+                {mt.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.currency ? ` · ${a.currency}` : ''}</option>)}
+              </select>
+              {!mt.adAccountId && <p style={{ margin: '6px 0 0', fontSize: 11.5, color: '#f5b043' }}>Sélectionne le compte à analyser pour cette marque.</p>}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 10 }}>{ins?.accountName || mt.adAccountId}</div>
+          )}
           {ins ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
               <Kpi label="Dépense 30 j" value={eur(ins.spend30d, ins.currency)} />
