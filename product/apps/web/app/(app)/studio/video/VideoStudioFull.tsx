@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
+import { CreativeActions } from '../../../../components/CreativeActions';
 
 type Ratio = '9:16' | '1:1' | '16:9';
 const RATIOS: Ratio[] = ['9:16', '1:1', '16:9'];
@@ -221,11 +222,16 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                 <div style={{ padding: '10px 12px' }}>
                   <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.prompt}</p>
                   {v.status === 'failed' && v.error && <p style={{ margin: '6px 0 0', fontSize: 11, color: '#ff9db0', lineHeight: 1.4 }}>{v.error}</p>}
-                  <div style={{ display: 'flex', gap: 10, marginTop: 8, alignItems: 'center' }}>
-                    {v.status === 'completed' && v.videoUrl && <a href={v.videoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)' }}>Télécharger ↗</a>}
-                    {pending && v.jobId && <button type="button" onClick={() => recheck(v)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Vérifier</button>}
-                    <span style={{ flex: 1 }} />
-                    <button type="button" onClick={() => removeVideo(v.id)} title="Supprimer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Supprimer ✕</button>
+                  <div style={{ marginTop: 8 }}>
+                    {v.status === 'completed' && v.videoUrl ? (
+                      <CreativeActions genId={v.id} rating={v.rating} downloadUrl={v.videoUrl} onArchive={() => removeVideo(v.id)} archiveLabel="Supprimer" />
+                    ) : (
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        {pending && v.jobId && <button type="button" onClick={() => recheck(v)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Vérifier</button>}
+                        <span style={{ flex: 1 }} />
+                        <button type="button" onClick={() => removeVideo(v.id)} title="Supprimer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Supprimer ✕</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

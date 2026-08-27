@@ -11,8 +11,8 @@ import { unlimitedCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
 
-export interface ImageResult { error?: string; images?: string[]; prompt?: string }
-export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string }
+export interface ImageResult { error?: string; images?: string[]; prompt?: string; generationId?: string }
+export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string; rating?: import('./creatives').Rating }
 
 export async function generateImageAction(input: {
   prompt: string; aspectRatio?: FalAspect; imageUrl?: string; withText?: boolean; enhance?: boolean; count?: number;
@@ -84,9 +84,10 @@ export async function generateImageAction(input: {
 
   try {
     const { images } = await falGenerateImage(cfg, { prompt: finalPrompt, aspectRatio: input.aspectRatio ?? '1:1', imageUrl: sourceImage, imageUrls: useAssetRefs ? assetRefUrls : undefined, withText: input.withText, count, edit: editMode || useAssetRefs });
+    let generationId: string | undefined;
     if (db) {
       if (brand) {
-        try { await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1' }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }); } catch { /* ignore */ }
+        try { const [g] = await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1' }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }).returning({ id: schema.generations.id }); generationId = g?.id; } catch { /* ignore */ }
       }
       if (!unlimited) {
         try {
@@ -95,7 +96,7 @@ export async function generateImageAction(input: {
         } catch { /* débit best-effort */ }
       }
     }
-    return { images, prompt };
+    return { images, prompt, generationId };
   } catch (e) {
     const msg = (e as Error).message || '';
     if (/image_load_error|Failed to load the image|422/.test(msg) && sourceImage) {
@@ -260,8 +261,9 @@ export async function listBrandImages(): Promise<BrandImage[]> {
     .orderBy(desc(schema.generations.createdAt)).limit(24);
   const out: BrandImage[] = [];
   for (const g of rows) {
-    const input = (g.input ?? {}) as { prompt?: string };
-    for (const url of g.assetUrls ?? []) out.push({ id: g.id + ':' + url, prompt: input.prompt || '', url, createdAt: (g.createdAt as Date).toISOString() });
+    if (g.status === 'archived') continue; // masquer les rendus archivés
+    const input = (g.input ?? {}) as { prompt?: string; rating?: import('./creatives').Rating };
+    for (const url of g.assetUrls ?? []) out.push({ id: g.id + ':' + url, prompt: input.prompt || '', url, createdAt: (g.createdAt as Date).toISOString(), rating: input.rating ?? null });
   }
   return out;
 }

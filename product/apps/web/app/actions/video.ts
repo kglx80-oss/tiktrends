@@ -14,7 +14,7 @@ function videoReady(): boolean { return !!falFromEnv() || !!higgsfieldFromEnv();
 
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
-export interface BrandVideo { id: string; prompt: string; mode: string; status: string; jobId: string | null; videoUrl: string | null; error?: string; createdAt: string }
+export interface BrandVideo { id: string; prompt: string; mode: string; status: string; jobId: string | null; videoUrl: string | null; error?: string; createdAt: string; rating?: import('./creatives').Rating }
 
 async function debitAndRecord(
   workspaceId: string, brandId: string | null, cost: number,
@@ -113,13 +113,13 @@ export async function listBrandVideos(): Promise<BrandVideo[]> {
   const rows = await db.select().from(schema.generations)
     .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'video')))
     .orderBy(desc(schema.generations.createdAt)).limit(24);
-  return rows.map((g) => {
-    const input = (g.input ?? {}) as { prompt?: string; mode?: string };
+  return rows.filter((g) => g.status !== 'archived').map((g) => {
+    const input = (g.input ?? {}) as { prompt?: string; mode?: string; rating?: import('./creatives').Rating };
     const output = (g.output ?? {}) as { error?: string };
     return {
       id: g.id, prompt: input.prompt || '(sans description)', mode: input.mode || 't2v',
       status: g.status || 'processing', jobId: g.jobId, videoUrl: (g.assetUrls && g.assetUrls[0]) || null,
-      error: output.error, createdAt: (g.createdAt as Date).toISOString(),
+      error: output.error, createdAt: (g.createdAt as Date).toISOString(), rating: input.rating ?? null,
     };
   });
 }
