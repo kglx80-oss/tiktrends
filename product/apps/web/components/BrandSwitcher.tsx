@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { setActiveBrand, createBrandAction } from '../app/actions/brands';
+import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
 import { Modal } from './Modal';
 import { SubmitButton } from './SubmitButton';
 
@@ -62,11 +62,34 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
 
       {/* Création rapide en pop-up · le parcours détaillé (5 étapes) reste accessible. */}
       <Modal open={quick} onClose={() => setQuick(false)} icon="🏷️" title="Nouvelle marque"
-        subtitle="Crée la marque en un instant. Tu complètes le profil (audience, charte, concurrents) juste après.">
+        subtitle="Le plus rapide : on lit ton site et on remplit tout pour toi.">
+
+        {/* Voie 1 · tout récupérer depuis le site (boutique + charte + produits) */}
+        <form action={createBrandFromShopifyAction} style={{ display: 'grid', gap: 10, border: '1px solid var(--accent-strong)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '14px 15px' }}>
+          <input type="hidden" name="back" value="brands" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>✦</span>
+            <b style={{ fontSize: 13.5, color: 'var(--ink)' }}>Tout récupérer depuis mon site</b>
+            <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>LE PLUS RAPIDE</span>
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            Nom, <b>logo, couleurs, polices</b> et <b>tous tes produits</b> (avec photos et prix) importés automatiquement.
+          </p>
+          <input name="domain" required placeholder="ta-boutique.com" style={quickField} autoFocus />
+          <SubmitButton label="✦ Créer et tout importer" pendingLabel="Lecture du site…" style={{ width: '100%' }} />
+        </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
+          <span style={{ height: 1, flex: 1, background: 'var(--line)' }} />
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>ou créer à la main</span>
+          <span style={{ height: 1, flex: 1, background: 'var(--line)' }} />
+        </div>
+
+        {/* Voie 2 · création simple (la charte et les produits seront complétés ensuite) */}
         <form action={createBrandAction} style={{ display: 'grid', gap: 12 }}>
           <label style={{ display: 'grid', gap: 6 }}>
             <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>Nom de la marque</span>
-            <input name="name" required autoFocus placeholder="Ex : Studio Nova" style={quickField} />
+            <input name="name" required placeholder="Ex : Studio Nova" style={quickField} />
           </label>
           <label style={{ display: 'grid', gap: 6 }}>
             <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>Site web <span style={{ color: 'var(--muted)' }}>· optionnel</span></span>
