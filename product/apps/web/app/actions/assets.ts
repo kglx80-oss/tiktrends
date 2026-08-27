@@ -1,15 +1,14 @@
 'use server';
 
-import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, or, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
-import { decryptSecret } from '../../lib/secrets';
 import { driveRefreshTokenFor } from '../../lib/drive-token';
 import { anthropicFromEnv, describeAssetImage } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
@@ -128,24 +127,25 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
   if (!a) return { error: 'Asset introuvable.' };
   if (a.kind !== 'image') return { error: 'Le tagging IA ne concerne que les images pour l’instant.' };
 
+  // Débit atomique avant l'analyse (remboursé si elle échoue ou ne rend rien).
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('tag_image', 1);
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-  const credits = w?.c ?? 0;
-  if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Assets · tagging IA'))) {
+    return { error: `Crédits insuffisants (${cost} requis).` };
+  }
 
   let tags: string[] = [];
   try { ({ tags } = await describeAssetImage(client, a.url)); }
-  catch (e) { return { error: 'Analyse impossible : ' + (e as Error).message }; }
-  if (!tags.length) return { error: "Aucun tag n'a pu être déduit." };
+  catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · tagging IA');
+    return { error: 'Analyse impossible : ' + (e as Error).message };
+  }
+  if (!tags.length) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · tagging IA');
+    return { error: "Aucun tag n'a pu être déduit." };
+  }
 
   await db.update(schema.assets).set({ tags }).where(eq(schema.assets.id, a.id));
-  if (!unlimited) {
-    try {
-      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assets · tagging IA' });
-    } catch { /* débit best-effort */ }
-  }
   return { ok: true, tags };
 }
 
@@ -175,20 +175,18 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
 
   let tagged = 0;
   for (const a of todo) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-    const credits = w?.c ?? 0;
-    if (!unlimited && credits < cost) break;
+    // Une image = une réservation atomique ; on s'arrête net quand le solde est épuisé.
+    if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Assets · tagging IA (lot)'))) break;
+    let ok = false;
     try {
       const { tags } = await describeAssetImage(client, a.url);
       if (tags.length) {
         await db.update(schema.assets).set({ tags }).where(eq(schema.assets.id, a.id));
         tagged++;
-        if (!unlimited) {
-          await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-          await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Assets · tagging IA (lot)' });
-        }
+        ok = true;
       }
     } catch { /* on continue */ }
+    if (!ok && !unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · tagging IA (lot)');
   }
   return { ok: true, tagged };
 }

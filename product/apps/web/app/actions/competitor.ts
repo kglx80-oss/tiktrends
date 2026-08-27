@@ -1,14 +1,14 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
 import { anthropicFromEnv, analyzeCompetitor, type CompetitorInsights } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
@@ -92,17 +92,14 @@ export async function analyzeCompetitorAction(formData: FormData): Promise<void>
   if (client) {
     const cost = costFor('report');
     const unlimited = unlimitedCredits(g.email);
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, g.workspaceId)).limit(1);
-    if (!unlimited && (w?.c ?? 0) < cost) {
+    // Débit atomique avant l'analyse, remboursé si elle échoue.
+    if (!unlimited && !(await reserveCredits(g.workspaceId, cost, `Analyse concurrent · ${name}`))) {
       note = `Créas récupérées, mais crédits insuffisants pour l'analyse IA (${cost} requis).`;
     } else {
       try {
         insights = await analyzeCompetitor(client, { name, ads: ads.map((a) => ({ body: a.body, callToAction: a.callToAction, format: a.format, platform: a.platform })) });
-        if (!unlimited) try {
-          await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, g.workspaceId));
-          await db.insert(schema.creditLedger).values({ workspaceId: g.workspaceId, delta: -cost, reason: `Analyse concurrent · ${name}` });
-        } catch { /* débit best-effort */ }
       } catch {
+        if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · analyse concurrent');
         note = "Créas récupérées, mais l'analyse IA a échoué. Réessaie.";
       }
     }

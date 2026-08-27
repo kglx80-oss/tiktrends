@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { isFounder } from '../../lib/founder';
@@ -29,9 +29,11 @@ export async function grantTestPackAction(formData: FormData): Promise<void> {
   if (!w) redirect('/console?e=badinput');
 
   const trialEndsAt = new Date(Date.now() + days * 86_400_000);
+  // Incréments en SQL : une génération lancée entre la lecture et l'écriture ne
+  // doit pas être annulée par un solde recalculé sur une valeur périmée.
   await db.update(schema.workspaces).set({
-    creditsBalance: Math.max(0, (w.c ?? 0) + credits),
-    trialCredits: (w.t ?? 0) + credits,
+    creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} + ${credits})`,
+    trialCredits: sql`coalesce(${schema.workspaces.trialCredits}, 0) + ${credits}`,
     trialEndsAt, accountKind: kind,
   }).where(eq(schema.workspaces.id, workspaceId));
   if (credits > 0) await db.insert(schema.creditLedger).values({ workspaceId, delta: credits, reason: `Crédits de test (${days} j)` });

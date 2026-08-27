@@ -1,13 +1,13 @@
 'use server';
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
 import { anthropicFromEnv, enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
 
@@ -27,13 +27,12 @@ export async function generateImageAction(input: {
   if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
 
   const count = Math.min(4, Math.max(1, input.count ?? 1));
+  // Débit atomique AVANT l'appel Fal (remboursé si la génération échoue) : vérifier
+  // puis débiter en deux temps laissait deux lancements simultanés passer pour un débit.
   const cost = costFor('image', count);
   const unlimited = unlimitedCredits(s.user.email);
-  let credits = 0;
-  if (db) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-    credits = w?.c ?? 0;
-    if (!unlimited && credits < cost) return { error: `Crédits insuffisants (${cost} requis pour ${count} image(s)).` };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · image IA'))) {
+    return { error: `Crédits insuffisants (${cost} requis pour ${count} image(s)).` };
   }
 
   const brand = await getActiveBrand(s.workspaceId);
@@ -89,15 +88,10 @@ export async function generateImageAction(input: {
       if (brand) {
         try { const [g] = await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1' }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }).returning({ id: schema.generations.id }); generationId = g?.id; } catch { /* ignore */ }
       }
-      if (!unlimited) {
-        try {
-          await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-          await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta: -cost, reason: 'Studio · image IA' });
-        } catch { /* débit best-effort */ }
-      }
     }
     return { images, prompt, generationId };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · image IA');
     const msg = (e as Error).message || '';
     if (/image_load_error|Failed to load the image|422/.test(msg) && sourceImage) {
       return { error: "Impossible de charger l'image de départ. L'URL doit pointer vers un fichier image direct (jpg, png, webp) et être public · pas une page produit. Astuce : clic droit sur l'image du produit → « Copier l'adresse de l'image »." };
@@ -115,9 +109,8 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
 
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('suggest');
-  if (!unlimited && db) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-    if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · brief image suggéré'))) {
+    return { error: `Crédits insuffisants (${cost} requis).` };
   }
 
   const brand = await getActiveBrand(s.workspaceId);
@@ -139,12 +132,9 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
       usp: da.usp ?? undefined, audience: da.audience ?? undefined,
       productName: product?.name, productDesc: product?.description ?? undefined,
     });
-    if (!unlimited && db) {
-      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-    }
     return { text: text || undefined };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · brief image');
     return { error: (e as Error).message };
   }
 }

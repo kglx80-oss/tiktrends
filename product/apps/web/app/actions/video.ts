@@ -1,13 +1,13 @@
 'use server';
 
-import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, or, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
 import { anthropicFromEnv, suggestVideoBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
-import { unlimitedCredits } from '../../lib/credits';
+import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 
 /** Fournisseur vidéo actif : Fal (Kling) en priorité, sinon Higgsfield. */
 function videoReady(): boolean { return !!falFromEnv() || !!higgsfieldFromEnv(); }
@@ -16,33 +16,19 @@ export interface VideoStart { error?: string; jobId?: string; generationId?: str
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
 export interface BrandVideo { id: string; prompt: string; mode: string; status: string; jobId: string | null; videoUrl: string | null; error?: string; createdAt: string; rating?: import('./creatives').Rating }
 
-async function debitAndRecord(
-  workspaceId: string, brandId: string | null, cost: number,
+/**
+ * Trace la génération vidéo. Le débit, lui, est fait AVANT la soumission du job
+ * (reserveCredits) : une vidéo lancée est un coût déjà engagé chez le fournisseur.
+ */
+async function recordGeneration(
+  brandId: string | null, cost: number,
   input: Record<string, unknown>, jobId: string, unlimited = false,
 ): Promise<string | undefined> {
-  let generationId: string | undefined;
-  if (!db) return undefined;
-  if (brandId) {
-    const [g] = await db.insert(schema.generations).values({
-      brandId, kind: 'video', input, jobId, status: 'processing', creditsCost: unlimited ? 0 : cost,
-    }).returning();
-    generationId = g?.id;
-  }
-  if (!unlimited) {
-    try {
-      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId, delta: -cost, reason: 'Studio · vidéo IA' });
-    } catch { /* débit best-effort */ }
-  }
-  return generationId;
-}
-
-async function ensureCredits(workspaceId: string, cost: number): Promise<string | null> {
-  if (!db) return null;
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-  if ((w?.c ?? 0) < cost) return `Crédits insuffisants (${cost} requis pour une vidéo).`;
-  return null;
+  if (!db || !brandId) return undefined;
+  const [g] = await db.insert(schema.generations).values({
+    brandId, kind: 'video', input, jobId, status: 'processing', creditsCost: unlimited ? 0 : cost,
+  }).returning();
+  return g?.id;
 }
 
 /** Texte → vidéo (gated + débit crédits). */
@@ -58,17 +44,20 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
 
   const cost = costFor('video');
   const unlimited = unlimitedCredits(s.user.email);
-  const short = unlimited ? null : await ensureCredits(s.workspaceId, cost);
-  if (short) return { error: short };
+  // Débit atomique avant la soumission (remboursé si le lancement échoue).
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · vidéo IA'))) {
+    return { error: `Crédits insuffisants (${cost} requis pour une vidéo).` };
+  }
 
   try {
     const { jobId } = fal
       ? await falSubmitVideo(fal, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
       : await hfSubmitVideo(hf!, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
     const brand = await getActiveBrand(s.workspaceId);
-    const generationId = await debitAndRecord(s.workspaceId, brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16' }, jobId, unlimited);
+    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16' }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
     return { error: 'Échec du lancement : ' + (e as Error).message };
   }
 }
@@ -88,8 +77,9 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
 
   const cost = costFor('video');
   const unlimited = unlimitedCredits(s.user.email);
-  const short = unlimited ? null : await ensureCredits(s.workspaceId, cost);
-  if (short) return { error: short };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · vidéo IA'))) {
+    return { error: `Crédits insuffisants (${cost} requis pour une vidéo).` };
+  }
 
   const motion = prompt || 'Anime cette image de façon naturelle et cinématographique.';
   try {
@@ -97,9 +87,10 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
       ? await falSubmitVideo(fal, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
       : await hfSubmitImageVideo(hf!, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
     const brand = await getActiveBrand(s.workspaceId);
-    const generationId = await debitAndRecord(s.workspaceId, brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16' }, jobId, unlimited);
+    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16' }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
     return { error: 'Échec du lancement : ' + (e as Error).message };
   }
 }
@@ -135,9 +126,7 @@ async function failAndRefund(generationId: string, workspaceId: string, error: s
     await db.update(schema.generations).set({ status: 'failed', output: { error } }).where(eq(schema.generations.id, generationId));
     // Remboursement uniquement à la 1re bascule en échec, et si des crédits avaient été débités.
     if (g && g.status !== 'failed' && g.status !== 'completed' && (g.cost ?? 0) > 0) {
-      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: (w?.c ?? 0) + (g.cost ?? 0) }).where(eq(schema.workspaces.id, workspaceId));
-      await db.insert(schema.creditLedger).values({ workspaceId, delta: g.cost ?? 0, reason: 'Studio · vidéo échouée (remboursement)' });
+      await refundCredits(workspaceId, g.cost ?? 0, 'Studio · vidéo échouée (remboursement)');
     }
   } catch { /* best-effort */ }
 }
@@ -240,9 +229,8 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('suggest');
-  if (!unlimited && db) {
-    const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-    if ((w?.c ?? 0) < cost) return { error: `Crédits insuffisants (${cost} requis).` };
+  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · consigne vidéo suggérée'))) {
+    return { error: `Crédits insuffisants (${cost} requis).` };
   }
   const brand = await getActiveBrand(s.workspaceId);
   let tone: string | null = null;
@@ -260,12 +248,9 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
   }
   try {
     const text = await suggestVideoBrief(client, { brand: brand?.name, tone: tone ?? undefined, productName: product?.name, productDesc: product?.description ?? undefined, fromImage: input.fromImage, edenRules: creativeRules ?? undefined });
-    if (!unlimited && db) {
-      const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-      await db.update(schema.workspaces).set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` }).where(eq(schema.workspaces.id, s.workspaceId));
-    }
     return { text: text || undefined };
   } catch (e) {
+    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · consigne vidéo');
     return { error: (e as Error).message };
   }
 }
