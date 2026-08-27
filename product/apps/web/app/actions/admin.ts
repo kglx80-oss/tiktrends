@@ -61,6 +61,18 @@ export async function updateWorkspaceAction(formData: FormData): Promise<void> {
   redirect('/settings?ok=1');
 }
 
+/** Variante « en place » (modale réglages rapides) : renomme l'espace sans redirection. */
+export async function saveWorkspaceNameAction(_prev: { ok?: boolean; error?: string } | null, formData: FormData): Promise<{ ok?: boolean; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'session' };
+  if (!roleAtLeast(s.role, 'admin')) return { error: 'forbidden' };
+  const name = norm(formData.get('name'));
+  if (!name) return { error: 'name' };
+  await db.update(schema.workspaces).set({ name }).where(eq(schema.workspaces.id, s.workspaceId));
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
 export async function setPlanAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');

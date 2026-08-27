@@ -8,6 +8,7 @@ import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
 import { CommandPalette, openCommandPalette, type Command } from './CommandPalette';
 import { ProfileModal } from './ProfileModal';
+import { QuickSettingsModal } from './QuickSettingsModal';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
 // Les pages « espace de travail » du client (marques, connexions, membres,
@@ -159,6 +160,7 @@ function AppShellInner(props: Props) {
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
 
@@ -202,6 +204,7 @@ function AppShellInner(props: Props) {
     <div style={{ display: 'grid', gridTemplateColumns: '250px minmax(0,1fr)', minHeight: '100vh' }}>
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
+      <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
       <aside style={{ background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: '16px 12px', position: 'sticky', top: 0, height: '100vh' }}>
         {/* Marque + workspace */}
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', textDecoration: 'none' }}>
@@ -281,9 +284,12 @@ function AppShellInner(props: Props) {
                   {workspaceItems.length > 0 && (
                     <>
                       <div style={menuLabel}>Espace de travail</div>
-                      {workspaceItems.map((it) => (it.locked || it.soon)
-                        ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
-                        : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>)}
+                      {workspaceItems.map((it) => {
+                        if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
+                        // Réglages : ouverture en pop-up (réglages rapides) plutôt qu'une page.
+                        if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { setMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItem, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>{it.label}</button>;
+                        return <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>;
+                      })}
                     </>
                   )}
 
