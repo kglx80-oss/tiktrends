@@ -211,6 +211,22 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
 const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 /** Récupère la DA (logo, couleurs, polices) depuis le site et complète les champs vides. */
+/** Enregistre la charte visuelle éditée à la main (logos, logo par défaut, couleurs, polices). */
+export async function saveBrandDAAction(input: {
+  brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[];
+}): Promise<{ ok?: true; error?: string }> {
+  const g = await guardBrand(input.brandId);
+  if (!g || !db) return { error: 'Accès refusé.' };
+  const clean = (a: string[]) => (Array.isArray(a) ? a.map((x) => String(x).trim()).filter(Boolean).slice(0, 20) : []);
+  await db.update(schema.brands).set({
+    logoUrl: input.logoUrl.trim() || null,
+    logos: clean(input.logos),
+    colors: clean(input.colors),
+    fonts: clean(input.fonts),
+  }).where(eq(schema.brands.id, input.brandId));
+  return { ok: true };
+}
+
 export async function importBrandDAAction(input: { brandId: string }): Promise<{ logoUrl?: string | null; colors?: string[]; fonts?: string[]; error?: string }> {
   const g = await guardBrand(input.brandId);
   if (!g || !db) return { error: 'Accès refusé.' };

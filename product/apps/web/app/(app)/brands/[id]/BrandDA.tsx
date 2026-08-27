@@ -2,14 +2,27 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { importBrandDAAction } from '../../../actions/brand-detail';
+import { importBrandDAAction, saveBrandDAAction } from '../../../actions/brand-detail';
+import { BrandGuidelines } from '../../../../components/BrandGuidelines';
 
-export function BrandDA({ brandId, logoUrl, colors, fonts }: { brandId: string; logoUrl: string | null; colors: string[]; fonts: string[] }) {
+export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts }: { brandId: string; logoUrl: string | null; logos?: string[]; colors: string[]; fonts: string[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [ok, setOk] = useState(true);
   const [da, setDa] = useState<{ logoUrl: string | null; colors: string[]; fonts: string[] }>({ logoUrl, colors, fonts });
+  // Édition manuelle de la charte (mêmes contrôles que la création de marque).
+  const [editing, setEditing] = useState(false);
+  const [logoList, setLogoList] = useState<string[]>(logos.length ? logos : (logoUrl ? [logoUrl] : []));
+
+  async function saveDA() {
+    if (busy) return;
+    setBusy(true); setMsg('');
+    const r = await saveBrandDAAction({ brandId, logoUrl: da.logoUrl ?? '', logos: logoList, colors: da.colors, fonts: da.fonts });
+    setBusy(false);
+    if (r.error) { setOk(false); setMsg(r.error); return; }
+    setOk(true); setMsg('Charte enregistrée.'); setEditing(false); router.refresh();
+  }
 
   async function fetchDA() {
     if (busy) return;
@@ -32,12 +45,30 @@ export function BrandDA({ brandId, logoUrl, colors, fonts }: { brandId: string; 
           <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>🎨 Identité visuelle (DA)</div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Logo, couleurs et polices récupérés depuis le site, appliqués automatiquement à tes pubs.</div>
         </div>
+        <button type="button" onClick={() => setEditing((v) => !v)} disabled={busy} style={{ padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: 'transparent', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
+          {editing ? 'Annuler' : '✎ Éditer'}
+        </button>
         <button type="button" onClick={fetchDA} disabled={busy} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: busy ? .6 : 1, whiteSpace: 'nowrap' }}>
           {busy ? 'Récupération…' : '✦ Récupérer la DA'}
         </button>
       </div>
 
-      {has && (
+      {/* Édition manuelle : mêmes contrôles que la création de marque. */}
+      {editing && (
+        <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
+          <BrandGuidelines
+            logos={logoList} onLogos={setLogoList}
+            defaultLogo={da.logoUrl ?? ''} onDefaultLogo={(v) => setDa((s) => ({ ...s, logoUrl: v }))}
+            colors={da.colors} onColors={(v) => setDa((s) => ({ ...s, colors: v }))}
+            fonts={da.fonts} onFonts={(v) => setDa((s) => ({ ...s, fonts: v }))}
+          />
+          <button type="button" onClick={saveDA} disabled={busy} style={{ marginTop: 14, padding: '10px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: busy ? .6 : 1 }}>
+            {busy ? 'Enregistrement…' : 'Enregistrer la charte'}
+          </button>
+        </div>
+      )}
+
+      {!editing && has && (
         <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap', marginTop: 16, alignItems: 'flex-start' }}>
           <div>
             <div style={daLbl}>Logo</div>
