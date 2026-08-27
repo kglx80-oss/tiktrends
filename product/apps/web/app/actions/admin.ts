@@ -23,6 +23,20 @@ export async function updateProfileAction(formData: FormData): Promise<void> {
   redirect('/profile?ok=1');
 }
 
+/** Variante « en place » (modale) : enregistre sans redirection, revalide la coquille. */
+export async function saveProfileAction(_prev: { ok?: boolean; error?: string } | null, formData: FormData): Promise<{ ok?: boolean; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: 'session' };
+  const name = norm(formData.get('name'));
+  const avatarUrl = norm(formData.get('avatarUrl'));
+  const hide = formData.get('hidePersonalInfo') != null;
+  await db.update(schema.users)
+    .set({ name: name || null, avatarUrl: avatarUrl || null, hidePersonalInfo: hide })
+    .where(eq(schema.users.id, s.user.id));
+  revalidatePath('/', 'layout'); // rafraîchit l'avatar/nom dans la coquille sans quitter la page
+  return { ok: true };
+}
+
 export async function changePasswordAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');

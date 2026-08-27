@@ -20,12 +20,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     listBrands(s.workspaceId),
     getActiveBrand(s.workspaceId),
     db ? db.select({ c: schema.workspaces.creditsBalance, ob: schema.workspaces.onboardedAt }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1) : Promise.resolve([]),
-    db ? db.select({ a: schema.users.avatarUrl }).from(schema.users).where(eq(schema.users.id, s.user.id)).limit(1) : Promise.resolve([]),
+    db ? db.select({ a: schema.users.avatarUrl, h: schema.users.hidePersonalInfo }).from(schema.users).where(eq(schema.users.id, s.user.id)).limit(1) : Promise.resolve([]),
   ]);
   // Onboarding non fait (nouveau propriétaire self-service) : on l'y envoie d'abord.
   const wsRow = (ws as Array<{ c: number; ob: Date | null }>)[0];
   if (roleAtLeast(s.role, 'owner') && wsRow && !wsRow.ob) redirect('/onboarding');
-  const avatarUrl = (meRow as Array<{ a: string | null }>)[0]?.a ?? '';
+  const me = (meRow as Array<{ a: string | null; h: boolean | null }>)[0];
+  const avatarUrl = me?.a ?? '';
 
   // Espace « Marque » (rail) : accès direct aux sections de la marque active.
   const bid = activeBrand?.id;
@@ -52,6 +53,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       userName={s.user.name || ''}
       userEmail={s.user.email}
       avatarUrl={avatarUrl}
+      hidePersonalInfo={!!me?.h}
       roleLabel={ROLE_LABEL[s.role]}
       planLabel={PLAN_LABEL[s.plan]}
       workspaceName={s.workspaceName}

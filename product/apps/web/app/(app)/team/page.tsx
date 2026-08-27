@@ -3,10 +3,11 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { ROLE_LABEL, PLAN_LABEL, roleAtLeast, type Role } from '../../../lib/rbac';
-import { createInviteAction, revokeInviteAction } from '../../actions/invites';
-import { input, btn, btnGhost, panel, Msg } from '../../../components/ui';
+import { revokeInviteAction } from '../../actions/invites';
+import { btnGhost, panel, Msg } from '../../../components/ui';
 import { ADMIN_THEME } from '../../../lib/theme';
 import { PageInfo } from '../../../components/PageInfo';
+import { InviteMemberButton } from '../../../components/InviteMemberButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,28 +67,18 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         <div style={card}><div style={cardLabel}>Membres</div><div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>{members.length}</div></div>
       </div>
 
-      {/* Inviter (admin+) */}
+      {/* Inviter (admin+) · en pop-up */}
       {isAdmin && (
         <div style={panel}>
-          <h2 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Inviter un membre</h2>
-          <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0, marginBottom: 14 }}>
-            L'invité reçoit un lien pour définir son mot de passe et rejoindre l'espace avec le rôle choisi.
-          </p>
-          <form action={createInviteAction} style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <label style={lbl}>E-mail</label>
-              <input name="email" type="email" required placeholder="collegue@agence.fr" style={input} />
+              <h2 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Inviter un membre</h2>
+              <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>
+                L'invité reçoit un lien pour définir son mot de passe et rejoindre l'espace avec le rôle choisi.
+              </p>
             </div>
-            <div style={{ minWidth: 180 }}>
-              <label style={lbl}>Rôle</label>
-              <select name="role" defaultValue="member" style={{ ...input, width: 'auto', minWidth: 180 }}>
-                <option value="admin">Admin</option>
-                <option value="member">Membre</option>
-                <option value="client_viewer">Client (lecture)</option>
-              </select>
-            </div>
-            <button type="submit" style={btn}>Créer l'invitation</button>
-          </form>
+            <InviteMemberButton />
+          </div>
 
           {invites.length > 0 && (
             <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
@@ -136,4 +127,3 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
 const card = { flex: '1 1 200px', padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
 const cardLabel = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 6 } as const;
-const lbl = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBottom: 6 } as const;

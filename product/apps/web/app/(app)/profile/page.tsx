@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { ROLE_LABEL, PLAN_LABEL, roleAtLeast } from '../../../lib/rbac';
+import { isFounder } from '../../../lib/founder';
 import { changePasswordAction } from '../../actions/admin';
 import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
 import { ProfileIdentity } from './ProfileIdentity';
@@ -73,8 +74,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         </div>
         {roleAtLeast(s.role, 'admin') && (
           <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-            <Link href="/billing" style={linkBtn}>Plans & Facturation ›</Link>
-            <Link href="/admin" style={{ ...linkBtn, background: 'transparent', color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>Coulisses ADMIN+ ›</Link>
+            <Link href="/billing" style={linkBtn}>Abonnement & factures ›</Link>
+            {isFounder(s.user.email) && (
+              <Link href="/admin" style={{ ...linkBtn, background: 'transparent', color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>Coulisses ADMIN+ ›</Link>
+            )}
           </div>
         )}
       </div>
