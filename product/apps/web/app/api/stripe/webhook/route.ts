@@ -4,6 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { PLAN_CREDITS, type Plan } from '../../../../lib/rbac';
 import { getStripe, planForPrice } from '../../../../lib/stripe';
+import { applyPlanAllocation } from '@tiktrends/core';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,11 +26,9 @@ async function applyPlan(workspaceId: string, plan: Plan, opts: { status?: strin
   const alloc = PLAN_CREDITS[plan] ?? 0;
   const [w] = await db.select({ c: schema.workspaces.creditsBalance, last: schema.workspaces.lastPlanCredits })
     .from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-  const balance = w?.c ?? 0;
-  const purchased = Math.max(0, balance - (w?.last ?? 0)); // recharges payées restantes
-  const next = purchased + alloc;
+  // Les recharges payées survivent au renouvellement · cf. applyPlanAllocation.
+  const { next, delta } = applyPlanAllocation(w?.c ?? 0, w?.last ?? 0, alloc);
   await db.update(schema.workspaces).set({ creditsBalance: next, lastPlanCredits: alloc }).where(eq(schema.workspaces.id, workspaceId));
-  const delta = next - balance;
   if (delta !== 0) await db.insert(schema.creditLedger).values({ workspaceId, delta, reason: `Abonnement ${plan} · allocation` });
 }
 
