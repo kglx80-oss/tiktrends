@@ -7,6 +7,7 @@ import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
 import { CommandPalette, openCommandPalette, type Command } from './CommandPalette';
+import { ProfileModal } from './ProfileModal';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
 // Les pages « espace de travail » du client (marques, connexions, membres,
@@ -43,6 +44,7 @@ interface Props {
   userName: string;
   userEmail: string;
   avatarUrl?: string;
+  hidePersonalInfo?: boolean;
   roleLabel: string;
   planLabel: string;
   workspaceName: string;
@@ -147,7 +149,7 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, avatarUrl, roleLabel, planLabel, workspaceName, logout, children } = props;
+  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, logout, children } = props;
   // Menu profil : « Compte » (personnel) + « Espace de travail » (marques, membres,
   // connexions, abonnement, réglages). Les coulisses plateforme (ADMIN+) restent
   // réservées au fondateur/staff.
@@ -156,6 +158,7 @@ function AppShellInner(props: Props) {
   const pathname = usePathname();
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
 
@@ -198,6 +201,7 @@ function AppShellInner(props: Props) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '250px minmax(0,1fr)', minHeight: '100vh' }}>
       <CommandPalette commands={commands} />
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <aside style={{ background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: '16px 12px', position: 'sticky', top: 0, height: '100vh' }}>
         {/* Marque + workspace */}
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', textDecoration: 'none' }}>
@@ -268,7 +272,7 @@ function AppShellInner(props: Props) {
                     </Link>
                   )}
 
-                  <Link href="/profile" onClick={() => setMenuOpen(false)} style={menuItem}>Mon profil</Link>
+                  <button type="button" onClick={() => { setMenuOpen(false); setProfileOpen(true); }} style={{ ...menuItem, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>Mon profil</button>
                   {personalItems.map((it) => (it.locked || it.soon)
                     ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
                     : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>)}
