@@ -38,9 +38,9 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
             {unlimited ? (
               <div style={{ padding: 12 }}>
                 <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-                  Ton compte fondateur n'est pas débité : génère sans limite. Les coûts réels et marges se pilotent dans ADMIN+.
+                  Ton compte fondateur n'est pas débité : génère sans limite. Le détail d'exploitation se pilote dans ADMIN+.
                 </p>
-                <Link href="/credits" onClick={() => setOpen(false)} style={{ ...linkRow, marginTop: 10, color: 'var(--accent-strong)' }}>Crédits & marges (ADMIN+) ›</Link>
+                <Link href="/credits" onClick={() => setOpen(false)} style={{ ...linkRow, marginTop: 10, color: 'var(--accent-strong)' }}>Crédits (ADMIN+) ›</Link>
               </div>
             ) : (
               <div style={{ padding: 12 }}>
