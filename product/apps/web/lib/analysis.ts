@@ -1,5 +1,5 @@
-import { fixtures, normalizeTikTokAd, normalizeMetaAd, type NormalizedAd } from '@tiktrends/integrations';
-import { dedupeCreatives, aggregateCreativeMetrics, computeRadar, diagnose, DIAGNOSIS_FR, type RadarResult } from '@tiktrends/core';
+import { fixtures, normalizeTikTokAd, normalizeMetaAd, type NormalizedAd, type MetaAdPerf } from '@tiktrends/integrations';
+import { dedupeCreatives, aggregateCreativeMetrics, computeRadar, diagnose, DIAGNOSIS_FR, type RadarResult, type CreativeMetrics } from '@tiktrends/core';
 
 export interface AnalysisRow {
   platform: 'tiktok' | 'meta';
@@ -44,6 +44,37 @@ export function buildAnalysis(): AnalysisRow[] {
     }
   }
   return rows.sort((a, b) => b.globalScore - a.globalScore || b.spend - a.spend);
+}
+
+/**
+ * Radar sur DONNÉES RÉELLES : perf Meta par annonce -> même moteur de scoring.
+ * Les taux Meta arrivent en pourcentage, le moteur attend des fractions.
+ */
+export function buildLiveAnalysis(ads: MetaAdPerf[]): AnalysisRow[] {
+  if (!ads.length) return [];
+  const metrics: CreativeMetrics[] = ads.map((a, i) => ({
+    id: a.adId || `${a.name}-${i}`,
+    spend: a.spend,
+    impressions: a.impressions,
+    hookRate: a.hookRate / 100,
+    holdRate: a.holdRate / 100,
+    ctr: a.ctr / 100,
+    // ROAS si dispo, sinon efficacité inverse du CPA (cohérent avec le moteur).
+    convEff: a.roas > 0 ? a.roas : (a.cpa > 0 ? 1 / a.cpa : 0),
+    daysActive: a.daysActive,
+  }));
+  const radar = computeRadar(metrics, 'meta');
+  return metrics.map((m, i) => {
+    const src = ads[i]!;
+    const r = radar.find((x) => x.id === m.id)!;
+    return {
+      platform: 'meta' as const, title: src.name, fingerprint: m.id,
+      spend: m.spend, impressions: m.impressions, ctr: m.ctr, hookRate: m.hookRate, holdRate: m.holdRate,
+      convEff: m.convEff, daysActive: m.daysActive ?? 0,
+      grades: r.grades, globalScore: r.globalScore, bucket: r.bucket, eligible: r.eligible,
+      diagnosis: r.eligible ? diagnose(r.grades).map((code) => DIAGNOSIS_FR[code]) : ['Volume insuffisant pour évaluer (dépense/impressions trop faibles).'],
+    };
+  }).sort((a, b) => b.globalScore - a.globalScore || b.spend - a.spend);
 }
 
 export interface BucketDef { key: RadarResult['bucket']; label: string; action: string; color: string }
