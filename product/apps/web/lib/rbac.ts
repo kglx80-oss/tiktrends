@@ -64,17 +64,16 @@ export const FEATURES: Feature[] = [
   { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Création', minRole: 'member',        minPlan: 'core' },
-  // Menu profil · Compte
+  // Menu profil · Compte (personnel · tous les rôles)
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
-  // Menu profil · Espace de travail
+  // Menu profil · Espace de travail (client · propriétaire/admin de l'espace)
   { key: 'brands',    label: 'Marques',      href: '/brands',      icon: 'store',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
-  { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   { key: 'team',      label: 'Membres',      href: '/team',        icon: 'users',  group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
-  { key: 'billing',   label: 'Plans & Facturation', href: '/billing', icon: 'card',  group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
-  // Menu profil · ADMIN+
-  { key: 'console',   label: 'Console',      href: '/console',     icon: 'gauge',  group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
-  { key: 'credits',   label: 'Crédits',      href: '/credits',     icon: 'coin',   group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
-  { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account', section: 'Admin',  minRole: 'admin',  minPlan: 'starter' },
+  { key: 'connect',   label: 'Connexions',   href: '/connections', icon: 'plug',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
+  { key: 'billing',   label: 'Abonnement & factures', href: '/billing', icon: 'card', group: 'account', section: 'Espace', minRole: 'admin', minPlan: 'starter' },
+  { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
+  // Note : Console + Crédits/marges (coûts réels API) sont réservés à la plateforme
+  // (ADMIN+ · isFounder), pas exposés dans le menu client. Voir app/(app)/admin.
 ];
 
 export interface Access { role: Role; plan: Plan; }

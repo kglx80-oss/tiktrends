@@ -28,6 +28,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
+  if (!isFounder(s.user.email)) redirect('/dashboard'); // console plateforme · staff uniquement
   const { ok, e } = await searchParams;
 
   const founder = isFounder(s.user.email);

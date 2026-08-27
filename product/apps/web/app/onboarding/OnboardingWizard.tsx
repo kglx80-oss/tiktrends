@@ -82,7 +82,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
         {step === 3 && (
           <Step title="Ta première marque" sub="On la crée pour toi · tu génères tes premières créas juste après.">
             <label style={lbl}>Nom de la marque / entreprise</label>
-            <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Ex : Neva" style={field} autoFocus />
+            <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Ex : Studio Nova" style={field} autoFocus />
             <label style={{ ...lbl, marginTop: 16 }}>Site web <span style={{ color: 'var(--muted)' }}>· optionnel, pour pré-remplir ta marque</span></label>
             <input value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} placeholder="ta-marque.com" style={field} />
             <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>Tu pourras ajouter d'autres marques et affiner la DA à tout moment.</p>

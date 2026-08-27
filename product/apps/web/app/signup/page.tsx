@@ -43,15 +43,15 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
       <form action={signupAction} style={{ display: 'grid', gap: 14 }}>
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>Nom</span>
-          <input name="name" type="text" autoComplete="name" placeholder="Kévin Guilbaux" style={field} />
+          <input name="name" type="text" autoComplete="name" placeholder="Ex : Alex Martin" style={field} />
         </label>
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>Nom de l'espace / agence</span>
-          <input name="workspace" type="text" placeholder="Agence GLX" style={field} />
+          <input name="workspace" type="text" placeholder="Ex : Studio Nova" style={field} />
         </label>
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>E-mail</span>
-          <input name="email" type="email" required autoComplete="email" placeholder="toi@agence.fr" style={field} />
+          <input name="email" type="email" required autoComplete="email" placeholder="toi@exemple.com" style={field} />
         </label>
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>Mot de passe</span>

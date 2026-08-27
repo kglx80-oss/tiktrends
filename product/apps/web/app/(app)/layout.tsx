@@ -3,10 +3,11 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/auth';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { railNav, accountSections, roleAtLeast, ROLE_LABEL, PLAN_LABEL } from '../../lib/rbac';
+import { railNav, accountSections, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL } from '../../lib/rbac';
 import { listBrands, getActiveBrand } from '../../lib/brands';
 import { AppShell } from '../../components/AppShell';
 import { logoutAction } from '../actions/auth';
+import { isFounder } from '../../lib/founder';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <AppShell
       nav={[...railNav(access), ...brandNav]}
       accountGroups={accountSections(access)}
-      isAdmin={roleAtLeast(s.role, 'admin')}
+      isStaff={isFounder(s.user.email)}
+      showUpgrade={roleAtLeast(s.role, 'admin') && !planAtLeast(s.plan, 'business')}
       brands={brands}
       activeBrandId={activeBrand?.id ?? null}
       canManageBrands={roleAtLeast(s.role, 'admin')}

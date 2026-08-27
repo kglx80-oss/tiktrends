@@ -8,10 +8,10 @@ import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
 import { CommandPalette, openCommandPalette, type Command } from './CommandPalette';
 
-// Console ADMIN+ uniquement : fond ambré + accent orange (même univers sombre).
-// Les pages « espace de travail » (marques, connexions, membres, abonnement)
-// gardent la DA magenta standard.
-const ADMIN_ROUTES = ['/admin', '/console', '/credits', '/settings', '/team', '/billing'];
+// Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
+// Les pages « espace de travail » du client (marques, connexions, membres,
+// abonnement, réglages) gardent la DA magenta standard.
+const ADMIN_ROUTES = ['/admin', '/console', '/credits', '/jarvis'];
 const ADMIN_CONTENT = {
   '--accent': '#f5a623',
   '--accent-strong': '#ffca6b',
@@ -34,7 +34,8 @@ interface AccountGroup { section: string; items: NavItem[] }
 interface Props {
   nav: Group[];
   accountGroups: AccountGroup[];
-  isAdmin: boolean;
+  isStaff: boolean;
+  showUpgrade: boolean;
   brands: Brand[];
   activeBrandId: string | null;
   canManageBrands: boolean;
@@ -146,10 +147,12 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, isAdmin: userIsAdmin, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, avatarUrl, roleLabel, planLabel, workspaceName, logout, children } = props;
-  // Menu profil épuré : seuls les éléments réellement personnels (section « Compte »).
-  // Tout l'outillage admin/espace de travail vit désormais dans les coulisses ADMIN+ (/admin).
+  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, userName, userEmail, avatarUrl, roleLabel, planLabel, workspaceName, logout, children } = props;
+  // Menu profil : « Compte » (personnel) + « Espace de travail » (marques, membres,
+  // connexions, abonnement, réglages). Les coulisses plateforme (ADMIN+) restent
+  // réservées au fondateur/staff.
   const personalItems = accountGroups.find((g) => g.section === 'Compte')?.items ?? [];
+  const workspaceItems = accountGroups.find((g) => g.section === 'Espace')?.items ?? [];
   const pathname = usePathname();
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -179,15 +182,16 @@ function AppShellInner(props: Props) {
   commands.push({ id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', emoji: '➕', keywords: 'créer marque ajouter' });
   commands.push({ id: 'act-profile', label: 'Mon profil', group: 'Compte', href: '/profile', emoji: '👤', keywords: 'profil compte photo' });
   for (const it of personalItems) commands.push({ id: 'acc-' + it.key, label: it.label, group: 'Compte', href: it.href, emoji: '›', locked: it.locked, keywords: it.label });
-  if (userIsAdmin) {
+  for (const it of workspaceItems) commands.push({ id: 'ws-' + it.key, label: it.label, group: 'Espace de travail', href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });
+  if (isStaff) {
     commands.push(
-      { id: 'adm-home', label: 'ADMIN+ · Coulisses', group: 'Admin', href: '/admin', emoji: '🎛️', keywords: 'admin backstage console' },
-      { id: 'adm-fin', label: 'Finance · MRR & marges', group: 'Admin', href: '/admin/finance', emoji: '📈', keywords: 'mrr revenu marge chiffre' },
-      { id: 'adm-credits', label: 'Crédits & marges', group: 'Admin', href: '/credits', emoji: '◈', keywords: 'crédits coût' },
-      { id: 'adm-jarvis', label: 'Jarvis', group: 'Admin', href: '/jarvis', emoji: '🧠', keywords: 'jarvis règles ia' },
-      { id: 'adm-intel', label: 'Intelligence marché', group: 'Admin', href: '/admin/intelligence', emoji: '🔭', keywords: 'concurrents atria' },
-      { id: 'adm-settings', label: 'Réglages', group: 'Admin', href: '/settings', emoji: '⚙️', keywords: 'settings paramètres clés' },
-      { id: 'adm-team', label: 'Membres & rangs', group: 'Admin', href: '/team', emoji: '👥', keywords: 'équipe rôles invitation' },
+      { id: 'adm-home', label: 'ADMIN+ · Coulisses', group: 'Plateforme', href: '/admin', emoji: '🎛️', keywords: 'admin backstage console' },
+      { id: 'adm-fin', label: 'Finance · MRR & marges', group: 'Plateforme', href: '/admin/finance', emoji: '📈', keywords: 'mrr revenu marge chiffre' },
+      { id: 'adm-signups', label: 'Inscriptions & onboarding', group: 'Plateforme', href: '/admin/signups', emoji: '🧭', keywords: 'inscriptions comptes profils' },
+      { id: 'adm-credits', label: 'Crédits & marges', group: 'Plateforme', href: '/credits', emoji: '◈', keywords: 'crédits coût marge' },
+      { id: 'adm-jarvis', label: 'Jarvis', group: 'Plateforme', href: '/jarvis', emoji: '🧠', keywords: 'jarvis règles ia' },
+      { id: 'adm-intel', label: 'Intelligence marché', group: 'Plateforme', href: '/admin/intelligence', emoji: '🔭', keywords: 'concurrents atria' },
+      { id: 'adm-console', label: 'Console', group: 'Plateforme', href: '/console', emoji: '📟', keywords: 'console système diagnostics' },
     );
   }
 
@@ -252,18 +256,40 @@ function AppShellInner(props: Props) {
                   </div>
                 </div>
                 <div style={{ padding: 6 }}>
+                  {/* Améliorer l'offre : accès direct à l'abonnement (masqué au palier max). */}
+                  {showUpgrade && (
+                    <Link href="/billing" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '0 0 6px', borderRadius: 11, textDecoration: 'none', background: 'var(--grad-accent)', boxShadow: '0 6px 18px -8px rgba(254,44,85,.55)' }}>
+                      <span style={{ fontSize: 15 }}>⚡</span>
+                      <span style={{ flex: 1 }}>
+                        <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#0d070c' }}>Améliorer mon offre</span>
+                        <span style={{ display: 'block', fontSize: 11, color: 'rgba(13,7,12,.72)' }}>Plus de crédits · plus de marques</span>
+                      </span>
+                      <span style={{ color: '#0d070c', fontSize: 13, fontWeight: 800 }}>›</span>
+                    </Link>
+                  )}
+
                   <Link href="/profile" onClick={() => setMenuOpen(false)} style={menuItem}>Mon profil</Link>
                   {personalItems.map((it) => (it.locked || it.soon)
                     ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
                     : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>)}
 
-                  {/* ADMIN+ · une seule porte vers les coulisses (console, crédits, réglages, espace). */}
-                  {userIsAdmin && (
-                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '6px 0 2px', borderRadius: 11, textDecoration: 'none', background: 'linear-gradient(135deg, rgba(245,166,35,.16), rgba(255,140,66,.08))', border: '1px solid rgba(245,166,35,.32)' }}>
+                  {/* Espace de travail : marques, membres, connexions, abonnement, réglages. */}
+                  {workspaceItems.length > 0 && (
+                    <>
+                      <div style={menuLabel}>Espace de travail</div>
+                      {workspaceItems.map((it) => (it.locked || it.soon)
+                        ? <div key={it.key} style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default' }}>{it.label}{it.soon && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
+                        : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItem}>{it.label}</Link>)}
+                    </>
+                  )}
+
+                  {/* ADMIN+ · coulisses plateforme, réservées au fondateur/staff. */}
+                  {isStaff && (
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '8px 0 2px', borderRadius: 11, textDecoration: 'none', background: 'linear-gradient(135deg, rgba(245,166,35,.16), rgba(255,140,66,.08))', border: '1px solid rgba(245,166,35,.32)' }}>
                       <span style={{ fontSize: 15 }}>🎛️</span>
                       <span style={{ flex: 1 }}>
                         <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#ffca6b' }}>ADMIN+ · Coulisses</span>
-                        <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>Console, crédits, réglages, espace</span>
+                        <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>MRR, inscriptions, console, IA maison</span>
                       </span>
                       <span style={{ color: '#ffca6b', fontSize: 13 }}>›</span>
                     </Link>
@@ -303,6 +329,7 @@ function AppShellInner(props: Props) {
 }
 
 const menuItem = { display: 'block', padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
+const menuLabel = { padding: '9px 12px 3px', fontSize: 10, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)' } as const;
 const kbdRail = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 16, height: 16, fontSize: 10, fontWeight: 700, color: 'var(--ink-2)', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 4 } as const;
 function pill(color: string, bg: string) {
   return { fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, color, background: bg } as const;

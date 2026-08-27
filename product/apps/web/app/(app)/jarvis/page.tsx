@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
+import { isFounder } from '../../../lib/founder';
 import { getActiveBrand } from '../../../lib/brands';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
@@ -27,8 +28,9 @@ const ENGINES: Array<{ tag: string; name: string; role: string }> = [
 export default async function JarvisPage() {
   const s = await getSession();
   if (!s) redirect('/login');
-  // Jarvis = notre couche secrète · réservée à l'ADMIN+ (jamais dans le menu général).
+  // Jarvis = notre couche secrète · réservée à l'ADMIN+ plateforme (fondateur/staff).
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
+  if (!isFounder(s.user.email)) redirect('/dashboard');
 
   const brand = await getActiveBrand(s.workspaceId);
   let rules = '', learnings = '';
