@@ -8,16 +8,20 @@
  */
 
 // UA navigateur réel : beaucoup de sites renvoient un challenge/403 aux robots.
+import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
+
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const IMG_EXT = /\.(?:jpe?g|png|webp|avif|gif)(?:[?#]|$)/i;
 
+// Les URLs viennent du site de la marque (champ libre) : safeFetch bloque les
+// adresses internes et revalide chaque redirection.
 async function getRaw(url: string): Promise<{ status: number | 'err'; ct: string; text: string }> {
-  try {
-    const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'text/html,application/json,image/*,*/*', 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' }, redirect: 'follow', signal: AbortSignal.timeout(15000) });
-    const ct = res.headers.get('content-type') || '';
-    const text = /json|text|html/i.test(ct) || res.ok ? await res.text() : '';
-    return { status: res.status, ct, text };
-  } catch { return { status: 'err', ct: '', text: '' }; }
+  const res = await safeFetch(url, {
+    headers: { 'user-agent': UA, accept: 'text/html,application/json,image/*,*/*', 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' },
+    timeoutMs: 15_000, maxBytes: 4_000_000,
+  });
+  if (!res) return { status: 'err', ct: '', text: '' };
+  return { status: 200, ct: res.contentType, text: res.body.toString('utf8') };
 }
 
 async function getText(url: string): Promise<string | null> {
@@ -108,10 +112,8 @@ async function fromSiteCatalog(siteUrl: string, productName: string): Promise<st
 
 async function looksLikeImage(url: string): Promise<boolean> {
   if (IMG_EXT.test(url)) return true; // extension explicite -> on fait confiance (Fal gère les erreurs)
-  try {
-    const r = await fetch(url, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(12000) });
-    return r.ok && /^image\//.test(r.headers.get('content-type') || '');
-  } catch { return false; }
+  const r = await safeFetch(url, { headers: { 'user-agent': UA }, maxBytes: 2_000_000 });
+  return !!r && /^image\//.test(r.contentType);
 }
 
 /** Résout l'URL d'image produit en essayant toutes les stratégies. */

@@ -108,9 +108,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [editText, setEditText] = useState(false);
   const [textForm, setTextForm] = useState<AdText | null>(null);
   const [textBusy, setTextBusy] = useState(false);
-  const [bump, setBump] = useState(0); // cache-bust de l'aperçu après édition texte
   const [ratio, setRatio] = useState<'4:5' | '1:1' | '9:16'>('4:5');
-  const detailSrc = detailAd ? `${detailAd.url}?r=${ratio}${bump ? `&v=${bump}` : ''}` : '';
+  // a.url porte déjà une version (?v=) qui suit les textes : la grille, l'aperçu et
+  // le téléchargement se rafraîchissent ensemble après une édition.
+  const detailSrc = detailAd ? `${detailAd.url}&r=${ratio}` : '';
 
   async function openTextEditor(a: AdItem) {
     setEditText(true); setTextForm(null);
@@ -123,7 +124,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     const r = await updateAdTextAction(a.id, textForm);
     setTextBusy(false);
     if (r.error) { setError(r.error); return; }
-    setBump((n) => n + 1); setEditText(false); setScoreFor(null);
+    // Nouvelle URL versionnée : remplace la carte pour que la vignette suive.
+    if (r.url) setAds((list) => list.map((x) => (x.id === a.id ? { ...x, headline: textForm.headline || x.headline, url: r.url! } : x)));
+    setEditText(false); setScoreFor(null);
   }
 
   const [scoring, setScoring] = useState(false);

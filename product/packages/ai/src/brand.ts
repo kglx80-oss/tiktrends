@@ -219,21 +219,3 @@ export async function analyzeCompetitor(
 }
 
 /** Récupère le texte visible d'une page (best-effort, sans dépendance). */
-export async function fetchSiteText(url: string): Promise<string> {
-  const target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-  const res = await fetch(target, {
-    headers: { 'user-agent': 'Mozilla/5.0 (compatible; TikTrendsBot/1.0)' },
-    signal: AbortSignal.timeout(12000),
-  });
-  if (!res.ok) throw new Error(`Site inaccessible (${res.status}).`);
-  const html = await res.text();
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 12000);
-}

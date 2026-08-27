@@ -5,6 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
+import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
@@ -50,14 +51,31 @@ function imageUrlFromSnapshot(snap: unknown): string | null {
 
 /** Télécharge une image et la convertit en référence base64 pour l'analyse vision. */
 async function refFromUrl(url: string): Promise<CloneRefImage | null> {
-  try {
-    const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
-    const ct = (res.headers.get('content-type') || '').split(';')[0]!.trim();
-    if (!res.ok || !/^image\/(jpeg|png|webp)$/.test(ct)) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 6_000_000) return null;
-    return { mediaType: ct as CloneRefImage['mediaType'], base64: buf.toString('base64') };
-  } catch { return null; }
+  // L'URL vient d'un snapshot de pub, donc d'une source externe : safeFetch refuse
+  // les adresses internes et revalide chaque redirection (sinon un 302 vers
+  // 127.0.0.1 suffit à faire relayer une réponse interne par notre serveur).
+  const res = await safeFetch(url, { headers: { 'user-agent': 'Mozilla/5.0' }, timeoutMs: 15_000, maxBytes: 6_000_000 });
+  if (!res || !/^image\/(jpeg|png|webp)$/.test(res.contentType)) return null;
+  return { mediaType: res.contentType as CloneRefImage['mediaType'], base64: res.body.toString('base64') };
+}
+
+/**
+ * Version d'un rendu, dérivée de ses textes. Elle est collée à l'URL de l'aperçu
+ * (?v=) pour que le navigateur recharge l'image dès qu'un texte change : sans ça,
+ * le `cache-control: max-age=86400` de /api/ad servait l'ancienne composition
+ * pendant 24 h dans la grille et dans le téléchargement.
+ */
+function adVersion(r: Partial<AdRecipe>): string {
+  const t = `${r.headline ?? ''}|${r.subhead ?? ''}|${r.cta ?? ''}|${r.kicker ?? ''}|${r.badge ?? ''}|${r.sceneUrl ?? ''}`;
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/** URL d'aperçu versionnée d'un rendu de pub. (Non exportée : un module
+ *  « use server » ne peut exposer que des fonctions async.) */
+function adUrl(id: string, recipe: Partial<AdRecipe>): string {
+  return `/api/ad/${id}?v=${adVersion(recipe)}`;
 }
 
 /** Compose une série : scènes (univers variés) + enregistrement + débit. Mutualisé par génération et clone. */
@@ -138,7 +156,7 @@ async function composeBatch(o: {
         brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: `/api/ad/${row.id}`, createdAt: (row.createdAt as Date).toISOString() });
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString() });
     } catch { /* ignore */ }
   }
 
@@ -471,7 +489,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
     .filter((r) => (r.status === 'archived') === wantArchived)
     .map((r) => {
       const rec = (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore };
-      return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: `/api/ad/${r.id}`, createdAt: (r.createdAt as Date).toISOString(), rating: rec.rating ?? null, score: rec.jarvisScore?.score };
+      return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: adUrl(r.id, rec), createdAt: (r.createdAt as Date).toISOString(), rating: rec.rating ?? null, score: rec.jarvisScore?.score };
     });
 }
 
@@ -507,7 +525,7 @@ export async function getAdTextAction(id: string): Promise<{ text?: AdText; erro
  * Met à jour les textes d'une pub SANS régénérer l'image (l'overlay est recomposé à la volée) :
  * aucun crédit débité. Renvoie une version pour rafraîchir l'aperçu (cache-bust).
  */
-export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok?: true; version?: number; error?: string }> {
+export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok?: true; url?: string; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
   const brand = await getActiveBrand(s.workspaceId);
@@ -526,7 +544,9 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
     badge: clean(text.badge) || undefined,
   };
   await db.update(schema.generations).set({ input: next as Record<string, unknown> }).where(eq(schema.generations.id, id));
-  return { ok: true, version: Date.now() };
+  // La version suit le contenu (et non l'horloge) : la grille, l'aperçu et le
+  // téléchargement pointent tous sur la même URL fraîche.
+  return { ok: true, url: adUrl(id, next as Partial<AdRecipe>) };
 }
 
 /**

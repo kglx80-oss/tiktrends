@@ -4,19 +4,24 @@
  * couleurs et polices), plus les variables CSS, @font-face et Google Fonts.
  */
 
+import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
+
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 export interface BrandDA { logoUrl: string | null; colors: string[]; fonts: string[] }
 
 function abs(u: string, base: string): string | null { try { return new URL(u, base).toString(); } catch { return null; } }
 
+// URL fournie par l'utilisateur (site de la marque) : safeFetch refuse les
+// adresses internes et revalide chaque redirection.
 async function get(url: string, cap = 500_000): Promise<string | null> {
-  try {
-    const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'text/html,text/css,*/*', 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' }, signal: AbortSignal.timeout(15000) });
-    if (!res.ok) return null;
-    const t = await res.text();
-    return t.length > cap ? t.slice(0, cap) : t;
-  } catch { return null; }
+  const res = await safeFetch(url, {
+    headers: { 'user-agent': UA, accept: 'text/html,text/css,*/*', 'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8' },
+    timeoutMs: 15_000, maxBytes: 4_000_000,
+  });
+  if (!res) return null;
+  const t = res.body.toString('utf8');
+  return t.length > cap ? t.slice(0, cap) : t;
 }
 
 /** Récupère le HTML + le contenu des CSS liées (limité), pour un scan complet du style. */

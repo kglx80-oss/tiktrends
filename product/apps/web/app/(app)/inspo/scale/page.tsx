@@ -7,7 +7,7 @@ import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
 import { classifyAngle, capPerBrand, median } from '@tiktrends/core';
-import { getVeilleCache, isFresh, setVeilleCache } from '../../../../lib/veille-cache';
+import { getVeilleCache, isFresh, setVeilleCache, refreshAllowed } from '../../../../lib/veille-cache';
 import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
 import { PageInfo } from '../../../../components/PageInfo';
 
@@ -73,7 +73,10 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
   } else {
     // Cache 7 j (données marché partagées) : évite de rebrûler des crédits.
     const cache = await getVeilleCache(country, q);
-    if (cache && isFresh(cache) && !refresh) {
+    // Un « Rafraîchir » n'est honoré que si le cache a déjà un certain âge : sinon
+    // recharger la page en boucle suffit à brûler notre quota Trendtrack.
+    const doRefresh = refresh && refreshAllowed(cache);
+    if (cache && isFresh(cache) && !doRefresh) {
       curated = cache.ads; fetchedAt = cache.fetchedAt; fromCache = true;
     } else {
       try {
