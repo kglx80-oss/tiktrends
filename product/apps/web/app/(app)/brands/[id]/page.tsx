@@ -168,7 +168,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} />
           </form>
 
-          <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} colors={b.colors ?? []} fonts={b.fonts ?? []} />
+          <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} />
 
         <BrandOverviewForm init={{
           id: b.id, name: b.name, url: b.url ?? '', description: b.description ?? '', usp: b.usp ?? '',
