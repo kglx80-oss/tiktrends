@@ -2,11 +2,14 @@
 
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
+import { randomBytes } from 'crypto';
 import { db, schema } from '@tiktrends/db';
-import { eq } from 'drizzle-orm';
+import { and, eq, gt, isNull } from 'drizzle-orm';
 import { hashPassword, verifyPassword, createSession, destroySession, signupOpen } from '../../lib/auth';
 import { hit, reset } from '../../lib/rate-limit';
 import { TRIAL_DEFAULT_CREDITS, TRIAL_DEFAULT_DAYS } from '../../lib/trial';
+import { sendMail } from '../../lib/mailer';
+import { welcomeEmail, resetEmail } from '../../lib/emails';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
@@ -42,6 +45,9 @@ export async function signupAction(formData: FormData): Promise<void> {
   if (!ws || !user) redirect('/signup?e=server');
   await db.insert(schema.workspaceMembers).values({ workspaceId: ws.id, userId: user.id, role: 'owner' });
 
+  // E-mail de bienvenue · best-effort (n'empêche jamais la création du compte).
+  try { const m = welcomeEmail(name, workspaceName); await sendMail({ to: email, subject: m.subject, html: m.html, text: m.text }); } catch { /* ignore */ }
+
   await createSession(user.id);
   redirect('/onboarding');
 }
@@ -71,4 +77,40 @@ export async function loginAction(formData: FormData): Promise<void> {
 export async function logoutAction(): Promise<void> {
   await destroySession();
   redirect('/login');
+}
+
+/* ------------------------- Mot de passe oublié --------------------------- */
+export async function forgotPasswordAction(formData: FormData): Promise<void> {
+  const email = norm(formData.get('email')).toLowerCase();
+  // Réponse identique quoi qu'il arrive (pas d'énumération des comptes).
+  if (!email || !db) redirect('/forgot?sent=1');
+  if (!hit(`forgot:${await clientIp()}`, 5, 60 * 60 * 1000).ok) redirect('/forgot?sent=1');
+
+  try {
+    const [user] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
+    if (user) {
+      const token = randomBytes(24).toString('base64url');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 h
+      await db.insert(schema.passwordResets).values({ userId: user.id, token, expiresAt });
+      const m = resetEmail(token);
+      await sendMail({ to: email, subject: m.subject, html: m.html, text: m.text });
+    }
+  } catch { /* best-effort */ }
+  redirect('/forgot?sent=1');
+}
+
+export async function resetPasswordAction(formData: FormData): Promise<void> {
+  const token = norm(formData.get('token'));
+  const password = norm(formData.get('password'));
+  if (!token || !db) redirect('/login?e=server');
+  if (password.length < 8) redirect(`/reset/${token}?e=weak`);
+
+  const [row] = await db.select().from(schema.passwordResets)
+    .where(and(eq(schema.passwordResets.token, token), isNull(schema.passwordResets.usedAt), gt(schema.passwordResets.expiresAt, new Date())))
+    .limit(1);
+  if (!row) redirect(`/reset/${token}?e=invalid`);
+
+  await db.update(schema.users).set({ passwordHash: await hashPassword(password) }).where(eq(schema.users.id, row.userId));
+  await db.update(schema.passwordResets).set({ usedAt: new Date() }).where(eq(schema.passwordResets.id, row.id));
+  redirect('/login?reset=1');
 }

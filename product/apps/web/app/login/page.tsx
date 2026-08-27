@@ -11,20 +11,28 @@ const ERRORS: Record<string, string> = {
   throttled: 'Trop de tentatives. Patiente quelques minutes avant de réessayer.',
 };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ e?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ e?: string; reset?: string }> }) {
   if (await getSession()) redirect('/dashboard');
-  const { e } = await searchParams;
+  const { e, reset } = await searchParams;
 
   return (
     <AuthShell title="Connexion" subtitle="Accède à ton espace TikTrends.">
       {e && errorBox(ERRORS[e] || 'Une erreur est survenue.')}
+      {reset && (
+        <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(24,204,140,.4)', background: 'rgba(24,204,140,.10)', color: '#18cc8c' }}>
+          Mot de passe mis à jour. Tu peux te connecter.
+        </div>
+      )}
       <form action={loginAction} style={{ display: 'grid', gap: 14 }}>
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>E-mail</span>
-          <input name="email" type="email" required autoComplete="email" placeholder="toi@agence.fr" style={field} />
+          <input name="email" type="email" required autoComplete="email" placeholder="toi@exemple.com" style={field} />
         </label>
         <label style={{ display: 'grid', gap: 6 }}>
-          <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>Mot de passe</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>Mot de passe</span>
+            <Link href="/forgot" style={{ fontSize: 12, color: 'var(--muted)' }}>Oublié ?</Link>
+          </div>
           <input name="password" type="password" required autoComplete="current-password" placeholder="••••••••" style={field} />
         </label>
         <button type="submit" style={primaryBtn}>Se connecter</button>
