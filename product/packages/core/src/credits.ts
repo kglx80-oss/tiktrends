@@ -24,3 +24,31 @@ export function applyLedger(balance: number, entries: LedgerEntry[]): number {
 export function computeRollover(unused: number): number {
   return Math.floor(Math.max(0, unused) * 0.25);
 }
+
+/* ============ Allocation d'abonnement ============ */
+
+export interface PlanAllocation {
+  next: number;       // nouveau solde
+  delta: number;      // mouvement à écrire au grand livre (peut être négatif)
+  purchased: number;  // crédits achetés (recharges) conservés
+}
+
+/**
+ * Nouveau solde après application de l'allocation d'une formule.
+ *
+ * Les crédits d'abonnement NE SE CUMULENT PAS d'un mois sur l'autre, mais les
+ * recharges payées, si. Poser bêtement `solde = allocation` détruisait donc les
+ * recharges à chaque renouvellement · un client ayant acheté 5 000 crédits en plus
+ * de son offre les perdait le mois suivant.
+ *
+ * On retire du solde l'allocation précédemment accordée (`lastPlanCredits`) : ce
+ * qui dépasse, ce sont les crédits achetés. On y ajoute la nouvelle allocation.
+ *
+ * Sert au renouvellement Stripe, au changement de formule et au pilotage interne.
+ */
+export function applyPlanAllocation(balance: number, lastPlanCredits: number, alloc: number): PlanAllocation {
+  const bal = Math.max(0, balance || 0);
+  const purchased = Math.max(0, bal - Math.max(0, lastPlanCredits || 0));
+  const next = purchased + Math.max(0, alloc || 0);
+  return { next, delta: next - bal, purchased };
+}

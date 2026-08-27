@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { applyPlanAllocation } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { isFounder } from '../../lib/founder';
 import { PLAN_CREDITS, type Plan } from '../../lib/rbac';
@@ -37,9 +38,7 @@ export async function changePlanAction(formData: FormData): Promise<void> {
   const alloc = PLAN_CREDITS[plan] ?? 0;
   const [w] = await db.select({ c: schema.workspaces.creditsBalance, last: schema.workspaces.lastPlanCredits })
     .from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-  const balance = w?.c ?? 0;
-  const next = Math.max(0, balance - (w?.last ?? 0)) + alloc;
-  const delta = next - balance;
+  const { next, delta } = applyPlanAllocation(w?.c ?? 0, w?.last ?? 0, alloc);
   await db.update(schema.workspaces).set({ creditsBalance: next, lastPlanCredits: alloc }).where(eq(schema.workspaces.id, s.workspaceId));
   if (delta !== 0) {
     await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta, reason: `Changement de formule -> ${plan}` });
