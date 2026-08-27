@@ -7,6 +7,7 @@ import { getActiveBrand } from '../../lib/brands';
 import { anthropicFromEnv, chatAssistant, type ChatMessage } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
+import { logAndTranslate } from '../../lib/user-error';
 
 export interface AskResult { reply?: string; error?: string }
 
@@ -44,6 +45,6 @@ export async function askAssistant(history: ChatMessage[], question: string): Pr
     return { reply };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · assistant IA');
-    return { error: 'Échec de la réponse : ' + (e as Error).message };
+    return { error: logAndTranslate('assistant', e, { subject: 'la réponse de l’assistant' }) };
   }
 }

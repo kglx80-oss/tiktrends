@@ -7,6 +7,7 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { decryptSecret } from '../../lib/secrets';
+import { logAndTranslate } from '../../lib/user-error';
 
 /** Garde ADMIN+ + marque active : le Drive est branché marque par marque. */
 async function guard() {
@@ -50,7 +51,7 @@ export async function getDrivePickerConfigAction(): Promise<{ token?: string; ap
   try {
     const token = await googleAccessToken(rt);
     return { token, apiKey: process.env.GOOGLE_API_KEY, appId: process.env.GOOGLE_APP_ID };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) { return { error: logAndTranslate('drive', e, { subject: 'la connexion' }) }; }
 }
 
 export async function setDriveFolderAction(input: { folderId: string; folderName: string }): Promise<{ ok?: true; error?: string }> {
@@ -78,7 +79,7 @@ export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number;
     }, { storage: storageFromEnv(), refreshToken: rt, folderId: b.fid, workspaceId: ws, maxFiles: 200 });
     await db!.update(schema.brands).set({ driveSyncedAt: new Date() }).where(eq(schema.brands.id, brandId));
     return { ok: true, added: res.added, skipped: res.skipped, found: res.found };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) { return { error: logAndTranslate('drive', e, { subject: 'la connexion' }) }; }
 }
 
 export interface PickedFile { id: string; name: string; mimeType: string; sizeBytes?: number }
@@ -118,7 +119,7 @@ export async function syncDriveFilesAction(files: PickedFile[]): Promise<{ ok?: 
     }
     await db!.update(schema.brands).set({ driveSyncedAt: new Date() }).where(eq(schema.brands.id, brandId));
     return { ok: true, added, skipped };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) { return { error: logAndTranslate('drive', e, { subject: 'la connexion' }) }; }
 }
 
 export async function disconnectDriveAction(): Promise<{ ok?: true; error?: string }> {

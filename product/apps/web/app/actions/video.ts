@@ -8,6 +8,7 @@ import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFrom
 import { anthropicFromEnv, suggestVideoBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
+import { logAndTranslate } from '../../lib/user-error';
 
 /** Fournisseur vidéo actif : Fal (Kling) en priorité, sinon Higgsfield. */
 function videoReady(): boolean { return !!falFromEnv() || !!higgsfieldFromEnv(); }
@@ -58,7 +59,7 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
-    return { error: 'Échec du lancement : ' + (e as Error).message };
+    return { error: logAndTranslate('video:start', e, { subject: 'le lancement de la vidéo' }) };
   }
 }
 
@@ -91,7 +92,7 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
-    return { error: 'Échec du lancement : ' + (e as Error).message };
+    return { error: logAndTranslate('video:start', e, { subject: 'le lancement de la vidéo' }) };
   }
 }
 
@@ -173,7 +174,7 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
     }
     return { status: job.status, videoUrl: job.videoUrl, error: job.error };
   } catch (e) {
-    return { status: 'unknown', error: (e as Error).message };
+    return { status: 'unknown', error: logAndTranslate('video:poll', e, { subject: 'le suivi du rendu' }) };
   }
 }
 
@@ -251,7 +252,7 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
     return { text: text || undefined };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · consigne vidéo');
-    return { error: (e as Error).message };
+    return { error: logAndTranslate('video:brief', e, { subject: 'la proposition de consigne' }) };
   }
 }
 

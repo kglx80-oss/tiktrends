@@ -9,6 +9,7 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
+import { logAndTranslate } from '../../lib/user-error';
 
 /** Enregistre les règles créatives maison (Jarvis) de la marque active. Injectées dans chaque génération. */
 export async function saveJarvisRulesAction(input: { creativeRules: string }): Promise<{ ok?: true; error?: string }> {
@@ -67,7 +68,7 @@ export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost
     });
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · règles Jarvis');
-    return { error: 'Génération impossible : ' + (e as Error).message };
+    return { error: logAndTranslate('jarvis:rules', e, { subject: 'la rédaction des règles' }) };
   }
   if (!rules.trim()) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · règles Jarvis');
@@ -145,7 +146,7 @@ export async function trainJarvisAction(): Promise<{ learnings?: string; adsAnal
     learnings = await distillWinningPatterns(client, { brand: b.name, category: cat, audience: b.audience ?? undefined }, uniq);
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · entraînement Jarvis');
-    return { error: 'Analyse impossible : ' + (e as Error).message };
+    return { error: logAndTranslate('jarvis:train', e, { subject: 'l’entraînement de Jarvis' }) };
   }
   if (!learnings.trim()) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · entraînement Jarvis');

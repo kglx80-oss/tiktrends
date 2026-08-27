@@ -7,6 +7,7 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { encryptSecret, decryptSecret } from '../../lib/secrets';
+import { logAndTranslate } from '../../lib/user-error';
 
 async function guard() {
   const s = await getSession();
@@ -54,7 +55,7 @@ export async function connectShopifyAction(input: { domain: string; token: strin
     const { shopName } = await shopifyAdminTest(domain, token);
     await db!.update(schema.brands).set({ shopifyDomain: domain, shopifyToken: encryptSecret(token) }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, shopName };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) { return { error: logAndTranslate('connections', e, { subject: 'la connexion' }) }; }
 }
 
 export async function syncShopifyAction(): Promise<{ ok?: true; insights?: ShopifyCommerceInsights; error?: string }> {
@@ -67,7 +68,7 @@ export async function syncShopifyAction(): Promise<{ ok?: true; insights?: Shopi
     const insights = await shopifyCommerceSync(b.domain, token);
     await db!.update(schema.brands).set({ commerceInsights: insights, insightsSyncedAt: new Date() }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, insights };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) { return { error: logAndTranslate('connections', e, { subject: 'la connexion' }) }; }
 }
 
 export async function disconnectShopifyAction(): Promise<{ ok?: true; error?: string }> {
@@ -88,7 +89,7 @@ export async function connectMetaAction(input: { adAccountId: string; token: str
     const { accountName } = await metaAdsTest(adAccountId, token);
     await db!.update(schema.brands).set({ metaAdAccountId: adAccountId, metaToken: encryptSecret(token) }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, accountName };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) { return { error: logAndTranslate('connections', e, { subject: 'la connexion' }) }; }
 }
 
 /** Choisit le compte publicitaire Meta rattaché à la marque (parmi ceux accessibles). */
@@ -105,7 +106,7 @@ export async function selectMetaAccountAction(adAccountId: string): Promise<{ ok
     // Changement de compte : les anciens KPI ne valent plus rien, on repart propre.
     await db!.update(schema.brands).set({ metaAdAccountId: id, adsInsights: null, insightsSyncedAt: null }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, accountName };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) { return { error: logAndTranslate('connections', e, { subject: 'la connexion' }) }; }
 }
 
 export async function syncMetaAction(): Promise<{ ok?: true; insights?: MetaAdsInsights; error?: string }> {
@@ -118,7 +119,7 @@ export async function syncMetaAction(): Promise<{ ok?: true; insights?: MetaAdsI
     const insights = await metaAdsSync(b.acct, token);
     await db!.update(schema.brands).set({ adsInsights: insights, insightsSyncedAt: new Date() }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, insights };
-  } catch (e) { return { error: (e as Error).message }; }
+  } catch (e) { return { error: logAndTranslate('connections', e, { subject: 'la connexion' }) }; }
 }
 
 export async function disconnectMetaAction(): Promise<{ ok?: true; error?: string }> {

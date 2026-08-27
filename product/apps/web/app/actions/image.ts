@@ -10,6 +10,7 @@ import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
+import { logAndTranslate } from '../../lib/user-error';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string; generationId?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string; rating?: import('./creatives').Rating }
@@ -92,11 +93,7 @@ export async function generateImageAction(input: {
     return { images, prompt, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · image IA');
-    const msg = (e as Error).message || '';
-    if (/image_load_error|Failed to load the image|422/.test(msg) && sourceImage) {
-      return { error: "Impossible de charger l'image de départ. L'URL doit pointer vers un fichier image direct (jpg, png, webp) et être public · pas une page produit. Astuce : clic droit sur l'image du produit → « Copier l'adresse de l'image »." };
-    }
-    return { error: 'Échec de la génération : ' + msg };
+    return { error: logAndTranslate('image:generate', e, { subject: 'la génération' }) };
   }
 }
 
@@ -135,7 +132,7 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
     return { text: text || undefined };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · brief image');
-    return { error: (e as Error).message };
+    return { error: logAndTranslate('image:brief', e, { subject: 'la proposition de brief' }) };
   }
 }
 

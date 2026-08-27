@@ -13,6 +13,7 @@ import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { discoverShopify } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
+import { logAndTranslate } from '../../lib/user-error';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const lines = (v: FormDataEntryValue | null) => norm(v).split('\n').map((x) => x.trim()).filter(Boolean);
@@ -63,7 +64,7 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
     return { draft, cost };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · profil de marque');
-    return { error: 'Échec de la génération : ' + (e as Error).message };
+    return { error: logAndTranslate('brands:profile', e, { subject: 'la génération du profil' }) };
   }
 }
 
