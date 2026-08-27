@@ -5,7 +5,7 @@ export type CreditAction =
 
 export const CREDIT_COSTS: Record<CreditAction, number> = {
   tag_video: 2, tag_image: 1, transcription_min: 1, script: 3, brief: 5,
-  image: 4, review_mining: 20, report: 5, clone_image: 5, chat: 1, video: 12,
+  image: 4, review_mining: 20, report: 6, clone_image: 5, chat: 1, video: 20,
   suggest: 1, // suggestion IA courte (angle, brief image/vidéo)
   score: 2,   // Score Jarvis (évaluation performance d'une créa)
 };

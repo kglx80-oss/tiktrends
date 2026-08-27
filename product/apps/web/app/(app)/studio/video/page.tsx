@@ -50,7 +50,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
         Stratégie cohérente avec Pubs IA : <b>Image → Vidéo</b> anime directement <b>ton produit ou une pub déjà générée</b>
         (mouvement de caméra, micro-animations), pendant que <b>Texte → Vidéo</b> part d'une description. Le bouton
         <b> Suggérer un mouvement</b> propose une consigne ancrée sur ta marque. Format 9:16 pour TikTok, rendu ~1 à 3 min,
-        12 crédits par vidéo.
+        20 crédits par vidéo.
       </PageInfo>
 
       <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} />

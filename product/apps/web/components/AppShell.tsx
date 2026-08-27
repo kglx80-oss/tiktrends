@@ -14,7 +14,18 @@ import { CreditsMenu } from './CreditsMenu';
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
 // Les pages « espace de travail » du client (marques, connexions, membres,
 // abonnement, réglages) gardent la DA magenta standard.
-const ADMIN_ROUTES = ['/admin', '/console', '/credits', '/jarvis'];
+// Navigation dédiée quand le fondateur entre en mode ADMIN+ (remplace le rail client).
+const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: string }> = [
+  { key: 'a-home', label: "Vue d'ensemble", href: '/admin', icon: 'grid' },
+  { key: 'a-fin', label: 'Finance · MRR', href: '/admin/finance', icon: 'chart' },
+  { key: 'a-signups', label: 'Inscriptions', href: '/admin/signups', icon: 'users' },
+  { key: 'a-credits', label: 'Crédits & marges', href: '/credits', icon: 'coin' },
+  { key: 'a-console', label: 'Console', href: '/console', icon: 'gauge' },
+  { key: 'a-jarvis', label: 'Jarvis', href: '/jarvis', icon: 'brain' },
+  { key: 'a-intel', label: 'Intelligence marché', href: '/admin/intelligence', icon: 'radar' },
+  { key: 'a-billing', label: 'Plans & Facturation', href: '/billing', icon: 'card' },
+  { key: 'a-settings', label: 'Réglages', href: '/settings', icon: 'gear' },
+];
 const ADMIN_CONTENT = {
   '--accent': '#f5a623',
   '--accent-strong': '#ffca6b',
@@ -171,7 +182,9 @@ function AppShellInner(props: Props) {
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => { try { setCollapsed(localStorage.getItem('tt_rail_collapsed') === '1'); } catch { /* stockage indispo */ } }, []);
   const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('tt_rail_collapsed', n ? '1' : '0'); } catch { /* ignore */ } return n; });
-  const isAdmin = ADMIN_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
+  // Mode ADMIN+ (fondateur uniquement) : navigation + DA dédiées sur les routes plateforme.
+  const onAdminPath = ADMIN_NAV.some((x) => pathname === x.href || pathname.startsWith(x.href + '/'));
+  const inAdmin = isStaff && onAdminPath;
 
   // État actif d'un item de nav : gère les routes imbriquées et l'onglet (?tab=) des marques.
   const currentTab = search.get('tab') || 'overview';
@@ -260,8 +273,8 @@ function AppShellInner(props: Props) {
           )}
         </div>
 
-        {/* Sélecteur de marque (masqué en mode replié) */}
-        {!collapsed && <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />}
+        {/* Sélecteur de marque (masqué en mode replié ou en mode ADMIN+) */}
+        {!collapsed && !inAdmin && <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />}
 
         {/* Recherche universelle ⌘K */}
         {collapsed ? (
@@ -281,9 +294,32 @@ function AppShellInner(props: Props) {
           </button>
         )}
 
-        {/* Navigation groupée */}
-        <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : 10, alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
-          {collapsed
+        {/* Navigation · rail client OU rail ADMIN+ (fondateur en coulisses) */}
+        <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 10), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
+          {inAdmin ? (
+            <>
+              {/* Retour à la vue SaaS (app) */}
+              <Link href="/dashboard" title="Retour à l'app" style={collapsed
+                ? { ...railIconBtn, marginBottom: 6 }
+                : { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, marginBottom: 8, textDecoration: 'none', border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13, fontWeight: 700 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                {!collapsed && <span>Retour à l'app</span>}
+              </Link>
+              {!collapsed && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>ADMIN+ · Plateforme</div>}
+              {ADMIN_NAV.map((it) => {
+                const active = pathname === it.href;
+                return collapsed ? (
+                  <Link key={it.key} href={it.href} title={it.label} style={{ ...railIconBtn, color: active ? 'var(--ink)' : 'var(--ink-2)', background: active ? 'var(--accent-soft)' : 'transparent' }}>
+                    <Icon name={it.icon} />
+                  </Link>
+                ) : (
+                  <Link key={it.key} href={it.href} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 10px', borderRadius: 10, fontSize: 14, fontWeight: active ? 700 : 500, color: active ? 'var(--ink)' : 'var(--ink-2)', background: active ? 'var(--accent-soft)' : 'transparent', textDecoration: 'none' }}>
+                    <Icon name={it.icon} /><span>{it.label}</span>
+                  </Link>
+                );
+              })}
+            </>
+          ) : collapsed
             ? nav.flatMap((grp) => branchesOf(grp.items).map((b) => (
                 <Link key={b.head.key} href={b.head.locked || b.head.soon ? '#' : b.head.href} title={b.head.label} style={{
                   ...railIconBtn,
@@ -377,7 +413,7 @@ function AppShellInner(props: Props) {
         </div>
       </aside>
 
-      <div style={{ minWidth: 0, minHeight: '100vh', ...(isAdmin ? ADMIN_CONTENT : null) }}>
+      <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
         <NotificationBell />
         {children}
         <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
