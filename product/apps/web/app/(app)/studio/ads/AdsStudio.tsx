@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
+import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, scoreCreativeAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
+import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
 import { IMAGE_MODELS, imageModelByKey } from '@tiktrends/core';
@@ -119,7 +120,20 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     const r = await updateAdTextAction(a.id, textForm);
     setTextBusy(false);
     if (r.error) { setError(r.error); return; }
-    setBump((n) => n + 1); setEditText(false);
+    setBump((n) => n + 1); setEditText(false); setScoreFor(null);
+  }
+
+  const [scoring, setScoring] = useState(false);
+  const [scoreData, setScoreData] = useState<CreativeScore | null>(null);
+  const [scoreFor, setScoreFor] = useState<string | null>(null);
+
+  async function runScore(a: AdItem) {
+    if (scoring) return;
+    setScoring(true); setError('');
+    const r = await scoreCreativeAction(a.id);
+    setScoring(false);
+    if (r.error) { setError(r.error); return; }
+    if (r.score) { setScoreData(r.score); setScoreFor(a.id); }
   }
 
   function copyLink(path: string) {
@@ -553,12 +567,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             {/* Aperçu + navigation */}
             <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
               {detailIdx != null && detailIdx > 0 && (
-                <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
+                <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); setScoreFor(null); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={detailSrc} alt={detailAd.headline} style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 10, objectFit: 'contain' }} />
               {detailIdx != null && detailIdx < ads.length - 1 && (
-                <button type="button" onClick={() => { setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1)); setEditText(false); }} aria-label="Suivant" style={navArrow('right')}>›</button>
+                <button type="button" onClick={() => { setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1)); setEditText(false); setScoreFor(null); }} aria-label="Suivant" style={navArrow('right')}>›</button>
               )}
               {/* Sélecteur de ratio (façon Atria) */}
               <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, background: 'rgba(0,0,0,.5)', padding: 5, borderRadius: 999 }}>
@@ -606,6 +620,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     {varyBusy ? 'Génération…' : '✨ Varier (3)'}
                   </button>
                   <p style={{ margin: '6px 0 12px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 variantes de cette créa (même gabarit · {modelSpec.credits * 3} cr.).</p>
+
+                  {/* Score Jarvis · notre signature */}
+                  {scoreFor === detailAd.id && scoreData ? (
+                    <ScoreCard s={scoreData} onRedo={() => runScore(detailAd)} busy={scoring} />
+                  ) : (
+                    <button type="button" onClick={() => runScore(detailAd)} disabled={scoring || !aiReady} style={{ ...toolBtn, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)', fontWeight: 800 }}>
+                      {scoring ? 'Analyse Jarvis…' : '✦ Score Jarvis · 2 cr.'}
+                    </button>
+                  )}
 
                   <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}>✎ Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></button>
                   <button type="button" onClick={() => copyLink(detailSrc)} style={toolBtn}>{copied ? '✓ Lien copié' : '🔗 Copier le lien'}</button>
@@ -723,6 +746,46 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ScoreCard({ s, onRedo, busy }: { s: CreativeScore; onRedo: () => void; busy: boolean }) {
+  const col = s.score >= 80 ? '#18cc8c' : s.score >= 60 ? '#7ee8bf' : s.score >= 45 ? '#f5b043' : '#ff9db0';
+  const r = 22, c = 2 * Math.PI * r, off = c - (s.score / 100) * c;
+  const Bar = ({ k, v }: { k: string; v: number }) => (
+    <div style={{ display: 'grid', gap: 3 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--muted)' }}><span>{k}</span><b style={{ color: 'var(--ink-2)' }}>{v}</b></div>
+      <div style={{ height: 4, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden' }}><div style={{ height: '100%', width: `${v}%`, background: col }} /></div>
+    </div>
+  );
+  return (
+    <div style={{ border: `1px solid ${col}55`, borderRadius: 12, background: 'rgba(255,255,255,.02)', padding: 12, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ position: 'relative', width: 56, height: 56, flexShrink: 0 }}>
+          <svg width="56" height="56" viewBox="0 0 56 56" style={{ transform: 'rotate(-90deg)' }}>
+            <circle cx="28" cy="28" r={r} fill="none" stroke="var(--line-2)" strokeWidth="5" />
+            <circle cx="28" cy="28" r={r} fill="none" stroke={col} strokeWidth="5" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} />
+          </svg>
+          <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>{s.score}</span>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', color: col }}>SCORE JARVIS</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.35, marginTop: 2 }}>{s.verdict}</div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+        <Bar k="Hook / scroll-stop" v={s.hook} />
+        <Bar k="Clarté" v={s.clarity} />
+        <Bar k="Adéquation" v={s.relevance} />
+      </div>
+      {s.fix && (
+        <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 9, background: 'rgba(245,166,35,.10)', border: '1px solid rgba(245,166,35,.3)' }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffca6b', letterSpacing: '.04em' }}>À CORRIGER</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-2)', marginTop: 2, lineHeight: 1.4 }}>{s.fix}</div>
+        </div>
+      )}
+      <button type="button" onClick={onRedo} disabled={busy} style={{ ...toolBtn, marginTop: 10, marginBottom: 0, fontSize: 11.5 }}>{busy ? 'Analyse…' : '↻ Re-scorer'}</button>
     </div>
   );
 }

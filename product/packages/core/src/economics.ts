@@ -63,6 +63,7 @@ export const COST_MODEL: CostItem[] = [
   { action: 'transcription_min',label: 'Transcription',       provider: 'ASR (Whisper-class)',             realEur: 0.006, unit: 'minute' },
   { action: 'chat',             label: 'Assistant (message)', provider: 'Anthropic · Claude',              realEur: 0.006, unit: 'message' },
   { action: 'suggest',          label: 'Suggestion IA',       provider: 'Anthropic · Claude',              realEur: 0.005, unit: 'suggestion', note: 'Angle, brief image/vidéo proposé par l’IA.' },
+  { action: 'score',            label: 'Score Jarvis',        provider: 'Anthropic · Claude',              realEur: 0.012, unit: 'évaluation', note: 'Évaluation performance d’une créa par Jarvis.' },
 ];
 
 /* ============ Catalogue de modèles image · coût réel -> crédits par variante ============ */
