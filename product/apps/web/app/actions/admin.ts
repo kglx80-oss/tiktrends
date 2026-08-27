@@ -5,11 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession, hashPassword, verifyPassword } from '../../lib/auth';
-import { isFounder } from '../../lib/founder';
-import { roleAtLeast, type Plan } from '../../lib/rbac';
+import { roleAtLeast } from '../../lib/rbac';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
-const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 
 /* ------------------------------- Profil ---------------------------------- */
 export async function updateProfileAction(formData: FormData): Promise<void> {
@@ -72,22 +70,6 @@ export async function saveWorkspaceNameAction(_prev: { ok?: boolean; error?: str
   await db.update(schema.workspaces).set({ name }).where(eq(schema.workspaces.id, s.workspaceId));
   revalidatePath('/', 'layout');
   return { ok: true };
-}
-
-/**
- * Bascule directe de la formule · pilotage interne plateforme uniquement.
- * Le rôle « owner » est attribué automatiquement à chaque inscription : il ne peut
- * donc pas garder une action qui débloque des fonctionnalités payantes. Les clients
- * changent de formule via Stripe (/billing).
- */
-export async function setPlanAction(formData: FormData): Promise<void> {
-  const s = await getSession();
-  if (!s || !db) redirect('/login');
-  if (!isFounder(s.user.email)) redirect('/settings?e=forbidden');
-  const plan = norm(formData.get('plan')) as Plan;
-  if (!PLANS.includes(plan)) redirect('/settings?e=plan');
-  await db.update(schema.workspaces).set({ plan }).where(eq(schema.workspaces.id, s.workspaceId));
-  redirect('/settings?ok=plan');
 }
 
 /* Les actions « tickets » vivent désormais dans actions/support.ts

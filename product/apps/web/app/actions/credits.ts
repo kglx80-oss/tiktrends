@@ -27,22 +27,24 @@ async function addCredits(workspaceId: string, delta: number, reason: string) {
 export async function grantCreditsAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
-  if (!isFounder(s.user.email)) redirect('/credits?e=forbidden');
+  const home = formData.get('back') === 'admin' ? '/admin/plans' : '/credits';
+  if (!isFounder(s.user.email)) redirect(`${home}?e=forbidden`);
   const amount = parseInt(norm(formData.get('amount')), 10);
   const reason = norm(formData.get('reason')) || 'Ajustement manuel';
-  if (!Number.isFinite(amount) || amount === 0) redirect('/credits?e=amount');
+  if (!Number.isFinite(amount) || amount === 0) redirect(`${home}?e=amount`);
   await addCredits(s.workspaceId, amount, reason);
-  redirect('/credits?ok=grant');
+  redirect(`${home}?ok=grant`);
 }
 
 /** Recharger l'allocation mensuelle selon le plan · fondateur uniquement (même raison). */
-export async function rechargeAllocationAction(): Promise<void> {
+export async function rechargeAllocationAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
-  if (!isFounder(s.user.email)) redirect('/credits?e=forbidden');
+  const home = formData.get('back') === 'admin' ? '/admin/plans' : '/credits';
+  if (!isFounder(s.user.email)) redirect(`${home}?e=forbidden`);
   const alloc = PLAN_CREDITS[s.plan as Plan] ?? 0;
   const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
   const delta = alloc - (w?.c ?? 0);
   if (delta > 0) await addCredits(s.workspaceId, delta, `Allocation mensuelle (${s.plan})`);
-  redirect('/credits?ok=recharge');
+  redirect(`${home}?ok=recharge`);
 }

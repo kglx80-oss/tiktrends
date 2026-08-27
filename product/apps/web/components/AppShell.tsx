@@ -19,13 +19,15 @@ const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: string 
   { key: 'a-home', label: "Vue d'ensemble", href: '/admin', icon: 'grid' },
   { key: 'a-fin', label: 'Finance · MRR', href: '/admin/finance', icon: 'chart' },
   { key: 'a-signups', label: 'Inscriptions', href: '/admin/signups', icon: 'users' },
-  { key: 'a-credits', label: 'Crédits & marges', href: '/credits', icon: 'coin' },
+  { key: 'a-plans', label: 'Formules & crédits', href: '/admin/plans', icon: 'card' },
+  { key: 'a-credits', label: 'Coûts & marges', href: '/credits', icon: 'coin' },
   { key: 'a-console', label: 'Console', href: '/console', icon: 'gauge' },
   { key: 'a-jarvis', label: 'Jarvis', href: '/jarvis', icon: 'brain' },
   { key: 'a-intel', label: 'Intelligence marché', href: '/admin/intelligence', icon: 'radar' },
-  { key: 'a-billing', label: 'Plans & Facturation', href: '/billing', icon: 'card' },
-  { key: 'a-settings', label: 'Réglages', href: '/settings', icon: 'gear' },
 ];
+// Note : /billing et /settings sont des pages CLIENTES. Les lister ici basculait
+// toute la coquille en thème ADMIN+ dès qu'un membre du staff les ouvrait · le
+// pilotage interne vit maintenant dans /admin/plans.
 const ADMIN_CONTENT = {
   '--accent': '#f5a623',
   '--accent-strong': '#ffca6b',
@@ -226,7 +228,8 @@ function AppShellInner(props: Props) {
       { id: 'adm-home', label: 'ADMIN+ · Coulisses', group: 'Plateforme', href: '/admin', emoji: '🎛️', keywords: 'admin backstage console' },
       { id: 'adm-fin', label: 'Finance · MRR & marges', group: 'Plateforme', href: '/admin/finance', emoji: '📈', keywords: 'mrr revenu marge chiffre' },
       { id: 'adm-signups', label: 'Inscriptions & onboarding', group: 'Plateforme', href: '/admin/signups', emoji: '🧭', keywords: 'inscriptions comptes profils' },
-      { id: 'adm-credits', label: 'Crédits & marges', group: 'Plateforme', href: '/credits', emoji: '◈', keywords: 'crédits coût marge' },
+      { id: 'adm-plans', label: 'Formules & crédits · pilotage', group: 'Plateforme', href: '/admin/plans', emoji: '◈', keywords: 'formule plan crédit offrir ajuster' },
+      { id: 'adm-credits', label: 'Coûts & marges', group: 'Plateforme', href: '/credits', emoji: '％', keywords: 'crédits coût marge rentabilité' },
       { id: 'adm-jarvis', label: 'Jarvis', group: 'Plateforme', href: '/jarvis', emoji: '🧠', keywords: 'jarvis règles ia' },
       { id: 'adm-intel', label: 'Intelligence marché', group: 'Plateforme', href: '/admin/intelligence', emoji: '🔭', keywords: 'concurrents atria' },
       { id: 'adm-console', label: 'Console', group: 'Plateforme', href: '/console', emoji: '📟', keywords: 'console système diagnostics' },
