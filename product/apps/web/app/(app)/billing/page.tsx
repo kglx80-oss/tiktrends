@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
-import { CREDIT_EUR, creditMarkup } from '@tiktrends/core';
 import { changePlanAction } from '../../actions/billing';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
 import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
@@ -43,7 +42,6 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
     hasSub = !!w?.sub && ['active', 'trialing', 'past_due'].includes(w?.st ?? '');
   }
   const current = s.plan as Plan;
-  const markup = creditMarkup();
   const stripeOn = stripeConfigured();
   const STATUS_FR: Record<string, string> = { active: 'Actif', trialing: 'Essai', past_due: 'Paiement en retard', canceled: 'Annulé' };
 
@@ -54,8 +52,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ADMIN+</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 6, marginBottom: 18, maxWidth: 760, lineHeight: 1.6 }}>
-        Formule de l'espace <b>{s.workspaceName}</b>. Chaque formule ouvre une allocation mensuelle de crédits ·
-        1 crédit ≈ {CREDIT_EUR.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} € de valeur, indexé sur le coût réel des générations (× {markup}).
+        Formule de l'espace <b>{s.workspaceName}</b>. Chaque formule ouvre une allocation mensuelle de crédits :
+        les crédits se consomment à chaque génération (image, vidéo, analyse), selon l'action.
       </p>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
@@ -152,7 +150,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         {stripeOn ? (
           <><b style={{ color: 'var(--ink)' }}>🔒 Paiement sécurisé par Stripe.</b> Carte bancaire, factures automatiques et TVA gérées par Stripe · aucune donnée de carte ne transite par TikTrends. Le changement de formule et la résiliation se font dans <b>« Gérer mon abonnement »</b>.</>
         ) : (
-          <><b style={{ color: 'var(--ink)' }}>Pilotage interne.</b> Le paiement en ligne (Stripe) n'est pas encore activé sur ce serveur · le changement de formule est appliqué directement ici. La logique de coûts et de marges est détaillée dans <b>Crédits & marges</b>.</>
+          <><b style={{ color: 'var(--ink)' }}>Pilotage interne.</b> Le paiement en ligne (Stripe) n'est pas encore activé sur ce serveur · le changement de formule est appliqué directement ici.</>
         )}
       </div>
     </main>

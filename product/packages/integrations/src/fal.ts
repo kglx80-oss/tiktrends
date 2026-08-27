@@ -36,9 +36,10 @@ export function falFromEnv(): FalConfig | null {
     apiKey,
     baseUrl: process.env.FAL_BASE_URL || 'https://fal.run',
     queueUrl: process.env.FAL_QUEUE_URL || 'https://queue.fal.run',
+    // Catalogue réduit : Nano Banana 2 (défaut, fidélité produit) + GPT Image (texte net).
     imageModel: process.env.FAL_IMAGE_MODEL || 'fal-ai/nano-banana-2',
-    imageModelI2I: process.env.FAL_IMAGE_MODEL_I2I || 'fal-ai/flux/dev/image-to-image',
-    imageModelText: process.env.FAL_IMAGE_MODEL_TEXT || 'fal-ai/ideogram/v3',
+    imageModelI2I: process.env.FAL_IMAGE_MODEL_I2I || 'fal-ai/nano-banana-2/edit',
+    imageModelText: process.env.FAL_IMAGE_MODEL_TEXT || 'fal-ai/nano-banana-2',
     imageModelEdit: process.env.FAL_IMAGE_MODEL_EDIT || 'fal-ai/nano-banana-2/edit',
     videoModel: process.env.FAL_VIDEO_MODEL || 'fal-ai/kling-video/v2.5-turbo/pro/text-to-video',
     videoModelI2V: process.env.FAL_VIDEO_MODEL_I2V || 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video',
@@ -56,6 +57,11 @@ const IMAGE_SIZE: Record<FalAspect, string> = {
 // Nano Banana / modèles récents : ratio natif (le modèle choisit la résolution -> proportions respectées).
 const ASPECT_STR: Record<FalAspect, string> = { '9:16': '9:16', '4:5': '4:5', '1:1': '1:1', '16:9': '16:9' };
 const isNano = (model: string) => /nano-banana/i.test(model);
+const isGptImage = (model: string) => /gpt-image/i.test(model);
+// GPT Image attend une taille explicite (et non un image_size Flux).
+const GPT_SIZE: Record<FalAspect, string> = {
+  '9:16': '1024x1536', '4:5': '1024x1536', '1:1': '1024x1024', '16:9': '1536x1024',
+};
 
 function pickString(obj: Record<string, unknown>, keys: string[]): string | undefined {
   for (const k of keys) { const v = obj[k]; if (typeof v === 'string' && v) return v; }
@@ -85,6 +91,10 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
     // Ratio natif : le modèle calcule la résolution -> pas de déformation.
     body.aspect_ratio = ASPECT_STR[ratio];
     if (hasRef) body.image_urls = refs; // Nano Banana : plusieurs références possibles
+  } else if (isGptImage(model)) {
+    // GPT Image : taille explicite + références multiples.
+    body.image_size = GPT_SIZE[ratio];
+    if (hasRef) body.image_urls = refs;
   } else {
     body.image_size = IMAGE_SIZE[ratio];
     body.output_format = 'jpeg';

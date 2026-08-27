@@ -84,15 +84,18 @@ export interface ImageModelSpec {
  * Le nombre de crédits suit la même logique que le reste (coût réel × marge), arrondi.
  */
 export const IMAGE_MODELS: ImageModelSpec[] = [
-  { key: 'nano',         label: 'Nano Banana 2',       falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.039, credits: 4,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
-  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.09, credits: 8, note: 'Détail & cohérence renforcés', supportsRef: true },
-  { key: 'flux_kontext', label: 'FLUX Pro · Kontext',  falModel: 'fal-ai/flux-pro/kontext',   realEur: 0.04,  credits: 4,  note: 'Style précis avec références', supportsRef: true },
-  { key: 'ideogram',     label: 'Ideogram v3',         falModel: 'fal-ai/ideogram/v3',        realEur: 0.06,  credits: 6,  note: 'Texte net dans l’image' },
-  { key: 'seedream',     label: 'Seedream v4',         falModel: 'fal-ai/bytedance/seedream/v4', realEur: 0.02, credits: 2, note: 'Rapide & net · pubs produit', supportsRef: true },
+  { key: 'nano',         label: 'Nano Banana 2',         falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.039, credits: 4,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
+  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.09,  credits: 8,  note: 'Détail & cohérence renforcés', supportsRef: true },
+  { key: 'gpt_image',    label: 'GPT Image',             falModel: 'fal-ai/gpt-image-1/edit-image/byok', realEur: 0.08,  credits: 8,  note: 'Texte net & respect du brief', supportsRef: true },
+  // Note : l'identifiant du modèle GPT Image est surchargeable via FAL_IMAGE_MODEL_GPT
+  // (les variantes « byok » de Fal réclament une clé OpenAI côté serveur).
 ];
 
 export function imageModelByKey(key?: string | null): ImageModelSpec {
-  return IMAGE_MODELS.find((m) => m.key === key) || IMAGE_MODELS[0]!;
+  const spec = IMAGE_MODELS.find((m) => m.key === key) || IMAGE_MODELS[0]!;
+  // Surcharge d'environnement de l'identifiant Fal (utile pour GPT Image / variantes byok).
+  const override = spec.key === 'gpt_image' ? process.env.FAL_IMAGE_MODEL_GPT : undefined;
+  return override ? { ...spec, falModel: override } : spec;
 }
 
 export interface CostAnalysis extends CostItem {
