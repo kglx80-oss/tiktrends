@@ -3,16 +3,19 @@
 import { useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
 import { AdsMapTable } from './AdsMapTable';
+import { Inbox } from './Inbox';
 
 /**
- * Bascule Table / Carte.
+ * Trois lectures du même graphe.
+ *
+ * **À décider** répond à « qu'est-ce que je fais maintenant » · c'est l'onglet
+ * par défaut, parce que c'est la question qu'on se pose vraiment en ouvrant
+ * l'outil un lundi matin. La Table répond à « où en est ce test », la Carte à
+ * « qu'est-ce qu'on n'a pas encore essayé ».
  *
  * Le canvas est chargé par `next/dynamic` avec `ssr: false` (décision D8) :
  * `@xyflow/react` et `elkjs` pèsent plus que tout le reste de l'application
- * réunie, et rien ne justifie de les servir à quelqu'un qui reste sur la Table.
- *
- * La Table reste l'onglet par défaut · c'est elle qui répond à « où en est ce
- * test », la question qu'on se pose en ouvrant l'outil un matin.
+ * réunie, et rien ne justifie de les servir à quelqu'un qui ne les ouvre pas.
  */
 
 const Canvas = dynamic(() => import('./Canvas').then((m) => m.Canvas), {
@@ -21,20 +24,34 @@ const Canvas = dynamic(() => import('./Canvas').then((m) => m.Canvas), {
 });
 
 export function Views({ batches }: { batches: Array<{ id: string; number: number; status: string; ads: number }> }) {
-  const [vue, setVue] = useState<'table' | 'carte'>('table');
+  const [vue, setVue] = useState<'decider' | 'table' | 'carte'>('decider');
+  // Onglets déjà ouverts · la Table n'est montée qu'à la première visite, puis
+  // gardée. Muter pendant le rendu serait un effet de bord · on passe par l'état.
+  const [ouverts, setOuverts] = useState<string[]>(['decider']);
+  const aller = (v: 'decider' | 'table' | 'carte') => {
+    setVue(v);
+    setOuverts((o) => (o.includes(v) ? o : [...o, v]));
+  };
 
   return (
     <>
       <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        <button type="button" onClick={() => setVue('table')} style={onglet(vue === 'table')}>Table</button>
-        <button type="button" onClick={() => setVue('carte')} style={onglet(vue === 'carte')}>Carte</button>
+        <button type="button" onClick={() => aller('decider')} style={onglet(vue === 'decider')}>À décider</button>
+        <button type="button" onClick={() => aller('table')} style={onglet(vue === 'table')}>Table</button>
+        <button type="button" onClick={() => aller('carte')} style={onglet(vue === 'carte')}>Carte</button>
       </div>
 
-      {/* La Table reste montée pendant qu'on regarde la carte : revenir dessus ne
-          doit pas recharger mille lignes ni perdre les filtres posés. */}
-      <div style={{ display: vue === 'table' ? 'block' : 'none' }}>
-        <AdsMapTable batches={batches} />
-      </div>
+      {vue === 'decider' && <Inbox />}
+
+      {/* La Table reste montée quand on la quitte : y revenir ne doit pas
+          recharger mille lignes ni perdre les filtres posés. Elle n'est en
+          revanche montée qu'à la première visite · l'onglet par défaut est la
+          file, et personne n'a à payer le chargement d'une table qu'il n'ouvre pas. */}
+      {ouverts.includes('table') && (
+        <div style={{ display: vue === 'table' ? 'block' : 'none' }}>
+          <AdsMapTable batches={batches} />
+        </div>
+      )}
       {vue === 'carte' && <Canvas />}
     </>
   );
