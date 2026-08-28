@@ -27,3 +27,4 @@ export * from './adsmap/rollup';
 export * from './adsmap/graph';
 export * from './adsmap/asset-taxonomy';
 export * from './adsmap/decisions';
+export * from './adsmap/proposal-taxonomy';

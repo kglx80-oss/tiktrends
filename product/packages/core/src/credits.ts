@@ -2,7 +2,7 @@
 export type CreditAction =
   | 'tag_video' | 'tag_image' | 'transcription_min' | 'script' | 'brief'
   | 'image' | 'review_mining' | 'report' | 'clone_image' | 'chat' | 'video' | 'suggest' | 'score'
-  | 'asset_analysis';
+  | 'asset_analysis' | 'map_proposal';
 
 export const CREDIT_COSTS: Record<CreditAction, number> = {
   tag_video: 2, tag_image: 1, transcription_min: 1, script: 3, brief: 5,
@@ -12,6 +12,9 @@ export const CREDIT_COSTS: Record<CreditAction, number> = {
   // Analyse d'asset ADSMAP (agent A0) : un appel vision court, sur une frame et
   // une transcription. Facturé comme un tag vidéo · c'est le même ordre de coût.
   asset_analysis: 2,
+  // Proposition de carte (agents A1-A3) : un appel de génération structurée par
+  // lot de propositions. Même ordre qu'un brief · c'est le même travail.
+  map_proposal: 5,
 };
 
 export function costFor(action: CreditAction, units = 1): number {

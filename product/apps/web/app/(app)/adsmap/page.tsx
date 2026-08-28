@@ -108,7 +108,7 @@ export default async function AdsMapPage() {
         que là.
       </PageInfo>
 
-      <Views batches={batches} />
+      <Views batches={batches} canBuild={peutMesurer} />
     </main>
   );
 }
