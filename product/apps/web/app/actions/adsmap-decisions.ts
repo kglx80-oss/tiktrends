@@ -31,14 +31,6 @@ export interface InboxItem extends Decision {
 
 export interface Inbox { items: InboxItem[]; summary: string; dismissed: number }
 
-/**
- * Recalcule la file et la persiste.
- *
- * Idempotent par (marque, type, cible) : une décision déjà ouverte n'est pas
- * dupliquée, et les décisions dont l'objet a disparu sont supprimées. Ce qu'un
- * humain a explicitement écarté (`dismissed`) est en revanche RESPECTÉ · le
- * repropose chaque nuit serait la meilleure façon de faire fermer l'écran.
- */
 /** Recalcule la file à la demande · la synchro nocturne fait la même chose sans session. */
 export async function refreshDecisionsAction(): Promise<{ inbox?: Inbox; error?: string }> {
   const g = await adsmapGuard();

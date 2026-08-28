@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
 import { AdsMapTable } from './AdsMapTable';
 import { Inbox } from './Inbox';
+import { BuildPanel } from './BuildPanel';
 
 /**
  * Trois lectures du même graphe.
@@ -23,7 +24,7 @@ const Canvas = dynamic(() => import('./Canvas').then((m) => m.Canvas), {
   loading: () => <p style={{ color: 'var(--muted)', fontSize: 13 }}>Chargement de la carte…</p>,
 });
 
-export function Views({ batches }: { batches: Array<{ id: string; number: number; status: string; ads: number }> }) {
+export function Views({ batches, canBuild = false }: { batches: Array<{ id: string; number: number; status: string; ads: number }>; canBuild?: boolean }) {
   const [vue, setVue] = useState<'decider' | 'table' | 'carte'>('decider');
   // Onglets déjà ouverts · la Table n'est montée qu'à la première visite, puis
   // gardée. Muter pendant le rendu serait un effet de bord · on passe par l'état.
@@ -52,7 +53,14 @@ export function Views({ batches }: { batches: Array<{ id: string; number: number
           <AdsMapTable batches={batches} />
         </div>
       )}
-      {vue === 'carte' && <Canvas />}
+      {vue === 'carte' && (
+        <>
+          <Canvas />
+          {/* La construction vit sous la Carte : c'est là qu'on voit les branches
+              vides, donc là qu'on a envie de les remplir. */}
+          {canBuild && <BuildPanel />}
+        </>
+      )}
     </>
   );
 }

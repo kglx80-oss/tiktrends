@@ -365,3 +365,39 @@ de l'écran.
 synchro nocturne doit pouvoir la rafraîchir sans session. Une file recalculée
 seulement quand quelqu'un ouvre l'écran arriverait toujours en retard sur la
 mesure · or c'est la mesure qui la remplit.
+
+---
+
+## D21 — Les agents proposent nœud par nœud, jamais la carte entière
+
+**Contexte.** A1 à A3 pourraient descendre l'arbre tout seuls : trois avatars,
+quatre désirs chacun, quatre angles par désir, trois concepts par angle. Un
+bouton « générer la carte » produirait cent cinquante nœuds en un clic.
+
+**Décision.** On ne propose de descendre qu'à partir d'un nœud choisi.
+
+**Pourquoi.** Cent cinquante nœuds ne sont pas relus. Une carte non relue vaut
+moins qu'une carte vide : elle donne l'illusion d'un travail de stratégie, et
+l'équipe teste ensuite des angles que personne n'a jamais assumés. Le coût du
+clic supplémentaire est le prix de la relecture.
+
+**Conséquence.** Tout entre en `proposed`, et le compte rendu dit ce qui a été
+ÉCARTÉ autant que ce qui a été créé. Un agent relancé propose les mêmes désirs ·
+afficher « 4 propositions » dont 3 sont des jumeaux le ferait passer pour plus
+productif qu'il n'est.
+
+---
+
+## D22 — Un angle sans mécanisme reconnu est rejeté, pas complété
+
+**Contexte.** La normalisation des sorties d'agents suit la même discipline que
+celle d'A0 : liste fermée, synonymes connus, `null` sur l'inconnu.
+
+**Décision.** Exception pour le mécanisme d'un angle : l'angle est REJETÉ, et son
+libellé affiché.
+
+**Pourquoi.** Le mécanisme est ce qui rend un angle comparable à un autre · c'est
+la dimension sur laquelle Jarvis apprend. Un angle qui n'en porte pas n'est pas
+une proposition incomplète, c'est une phrase sans contenu testable. Lui attribuer
+un mécanisme par défaut le ferait entrer dans les statistiques sous une étiquette
+que personne n'a choisie.
