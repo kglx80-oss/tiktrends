@@ -2,12 +2,13 @@
 
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { anthropicFromEnv, analyzeAdAsset } from '@tiktrends/ai';
+import { analyzeAdAsset } from '@tiktrends/ai';
 import { normalizeAnalysis, summarizeAnalysis, costFor, type AssetAnalysis } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credits';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
+import { guardedAnthropic } from '../../lib/spend-guard';
 
 /**
  * ADSMAP · agent A0, analyse d'asset (§8.2).
@@ -134,7 +135,7 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
   const g = await adsmapGuard();
   if ('error' in g) return { error: g.error };
 
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'adsmap-analyze' });
   if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
 
   try {

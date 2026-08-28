@@ -6,9 +6,10 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
-import { anthropicFromEnv, analyzeCompetitor, type CompetitorInsights } from '@tiktrends/ai';
+import { analyzeCompetitor, type CompetitorInsights } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
+import { guardedAnthropic } from '../../lib/spend-guard';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
@@ -88,7 +89,7 @@ export async function analyzeCompetitorAction(formData: FormData): Promise<void>
   // 2) Analyse IA des patterns (si clé présente), débit crédits.
   let insights: CompetitorInsights | null = null;
   let note: string | undefined;
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'competitor' });
   if (client) {
     const cost = costFor('report');
     const unlimited = unlimitedCredits(g.email);

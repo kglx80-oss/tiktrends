@@ -2,11 +2,12 @@
 
 import { getSession } from '../../lib/auth';
 import { FEATURES, canAccess } from '../../lib/rbac';
-import { anthropicFromEnv, generateCreative, type CreativeOutput } from '@tiktrends/ai';
+import { generateCreative, type CreativeOutput } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { effectiveAccess } from '../../lib/access';
+import { guardedAnthropic } from '../../lib/spend-guard';
 
 const feature = FEATURES.find((f) => f.key === 'studio')!;
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
@@ -26,7 +27,7 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
   const product = norm(formData.get('product'));
   if (!product) return { error: 'Indique au moins un produit ou une marque.' };
 
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'studio' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur (ANTHROPIC_API_KEY manquante)." };
 
   // Débit atomique AVANT la génération : un seul UPDATE conditionnel, donc deux

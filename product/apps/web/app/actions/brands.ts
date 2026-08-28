@@ -7,13 +7,14 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { BRAND_COOKIE } from '../../lib/brands';
-import { anthropicFromEnv, generateBrandProfile, type BrandProfileDraft } from '@tiktrends/ai';
+import { generateBrandProfile, type BrandProfileDraft } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { discoverShopify } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
 import { logAndTranslate } from '../../lib/error-log';
+import { guardedAnthropic } from '../../lib/spend-guard';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const lines = (v: FormDataEntryValue | null) => norm(v).split('\n').map((x) => x.trim()).filter(Boolean);
@@ -45,7 +46,7 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
   const url = norm(formData.get('url'));
   if (!name) return { error: 'Indique au moins le nom de la marque.' };
 
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'brands' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur (clé manquante). Remplis le profil manuellement." };
 
   const cost = costFor('brief');

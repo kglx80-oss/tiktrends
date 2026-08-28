@@ -4,12 +4,13 @@ import { and, desc, eq, or, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { driveRefreshTokenFor } from '../../lib/drive-token';
-import { anthropicFromEnv, describeAssetImage } from '@tiktrends/ai';
+import { describeAssetImage } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
+import { guardedAnthropic } from '../../lib/spend-guard';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
@@ -122,7 +123,7 @@ export async function toggleAssetAiAction(input: { id: string; useForAi: boolean
 export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true; tags?: string[]; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'assets' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const [a] = await db.select().from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   if (!a) return { error: 'Asset introuvable.' };
@@ -163,7 +164,7 @@ export async function countUntaggedImages(): Promise<number> {
 export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: number; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'assets' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('tag_image', 1);

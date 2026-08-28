@@ -3,7 +3,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  anthropicFromEnv, proposePersonas, proposeDesires, proposeAngles, proposeConcepts,
+  proposePersonas, proposeDesires, proposeAngles, proposeConcepts,
   type BrandContext,
 } from '@tiktrends/ai';
 import {
@@ -13,6 +13,7 @@ import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credits';
 import { jarvisMeasuredMemory } from '../../lib/jarvis-memory';
+import { guardedAnthropic } from '../../lib/spend-guard';
 
 /**
  * ADSMAP · agents A1 à A3, remplissage de la carte (§8.3).
@@ -110,7 +111,7 @@ const bilan = (quoi: string, created: number, duplicates: number, rejected: stri
 export async function proposePersonasAction(count = 3): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'adsmap-propose' });
   if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
 
   try {
@@ -146,7 +147,7 @@ export async function proposePersonasAction(count = 3): Promise<ProposeResult> {
 export async function proposeDesiresAction(personaId: string, count = 4): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'adsmap-propose' });
   if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
 
   try {
@@ -191,7 +192,7 @@ export async function proposeDesiresAction(personaId: string, count = 4): Promis
 export async function proposeAnglesAction(desireId: string, count = 4): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'adsmap-propose' });
   if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
 
   try {
@@ -240,7 +241,7 @@ export async function proposeAnglesAction(desireId: string, count = 4): Promise<
 export async function proposeConceptsAction(angleId: string, count = 3): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'adsmap-propose' });
   if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
 
   try {

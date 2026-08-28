@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
-import { anthropicFromEnv, generateProducts, generateBrandProfile } from '@tiktrends/ai';
+import { generateProducts, generateBrandProfile } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
 import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
 import { costFor, imageModelByKey } from '@tiktrends/core';
@@ -14,6 +14,7 @@ import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
 import { logAndTranslate } from '../../lib/error-log';
+import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -31,7 +32,7 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
   const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
   if (!b) redirect('/brands');
 
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'brand-detail' });
   if (!client) redirect(`/brands/${brandId}?tab=overview&e=ai`);
 
   const unlimited = unlimitedCredits(g.email);
@@ -168,6 +169,7 @@ export async function generateScenarioImageAction(input: { brandId: string; scen
   const prompt = `Photographie lifestyle réaliste illustrant ce contexte d'usage : ${sc.title}. ${sc.context || ''} `
     + 'Cadrage naturel, lumière douce et crédible, ambiance authentique. Aucun texte, aucun logo, aucune marque visible.';
   try {
+    await guardFixedCost('fal_image', { action: 'brand-detail:image', workspaceId: g.workspaceId, units: 1 });
     const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: '1:1', count: 1 });
     const url = images?.[0];
     if (!url) {
@@ -289,7 +291,7 @@ export async function importProductsAction(formData: FormData): Promise<void> {
   const [brand] = await db.select({ url: schema.brands.url, name: schema.brands.name }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
   if (!brand?.url) redirect(`/brands/${brandId}?tab=products&e=nourl`);
 
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'brand-detail' });
   if (!client) redirect(`/brands/${brandId}?tab=products&e=ai`);
 
   const cost = costFor('brief');

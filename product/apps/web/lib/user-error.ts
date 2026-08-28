@@ -39,6 +39,10 @@ export function userError(e: unknown, opts: UserErrorOptions = {}): string {
   const sujet = opts.subject ?? "l'opération";
   const Sujet = sujet.charAt(0).toUpperCase() + sujet.slice(1);
 
+  // Plafond de dépense · le message porte déjà les chiffres, on le rend tel
+  // quel. Le traduire ferait perdre le montant restant, qui est l'information.
+  if (/plafond de dépense/i.test(msg)) return msg;
+
   // Délai dépassé (AbortSignal.timeout, SDK, proxy).
   if (/timeout|timedout|aborted|abort ?error|etimedout|deadline/.test(low)) {
     return `${Sujet} a mis trop de temps et a été interrompue. Réessaie · si ça se reproduit, réduis la quantité demandée.`;

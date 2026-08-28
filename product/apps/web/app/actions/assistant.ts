@@ -4,10 +4,11 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
-import { anthropicFromEnv, chatAssistant, type ChatMessage } from '@tiktrends/ai';
+import { chatAssistant, type ChatMessage } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
+import { guardedAnthropic } from '../../lib/spend-guard';
 
 export interface AskResult { reply?: string; error?: string }
 
@@ -18,7 +19,7 @@ export async function askAssistant(history: ChatMessage[], question: string): Pr
   const q = question.trim();
   if (!q) return { error: 'Pose une question.' };
 
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'assistant' });
   if (!client) return { error: "L'assistant IA n'est pas encore activé (clé serveur manquante)." };
 
   // Débit atomique avant l'appel (remboursé en cas d'échec) : la vérification puis
