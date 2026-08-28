@@ -332,3 +332,36 @@ Et une échéance est posée d'office : un lien sans date traîne dans un fil de
 messages et finit par montrer à un ancien client ce que fait l'agence
 aujourd'hui. L'oubli est le mode de fuite le plus courant, et il ne demande
 aucune malveillance.
+
+---
+
+## D20 — La file de décisions est recalculée, jamais accumulée
+
+**Contexte.** Le module produit maintenant des verdicts, des contrôles de
+protocole, un graphe avec ses branches mortes. Le risque n'est plus de manquer
+d'information mais d'en avoir trop · une table de trois cents lignes lue tous les
+matins finit par n'être plus lue du tout.
+
+**Décision.** La file est **recalculée** à chaque mesure. Une décision dont
+l'objet a disparu (l'ad a été coupée, le verdict arbitré) est supprimée, pas
+marquée close.
+
+**Pourquoi.** Une file qui garde des tâches devenues sans objet cesse d'être lue
+plus vite qu'une table · le premier réflexe devient de la parcourir en diagonale
+pour trier le mort du vivant, et c'est exactement ce qu'elle devait éviter.
+
+**L'exception.** Ce qu'un humain a explicitement écarté (`dismissed`) n'est
+jamais reproposé. « Je l'ai fait » et « ce n'est pas un problème » n'appellent
+pas le même comportement demain, d'où deux boutons distincts et non un.
+
+**Trois règles de contenu.** Chaque décision dit ce qu'elle COÛTE, pas ce qu'elle
+est — « verdict à arbitrer » n'est pas une raison d'ouvrir l'outil, « 340 €
+dépensés dont personne n'a rien appris » en est une. L'ordre suit l'argent, pas
+la chronologie. Et chaque type est plafonné : trente décisions du même genre ne
+sont pas trente décisions, c'est une seule, et le reste repousse les autres hors
+de l'écran.
+
+**Où elle se calcule.** Dans `lib/decisions.ts`, pas dans l'action serveur : la
+synchro nocturne doit pouvoir la rafraîchir sans session. Une file recalculée
+seulement quand quelqu'un ouvre l'écran arriverait toujours en retard sur la
+mesure · or c'est la mesure qui la remplit.

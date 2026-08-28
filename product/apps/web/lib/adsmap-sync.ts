@@ -6,6 +6,7 @@ import {
   checkProtocol, summarizeProtocol, computeVerdict, deriveMetrics, DEFAULT_VERDICT_CONFIG,
   type DailyRow, type VerdictConfig, type ProtocolAd, type ProtocolRules, type AdMetrics,
 } from '@tiktrends/core';
+import { refreshDecisions } from './decisions';
 
 /**
  * ADSMAP · mesure quotidienne de la carte.
@@ -364,6 +365,16 @@ async function syncBrand(
   }
 
   await db.update(schema.brands).set({ adsmapSyncedAt: aujourdhui }).where(eq(schema.brands.id, brand.id));
+
+  // La file de décisions se recalcule ICI, juste après la mesure. Attendre que
+  // quelqu'un ouvre l'écran la ferait arriver en retard sur les chiffres qui la
+  // remplissent · et c'est le matin qu'on veut la trouver prête.
+  try {
+    await refreshDecisions(brand.workspaceId, brand.id);
+  } catch (e) {
+    // Best-effort : une file non recalculée n'invalide pas la mesure qui précède.
+    console.error('[adsmap] décisions', brand.id, (e as Error).message);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
