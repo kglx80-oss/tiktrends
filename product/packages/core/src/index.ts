@@ -25,3 +25,4 @@ export * from './adsmap/protocol';
 export * from './adsmap/brand-stats';
 export * from './adsmap/rollup';
 export * from './adsmap/graph';
+export * from './adsmap/asset-taxonomy';

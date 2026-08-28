@@ -8,3 +8,4 @@ export * from './ads';
 export * from './critique';
 export * from './brand';
 export * from './chat';
+export * from './adsmap-asset';
