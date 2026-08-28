@@ -63,3 +63,42 @@ export function buildName(pattern: string, values: Record<string, string | numbe
     return slugToken(v === null || v === undefined ? '' : String(v));
   });
 }
+
+/**
+ * Les noms d'un lot entier, garantis DISTINCTS.
+ *
+ * L'unicité est une propriété de l'ensemble, pas d'un nom pris seul · `buildName`
+ * ne peut pas la connaître. Et elle n'est pas décorative : deux annonces d'un même
+ * lot qui portent le même nom se rattacheraient l'une à l'autre, `matchByName`
+ * refuserait de trancher (à raison), et les DEUX resteraient sans mesure.
+ *
+ * Le cas se produit pour de bon : deux concepts qui portent le même titre sous
+ * deux angles différents sont deux concepts distincts en base, mais leur titre,
+ * seul jeton qui entre dans le nom, est identique.
+ *
+ * On suffixe alors le jeton indiqué (`-2`, `-3`…) plutôt que d'inventer un
+ * identifiant : le nom reste lisible par un humain dans le gestionnaire de
+ * publicités, et relisible par le parser.
+ */
+export function buildUniqueNames(
+  pattern: string,
+  rows: Array<Record<string, string | number | null | undefined>>,
+  disambiguate = 'concept',
+): string[] {
+  const vus = new Set<string>();
+  return rows.map((values) => {
+    let nom = buildName(pattern, values);
+    if (!vus.has(nom)) { vus.add(nom); return nom; }
+
+    const base = values[disambiguate];
+    const brut = base === null || base === undefined ? '' : String(base);
+    // On borne : au-delà, le motif lui-même ne discrimine pas et il vaut mieux
+    // s'arrêter que d'allonger indéfiniment un nom que la régie tronquera.
+    for (let i = 2; i <= 50; i++) {
+      nom = buildName(pattern, { ...values, [disambiguate]: `${brut}-${i}` });
+      if (!vus.has(nom)) break;
+    }
+    vus.add(nom);
+    return nom;
+  });
+}

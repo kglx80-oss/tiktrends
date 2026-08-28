@@ -3,7 +3,7 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  buildName, checkAdReady, formatViolations, resolveCampaignName,
+  buildUniqueNames, checkAdReady, formatViolations, resolveCampaignName,
   DEFAULT_VERDICT_CONFIG, type VerdictConfig, type AdShape,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
@@ -306,14 +306,20 @@ export async function prepareBatchAction(batchId: string): Promise<PrepareResult
     let named = 0;
     let ready = 0;
 
-    for (const r of rows) {
-      const nom = buildName(cfg.namingPattern, {
-        brand: g.brand.name,
-        batch: b.number,
-        concept: r.concept ?? 'concept',
-        variant: r.ad.variantCode,
-        variable: r.ad.testedVariable ?? 'controle',
-      });
+    // Les noms se génèrent pour le lot ENTIER, pas ad par ad : l'unicité est une
+    // propriété de l'ensemble. Deux concepts de même titre sous deux angles
+    // différents produiraient sinon le même nom, et les deux ads resteraient
+    // sans mesure · `matchByName` refuse de trancher une ambiguïté, à raison.
+    const noms = buildUniqueNames(cfg.namingPattern, rows.map((r) => ({
+      brand: g.brand.name,
+      batch: b.number,
+      concept: r.concept ?? 'concept',
+      variant: r.ad.variantCode,
+      variable: r.ad.testedVariable ?? 'controle',
+    })));
+
+    for (const [i, r] of rows.entries()) {
+      const nom = noms[i]!;
 
       const manque = formatViolations(checkAdReady({
         status: 'ready', adType: r.ad.adType, hypothesis: r.ad.hypothesis,
