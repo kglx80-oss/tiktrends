@@ -275,3 +275,105 @@ export const SAMPLE_INSPO_ADS: InspoAd[] = [
     callToAction: 'ORDER NOW', landingDomain: 'amazon.de', reach: 16151675, estimatedSpend: 145365, reachDelta7d: 8918178, mainCountry: 'DE',
   },
 ];
+
+/* ---------------------------- Transcriptions ------------------------------ */
+
+/**
+ * Transcription d'une publicité vidéo.
+ *
+ * ── Pourquoi ce code est défensif ────────────────────────────────────────────
+ *
+ * Le contrat exact de cet endpoint n'a pas pu être vérifié contre la
+ * documentation : elle n'est pas joignable depuis l'environnement de
+ * développement. Plutôt que de deviner un chemin unique et de casser au premier
+ * appel, on essaie les formes plausibles dans l'ordre et on s'arrête à la
+ * première qui répond.
+ *
+ * Le point important est ce qui se passe en cas d'échec : on renvoie `null`, on
+ * ne lève pas. Une transcription est un ENRICHISSEMENT · l'analyse de la créa
+ * fonctionne sans elle, moins bien. Faire échouer tout un lot parce qu'une
+ * transcription manque serait échanger une dégradation contre une panne.
+ *
+ * `ttTranscriptSupported` permet de savoir si l'endpoint répond, une fois, sans
+ * relancer la découverte à chaque appel.
+ */
+
+/** Chemins plausibles, du plus probable au moins · essayés dans cet ordre. */
+const TRANSCRIPT_PATHS = (id: string): string[] => [
+  `/v1/ads/${encodeURIComponent(id)}/transcript`,
+  `/v1/ads/${encodeURIComponent(id)}/transcription`,
+  `/v1/transcripts/${encodeURIComponent(id)}`,
+];
+
+/** Mémorise ce qui a répondu · on ne redécouvre pas à chaque créa. */
+let transcriptPathIndex: number | null = null;
+let transcriptUnsupported = false;
+
+function pickTranscript(j: any): string | null {
+  const candidats = [
+    j?.transcript, j?.transcription, j?.text,
+    j?.data?.transcript, j?.data?.transcription, j?.data?.text,
+    Array.isArray(j?.segments) ? j.segments.map((s: any) => s?.text).filter(Boolean).join(' ') : null,
+  ];
+  for (const c of candidats) {
+    if (typeof c === 'string' && c.trim().length > 10) return c.replace(/\s+/g, ' ').trim();
+  }
+  return null;
+}
+
+/**
+ * Récupère la transcription d'une annonce · `null` quand elle n'existe pas ou
+ * que l'endpoint n'est pas disponible. Ne lève jamais.
+ */
+export async function ttGetTranscript(cfg: TrendtrackConfig, adId: string): Promise<string | null> {
+  if (transcriptUnsupported || !adId) return null;
+
+  // Une fois le bon chemin connu, on n'essaie plus que celui-là.
+  const chemins = transcriptPathIndex !== null
+    ? [TRANSCRIPT_PATHS(adId)[transcriptPathIndex]!]
+    : TRANSCRIPT_PATHS(adId);
+
+  for (const [i, chemin] of chemins.entries()) {
+    try {
+      const res = await fetch(new URL(chemin, cfg.baseUrl || DEFAULT_BASE), {
+        headers: { Authorization: `Bearer ${cfg.apiKey}`, Accept: 'application/json' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(20_000),
+      });
+      // 404 sur CE chemin : peut-être le mauvais chemin, on continue d'essayer.
+      if (res.status === 404) continue;
+      // 401/403 : la clé ne donne pas accès · inutile d'insister sur les autres
+      // chemins, et inutile de réessayer sur les créas suivantes.
+      if (res.status === 401 || res.status === 403) { transcriptUnsupported = true; return null; }
+      if (!res.ok) continue;
+
+      const j: any = await res.json();
+      const t = pickTranscript(j);
+      if (t) {
+        if (transcriptPathIndex === null) transcriptPathIndex = i;
+        return t.slice(0, 8000);
+      }
+      // Le chemin répond mais sans transcription · c'est le bon chemin, cette
+      // annonce n'en a simplement pas (image fixe, ou pas encore transcrite).
+      if (transcriptPathIndex === null) transcriptPathIndex = i;
+      return null;
+    } catch {
+      // Réseau, délai, JSON invalide · on essaie le chemin suivant.
+    }
+  }
+
+  // Aucun chemin n'a répondu : l'endpoint n'existe pas sur cette API.
+  if (transcriptPathIndex === null) transcriptUnsupported = true;
+  return null;
+}
+
+/** Vrai tant qu'on n'a pas constaté que l'endpoint est indisponible. */
+export function ttTranscriptSupported(): boolean {
+  return !transcriptUnsupported;
+}
+
+/** Remet la découverte à zéro · utile aux tests et après un changement de clé. */
+export function ttResetTranscriptProbe(): void {
+  transcriptPathIndex = null;
+  transcriptUnsupported = false;
+}

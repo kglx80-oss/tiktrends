@@ -8,6 +8,7 @@ import { jarvisStats, jarvisMeasuredMemory, jarvisHookView } from '../../../../l
 import { PageInfo } from '../../../../components/PageInfo';
 import { DescribePanel } from './DescribePanel';
 import { MarketPanel } from './MarketPanel';
+import { attributionViewAction } from '../../../actions/adsmap-attribution';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,11 +43,13 @@ export default async function JarvisPage() {
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) redirect('/adsmap');
 
-  const [{ stats, globalRate, nAds }, memoire, hooks] = await Promise.all([
+  const [{ stats, globalRate, nAds }, memoire, hooks, attribution] = await Promise.all([
     jarvisStats(brand.id, s.workspaceId),
     jarvisMeasuredMemory(brand.id, s.workspaceId),
     jarvisHookView(brand.id, s.workspaceId),
+    attributionViewAction(),
   ]);
+  const attr = attribution.view;
 
   const utiles = stats.filter((r) => r.nConclusive >= 3 && r.hitRate !== null);
   const parDim = ORDRE
@@ -133,6 +136,62 @@ export default async function JarvisPage() {
       {/* La description des créas est ce qui alimente la moitié des dimensions
           ci-dessus · l'encart reste visible même quand le tableau est vide, parce
           que c'est justement là qu'il sert le plus. */}
+      {/* Le contrôle AVANT tout le reste · un outil qui ne vérifie pas ses
+          propres règles n'apprend pas, il accumule. */}
+      {attr && (
+        <section style={{
+          marginTop: 22, padding: '16px 18px', borderRadius: 14,
+          border: `1px solid ${attr.overall.conclusive ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
+          background: 'var(--surface)',
+        }}>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+            Est-ce que Jarvis améliore vraiment les résultats ?
+          </h2>
+          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
+            Les créas générées <b>avec</b> la mémoire, comparées à celles générées <b>sans</b>, sur les
+            tests arbitrés. On ne cherche pas quelle accroche a produit quelle gagnante — c’est
+            indécidable — mais si l’ensemble fait bouger le taux.
+          </p>
+          <p style={{
+            margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
+            background: 'var(--paper)', border: '1px solid var(--line)',
+            fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
+            color: attr.overall.conclusive
+              ? (attr.overall.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095'
+              : 'var(--ink)',
+          }}>
+            {attr.overall.summary}
+          </p>
+
+          {attr.parts.some((p) => p.liftPoints !== null) && (
+            <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+              {attr.parts.filter((p) => p.liftPoints !== null).map((p) => (
+                <div key={p.part} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12, flexWrap: 'wrap' }}>
+                  <span style={{ width: 180, color: 'var(--ink-2)' }}>{p.label}</span>
+                  <span style={{ fontWeight: 700, color: p.conclusive ? ((p.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095') : 'var(--muted)' }}>
+                    {(p.liftPoints ?? 0) > 0 ? '+' : ''}{Math.round((p.liftPoints ?? 0) * 100)} pt
+                  </span>
+                  <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>
+                    {p.withIt.wins}/{p.withIt.n} contre {p.withoutIt.wins}/{p.withoutIt.n}
+                    {!p.conclusive && ' · pas encore tranché'}
+                  </span>
+                </div>
+              ))}
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+                Ces trois lignes ne s’additionnent pas · une génération peut bénéficier des trois, ce
+                sont trois comparaisons distinctes.
+              </p>
+            </div>
+          )}
+
+          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+            Ce n’est pas une expérience contrôlée : le groupe témoin est plus ancien, et une marque qui
+            progresse progresserait de toute façon. On ne conclut donc que si les intervalles de
+            confiance ne se chevauchent pas.
+          </p>
+        </section>
+      )}
+
       {/* Les accroches AVANT les panneaux d'action : c'est ce qu'on vient lire.
           Un tableau de catégories ne se réécrit pas, une phrase si. */}
       <section style={{ marginTop: 22, padding: '16px 18px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)' }}>

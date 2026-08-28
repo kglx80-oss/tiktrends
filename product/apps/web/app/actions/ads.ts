@@ -9,7 +9,7 @@ import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
-import { jarvisFullMemory } from '../../lib/jarvis-memory';
+import { jarvisFullMemory, jarvisMemoryWithUse } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate } from '../../lib/error-log';
@@ -84,6 +84,8 @@ function adUrl(id: string, recipe: Partial<AdRecipe>): string {
 /** Compose une série : scènes (univers variés) + enregistrement + débit. Mutualisé par génération et clone. */
 async function composeBatch(o: {
   cfg: FalConfig; brandId: string; brandName: string; colors?: string[] | null; logoUrl?: string | null;
+  /** Ce dont la génération a bénéficié · consigné pour mesurer si la mémoire aide (§attribution). */
+  memoryUse?: { measured: boolean; market: boolean; hooks: number };
   productImageUrls: string[] | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
   assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
@@ -154,6 +156,9 @@ async function composeBatch(o: {
       badge: c.badge, quote: c.quote, author: c.author, rating: c.rating, benefits: c.benefits, stat: c.stat, statLabel: c.statLabel,
       accent: accents[i % accents.length]!, variant: i % 3, brandName: o.brandName, logoUrl: o.logoUrl ?? null,
       productId: o.productId, personaId: o.personaId, objective: o.objective,
+      // Consigné AU MOMENT de générer · reconstruire après coup ce que Jarvis
+      // savait ce jour-là est impossible, la mémoire ayant changé depuis.
+      memoryUse: o.memoryUse,
     };
     try {
       const [row] = await db!.insert(schema.generations).values({
@@ -292,11 +297,11 @@ export async function generateAdsAction(input: {
   // Ordre d'autorité, du plus fort au plus faible : ce que la marque a MESURÉ
   // (verdicts ADSMAP), puis ce qu'elle a distillé de la veille, puis les créas
   // notées au pouce. Le premier bloc n'existe qu'à partir de vrais verdicts.
-  const [mesure, prefs] = await Promise.all([
-    jarvisFullMemory(brand.id, s.workspaceId),
+  const [memoire, prefs] = await Promise.all([
+    jarvisMemoryWithUse(brand.id, s.workspaceId),
     learnedPreferences(brand.id),
   ]);
-  const winningPatterns = [mesure, da?.jarvisLearnings, prefs].filter(Boolean).join('\n\n') || undefined;
+  const winningPatterns = [memoire.text, da?.jarvisLearnings, prefs].filter(Boolean).join('\n\n') || undefined;
 
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
@@ -320,6 +325,7 @@ export async function generateAdsAction(input: {
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
+    memoryUse: memoire.use,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
   return { ads, requested: count };
@@ -454,7 +460,7 @@ export async function cloneAdAction(input: {
   // Le clone bénéficie de la même mémoire mesurée : reproduire une pub qui a
   // marché ailleurs sans tenir compte de ce qui marche ICI serait une régression.
   const [mesureClone, prefsClone] = await Promise.all([
-    jarvisFullMemory(brand.id, s.workspaceId),
+    jarvisMemoryWithUse(brand.id, s.workspaceId),
     learnedPreferences(brand.id),
   ]);
   const ctx = {
@@ -465,7 +471,7 @@ export async function cloneAdAction(input: {
     persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
     objective: input.objective,
     creativeRules: da?.creativeRules ?? undefined,
-    winningPatterns: [mesureClone, da?.jarvisLearnings, prefsClone].filter(Boolean).join('\n\n') || undefined,
+    winningPatterns: [mesureClone.text, da?.jarvisLearnings, prefsClone].filter(Boolean).join('\n\n') || undefined,
   };
 
   // 1) Analyse de la référence -> gabarit + angle à répliquer.
@@ -490,6 +496,7 @@ export async function cloneAdAction(input: {
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
+    memoryUse: mesureClone.use,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
   return { ads, requested: count };

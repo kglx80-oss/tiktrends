@@ -3,7 +3,7 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { analyzeAdAsset } from '@tiktrends/ai';
-import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
+import { ttSearchAds, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
   normalizeAnalysis, summarizeAnalysis, costFor,
   computeMarketStats, contrastMarketVsBrand, summarizeMarket,
@@ -112,14 +112,25 @@ async function analyseLot(
   const cout = costFor(ACTION, 1);
   let analyzed = 0;
 
+  const apiKey = process.env.TRENDTRACK_API_KEY;
+
   for (const a of candidats) {
     if (!gratuit && !(await reserveCredits(ctx.workspaceId, cout, `market:analyze:${a.id}`))) {
       skipped.push({ id: a.id, reason: 'Crédits insuffisants · recharge pour continuer.' });
       break;
     }
     try {
+      // La transcription change la nature de l'analyse : sans elle, A0 DEVINE
+      // l'accroche depuis une vignette ; avec elle, il lit les mots prononcés.
+      // Elle reste facultative · `ttGetTranscript` ne lève jamais et rend null
+      // quand l'endpoint n'existe pas, l'analyse se dégrade au lieu de casser.
+      const transcript = apiKey && ttTranscriptSupported()
+        ? await ttGetTranscript({ apiKey }, a.id)
+        : null;
+
       const brut = await analyzeAdAsset(client, {
         imageUrl: a.thumbnailUrl || a.mediaUrl || null,
+        transcript,
         copy: a.body || null,
         format: a.mediaType || null,
       });
@@ -159,6 +170,11 @@ async function analyseLot(
   if (analyzed) invalidateJarvisMemory(ctx.brandId);
   const parts = [`${analyzed} créa(s) concurrente(s) décrite(s)`];
   if (skipped.length) parts.push(`${skipped.length} écartée(s)`);
+  // On dit quand les accroches sont devinées plutôt que lues · la différence de
+  // fiabilité est trop grande pour rester implicite.
+  if (analyzed && !ttTranscriptSupported()) {
+    parts.push('sans transcription · les accroches sont déduites du visuel et du texte, pas des mots prononcés');
+  }
   return { analyzed, skipped, summary: parts.join(' · ') + '.' };
 }
 
