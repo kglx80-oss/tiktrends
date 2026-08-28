@@ -523,3 +523,55 @@ comportement par défaut d'un modèle à qui on donne des exemples sans consigne
 **Et une seconde protection.** Ces accroches ne sont jamais présentées comme
 efficaces · on sait seulement que leur annonceur continue de les payer. Le bloc
 le dit avant de les lister, dans les mêmes termes que la mémoire marché (D24).
+
+---
+
+## D28 — On mesure si la mémoire aide, pas quelle accroche a produit quoi
+
+**Contexte.** On pourrait vouloir savoir QUELLE accroche injectée a produit la
+gagnante. On ne peut pas : on tend huit exemples au modèle, il sort une créa, et
+rien ne dit lequel l'a inspirée.
+
+**Décision.** On compare deux GROUPES : les créas générées avec la mémoire et
+celles générées sans. C'est la question honnête, elle se mesure, et elle répond
+exactement à « est-ce que notre IA est meilleure ».
+
+**Deux garde-fous.** Un effectif minimal par groupe (6, plus haut que le seuil
+par dimension parce qu'on compare deux taux), et des intervalles de Wilson
+DISJOINTS. Si les intervalles se chevauchent, l'écart observé ne prouve rien et
+l'écran le dit.
+
+**Ce qu'on ne prétend pas.** Ce n'est pas une expérience contrôlée : le groupe
+témoin est historiquement plus ancien, et une marque qui progresse progresserait
+de toute façon. L'écran porte cette réserve.
+
+**Le cas qu'on n'a pas envie de voir.** Si la mémoire fait PERDRE, le résumé le
+dit franchement. Un outil qui ne peut pas se contredire lui-même n'apprend pas,
+il accumule.
+
+**Consigné au moment de générer.** `input.memoryUse` porte ce que Jarvis a donné
+ce jour-là · le reconstruire après coup est impossible, la mémoire ayant changé
+depuis.
+
+---
+
+## D29 — La transcription est un enrichissement, jamais une dépendance
+
+**Contexte.** Sans transcription, A0 DEVINE l'accroche d'une créa concurrente
+depuis une vignette et la copy. Avec, il lit les mots prononcés. L'écart de
+fiabilité est considérable · mais le contrat exact de l'endpoint Trendtrack n'a
+pas pu être vérifié (documentation injoignable depuis l'environnement de
+développement).
+
+**Décision.** Implémentation défensive : plusieurs chemins plausibles essayés
+dans l'ordre, le premier qui répond est mémorisé, et **`null` en cas d'échec —
+jamais d'exception**.
+
+**Pourquoi.** Faire échouer tout un lot d'analyse parce qu'une transcription
+manque, ce serait échanger une dégradation contre une panne. Un refus d'accès
+(401/403) arrête définitivement les tentatives · insister créerait du bruit et
+consommerait du quota pour rien.
+
+**Et on le DIT.** Quand l'endpoint ne répond pas, le compte rendu précise que les
+accroches sont déduites du visuel et non des mots prononcés. La différence de
+fiabilité est trop grande pour rester implicite.

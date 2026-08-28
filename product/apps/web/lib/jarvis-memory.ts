@@ -297,6 +297,36 @@ export async function jarvisFullMemory(brandId: string, workspaceId: string): Pr
   return [mesure, marche, accroches].filter(Boolean).join('\n\n');
 }
 
+/** Ce qu'une génération a réellement reçu · consigné pour mesurer si ça aide. */
+export interface MemoryUseOut { measured: boolean; market: boolean; hooks: number }
+
+/**
+ * La mémoire ET sa composition.
+ *
+ * On consigne ce qui a été injecté AU MOMENT de générer. Le reconstruire après
+ * coup est impossible : la mémoire aura changé entre-temps, et on comparerait
+ * des créas à un état de connaissance qui n'était pas le leur.
+ */
+export async function jarvisMemoryWithUse(
+  brandId: string, workspaceId: string,
+): Promise<{ text: string; use: MemoryUseOut }> {
+  const [mesure, marche, entries] = await Promise.all([
+    jarvisMeasuredMemory(brandId, workspaceId),
+    jarvisMarketMemory(brandId, workspaceId).catch(() => ''),
+    jarvisHooks(brandId, workspaceId).catch(() => [] as HookEntry[]),
+  ]);
+  const accroches = formatHooksForPrompt(entries);
+  // Seules les accroches réellement INJECTÉES comptent · le bloc en écarte
+  // certaines (plafonds, non testées seules), et compter la bibliothèque
+  // entière ferait croire à une influence qui n'a pas eu lieu.
+  const injectees = accroches ? (accroches.match(/^- « /gm)?.length ?? 0) : 0;
+
+  return {
+    text: [mesure, marche, accroches].filter(Boolean).join('\n\n'),
+    use: { measured: !!mesure, market: !!marche, hooks: injectees },
+  };
+}
+
 /** Vide le cache d'une marque · à appeler après un import ou un nouveau verdict. */
 export function invalidateJarvisMemory(brandId: string): void {
   cache.delete(brandId);

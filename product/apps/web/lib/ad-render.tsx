@@ -16,6 +16,14 @@ export interface AdRecipe {
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.
   productId?: string; personaId?: string; objective?: string;
+  /**
+   * Ce dont la génération a bénéficié, consigné au moment de générer.
+   *
+   * Sert à répondre à « est-ce que la mémoire de Jarvis améliore vraiment les
+   * résultats » · reconstruire après coup ce qu'elle contenait ce jour-là est
+   * impossible, elle aura changé entre-temps.
+   */
+  memoryUse?: { measured: boolean; market: boolean; hooks: number };
 }
 
 const WHITE = '#ffffff';
