@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNaming, slugToken, buildName } from '../src/naming';
+import { parseNaming, slugToken, buildName, buildUniqueNames } from '../src/naming';
 
 describe('naming parser (§F2)', () => {
   it('extrait les dimensions', () => {
@@ -59,5 +59,46 @@ describe('buildName', () => {
     const nom = buildName(motif, { brand: 'M', batch: 1, concept: '', variant: 'v1', variable: null });
     expect(nom).toBe('M_B1_x_v1_x');
     expect(parseNaming(nom, motif)).not.toBeNull();
+  });
+});
+
+describe('buildUniqueNames', () => {
+  const motif = '{brand}_B{batch}_{concept}_{variant}_{variable}';
+
+  it('laisse les noms déjà distincts intacts', () => {
+    const noms = buildUniqueNames(motif, [
+      { brand: 'M', batch: 1, concept: 'A', variant: 'v1', variable: 'hook' },
+      { brand: 'M', batch: 1, concept: 'B', variant: 'v1', variable: 'hook' },
+    ]);
+    expect(noms).toEqual(['M_B1_A_v1_hook', 'M_B1_B_v1_hook']);
+  });
+
+  it('départage deux concepts de même titre sous deux angles', () => {
+    // Cas réel du fichier TrueFords · deux concepts distincts en base, même
+    // titre, donc même nom généré. Les deux ads resteraient sans mesure.
+    const noms = buildUniqueNames(motif, [
+      { brand: 'M', batch: 3, concept: '3 reasons why', variant: 'v1', variable: 'controle' },
+      { brand: 'M', batch: 3, concept: '3 reasons why', variant: 'v1', variable: 'controle' },
+    ]);
+    expect(new Set(noms).size).toBe(2);
+    expect(noms[1]).toContain('3-reasons-why-2');
+  });
+
+  it('reste relisible par le parser après désambiguïsation', () => {
+    const noms = buildUniqueNames(motif, [
+      { brand: 'M', batch: 3, concept: 'Même titre', variant: 'v1', variable: 'hook' },
+      { brand: 'M', batch: 3, concept: 'Même titre', variant: 'v1', variable: 'hook' },
+      { brand: 'M', batch: 3, concept: 'Même titre', variant: 'v1', variable: 'hook' },
+    ]);
+    expect(new Set(noms).size).toBe(3);
+    for (const n of noms) expect(parseNaming(n, motif)).not.toBeNull();
+  });
+
+  it('est déterministe · le même ordre donne les mêmes noms', () => {
+    const rows = [
+      { brand: 'M', batch: 1, concept: 'X', variant: 'v1', variable: 'hook' },
+      { brand: 'M', batch: 1, concept: 'X', variant: 'v1', variable: 'hook' },
+    ];
+    expect(buildUniqueNames(motif, rows)).toEqual(buildUniqueNames(motif, rows));
   });
 });
