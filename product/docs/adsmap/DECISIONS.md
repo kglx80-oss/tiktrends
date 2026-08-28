@@ -302,3 +302,33 @@ le budget, ou allonger la fenêtre).
 **Pourquoi.** C'est l'erreur la plus coûteuse du module et la plus silencieuse :
 un lot sous-financé dépense son budget en entier, puis rend sept jours plus tard
 une colonne de « non concluant ». L'argent est parti, et rien n'a été appris.
+
+---
+
+## D19 — La vue client filtre en SQL, pas à l'affichage
+
+**Contexte.** `/c/[token]` est une page publique : ce qui en sort part chez
+quelqu'un qui n'est pas dans l'espace de travail, et un lien se transfère. On ne
+sait pas qui le lira.
+
+**Décision.** Les colonnes sensibles ne sont pas masquées au rendu · elles ne
+sont **jamais lues**. `clientViewByToken` ne sélectionne ni dépense, ni CPA, ni
+budget, ni hypothèse, ni apprentissage, et ne remonte que les verdicts dont le
+statut est `validated`.
+
+**Pourquoi.** Masquer à l'affichage laisse les valeurs voyager jusqu'au
+navigateur, où elles restent lisibles. La sélection SQL est la seule frontière
+qui tienne.
+
+**Les trois exclusions, chacune pour sa raison.** Dépense, CPA et budget : la
+marge de l'agence s'y lit. Hypothèses et apprentissages : c'est la méthode,
+c'est-à-dire ce que le client paie · la montrer intégralement revient à la
+donner. Verdicts non arbitrés : un chiffre provisoire ferait discuter une
+conclusion qui n'est pas encore prise.
+
+**Deux détails qui comptent.** Un jeton inconnu et un jeton expiré donnent la
+même réponse — distinguer les deux n'aiderait qu'à savoir qu'un lien a existé.
+Et une échéance est posée d'office : un lien sans date traîne dans un fil de
+messages et finit par montrer à un ancien client ce que fait l'agence
+aujourd'hui. L'oubli est le mode de fuite le plus courant, et il ne demande
+aucune malveillance.
