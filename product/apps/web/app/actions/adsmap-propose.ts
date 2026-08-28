@@ -12,7 +12,7 @@ import {
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credits';
-import { jarvisMeasuredMemory } from '../../lib/jarvis-memory';
+import { jarvisFullMemory } from '../../lib/jarvis-memory';
 import { guardedAnthropic } from '../../lib/spend-guard';
 
 /**
@@ -59,7 +59,7 @@ async function context(brandId: string, workspaceId: string): Promise<BrandConte
 
   const [produits, measured] = await Promise.all([
     db!.select({ name: schema.products.name }).from(schema.products).where(eq(schema.products.brandId, brandId)).limit(12),
-    jarvisMeasuredMemory(brandId, workspaceId),
+    jarvisFullMemory(brandId, workspaceId),
   ]);
 
   return {

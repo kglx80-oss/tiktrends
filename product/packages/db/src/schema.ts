@@ -313,6 +313,39 @@ export const aiSpend = pgTable('ai_spend', {
   wsIdx: index('ai_spend_ws_idx').on(t.workspaceId, t.createdAt),
 }));
 
+/**
+ * Créas CONCURRENTES décrites par l'agent A0.
+ *
+ * Distinctes de `creatives`, qui porte nos propres assets. La différence n'est
+ * pas cosmétique : on n'a ici AUCUN chiffre de performance, seulement des
+ * signaux de persistance. Les mélanger ferait croire à des verdicts là où il n'y
+ * a que « cet annonceur continue de payer ».
+ */
+export const marketCreatives = pgTable('market_creatives', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
+  platform: text('platform').notNull(),
+  externalId: text('external_id').notNull(),
+  advertiser: text('advertiser'),
+  daysRunning: integer('days_running').notNull().default(0),
+  reachDelta30d: doublePrecision('reach_delta_30d'),
+  liveAdsCount: integer('live_ads_count'),
+  format: text('format'),
+  hookType: text('hook_type'),
+  openingType: text('opening_type'),
+  talent: text('talent'),
+  lengthBucket: text('length_bucket'),
+  analysis: jsonb('analysis'),
+  analysisConfidence: doublePrecision('analysis_confidence'),
+  analyzedAt: timestamp('analyzed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  // Une créa décrite deux fois fausserait toutes les parts.
+  key: unique('market_creatives_key').on(t.workspaceId, t.platform, t.externalId),
+  brandIdx: index('market_creatives_brand_idx').on(t.brandId, t.analyzedAt),
+}));
+
 /* ======================= INSPO / BIBLIOTHÈQUE ======================= */
 export const libraryBrands = pgTable('library_brands', {
   id: uuid('id').primaryKey().defaultRandom(),

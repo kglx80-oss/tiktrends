@@ -7,6 +7,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { jarvisStats, jarvisMeasuredMemory } from '../../../../lib/jarvis-memory';
 import { PageInfo } from '../../../../components/PageInfo';
 import { DescribePanel } from './DescribePanel';
+import { MarketPanel } from './MarketPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,6 +126,11 @@ export default async function JarvisPage() {
           ci-dessus · l'encart reste visible même quand le tableau est vide, parce
           que c'est justement là qu'il sert le plus. */}
       <DescribePanel />
+
+      {/* La mémoire marché vient APRÈS la mémoire mesurée, à l'écran comme dans
+          le prompt : ce que la marque a payé pour apprendre prime sur ce qu'on
+          devine des autres. */}
+      <MarketPanel />
     </main>
   );
 }
