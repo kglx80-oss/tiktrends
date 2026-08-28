@@ -5,10 +5,11 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
-import { anthropicFromEnv, suggestVideoBrief } from '@tiktrends/ai';
+import { suggestVideoBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
+import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
@@ -48,6 +49,9 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
   }
 
   try {
+    // La vidéo est le poste qui peut faire déraper une facture en quelques clics ·
+    // le forfait appliqué est nettement supérieur à celui d'une image.
+    await guardFixedCost('fal_video', { action: 'video:t2v', workspaceId: s.workspaceId, units: 1 });
     const { jobId } = fal
       ? await falSubmitVideo(fal, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
       : await hfSubmitVideo(hf!, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
@@ -81,6 +85,7 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
 
   const motion = prompt || 'Anime cette image de façon naturelle et cinématographique.';
   try {
+    await guardFixedCost('fal_video', { action: 'video:i2v', workspaceId: s.workspaceId, units: 1 });
     const { jobId } = fal
       ? await falSubmitVideo(fal, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
       : await hfSubmitImageVideo(hf!, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
@@ -223,7 +228,7 @@ export async function listAnimatableAssets(): Promise<AnimatableAsset[]> {
 export async function suggestVideoBriefAction(input: { productId?: string; fromImage?: boolean }): Promise<{ text?: string; error?: string }> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée.' };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'video' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('suggest');

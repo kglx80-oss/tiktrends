@@ -6,13 +6,14 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
-import { anthropicFromEnv, generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
+import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisMeasuredMemory } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate } from '../../lib/error-log';
+import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 
 export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string; rating?: import('./creatives').Rating; score?: number }
 export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
@@ -127,6 +128,7 @@ async function composeBatch(o: {
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
       try {
+        await guardFixedCost('fal_image', { action: 'ads:image', units: 1 });
         const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit, count: 1, model: o.falModel, params: o.falParams });
         if (images[0]) return images[0];
       } catch { /* réessai */ }
@@ -233,7 +235,7 @@ export async function generateAdsAction(input: {
 
   const cfg = falFromEnv();
   if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'ads' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   if (!db) return { error: 'Base de données indisponible.' };
 
@@ -327,7 +329,7 @@ export async function generateAdsAction(input: {
 export async function suggestAnglesAction(input: { productId?: string }): Promise<{ angles?: AdAngle[]; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'ads' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Aucune marque active.' };
@@ -414,7 +416,7 @@ export async function cloneAdAction(input: {
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
   const cfg = falFromEnv();
   if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'ads' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   if (!db) return { error: 'Base de données indisponible.' };
   const brand = await getActiveBrand(s.workspaceId);
@@ -575,7 +577,7 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
 export async function scoreCreativeAction(id: string, opts?: { force?: boolean }): Promise<{ score?: CreativeScore; cost?: number; cached?: true; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'ads' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Aucune marque active.' };

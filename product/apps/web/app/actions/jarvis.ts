@@ -2,7 +2,7 @@
 
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { anthropicFromEnv, proposeJarvisRules, distillWinningPatterns, type WinningAdSummary } from '@tiktrends/ai';
+import { proposeJarvisRules, distillWinningPatterns, type WinningAdSummary } from '@tiktrends/ai';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
 import { costFor } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -10,6 +10,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
+import { guardedAnthropic } from '../../lib/spend-guard';
 
 /** Enregistre les règles créatives maison (Jarvis) de la marque active. Injectées dans chaque génération. */
 export async function saveJarvisRulesAction(input: { creativeRules: string }): Promise<{ ok?: true; error?: string }> {
@@ -38,7 +39,7 @@ export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
   if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'jarvis' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active.' };
@@ -88,7 +89,7 @@ export async function trainJarvisAction(): Promise<{ learnings?: string; adsAnal
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' };
   if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'jarvis' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active.' };

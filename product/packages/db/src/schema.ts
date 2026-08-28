@@ -289,6 +289,30 @@ export const alerts = pgTable('alerts', {
   ackedAt: timestamp('acked_at', { withTimezone: true }),
 });
 
+/**
+ * Dépense RÉELLE en dollars chez les fournisseurs d'IA.
+ *
+ * À ne pas confondre avec `credit_ledger`, qui est la comptabilité interne
+ * facturée au client. Ici c'est l'argent qui part et qui arrive sur une facture ·
+ * le plafond qui s'appuie sur cette table s'applique à tout le monde, y compris
+ * aux comptes à crédits illimités.
+ */
+export const aiSpend = pgTable('ai_spend', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id'),                       // null = appel hors espace (cron)
+  provider: text('provider').notNull(),                    // anthropic | fal
+  model: text('model'),
+  action: text('action').notNull(),
+  estimatedUsd: doublePrecision('estimated_usd').notNull().default(0),
+  actualUsd: doublePrecision('actual_usd').notNull().default(0),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  dateIdx: index('ai_spend_date_idx').on(t.createdAt),
+  wsIdx: index('ai_spend_ws_idx').on(t.workspaceId, t.createdAt),
+}));
+
 /* ======================= INSPO / BIBLIOTHÈQUE ======================= */
 export const libraryBrands = pgTable('library_brands', {
   id: uuid('id').primaryKey().defaultRandom(),

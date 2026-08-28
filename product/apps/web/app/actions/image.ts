@@ -5,12 +5,13 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
-import { anthropicFromEnv, enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
+import { enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
 import { logAndTranslate } from '../../lib/error-log';
+import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string; generationId?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string; rating?: import('./creatives').Rating }
@@ -64,7 +65,7 @@ export async function generateImageAction(input: {
   // Optimisation du prompt par Claude (ancrée marque + produit + texte).
   let prompt = desc;
   if (input.enhance) {
-    const client = anthropicFromEnv();
+    const client = guardedAnthropic({ action: 'image' });
     if (client) {
       try {
         prompt = await enhanceImagePrompt(client, desc, {
@@ -83,6 +84,8 @@ export async function generateImageAction(input: {
     : prompt;
 
   try {
+    // Barrière de dépense réelle · la génération d'image est facturée au coup.
+    await guardFixedCost('fal_image', { action: 'image', workspaceId: s.workspaceId, units: count });
     const { images } = await falGenerateImage(cfg, { prompt: finalPrompt, aspectRatio: input.aspectRatio ?? '1:1', imageUrl: sourceImage, imageUrls: useAssetRefs ? assetRefUrls : undefined, withText: input.withText, count, edit: editMode || useAssetRefs });
     let generationId: string | undefined;
     if (db) {
@@ -101,7 +104,7 @@ export async function generateImageAction(input: {
 export async function suggestImageBriefAction(input: { productId?: string }): Promise<{ text?: string; error?: string }> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée.' };
-  const client = anthropicFromEnv();
+  const client = guardedAnthropic({ action: 'image' });
   if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
 
   const unlimited = unlimitedCredits(s.user.email);

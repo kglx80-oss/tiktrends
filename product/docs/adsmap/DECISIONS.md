@@ -401,3 +401,36 @@ la dimension sur laquelle Jarvis apprend. Un angle qui n'en porte pas n'est pas
 une proposition incomplète, c'est une phrase sans contenu testable. Lui attribuer
 un mécanisme par défaut le ferait entrer dans les statistiques sous une étiquette
 que personne n'a choisie.
+
+---
+
+## D23 — Plafond de dépense RÉELLE, appliqué au client, sans exception
+
+**Contexte.** Le dépôt appelle Anthropic depuis une trentaine d'endroits et fal
+depuis cinq. Le système de crédits existant est une comptabilité INTERNE : ce
+qu'on facture au client. Rien ne bornait les dollars qui partent vraiment et qui
+arrivent sur une facture.
+
+**Décision.** Un plafond dur en dollars (`AI_SPEND_CAP_USD`, **10 par défaut**),
+sur 30 jours glissants. Au-delà, aucune requête payante ne part.
+
+**Où il s'applique.** Sur le CLIENT Anthropic lui-même (`guardedAnthropic`), pas
+à chaque appel. Un garde qu'il faut penser à invoquer finit toujours par être
+oublié au trente-sixième point d'appel · et c'est celui-là qui fait la facture.
+Un test lit le dossier et échoue si quelqu'un réintroduit un chemin direct.
+
+**Trois règles.**
+
+- **Il s'applique à tout le monde**, comptes fondateur compris. Les crédits sont
+  une comptabilité interne, les dollars sont réels · un appel fondateur coûte le
+  même prix que les autres.
+- **Il refuse, il n'avertit pas.** Un avertissement qu'on peut ignorer n'est pas
+  une barrière, c'est ce qui produit les factures qu'on découvre.
+- **En cas de doute, il refuse.** Modèle inconnu → tarif le plus cher connu.
+  Base injoignable → blocage. Réponse sans `usage` → on compte l'estimation.
+  Sous-estimer perce le plafond ; surestimer refuse un appel un peu tôt · le
+  déséquilibre entre les deux erreurs commande le choix.
+
+**Réconciliation.** On estime AVANT (prompt + `max_tokens`, au pire), on
+enregistre le coût RÉEL après, lu dans `usage`. Sans le second temps le compteur
+dérive et le plafond ne veut plus rien dire.
