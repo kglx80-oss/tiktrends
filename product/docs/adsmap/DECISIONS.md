@@ -434,3 +434,51 @@ Un test lit le dossier et échoue si quelqu'un réintroduit un chemin direct.
 **Réconciliation.** On estime AVANT (prompt + `max_tokens`, au pire), on
 enregistre le coût RÉEL après, lu dans `usage`. Sans le second temps le compteur
 dérive et le plafond ne veut plus rien dire.
+
+---
+
+## D24 — Sur le marché, la persistance remplace le verdict
+
+**Contexte.** Jarvis apprend des verdicts de la marque · sur les créas des
+concurrents, on n'a AUCUN chiffre de performance. Ni CPA, ni conversion, rien.
+
+**Décision.** On prend la **persistance** comme proxy : une créa qui tourne
+encore après trois semaines, ou dont la portée progresse, est « éprouvée ».
+Jamais « gagnante ».
+
+**Pourquoi ça tient.** Personne ne finance longtemps une créa qui perd. La
+reconduction d'une pub au-delà de trois semaines est une DÉCISION de l'annonceur,
+pas un lancement · c'est le seul signal que personne ne peut truquer.
+
+**Pourquoi c'est dangereux et comment c'est tenu.** Un pourcentage à côté d'un
+autre pourcentage se lit comme une comparaison de performances. Trois
+protections : le vocabulaire (« part d'usage », jamais « taux de réussite »), un
+avertissement explicite dans le bloc injecté au modèle, et le même dans l'écran.
+Sans ces phrases, « 70 % du marché » devient « 70 % de réussite » à la lecture,
+et toute la prudence du module disparaît au moment de s'en servir.
+
+**Deux seuils.** Trois créas minimum par valeur, et **deux annonceurs
+distincts** · trois créas du même annonceur ne font pas un marché, elles font une
+marque.
+
+---
+
+## D25 — La mémoire mesurée passe devant la mémoire marché
+
+**Contexte.** Jarvis reçoit maintenant deux blocs : ce que la marque a mesuré, et
+ce que fait le marché.
+
+**Décision.** Le bloc mesuré est injecté EN PREMIER, à l'écran comme dans le
+prompt. Et la sortie la plus utile n'est aucun des deux blocs pris seul, mais
+leur CONFRONTATION.
+
+**Pourquoi.** Un modèle lit dans l'ordre où on lui donne. Mettre le marché en
+tête ferait suivre la mode aux dépens de ce que la marque a payé pour apprendre.
+
+**Ce que la confrontation produit.** Trois cas, et le plus précieux n'est pas
+celui qu'on croit :
+- *contredit* — le marché fait X, nos chiffres disent que X perd ici. Affiché en
+  premier · c'est ce qui évite de dépenser à côté.
+- *inexploité* — pratique majoritaire jamais testée chez nous. Le coût d'entrée a
+  déjà été payé par d'autres.
+- *confirmé* — les deux concordent.

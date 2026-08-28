@@ -3,7 +3,9 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   buildJarvisMemory, computeBrandStats, globalHitRate, prelaunchScore, summarizePrelaunch,
+  computeMarketStats, contrastMarketVsBrand, buildMarketMemory,
   type StatSourceAd, type StatRow, type PrelaunchInput, type PrelaunchScore,
+  type MarketAd, type BrandRow,
 } from '@tiktrends/core';
 
 /**
@@ -145,6 +147,65 @@ export async function scoreConceptBeforeLaunch(
   const { stats, globalRate } = await jarvisStats(brandId, workspaceId);
   const score = prelaunchScore(input, stats, globalRate);
   return { ...score, summary: summarizePrelaunch(score) };
+}
+
+/**
+ * Ce que fait le MARCHÉ, et comment ça se confronte à nos chiffres.
+ *
+ * Renvoie une chaîne vide tant qu'aucune créa concurrente n'a été décrite · un
+ * bloc « le marché fait peut-être ceci » vaut moins que pas de bloc du tout.
+ *
+ * L'ordre d'injection compte, et il est fixé chez l'appelant : la mémoire
+ * MESURÉE passe devant. Ce qu'on sait de nos propres résultats prime toujours
+ * sur ce qu'on devine des autres.
+ */
+export async function jarvisMarketMemory(brandId: string, workspaceId: string): Promise<string> {
+  if (!db) return '';
+
+  const rows = await db.select().from(schema.marketCreatives)
+    .where(and(
+      eq(schema.marketCreatives.workspaceId, workspaceId),
+      eq(schema.marketCreatives.brandId, brandId),
+    ))
+    .orderBy(desc(schema.marketCreatives.analyzedAt))
+    .limit(600)
+    .catch(() => []);
+  if (!rows.length) return '';
+
+  const ads: MarketAd[] = rows.map((r) => ({
+    advertiser: r.advertiser, platform: r.platform,
+    hookType: r.hookType as MarketAd['hookType'],
+    openingType: r.openingType as MarketAd['openingType'],
+    talent: r.talent as MarketAd['talent'],
+    lengthBucket: r.lengthBucket, format: r.format,
+    daysRunning: r.daysRunning, reachDelta30d: r.reachDelta30d, liveAdsCount: r.liveAdsCount,
+  }));
+
+  const marche = computeMarketStats(ads);
+  const { ads: nos } = await loadCached(brandId, workspaceId);
+  const brandRows: BrandRow[] = computeBrandStats(nos).map((s) => ({
+    dimension: s.dimension, key: s.key, hitRate: s.hitRate, nConclusive: s.nConclusive,
+  }));
+
+  return buildMarketMemory(marche, {
+    contrasts: contrastMarketVsBrand(marche, brandRows, globalHitRate(nos)),
+    sampleSize: ads.length,
+  });
+}
+
+/**
+ * La mémoire complète de Jarvis, dans l'ordre qui compte.
+ *
+ * Mesuré d'abord, marché ensuite. Un modèle lit ce qu'on lui donne dans l'ordre
+ * où on le lui donne · mettre le marché en tête ferait suivre la mode aux
+ * dépens de ce que la marque a payé pour apprendre.
+ */
+export async function jarvisFullMemory(brandId: string, workspaceId: string): Promise<string> {
+  const [mesure, marche] = await Promise.all([
+    jarvisMeasuredMemory(brandId, workspaceId),
+    jarvisMarketMemory(brandId, workspaceId).catch(() => ''),
+  ]);
+  return [mesure, marche].filter(Boolean).join('\n\n');
 }
 
 /** Vide le cache d'une marque · à appeler après un import ou un nouveau verdict. */

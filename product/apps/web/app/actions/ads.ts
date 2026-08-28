@@ -9,7 +9,7 @@ import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
-import { jarvisMeasuredMemory } from '../../lib/jarvis-memory';
+import { jarvisFullMemory } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate } from '../../lib/error-log';
@@ -293,7 +293,7 @@ export async function generateAdsAction(input: {
   // (verdicts ADSMAP), puis ce qu'elle a distillé de la veille, puis les créas
   // notées au pouce. Le premier bloc n'existe qu'à partir de vrais verdicts.
   const [mesure, prefs] = await Promise.all([
-    jarvisMeasuredMemory(brand.id, s.workspaceId),
+    jarvisFullMemory(brand.id, s.workspaceId),
     learnedPreferences(brand.id),
   ]);
   const winningPatterns = [mesure, da?.jarvisLearnings, prefs].filter(Boolean).join('\n\n') || undefined;
@@ -454,7 +454,7 @@ export async function cloneAdAction(input: {
   // Le clone bénéficie de la même mémoire mesurée : reproduire une pub qui a
   // marché ailleurs sans tenir compte de ce qui marche ICI serait une régression.
   const [mesureClone, prefsClone] = await Promise.all([
-    jarvisMeasuredMemory(brand.id, s.workspaceId),
+    jarvisFullMemory(brand.id, s.workspaceId),
     learnedPreferences(brand.id),
   ]);
   const ctx = {
@@ -603,7 +603,7 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
 
   // La note s'appuie sur ce que la marque a mesuré, pas seulement sur son ton :
   // sans ça, Jarvis évalue une créa à l'aune de règles générales de copywriting.
-  const mesureScore = await jarvisMeasuredMemory(brand.id, s.workspaceId);
+  const mesureScore = await jarvisFullMemory(brand.id, s.workspaceId);
 
   try {
     const score = await scoreCreative(client, {
