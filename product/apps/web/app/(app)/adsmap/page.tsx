@@ -8,7 +8,7 @@ import { SyncButton } from './SyncButton';
 import { getActiveBrand } from '../../../lib/brands';
 import { listBatchesAction } from '../../actions/adsmap';
 import { PageInfo } from '../../../components/PageInfo';
-import { AdsMapTable } from './AdsMapTable';
+import { Views } from './Views';
 import { effectiveAccess } from '../../../lib/access';
 
 export const dynamic = 'force-dynamic';
@@ -16,11 +16,11 @@ export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'adsmap')!;
 
 /**
- * ADSMAP · vue Table.
+ * ADSMAP · deux lectures du même graphe.
  *
- * Livrée avant le canvas à dessein : elle valide tout le modèle de données sans
- * dépendre du rendu, et c'est elle qui porte la compatibilité descendante avec
- * le tableur que l'équipe utilise aujourd'hui.
+ * La Table répond à « où en est ce test » et porte la compatibilité descendante
+ * avec le tableur. La Carte répond à ce qu'aucune ligne ne dira jamais : d'où
+ * vient ce gagnant, et qu'est-ce qu'on n'a pas encore essayé.
  */
 export default async function AdsMapPage() {
   const s = await getSession();
@@ -91,14 +91,17 @@ export default async function AdsMapPage() {
         se lisent ici avant d’être arbitrés.
       </p>
 
-      <PageInfo title="lire ce tableau">
+      <PageInfo title="lire cette carte">
         Une ad n’entre en test qu’avec une <b>hypothèse</b> et <b>une seule variable</b> modifiée : c’est ce qui permet
         d’attribuer un résultat à une cause. Le verdict est <b>calculé</b>, pas saisi · un astérisque signale un test
         hors protocole, dont la conclusion ne vaut que par comparaison au sein du lot. Le <b>CPA</b> est suivi de sa
         borne haute : avec peu d’achats, l’écart entre les deux dit à quel point le chiffre est encore incertain.
+        L’onglet <b>Carte</b> montre la même chose autrement : avatar → désir → angle → concept → ad, avec les
+        <b> branches mortes</b> en pointillé · un angle jamais décliné ou une gagnante jamais itérée ne se voient
+        que là.
       </PageInfo>
 
-      <AdsMapTable batches={batches} />
+      <Views batches={batches} />
     </main>
   );
 }
