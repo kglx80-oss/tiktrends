@@ -6,6 +6,7 @@ import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { jarvisStats, jarvisMeasuredMemory } from '../../../../lib/jarvis-memory';
 import { PageInfo } from '../../../../components/PageInfo';
+import { DescribePanel } from './DescribePanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +120,11 @@ export default async function JarvisPage() {
           )}
         </>
       )}
+
+      {/* La description des créas est ce qui alimente la moitié des dimensions
+          ci-dessus · l'encart reste visible même quand le tableau est vide, parce
+          que c'est justement là qu'il sert le plus. */}
+      <DescribePanel />
     </main>
   );
 }
