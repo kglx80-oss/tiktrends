@@ -78,6 +78,11 @@ export default async function AdsMapPage() {
         <Link href="/adsmap/jarvis" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
           Ce que Jarvis a appris
         </Link>
+        {peutMesurer && (
+          <Link href="/adsmap/lots" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
+            Lots de test
+          </Link>
+        )}
         <Link href="/adsmap/import" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
           Importer le tableau
         </Link>

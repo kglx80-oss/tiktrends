@@ -265,3 +265,40 @@ une gagnante coûte moins cher que produire un concept écrit, qui coûte moins 
 que décliner un angle, qui coûte moins cher qu'ouvrir un désir. Quatre compteurs
 alignés se lisent comme un tableau de bord ; une phrase qui dit quoi faire se lit
 comme un conseil.
+
+---
+
+## D17 — ADSMAP ne crée rien dans Meta : il produit un brief à recopier
+
+**Contexte.** L'écran de préparation d'un lot génère le nom de campagne, les noms
+d'ad sets et les noms d'annonces attendus. L'API Marketing permettrait de créer
+directement campagne, ad sets et annonces.
+
+**Décision.** On s'arrête au brief. Rien n'est écrit dans le compte publicitaire.
+
+**Pourquoi.** Créer des campagnes par API exige une permission d'ÉCRITURE sur le
+compte publicitaire du client. C'est un cran d'engagement qu'aucun client ne
+donne à la légère, et une catégorie de panne entière — une campagne créée en
+double, un budget mal posé — que le produit n'a aucune raison d'assumer pour
+économiser deux minutes de copier-coller.
+
+**Conséquence.** Le rattachement des métriques repose sur le NOM, donc sur la
+qualité de `buildName`. C'est pour cela que la génération est l'exact inverse du
+parser, testée en aller-retour : un nom que le parser ne relit pas rend l'ad
+invisible à la mesure, et la panne ne se voit qu'à la synchro suivante.
+
+---
+
+## D18 — Le budget est confronté au seuil de conclusion AVANT le lancement
+
+**Contexte.** Le moteur de verdict exige `minSpendMultiple × targetCpa` de
+dépense avant de conclure sur le CPA. Rien ne vérifiait, au moment de composer un
+lot, que le budget prévu permettrait d'y arriver.
+
+**Décision.** L'écran de lot calcule `budget/jour × durée` et le compare au seuil.
+S'il est insuffisant, il dit de combien, et propose les deux corrections (monter
+le budget, ou allonger la fenêtre).
+
+**Pourquoi.** C'est l'erreur la plus coûteuse du module et la plus silencieuse :
+un lot sous-financé dépense son budget en entier, puis rend sept jours plus tard
+une colonne de « non concluant ». L'argent est parti, et rien n'a été appris.
