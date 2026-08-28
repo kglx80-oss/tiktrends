@@ -4,6 +4,8 @@ import { db, schema } from '@tiktrends/db';
 import {
   buildJarvisMemory, computeBrandStats, globalHitRate, prelaunchScore, summarizePrelaunch,
   computeMarketStats, contrastMarketVsBrand, buildMarketMemory,
+  buildHookLibrary, formatHooksForPrompt, countHooks, summarizeHooks,
+  type HookSource, type HookEntry, type HookCounts,
   type StatSourceAd, type StatRow, type PrelaunchInput, type PrelaunchScore,
   type MarketAd, type BrandRow,
 } from '@tiktrends/core';
@@ -194,6 +196,90 @@ export async function jarvisMarketMemory(brandId: string, workspaceId: string): 
 }
 
 /**
+ * Les accroches relevées par A0, des deux côtés · avec ce qu'elles ont donné.
+ *
+ * C'est la donnée la plus directement utile de tout le module, et elle dormait :
+ * A0 extrait les mots exacts de chaque accroche depuis le début, et personne ne
+ * les relisait. Jarvis raisonnait sur des CATÉGORIES (« accroche chiffrée »)
+ * quand il pouvait raisonner sur des EXEMPLES (« 3 erreurs que tu fais avec ta
+ * crème »). On n'écrit pas une publicité à partir d'une catégorie.
+ */
+export async function jarvisHooks(brandId: string, workspaceId: string): Promise<HookEntry[]> {
+  if (!db) return [];
+
+  const [nos, marche] = await Promise.all([
+    // Nos créas · l'accroche est dans l'analyse, le verdict à côté.
+    db.select({
+      analysis: schema.creatives.analysis,
+      hookType: schema.creatives.hookType,
+      mechanism: schema.angles.mechanism,
+      computed: schema.verdicts.computed,
+      validated: schema.verdicts.validated,
+    })
+      .from(schema.ads)
+      .innerJoin(schema.creatives, eq(schema.ads.creativeId, schema.creatives.id))
+      .leftJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .leftJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .leftJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .leftJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+      .where(and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId)))
+      .limit(400)
+      .catch(() => []),
+    db.select({
+      analysis: schema.marketCreatives.analysis,
+      hookType: schema.marketCreatives.hookType,
+      advertiser: schema.marketCreatives.advertiser,
+      daysRunning: schema.marketCreatives.daysRunning,
+      reachDelta30d: schema.marketCreatives.reachDelta30d,
+    })
+      .from(schema.marketCreatives)
+      .where(and(
+        eq(schema.marketCreatives.workspaceId, workspaceId),
+        eq(schema.marketCreatives.brandId, brandId),
+      ))
+      .limit(400)
+      .catch(() => []),
+  ]);
+
+  const texte = (a: unknown): string | null => {
+    const h = (a as { hookSpoken?: unknown } | null)?.hookSpoken;
+    return typeof h === 'string' && h.trim() ? h : null;
+  };
+
+  const sources: HookSource[] = [
+    ...nos.flatMap((r) => {
+      const t = texte(r.analysis);
+      return t ? [{
+        text: t, origin: 'brand' as const,
+        // Le verdict humain fait foi quand il existe · c'est lui qui a été arbitré.
+        verdict: r.validated ?? r.computed ?? null,
+        hookType: r.hookType, mechanism: r.mechanism,
+      }] : [];
+    }),
+    ...marche.flatMap((r) => {
+      const t = texte(r.analysis);
+      // Une créa concurrente qui n'a pas tenu n'apprend rien · on ne retient que
+      // celles que leur annonceur continue de payer.
+      const tient = r.daysRunning >= 21 || (r.reachDelta30d ?? 0) > 0;
+      return t && tient ? [{
+        text: t, origin: 'market' as const,
+        advertiser: r.advertiser, daysRunning: r.daysRunning, hookType: r.hookType,
+      }] : [];
+    }),
+  ];
+
+  return buildHookLibrary(sources);
+}
+
+/** Lecture pour l'écran · la bibliothèque et son résumé. */
+export async function jarvisHookView(brandId: string, workspaceId: string): Promise<{ entries: HookEntry[]; counts: HookCounts; summary: string }> {
+  const entries = await jarvisHooks(brandId, workspaceId).catch(() => []);
+  const counts = countHooks(entries);
+  return { entries, counts, summary: summarizeHooks(counts) };
+}
+
+/**
  * La mémoire complète de Jarvis, dans l'ordre qui compte.
  *
  * Mesuré d'abord, marché ensuite. Un modèle lit ce qu'on lui donne dans l'ordre
@@ -201,11 +287,14 @@ export async function jarvisMarketMemory(brandId: string, workspaceId: string): 
  * dépens de ce que la marque a payé pour apprendre.
  */
 export async function jarvisFullMemory(brandId: string, workspaceId: string): Promise<string> {
-  const [mesure, marche] = await Promise.all([
+  const [mesure, marche, accroches] = await Promise.all([
     jarvisMeasuredMemory(brandId, workspaceId),
     jarvisMarketMemory(brandId, workspaceId).catch(() => ''),
+    jarvisHooks(brandId, workspaceId).then(formatHooksForPrompt).catch(() => ''),
   ]);
-  return [mesure, marche].filter(Boolean).join('\n\n');
+  // Les accroches en dernier, et c'est voulu : ce sont des EXEMPLES, et un
+  // exemple se lit mieux après le principe qu'il illustre.
+  return [mesure, marche, accroches].filter(Boolean).join('\n\n');
 }
 
 /** Vide le cache d'une marque · à appeler après un import ou un nouveau verdict. */
