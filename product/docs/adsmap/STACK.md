@@ -45,7 +45,7 @@ Vérification : `grep` sur `schema.creatives`, `schema.adInstances`, `schema.met
 
 | Domaine | Réalité du dépôt | Conséquence pour ADSMAP |
 |---|---|---|
-| Front | Next.js 15 App Router, React 19, **styles inline** (pas de Tailwind en pratique, bien qu'installé), aucune bibliothèque de composants | Le canvas §7 impose deux dépendances nouvelles : `@xyflow/react` et `elkjs`. Recommandation du CDC applicable telle quelle. |
+| Front | Next.js 15 App Router, React 19, **styles inline** (pas de Tailwind en pratique, bien qu'installé), aucune bibliothèque de composants | Canvas §7 livré · `@xyflow/react` et `elkjs` sont les deux seules dépendances UI, chargées par `next/dynamic` (D8). La page `/adsmap` reste à 116 kB de premier chargement. |
 | Données | Drizzle ORM + Postgres, migrations SQL à la main appliquées au déploiement, journal `_journal.json` | Pseudo-Prisma du §4 à transposer en Drizzle. Migration courante : **0036**. |
 | Vecteurs | **`CREATE EXTENSION vector` déjà posé (migration 0000)**, colonnes `vector(1536)` sur `creatives` et une autre table | Les `embedding` du CDC (`CreativeElement`, `Learning`) passent de COULD à faisables d'emblée. La dédup sémantique §9 n'a pas besoin de repli lexical. |
 | Auth / RBAC | Cookie JWT signé (`jose`) + bcrypt ; rôles `owner \| admin \| member \| **client_viewer**` | Le rôle de la vue client §12 **existe déjà**. Reste à créer `ClientShareLink` (aucune table de partage à ce jour). |

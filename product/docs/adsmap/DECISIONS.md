@@ -107,7 +107,7 @@ sans personne devant l'écran. Proposition — plafond nocturne par marque, et a
 
 ## D8 — Canvas chargé dynamiquement et branché sur le thème du produit
 
-**Statut :** PRISE
+**Statut :** LIVRÉE (PR #167)
 
 `@xyflow/react` et `elkjs` sont les premières dépendances UI du projet. Chargement par
 `next/dynamic` avec `ssr: false` pour ne pas alourdir les pages sans canvas, et couleurs prises
@@ -243,3 +243,25 @@ la nomme.
 **Conséquence.** L'identifiant est ÉPINGLÉ dès le premier rattachement réussi
 (`ads.external_ids_json`). Le flou n'a lieu qu'une fois, même si l'équipe renomme
 l'annonce ensuite.
+
+---
+
+## D16 — Le canvas montre les branches mortes plutôt que de les masquer
+
+**Contexte.** Un graphe qui n'affiche que les nœuds « pleins » est plus propre à
+regarder. C'est aussi ce qui le rend inutile : la Table sait déjà dire où en est
+un test, et elle le dit mieux.
+
+**Décision.** Le canvas remonte la hiérarchie ENTIÈRE, branches vides comprises,
+et marque en pointillé les quatre situations de `findGaps` : désir sans angle,
+angle sans concept, concept sans ad, gagnante sans itération.
+
+**Pourquoi ces quatre-là et pas plus.** Toutes se vérifient sans jugement. On
+pourrait en inventer d'autres (« ce persona a peu d'angles »), mais un canvas qui
+signale partout n'est plus lu nulle part.
+
+**Conséquence.** L'entête nomme UNE priorité, dans l'ordre du rendement : itérer
+une gagnante coûte moins cher que produire un concept écrit, qui coûte moins cher
+que décliner un angle, qui coûte moins cher qu'ouvrir un désir. Quatre compteurs
+alignés se lisent comme un tableau de bord ; une phrase qui dit quoi faire se lit
+comme un conseil.
