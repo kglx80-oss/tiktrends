@@ -4,7 +4,7 @@ import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
-import { jarvisStats, jarvisMeasuredMemory } from '../../../../lib/jarvis-memory';
+import { jarvisStats, jarvisMeasuredMemory, jarvisHookView } from '../../../../lib/jarvis-memory';
 import { PageInfo } from '../../../../components/PageInfo';
 import { DescribePanel } from './DescribePanel';
 import { MarketPanel } from './MarketPanel';
@@ -18,6 +18,13 @@ const DIM_LABEL: Record<string, string> = {
   length_bucket: 'Durées', awareness: 'Stades de conscience', avatar: 'Avatars',
   talent: 'Talents', opening_type: 'Ouvertures', element: 'Éléments réutilisés',
 };
+const HOOK_TON: Record<string, { bd: string; fg: string; label: string }> = {
+  proven: { bd: 'rgba(126,232,191,.45)', fg: '#7ee8bf', label: 'a gagné ici' },
+  market: { bd: 'rgba(245,166,35,.4)', fg: '#ffcf8f', label: 'marché' },
+  untested: { bd: 'var(--line-2)', fg: 'var(--muted)', label: 'jamais tranchée' },
+  refuted: { bd: 'rgba(254,44,85,.4)', fg: '#ff8095', label: 'a perdu ici' },
+};
+
 const ORDRE = ['mechanism', 'element', 'hook_type', 'opening_type', 'format', 'length_bucket', 'awareness', 'talent', 'avatar'];
 
 /**
@@ -35,9 +42,10 @@ export default async function JarvisPage() {
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) redirect('/adsmap');
 
-  const [{ stats, globalRate, nAds }, memoire] = await Promise.all([
+  const [{ stats, globalRate, nAds }, memoire, hooks] = await Promise.all([
     jarvisStats(brand.id, s.workspaceId),
     jarvisMeasuredMemory(brand.id, s.workspaceId),
+    jarvisHookView(brand.id, s.workspaceId),
   ]);
 
   const utiles = stats.filter((r) => r.nConclusive >= 3 && r.hitRate !== null);
@@ -125,6 +133,51 @@ export default async function JarvisPage() {
       {/* La description des créas est ce qui alimente la moitié des dimensions
           ci-dessus · l'encart reste visible même quand le tableau est vide, parce
           que c'est justement là qu'il sert le plus. */}
+      {/* Les accroches AVANT les panneaux d'action : c'est ce qu'on vient lire.
+          Un tableau de catégories ne se réécrit pas, une phrase si. */}
+      <section style={{ marginTop: 22, padding: '16px 18px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)' }}>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Les accroches, mot pour mot</h2>
+        <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
+          Le tableau du dessus donne des <b>catégories</b> · celui-ci donne les <b>phrases</b>. On n’écrit
+          pas une publicité à partir d’une catégorie. Ces accroches sont injectées telles quelles dans
+          chaque génération, avec ce qu’elles ont donné.
+        </p>
+        <p style={{ margin: '9px 0 0', fontSize: 12.5, color: 'var(--ink)', fontWeight: 600, lineHeight: 1.5 }}>
+          {hooks.summary}
+        </p>
+
+        {hooks.entries.length > 0 && (
+          <div style={{ marginTop: 13, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {hooks.entries.slice(0, 14).map((h, i) => {
+              const t = HOOK_TON[h.evidence] ?? HOOK_TON.untested!;
+              return (
+                <div key={`${h.evidence}-${i}`} style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+                  <span style={{
+                    padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 800,
+                    textTransform: 'uppercase', letterSpacing: '.04em', color: t.fg, border: `1px solid ${t.bd}`, whiteSpace: 'nowrap',
+                  }}>{t.label}</span>
+                  <span style={{ flex: '1 1 300px', minWidth: 0, fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.45 }}>
+                    « {h.text} »
+                  </span>
+                  {h.evidence === 'market' && h.maxDaysRunning && (
+                    <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                      {h.maxDaysRunning} j en ligne{h.advertisers > 1 ? ` · ${h.advertisers} annonceurs` : ''}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {hooks.counts.market > 0 && (
+          <p style={{ margin: '12px 0 0', fontSize: 11, color: '#ffcf8f', lineHeight: 1.5 }}>
+            Les accroches de concurrents ne sont jamais recopiées · le prompt l’interdit explicitement
+            et demande d’en reprendre la mécanique, pas les mots.
+          </p>
+        )}
+      </section>
+
       <DescribePanel />
 
       {/* La mémoire marché vient APRÈS la mémoire mesurée, à l'écran comme dans

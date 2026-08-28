@@ -482,3 +482,44 @@ celui qu'on croit :
 - *inexploité* — pratique majoritaire jamais testée chez nous. Le coût d'entrée a
   déjà été payé par d'autres.
 - *confirmé* — les deux concordent.
+
+---
+
+## D26 — Jarvis écrit à partir d'exemples, pas de catégories
+
+**Contexte.** L'agent A0 relève les mots EXACTS de chaque accroche (`hookSpoken`)
+depuis le premier jour, chez nous comme chez les concurrents. Personne ne les
+relisait : Jarvis raisonnait sur des catégories (« accroche chiffrée »).
+
+**Décision.** Une bibliothèque d'accroches, injectée dans chaque génération, avec
+les phrases telles quelles et ce qu'elles ont donné.
+
+**Pourquoi.** « 3 erreurs que tu fais avec ta crème » se réécrit ; « accroche
+chiffrée » se contemple. Personne n'a jamais écrit une publicité à partir d'une
+catégorie. C'est la donnée la plus directement utile du module, et elle dormait.
+
+**Quatre niveaux de preuve, pas trois.** `proven` (a gagné ici), `refuted` (a
+perdu ici), `untested`, `market`. Distinguer « jamais testée » de « testée et
+perdante » est ce qui empêche de reproposer éternellement ce qui a déjà échoué.
+Une accroche relevée deux fois avec deux issues garde la MEILLEURE preuve : c'est
+l'existence du succès qui informe, pas sa fréquence.
+
+---
+
+## D27 — Une accroche de concurrent ne se recopie jamais
+
+**Contexte.** La bibliothèque contient des accroches de concurrents. Tendre des
+phrases toutes faites à un générateur est le moyen le plus sûr de les voir
+ressortir telles quelles.
+
+**Décision.** Le bloc injecté porte une **interdiction explicite** de recopier,
+même partiellement, et demande la MÉCANIQUE de la phrase — ce qui accroche,
+pourquoi ça retient — pas ses mots.
+
+**Pourquoi.** Reprendre le vocabulaire exact d'un concurrent, c'est diffuser sa
+publicité sous notre marque. Le risque n'est pas théorique : c'est le
+comportement par défaut d'un modèle à qui on donne des exemples sans consigne.
+
+**Et une seconde protection.** Ces accroches ne sont jamais présentées comme
+efficaces · on sait seulement que leur annonceur continue de les payer. Le bloc
+le dit avant de les lister, dans les mêmes termes que la mémoire marché (D24).
