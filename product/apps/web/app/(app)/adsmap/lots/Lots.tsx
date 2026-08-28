@@ -167,6 +167,16 @@ export function Lots({ batches, brandName }: {
                     {a.blocking && (
                       <p style={{ margin: '6px 0 0', fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>{a.blocking}</p>
                     )}
+                    {/* Le dernier moment où un avis sert · après le lancement, il
+                        ne reste qu'à constater. */}
+                    {a.prelaunch && (
+                      <p style={{
+                        margin: '6px 0 0', fontSize: 11.5, lineHeight: 1.5,
+                        color: PRELAUNCH_TON[a.prelaunch.recommendation] ?? 'var(--muted)',
+                      }}>
+                        {a.prelaunch.summary}
+                      </p>
+                    )}
                     {a.generatedName && (
                       <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <code style={code}>{a.generatedName}</code>
@@ -270,6 +280,14 @@ function Ligne({ label, valeur, onCopy, copie }: { label: string; valeur: string
     </div>
   );
 }
+
+/** Le ton suit ce que l'avis coûte d'ignorer, pas sa politesse. */
+const PRELAUNCH_TON: Record<string, string> = {
+  stop: '#ff8095',
+  rework: '#ffcf8f',
+  go: 'var(--muted)',
+  unknown: 'var(--muted)',
+};
 
 const titreSection: CSSProperties = {
   margin: '0 0 9px', fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em',

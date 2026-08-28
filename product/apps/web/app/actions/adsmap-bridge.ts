@@ -4,7 +4,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
-import { invalidateJarvisMemory, scoreConceptBeforeLaunch } from '../../lib/jarvis-memory';
+import { invalidateJarvisMemory, briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
 
 /**
  * Passerelles entre le reste du produit et ADSMAP.
@@ -153,8 +153,12 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
       .where(eq(schema.generations.id, gen.id));
 
     invalidateJarvisMemory(g.brand.id);
-    const score = await scoreConceptBeforeLaunch(g.brand.id, g.s.workspaceId, { mechanism, format: 'static' });
-    return { ok: true, adId: ad.id, conceptId, prelaunch: score.summary };
+    // L'avis complet plutôt que le seul score : c'est l'accroche qui porte le
+    // signal le plus fort, et elle est ici sous la main.
+    const avis = await briefConceptBeforeLaunch(g.brand.id, g.s.workspaceId, {
+      mechanism, format: 'static', candidateHook: r.headline ?? null,
+    });
+    return { ok: true, adId: ad.id, conceptId, prelaunch: avis.summary };
   } catch (e) {
     return { error: logAndTranslate('adsmap:track-generated', e, { subject: 'le rattachement à la carte', workspaceId: g.s.workspaceId }) };
   }
@@ -215,8 +219,10 @@ export async function trackSavedAdAction(ref: { platform: string; externalId: st
     }).returning({ id: schema.ads.id });
 
     invalidateJarvisMemory(g.brand.id);
-    const score = await scoreConceptBeforeLaunch(g.brand.id, g.s.workspaceId, { mechanism: 'comparison', format: 'video_ugc' });
-    return { ok: true, adId: ad?.id, conceptId: concept.id, prelaunch: score.summary };
+    const avis = await briefConceptBeforeLaunch(g.brand.id, g.s.workspaceId, {
+      mechanism: 'comparison', format: 'video_ugc', candidateHook: copy || null,
+    });
+    return { ok: true, adId: ad?.id, conceptId: concept.id, prelaunch: avis.summary };
   } catch (e) {
     return { error: logAndTranslate('adsmap:track-saved', e, { subject: 'le rattachement à la carte', workspaceId: g.s.workspaceId }) };
   }

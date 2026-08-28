@@ -5,7 +5,9 @@ import {
   buildJarvisMemory, computeBrandStats, globalHitRate, prelaunchScore, summarizePrelaunch,
   computeMarketStats, contrastMarketVsBrand, buildMarketMemory,
   buildHookLibrary, formatHooksForPrompt, countHooks, summarizeHooks,
+  prelaunchBrief,
   type HookSource, type HookEntry, type HookCounts,
+  type PrelaunchBrief, type MarketRow,
   type StatSourceAd, type StatRow, type PrelaunchInput, type PrelaunchScore,
   type MarketAd, type BrandRow,
 } from '@tiktrends/core';
@@ -325,6 +327,60 @@ export async function jarvisMemoryWithUse(
     text: [mesure, marche, accroches].filter(Boolean).join('\n\n'),
     use: { measured: !!mesure, market: !!marche, hooks: injectees },
   };
+}
+
+/** Parts d'usage du marché · lues une fois, partagées par les deux consommateurs. */
+async function marketRows(brandId: string, workspaceId: string): Promise<MarketRow[]> {
+  if (!db) return [];
+  const rows = await db.select({
+    advertiser: schema.marketCreatives.advertiser,
+    hookType: schema.marketCreatives.hookType,
+    openingType: schema.marketCreatives.openingType,
+    talent: schema.marketCreatives.talent,
+    lengthBucket: schema.marketCreatives.lengthBucket,
+    format: schema.marketCreatives.format,
+    daysRunning: schema.marketCreatives.daysRunning,
+    reachDelta30d: schema.marketCreatives.reachDelta30d,
+  })
+    .from(schema.marketCreatives)
+    .where(and(
+      eq(schema.marketCreatives.workspaceId, workspaceId),
+      eq(schema.marketCreatives.brandId, brandId),
+    ))
+    .limit(600)
+    .catch(() => []);
+
+  return computeMarketStats(rows.map((r) => ({
+    advertiser: r.advertiser,
+    hookType: r.hookType as MarketAd['hookType'],
+    openingType: r.openingType as MarketAd['openingType'],
+    talent: r.talent as MarketAd['talent'],
+    lengthBucket: r.lengthBucket, format: r.format,
+    daysRunning: r.daysRunning, reachDelta30d: r.reachDelta30d,
+  })));
+}
+
+/**
+ * L'avis complet avant de dépenser · les TROIS mémoires réunies.
+ *
+ * `scoreConceptBeforeLaunch` ne lisait que les statistiques par dimension. Il
+ * ignorait les deux mémoires les plus concrètes : la bibliothèque d'accroches,
+ * qui sait qu'une phrase précise a déjà perdu, et le marché.
+ *
+ * La différence pour l'utilisateur n'est pas de degré : « profil défavorable »
+ * ne fait rien changer à personne, « son accroche est celle qui a perdu deux
+ * fois ici » fait réécrire la ligne.
+ */
+export async function briefConceptBeforeLaunch(
+  brandId: string, workspaceId: string,
+  input: PrelaunchInput & { candidateHook?: string | null },
+): Promise<PrelaunchBrief> {
+  const [{ stats, globalRate }, hooks, market] = await Promise.all([
+    jarvisStats(brandId, workspaceId),
+    jarvisHooks(brandId, workspaceId).catch(() => [] as HookEntry[]),
+    marketRows(brandId, workspaceId).catch(() => [] as MarketRow[]),
+  ]);
+  return prelaunchBrief(input, { stats, globalRate, hooks, market });
 }
 
 /** Vide le cache d'une marque · à appeler après un import ou un nouveau verdict. */
