@@ -575,3 +575,70 @@ consommerait du quota pour rien.
 **Et on le DIT.** Quand l'endpoint ne répond pas, le compte rendu précise que les
 accroches sont déduites du visuel et non des mots prononcés. La différence de
 fiabilité est trop grande pour rester implicite.
+
+---
+
+## D30 — Une accroche déjà réfutée l'emporte sur tout le reste
+
+**Contexte.** `prelaunchScore` situait un concept sur les statistiques par
+dimension : mécanisme, format, type d'accroche. C'est utile, et c'est abstrait.
+Il ignorait les deux mémoires les plus concrètes qu'on ait accumulées · la
+bibliothèque d'accroches, qui sait qu'une phrase précise a déjà perdu, et le
+marché, qui sait ce que font les concurrents qui tiennent.
+
+**Décision.** Le brief de pré-lancement rapproche l'accroche envisagée de la
+bibliothèque (indice de Jaccard sur les empreintes, seuil 0,6) et, si elle a
+déjà été réfutée, la recommandation passe à `stop` quel que soit le profil
+statistique.
+
+**Pourquoi.** Un seul test perdu suffit à le dire · ce n'est pas une
+statistique, c'est un souvenir, et un souvenir n'a pas besoin d'effectif. Aucun
+profil favorable ne rachète le fait de reproposer ce qui vient d'échouer.
+
+**Ce que ça change concrètement.** « Ce concept a un profil défavorable » ne fait
+rien changer à personne. « Son accroche est celle qui a perdu deux fois ici »
+fait réécrire la ligne. Le premier est un score, le second est une prise.
+
+**Le seuil est grossier, et volontairement.** On ne cherche pas la similarité
+sémantique — un modèle ferait mieux et coûterait un appel — mais à repérer qu'on
+repropose une phrase déjà écrite avec deux mots changés. À proximité comparable,
+c'est l'accroche réfutée qui gagne le rapprochement : c'est l'information la plus
+coûteuse à ignorer.
+
+---
+
+## D31 — Le marché ne déplace jamais la bande, il ajoute une remarque
+
+**Contexte.** Le brief lit maintenant trois mémoires : les chiffres mesurés de la
+marque, la bibliothèque d'accroches, et les parts d'usage du marché. Il fallait
+trancher laquelle arbitre quand elles se contredisent.
+
+**Décision.** Les parts de marché n'entrent jamais dans le calcul de
+`pConclusiveWin` ni dans la bande `low/mid/high`. Elles produisent uniquement des
+remarques, y compris celle-ci : « ce concept suit le marché sur X, mais chez toi
+cette voie réussit moins que la moyenne ».
+
+**Pourquoi.** Ce qu'on a payé pour apprendre vaut mieux que ce qu'on devine des
+autres (D25). Une part d'usage n'est pas un taux de réussite · on voit ce que les
+concurrents diffusent, jamais ce que ça leur rapporte. Laisser une part d'usage
+corriger un chiffre mesuré, ce serait remplacer une mesure par une rumeur.
+
+**Le cas utile quand même.** Quand une voie pèse lourd sur le marché et qu'on ne
+l'a jamais assez testée, c'est signalé comme piste · d'autres en ont déjà payé
+l'entrée. C'est une information, pas une instruction.
+
+---
+
+## D32 — Un profil sans historique est un inconnu, pas un mauvais profil
+
+**Contexte.** Une marque qui démarre n'a aucune statistique par dimension. Un
+score calculé sur trois ads a l'air d'un score.
+
+**Décision.** Quand l'historique est trop mince, la recommandation est `unknown`
+et le résumé dit que c'est une raison de tester, pas d'écarter. Et quand aucune
+accroche n'a été fournie, le brief le dit aussi : c'est la principale raison pour
+laquelle son avis reste vague.
+
+**Pourquoi.** Un score calculé sur rien est plus dangereux qu'une absence de
+score, parce qu'il a l'air d'un score. Bloquer une marque neuve sur son propre
+manque de données, ce serait lui reprocher de commencer.

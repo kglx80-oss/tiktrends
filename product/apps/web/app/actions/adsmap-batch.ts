@@ -8,6 +8,7 @@ import {
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
+import { briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
 
 /**
  * ADSMAP · préparation d'un lot de test (§6.1, §6.2, §8.6).
@@ -52,6 +53,13 @@ export interface BatchAd {
   generatedName: string | null;
   /** Nom d'ad set proposé · un ad set par ad, c'est le protocole par défaut. */
   adsetName: string;
+  /**
+   * Ce que les trois mémoires disent de cette ad AVANT qu'elle coûte.
+   *
+   * C'est le dernier moment où l'avis sert à quelque chose : après le
+   * lancement, il ne reste qu'à constater.
+   */
+  prelaunch?: { recommendation: string; summary: string } | null;
 }
 
 export interface BatchDetail {
@@ -132,13 +140,26 @@ export async function batchDetailAction(batchId: string): Promise<{ detail?: Bat
     if (!b) return { error: 'Lot introuvable sur cette marque.' };
 
     const cfg = await settings(g.brand.id);
-    const rows = await db!.select({ ad: schema.ads, concept: schema.concepts.title })
+    const rows = await db!.select({
+      ad: schema.ads, concept: schema.concepts.title,
+      callout: schema.concepts.callout, mechanism: schema.angles.mechanism,
+    })
       .from(schema.ads)
       .leftJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .leftJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
       .where(eq(schema.ads.batchId, batchId))
       .orderBy(asc(schema.ads.variantCode));
 
-    const ads: BatchAd[] = rows.map((r) => {
+    // L'avis de pré-lancement, ad par ad · réclamé en parallèle parce qu'il lit
+    // trois mémoires et qu'un lot de dix ads le paierait dix fois en série.
+    const avis = await Promise.all(rows.map((r) =>
+      briefConceptBeforeLaunch(g.brand.id, g.s.workspaceId, {
+        mechanism: r.mechanism ?? null,
+        format: r.ad.format,
+        candidateHook: r.callout || r.concept || null,
+      }).catch(() => null)));
+
+    const ads: BatchAd[] = rows.map((r, i) => {
       // On évalue l'invariant comme si l'ad passait en « prêt » · c'est le sens
       // de la question posée à cet écran, même quand elle est encore brouillon.
       const shape: AdShape = {
@@ -160,6 +181,7 @@ export async function batchDetailAction(batchId: string): Promise<{ detail?: Bat
         blocking: formatViolations(checkAdReady(shape)),
         generatedName: r.ad.generatedName,
         adsetName: `B${b.number} · ${r.ad.variantCode}`,
+        prelaunch: avis[i] ? { recommendation: avis[i]!.recommendation, summary: avis[i]!.summary } : null,
       };
     });
 
