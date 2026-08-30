@@ -45,3 +45,39 @@ export async function triggerAdsMapSync(): Promise<AdsMapTriggerResult> {
     return { ok: false, detail: (e as Error).message };
   }
 }
+
+/**
+ * Radar de veille · même mécanique de déclenchement, autre heure.
+ *
+ * 5h du matin, AVANT la synchro des sources : le radar ne dépend d'aucune
+ * donnée écrite par les autres passages, et le placer en tête laisse le compte
+ * rendu prêt quand quelqu'un ouvre son écran au réveil.
+ *
+ * Il ne fait rien pour une marque non armée · le coût d'un passage à vide est
+ * une requête.
+ */
+export async function triggerRadar(): Promise<AdsMapTriggerResult> {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    console.warn('[radar] CRON_SECRET absent · passage non déclenché.');
+    return { ok: false, detail: 'cron_secret_missing' };
+  }
+
+  const base = (process.env.INTERNAL_APP_URL || INTERNAL).replace(/\/+$/, '');
+  try {
+    const res = await fetch(`${base}/api/cron/radar`, {
+      headers: { authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(10 * 60_000),
+    });
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) {
+      console.error('[radar] passage refusé', res.status, body.error ?? '');
+      return { ok: false, status: res.status, detail: String(body.error ?? res.status) };
+    }
+    console.log('[radar] passage terminé', JSON.stringify(body));
+    return { ok: true, status: res.status };
+  } catch (e) {
+    console.error('[radar] passage injoignable', (e as Error).message);
+    return { ok: false, detail: (e as Error).message };
+  }
+}

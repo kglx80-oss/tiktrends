@@ -100,6 +100,11 @@ export const brands = pgTable('brands', {
   namingPattern: text('naming_pattern'),               // {brand}_B{batch}_{concept}_{variant}_{variable}
   portfolioOptIn: boolean('portfolio_opt_in').notNull().default(false),
   adsmapSyncedAt: timestamp('adsmap_synced_at', { withTimezone: true }), // dernière mesure de la carte
+  // Radar de veille · ÉTEINT par défaut. C'est la seule fonction qui dépense en
+  // arrière-plan : elle s'arme marque par marque, jamais par réglage global.
+  radarArmed: boolean('radar_armed').notNull().default(false),
+  radarCap: integer('radar_cap').notNull().default(3),   // créas décrites par nuit
+  radarLastRunAt: timestamp('radar_last_run_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -339,6 +344,11 @@ export const marketCreatives = pgTable('market_creatives', {
   analysis: jsonb('analysis'),
   analysisConfidence: doublePrecision('analysis_confidence'),
   analyzedAt: timestamp('analyzed_at', { withTimezone: true }),
+  // Ce qui a fait entrer cette créa · `null` = analyse déclenchée à la main.
+  // Sans elle, la sélection nocturne serait une boîte noire six mois plus tard.
+  radarSignal: text('radar_signal'),
+  // Une créa franchit son cap une fois · la resignaler chaque nuit ferait du bruit.
+  reportedAt: timestamp('reported_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   // Une créa décrite deux fois fausserait toutes les parts.

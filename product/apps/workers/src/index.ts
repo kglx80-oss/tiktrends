@@ -3,7 +3,7 @@ import { queues, connection } from './queue';
 import { startWorkers } from './worker';
 import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
-import { triggerAdsMapSync } from './adsmap';
+import { triggerAdsMapSync, triggerRadar } from './adsmap';
 import { fixtures } from '@tiktrends/integrations';
 
 /** Worker « cron » : traite les tâches planifiées (ex : synchro data quotidienne). */
@@ -11,6 +11,7 @@ function startCronWorker() {
   const w = new Worker('cron', async (job) => {
     if (job.name === 'daily-sync') return await runDailySync();
     if (job.name === 'adsmap-sync') return await triggerAdsMapSync();
+    if (job.name === 'radar-scan') return await triggerRadar();
     return { skipped: job.name };
   }, { connection });
   w.on('completed', (j) => console.log('[cron] completed', j.name));
@@ -39,8 +40,17 @@ async function main() {
     removeOnComplete: 20, removeOnFail: 20,
   });
 
+  // Radar de veille · 5h, AVANT le reste. Il ne dépend d'aucune donnée écrite
+  // par les autres passages, et le compte rendu est prêt au réveil. Ne fait rien
+  // pour une marque non armée · le radar est éteint par défaut.
+  await queues.cron.add('radar-scan', {}, {
+    repeat: { pattern: '0 5 * * *' },
+    jobId: 'radar-scan',
+    removeOnComplete: 20, removeOnFail: 20,
+  });
+
   await queues.ingest.add('demo-tiktok', { platform: 'tiktok', ads: (fixtures.tiktok as { ads: unknown[] }).ads });
   await queues.radar.add('demo', { brandId: 'demo' });
-  console.log('[workers] up · crons daily-sync (06:00) et adsmap-sync (07:00) planifiés + jobs démo');
+  console.log('[workers] up · crons radar-scan (05:00), daily-sync (06:00) et adsmap-sync (07:00) planifiés + jobs démo');
 }
 main().catch((e) => { console.error(e); process.exit(1); });
