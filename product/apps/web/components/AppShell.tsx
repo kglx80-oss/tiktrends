@@ -25,7 +25,6 @@ const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: string 
   { key: 'a-spend', label: 'Dépense IA réelle', href: '/admin/depenses', icon: 'coin' },
   { key: 'a-credits', label: 'Coûts & marges', href: '/credits', icon: 'coin' },
   { key: 'a-console', label: 'Console', href: '/console', icon: 'gauge' },
-  { key: 'a-jarvis', label: 'Jarvis', href: '/jarvis', icon: 'brain' },
   { key: 'a-intel', label: 'Intelligence marché', href: '/admin/intelligence', icon: 'radar' },
 ];
 // Note : /billing et /settings sont des pages CLIENTES. Les lister ici basculait
@@ -217,6 +216,7 @@ function AppShellInner(props: Props) {
     { id: 'do-clone', label: 'Cloner une pub gagnante', group: 'Actions', href: '/studio/ads?mode=clone', emoji: '🧬', keywords: 'cloner copier pub concurrent référence' },
     { id: 'do-image', label: 'Générer une image', group: 'Actions', href: '/studio/image', emoji: '🖼️', keywords: 'image visuel produit scène' },
     { id: 'do-video', label: 'Générer une vidéo', group: 'Actions', href: '/studio/video', emoji: '🎬', keywords: 'vidéo animation clip' },
+    { id: 'do-jarvis', label: 'Ce que Jarvis sait', group: 'Actions', href: '/jarvis', emoji: '🧠', keywords: 'jarvis ia memoire accroches regles couches etat' },
     { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/inspo', emoji: '🔎', keywords: 'inspo veille concurrent recherche pub' },
     { id: 'do-scale', label: 'Voir ce qui scale', group: 'Actions', href: '/inspo/scale', emoji: '📈', keywords: 'scale tendance croissance winner' },
     { id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', emoji: '➕', keywords: 'créer marque ajouter' },
@@ -237,7 +237,6 @@ function AppShellInner(props: Props) {
       { id: 'adm-incid', label: 'Incidents techniques', group: 'Plateforme', href: '/admin/incidents', emoji: '⚠️', keywords: 'erreur panne echec quota fournisseur log' },
       { id: 'adm-spend', label: 'Dépense IA réelle', group: 'Plateforme', href: '/admin/depenses', emoji: '💸', keywords: 'plafond budget dollars facture anthropic fal cout reel' },
       { id: 'adm-credits', label: 'Coûts & marges', group: 'Plateforme', href: '/credits', emoji: '％', keywords: 'crédits coût marge rentabilité' },
-      { id: 'adm-jarvis', label: 'Jarvis', group: 'Plateforme', href: '/jarvis', emoji: '🧠', keywords: 'jarvis règles ia' },
       { id: 'adm-intel', label: 'Intelligence marché', group: 'Plateforme', href: '/admin/intelligence', emoji: '🔭', keywords: 'concurrents atria' },
       { id: 'adm-console', label: 'Console', group: 'Plateforme', href: '/console', emoji: '📟', keywords: 'console système diagnostics' },
     );
