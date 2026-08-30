@@ -642,3 +642,62 @@ laquelle son avis reste vague.
 **Pourquoi.** Un score calculé sur rien est plus dangereux qu'une absence de
 score, parce qu'il a l'air d'un score. Bloquer une marque neuve sur son propre
 manque de données, ce serait lui reprocher de commencer.
+
+---
+
+## D33 — Ce qu'une étape franchie prouve ne se retouche pas
+
+**Contexte.** La carte savait dire « cette gagnante n'a jamais été itérée ». Elle
+ne proposait rien · l'utilisateur devait refaire le raisonnement que la mesure
+venait pourtant de faire à sa place. Et le réflexe, quand une créa ne convertit
+pas, est de tout refaire : le hook, le montage, la voix, l'offre. On rebrûle un
+budget de test pour n'apprendre rien, puisque plus personne ne sait à quoi
+attribuer le résultat.
+
+**Décision.** Le tunnel est ordonné, donc le gel est calculable. Une chute au
+CONVERT prouve que l'accroche, le montage et l'appel à l'action ont fonctionné ·
+ces variables sont gelées, et l'écran affiche « ne touche pas » AVANT d'afficher
+quoi changer.
+
+**Pourquoi.** C'est le seul endroit où l'outil apporte ce qu'un humain pressé ne
+se donnera pas tout seul. Proposer trois variantes, n'importe qui le fait.
+Dire lesquelles des réponses déjà payées on est en train de jeter, non.
+
+**Corollaire mécanique.** Si tout l'amont est gelé, il ne reste qu'une variable
+à changer · c'est exactement la définition d'une itération (§2.4). La contrainte
+n'a plus à être rappelée, elle découle du gel.
+
+---
+
+## D34 — Un coût trop élevé désigne l'offre, jamais le montage
+
+**Contexte.** Une ad dont le tunnel passe entièrement mais dont le CPA dérape
+déclenche `killFlag = 'cost'`. Le réflexe est de refaire la créa.
+
+**Décision.** Dans ce cas précis, la suite proposée vise l'offre, en priorité 0.
+
+**Pourquoi.** Refaire la vidéo ne changera pas le prix de l'acquisition. Le
+tunnel a fait son travail · c'est l'économie qui ne suit pas. C'est aussi le
+correctif le moins cher à produire : une page ou un prix, pas un tournage.
+
+---
+
+## D35 — On n'hérite pas d'un échec, mais on ne se prive pas du conseil
+
+**Contexte.** `checkIteration` interdit d'itérer sur une perdante · une arête de
+filiation exige un parent gagnant, et c'est juste : repartir d'un perdant
+reproduit ce qui n'a pas marché. Mais « corriger l'offre d'une créa qui a prouvé
+son hook » reste la meilleure action possible du compte.
+
+**Décision.** La proposition est affichée quand même, avec la mention qu'elle
+s'enregistrera en NOUVEAU concept et sans arête. L'ad naît en `adType: 'new'`,
+et l'offre ou la page n'est pas héritée quand c'est précisément ce qu'on change.
+
+**Pourquoi.** Le conseil est le même, et la comptabilité du graphe reste
+honnête. Contourner l'invariant aurait pollué la filiation ; renoncer au conseil
+aurait privé l'utilisateur de l'action la plus rentable.
+
+**La lignée a une mémoire.** On remonte la filiation pour savoir ce qui a déjà
+été essayé · deux essais sur la même variable est un test, trois est une
+habitude. Au-delà, la suite proposée devient « change d'angle » · le problème
+n'est probablement plus la créa.

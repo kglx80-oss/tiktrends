@@ -181,7 +181,7 @@ export function buildDecisions(input: DecisionInput): Decision[] {
         type: 'accept_iteration', targetId: a.id, targetKind: 'ad', priority: 3,
         spendAtStake: a.spend,
         title: `${a.label} a gagné et n’a jamais été itérée · repartir d’elle coûte moins cher que tout le reste.`,
-        action: 'Crée l’itération : une variable, une hypothèse.',
+        action: 'Ouvre Suites · la variable à changer et ce qu’il faut geler y sont déjà calculés.',
       });
     }
   }
