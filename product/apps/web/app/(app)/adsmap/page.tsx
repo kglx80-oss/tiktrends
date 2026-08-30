@@ -11,6 +11,7 @@ import { listBatchesAction } from '../../actions/adsmap';
 import { PageInfo } from '../../../components/PageInfo';
 import { Views } from './Views';
 import { effectiveAccess } from '../../../lib/access';
+import { Empty } from '../../../components/Empty';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,9 +55,12 @@ export default async function AdsMapPage() {
     return (
       <main style={{ padding: '30px 36px 60px', maxWidth: 700, margin: '0 auto' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
-        <div style={{ marginTop: 20, border: '1px dashed var(--line-2)', borderRadius: 16, padding: '30px 24px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 14, color: 'var(--ink)', fontWeight: 700 }}>Sélectionne une marque active.</p>
-          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>Adsmap travaille marque par marque : chacune a sa carte, ses lots et ses seuils.</p>
+        <div style={{ marginTop: 20 }}>
+          <Empty
+            tone="todo" title="Sélectionne une marque active."
+            why="Adsmap travaille marque par marque · chacune a sa carte, ses lots et ses seuils."
+            action={{ label: 'Choisir une marque', href: '/brands' }}
+          />
         </div>
       </main>
     );

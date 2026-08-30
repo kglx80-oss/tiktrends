@@ -276,7 +276,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
 
       {/* Grille */}
       {shown.length === 0 ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '40px 20px', textAlign: 'center', color: 'var(--muted)' }}>
+        <div style={{ borderRadius: 16, textAlign: 'center', color: 'var(--muted)' }}>
           <div style={{ fontSize: 30 }}>🗂️</div>
           <p style={{ margin: '10px 0 0', fontSize: 13.5 }}>Aucun asset. Téléverse tes images ou importe tes rushs par lien · l'IA s'en servira automatiquement.</p>
         </div>

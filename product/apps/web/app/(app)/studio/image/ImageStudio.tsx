@@ -7,6 +7,7 @@ import type { FalAspect } from '@tiktrends/integrations';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
+import { Empty } from '../../../../components/Empty';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -287,7 +288,10 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{images.length}</span>
       </div>
       {images.length === 0 ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13.5 }}>Aucun visuel pour l'instant.</div>
+        <Empty
+          tone="wait" title="Aucun visuel pour l’instant."
+          why="Décris ce que tu veux voir dans le champ ci-dessus · les visuels générés s’empilent ici."
+        />
       ) : (
         <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
           {images.slice(imgPage * PAGE_SIZE, (imgPage + 1) * PAGE_SIZE).map((im) => (

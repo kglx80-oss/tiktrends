@@ -5,6 +5,7 @@ import {
   radarViewAction, setRadarAction, runRadarNowAction, radarCostPreviewAction,
   type RadarView,
 } from '../../../actions/adsmap-radar';
+import { Empty } from '../../../../components/Empty';
 
 /**
  * Le radar, et son interrupteur.
@@ -129,14 +130,12 @@ export function Radar() {
       </div>
 
       {!findings.length ? (
-        <div style={{ ...carte, textAlign: 'center', padding: '28px 20px' }}>
-          <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink)', fontWeight: 700 }}>Aucune trouvaille pour l’instant.</p>
-          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
-            Le radar ne signale pas les pubs qui sortent · il signale celles qui <b>tiennent</b>. Une créa
+        <Empty
+          tone="wait" title="Aucune trouvaille pour l’instant."
+          why={<>Le radar ne signale pas les pubs qui sortent · il signale celles qui <b>tiennent</b>. Une créa
             encore diffusée après trois semaines est une créa que son annonceur continue de payer en connaissant
-            ses chiffres · c’est le seul vote crédible qu’on puisse observer de l’extérieur.
-          </p>
-        </div>
+            ses chiffres · c’est le seul vote crédible qu’on puisse observer de l’extérieur.</>}
+        />
       ) : (
         <div style={{ display: 'grid', gap: 10 }}>
           {findings.map((f) => (

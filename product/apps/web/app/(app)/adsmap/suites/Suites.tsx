@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition, type CSSProperties } from 'react';
 import { iterationPlanAction, createIterationAction, type IterationPlanView, type IterationRow } from '../../../actions/adsmap-iterate';
+import { Empty } from '../../../../components/Empty';
 
 /**
  * Le plan d'itération, et le geste qui le transforme en test.
@@ -68,13 +69,10 @@ export function Suites() {
       </div>
 
       {!view.rows.length && (
-        <div style={{ ...carte, textAlign: 'center', padding: '28px 20px' }}>
-          <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink)', fontWeight: 700 }}>Rien à itérer pour l’instant.</p>
-          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6 }}>
-            Ce plan se remplit dès qu’un verdict est arbitré. Un verdict calculé ne suffit pas ·
-            engager une dépense sur une conclusion non prise, c’est parier sur un chiffre qui peut encore bouger.
-          </p>
-        </div>
+        <Empty
+          tone="wait" title="Rien à itérer pour l’instant."
+          why="Ce plan se remplit dès qu’un verdict est arbitré. Un verdict calculé ne suffit pas · engager une dépense sur une conclusion non prise, c’est parier sur un chiffre qui peut encore bouger."
+        />
       )}
 
       {view.rows.map((r, i) => (

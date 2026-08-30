@@ -5,6 +5,7 @@ import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAc
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
+import { Empty } from '../../../../components/Empty';
 
 type Ratio = '9:16' | '1:1' | '16:9';
 const RATIOS: Ratio[] = ['9:16', '1:1', '16:9'];
@@ -200,9 +201,10 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
       </div>
 
       {videos.length === 0 ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '28px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13.5 }}>
-          Aucune vidéo pour l'instant. Génère la première ci-dessus.
-        </div>
+        <Empty
+          tone="wait" title="Aucune vidéo pour l’instant."
+          why="Génère la première ci-dessus · les vidéos produites s’empilent ici."
+        />
       ) : (
         <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
           {videos.slice(vidPage * PAGE_SIZE, (vidPage + 1) * PAGE_SIZE).map((v) => {

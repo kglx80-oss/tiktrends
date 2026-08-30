@@ -17,6 +17,7 @@ import { JarvisTraining } from './JarvisTraining';
 import { JarvisChat } from './JarvisChat';
 import { DescribePanel } from './DescribePanel';
 import { MarketPanel } from './MarketPanel';
+import { Empty } from '../../../components/Empty';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,11 +70,12 @@ export default async function JarvisPage() {
     return (
       <main style={{ padding: '30px 36px 60px', maxWidth: 700, margin: '0 auto' }}>
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--ink)' }}>Jarvis</h1>
-        <div style={{ marginTop: 20, border: '1px dashed var(--line-2)', borderRadius: 16, padding: '30px 24px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 14, color: 'var(--ink)', fontWeight: 700 }}>Sélectionne une marque active.</p>
-          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-            Jarvis apprend marque par marque · sa mémoire n’a de sens que rapportée à une marque précise.
-          </p>
+        <div style={{ marginTop: 20 }}>
+          <Empty
+            tone="todo" title="Sélectionne une marque active."
+            why="Jarvis apprend marque par marque · sa mémoire n’a de sens que rapportée à une marque précise."
+            action={{ label: 'Choisir une marque', href: '/brands' }}
+          />
         </div>
       </main>
     );
@@ -375,14 +377,12 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
       </PageInfo>
 
       {parDim.length === 0 ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '30px 24px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 14, color: 'var(--ink)', fontWeight: 700 }}>Rien d’appris pour l’instant.</p>
-          <p style={{ margin: '6px auto 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: 480, lineHeight: 1.6 }}>
-            {stats.nAds > 0
-              ? `${stats.nAds} ad(s) suivies, mais aucun verdict concluant sur au moins trois tests d’un même type.`
-              : 'Importe ton tableau ou lance un premier lot · Jarvis apprend des verdicts, pas des intentions.'}
-          </p>
-        </div>
+        <Empty
+          tone="wait" title="Rien d’appris pour l’instant."
+          why={stats.nAds > 0
+            ? `${stats.nAds} ad(s) suivies, mais aucun verdict concluant sur au moins trois tests d’un même type. Une ligne n’apparaît qu’à partir de trois · en dessous, ce serait une anecdote présentée comme une loi.`
+            : 'Jarvis apprend des verdicts, pas des intentions · sa mémoire se remplit quand des tests sont arbitrés.'}
+        />
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 18 }}>

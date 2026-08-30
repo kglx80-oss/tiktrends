@@ -6,6 +6,7 @@ import {
   prepareBatchAction, launchBatchAction,
   type BatchDetail, type CandidateAd, type PrepareResult,
 } from '../../../actions/adsmap-batch';
+import { Empty } from '../../../../components/Empty';
 
 /**
  * Préparation d'un lot de test.
@@ -107,13 +108,11 @@ export function Lots({ batches, brandName }: {
         )}
 
         {!detail ? (
-          <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '34px 24px', textAlign: 'center' }}>
-            <p style={{ margin: 0, fontSize: 14, color: 'var(--ink)', fontWeight: 700 }}>Aucun lot ouvert.</p>
-            <p style={{ margin: '6px auto 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: 460, lineHeight: 1.6 }}>
-              Un lot, c’est une campagne dédiée, une fenêtre, un protocole. C’est ce qui rend les ads comparables
-              entre elles · sans lui, chaque test se juge seul et ne dit rien.
-            </p>
-          </div>
+          <Empty
+            tone="todo" title="Aucun lot ouvert."
+            why="Un lot, c’est une campagne dédiée, une fenêtre, un protocole. C’est ce qui rend les ads comparables entre elles · sans lui, chaque test se juge seul et ne dit rien."
+            action={{ label: 'Ouvrir la carte', href: '/adsmap' }}
+          />
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
