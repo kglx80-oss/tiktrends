@@ -31,13 +31,13 @@ export default async function AdsMapPage() {
     const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={{ padding: '30px 36px 60px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>ADSMAP</h1>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ fontSize: 34 }}>🔒</div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0', lineHeight: 1.6 }}>
             {why === 'plan'
-              ? 'ADSMAP est disponible à partir de l’offre Plus.'
-              : 'Ton rôle ne permet pas d’accéder à ADSMAP.'}
+              ? 'Adsmap est disponible à partir de l’offre Plus.'
+              : 'Ton rôle ne permet pas d’accéder à Adsmap.'}
           </p>
           {why === 'plan' && (
             <Link href="/billing" style={{ display: 'inline-block', marginTop: 16, padding: '9px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>
@@ -53,10 +53,10 @@ export default async function AdsMapPage() {
   if (!brand) {
     return (
       <main style={{ padding: '30px 36px 60px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>ADSMAP</h1>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20, border: '1px dashed var(--line-2)', borderRadius: 16, padding: '30px 24px', textAlign: 'center' }}>
           <p style={{ margin: 0, fontSize: 14, color: 'var(--ink)', fontWeight: 700 }}>Sélectionne une marque active.</p>
-          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>ADSMAP travaille marque par marque : chacune a sa carte, ses lots et ses seuils.</p>
+          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>Adsmap travaille marque par marque : chacune a sa carte, ses lots et ses seuils.</p>
         </div>
       </main>
     );
@@ -73,32 +73,14 @@ export default async function AdsMapPage() {
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1320, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>ADSMAP</h1>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
         <span style={{ flex: 1 }} />
-        <Link href="/adsmap/suites" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
-          Suites
-        </Link>
-        {peutMesurer && (
-          <Link href="/adsmap/radar" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
-            Radar
-          </Link>
-        )}
-        <Link href="/jarvis" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
-          Ce que Jarvis a appris
-        </Link>
+        {/* Il ne reste ici que ce qui AGIT sur la carte · mesurer, partager.
+            Les six écrans du module vivent dans le rail, comme ceux du Studio :
+            une barre de sept boutons n'est plus une navigation, c'est une
+            barre d'outils saturée qu'on cesse de lire. */}
         {peutMesurer && <ShareButton />}
-        {peutMesurer && (
-          <Link href="/adsmap/lots" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
-            Lots de test
-          </Link>
-        )}
-        <Link href="/adsmap/import" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
-          Importer le tableau
-        </Link>
-        <Link href="/adsmap/protocole" style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
-          Protocole & seuils
-        </Link>
         {peutMesurer && <SyncButton syncedAt={row?.at ? row.at.toISOString() : null} />}
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18, maxWidth: 760, lineHeight: 1.6 }}>

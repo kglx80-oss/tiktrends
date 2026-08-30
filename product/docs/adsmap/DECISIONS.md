@@ -1190,3 +1190,69 @@ croissant · un motif entièrement littéral gagne toujours.
 décode plutôt que d'afficher « Concurrent ». C'est le DERNIER segment dynamique
 qu'on lit, pas le premier : sur ce chemin, c'est le concurrent qu'on nomme, pas
 la marque qui le contient.
+
+---
+
+## D58 — Le rail suit la boucle de travail, pas l'ordre d'arrivée des fonctionnalités
+
+**Le constat.** « Analyse » et « Création » dataient d'avant les modules récents.
+Jarvis était rangé dans Création alors qu'il est le cerveau ; Adsmap dans Analyse
+alors qu'il pilote des tests. Personne n'avait choisi ce classement · il avait
+simplement absorbé chaque nouveauté là où il y avait de la place.
+
+**Décision.** Quatre groupes qui se lisent de haut en bas comme on travaille :
+
+| Groupe | Ce qu'on y fait |
+|---|---|
+| **Piloter** | où on en est · Dashboard, Analytics |
+| **Trouver** | ce que fait le marché · Veille, Ce qui scale, Sauvegardes, Tagging, Radar produits |
+| **Créer** | Jarvis d'abord, puis Studio et ses quatre écrans, Assets |
+| **Tester** | Adsmap et ses cinq sous-écrans |
+
+**Jarvis ouvre « Créer ».** Ce n'est plus une fonctionnalité parmi d'autres ·
+depuis qu'on lui parle, c'est la porte d'entrée de tout le reste.
+
+---
+
+## D59 — Deux entrées du même nom obligent à cliquer pour savoir laquelle
+
+**Le défaut.** `/radar` (produits qui montent) et `/adsmap/radar` (veille
+nocturne sur les concurrents) s'appelaient tous les deux « Radar ». Même mot,
+deux choses sans rapport, dans deux groupes différents.
+
+**Décision.** « Radar produits » et « Radar de veille ». Et un test refuse
+désormais tout libellé de rail apparaissant deux fois · c'est le genre de
+collision qui ne se voit pas à l'écriture et coûte un clic à chaque lecture.
+
+---
+
+## D60 — Une barre de sept boutons n'est plus une navigation
+
+**Le constat.** Le haut d'Adsmap alignait sept boutons : Suites, Radar, Jarvis,
+Partager, Lots, Importer, Protocole, Mesurer. Ces six écrans n'existaient nulle
+part ailleurs · depuis n'importe quelle autre page du produit, ils étaient
+inatteignables.
+
+**Décision.** Les cinq sous-écrans descendent dans le rail, exactement comme
+ceux du Studio. Il ne reste en haut de la carte que ce qui **agit** dessus :
+mesurer, partager.
+
+**Le principe.** Une barre d'outils saturée cesse d'être lue · et un écran qu'on
+ne peut atteindre que depuis un seul autre écran n'est pas dans le produit, il
+est dans une annexe.
+
+---
+
+## D61 — Deux listes qui décrivent la même chose finissent par ne plus la décrire pareil
+
+**Contexte.** `FEATURES` (le rail, avec ses rôles et ses offres) et `ROUTES` (le
+fil, avec sa hiérarchie) sont deux vues d'une seule arborescence. Les fusionner
+mêlerait des permissions à un fil d'Ariane, qui n'en a que faire.
+
+**Décision.** On ne les fusionne pas · on vérifie qu'elles s'accordent. Un test
+compare les chemins, les libellés, la filiation, et refuse les doublons de nom.
+
+**Il a servi immédiatement.** Écrit après la refonte, il a échoué du premier
+coup : « Importer » dans le rail, « Importer le tableau » dans le fil. Deux noms
+pour un même écran, introduits dans le commit qui prétendait justement unifier
+la navigation.

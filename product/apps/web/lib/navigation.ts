@@ -36,7 +36,7 @@
  */
 
 /** Sections de premier niveau · elles ouvrent tout fil d'Ariane. */
-export type Section = 'Analyse' | 'Création' | 'Espace' | 'Plateforme';
+export type Section = 'Piloter' | 'Trouver' | 'Créer' | 'Tester' | 'Espace' | 'Plateforme';
 
 export interface RouteNode {
   /** Motif de chemin · les segments dynamiques s'écrivent `[id]`. */
@@ -60,35 +60,35 @@ export interface RouteNode {
 
 export const ROUTES: RouteNode[] = [
   // ── Analyse ────────────────────────────────────────────────────────────────
-  { path: '/dashboard', label: 'Dashboard', section: 'Analyse' },
-  { path: '/analytics', label: 'Analytics', section: 'Analyse' },
-  { path: '/radar', label: 'Radar produits', section: 'Analyse' },
-  { path: '/tags', label: 'Tagging', section: 'Analyse' },
+  { path: '/dashboard', label: 'Dashboard', section: 'Piloter' },
+  { path: '/analytics', label: 'Analytics', section: 'Piloter' },
+  { path: '/radar', label: 'Radar produits', section: 'Trouver' },
+  { path: '/tags', label: 'Tagging', parent: '/inspo', section: 'Trouver' },
 
-  { path: '/adsmap', label: 'ADSMAP', section: 'Analyse' },
-  { path: '/adsmap/suites', label: 'Suites', parent: '/adsmap', section: 'Analyse' },
-  { path: '/adsmap/lots', label: 'Lots de test', parent: '/adsmap', section: 'Analyse' },
-  { path: '/adsmap/protocole', label: 'Protocole & seuils', parent: '/adsmap', section: 'Analyse' },
-  { path: '/adsmap/import', label: 'Importer le tableau', parent: '/adsmap', section: 'Analyse' },
-  { path: '/adsmap/radar', label: 'Radar de veille', parent: '/adsmap', section: 'Analyse' },
+  { path: '/adsmap', label: 'Adsmap', section: 'Tester' },
+  { path: '/adsmap/suites', label: 'Suites', parent: '/adsmap', section: 'Tester' },
+  { path: '/adsmap/lots', label: 'Lots de test', parent: '/adsmap', section: 'Tester' },
+  { path: '/adsmap/protocole', label: 'Protocole & seuils', parent: '/adsmap', section: 'Tester' },
+  { path: '/adsmap/import', label: 'Importer', parent: '/adsmap', section: 'Tester' },
+  { path: '/adsmap/radar', label: 'Radar de veille', parent: '/adsmap', section: 'Tester' },
   // Redirige vers `/jarvis` · déclarée pour que la carte reste complète, cachée
   // pour qu'un fil ne s'affiche jamais sur un écran qu'on ne fait que traverser.
-  { path: '/adsmap/jarvis', label: 'Jarvis', parent: '/adsmap', section: 'Analyse', hidden: true },
+  { path: '/adsmap/jarvis', label: 'Jarvis', parent: '/adsmap', section: 'Tester', hidden: true },
 
   // ── Création ───────────────────────────────────────────────────────────────
-  { path: '/jarvis', label: 'Jarvis', section: 'Création' },
+  { path: '/jarvis', label: 'Jarvis', section: 'Créer' },
 
-  { path: '/inspo', label: 'Veille', section: 'Création' },
-  { path: '/inspo/scale', label: 'Ce qui scale', parent: '/inspo', section: 'Création' },
-  { path: '/saved', label: 'Sauvegardes', parent: '/inspo', section: 'Création' },
+  { path: '/inspo', label: 'Veille', section: 'Trouver' },
+  { path: '/inspo/scale', label: 'Ce qui scale', parent: '/inspo', section: 'Trouver' },
+  { path: '/saved', label: 'Sauvegardes', parent: '/inspo', section: 'Trouver' },
 
-  { path: '/studio', label: 'Studio IA', section: 'Création' },
-  { path: '/studio/ads', label: 'Pubs IA', parent: '/studio', section: 'Création' },
-  { path: '/studio/image', label: 'Image IA', parent: '/studio', section: 'Création' },
-  { path: '/studio/video', label: 'Vidéo IA', parent: '/studio', section: 'Création' },
-  { path: '/studio/prompts', label: 'Tes prompts', parent: '/studio', section: 'Création' },
+  { path: '/studio', label: 'Studio IA', section: 'Créer' },
+  { path: '/studio/ads', label: 'Pubs IA', parent: '/studio', section: 'Créer' },
+  { path: '/studio/image', label: 'Image IA', parent: '/studio', section: 'Créer' },
+  { path: '/studio/video', label: 'Vidéo IA', parent: '/studio', section: 'Créer' },
+  { path: '/studio/prompts', label: 'Tes prompts', parent: '/studio', section: 'Créer' },
 
-  { path: '/assets', label: 'Assets', section: 'Création' },
+  { path: '/assets', label: 'Assets', section: 'Créer' },
 
   // ── Espace ─────────────────────────────────────────────────────────────────
   { path: '/brands', label: 'Marques', section: 'Espace' },

@@ -232,7 +232,7 @@ function AppShellInner(props: Props) {
       { id: 'adm-home', label: 'ADMIN+ · Coulisses', group: 'Plateforme', href: '/admin', emoji: '🎛️', keywords: 'admin backstage console' },
       { id: 'adm-fin', label: 'Finance · MRR & marges', group: 'Plateforme', href: '/admin/finance', emoji: '📈', keywords: 'mrr revenu marge chiffre' },
       { id: 'adm-signups', label: 'Inscriptions & onboarding', group: 'Plateforme', href: '/admin/signups', emoji: '🧭', keywords: 'inscriptions comptes profils' },
-      { id: 'nav-adsmap', label: 'ADSMAP · carte des tests', group: 'Analyse', href: '/adsmap', emoji: '🗺️', keywords: 'adsmap test verdict hypothese iteration batch lot' },
+      { id: 'nav-adsmap', label: 'Adsmap · carte des tests', group: 'Analyse', href: '/adsmap', emoji: '🗺️', keywords: 'adsmap test verdict hypothese iteration batch lot' },
       { id: 'adm-plans', label: 'Formules & crédits · pilotage', group: 'Plateforme', href: '/admin/plans', emoji: '◈', keywords: 'formule plan crédit offrir ajuster' },
       { id: 'adm-pay', label: 'Vérifier la chaîne de paiement', group: 'Plateforme', href: '/admin/paiement', emoji: '💳', keywords: 'stripe paiement webhook prix test carte' },
       { id: 'adm-incid', label: 'Incidents techniques', group: 'Plateforme', href: '/admin/incidents', emoji: '⚠️', keywords: 'erreur panne echec quota fournisseur log' },

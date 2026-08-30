@@ -24,8 +24,18 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
 }
 
 // Catalogue des fonctionnalités : rôle minimum + abonnement minimum.
-export type NavGroup = 'Analyse' | 'Création' | 'account';
-export const RAIL_GROUPS: NavGroup[] = ['Analyse', 'Création'];
+/**
+ * Groupes du rail · ils suivent la BOUCLE de travail, pas l'ordre d'arrivée des
+ * fonctionnalités.
+ *
+ * « Analyse » et « Création » dataient d'avant les modules récents : Jarvis y
+ * était rangé dans Création alors qu'il est le cerveau, et Adsmap dans Analyse
+ * alors qu'il pilote des tests. On lit désormais le rail de haut en bas comme on
+ * travaille : on regarde où on en est, on cherche, on crée, on teste et on
+ * apprend.
+ */
+export type NavGroup = 'Piloter' | 'Trouver' | 'Créer' | 'Tester' | 'account';
+export const RAIL_GROUPS: NavGroup[] = ['Piloter', 'Trouver', 'Créer', 'Tester'];
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
 // Allocation de crédits mensuelle par abonnement.
@@ -50,27 +60,42 @@ export interface Feature {
 }
 
 export const FEATURES: Feature[] = [
-  // Analyse (rail)
-  { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter' },
-  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Analyse',  minRole: 'client_viewer', minPlan: 'starter' },
-  { key: 'radar',     label: 'Radar',        href: '/radar',       icon: 'radar',  group: 'Analyse',  minRole: 'member',        minPlan: 'core' },
-  { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Analyse',  minRole: 'member',        minPlan: 'starter' },
-  // Création (rail)
-  { key: 'inspo',     label: 'Veille',       href: '/inspo',       icon: 'bulb',   group: 'Création', minRole: 'member',        minPlan: 'core' },
-  { key: 'scale',     label: 'Ce qui scale', href: '/inspo/scale', icon: 'trend',  group: 'Création', parent: 'inspo', minRole: 'member', minPlan: 'core' },
-  { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Création', parent: 'inspo', minRole: 'member', minPlan: 'core' },
-  { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Création', minRole: 'member',        minPlan: 'core' },
-  { key: 'ads',       label: 'Pubs IA',      href: '/studio/ads',   icon: 'spark', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'prompts',   label: 'Tes prompts',  href: '/studio/prompts', icon: 'bulb', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Création', minRole: 'member',        minPlan: 'core' },
-  // Jarvis · l'IA elle-même. Le rail la montre à partir de `core` : l'état des
-  // couches et les actions de description valent pour tout le monde. Ce qui
-  // demande l'offre Plus, c'est la mémoire MESURÉE, et c'est la page qui le dit.
-  { key: 'jarvis',    label: 'Jarvis',       href: '/jarvis',      icon: 'brain',  group: 'Création', minRole: 'member',        minPlan: 'core' },
-  // ADSMAP · carte de creative strategy (hypothèse -> test -> verdict -> itération).
-  { key: 'adsmap',    label: 'ADSMAP',       href: '/adsmap',      icon: 'radar',  group: 'Analyse',  minRole: 'member',        minPlan: 'plus' },
+  // ── Piloter · où on en est ────────────────────────────────────────────────
+  { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   group: 'Piloter',  minRole: 'client_viewer', minPlan: 'starter' },
+  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Piloter',  minRole: 'client_viewer', minPlan: 'starter' },
+
+  // ── Trouver · ce que fait le marché ───────────────────────────────────────
+  { key: 'inspo',     label: 'Veille',       href: '/inspo',       icon: 'bulb',   group: 'Trouver',  minRole: 'member',        minPlan: 'core' },
+  { key: 'scale',     label: 'Ce qui scale', href: '/inspo/scale', icon: 'trend',  group: 'Trouver',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Trouver', parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Trouver',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
+  // « Radar produits » et non « Radar » · le module Adsmap en a un autre, et
+  // deux entrées du même nom obligent à cliquer pour savoir laquelle est laquelle.
+  { key: 'radar',     label: 'Radar produits', href: '/radar',     icon: 'radar',  group: 'Trouver',  minRole: 'member',        minPlan: 'core' },
+
+  // ── Créer · Jarvis d'abord, c'est par lui qu'on entre ─────────────────────
+  // Le rail le montre à partir de `core` : l'état des couches et les actions de
+  // description valent pour tout le monde. Ce qui demande l'offre Plus, c'est la
+  // mémoire MESURÉE, et c'est la page qui le dit.
+  { key: 'jarvis',    label: 'Jarvis',       href: '/jarvis',      icon: 'brain',  group: 'Créer',    minRole: 'member',        minPlan: 'core' },
+  { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Créer',    minRole: 'member',        minPlan: 'core' },
+  { key: 'ads',       label: 'Pubs IA',      href: '/studio/ads',   icon: 'spark', group: 'Créer',    parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Créer',    parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Créer',    parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'prompts',   label: 'Tes prompts',  href: '/studio/prompts', icon: 'bulb', group: 'Créer',   parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Créer',    minRole: 'member',        minPlan: 'core' },
+
+  // ── Tester · la boucle hypothèse → verdict → itération ────────────────────
+  // Les sous-écrans figurent dans le rail comme ceux du Studio. Ils vivaient
+  // jusqu'ici dans une barre de sept boutons en haut de la carte, invisibles
+  // depuis n'importe quel autre écran.
+  { key: 'adsmap',    label: 'Adsmap',       href: '/adsmap',      icon: 'radar',  group: 'Tester',   minRole: 'member',        minPlan: 'plus' },
+  { key: 'suites',    label: 'Suites',       href: '/adsmap/suites', icon: 'trend', group: 'Tester',  parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
+  { key: 'lots',      label: 'Lots de test', href: '/adsmap/lots', icon: 'layers', group: 'Tester',   parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
+  { key: 'ttradar',   label: 'Radar de veille', href: '/adsmap/radar', icon: 'radar', group: 'Tester', parent: 'adsmap', minRole: 'admin', minPlan: 'plus' },
+  { key: 'protocole', label: 'Protocole & seuils', href: '/adsmap/protocole', icon: 'gauge', group: 'Tester', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
+  { key: 'import',    label: 'Importer',     href: '/adsmap/import', icon: 'store', group: 'Tester',  parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
+
   // Menu profil · Compte (personnel · tous les rôles)
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
   // Menu profil · Espace de travail (client · propriétaire/admin de l'espace)
