@@ -15,6 +15,13 @@ import { analyzeAssetsAction, analysisCoverageAction, type AnalysisCoverage } fr
  * La COUVERTURE est affichée avant le bouton, et c'est délibéré : une statistique
  * calculée sur trois créas décrites sur cent est une statistique fausse. Le
  * chiffre dit à quel point on peut se fier au tableau du dessus.
+ *
+ * ── Le coût aussi vient avant le bouton ──────────────────────────────────────
+ *
+ * C'est une dépense en dollars, pas en crédits · les crédits sont une
+ * comptabilité interne, la facture est réelle. On annonce donc ce que coûte la
+ * tranche ET ce que coûterait la totalité, avant le clic. Un chiffre découvert
+ * après coup n'est pas une information, c'est une surprise.
  */
 export function DescribePanel() {
   const [c, setC] = useState<AnalysisCoverage | null>(null);
@@ -42,8 +49,9 @@ export function DescribePanel() {
     await charger();
   }
 
-  const restant = c ? Math.max(0, c.total - c.described - c.withoutAsset) : 0;
+  const restant = c ? c.pendingAsset + c.pendingWritten : 0;
   const couverture = c && c.total > 0 ? Math.round((c.described / c.total) * 100) : null;
+  const usd = (n: number) => `${n.toFixed(2)} $`;
 
   return (
     <section style={{
@@ -64,17 +72,39 @@ export function DescribePanel() {
                 ? 'Aucune créa dans la carte pour l’instant.'
                 : `${c.described} créa(s) décrite(s) sur ${c.total}${couverture !== null ? ` · ${couverture} %` : ''}`}
               {c.manual > 0 && ` · dont ${c.manual} corrigée(s) à la main, que l’agent ne touche pas.`}
+              {c.fromWritten > 0 && ` · dont ${c.fromWritten} déduite(s) du brief, à confiance plafonnée.`}
               {c.withoutAsset > 0 && ` ${c.withoutAsset} sans visuel ni texte, indescriptibles en l’état.`}
               {couverture !== null && couverture < 50 && c.described > 0 && ' Sous la moitié, les lignes du tableau tirées de ces champs restent peu fiables.'}
             </p>
           )}
         </div>
+        {c && restant > 0 && (
+          <div style={{
+            flex: '0 0 auto', padding: '9px 12px', borderRadius: 10,
+            border: '1px solid var(--line-2)', background: 'var(--paper)', maxWidth: 250,
+          }}>
+            <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>
+              Cette tranche
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)', marginTop: 2 }}>
+              {usd(c.nextCostUsd)}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>
+              {c.nextBatch} créa(s) · {usd(c.totalCostUsd)} pour les {restant} restantes
+            </div>
+            {c.pendingWritten > 0 && (
+              <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>
+                {c.pendingAsset} depuis l’asset, {c.pendingWritten} depuis le brief
+              </div>
+            )}
+          </div>
+        )}
         <button type="button" onClick={decrire} disabled={busy || restant === 0} style={{
           padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
           color: '#0d070c', fontWeight: 800, fontSize: 12.5,
           cursor: busy || restant === 0 ? 'default' : 'pointer', opacity: busy || restant === 0 ? 0.5 : 1,
         }}>
-          {busy ? 'Analyse…' : restant > 0 ? `Décrire ${Math.min(restant, 25)} créa(s)` : 'Tout est décrit'}
+          {busy ? 'Analyse…' : restant > 0 ? `Décrire ${c?.nextBatch ?? 0} créa(s)` : 'Tout est décrit'}
         </button>
       </div>
 
@@ -90,6 +120,7 @@ export function DescribePanel() {
       )}
       <p style={{ margin: '9px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
         2 crédits par créa · par lots de 25, remboursés quand l’agent ne trouve rien à décrire.
+        Le montant en dollars est la dépense réelle chez le fournisseur, et il s’impute sur le plafond global.
       </p>
     </section>
   );
