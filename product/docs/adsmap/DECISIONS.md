@@ -863,3 +863,57 @@ plus dangereux qu'une absence de diagnostic.
 
 **La règle générale.** Un panneau qui DÉCRIT l'état du système ne doit jamais
 être ce qui l'interrompt. C'est vrai de celui-ci, et de tous ceux qui viendront.
+
+---
+
+## D43 — Une carte de cinq cents nœuds ajustée à l'écran n'est pas une carte
+
+**Contexte.** Le canvas dessinait tout le graphe d'un coup. Sur un compte réel —
+vingt-neuf lots — cela fait plusieurs centaines de nœuds, que `fitView` écrasait
+à huit pour cent de zoom. On voyait qu'il y avait quelque chose, sans pouvoir
+rien lire. Retour d'usage textuel : « pas exploitable, pas lisible ».
+
+**Le remède qu'on n'a PAS pris.** Améliorer le zoom. C'est traiter le symptôme ·
+zoomer dans une texture donne un fragment de texture, sans savoir où l'on est.
+
+**Décision.** Montrer moins par défaut.
+
+1. **Les ads sont repliées.** L'ossature stratégique — avatar, désir, angle —
+   tient en quelques dizaines de nœuds ; ce sont les ads qui font le nombre. Un
+   angle replié **porte son décompte** (concepts, ads, gagnantes), donc rien
+   n'est caché : on sait ce qu'il y a derrière avant de l'ouvrir. Replier sans
+   compter serait cacher.
+2. **Un filtre par avatar.** Le graphe est une forêt, un arbre par avatar · les
+   lire ensemble n'apporte rien qu'aucun des deux ne dise mieux seul.
+3. **Le cadrage suit ce qu'on ouvre.** Déplier sans recadrer laisse le contenu
+   hors de l'écran, et l'utilisateur conclut que son clic n'a rien fait.
+
+**Le zoom minimal passe de 0,08 à 0,3.** En dessous, plus rien n'est lisible ·
+autoriser plus bas n'offrait que la possibilité de se perdre.
+
+**Les décomptes sont calculés sur le graphe COMPLET**, pas sur ce qui est
+affiché · un décompte qui ne compterait que le visible serait faux exactement
+au moment où il sert, c'est-à-dire quand la branche est fermée.
+
+---
+
+## D44 — Un bloc qui n'a rien à répondre le dit, il ne s'évapore pas
+
+**Contexte.** Le bloc d'attribution ne s'affichait que si la lecture avait
+abouti. En cas d'échec il disparaissait sans un mot · l'utilisateur cherchant
+« l'attribution » ne trouvait rien et ne pouvait pas distinguer « absent » de
+« vide » de « en panne ».
+
+**Décision.** Le bloc est toujours rendu dès que la mémoire est accessible. Trois
+états explicites : l'erreur telle quelle, le manque de données avec **ce qu'il
+faudrait pour répondre** (six tests arbitrés par groupe, et combien on en a), ou
+le résultat.
+
+**Et il porte son nom.** Une étiquette « Attribution » à côté du titre ·
+« Est-ce que Jarvis améliore vraiment les résultats ? » dit ce que ça fait, pas
+comment ça s'appelle, et on cherche par le nom.
+
+**La règle, deux fois dans la même semaine.** C'est le pendant de D42 : un
+panneau qui décrit l'état du système ne doit ni l'interrompre, ni disparaître
+quand il échoue. « Pas assez de données » est une réponse ; le silence n'en est
+pas une.
