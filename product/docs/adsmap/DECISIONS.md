@@ -1313,3 +1313,74 @@ un autre, deux bordures pointillées l'une dans l'autre.
 **Ce qu'il ne vise pas.** Les mentions en ligne dans un panneau déjà cadré ·
 elles relèvent de `EmptyLine`, et leur imposer un bloc ferait plus de bruit que
 la donnée qu'elles remplacent.
+
+---
+
+## D65 — Le parcours s'était arrêté au produit d'il y a trois mois
+
+**Le constat.** Une liste de quatre cases existait : créer la marque, connecter
+une source, ajouter des assets, générer une créa. Elle mène à une première image
+et **abandonne exactement là où la valeur du produit commence** · pas un mot sur
+la carte, les lots, la mesure, l'arbitrage, la mémoire.
+
+**Décision.** Huit étapes bloquantes, de rien jusqu'à « Jarvis sait quelque
+chose sur toi », plus deux facultatives qui améliorent sans conditionner.
+
+**L'ordre vise le premier test MESURÉ**, pas la complétude de la fiche marque.
+C'est le premier moment où l'outil rend quelque chose que l'utilisateur n'avait
+pas avant.
+
+---
+
+## D66 — Un parcours est un graphe, et Meta vient après le premier lot
+
+**Le défaut.** Les quatre cases s'affichaient à égalité, comme si l'ordre était
+libre. Il ne l'est pas · **connecter Meta avant d'avoir un lot en ligne ne sert
+à rien**. On branche un compte publicitaire pour mesurer quelque chose ; s'il n'y
+a rien à mesurer, l'étape est faite pour rien et l'outil paraît creux.
+
+**Décision.** Chaque étape déclare ce qu'elle exige. Une étape bloquée dit **par
+quoi** elle l'est, plutôt que d'être grisée sans explication · griser sans
+expliquer produit exactement la question qu'on voulait éviter. Et on ne lie pas
+une étape bloquée : y envoyer quelqu'un le ferait arriver devant un écran qu'il
+ne peut pas encore remplir.
+
+**Une seule prochaine action.** Huit cases ouvertes sont un mur, et un mur se
+contourne en fermant l'encart. On montre le chemin entier — c'est lui qui dit où
+l'on va — mais on n'en désigne qu'une comme la suivante. Jamais une facultative :
+envoyer quelqu'un régler un détail au lieu d'avancer est le meilleur moyen de le
+perdre.
+
+---
+
+## D67 — Une case qu'on coche soi-même ment dès la première distraction
+
+**Décision.** Chaque étape est faite parce que **la donnée existe** en base, pas
+parce que quelqu'un l'a cochée.
+
+**Deux conséquences.** On ne peut pas se tromper sur son propre état · et un
+nouveau membre de l'équipe voit la vérité, pas l'humeur de celui qui a configuré
+avant lui.
+
+**Le seuil de « marque renseignée » est bas, volontairement.** Une identité
+utilisable et un produit suffisent · exiger la fiche parfaite ferait stagner
+quelqu'un qui a déjà de quoi générer.
+
+**Et « Jarvis sait quelque chose » exige trois créas décrites ET un verdict
+arbitré.** En dessous, son tableau reste vide, et annoncer l'étape faite serait
+un mensonge visible dès le premier clic.
+
+---
+
+## D68 — Il se replie, il ne disparaît pas
+
+**Le défaut.** L'ancien encart s'effaçait définitivement au premier « Masquer »,
+via un drapeau de navigateur. Un nouveau membre de l'équipe n'y avait plus jamais
+droit, et celui qui l'avait masqué non plus.
+
+**Décision.** Il se replie en une ligne qui garde la progression et la prochaine
+étape. Il reste utile à l'étape six, quand on cherche pourquoi Meta ne remonte
+rien · ce n'est pas une bannière de bienvenue, c'est la carte de la boucle.
+
+Il disparaît pour de bon à une seule condition : le circuit complet en place. Là,
+il n'a plus rien à guider et il rend la place.

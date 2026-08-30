@@ -38,3 +38,4 @@ export * from './adsmap/radar';
 export * from './adsmap/written-source';
 export * from './adsmap/jarvis-chat';
 export * from './creative-presets';
+export * from './onboarding';
