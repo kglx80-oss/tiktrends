@@ -8,16 +8,21 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey } from '@tiktrends/core';
+import { costFor, imageModelByKey, explainProposal, type StatRow, type HookEntry } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
-import { jarvisFullMemory, jarvisMemoryWithUse } from '../../lib/jarvis-memory';
+import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 
-export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string; rating?: import('./creatives').Rating; score?: number }
+export interface AdItem {
+  id: string; template: AdTemplate; headline: string; url: string; createdAt: string;
+  rating?: import('./creatives').Rating; score?: number;
+  /** Pourquoi Jarvis a proposé ça · une proposition muette se subit ou s'ignore. */
+  rationale?: string[] | null;
+}
 export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
 
 /** Ordonne les couleurs d'accent lisibles (bouton/CTA) de la DA ; défaut si aucune. */
@@ -97,6 +102,8 @@ async function composeBatch(o: {
   productId?: string; personaId?: string; objective?: string;
   /** Prompt maison · remplace l'univers fourni quand il est choisi. */
   preset?: { id: string; prompt: string; negative: string | null } | null;
+  /** De quoi expliquer chaque proposition · les mêmes chiffres que ceux injectés. */
+  rationaleCtx?: { stats: StatRow[]; globalRate: number | null; hooks: HookEntry[] } | null;
 }): Promise<AdItem[]> {
   const accents = pickAccents(o.colors);
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
@@ -171,13 +178,22 @@ async function composeBatch(o: {
       // savait ce jour-là est impossible, la mémoire ayant changé depuis.
       memoryUse: o.memoryUse,
       presetId: o.preset?.id ?? null,
+      // Recalculée depuis la mémoire injectée · elle ne peut donc pas inventer
+      // un chiffre, contrairement à une phrase demandée au modèle.
+      rationale: o.rationaleCtx
+        ? explainProposal({ headline: c.headline }, {
+            stats: o.rationaleCtx.stats,
+            globalRate: o.rationaleCtx.globalRate,
+            hooks: o.rationaleCtx.hooks,
+          }).lines.map((l) => l.text)
+        : null,
     };
     try {
       const [row] = await db!.insert(schema.generations).values({
         brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString() });
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null });
     } catch { /* ignore */ }
   }
 
@@ -311,11 +327,20 @@ export async function generateAdsAction(input: {
   // Ordre d'autorité, du plus fort au plus faible : ce que la marque a MESURÉ
   // (verdicts ADSMAP), puis ce qu'elle a distillé de la veille, puis les créas
   // notées au pouce. Le premier bloc n'existe qu'à partir de vrais verdicts.
-  const [memoire, prefs] = await Promise.all([
+  const [memoire, prefs, statsPourExpliquer, accroches] = await Promise.all([
     jarvisMemoryWithUse(brand.id, s.workspaceId),
     learnedPreferences(brand.id),
+    jarvisStats(brand.id, s.workspaceId).catch(() => ({ stats: [], globalRate: null, nAds: 0 })),
+    jarvisHooks(brand.id, s.workspaceId).catch(() => []),
   ]);
   const winningPatterns = [memoire.text, da?.jarvisLearnings, prefs].filter(Boolean).join('\n\n') || undefined;
+  // Le contexte d'explication vient des MÊMES lectures que la mémoire injectée ·
+  // expliquer avec d'autres chiffres que ceux qui ont servi serait une fiction.
+  const rationaleCtx = {
+    stats: statsPourExpliquer.stats as StatRow[],
+    globalRate: statsPourExpliquer.globalRate,
+    hooks: accroches as HookEntry[],
+  };
 
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
@@ -345,7 +370,7 @@ export async function generateAdsAction(input: {
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
-    memoryUse: memoire.use,
+    memoryUse: memoire.use, rationaleCtx,
   });
   if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
   return { ads, requested: count };
