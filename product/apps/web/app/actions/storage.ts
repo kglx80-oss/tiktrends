@@ -3,6 +3,7 @@
 import { storageFromEnv, putBucketPublicRead, putBucketCors, storageSelfTest } from '@tiktrends/integrations';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
+import { GUARD } from '../../lib/guard-error';
 
 function appOrigins(): string[] {
   const out = new Set<string>();
@@ -15,8 +16,8 @@ function appOrigins(): string[] {
 /** Applique lecture publique + CORS sur le bucket (une fois les clés posées). Admin+. */
 export async function configureBucketAction(): Promise<{ ok?: true; steps?: Array<{ label: string; ok: boolean; detail: string }>; error?: string }> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée.' };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Réservé aux administrateurs.' };
+  if (!s) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const cfg = storageFromEnv();
   if (!cfg) return { error: 'Clés S3 absentes du serveur (.env.deploy).' };
 
@@ -36,8 +37,8 @@ export async function configureBucketAction(): Promise<{ ok?: true; steps?: Arra
 /** Test bout en bout du stockage (upload -> lecture publique -> suppression). Admin+. */
 export async function testStorageAction(): Promise<{ put?: boolean; publicRead?: boolean; deleted?: boolean; error?: string }> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée.' };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Réservé aux administrateurs.' };
+  if (!s) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const cfg = storageFromEnv();
   if (!cfg) return { error: 'Clés S3 absentes du serveur (.env.deploy).' };
   const r = await storageSelfTest(cfg);

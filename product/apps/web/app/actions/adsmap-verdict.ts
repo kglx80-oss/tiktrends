@@ -9,6 +9,7 @@ import {
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
+import { GUARD } from '../../lib/guard-error';
 
 /**
  * ADSMAP · arbitrage d'un test et itération (§2.4, §6.7, §11).
@@ -92,7 +93,7 @@ export async function adDetailAction(adId: string): Promise<{ detail?: AdDetail;
       .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
       .where(and(eq(schema.ads.id, adId), eq(schema.ads.workspaceId, g.s.workspaceId)))
       .limit(1);
-    if (!row) return { error: 'Ad introuvable dans cet espace.' };
+    if (!row) return { error: GUARD.notFound('cette ad') };
 
     const [apprentissages, edges] = await Promise.all([
       db!.select({
@@ -218,7 +219,7 @@ export async function validateVerdictAction(input: ValidateInput): Promise<{ ok?
       .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
       .where(and(eq(schema.ads.id, input.adId), eq(schema.ads.workspaceId, g.s.workspaceId)))
       .limit(1);
-    if (!row) return { error: 'Ad introuvable dans cet espace.' };
+    if (!row) return { error: GUARD.notFound('cette ad') };
     if (!row.computed) return { error: 'Aucun verdict calculé pour cette ad · lance « Mesurer maintenant » avant d’arbitrer.' };
 
     // Un verdict hors protocole ne peut pas devenir un gagnant absolu, même à la
@@ -333,7 +334,7 @@ export async function createIterationAction(input: IterateInput): Promise<{ ok?:
       .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
       .where(and(eq(schema.ads.id, input.parentAdId), eq(schema.ads.workspaceId, g.s.workspaceId)))
       .limit(1);
-    if (!parent) return { error: 'Ad parente introuvable dans cet espace.' };
+    if (!parent) return { error: GUARD.notFound('l’ad parente') };
 
     // Le verdict humain fait foi quand il existe : c'est lui qui a été arbitré.
     const verdictParent = (parent.validated ?? parent.computed ?? null) as VerdictValue | null;

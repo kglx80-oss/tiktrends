@@ -15,6 +15,7 @@ import { discoverShopify } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const lines = (v: FormDataEntryValue | null) => norm(v).split('\n').map((x) => x.trim()).filter(Boolean);
@@ -39,8 +40,8 @@ export interface BrandDraftState { error?: string; draft?: BrandProfileDraft; co
 
 export async function generateBrandDraftAction(_prev: BrandDraftState, formData: FormData): Promise<BrandDraftState> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' };
+  if (!s) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
 
   const name = norm(formData.get('name'));
   const url = norm(formData.get('url'));

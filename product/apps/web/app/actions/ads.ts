@@ -15,6 +15,7 @@ import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 export interface AdItem { id: string; template: AdTemplate; headline: string; url: string; createdAt: string; rating?: import('./creatives').Rating; score?: number }
 export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
@@ -249,16 +250,16 @@ export async function generateAdsAction(input: {
   presetId?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
+  if (!s) return { error: GUARD.session() };
 
   const cfg = falFromEnv();
   if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
   const client = guardedAnthropic({ action: 'ads' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
-  if (!db) return { error: 'Base de données indisponible.' };
+  if (!client) return { error: GUARD.aiOff() };
+  if (!db) return { error: GUARD.db() };
 
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
 
   // Pool de gabarits autorisés + quantité voulue -> liste ordonnée (avec répétitions).
   const pool = (input.templates && input.templates.length ? input.templates : AD_TEMPLATES);
@@ -353,11 +354,11 @@ export async function generateAdsAction(input: {
 /** Propose des angles précis en s'appuyant sur la marque + les sauvegardes de veille + les concurrents. */
 export async function suggestAnglesAction(input: { productId?: string }): Promise<{ angles?: AdAngle[]; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'ads' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
 
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('suggest');
@@ -438,14 +439,14 @@ export async function cloneAdAction(input: {
   productId?: string; personaId?: string; objective?: string; universe?: string; count?: number; model?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
+  if (!s) return { error: GUARD.session() };
   const cfg = falFromEnv();
   if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
   const client = guardedAnthropic({ action: 'ads' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
-  if (!db) return { error: 'Base de données indisponible.' };
+  if (!client) return { error: GUARD.aiOff() };
+  if (!db) return { error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
 
   // Référence : upload direct OU pub sauvegardée de la veille.
   // ref = base64 (analyse vision) ; refForModel = URL/data URI donnée au modèle image pour répliquer la mise en page.
@@ -543,12 +544,12 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
 /** Archive (ou restaure) un rendu de pub. */
 export async function archiveAdAction(input: { id: string; archived?: boolean }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
   const [g] = await db.select({ id: schema.generations.id }).from(schema.generations)
     .where(and(eq(schema.generations.id, input.id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
-  if (!g) return { error: 'Rendu introuvable.' };
+  if (!g) return { error: GUARD.notFound('ce rendu') };
   await db.update(schema.generations).set({ status: input.archived === false ? 'completed' : 'archived' }).where(eq(schema.generations.id, input.id));
   return { ok: true };
 }
@@ -558,12 +559,12 @@ export interface AdText { kicker?: string; headline?: string; subhead?: string; 
 /** Lit les textes éditables d'une pub (accroche, sous-titre, CTA…). */
 export async function getAdTextAction(id: string): Promise<{ text?: AdText; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
   const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
     .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
-  if (!g) return { error: 'Rendu introuvable.' };
+  if (!g) return { error: GUARD.notFound('ce rendu') };
   const r = (g.input ?? {}) as Partial<AdRecipe>;
   return { text: { kicker: r.kicker ?? '', headline: r.headline ?? '', subhead: r.subhead ?? '', cta: r.cta ?? '', badge: r.badge ?? '' } };
 }
@@ -574,12 +575,12 @@ export async function getAdTextAction(id: string): Promise<{ text?: AdText; erro
  */
 export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok?: true; url?: string; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
   const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
     .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
-  if (!g) return { error: 'Rendu introuvable.' };
+  if (!g) return { error: GUARD.notFound('ce rendu') };
   const r = (g.input ?? {}) as Record<string, unknown>;
   const clean = (v?: string) => (typeof v === 'string' ? v.trim() : undefined);
   const next = {
@@ -602,15 +603,15 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
  */
 export async function scoreCreativeAction(id: string, opts?: { force?: boolean }): Promise<{ score?: CreativeScore; cost?: number; cached?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'ads' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
 
   const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
     .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
-  if (!g) return { error: 'Rendu introuvable.' };
+  if (!g) return { error: GUARD.notFound('ce rendu') };
   const r = (g.input ?? {}) as Partial<AdRecipe> & { jarvisScore?: CreativeScore };
 
   // Score déjà calculé : on le renvoie sans redébiter (sauf nouvelle analyse demandée).

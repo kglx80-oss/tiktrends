@@ -6,6 +6,7 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { setActiveBrand } from './brands';
 import { klaviyoOnboarded } from '../../lib/klaviyo';
+import { GUARD } from '../../lib/guard-error';
 
 export interface OnboardingData {
   profile?: string;       // brand | agency | freelancer | ai_artist | other
@@ -19,7 +20,7 @@ export interface OnboardingData {
 /** Enregistre les réponses d'onboarding, marque le compte comme onboardé, et crée la 1re marque si possible. */
 export async function saveOnboardingAction(data: OnboardingData): Promise<{ ok?: true; brandId?: string; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
 
   const clean = (v?: string) => (typeof v === 'string' ? v.trim() : '');
   const url = clean(data.siteUrl).replace(/^https?:\/\//i, '').replace(/\/+$/, '');

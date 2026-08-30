@@ -10,6 +10,7 @@ import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
@@ -33,7 +34,7 @@ async function recordGeneration(
 /** Texte → vidéo (gated + débit crédits). */
 export async function startVideoAction(input: { prompt: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number }): Promise<VideoStart> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
+  if (!s) return { error: GUARD.session() };
   const prompt = input.prompt?.trim();
   if (!prompt) return { error: 'Décris la vidéo à générer.' };
 
@@ -67,7 +68,7 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
 /** Image → vidéo (anime une image de départ). */
 export async function startImageVideoAction(input: { prompt: string; imageUrl: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number }): Promise<VideoStart> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
+  if (!s) return { error: GUARD.session() };
   const prompt = input.prompt?.trim();
   const imageUrl = input.imageUrl?.trim();
   if (!imageUrl) return { error: 'Choisis une image de départ (produit ou pub).' };
@@ -227,9 +228,9 @@ export async function listAnimatableAssets(): Promise<AnimatableAsset[]> {
 /** Propose une consigne de mouvement (ancrée marque/produit) pour la vidéo. */
 export async function suggestVideoBriefAction(input: { productId?: string; fromImage?: boolean }): Promise<{ text?: string; error?: string }> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée.' };
+  if (!s) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'video' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!client) return { error: GUARD.aiOff() };
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('suggest');
   if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · consigne vidéo suggérée'))) {
@@ -261,9 +262,9 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
 /** Supprime une vidéo (rendu raté ou bloqué) de la galerie de la marque. */
 export async function deleteVideoAction(id: string): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
   await db.delete(schema.generations)
     .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'video')));
   return { ok: true };

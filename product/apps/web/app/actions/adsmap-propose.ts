@@ -14,6 +14,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credits';
 import { jarvisFullMemory } from '../../lib/jarvis-memory';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 /**
  * ADSMAP · agents A1 à A3, remplissage de la carte (§8.3).
@@ -112,7 +113,7 @@ export async function proposePersonasAction(count = 3): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
   const client = guardedAnthropic({ action: 'adsmap-propose' });
-  if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
+  if (!client) return { error: GUARD.aiOff() };
 
   try {
     const ctx = await context(g.brand.id, g.s.workspaceId);
@@ -148,7 +149,7 @@ export async function proposeDesiresAction(personaId: string, count = 4): Promis
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
   const client = guardedAnthropic({ action: 'adsmap-propose' });
-  if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
+  if (!client) return { error: GUARD.aiOff() };
 
   try {
     const [p] = await db!.select().from(schema.personas)
@@ -193,7 +194,7 @@ export async function proposeAnglesAction(desireId: string, count = 4): Promise<
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
   const client = guardedAnthropic({ action: 'adsmap-propose' });
-  if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
+  if (!client) return { error: GUARD.aiOff() };
 
   try {
     const [d] = await db!.select({
@@ -242,7 +243,7 @@ export async function proposeConceptsAction(angleId: string, count = 3): Promise
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
   const client = guardedAnthropic({ action: 'adsmap-propose' });
-  if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
+  if (!client) return { error: GUARD.aiOff() };
 
   try {
     const [a] = await db!.select({

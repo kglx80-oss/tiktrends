@@ -9,6 +9,7 @@ import { canAccess, FEATURES, roleAtLeast } from '../../lib/rbac';
 import { effectiveAccess } from '../../lib/access';
 import { jarvisStats } from '../../lib/jarvis-memory';
 import { logAndTranslate } from '../../lib/error-log';
+import { GUARD } from '../../lib/guard-error';
 
 /**
  * Lecture et effacement du fil.
@@ -33,8 +34,8 @@ export interface ChatThread {
 
 export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
-  if (!roleAtLeast(s.role, 'member')) return { error: 'Accès refusé.' };
+  if (!s || !db) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'member')) return { error: GUARD.role({ needRole: 'admin' }) };
 
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active pour parler à Jarvis.' };
@@ -83,9 +84,9 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
  */
 export async function clearChatAction(): Promise<{ ok?: boolean; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
   try {
     await db.delete(schema.jarvisMessages).where(and(
       eq(schema.jarvisMessages.brandId, brand.id),

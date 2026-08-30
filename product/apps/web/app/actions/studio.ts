@@ -8,6 +8,7 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { logAndTranslate } from '../../lib/error-log';
 import { effectiveAccess } from '../../lib/access';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 const feature = FEATURES.find((f) => f.key === 'studio')!;
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
@@ -19,7 +20,7 @@ export interface StudioState {
 
 export async function generateAction(_prev: StudioState, formData: FormData): Promise<StudioState> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
+  if (!s) return { error: GUARD.session() };
   if (!canAccess(effectiveAccess(s), feature)) {
     return { error: "Le Studio IA nécessite l'abonnement Core et un rôle Membre minimum." };
   }

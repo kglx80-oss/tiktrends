@@ -12,6 +12,7 @@ import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string; generationId?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string; rating?: import('./creatives').Rating }
@@ -21,7 +22,7 @@ export async function generateImageAction(input: {
   productId?: string; headline?: string; useProductImage?: boolean;
 }): Promise<ImageResult> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
+  if (!s) return { error: GUARD.session() };
   const desc = input.prompt?.trim();
   if (!desc) return { error: "Décris l'image à générer." };
 
@@ -103,9 +104,9 @@ export async function generateImageAction(input: {
 /** Propose une description d'image ancrée sur la marque + produit sélectionné. */
 export async function suggestImageBriefAction(input: { productId?: string }): Promise<{ text?: string; error?: string }> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée.' };
+  if (!s) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'image' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!client) return { error: GUARD.aiOff() };
 
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('suggest');
@@ -142,13 +143,13 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
 /** Enregistre (ou retire) la photo réelle d'un produit · réutilisée pour la mise en scène. */
 export async function setProductImageAction(input: { productId: string; dataUri?: string | null }): Promise<{ ok?: true; imageUrl?: string | null; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
 
   const [p] = await db.select({ id: schema.products.id }).from(schema.products)
     .where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
-  if (!p) return { error: 'Produit introuvable.' };
+  if (!p) return { error: GUARD.notFound('ce produit') };
 
   const uri = input.dataUri?.trim() || '';
   if (uri) {
@@ -164,13 +165,13 @@ export async function setProductImageAction(input: { productId: string; dataUri?
 /** Enregistre plusieurs photos de référence produit (glisser-déposer). La 1re sert d'aperçu. */
 export async function setProductImagesAction(input: { productId: string; dataUris: string[]; append?: boolean }): Promise<{ ok?: true; imageUrls?: string[]; imageUrl?: string | null; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
 
   const [p] = await db.select({ id: schema.products.id, imageUrls: schema.products.imageUrls }).from(schema.products)
     .where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
-  if (!p) return { error: 'Produit introuvable.' };
+  if (!p) return { error: GUARD.notFound('ce produit') };
 
   const clean = (input.dataUris || []).map((u) => u.trim()).filter(Boolean);
   for (const u of clean) {
@@ -187,13 +188,13 @@ export async function setProductImagesAction(input: { productId: string; dataUri
 /** Récupère automatiquement la photo du produit depuis sa fiche (og:image), et l'enregistre. */
 export async function importProductImageAction(input: { productId: string }): Promise<{ ok?: true; imageUrl?: string; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Aucune marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
 
   const [p] = await db.select({ id: schema.products.id, name: schema.products.name, url: schema.products.url })
     .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
-  if (!p) return { error: 'Produit introuvable.' };
+  if (!p) return { error: GUARD.notFound('ce produit') };
 
   const [b] = await db.select({ url: schema.brands.url }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
   if (!p.url && !b?.url) return { error: "Ni le produit ni la marque n'ont d'URL de site. Ajoute l'URL sur la marque, ou importe la photo manuellement." };

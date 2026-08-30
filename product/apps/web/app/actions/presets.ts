@@ -12,6 +12,7 @@ import { getActiveBrand } from '../../lib/brands';
 import { roleAtLeast } from '../../lib/rbac';
 import { logAndTranslate } from '../../lib/error-log';
 import { revalidatePath } from 'next/cache';
+import { GUARD } from '../../lib/guard-error';
 
 /**
  * Tes prompts, et ce qu'ils valent.
@@ -51,7 +52,7 @@ export interface PresetsView {
 
 export async function listPresetsAction(): Promise<{ view?: PresetsView; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
 
   try {
@@ -139,7 +140,7 @@ async function usageRows(workspaceId: string, brandId: string): Promise<PresetUs
 
 export async function savePresetAction(input: PresetInput & { id?: string; scope?: 'brand' | 'workspace' }): Promise<{ id?: string; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'member')) return { error: 'Ton rôle ne permet pas d’écrire des prompts.' };
 
   const violations = validatePreset(input);
@@ -188,7 +189,7 @@ export async function savePresetAction(input: PresetInput & { id?: string; scope
  */
 export async function archivePresetAction(id: string): Promise<{ ok?: boolean; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'member')) return { error: 'Ton rôle ne permet pas cette action.' };
   try {
     await db.update(schema.creativePresets)
