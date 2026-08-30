@@ -63,6 +63,7 @@ export const FEATURES: Feature[] = [
   { key: 'ads',       label: 'Pubs IA',      href: '/studio/ads',   icon: 'spark', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'prompts',   label: 'Tes prompts',  href: '/studio/prompts', icon: 'bulb', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Création', minRole: 'member',        minPlan: 'core' },
   // Jarvis · l'IA elle-même. Le rail la montre à partir de `core` : l'état des
   // couches et les actions de description valent pour tout le monde. Ce qui

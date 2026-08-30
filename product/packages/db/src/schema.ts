@@ -653,6 +653,39 @@ export const brandTrackerEvents = pgTable('brand_tracker_events', {
 }, (t) => ({ wsIdx: index('tracker_ws_idx').on(t.workspaceId, t.createdAt) }));
 
 /**
+ * Prompts de l'utilisateur · sa direction artistique, écrite par lui.
+ *
+ * Le Studio ne proposait que huit univers visuels écrits en dur. On pouvait en
+ * choisir un, jamais en écrire un · c'est ce que cette table débloque.
+ *
+ * Ce qui la distingue d'un champ de texte : le preset est rattaché aux créas
+ * qu'il produit, donc mesurable. Le rattachement vit dans `generations.input`,
+ * comme la trace de mémoire, et se relit par le pont `concepts.source_ref` que
+ * l'attribution utilise déjà · une colonne de plus ici aurait dupliqué un lien
+ * existant.
+ */
+export const creativePresets = pgTable('creative_presets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  // `null` = disponible pour toutes les marques · une DA maison traverse
+  // souvent plusieurs marques d'une même agence.
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  kind: text('kind').notNull().default('both'),      // image | video | both
+  prompt: text('prompt').notNull(),
+  negative: text('negative'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  // Archivé plutôt que supprimé · les créas produites pointent encore dessus,
+  // et un bilan qui perd son intitulé devient illisible.
+  archived: boolean('archived').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  uniq: unique('creative_presets_name').on(t.workspaceId, t.brandId, t.name),
+  wsIdx: index('creative_presets_ws_idx').on(t.workspaceId, t.archived),
+}));
+
+/**
  * Conversation avec Jarvis · un fil par (marque, personne).
  *
  * Le fil survit au rechargement, sinon ce n'est pas une conversation mais un

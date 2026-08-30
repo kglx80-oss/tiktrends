@@ -24,6 +24,8 @@ export interface AdRecipe {
    * impossible, elle aura changé entre-temps.
    */
   memoryUse?: { measured: boolean; market: boolean; hooks: number };
+  /** Prompt maison utilisé · c'est ce rattachement qui rend un preset mesurable. */
+  presetId?: string | null;
 }
 
 const WHITE = '#ffffff';
