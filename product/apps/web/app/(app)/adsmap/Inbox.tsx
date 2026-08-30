@@ -6,6 +6,7 @@ import {
   type Inbox as InboxData, type InboxItem,
 } from '../../actions/adsmap-decisions';
 import { AdDrawer } from './AdDrawer';
+import { Empty } from '../../../components/Empty';
 
 /**
  * File de décisions du jour.
@@ -98,14 +99,11 @@ export function Inbox() {
       {error && <p style={{ color: '#ff8095', fontSize: 12.5, marginBottom: 12 }}>{error}</p>}
 
       {data.items.length === 0 ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '34px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 26 }}>✓</div>
-          <p style={{ margin: '10px 0 0', fontSize: 14, color: 'var(--ink)', fontWeight: 700 }}>Rien à décider.</p>
-          <p style={{ margin: '6px auto 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: 460, lineHeight: 1.6 }}>
-            La file se remplit après chaque mesure · lance « Mesurer maintenant », ou attends la synchro
-            de la nuit. {data.dismissed > 0 && `${data.dismissed} décision(s) écartée(s) ne reviendront pas.`}
-          </p>
-        </div>
+        <Empty
+          tone="good" icon="✓" title="Rien à décider."
+          why={<>La file se remplit après chaque mesure · lance « Mesurer maintenant », ou attends la synchro
+            de la nuit. {data.dismissed > 0 && `${data.dismissed} décision(s) écartée(s) ne reviendront pas.`}</>}
+        />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {data.items.map((it) => {

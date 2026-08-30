@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { listAdsAction, exportAdsCsvAction, type AdRow, type AdFilters } from '../../actions/adsmap';
 import { conceptBriefAction } from '../../actions/adsmap-bridge';
 import { AdDrawer } from './AdDrawer';
+import { Empty } from '../../../components/Empty';
 
 /**
  * Vue Table d'ADSMAP.
@@ -152,14 +153,11 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
       {error && <p style={{ color: '#ff8095', fontSize: 13, marginBottom: 12 }}>{error}</p>}
 
       {rows.length === 0 ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '34px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 26 }}>🗺️</div>
-          <p style={{ margin: '10px 0 0', fontSize: 14, color: 'var(--ink)', fontWeight: 700 }}>Aucune ad pour l’instant.</p>
-          <p style={{ margin: '6px auto 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: 460, lineHeight: 1.6 }}>
-            Importe ton tableau existant, ou pars d’un persona pour construire la première carte :
-            persona → désir → angle → concept → ad. Chaque ad porte une hypothèse et une seule variable testée.
-          </p>
-        </div>
+        <Empty
+          tone="todo" icon="🗺️" title="Aucune ad pour l’instant."
+          why="La carte se lit persona → désir → angle → concept → ad. Chaque ad porte une hypothèse et une seule variable testée · c’est ce qui permet d’attribuer un résultat à une cause."
+          action={{ label: 'Importer ton tableau', href: '/adsmap/import' }}
+        />
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1270, fontSize: 12.5 }}>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { InspoAd } from '@tiktrends/integrations';
 import { AdCard } from './AdCard';
 import { scanTrackerAction, markTrackerSeenAction } from '../app/actions/tracker';
+import { Empty } from './Empty';
 
 export interface TrackerEvent { ad: InspoAd; advertiserName: string; unseen: boolean }
 
@@ -53,9 +54,18 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
       )}
 
       {events.length === 0 ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: '20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
-          {followedCount ? 'Aucune nouveauté pour l\'instant. Lance un scan pour détecter les dernières pubs de tes marques suivies.' : 'Suis des marques dans l\'Inspo (« + Suivre ») pour surveiller leurs nouvelles pubs ici.'}
-        </div>
+        followedCount ? (
+          <Empty
+            tone="wait" title="Aucune nouveauté pour l’instant."
+            why="Lance un scan pour détecter les dernières pubs de tes marques suivies."
+          />
+        ) : (
+          <Empty
+            tone="todo" title="Aucune marque suivie."
+            why="Suis des marques dans la veille pour surveiller leurs nouvelles pubs ici."
+            action={{ label: 'Ouvrir la veille', href: '/inspo' }}
+          />
+        )
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
           {events.map((e, i) => (

@@ -11,6 +11,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { NewBrandButton } from '../../../components/NewBrandButton';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { costFor } from '@tiktrends/core';
+import { Empty } from '../../../components/Empty';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,10 +71,13 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '4px 0 12px' }}>Tes marques ({rows.length})</h2>
 
       {rows.length === 0 && (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '30px 22px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--ink-2)', fontSize: 14, margin: '0 0 14px' }}>Aucune marque pour l'instant. Crée la première en quelques minutes.</p>
+        <Empty
+          tone="todo" icon="🏷️" title="Aucune marque pour l’instant."
+          why="Tout le produit travaille marque par marque · la carte, la mémoire de Jarvis, les lots, les prompts. C’est le premier objet à créer."
+          action={{ label: 'Créer la première', href: '/brands/new' }}
+        >
           <NewBrandButton aiReady={anthropicConfigured()} draftCost={costFor('brief')} />
-        </div>
+        </Empty>
       )}
 
       <div style={{ display: 'grid', gap: 12 }}>

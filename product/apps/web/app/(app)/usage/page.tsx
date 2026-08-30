@@ -6,6 +6,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { unlimitedCredits } from '../../../lib/credits';
 import { PageInfo } from '../../../components/PageInfo';
+import { Empty } from '../../../components/Empty';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,9 +114,11 @@ export default async function UsagePage() {
       {/* Journal détaillé */}
       <h2 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Journal détaillé</h2>
       {rows.length === 0 ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: '24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
-          Aucun mouvement pour l'instant. Lance une génération depuis le Studio.
-        </div>
+        <Empty
+          tone="todo" title="Aucun mouvement pour l’instant."
+          why="Chaque génération consomme des crédits · ce relevé se remplit dès la première."
+          action={{ label: 'Ouvrir le Studio', href: '/studio' }}
+        />
       ) : (
         <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden' }}>
           {rows.map((r, i) => {

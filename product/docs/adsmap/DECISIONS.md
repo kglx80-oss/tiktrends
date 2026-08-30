@@ -1256,3 +1256,60 @@ compare les chemins, les libellés, la filiation, et refuse les doublons de nom.
 coup : « Importer » dans le rail, « Importer le tableau » dans le fil. Deux noms
 pour un même écran, introduits dans le commit qui prétendait justement unifier
 la navigation.
+
+---
+
+## D62 — Trois situations, et on les affichait pareil
+
+**Le constat.** Dix-huit états vides écrits à la main, de la phrase grise isolée
+(« Aucun ticket. ») à la carte pointillée avec emoji et paragraphe. Même
+situation, dix-huit rendus.
+
+Mais surtout : **trois situations différentes rendues à l'identique.**
+
+- `todo` · c'est vide parce qu'il y a quelque chose À FAIRE.
+- `wait` · c'est vide et ça se remplira tout seul · les verdicts arrivent avec la
+  mesure, les trouvailles avec la nuit. Le dire évite de chercher un bouton qui
+  n'existe pas.
+- `good` · c'est vide et c'est une BONNE nouvelle. « Rien à décider », « aucun
+  incident ». L'afficher dans le même gris qu'un manque est un contresens : on
+  annonçait une réussite sur le ton d'un échec.
+
+**Un état vide est le premier écran qu'un nouveau client voit** sur chaque
+fonctionnalité. C'est là que le produit s'explique ou qu'il perd la personne · la
+plupart étaient un point final.
+
+---
+
+## D63 — Un manque sans issue est une impasse, et le type l'interdit
+
+**Décision.** Sur le ton `todo`, la propriété `action` est **obligatoire** dans
+le type. Dire à quelqu'un qu'il manque quelque chose puis le laisser chercher
+n'est pas une information, c'est un reproche.
+
+**Pourquoi le type et pas la convention.** Ce n'est pas une règle qu'on rappelle
+en revue de code · c'est une erreur de compilation. Une union discriminée rend le
+défaut inexprimable, ce qu'aucun rappel ne fait.
+
+**Un `wait` n'a pas d'action, et c'est correct.** Proposer un bouton là où il n'y
+a rien à faire ferait perdre du temps à celui qui le cherche.
+
+---
+
+## D64 — Dix-huit variantes n'ont jamais été décidées
+
+**Le constat.** Personne n'a choisi d'avoir dix-huit états vides différents. Ils
+sont arrivés un par un, chacun raisonnable au moment de l'écrire. C'est
+exactement le genre de dérive qu'une convention ne freine pas.
+
+**Décision.** Un test cherche la FORME d'un état vide plein écran — cadre en
+pointillé ET contenu centré sur la même déclaration — et refuse qu'elle soit
+écrite ailleurs que dans le composant.
+
+**Il a servi immédiatement.** Écrit après la conversion de huit écrans, il en a
+trouvé cinq de plus que la relecture avait manqués · dont un cadre imbriqué dans
+un autre, deux bordures pointillées l'une dans l'autre.
+
+**Ce qu'il ne vise pas.** Les mentions en ligne dans un panneau déjà cadré ·
+elles relèvent de `EmptyLine`, et leur imposer un bloc ferait plus de bruit que
+la donnée qu'elles remplacent.

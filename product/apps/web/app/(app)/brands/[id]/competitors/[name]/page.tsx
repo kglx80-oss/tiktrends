@@ -70,7 +70,7 @@ export default async function CompetitorPage({ params, searchParams }: {
       {report?.note && <div style={{ marginTop: 14 }}><Msg kind="ok">{report.note}</Msg></div>}
 
       {!report ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '30px 22px', textAlign: 'center', marginTop: 20 }}>
+        <div style={{ marginTop: 20, borderRadius: 16, textAlign: 'center' }}>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, margin: '0 0 6px' }}>Lance l'analyse pour récupérer les créas de <b>{name}</b> depuis la bibliothèque publicitaire et en extraire les patterns (hooks, angles, USP, désirs, émotions, thèmes).</p>
           <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 16px' }}>L'analyse consomme des crédits ; le résultat est mis en cache (pas de recalcul à chaque visite).</p>
           <form action={analyzeCompetitorAction}>

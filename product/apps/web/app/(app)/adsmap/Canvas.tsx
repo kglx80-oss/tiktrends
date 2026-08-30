@@ -10,6 +10,7 @@ import '@xyflow/react/dist/style.css';
 import { findGaps, iterationParentSet, countGraph, summarizeGaps, type Gap } from '@tiktrends/core';
 import { graphAction, type Graph, type GraphNode } from '../../actions/adsmap-graph';
 import { AdDrawer } from './AdDrawer';
+import { Empty } from '../../../components/Empty';
 
 /**
  * Canvas ADSMAP (§7).
@@ -342,14 +343,11 @@ export function Canvas() {
 
   if (!graph.nodes.length) {
     return (
-      <div style={{ border: '1px dashed var(--line-2)', borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: 26 }}>🗺️</div>
-        <p style={{ margin: '10px 0 0', fontSize: 14, color: 'var(--ink)', fontWeight: 700 }}>Aucun avatar sur cette marque.</p>
-        <p style={{ margin: '6px auto 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: 460, lineHeight: 1.6 }}>
-          La carte se lit de gauche à droite : avatar → désir → angle → concept → ad.
-          Importe ton tableau, ou pars d’un avatar pour construire la première branche.
-        </p>
-      </div>
+      <Empty
+        tone="todo" icon="🗺️" title="Aucun avatar sur cette marque."
+        why="La carte se lit de gauche à droite : avatar → désir → angle → concept → ad. Tout part d’un avatar · sans lui, il n'y a pas de branche à dessiner."
+        action={{ label: 'Importer ton tableau', href: '/adsmap/import' }}
+      />
     );
   }
 
