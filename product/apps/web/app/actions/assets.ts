@@ -11,6 +11,7 @@ import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
@@ -61,7 +62,7 @@ export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolea
 /** Téléverse des images (data URI) dans la bibliothèque. */
 export async function uploadImageAssetsAction(input: { items: Array<{ name: string; dataUri: string }>; common?: boolean }): Promise<{ ok?: true; count?: number; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
   const rows = [] as Array<typeof schema.assets.$inferInsert>;
   for (const it of input.items || []) {
@@ -87,7 +88,7 @@ function parseDriveUrl(url: string): { isDrive: boolean; isFolder: boolean; file
 
 export async function importAssetAction(input: { name: string; url: string; kind: AssetKind; common?: boolean }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   let url = (input.url || '').trim();
   if (!/^https?:\/\//i.test(url)) return { error: 'Entre une URL valide (https://…).' };
   const kind: AssetKind = (['image', 'video', 'audio', 'other'] as AssetKind[]).includes(input.kind) ? input.kind : 'other';
@@ -114,7 +115,7 @@ export async function importAssetAction(input: { name: string; url: string; kind
 /** Active/désactive l'usage d'un asset par l'IA. */
 export async function toggleAssetAiAction(input: { id: string; useForAi: boolean }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   await db.update(schema.assets).set({ useForAi: input.useForAi }).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
   return { ok: true };
 }
@@ -122,9 +123,9 @@ export async function toggleAssetAiAction(input: { id: string; useForAi: boolean
 /** Tague une image par l'IA (vision) · débite 1 crédit (tag_image). Rend les tags. */
 export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true; tags?: string[]; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'assets' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!client) return { error: GUARD.aiOff() };
   const [a] = await db.select().from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   if (!a) return { error: 'Asset introuvable.' };
   if (a.kind !== 'image') return { error: 'Le tagging IA ne concerne que les images pour l’instant.' };
@@ -163,9 +164,9 @@ export async function countUntaggedImages(): Promise<number> {
 /** Tague en lot les images non taguées (max 20 par appel), débit par image. */
 export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: number; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'assets' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!client) return { error: GUARD.aiOff() };
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('tag_image', 1);
 
@@ -201,7 +202,7 @@ export async function storageAvailableAction(): Promise<boolean> {
 /** Demande une URL présignée pour téléverser un fichier directement vers le bucket. */
 export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; error?: string }> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée.' };
+  if (!s) return { error: GUARD.session() };
   const cfg = storageFromEnv();
   if (!cfg) return { error: 'Stockage objet non configuré sur le serveur.' };
   if (!input.filename || !input.contentType) return { error: 'Fichier invalide.' };
@@ -218,7 +219,7 @@ export async function presignAssetUploadAction(input: { filename: string; conten
 /** Enregistre un fichier déjà téléversé sur le bucket comme asset. */
 export async function registerUploadedAssetAction(input: { name: string; url: string; mimeType: string; sizeBytes: number; common?: boolean }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const url = (input.url || '').trim();
   if (!/^https?:\/\//i.test(url)) return { error: 'URL invalide.' };
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
@@ -233,7 +234,7 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
 /** Supprime un asset (+ l'objet physique sur le bucket si téléversé). */
 export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  if (!s || !db) return { error: GUARD.session() };
   const [row] = await db.select({ url: schema.assets.url, source: schema.assets.source })
     .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   await db.delete(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));

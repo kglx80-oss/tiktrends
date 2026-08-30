@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession, hashPassword, verifyPassword } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
+import { GUARD } from '../../lib/guard-error';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
@@ -25,7 +26,7 @@ export async function updateProfileAction(formData: FormData): Promise<void> {
 /** Variante « en place » (modale) : enregistre sans redirection, revalide la coquille. */
 export async function saveProfileAction(_prev: { ok?: boolean; error?: string } | null, formData: FormData): Promise<{ ok?: boolean; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'session' };
+  if (!s || !db) return { error: GUARD.session() };
   const name = norm(formData.get('name'));
   const avatarUrl = norm(formData.get('avatarUrl'));
   const hide = formData.get('hidePersonalInfo') != null;
@@ -63,10 +64,10 @@ export async function updateWorkspaceAction(formData: FormData): Promise<void> {
 /** Variante « en place » (modale réglages rapides) : renomme l'espace sans redirection. */
 export async function saveWorkspaceNameAction(_prev: { ok?: boolean; error?: string } | null, formData: FormData): Promise<{ ok?: boolean; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'session' };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'forbidden' };
+  if (!s || !db) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const name = norm(formData.get('name'));
-  if (!name) return { error: 'name' };
+  if (!name) return { error: 'Donne un nom · c’est ce qui identifiera cet élément dans la liste.' };
   await db.update(schema.workspaces).set({ name }).where(eq(schema.workspaces.id, s.workspaceId));
   revalidatePath('/', 'layout');
   return { ok: true };

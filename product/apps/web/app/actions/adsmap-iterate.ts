@@ -10,6 +10,7 @@ import {
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { revalidatePath } from 'next/cache';
+import { GUARD } from '../../lib/guard-error';
 
 /**
  * Ce qu'on fait des tests une fois qu'ils ont rendu leur verdict.
@@ -233,7 +234,7 @@ export async function createIterationAction(
       .where(and(eq(schema.ads.id, input.parentAdId), eq(schema.ads.workspaceId, g.s.workspaceId)))
       .limit(1);
 
-    if (!parent) return { error: 'Ad parente introuvable dans cet espace.' };
+    if (!parent) return { error: GUARD.notFound('l’ad parente') };
 
     // La filiation n'est légale que sur un parent gagnant · sinon, nouveau concept.
     const violations = checkIteration({

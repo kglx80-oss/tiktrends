@@ -15,6 +15,7 @@ import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -150,7 +151,7 @@ export async function deleteScenarioAction(formData: FormData): Promise<void> {
  */
 export async function generateScenarioImageAction(input: { brandId: string; scenarioId: string }): Promise<{ url?: string; error?: string }> {
   const g = await guardBrand(input.brandId);
-  if (!g || !db) return { error: 'Accès refusé.' };
+  if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
   const cfg = falFromEnv();
   if (!cfg) return { error: "La génération d'image n'est pas activée." };
 
@@ -218,7 +219,7 @@ export async function saveBrandDAAction(input: {
   brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[];
 }): Promise<{ ok?: true; error?: string }> {
   const g = await guardBrand(input.brandId);
-  if (!g || !db) return { error: 'Accès refusé.' };
+  if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
   const clean = (a: string[]) => (Array.isArray(a) ? a.map((x) => String(x).trim()).filter(Boolean).slice(0, 20) : []);
   await db.update(schema.brands).set({
     logoUrl: input.logoUrl.trim() || null,
@@ -231,10 +232,10 @@ export async function saveBrandDAAction(input: {
 
 export async function importBrandDAAction(input: { brandId: string }): Promise<{ logoUrl?: string | null; colors?: string[]; fonts?: string[]; error?: string }> {
   const g = await guardBrand(input.brandId);
-  if (!g || !db) return { error: 'Accès refusé.' };
+  if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
   const [b] = await db.select({ url: schema.brands.url, shopifyDomain: schema.brands.shopifyDomain, logoUrl: schema.brands.logoUrl, colors: schema.brands.colors, fonts: schema.brands.fonts })
     .from(schema.brands).where(eq(schema.brands.id, input.brandId)).limit(1);
-  if (!b) return { error: 'Marque introuvable.' };
+  if (!b) return { error: GUARD.notFound('cette marque') };
 
   const site = b.url || (b.shopifyDomain ? `https://${b.shopifyDomain}` : '');
   if (!site) return { error: "Renseigne le site de la marque (ou connecte Shopify) pour récupérer la DA." };
@@ -252,9 +253,9 @@ export async function importBrandDAAction(input: { brandId: string }): Promise<{
 /** Connecte / synchronise la boutique Shopify : importe produits + images + prix depuis le catalogue public. */
 export async function syncShopifyProductsAction(input: { brandId: string; domain?: string }): Promise<{ imported?: number; updated?: number; total?: number; error?: string }> {
   const g = await guardBrand(input.brandId);
-  if (!g || !db) return { error: 'Accès refusé.' };
+  if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
   const [b] = await db.select({ url: schema.brands.url, shopifyDomain: schema.brands.shopifyDomain }).from(schema.brands).where(eq(schema.brands.id, input.brandId)).limit(1);
-  if (!b) return { error: 'Marque introuvable.' };
+  if (!b) return { error: GUARD.notFound('cette marque') };
 
   const domainInput = (input.domain || b.shopifyDomain || b.url || '').trim();
   if (!normalizeShopDomain(domainInput)) return { error: "Indique le domaine de ta boutique (ex : ta-marque.com ou ta-marque.myshopify.com)." };

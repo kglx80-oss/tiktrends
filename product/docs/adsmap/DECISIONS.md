@@ -1384,3 +1384,65 @@ rien · ce n'est pas une bannière de bienvenue, c'est la carte de la boucle.
 
 Il disparaît pour de bon à une seule condition : le circuit complet en place. Là,
 il n'a plus rien à guider et il rend la place.
+
+---
+
+## D69 — Le désordre n'était pas où je l'attendais
+
+**Ce que l'audit a démenti.** La traduction des échecs TECHNIQUES
+(`user-error.ts`) est solide, testée à 32 cas, et couvre les familles avec des
+messages actionnables. Il n'y avait rien à y refaire.
+
+**Où était le désordre.** Dans les refus MÉTIER, écrits action par action :
+
+| Écrit | Fois | Problème |
+|---|---|---|
+| « Session expirée. » / « Session expirée, reconnecte-toi. » | 35 + 8 | deux formulations, une situation |
+| « Aucune marque active. » / « Sélectionne une marque active. » | 13 + 6 | l'une constate, l'autre indique |
+| « Accès refusé. » / « Action réservée… » / « Réservé aux… » | 5 + 7 + 2 | trois phrases, dont une muette sur la raison |
+
+**Et trois jetons techniques partaient tels quels à l'écran** : `'session'`,
+`'name'`, `'forbidden'`. Rien ne l'empêchait, puisqu'un champ `error` accepte
+n'importe quelle chaîne.
+
+---
+
+## D70 — Un refus qui ne dit pas quoi faire est une impasse
+
+**Décision.** La même règle que pour les états vides (D63), appliquée au chemin
+malheureux : chaque refus porte sa suite. Même « préviens-nous », qui est une
+action.
+
+**Trois messages réécrits sur le fond, pas sur la forme.**
+
+- « Aucune marque active » devient « **Sélectionne** une marque active pour
+  continuer · tout ici travaille marque par marque ». Le constat laissait
+  chercher où l'on en sélectionne une.
+- « Accès refusé » devient « cette action demande un rôle administrateur ·
+  demande à un administrateur, ou fais-toi passer admin depuis Membres ». Un
+  refus sans motif ne se corrige pas.
+- « Introuvable » évoque désormais **le changement de marque active** · c'est la
+  cause la plus fréquente, et la taire fait chercher un objet supprimé qui
+  existe toujours.
+
+**Ce qui n'est pas la faute de l'utilisateur le dit.** Base injoignable, IA non
+configurée : « ce n'est pas lié à ton compte » évite de chercher une erreur de sa
+part.
+
+**Un test vérifie chaque branche** · un message trop court, ou sans le séparateur
+qui articule le fait et la suite, échoue.
+
+---
+
+## D71 — Un type énuméré rend un jeton technique inexprimable
+
+**Décision.** Les refus passent par une carte fermée (`GuardReason`) plutôt que
+par des chaînes libres.
+
+**Et un test balaie les actions** pour refuser toute valeur d'erreur qui
+ressemble à un jeton — un seul mot, sans majuscule. C'est exactement la forme des
+trois qui fuyaient.
+
+**Vingt et un fichiers unifiés.** Aucun message n'a été perdu : ceux qui portaient
+une information particulière l'ont gardée, seuls les quatre cas génériques ont
+été ramenés à une source unique.

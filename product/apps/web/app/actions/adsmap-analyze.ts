@@ -14,6 +14,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credits';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 /**
  * ADSMAP · agent A0, analyse d'asset (§8.2).
@@ -182,7 +183,7 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
   if ('error' in g) return { error: g.error };
 
   const client = guardedAnthropic({ action: 'adsmap-analyze' });
-  if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
+  if (!client) return { error: GUARD.aiOff() };
 
   try {
     let sujets = await load(g.s.workspaceId, g.brand.id, adIds);

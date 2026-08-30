@@ -9,6 +9,7 @@ import {
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
+import { GUARD } from '../../lib/guard-error';
 
 /**
  * ADSMAP · préparation d'un lot de test (§6.1, §6.2, §8.6).
@@ -137,7 +138,7 @@ export async function batchDetailAction(batchId: string): Promise<{ detail?: Bat
   try {
     const [b] = await db!.select().from(schema.batches)
       .where(and(eq(schema.batches.id, batchId), eq(schema.batches.brandId, g.brand.id))).limit(1);
-    if (!b) return { error: 'Lot introuvable sur cette marque.' };
+    if (!b) return { error: GUARD.notFound('ce lot') };
 
     const cfg = await settings(g.brand.id);
     const rows = await db!.select({
@@ -275,7 +276,7 @@ export async function setBatchAdAction(input: { batchId: string; adId: string; i
   try {
     const [b] = await db!.select({ id: schema.batches.id, status: schema.batches.status }).from(schema.batches)
       .where(and(eq(schema.batches.id, input.batchId), eq(schema.batches.brandId, g.brand.id))).limit(1);
-    if (!b) return { error: 'Lot introuvable sur cette marque.' };
+    if (!b) return { error: GUARD.notFound('ce lot') };
     // Un lot en test ou analysé est un témoin : y ajouter une ad en cours de route
     // rendrait les dépenses incomparables, donc les verdicts faux.
     if (b.status === 'testing' || b.status === 'analyzed') {
@@ -315,7 +316,7 @@ export async function prepareBatchAction(batchId: string): Promise<PrepareResult
   try {
     const [b] = await db!.select().from(schema.batches)
       .where(and(eq(schema.batches.id, batchId), eq(schema.batches.brandId, g.brand.id))).limit(1);
-    if (!b) return { error: 'Lot introuvable sur cette marque.' };
+    if (!b) return { error: GUARD.notFound('ce lot') };
 
     const cfg = await settings(g.brand.id);
     const rows = await db!.select({ ad: schema.ads, concept: schema.concepts.title })
@@ -379,7 +380,7 @@ export async function launchBatchAction(batchId: string): Promise<{ ok?: true; e
   try {
     const [b] = await db!.select({ id: schema.batches.id, status: schema.batches.status }).from(schema.batches)
       .where(and(eq(schema.batches.id, batchId), eq(schema.batches.brandId, g.brand.id))).limit(1);
-    if (!b) return { error: 'Lot introuvable sur cette marque.' };
+    if (!b) return { error: GUARD.notFound('ce lot') };
 
     const rows = await db!.select({ id: schema.ads.id, status: schema.ads.status })
       .from(schema.ads).where(eq(schema.ads.batchId, batchId));

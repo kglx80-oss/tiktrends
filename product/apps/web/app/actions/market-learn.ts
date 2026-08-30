@@ -14,6 +14,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credits';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { jarvisStats, invalidateJarvisMemory } from '../../lib/jarvis-memory';
+import { GUARD } from '../../lib/guard-error';
 
 /**
  * Faire apprendre Jarvis des meilleures créas du marché.
@@ -73,7 +74,7 @@ async function analyseLot(
   ads: InspoAd[], ctx: { workspaceId: string; brandId: string; email: string },
 ): Promise<LearnResult> {
   const client = guardedAnthropic({ workspaceId: ctx.workspaceId, action: 'market-learn' });
-  if (!client) return { error: 'L’IA n’est pas configurée sur le serveur.' };
+  if (!client) return { error: GUARD.aiOff() };
 
   const skipped: LearnResult['skipped'] = [];
 

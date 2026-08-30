@@ -9,13 +9,14 @@ import { costFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 export interface AskResult { reply?: string; error?: string }
 
 /** Une question à l'assistant IA de la home (gated + débit crédits léger). */
 export async function askAssistant(history: ChatMessage[], question: string): Promise<AskResult> {
   const s = await getSession();
-  if (!s) return { error: 'Session expirée, reconnecte-toi.' };
+  if (!s) return { error: GUARD.session() };
   const q = question.trim();
   if (!q) return { error: 'Pose une question.' };
 

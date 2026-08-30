@@ -11,14 +11,15 @@ import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { GUARD } from '../../lib/guard-error';
 
 /** Enregistre les règles créatives maison (Jarvis) de la marque active. Injectées dans chaque génération. */
 export async function saveJarvisRulesAction(input: { creativeRules: string }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' };
+  if (!s || !db) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Sélectionne une marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
   const rules = (input.creativeRules || '').slice(0, 4000);
   await db.update(schema.brands).set({ creativeRules: rules || null }).where(eq(schema.brands.id, brand.id));
   return { ok: true };
@@ -37,15 +38,15 @@ function textFromSnapshot(snap: unknown): string | null {
  */
 export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost?: number; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' };
+  if (!s || !db) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const client = guardedAnthropic({ action: 'jarvis' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Sélectionne une marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
 
   const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
-  if (!b) return { error: 'Marque introuvable.' };
+  if (!b) return { error: GUARD.notFound('cette marque') };
 
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('brief', 1);
@@ -87,14 +88,14 @@ const toWinning = (a: InspoAd): WinningAdSummary => ({ advertiser: a.advertiserN
  */
 export async function trainJarvisAction(): Promise<{ learnings?: string; adsAnalyzed?: number; cost?: number; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' };
+  if (!s || !db) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const client = guardedAnthropic({ action: 'jarvis' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur." };
+  if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Sélectionne une marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
   const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
-  if (!b) return { error: 'Marque introuvable.' };
+  if (!b) return { error: GUARD.notFound('cette marque') };
 
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('review_mining', 1);
@@ -161,10 +162,10 @@ export async function trainJarvisAction(): Promise<{ learnings?: string; adsAnal
 /** Enregistre / édite manuellement les learnings Jarvis. */
 export async function saveJarvisLearningsAction(input: { learnings: string }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' };
+  if (!s || !db) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Sélectionne une marque active.' };
+  if (!brand) return { error: GUARD.noBrand() };
   await db.update(schema.brands).set({ jarvisLearnings: (input.learnings || '').slice(0, 4000) || null }).where(eq(schema.brands.id, brand.id));
   return { ok: true };
 }
