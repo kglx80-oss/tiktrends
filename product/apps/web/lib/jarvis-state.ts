@@ -66,6 +66,26 @@ const vide = (s: string): boolean => !s || !s.trim();
  * Une seule passe, requêtes en parallèle · l'écran d'accueil de Jarvis ne doit
  * pas coûter une seconde à s'afficher sous prétexte qu'il est complet.
  */
+/**
+ * Ne lève jamais.
+ *
+ * Le panneau est un DIAGNOSTIC · il décrit l'état du système. Le laisser
+ * interrompre la page revient à ce que le voyant de panne fasse caler le moteur.
+ * L'incident qui a imposé cette règle est instructif : une colonne manquante,
+ * lue par UNE couche sur dix, a fait tomber l'écran entier · les neuf autres
+ * n'en avaient pas besoin et auraient parfaitement pu s'afficher.
+ *
+ * Un échec est donc absorbé par lecture, journalisé, et rendu visible dans le
+ * résumé. Absorber sans le dire serait pire que planter : on croirait lire un
+ * état à jour.
+ */
+async function sansCasse<T>(quoi: string, p: Promise<T>, repli: T): Promise<T> {
+  try { return await p; } catch (e) {
+    console.error('[jarvis:state]', quoi, (e as Error).message);
+    return repli;
+  }
+}
+
 export async function jarvisSnapshot(brandId: string, workspaceId: string): Promise<JarvisSnapshot> {
   const layers: JarvisLayer[] = [];
 
@@ -73,34 +93,40 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
     return { layers, liveCount: 0, dataCount: 0, summary: 'État indisponible.' };
   }
 
-  const [brand] = await db.select({
-    logoUrl: schema.brands.logoUrl, logos: schema.brands.logos,
-    palette: schema.brands.palette, colors: schema.brands.colors, fonts: schema.brands.fonts,
-    description: schema.brands.description, usp: schema.brands.usp,
-    creativeRules: schema.brands.creativeRules,
-    jarvisLearnings: schema.brands.jarvisLearnings,
-    radarArmed: schema.brands.radarArmed,
-  }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
+  const compte = (q: Promise<Array<{ n: number }>>, quoi: string) =>
+    sansCasse(quoi, q, [] as Array<{ n: number }>);
 
-  const [produits, concurrents, marche, decrites, stats, hooks] = await Promise.all([
-    db.select({ n: sql<number>`count(*)` }).from(schema.products).where(eq(schema.products.brandId, brandId)),
-    db.select({ n: sql<number>`count(*)` }).from(schema.followedBrands).where(eq(schema.followedBrands.workspaceId, workspaceId)),
-    db.select({ n: sql<number>`count(*)` }).from(schema.marketCreatives)
-      .where(and(eq(schema.marketCreatives.workspaceId, workspaceId), isNotNull(schema.marketCreatives.analyzedAt))),
+  const [brands, produits, concurrents, marche, decrites, stats, hooks] = await Promise.all([
+    sansCasse('marque', db.select({
+      logoUrl: schema.brands.logoUrl, logos: schema.brands.logos,
+      palette: schema.brands.palette, colors: schema.brands.colors, fonts: schema.brands.fonts,
+      description: schema.brands.description, usp: schema.brands.usp,
+      creativeRules: schema.brands.creativeRules,
+      jarvisLearnings: schema.brands.jarvisLearnings,
+      radarArmed: schema.brands.radarArmed,
+    }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1), []),
+    compte(db.select({ n: sql<number>`count(*)` }).from(schema.products).where(eq(schema.products.brandId, brandId)), 'produits'),
+    compte(db.select({ n: sql<number>`count(*)` }).from(schema.followedBrands).where(eq(schema.followedBrands.workspaceId, workspaceId)), 'concurrents'),
+    compte(db.select({ n: sql<number>`count(*)` }).from(schema.marketCreatives)
+      .where(and(eq(schema.marketCreatives.workspaceId, workspaceId), isNotNull(schema.marketCreatives.analyzedAt))), 'marché'),
     // `creatives` est rattachée à la MARQUE, pas à l'espace · une créa décrite
     // pour une autre marque du compte n'apprend rien sur celle-ci.
-    db.select({ n: sql<number>`count(*)` }).from(schema.creatives)
-      .where(and(eq(schema.creatives.brandId, brandId), isNotNull(schema.creatives.analysis))),
-    jarvisStats(brandId, workspaceId),
-    jarvisHooks(brandId, workspaceId),
+    compte(db.select({ n: sql<number>`count(*)` }).from(schema.creatives)
+      .where(and(eq(schema.creatives.brandId, brandId), isNotNull(schema.creatives.analysis))), 'créas décrites'),
+    sansCasse('statistiques', jarvisStats(brandId, workspaceId), { stats: [], globalRate: null, nAds: 0 }),
+    sansCasse('accroches', jarvisHooks(brandId, workspaceId), []),
   ]);
 
+  const brand = brands[0];
   const nProduits = Number(produits[0]?.n ?? 0);
   const nConcurrents = Number(concurrents[0]?.n ?? 0);
   const nMarche = Number(marche[0]?.n ?? 0);
   const nDecrites = Number(decrites[0]?.n ?? 0);
   const nSignaux = stats.stats.filter((r) => r.nConclusive >= 3 && r.hitRate !== null).length;
   const nHooks = hooks.filter((h) => h.evidence === 'proven' || h.evidence === 'refuted').length;
+  // Une marque introuvable OU une lecture en échec · dans les deux cas l'état
+  // affiché est incomplet, et le taire donnerait un diagnostic faussement rassurant.
+  const partiel = !brand;
 
   /* --- Ce qui vient de la marque -------------------------------------------- */
 
@@ -218,7 +244,9 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
     layers,
     liveCount: allumees,
     dataCount: dependantes.length,
-    summary: resume(allumees, dependantes.length, dependantes),
+    summary: partiel
+      ? 'État partiel · une lecture n’a pas abouti, ce tableau est peut-être en retard sur la réalité.'
+      : resume(allumees, dependantes.length, dependantes),
   };
 }
 

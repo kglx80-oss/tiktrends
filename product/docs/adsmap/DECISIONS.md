@@ -823,3 +823,43 @@ sort de la navigation ADMIN, et les blocs sensibles restent derrière `isFounder
 déjà. La mémoire mesurée était ouverte aux comptes Plus sous `/adsmap/jarvis` ·
 elle l'est ici, au même palier. Un déménagement d'écran qui élargit un accès au
 passage est une fuite, pas un rangement.
+
+---
+
+## D41 — Une migration hors journal est un fichier mort
+
+**L'incident.** `0039_radar.sql` a été écrit, relu, commité, déployé · et n'a
+jamais tourné. Drizzle applique les migrations listées dans `meta/_journal.json`,
+pas les fichiers présents dans le dossier. **Rien n'échoue au déploiement** : la
+base reste en arrière, et le défaut n'apparaît que le jour où quelqu'un ouvre
+l'écran qui lit la colonne manquante. Cinq écrans sont tombés d'un coup pour
+cette seule raison · le radar, Jarvis, et tout ce qui en dépendait.
+
+**Décision.** Un test lit le dossier `drizzle/` et le journal, et échoue dès
+qu'un `.sql` n'a pas son entrée. Il vérifie aussi la réciproque (une entrée sans
+fichier fait échouer le déploiement) et la croissance des index.
+
+**Pourquoi un test et pas une vigilance.** « Ne pas oublier le journal » n'est pas
+une règle applicable · c'est une demande faite à la mémoire de celui qui écrit,
+au moment précis où il pense à autre chose. Le seul remède est une vérification
+qui ne dépend de personne. Le test a été validé en le faisant échouer sur la
+faute réelle avant de la corriger.
+
+---
+
+## D42 — Un voyant de panne ne doit pas faire caler le moteur
+
+**Contexte.** L'écran Jarvis est tombé EN ENTIER parce qu'une colonne manquait.
+Une couche sur dix la lisait · les neuf autres n'en avaient pas besoin et
+auraient parfaitement pu s'afficher.
+
+**Décision.** `jarvisSnapshot` ne lève plus. Chaque lecture est absorbée
+individuellement, journalisée côté serveur, et remplacée par un repli neutre.
+
+**Et on le DIT.** Le résumé passe à « état partiel · une lecture n'a pas abouti,
+ce tableau est peut-être en retard sur la réalité ». Absorber en silence serait
+pire que planter : on croirait lire un état à jour, et un diagnostic faux est
+plus dangereux qu'une absence de diagnostic.
+
+**La règle générale.** Un panneau qui DÉCRIT l'état du système ne doit jamais
+être ce qui l'interrompt. C'est vrai de celui-ci, et de tous ceux qui viendront.
