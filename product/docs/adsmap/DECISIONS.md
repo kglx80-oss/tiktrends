@@ -988,3 +988,75 @@ liens Drive serait annoncer un travail qui n'arrivera pas.
 **La distinction qu'on maintient.** Les crédits sont une comptabilité interne,
 les dollars sont réels et s'imputent sur le plafond global. Les deux sont
 affichés, jamais confondus.
+
+---
+
+## D48 — Une conversation est la seule interface qui n'exige pas de savoir où chercher
+
+**Contexte.** Mémoire mesurée, bibliothèque d'accroches, parts de marché,
+attribution, suites, radar, brief de pré-lancement · sept surfaces, chacune
+répondant bien à SA question. À condition de savoir laquelle poser, et où.
+
+**Décision.** Un espace de conversation, en haut de `/jarvis` et en grand, avant
+le tableau de bord.
+
+**Pourquoi.** Il ne remplace aucun écran · il ouvre une porte à celui qui ne sait
+pas encore ce qu'il cherche. C'est le seul point d'entrée qui ne suppose pas déjà
+la connaissance du produit.
+
+---
+
+## D49 — Jarvis cite les chiffres de la marque, ou il admet qu'il n'en a pas
+
+**Le risque.** Un modèle sans mémoire répond des choses vraies et inutiles :
+« teste plusieurs accroches », « soigne les trois premières secondes ». C'est du
+conseil d'article de blog · aucune décision n'en sort, et ça décrédibilise tout
+le reste de l'outil.
+
+**Décision.** Une règle qui prime sur toutes les autres, écrite en toutes lettres
+dans la consigne : citer avec l'effectif, ou dire qu'on ne sait pas. **Il n'y a
+pas de troisième option**, et surtout pas celle de meubler avec de la culture
+générale présentée comme un constat sur la marque.
+
+**Ce qui est interdit nommément.** Le conseil de blog (avec ses exemples), la
+liste de dix idées, la flatterie. Un interdit abstrait ne se respecte pas · il
+faut nommer ce qu'on ne veut pas voir.
+
+**Et le droit de contredire est explicite.** On ne consulte pas quelqu'un pour
+s'entendre dire oui. Quand la mémoire contredit l'intention, la consigne demande
+de commencer par la contradiction, chiffre à l'appui, avant toute nuance.
+
+**La prudence est réglée sur l'effectif réel.** Zéro test mesuré, moins de dix,
+moins de quarante, au-delà · quatre tons distincts. Trois tests ne font pas une
+loi, et l'oublier est la façon la plus rapide de transformer une mémoire en
+superstition.
+
+---
+
+## D50 — La consigne se recompose à chaque tour, jamais ne se stocke
+
+**Décision.** Le fil garde les messages, pas la consigne système. Elle est
+rebâtie depuis la mémoire vivante à chaque réponse.
+
+**Pourquoi.** La mémoire bouge · un verdict arbitré, une créa décrite, une
+accroche réfutée. Une consigne figée ferait répondre Jarvis avec les chiffres
+d'avant-hier, sans que rien ne l'indique. Un outil dont on ne peut pas dater le
+savoir est pire qu'un outil ignorant.
+
+---
+
+## D51 — Le flux passe par le garde de dépense, il ne le contourne pas
+
+**Contexte.** Six secondes d'écran muet ne se lisent pas comme de la réflexion ·
+elles se lisent comme une panne, on reclique, et on double la dépense. Le flux
+était donc nécessaire. Mais `guardedAnthropic` ne connaissait que les réponses
+complètes.
+
+**Décision.** Le garde a été ÉTENDU plutôt que contourné. En mode flux, les
+jetons d'entrée sont relevés sur `message_start`, ceux de sortie sur le
+`message_delta` final, et la dépense est écrite dans un `finally` · y compris
+quand la connexion se coupe en route.
+
+**Pourquoi pas une exception.** Un plafond avec une porte dérobée n'est pas un
+plafond. Et un flux coupé avant le premier événement ne compte pas pour zéro :
+l'estimation prend le relais, comme sur le chemin normal.

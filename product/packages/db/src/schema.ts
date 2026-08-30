@@ -652,6 +652,26 @@ export const brandTrackerEvents = pgTable('brand_tracker_events', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ wsIdx: index('tracker_ws_idx').on(t.workspaceId, t.createdAt) }));
 
+/**
+ * Conversation avec Jarvis · un fil par (marque, personne).
+ *
+ * Le fil survit au rechargement, sinon ce n'est pas une conversation mais un
+ * formulaire. On ne stocke PAS la consigne système : elle est recomposée à
+ * chaque tour depuis la mémoire vivante · la figer la rendrait périmée dès le
+ * lendemain, et Jarvis répondrait avec les chiffres d'avant-hier.
+ */
+export const jarvisMessages = pgTable('jarvis_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  // Deux personnes sur la même marque n'ont pas à lire les brouillons de
+  // réflexion l'une de l'autre.
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),                 // user | assistant
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ filIdx: index('jarvis_messages_fil_idx').on(t.brandId, t.userId, t.createdAt) }));
+
 /* ========================================================================== *
  *                                  ADSMAP                                    *
  * Module de creative strategy · cf. docs/adsmap/STACK.md et DECISIONS.md.
