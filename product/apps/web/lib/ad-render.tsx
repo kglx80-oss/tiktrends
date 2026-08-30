@@ -26,6 +26,12 @@ export interface AdRecipe {
   memoryUse?: { measured: boolean; market: boolean; hooks: number };
   /** Prompt maison utilisé · c'est ce rattachement qui rend un preset mesurable. */
   presetId?: string | null;
+  /**
+   * Pourquoi Jarvis a proposé ça · calculé depuis la mémoire, jamais rédigé par
+   * le modèle. Une justification produite par le modèle est une affirmation ;
+   * calculée depuis les chiffres injectés, c'est un fait.
+   */
+  rationale?: string[] | null;
 }
 
 const WHITE = '#ffffff';

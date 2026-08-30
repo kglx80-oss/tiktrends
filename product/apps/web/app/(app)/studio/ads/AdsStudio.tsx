@@ -559,6 +559,16 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               <div style={{ padding: '9px 11px' }}>
                 <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
+                {/* Pourquoi Jarvis a proposé ça · calculé depuis la mémoire, pas
+                    rédigé par le modèle. Une proposition muette se subit ou
+                    s'ignore ; une proposition qui s'explique se conteste. */}
+                {a.rationale && a.rationale.length > 0 && (
+                  <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid var(--line)', display: 'grid', gap: 3 }}>
+                    {a.rationale.map((r, i) => (
+                      <p key={i} style={{ margin: 0, fontSize: 10.5, color: 'var(--muted)', lineHeight: 1.45 }}>{r}</p>
+                    ))}
+                  </div>
+                )}
                 <div style={{ marginTop: 8 }}>
                   <CreativeActions genId={a.id} rating={a.rating} onOpen={() => setDetailIdx(adsPage * PAGE_SIZE + li)} downloadUrl={a.url} onArchive={() => archive(a.id)} trackable={adsmap} />
                 </div>

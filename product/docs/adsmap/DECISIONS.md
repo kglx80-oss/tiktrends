@@ -1446,3 +1446,62 @@ trois qui fuyaient.
 **Vingt et un fichiers unifiés.** Aucun message n'a été perdu : ceux qui portaient
 une information particulière l'ont gardée, seuls les quatre cas génériques ont
 été ramenés à une source unique.
+
+---
+
+## D72 — Une justification produite par le modèle est une affirmation
+
+**Contexte.** Chaque génération consigne déjà ce que la mémoire lui a donné
+(`memoryUse`) · c'est ce qui alimente l'attribution. Mais l'utilisateur, au
+moment où il lit une proposition, ne voit rien. Pour comprendre, il doit aller
+sur un autre écran, et personne ne fait ça.
+
+**Une proposition muette se subit ou s'ignore. Une proposition qui s'explique se
+juge** · et surtout, elle se conteste en connaissance de cause.
+
+**La décision.** On aurait pu demander au modèle de rédiger sa propre
+justification dans le même appel · c'était gratuit et immédiat.
+
+On ne l'a pas fait. **Une justification produite par le modèle est une
+affirmation ; calculée depuis la mémoire, c'est un fait.** Un modèle à qui l'on
+demande de se justifier trouvera toujours une raison, y compris quand il n'en
+avait pas, et il écrira « 3 gagnantes sur 8 » sans avoir compté.
+
+Tout le produit repose sur « cite tes chiffres ou admets que tu n'en as pas ». La
+justification est donc **recalculée à partir des mêmes lectures que celles qui
+ont été injectées** · expliquer avec d'autres chiffres que ceux qui ont servi
+serait une fiction. Coût : zéro appel supplémentaire.
+
+---
+
+## D73 — Ce qui a été écarté passe devant ce qui a été repris
+
+**Décision.** La ligne la plus haute est celle de l'accroche **évitée** : « écarte
+l'accroche qui avait perdu ici ».
+
+**Pourquoi.** Savoir qu'une accroche a été écartée parce qu'elle avait perdu
+apprend quelque chose · savoir qu'un mécanisme moyen a été suivi n'apprend rien.
+C'est aussi la ligne qui justifie l'existence même de la mémoire.
+
+**On ne cite qu'au-dessus de la moyenne.** Une dimension sous la moyenne de la
+marque n'a rien à revendiquer · la mentionner ferait passer un défaut pour une
+intention. Et sous trois tests tranchés, aucun taux n'est cité, comme partout
+ailleurs.
+
+**Le marché reste en dernier et cède la place.** Une part d'usage n'est pas un
+taux de réussite, elle ne justifie pas un choix · elle l'accompagne.
+
+**Trois lignes au maximum.** Au-delà ce n'est plus une explication mais un
+rapport, et on en perd le fil.
+
+---
+
+## D74 — Quand rien ne guide, on le dit
+
+**Décision.** Sans mémoire exploitable, une ligne s'affiche quand même : « rien
+de mesuré ne guide encore cette proposition · elle sort des règles de la marque,
+pas de tes résultats ».
+
+**Pourquoi.** Une proposition sans justification affichée se lit comme une
+proposition justifiée dont on cache la raison. C'est la même règle que pour les
+états vides et les refus : le silence n'est pas une réponse.
