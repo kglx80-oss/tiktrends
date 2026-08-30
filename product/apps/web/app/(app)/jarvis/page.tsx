@@ -98,6 +98,9 @@ export default async function JarvisPage() {
     fondateur ? spendStatus() : Promise.resolve(null),
   ]);
   const attr = attribution.view;
+  // L'échec de lecture se dit · un bloc qui s'évapore quand il n'a rien à
+  // répondre laisse croire qu'il n'existe pas.
+  const attrErreur = 'error' in attribution ? attribution.error : undefined;
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1040, margin: '0 auto' }}>
@@ -140,15 +143,20 @@ export default async function JarvisPage() {
       )}
 
       {/* 2 · Le contrôle AVANT la mémoire · un outil qui ne se vérifie pas accumule. */}
-      {attr && (
-        <section style={{
+      {voitMemoire && (
+        <section id="attribution" style={{
           marginBottom: 24, padding: '16px 18px', borderRadius: 14,
-          border: `1px solid ${attr.overall.conclusive ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
+          border: `1px solid ${attr?.overall.conclusive ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
           background: 'var(--surface)',
         }}>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
-            Est-ce que Jarvis améliore vraiment les résultats ?
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+              Est-ce que Jarvis améliore vraiment les résultats ?
+            </h2>
+            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
+              Attribution
+            </span>
+          </div>
           <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
             Les créas générées <b>avec</b> la mémoire, comparées à celles générées <b>sans</b>, sur les
             tests arbitrés. On ne cherche pas quelle accroche a produit quelle gagnante — c’est
@@ -158,13 +166,24 @@ export default async function JarvisPage() {
             margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
             background: 'var(--paper)', border: '1px solid var(--line)',
             fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
-            color: attr.overall.conclusive
+            color: attrErreur ? '#ff8095' : attr?.overall.conclusive
               ? (attr.overall.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095'
               : 'var(--ink)',
           }}>
-            {attr.overall.summary}
+            {attrErreur ?? attr?.overall.summary ?? 'Lecture indisponible.'}
           </p>
-          {attr.parts.some((p) => p.liftPoints !== null) && (
+
+          {/* Ce qu'il faut pour que cette réponse existe · sans ça, « pas assez
+              de données » ressemble à une panne. */}
+          {attr && !attr.overall.conclusive && (
+            <p style={{ margin: '9px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+              Il faut <b>6 tests arbitrés</b> dans chacun des deux groupes · les créas nées du Studio avec
+              la mémoire, et les autres. {attr.total > 0
+                ? `${attr.total} test(s) arbitré(s) alimentent la comparaison pour l’instant.`
+                : 'Aucun test arbitré ne l’alimente pour l’instant.'}
+            </p>
+          )}
+          {attr?.parts.some((p) => p.liftPoints !== null) && (
             <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
               {attr.parts.filter((p) => p.liftPoints !== null).map((p) => (
                 <div key={p.part} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12, flexWrap: 'wrap' }}>
