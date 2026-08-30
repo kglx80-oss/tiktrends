@@ -34,3 +34,4 @@ export * from './adsmap/hook-library';
 export * from './adsmap/attribution';
 export * from './adsmap/prelaunch';
 export * from './adsmap/iterate';
+export * from './adsmap/radar';

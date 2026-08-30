@@ -701,3 +701,76 @@ aurait privé l'utilisateur de l'action la plus rentable.
 été essayé · deux essais sur la même variable est un test, trois est une
 habitude. Au-delà, la suite proposée devient « change d'angle » · le problème
 n'est probablement plus la créa.
+
+---
+
+## D36 — La naissance d'une pub ne dit rien, sa survie oui
+
+**Contexte.** Le suivi de marques existait : chaque nuit on rescanne les
+concurrents et on signale les pubs jamais vues. « 4 nouvelles pubs chez tes
+concurrents. »
+
+**Le problème.** La plupart des créas meurent en une semaine. Un annonceur qui
+en lance dix n'a rien prouvé · il a dépensé. Signaler des naissances produit une
+alerte quotidienne dont le taux d'information est proche de zéro, et une alerte
+qu'on n'ouvre plus est pire qu'une absence d'alerte : elle occupe la place.
+
+**Décision.** Le radar signale le **franchissement**, pas la naissance. Trois
+seuils, par ordre de force décroissante : 21 jours de diffusion (survie), portée
+qui monte encore après 7 jours (croissance), annonceur à plus de 10 annonces
+vivantes (phase active, le signal le plus faible).
+
+**Pourquoi.** Une créa encore diffusée après trois semaines est une créa que son
+annonceur continue de payer, semaine après semaine, en connaissant ses chiffres.
+C'est le seul vote crédible qu'on puisse observer de l'extérieur.
+
+**On le dit une fois.** `reported_at` garantit qu'une créa ne franchit son cap
+qu'une seule fois dans le fil. Répéter chaque nuit qu'une pub de trois semaines
+est toujours là referait du bruit par un autre chemin.
+
+---
+
+## D37 — Détecter est gratuit, décrire coûte · on sélectionne avant de dépenser
+
+**Contexte.** C'est la première fonction du produit qui dépense en arrière-plan,
+sans que personne n'ait cliqué. Une veille nocturne qui décrit tout ce qui bouge
+produit une facture proportionnelle au bruit du marché, c'est-à-dire non bornée.
+
+**Décision.** La détection est de l'arithmétique sur des données déjà
+récupérées · elle ne coûte rien. Seule la description d'une créa demande un
+appel modèle, estimé à **0,02 $** (`claude-sonnet-5`, ~3 800 jetons en entrée,
+~450 en sortie), et elle n'est déclenchée que sur la sélection.
+
+**Trois barrières, dans cet ordre.**
+
+1. **Le radar est ÉTEINT par défaut**, et s'arme marque par marque. Une dépense
+   qu'on n'a pas déclenchée est une dépense qu'on ne surveille pas.
+2. **Un plafond en UNITÉS**, pas en euros. Trois créas par nuit par défaut, soit
+   environ 0,06 $. Un plafond en euros se traduit mal en décision (« il reste
+   0,03 $, on analyse ou pas ? ») ; un plafond en unités est vérifiable avant de
+   dépenser, pas après.
+3. **La garde globale des 10 $ sur 30 jours** passe au-dessus de tout · quand
+   elle bloque, le passage s'arrête proprement et le dit, au lieu de rater à
+   moitié.
+
+**Le coût s'affiche avant l'interrupteur.** Et c'est le PIRE cas qui est montré ·
+trente nuits pleines au plafond choisi. Un coût moyen serait plus flatteur et
+moins utile : personne ne se fait surprendre par une moyenne.
+
+**L'estimation est arrondie vers le haut.** Une estimation optimiste d'un coût
+est fausse dans le seul sens qui fasse mal.
+
+---
+
+## D38 — Largeur avant profondeur · trois créas d'un annonceur suffisent
+
+**Décision.** Au-delà de trois créas décrites pour un même annonceur, il cède la
+place à un annonceur qu'on ne connaît pas encore.
+
+**Pourquoi.** Trois créas suffisent à connaître la manière d'une marque. La
+quatrième coûte le même prix et n'apprend presque rien · c'est la même règle que
+`MIN_ADVERTISERS` côté statistiques de marché (D26) : trois créas d'un seul
+annonceur, c'est une marque, pas un marché.
+
+**Et ce qui est écarté est compté.** Le nombre de créas reportées à demain est
+affiché · sans lui, on croirait avoir tout vu.
