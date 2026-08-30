@@ -917,3 +917,74 @@ comment ça s'appelle, et on cherche par le nom.
 panneau qui décrit l'état du système ne doit ni l'interrompre, ni disparaître
 quand il échoue. « Pas assez de données » est une réponse ; le silence n'en est
 pas une.
+
+---
+
+## D45 — Un lien mort ne doit pas coûter la moitié de la mémoire
+
+**Le constat.** La mémoire de Jarvis a huit dimensions. Quatre se déduisent du
+graphe et se remplissent dès l'import · mécanisme, format, stade de conscience,
+avatar. Les quatre autres — type d'accroche, ouverture, talent, durée — **et
+toute la bibliothèque d'accroches** viennent de la description de l'asset.
+
+Or sur un historique importé, l'asset est un lien Drive. Le modèle ne peut pas
+l'ouvrir · l'appel échouait, l'ad était écartée, et la moitié la plus riche de la
+mémoire restait vide pour toujours. Vingt-neuf lots de tests payés, inexploités.
+
+**Décision.** Deux corrections.
+
+1. **On ne donne au modèle qu'une adresse qu'il peut ouvrir.** Une liste courte
+   d'hôtes qui servent une page et jamais un fichier. Volontairement courte : on
+   refuse ce dont on est sûr, et on tente le reste, parce que beaucoup de CDN
+   servent des images sans extension. Un lien qui échoue coûte un aller-retour ;
+   un lien rejeté à tort ne se voit jamais.
+2. **Un dossier écrit sert de repli.** Hypothèse du test, variable changée,
+   titre du concept, accroche de l'angle, apprentissages retenus · de la prose
+   qui décrit la pub, déjà en base. Le repli est automatique et par ad, jamais
+   global.
+
+**L'en-tête du dossier est la partie qui compte.** Sans lui, le modèle décrit des
+plans, des coupes et des sous-titres qu'il n'a jamais vus · il ne ment pas, il
+comble. Lui dire en toutes lettres qu'il ne voit pas la créa et lui interdire
+nommément les champs visuels transforme une invention en abstention. Une case
+vide se complète plus tard, une case inventée fausse une statistique pour
+toujours.
+
+**Deux champs minimum.** Un titre de concept nomme une publicité, il ne la décrit
+pas · en dessous, refuser est le service rendu.
+
+---
+
+## D46 — Une mémoire doit savoir d'où elle tient ce qu'elle sait
+
+**Contexte.** Une description tirée d'un brief et une description lue sur la
+vidéo remplissent les mêmes colonnes. Les confondre serait commode.
+
+**Décision.** La provenance est enregistrée (`analysisModel` suffixé `:texte`),
+la confiance est plafonnée à 0,6, et l'écran l'affiche · « déduite du brief »
+contre « lue sur la créa ».
+
+**Pourquoi.** Le brief dit ce qu'on VOULAIT faire, le fichier dit ce qui a été
+fait, et l'écart entre les deux est précisément ce qui fait rater un test. Une
+mémoire qui ne sait plus d'où elle tient ce qu'elle sait finit par se tromper
+avec assurance.
+
+---
+
+## D47 — Le prix s'affiche avant le bouton, en dollars
+
+**Contexte.** Décrire un historique complet est la première action du produit
+dont le coût se compte en dollars et non en centimes · plusieurs centaines d'ads.
+
+**Décision.** Le panneau annonce le coût de la tranche ET le coût de la
+totalité, avant le clic, avec la répartition entre ce qui sera lu sur l'asset
+(0,02 $) et ce qui sera déduit du brief (0,013 $, une vignette pesant près de la
+moitié des jetons d'entrée).
+
+**Et le décompte ne promet que ce qui aura lieu.** Les ads restantes sont
+réparties selon ce qu'on pourra RÉELLEMENT lire · annoncer qu'on va décrire des
+liens Drive serait annoncer un travail qui n'arrivera pas.
+
+**La distinction qu'on maintient.** Les crédits sont une comptabilité interne,
+les dollars sont réels et s'imputent sur le plafond global. Les deux sont
+affichés, jamais confondus.
