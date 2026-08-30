@@ -774,3 +774,52 @@ annonceur, c'est une marque, pas un marché.
 
 **Et ce qui est écarté est compté.** Le nombre de créas reportées à demain est
 affiché · sans lui, on croirait avoir tout vu.
+
+---
+
+## D39 — L'écran qui portait le nom ne savait rien, celui qui savait tout ne le portait pas
+
+**Contexte.** Il y avait deux écrans Jarvis. `/jarvis` était une **brochure** : six
+cartes en dur affirmant ce que Jarvis applique, identiques pour tout le monde, y
+compris pour une marque sans logo ni produit à qui on annonçait que sa direction
+artistique était injectée dans chaque prompt. Et sous `/adsmap/jarvis` vivait
+toute la substance — mémoire mesurée, accroches, marché, attribution — rangée
+sous la navigation d'un autre module.
+
+**Décision.** Une seule maison, `/jarvis`. L'ancienne route redirige plutôt que
+de disparaître · un lien mis en favori qui rend 404 se lit comme une régression,
+pas comme un rangement.
+
+**Ce qui remplace la brochure.** Chaque couche dit trois choses : est-ce qu'elle
+tourne, sur quel volume, et **le geste exact qui l'allume** quand elle est
+éteinte. Sans le troisième, un état « éteint » n'est qu'un reproche.
+
+**Une carte qui décrit une capacité est une promesse. Une carte qui dit qu'elle
+est éteinte et pourquoi est un diagnostic.** La différence entre une brochure et
+un tableau de bord tient là, et pas ailleurs.
+
+**Ce qu'on ne maquille pas.** Deux couches font partie du prompt de base et ne
+dépendent d'aucune donnée · elles sont marquées « toujours actif » plutôt que de
+recevoir un compteur flatteur. Un tableau de bord où tout est vert n'est plus lu.
+
+**L'ordre de la page.** L'attribution AVANT la mémoire : un outil qui ne vérifie
+pas ses propres règles n'apprend pas, il accumule. Puis ce qu'il sait, puis ce
+qu'il coûte, puis les actions · on règle après avoir lu, pas avant.
+
+---
+
+## D40 — Ouvrir un écran ne doit rien ouvrir de plus
+
+**Contexte.** `/jarvis` était réservé au fondateur, et figurait dans la
+navigation ADMIN. Deux conséquences, dont une invisible : un membre n'avait aucun
+lien vers l'écran, et **y figurer basculait toute la coquille en thème plateforme
+interne** dès qu'on l'ouvrait.
+
+**Décision.** Jarvis devient une fonctionnalité cliente du rail (offre `core`),
+sort de la navigation ADMIN, et les blocs sensibles restent derrière `isFounder`
+à l'intérieur de la page : règles maison, moteurs orchestrés, dépense réelle.
+
+**Le principe.** Rien ne devient visible pour quelqu'un qui ne le voyait pas
+déjà. La mémoire mesurée était ouverte aux comptes Plus sous `/adsmap/jarvis` ·
+elle l'est ici, au même palier. Un déménagement d'écran qui élargit un accès au
+passage est une fuite, pas un rangement.

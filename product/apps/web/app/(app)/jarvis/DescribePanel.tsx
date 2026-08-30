@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { analyzeAssetsAction, analysisCoverageAction, type AnalysisCoverage } from '../../../actions/adsmap-analyze';
+import { analyzeAssetsAction, analysisCoverageAction, type AnalysisCoverage } from '../../actions/adsmap-analyze';
 
 /**
  * Description des créas · agent A0.

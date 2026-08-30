@@ -64,6 +64,10 @@ export const FEATURES: Feature[] = [
   { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Création', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Création', minRole: 'member',        minPlan: 'core' },
+  // Jarvis · l'IA elle-même. Le rail la montre à partir de `core` : l'état des
+  // couches et les actions de description valent pour tout le monde. Ce qui
+  // demande l'offre Plus, c'est la mémoire MESURÉE, et c'est la page qui le dit.
+  { key: 'jarvis',    label: 'Jarvis',       href: '/jarvis',      icon: 'brain',  group: 'Création', minRole: 'member',        minPlan: 'core' },
   // ADSMAP · carte de creative strategy (hypothèse -> test -> verdict -> itération).
   { key: 'adsmap',    label: 'ADSMAP',       href: '/adsmap',      icon: 'radar',  group: 'Analyse',  minRole: 'member',        minPlan: 'plus' },
   // Menu profil · Compte (personnel · tous les rôles)

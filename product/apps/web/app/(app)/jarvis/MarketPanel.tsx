@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { marketViewAction, learnFromFollowedAction, type MarketView } from '../../../actions/market-learn';
+import { marketViewAction, learnFromFollowedAction, type MarketView } from '../../actions/market-learn';
 
 /**
  * Ce que fait le marché, et où nos chiffres le contredisent.
