@@ -1,4 +1,4 @@
-import { eq, and, or, inArray, count } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { buildDashboard } from '../../../lib/pipeline';
 import { PageInfo } from '../../../components/PageInfo';
@@ -7,7 +7,8 @@ import { getActiveBrand } from '../../../lib/brands';
 import { roleAtLeast } from '../../../lib/rbac';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { AssistantHome } from '../../../components/AssistantHome';
-import { OnboardingChecklist, type OnboardStep } from '../../../components/OnboardingChecklist';
+import { JourneyPanel } from '../../../components/JourneyPanel';
+import { onboardingState } from '../../../lib/onboarding-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,33 +30,16 @@ export default async function Dashboard() {
   }
   const firstName = ((s?.user.name || s?.user.email || 'toi').trim().split(/\s+/)[0]) || 'toi';
 
-  // Onboarding : étapes de démarrage (ADMIN+ qui configure l'espace), calculées sur données réelles.
-  let steps: OnboardStep[] = [];
-  if (s && db && roleAtLeast(s.role, 'admin')) {
-    const brandRows = await db.select({ id: schema.brands.id, sh: schema.brands.shopifyToken, mt: schema.brands.metaToken })
-      .from(schema.brands).where(eq(schema.brands.workspaceId, s.workspaceId));
-    const brandIds = brandRows.map((b) => b.id);
-    const hasConnection = brandRows.some((b) => b.sh || b.mt);
-    const [ac] = await db.select({ n: count() }).from(schema.assets).where(eq(schema.assets.workspaceId, s.workspaceId));
-    const assetCount = ac?.n ?? 0;
-    let genCount = 0;
-    if (brandIds.length) {
-      const [gc] = await db.select({ n: count() }).from(schema.generations).where(and(inArray(schema.generations.brandId, brandIds), or(eq(schema.generations.kind, 'image'), eq(schema.generations.kind, 'video'))!));
-      genCount = gc?.n ?? 0;
-    }
-    steps = [
-      { key: 'brand', label: 'Créer ta première marque', desc: 'DA, produits, ton · le socle de toutes les générations.', href: '/brands/new', done: brandRows.length > 0 },
-      { key: 'connect', label: 'Connecter une source', desc: 'Shopify ou Meta Ads pour faire remonter tes vraies données.', href: '/connections', done: hasConnection },
-      { key: 'assets', label: 'Ajouter des assets', desc: 'Téléverse ou branche ton Drive · l’IA s’en sert automatiquement.', href: '/assets', done: assetCount > 0 },
-      { key: 'generate', label: 'Générer ta première créa', desc: 'Studio Pubs / Image · lance ta première génération IA.', href: '/studio/ads', done: genCount > 0 },
-    ];
-  }
+  // Le chemin de démarrage · calculé sur la donnée réelle, jamais sur des cases
+  // cochées à la main. Ouvert à tous les rôles qui peuvent agir : un membre qui
+  // ne voit pas où en est l'espace ne peut pas aider à l'avancer.
+  const parcours = s && roleAtLeast(s.role, 'member') ? await onboardingState(s.workspaceId) : null;
 
   return (
     <main style={{ minHeight: '100vh', padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
       <AssistantHome firstName={firstName} credits={credits} brandName={brand?.name ?? null} brandId={brand?.id ?? null} aiReady={anthropicConfigured()} />
 
-      {steps.length > 0 && <OnboardingChecklist steps={steps} firstName={firstName} />}
+      {parcours && <JourneyPanel j={parcours} firstName={firstName} />}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
