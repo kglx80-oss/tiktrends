@@ -14,6 +14,7 @@ import { attributionViewAction } from '../../actions/adsmap-attribution';
 import { PageInfo } from '../../../components/PageInfo';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
+import { JarvisChat } from './JarvisChat';
 import { DescribePanel } from './DescribePanel';
 import { MarketPanel } from './MarketPanel';
 
@@ -119,8 +120,16 @@ export default async function JarvisPage() {
         </div>
       </div>
 
+      {/* 0 · La conversation, en premier et en grand.
+
+           Les tableaux qui suivent répondent bien, à condition de savoir quelle
+           question poser et sur quel écran. Une conversation est la seule
+           interface qui n'exige pas de savoir où chercher · c'est donc elle
+           qu'on rencontre d'abord. */}
+      <JarvisChat />
+
       {/* 1 · L'état réel · avant toute promesse. */}
-      <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Ce qui tourne, en ce moment</h2>
+      <h2 style={{ margin: '30px 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Ce qui tourne, en ce moment</h2>
       <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 720, lineHeight: 1.55 }}>
         Chaque couche dit si elle est alimentée, sur quel volume, et le geste qui l’allume quand elle ne l’est pas.
       </p>

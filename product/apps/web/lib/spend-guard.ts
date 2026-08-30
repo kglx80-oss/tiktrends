@@ -128,6 +128,42 @@ export function guardedAnthropic(opts: { workspaceId?: string | null; action: st
     const decision = checkBudget({ spentUsd: status.spentUsd, capUsd: status.capUsd }, estime);
     if (!decision.allowed) throw new SpendBlockedError(decision.reason);
 
+    // ── Flux ────────────────────────────────────────────────────────────────
+    //
+    // Une conversation qui laisse l'écran muet huit secondes se lit comme une
+    // panne. Le flux n'est donc pas un confort · mais il ne doit pas coûter
+    // l'exactitude de la comptabilité, sans quoi le plafond fuirait par ce
+    // chemin-là.
+    //
+    // Les jetons d'entrée arrivent sur `message_start`, ceux de sortie sur le
+    // `message_delta` final. On enveloppe l'itération pour les relever au
+    // passage et écrire la dépense quand le flux se termine — y compris s'il
+    // est interrompu, `finally` s'en charge.
+    if (params.stream) {
+      const flux = await (brut as (p: CreateParams, o?: unknown) => Promise<AsyncIterable<unknown>>)(params, options);
+      return (async function* () {
+        let entree = 0;
+        let sortie = 0;
+        try {
+          for await (const ev of flux) {
+            const e = ev as { type?: string; message?: { usage?: { input_tokens?: number } }; usage?: { output_tokens?: number } };
+            if (e.type === 'message_start') entree = e.message?.usage?.input_tokens ?? 0;
+            if (e.type === 'message_delta') sortie = e.usage?.output_tokens ?? sortie;
+            yield ev;
+          }
+        } finally {
+          const reel = costOfTokens(modele, entree, sortie);
+          await record({
+            workspaceId: opts.workspaceId, provider: 'anthropic', model: modele, action: opts.action,
+            // Un flux coupé avant le premier événement ne doit pas compter pour
+            // zéro · l'estimation prend le relais, comme sur le chemin normal.
+            estimatedUsd: estime, actualUsd: entree || sortie ? reel : estime,
+            inputTokens: entree || null, outputTokens: sortie || null,
+          });
+        }
+      })();
+    }
+
     const res = await (brut as (p: CreateParams, o?: unknown) => Promise<Anthropic.Message>)(params, options);
 
     const usage = (res as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
