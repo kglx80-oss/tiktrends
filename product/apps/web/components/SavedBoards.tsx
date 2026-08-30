@@ -98,7 +98,7 @@ function TrackButton({ state, onClick }: { state: string | undefined; onClick: (
   const err = state && !done && !busy ? state : null;
   return (
     <div>
-      <button type="button" onClick={onClick} disabled={busy || done} title="Créer un concept « imitation » dans ADSMAP" style={{
+      <button type="button" onClick={onClick} disabled={busy || done} title="Créer un concept « imitation » dans Adsmap" style={{
         width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px', borderRadius: 9,
         border: '1px solid ' + (done ? 'transparent' : 'var(--line-2)'),
         background: done ? 'var(--accent-soft)' : 'var(--paper)',
@@ -106,7 +106,7 @@ function TrackButton({ state, onClick }: { state: string | undefined; onClick: (
         cursor: busy || done ? 'default' : 'pointer', fontSize: 12, fontWeight: 600, opacity: busy ? 0.6 : 1,
       }}>
         <span>🗺</span>
-        <span>{done ? 'Dans ADSMAP' : busy ? 'Ajout…' : 'Suivre dans ADSMAP'}</span>
+        <span>{done ? 'Dans Adsmap' : busy ? 'Ajout…' : 'Suivre dans Adsmap'}</span>
       </button>
       {err && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--danger, #e5484d)', lineHeight: 1.4 }}>{err}</p>}
     </div>

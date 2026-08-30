@@ -16,7 +16,7 @@ import { effectiveAccess } from './access';
  * Le fondateur passe par `effectiveAccess` comme partout ailleurs.
  */
 
-const ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
+const Adsmap = FEATURES.find((f) => f.key === 'adsmap')!;
 
 export interface AdsMapGuardOk {
   s: NonNullable<Awaited<ReturnType<typeof getSession>>>;
@@ -28,11 +28,11 @@ export async function adsmapGuard(opts?: { minRole?: Role; noBrand?: false }): P
   if (!s || !db) return { error: 'Session expirée.' };
 
   const a = effectiveAccess(s);
-  if (!canAccess(a, ADSMAP)) {
+  if (!canAccess(a, Adsmap)) {
     return {
-      error: denyReason(a, ADSMAP) === 'plan'
-        ? 'ADSMAP est disponible à partir de l’offre Plus.'
-        : 'Ton rôle ne permet pas d’accéder à ADSMAP.',
+      error: denyReason(a, Adsmap) === 'plan'
+        ? 'Adsmap est disponible à partir de l’offre Plus.'
+        : 'Ton rôle ne permet pas d’accéder à Adsmap.',
     };
   }
   if (opts?.minRole && !roleAtLeast(s.role, opts.minRole)) {
@@ -40,6 +40,6 @@ export async function adsmapGuard(opts?: { minRole?: Role; noBrand?: false }): P
   }
 
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: 'Sélectionne une marque active pour ouvrir ADSMAP.' };
+  if (!brand) return { error: 'Sélectionne une marque active pour ouvrir Adsmap.' };
   return { s, brand };
 }

@@ -51,8 +51,8 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
       {trackable && (
         <button type="button" onClick={suivre} disabled={suivi === 'busy' || suivi === 'done'}
           style={{ ...actBtn, color: suivi === 'done' ? '#7ee8bf' : 'var(--ink-2)', borderColor: suivi === 'done' ? 'rgba(126,232,191,.4)' : undefined, cursor: suivi === 'done' ? 'default' : 'pointer' }}
-          title={suivi === 'done' ? note || 'Suivie dans ADSMAP' : suivi === 'err' ? note : 'Suivre dans ADSMAP · mesurer cette créa'}
-          aria-label="Suivre dans ADSMAP">
+          title={suivi === 'done' ? note || 'Suivie dans Adsmap' : suivi === 'err' ? note : 'Suivre dans Adsmap · mesurer cette créa'}
+          aria-label="Suivre dans Adsmap">
           <span aria-hidden style={{ fontSize: 13 }}>{suivi === 'done' ? '✓' : suivi === 'busy' ? '…' : '🗺'}</span>
         </button>
       )}

@@ -141,7 +141,7 @@ export default async function JarvisPage() {
         <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '20px 22px', marginBottom: 24 }}>
           <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>La mémoire mesurée demande l’offre Plus.</p>
           <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 640 }}>
-            Les couches ci-dessus tournent déjà. Ce qui s’ajoute avec ADSMAP, c’est ce que Jarvis apprend
+            Les couches ci-dessus tournent déjà. Ce qui s’ajoute avec Adsmap, c’est ce que Jarvis apprend
             de tes propres tests · les chiffres, les accroches qui ont gagné, et la vérification qu’il
             améliore vraiment les résultats.
           </p>
@@ -249,7 +249,7 @@ export default async function JarvisPage() {
         <Action href="/adsmap/suites" title="Suites" desc="Ce qu’il faut faire d’un test arbitré · et surtout ce qu’il ne faut pas retoucher." gate={voitMemoire} />
         <Action href="/adsmap/radar" title="Radar" desc="Chaque nuit, ce que tes concurrents continuent de payer." gate={voitMemoire} />
         <Action href="/adsmap/lots" title="Avant de dépenser" desc="Le brief de pré-lancement, sur chaque créa d’un lot." gate={voitMemoire} />
-        <Action href="/adsmap" title="ADSMAP" desc="La carte des tests, d’où vient tout ce que Jarvis sait." gate={voitMemoire} />
+        <Action href="/adsmap" title="Adsmap" desc="La carte des tests, d’où vient tout ce que Jarvis sait." gate={voitMemoire} />
       </div>
 
       {voitMemoire && (
