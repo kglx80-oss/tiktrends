@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
@@ -39,7 +38,6 @@ export default async function SignupsPage() {
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1120, margin: '0 auto' }}>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ ADMIN+</Link>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Inscriptions & onboarding</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>FONDATEUR</span>

@@ -40,7 +40,6 @@ export default async function DepensesPage() {
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 960, margin: '0 auto' }}>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Admin</Link>
       <h1 style={{ margin: '10px 0 4px', fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Dépense IA réelle</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22, maxWidth: 720, lineHeight: 1.6 }}>
         Les dollars qui partent vraiment chez Anthropic et fal, sur 30 jours glissants. À ne pas
