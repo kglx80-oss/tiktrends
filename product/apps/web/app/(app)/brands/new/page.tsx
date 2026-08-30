@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
@@ -23,7 +22,6 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 860, margin: '0 auto' }}>
-      <Link href="/brands" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Marques</Link>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 0' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Créer une marque</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>

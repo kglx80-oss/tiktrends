@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { and, eq, asc } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
@@ -42,8 +41,6 @@ export default async function TicketThreadPage({ params, searchParams }: {
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 760, margin: '0 auto' }}>
-      <Link href="/support" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Support</Link>
-
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '10px 0 4px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

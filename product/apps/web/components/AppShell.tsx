@@ -10,6 +10,7 @@ import { CommandPalette, openCommandPalette, type Command } from './CommandPalet
 import { ProfileModal } from './ProfileModal';
 import { QuickSettingsModal } from './QuickSettingsModal';
 import { CreditsMenu } from './CreditsMenu';
+import { Breadcrumb } from './Breadcrumb';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
 // Les pages « espace de travail » du client (marques, connexions, membres,
@@ -435,6 +436,9 @@ function AppShellInner(props: Props) {
 
       <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
         <NotificationBell />
+        {/* Le fil d'Ariane est posé ICI, une fois pour toutes · vingt et une pages
+            portaient le leur, écrit à la main, et ils avaient divergé. */}
+        <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} />
         {children}
         <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
       </div>

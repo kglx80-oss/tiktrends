@@ -1123,3 +1123,70 @@ est pire que de n'avoir rien réglé.
 
 **Archivé, jamais supprimé.** Les créas produites pointent encore dessus, et un
 bilan qui perd son intitulé devient illisible six mois plus tard.
+
+---
+
+## D55 — Trois sources pour une seule vérité, c'est trois vérités
+
+**L'état des lieux.** La navigation était écrite à trois endroits qui avaient
+déjà divergé : `FEATURES` pour le rail, une barre de sept boutons codée en dur
+en haut d'ADSMAP, et **vingt et un liens « ‹ Retour » écrits à la main**, page
+par page, chacun à sa façon.
+
+Résultat observable : ADSMAP exposait six sous-écrans dans sa barre et **aucun**
+dans le rail ; Studio faisait exactement l'inverse. Personne n'avait décidé ça ·
+c'est arrivé.
+
+**Décision.** Une carte unique (`lib/navigation.ts`) déclare chaque écran, son
+libellé, son parent et sa section. Le fil d'Ariane en dérive · le rail et les
+sous-navigations en dériveront (étape suivante).
+
+**Le garde qui empêche la dérive de revenir.** Un test lit le dossier des pages
+et échoue si une route n'est pas déclarée. Même leçon que le journal de
+migrations (D41) : « ne pas oublier » n'est pas une règle applicable, seule une
+vérification qui ne dépend de personne tient dans la durée.
+
+---
+
+## D56 — Un fil d'Ariane n'est pas un bouton retour
+
+**Ce que les vingt et un liens faisaient.** Ils répondaient à « comment je sors
+d'ici ». C'est la question facile, et le navigateur y répondait déjà.
+
+**Ce à quoi personne ne pouvait répondre**, sur un produit à trois niveaux :
+« où suis-je, et qu'est-ce qui contient cet écran ? ». Un chemin complet y
+répond · une flèche vers le parent, non.
+
+**Rendu une seule fois, dans la coquille.** Une page nouvelle l'obtient sans
+rien écrire, et surtout ne peut pas l'écrire autrement. Vingt et une occasions
+de diverger deviennent zéro.
+
+**Ce qu'il n'affiche pas.** Rien, sur une racine de section. « Espace › Membres »
+au-dessus de l'écran Membres occupe une ligne et n'apprend rien · le rail dit
+déjà où l'on est. Le fil sert quand on est DESCENDU quelque part.
+
+**La marque fait partie de l'adresse.** Tout ici est par marque : la carte, la
+mémoire, les lots, les prompts. « ADSMAP › Radar de veille » sans nom de marque
+décrit un écran qui n'existe pas · le fil affiche donc « Analyse › TrueFords ›
+ADSMAP › Radar de veille ». C'est la seule exception à la règle du dessus : sur
+une racine par marque, le contexte manquerait vraiment.
+
+**Le dernier maillon n'est jamais un lien.** Un lien vers soi-même est une
+promesse de mouvement qui n'aboutit pas.
+
+---
+
+## D57 — À longueur égale, le littéral l'emporte sur le dynamique
+
+**Le piège.** `/brands/new` et `/brands/[id]` ont la même forme. Sans règle,
+l'écran de création de marque s'annoncerait comme une marque, portant le nom de
+la marque active dans son propre fil.
+
+**Décision.** Les candidats sont triés par nombre de segments dynamiques
+croissant · un motif entièrement littéral gagne toujours.
+
+**Et un segment dynamique peut se nommer tout seul.** Sur
+`/brands/[id]/competitors/[name]`, le nom du concurrent est dans l'URL · on le
+décode plutôt que d'afficher « Concurrent ». C'est le DERNIER segment dynamique
+qu'on lit, pas le premier : sur ce chemin, c'est le concurrent qu'on nomme, pas
+la marque qui le contient.

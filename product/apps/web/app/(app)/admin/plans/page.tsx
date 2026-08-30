@@ -47,7 +47,6 @@ export default async function AdminPlansPage({ searchParams }: { searchParams: P
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 980, margin: '0 auto' }}>
-      <Link href="/admin" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ ADMIN+</Link>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Formules & crédits · pilotage</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>FONDATEUR</span>
