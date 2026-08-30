@@ -4,6 +4,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
+import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
@@ -93,11 +94,20 @@ async function composeBatch(o: {
   reservedCredits: number; // deja debite par l'appelant : on rembourse ce qui n'a pas ete produit
   falModel?: string; falParams?: Record<string, string | number>; creditsPerImage: number; // modèle choisi (+ ses paramètres) et crédits par variante
   productId?: string; personaId?: string; objective?: string;
+  /** Prompt maison · remplace l'univers fourni quand il est choisi. */
+  preset?: { id: string; prompt: string; negative: string | null } | null;
 }): Promise<AdItem[]> {
   const accents = pickAccents(o.colors);
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
-  const universeFor = (i: number) => chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
+  // Un prompt maison l'emporte sur les univers fournis · c'est la direction
+  // artistique de la marque, elle ne se fait pas alterner avec la nôtre.
+  const universeFor = (i: number) => o.preset
+    ? o.preset.prompt
+    : chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
+  // Les exclusions ferment la consigne · un moteur qui les ignore n'est pas gêné,
+  // un moteur qui les lit les retient mieux en fin de prompt.
+  const exclusions = o.preset?.negative?.trim() ? `\n\nAvoid: ${o.preset.negative.trim()}` : '';
   const hasProduct = !!(o.productImageUrls && o.productImageUrls.length);
   const assetRefs = o.assetRefUrls ?? [];
   const hasAssetRef = assetRefs.length > 0;
@@ -116,16 +126,16 @@ async function composeBatch(o: {
       edit = true;
     } else if (o.editMode) {
       imageUrls = [...(o.productImageUrls ?? []), ...assetRefs].slice(0, 8);
-      prompt = scenePrompt(c, true, universeFor(i)) + assetNote;
+      prompt = scenePrompt(c, true, universeFor(i)) + assetNote + exclusions;
       edit = true;
     } else if (hasAssetRef) {
       // Pas de photo produit mais la bibliothèque est remplie -> l'IA s'en sert comme références marque.
       imageUrls = assetRefs.slice(0, 8);
-      prompt = scenePromptBrandRef(c, universeFor(i));
+      prompt = scenePromptBrandRef(c, universeFor(i)) + exclusions;
       edit = true;
     } else {
       imageUrls = undefined;
-      prompt = scenePrompt(c, false, universeFor(i));
+      prompt = scenePrompt(c, false, universeFor(i)) + exclusions;
       edit = false;
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
@@ -159,6 +169,7 @@ async function composeBatch(o: {
       // Consigné AU MOMENT de générer · reconstruire après coup ce que Jarvis
       // savait ce jour-là est impossible, la mémoire ayant changé depuis.
       memoryUse: o.memoryUse,
+      presetId: o.preset?.id ?? null,
     };
     try {
       const [row] = await db!.insert(schema.generations).values({
@@ -234,6 +245,8 @@ async function learnedPreferences(brandId: string): Promise<string | undefined> 
 
 export async function generateAdsAction(input: {
   productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[]; offer?: string; model?: string;
+  /** Identifiant d'un prompt maison · prime sur `universe`. */
+  presetId?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: 'Session expirée, reconnecte-toi.' };
@@ -319,9 +332,15 @@ export async function generateAdsAction(input: {
   }
   if (!concepts.length) return { error: "Aucun concept n'a pu être généré. Réessaie." };
 
+  // Le prompt maison est résolu une fois pour tout le lot · le relire par visuel
+  // ferait autant de requêtes que d'images, pour la même réponse.
+  const resolu = await resolvePreset(s.workspaceId, input.presetId);
+  const presetChoisi = resolu && input.presetId ? { id: input.presetId, ...resolu } : null;
+
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
+    preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,

@@ -1060,3 +1060,66 @@ quand la connexion se coupe en route.
 **Pourquoi pas une exception.** Un plafond avec une porte dérobée n'est pas un
 plafond. Et un flux coupé avant le premier événement ne compte pas pour zéro :
 l'estimation prend le relais, comme sur le chemin normal.
+
+---
+
+## D52 — Huit univers écrits en dur n'est pas une direction artistique
+
+**Le constat.** Le Studio Pubs composait ses visuels à partir de huit « univers
+visuels » écrits en dur, en anglais, dans notre code. On pouvait en CHOISIR un ·
+jamais en écrire un. Le champ de texte libre du Studio Image existait, mais
+déconnecté de la chaîne pubs : ni marque, ni mémoire, ni concept.
+
+**Pourquoi c'est plus grave qu'un manque de confort.** Une agence qui a mis des
+années à trouver sa manière de filmer ne va pas l'abandonner parce que notre menu
+ne la contient pas. Et partant de rien, le premier geste devrait être « voici
+comment JE veux que ça ressemble » · il était impossible.
+
+**Décision.** Des prompts maison, nommés, réutilisables, disponibles dans le
+Studio à côté des huit univers d'origine — qui restent, comme point de départ
+copiable. Partir d'une page blanche pour écrire une direction artistique est
+décourageant ; partir d'un exemple qui tient ne l'est pas.
+
+---
+
+## D53 — Un prompt nommé devient une hypothèse, pas un goût
+
+**Ce qui distingue ça d'un champ de texte.** Un prompt tapé une fois produit une
+image et disparaît. Nommé et rattaché aux créas qu'il produit, il devient
+mesurable · on finit par savoir combien de tests il a nourris et combien ont
+gagné.
+
+**« Mon univers sombre : 3 gagnantes sur 9 tests tranchés » est une phrase
+qu'aucun générateur d'images ne sait dire.** C'est là qu'est la valeur, et c'est
+ce qui rattache la fonction au but du produit : trouver plus vite des créas qui
+gagnent, par hypothèses et itérations.
+
+**On ne pose pas un second pont.** Le rattachement vit dans `generations.input`,
+comme la trace de mémoire, et se relit par le chemin `concepts.source_ref →
+generationId` que l'attribution utilise déjà. Deux chemins finiraient par donner
+deux chiffres, et personne ne saurait lequel croire.
+
+**Le seuil est le même que partout.** Sous trois tests tranchés, on affiche
+l'usage et surtout pas un taux · un preset utilisé trois fois n'a rien prouvé.
+
+---
+
+## D54 — Le concept dit quoi montrer, le prompt dit comment
+
+**Décision.** Dans le prompt final, la scène issue du concept vient AVANT le
+prompt maison, et les exclusions ferment la consigne.
+
+**Pourquoi.** Inverser ferait dériver le sujet vers le style · on obtiendrait de
+belles images qui ne racontent plus la publicité. Et un moteur qui ignore les
+exclusions n'est pas gêné de les trouver en fin de prompt, là où un moteur qui
+les lit les retient mieux.
+
+**Un prompt maison l'emporte sur les univers fournis.** C'est la direction
+artistique de la marque · elle ne se fait pas alterner avec la nôtre.
+
+**Refus d'un prompt trop court.** Sous vingt caractères, « beau » ou « pro » ne
+change pas une image · ça donne l'impression d'avoir réglé quelque chose, ce qui
+est pire que de n'avoir rien réglé.
+
+**Archivé, jamais supprimé.** Les créas produites pointent encore dessus, et un
+bilan qui perd son intitulé devient illisible six mois plus tard.
