@@ -81,6 +81,12 @@ export interface ComposerProps {
   onAttach?: () => void;
   attachLabel?: string;
   attachedCount?: number;
+  /**
+   * Ce que la mémoire dit de la scène choisie · calculé, jamais rédigé.
+   * Vide quand il n'y a rien de mieux à proposer : une phrase affichée à chaque
+   * choix devient un bruit qu'on cesse de lire au bout de trois jours.
+   */
+  advice?: string | null;
   /** Ce que coûte le clic · affiché SUR le bouton. */
   cost?: { credits?: number; note?: string };
   onGenerate: () => void;
@@ -110,7 +116,7 @@ export function Composer(props: ComposerProps) {
     value, onChange, placeholder = 'Décris la scène que tu imagines',
     controls = [], toggles = [], scenes = [],
     onPickScene, onSaveScene, onAttach, attachLabel, attachedCount = 0,
-    cost, onGenerate, busy, disabled, generateLabel = 'Générer', extra,
+    advice, cost, onGenerate, busy, disabled, generateLabel = 'Générer', extra,
     requireText = true,
   } = props;
 
@@ -291,6 +297,15 @@ export function Composer(props: ComposerProps) {
             Annuler
           </button>
         </div>
+      )}
+
+      {/* Ce que la mémoire sait de la scène choisie · elle éclaire, elle
+          n'interdit pas. Placée sous la barre, elle se lit avant de cliquer. */}
+      {advice && (
+        <p style={{
+          margin: 0, fontSize: 12, lineHeight: 1.55, color: '#ffcf8f',
+          borderLeft: '2px solid rgba(245,166,35,.5)', paddingLeft: 10,
+        }}>{advice}</p>
       )}
 
       {cost?.note && (

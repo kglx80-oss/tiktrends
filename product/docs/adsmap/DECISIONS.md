@@ -1787,3 +1787,37 @@ qui distingue Jarvis d'un générateur, et elle serait tombée en premier.
 **L'ordre de lecture est délibéré** : la correction, puis l'accroche, le
 déroulé, l'hypothèse, les réserves. On lit ce qui met en doute avant ce qui
 rassure · l'inverse fait valider avant d'avoir douté.
+
+---
+
+## D91 — Les scènes se classent par bilan, pas par nom
+
+**Décision.** Trois rangs : ce qui a gagné (du meilleur au moins bon), ce qu'on
+ne sait pas encore, ce qui a perdu avec assez de tests pour le savoir.
+
+**Pourquoi.** On avait mesuré ce que vaut chaque scène, puis on les présentait
+par ordre alphabétique · la mesure existait et personne ne la regardait. Un
+classement par nom demande de lire douze bilans pour trouver le bon.
+
+**On ne cache rien, on ordonne.** Retirer une scène perdante priverait de la
+seule chose qu'elle apprend encore : qu'elle a été essayée.
+
+**À taux égal, celle qui a le plus de tests derrière elle passe devant** · elle
+est plus sûre, et c'est la même prudence que partout ailleurs.
+
+---
+
+## D92 — La phrase ne sort que si on a mieux à proposer
+
+**Décision.** Une ligne s'affiche sous la barre dans deux cas seulement : la
+scène choisie a perdu avec assez de tests, ou une autre a gagné et celle-ci n'a
+rien prouvé. Sur la meilleure, silence.
+
+**Pourquoi.** Une phrase affichée à chaque choix devient un bruit qu'on cesse de
+lire au bout de trois jours. Féliciter n'apprend rien et use le crédit de la
+phrase suivante.
+
+**Elle informe, elle n'interdit pas** · un concept neuf a par construction un
+profil qu'on ne connaît pas, et c'est souvent lui qui ouvre quelque chose. Le
+texte le dit explicitement : « ce n'est pas une raison de renoncer, c'en est une
+de le savoir ».

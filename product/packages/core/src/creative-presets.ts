@@ -160,6 +160,104 @@ function resume(used: number, conclusive: number, winners: number, taux: number 
 }
 
 /* -------------------------------------------------------------------------- */
+/*  L'ordre de la liste                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** Ce qu'il faut d'une scène pour la classer · l'écran en sait plus, pas ici. */
+export interface ScenePerf {
+  id: string;
+  name: string;
+  performance: PresetPerformance | null;
+}
+
+/**
+ * L'ordre de la liste des scènes.
+ *
+ * ── Pourquoi ce n'est pas l'ordre alphabétique ───────────────────────────────
+ *
+ * On a mesuré ce que vaut chaque scène, puis on les a présentées par nom · la
+ * mesure existait et personne ne la regardait. Un classement par nom demande de
+ * lire douze bilans pour trouver le bon ; un classement par bilan le met en
+ * premier.
+ *
+ * ── Trois rangs, et le dernier est le point ──────────────────────────────────
+ *
+ * 1. Ce qui a gagné, du meilleur au moins bon.
+ * 2. Ce qu'on ne sait pas encore · le neuf n'est pas coupable.
+ * 3. Ce qui a perdu avec assez de tests pour le savoir.
+ *
+ * **On ne cache rien**, on ordonne. Retirer une scène perdante de la liste
+ * priverait de la seule chose qu'elle apprend encore : qu'elle a été essayée.
+ */
+export function rankScenes<T extends ScenePerf>(scenes: T[]): T[] {
+  const rang = (s: T): number => {
+    const p = s.performance;
+    if (!p || p.hitRate === null) return 1;   // inconnu
+    return p.hitRate > 0 ? 0 : 2;             // gagnant · perdant avéré
+  };
+
+  return [...scenes].sort((a, b) => {
+    const ra = rang(a), rb = rang(b);
+    if (ra !== rb) return ra - rb;
+
+    // Dans le rang « gagnant », le meilleur taux passe devant · à taux égal,
+    // celui qui a le plus de tests derrière lui, parce qu'il est plus sûr.
+    if (ra === 0) {
+      const ta = a.performance!.hitRate!, tb = b.performance!.hitRate!;
+      if (ta !== tb) return tb - ta;
+      return b.performance!.conclusive - a.performance!.conclusive;
+    }
+    return a.name.localeCompare(b.name, 'fr');
+  });
+}
+
+/**
+ * Ce qu'on dit quand une scène est choisie.
+ *
+ * ── La règle : on ne parle que si on a mieux à proposer ──────────────────────
+ *
+ * Une phrase affichée à chaque choix devient un bruit qu'on cesse de lire au
+ * bout de trois jours. Elle n'apparaît donc que dans deux cas :
+ *
+ * - la scène choisie a perdu avec assez de tests pour l'affirmer ;
+ * - une autre scène a gagné et celle-ci n'a rien prouvé.
+ *
+ * Quand la scène choisie est déjà la meilleure, on se tait · le félicitations
+ * n'apprend rien et use le crédit de la phrase suivante.
+ *
+ * **Elle informe, elle n'interdit pas** · un concept neuf a par construction un
+ * profil qu'on ne connaît pas, et c'est souvent lui qui ouvre quelque chose.
+ */
+export function sceneAdvice(currentId: string | null, scenes: ScenePerf[]): string | null {
+  if (!currentId) return null;
+  const courante = scenes.find((s) => s.id === currentId);
+  if (!courante) return null;
+
+  const p = courante.performance;
+
+  // Perdante avérée · c'est le cas le plus utile, il passe en premier.
+  if (p && p.hitRate === 0 && p.conclusive >= MIN_N_PRESET) {
+    return `« ${courante.name} » n’a rien donné sur ${p.conclusive} tests tranchés · relis-la avant de repartir dessus.`;
+  }
+
+  const meilleure = rankScenes(scenes).find(
+    (s) => s.id !== currentId && s.performance && s.performance.hitRate !== null && s.performance.hitRate > 0,
+  );
+  if (!meilleure) return null;
+
+  const m = meilleure.performance!;
+  const gagnee = `${m.winners} gagnante${m.winners > 1 ? 's' : ''} sur ${m.conclusive} tests tranchés`;
+
+  if (!p || p.hitRate === null) {
+    return `« ${meilleure.name} » a fait ${gagnee}. Celle-ci n’a pas encore de bilan · ce n’est pas une raison de renoncer, c’en est une de le savoir.`;
+  }
+  if (p.hitRate < m.hitRate!) {
+    return `« ${meilleure.name} » fait mieux · ${gagnee}, contre ${p.winners} sur ${p.conclusive} ici.`;
+  }
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Composition du prompt final                                               */
 /* -------------------------------------------------------------------------- */
 
