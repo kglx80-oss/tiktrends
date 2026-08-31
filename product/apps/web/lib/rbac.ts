@@ -89,6 +89,7 @@ export const FEATURES: Feature[] = [
   { key: 'ads',       label: 'Pubs IA',      href: '/studio/ads',   icon: 'spark', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'textes',    label: 'Textes IA',    href: '/studio/textes', icon: 'bulb', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
 
   // ── Tester · la boucle hypothèse → verdict → itération ────────────────────

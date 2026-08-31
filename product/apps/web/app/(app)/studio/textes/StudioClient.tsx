@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { generateAction, type StudioState } from '../../actions/studio';
+import { generateAction, type StudioState } from '../../../actions/studio';
 
 const input: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 };

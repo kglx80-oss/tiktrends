@@ -86,6 +86,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/studio/ads', label: 'Pubs IA', parent: '/studio', section: 'Atelier' },
   { path: '/studio/image', label: 'Image IA', parent: '/studio', section: 'Atelier' },
   { path: '/studio/video', label: 'Vidéo IA', parent: '/studio', section: 'Atelier' },
+  { path: '/studio/textes', label: 'Textes IA', parent: '/studio', section: 'Atelier' },
 
   { path: '/assets', label: 'Assets', section: 'Atelier' },
 
@@ -171,7 +172,7 @@ const PAR_MARQUE = new Set([
   '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/protocole',
   '/adsmap/import', '/adsmap/radar',
   '/jarvis', '/studio', '/studio/ads', '/studio/image', '/studio/video',
-  '/assets', '/analytics', '/dashboard',
+  '/studio/textes', '/assets', '/analytics', '/dashboard',
 ]);
 
 export function isBrandScoped(pathname: string): boolean {
