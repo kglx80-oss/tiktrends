@@ -42,7 +42,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   // La scène reprise · consignée à la génération, c'est ce qui lui bâtit un
   // bilan. Toute frappe la libère : un texte retouché n'est plus la scène.
   const [sceneId, setSceneId] = useState('');
-  const { scenes, enregistrer, erreur: sceneErreur } = useScenes('video');
+  const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('video');
   const [vidPage, setVidPage] = useState(0);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
@@ -183,6 +183,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           requireText={mode === 't2v'}
           scenes={scenes}
           onPickScene={(s) => setSceneId(s.id)}
+          advice={conseil(sceneId)}
           onSaveScene={enregistrer}
           controls={[
             {

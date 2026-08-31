@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { rankScenes, sceneAdvice, type ScenePerf } from '@tiktrends/core';
 import { listPresetsAction, savePresetAction } from '../app/actions/presets';
 import type { ComposerScene } from './Composer';
 
@@ -21,18 +22,27 @@ import type { ComposerScene } from './Composer';
  */
 export function useScenes(kind: 'image' | 'video') {
   const [scenes, setScenes] = useState<ComposerScene[]>([]);
+  const [perfs, setPerfs] = useState<ScenePerf[]>([]);
   const [erreur, setErreur] = useState('');
 
   const charger = useCallback(async () => {
     const r = await listPresetsAction();
     if (!r.view) return;
     const garde = (k: string) => k === kind || k === 'both';
+    const miennes = r.view.mine.filter((p) => garde(p.kind));
+
+    // Le classement est calculé dans le noyau · ce qui a gagné devant, ce qu'on
+    // ne sait pas ensuite, ce qui a perdu derrière. On ne cache rien, on ordonne.
+    const classees = rankScenes(miennes.map((p) => ({ id: p.id, name: p.name, performance: p.performance })));
+    setPerfs(classees);
+    const parId = new Map(miennes.map((p) => [p.id, p]));
+
     setScenes([
-      ...r.view.mine.filter((p) => garde(p.kind)).map((p) => ({
-        id: p.id, name: p.name, prompt: p.prompt,
+      ...classees.map((c) => ({
+        id: c.id, name: c.name, prompt: parId.get(c.id)!.prompt,
         // `used === 0` donne « Jamais utilisé. » · on ne l'affiche pas, une
         // scène qu'on vient d'écrire n'a pas à s'excuser de n'avoir rien prouvé.
-        summary: p.performance && p.performance.used > 0 ? p.performance.summary : null,
+        summary: c.performance && c.performance.used > 0 ? c.performance.summary : null,
       })),
       // Les univers fournis · gardés parce qu'ils dépannent quand on part de
       // rien, placés après parce qu'ils ne sont plus le seul choix.
@@ -52,5 +62,12 @@ export function useScenes(kind: 'image' | 'video') {
     await charger();
   }, [charger, kind]);
 
-  return { scenes, enregistrer, erreur };
+  /**
+   * Ce qu'on dit sur la scène choisie · vide quand on n'a rien de mieux à
+   * proposer. Une phrase affichée à chaque choix devient un bruit qu'on cesse
+   * de lire au bout de trois jours.
+   */
+  const conseil = useCallback((sceneId: string) => sceneAdvice(sceneId || null, perfs), [perfs]);
+
+  return { scenes, enregistrer, erreur, conseil };
 }

@@ -70,7 +70,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   // texte retouché n'est plus la scène enregistrée, et lui en attribuer le
   // résultat fausserait le seul chiffre qui a de la valeur ici.
   const [sceneId, setSceneId] = useState('');
-  const { scenes, enregistrer, erreur: sceneErreur } = useScenes('image');
+  const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('image');
 
   const selected = useMemo(() => prods.find((p) => p.id === productId) || null, [prods, productId]);
   // En mode « mise en scène », la source produit = photo uploadée, sinon la photo enregistrée sur le produit.
@@ -263,6 +263,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           busy={busy}
           scenes={scenes}
           onPickScene={(s) => setSceneId(s.id)}
+          advice={conseil(sceneId)}
           onSaveScene={enregistrer}
           onAttach={mode === 'i2i' ? () => fileRef.current?.click() : undefined}
           attachLabel="Ajouter la photo de ton produit"
