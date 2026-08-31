@@ -103,9 +103,9 @@ export const STEPS: StepDef[] = [
 
   // ── Utiles à tout moment, bloquantes pour rien ────────────────────────────
   {
-    key: 'prompt', label: 'Écrire ton propre prompt', needs: ['brand'], optional: true,
+    key: 'prompt', label: 'Enregistrer ta première scène', needs: ['brand'], optional: true,
     why: 'Ta direction artistique, réutilisable · et mesurée, ce qu’aucun générateur d’images ne fait.',
-    href: '/studio/prompts',
+    href: '/studio/image',
   },
   {
     key: 'competitors', label: 'Suivre des concurrents', needs: [], optional: true,

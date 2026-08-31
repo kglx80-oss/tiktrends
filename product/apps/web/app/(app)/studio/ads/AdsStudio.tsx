@@ -522,13 +522,20 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </DropZone>
         )}
 
+        {/* Le prix est SUR le bouton · la même règle que dans la barre de
+            composition des studios Image et Vidéo. À côté, il se lit après la
+            décision, ou jamais. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{modelSpec.label} · {modelSpec.credits} cr/pub · {modelSpec.credits * count} cr. total</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{modelSpec.label} · {modelSpec.credits} crédits par pub</span>
           <span style={{ flex: 1 }} />
           <button type="button" onClick={run} disabled={!ready || busy || (mode === 'brand' ? !templates.length : !hasRef)} style={{
             padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
+            display: 'inline-flex', alignItems: 'center', gap: 8,
             cursor: ready && !busy ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && (mode === 'brand' ? templates.length : hasRef) ? 1 : .5,
-          }}>{busy ? (mode === 'clone' ? 'Clonage…' : 'Création des pubs…') : mode === 'clone' ? `✨ Cloner en ${count}` : '✨ Générer les pubs'}</button>
+          }}>
+            {busy ? (mode === 'clone' ? 'Clonage…' : 'Création des pubs…') : mode === 'clone' ? `✨ Cloner en ${count}` : '✨ Générer les pubs'}
+            {!busy && <span style={{ fontSize: 12.5, opacity: 0.75 }}>✦ {modelSpec.credits * count}</span>}
+          </button>
         </div>
         {busy && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, déclinaison en variations et composition… (~20-40 s)' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
         {notice && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}

@@ -23,7 +23,7 @@
  *
  * ── La marque fait partie de l'adresse ───────────────────────────────────────
  *
- * Tout ici est par marque : la carte, la mémoire, les lots, les prompts. Un fil
+ * Tout ici est par marque : la carte, la mémoire, les lots, les scènes. Un fil
  * qui affiche « ADSMAP › Radar » sans dire de quelle marque il parle décrit un
  * écran qui n'existe pas.
  *
@@ -86,7 +86,6 @@ export const ROUTES: RouteNode[] = [
   { path: '/studio/ads', label: 'Pubs IA', parent: '/studio', section: 'Atelier' },
   { path: '/studio/image', label: 'Image IA', parent: '/studio', section: 'Atelier' },
   { path: '/studio/video', label: 'Vidéo IA', parent: '/studio', section: 'Atelier' },
-  { path: '/studio/prompts', label: 'Tes prompts', parent: '/studio', section: 'Atelier' },
 
   { path: '/assets', label: 'Assets', section: 'Atelier' },
 
@@ -172,7 +171,7 @@ const PAR_MARQUE = new Set([
   '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/protocole',
   '/adsmap/import', '/adsmap/radar',
   '/jarvis', '/studio', '/studio/ads', '/studio/image', '/studio/video',
-  '/studio/prompts', '/assets', '/analytics', '/dashboard',
+  '/assets', '/analytics', '/dashboard',
 ]);
 
 export function isBrandScoped(pathname: string): boolean {

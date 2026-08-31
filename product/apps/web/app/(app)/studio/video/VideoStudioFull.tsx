@@ -6,6 +6,8 @@ import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
+import { Composer } from '../../../../components/Composer';
+import { useScenes } from '../../../../components/useScenes';
 
 type Ratio = '9:16' | '1:1' | '16:9';
 const RATIOS: Ratio[] = ['9:16', '1:1', '16:9'];
@@ -37,6 +39,10 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   const [busy, setBusy] = useState(false);
   const [suggesting, startSuggest] = useTransition();
   const [videos, setVideos] = useState<BrandVideo[]>(initialVideos);
+  // La scène reprise · consignée à la génération, c'est ce qui lui bâtit un
+  // bilan. Toute frappe la libère : un texte retouché n'est plus la scène.
+  const [sceneId, setSceneId] = useState('');
+  const { scenes, enregistrer, erreur: sceneErreur } = useScenes('video');
   const [vidPage, setVidPage] = useState(0);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
@@ -46,7 +52,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
     startSuggest(async () => {
       const r = await suggestVideoBriefAction({ fromImage: mode === 'i2v' });
       if (r.error) setError(r.error);
-      else if (r.text) setPrompt(r.text);
+      else if (r.text) { setPrompt(r.text); setSceneId(''); }
     });
   }
 
@@ -88,8 +94,8 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
     if (mode === 'i2v' && !imageUrl.trim()) { setError("Ajoute l'URL d'une image de départ."); return; }
     setError(''); setBusy(true);
     const res = mode === 't2v'
-      ? await startVideoAction({ prompt, aspectRatio: ratio })
-      : await startImageVideoAction({ prompt, imageUrl, aspectRatio: ratio });
+      ? await startVideoAction({ prompt, aspectRatio: ratio, presetId: sceneId || undefined })
+      : await startImageVideoAction({ prompt, imageUrl, aspectRatio: ratio, presetId: sceneId || undefined });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.jobId) {
@@ -162,34 +168,41 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <label style={{ ...lbl, marginBottom: 0 }}>{mode === 't2v' ? 'Décris ta vidéo' : 'Consigne de mouvement (optionnel)'}</label>
-          <button type="button" onClick={suggestMotion} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose un mouvement à partir de ta marque' : 'IA non configurée'} style={{
-            fontSize: 11.5, fontWeight: 800, padding: '4px 10px', borderRadius: 999, cursor: ready && aiReady && !suggesting ? 'pointer' : 'default',
-            border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
-          }}>✦ {suggesting ? 'Rédaction…' : 'Suggérer un mouvement'}</button>
-        </div>
-        <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} disabled={!ready || busy}
-          placeholder={mode === 't2v' ? 'Ex : gros plan sur une boisson posée sur un bureau, lumière du matin, léger travelling avant' : 'Ex : léger zoom, la vapeur monte, ambiance chaleureuse'}
-          style={{ ...fld, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {RATIOS.map((r) => (
-              <button key={r} type="button" disabled={!ready || busy} onClick={() => setRatio(r)} style={{
-                fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
-                border: `1px solid ${ratio === r ? 'transparent' : 'var(--line-2)'}`,
-                background: ratio === r ? 'var(--grad-accent)' : 'transparent', color: ratio === r ? '#0d070c' : 'var(--ink-2)',
-              }}>{r}</button>
-            ))}
-          </div>
-          <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>20 crédits / vidéo</span>
-          <button type="button" onClick={generate} disabled={!ready || busy} style={{
-            padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
-            cursor: ready && !busy ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy ? 1 : .5,
-          }}>{busy ? 'Lancement…' : '✦ Générer la vidéo'}</button>
-        </div>
+        {/* Même barre que le studio Image · un studio qui se règle autrement
+            qu'un autre oblige à réapprendre la même chose deux fois. */}
+        <Composer
+          value={prompt}
+          onChange={(v) => { setPrompt(v); setSceneId(''); }}
+          placeholder={mode === 't2v'
+            ? 'Décris la scène que tu imagines · ex : gros plan sur une boisson posée sur un bureau, lumière du matin, léger travelling avant'
+            : 'Décris le mouvement · facultatif · ex : léger zoom, la vapeur monte, ambiance chaleureuse'}
+          disabled={!ready}
+          busy={busy}
+          // En animation d'image, la consigne est facultative · le moteur sait
+          // animer sans elle, exiger un texte serait une contrainte inventée.
+          requireText={mode === 't2v'}
+          scenes={scenes}
+          onPickScene={(s) => setSceneId(s.id)}
+          onSaveScene={enregistrer}
+          controls={[
+            {
+              key: 'ratio', title: 'Format', icon: '⬚',
+              options: RATIOS.map((r) => ({ value: r, label: r })),
+              value: ratio, onChange: (v) => setRatio(v as Ratio),
+            },
+          ]}
+          extra={
+            <button type="button" onClick={suggestMotion} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose un mouvement à partir de ta marque' : 'IA non configurée'} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
+              cursor: ready && aiReady && !suggesting ? 'pointer' : 'default', whiteSpace: 'nowrap',
+              border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
+            }}>✦ {suggesting ? 'Rédaction…' : mode === 't2v' ? 'Proposer une description' : 'Proposer un mouvement'}</button>
+          }
+          cost={{ credits: 20, note: '20 crédits par vidéo · le rendu prend une à trois minutes' }}
+          onGenerate={generate}
+          generateLabel="Générer la vidéo"
+        />
+        {sceneErreur && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{sceneErreur}</div>}
         {!ready && <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>La vidéo IA s'active dès que la clé Higgsfield est posée sur le serveur.</p>}
         {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
       </div>
