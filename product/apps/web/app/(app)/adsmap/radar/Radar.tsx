@@ -3,9 +3,12 @@
 import { useEffect, useState, useTransition, type CSSProperties } from 'react';
 import {
   radarViewAction, setRadarAction, runRadarNowAction, radarCostPreviewAction,
-  type RadarView,
+  conceptFromFindingAction,
+  type RadarView, type RadarFindingRow,
 } from '../../../actions/adsmap-radar';
+import { draftConceptAction, type DraftView } from '../../../actions/adsmap-draft';
 import { Empty } from '../../../../components/Empty';
+import { DraftCard } from '../../../../components/DraftCard';
 
 /**
  * Le radar, et son interrupteur.
@@ -138,31 +141,131 @@ export function Radar() {
         />
       ) : (
         <div style={{ display: 'grid', gap: 10 }}>
-          {findings.map((f) => (
-            <div key={f.externalId} style={{ ...carte, gap: 7, padding: '13px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: 13.5, color: 'var(--ink)' }}>{f.advertiser ?? 'Concurrent'}</strong>
-                <span style={{ fontSize: 11.5, padding: '2px 9px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)' }}>
-                  {f.signalLabel}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{f.daysRunning} j en ligne</span>
-                <span style={{ flex: 1 }} />
-                {f.reportedAt && (
-                  <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-                    {new Date(f.reportedAt).toLocaleDateString('fr-FR')}
-                  </span>
-                )}
-              </div>
-              {f.summary && (
-                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>{f.summary}</p>
-              )}
-              {f.reason && (
-                <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55 }}>{f.reason}</p>
-              )}
-            </div>
-          ))}
+          {findings.map((f) => <Trouvaille key={f.externalId} f={f} />)}
         </div>
       )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Une trouvaille, et ce qu'on en fait                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Le radar s'arrêtait sur le constat.
+ *
+ * Il disait « ce concurrent tient depuis 24 jours sur une ouverture que tu n'as
+ * jamais testée », et regardait quelqu'un d'autre travailler. Entre le lire et
+ * l'essayer, il y avait un écran de rédaction, un rattachement à faire à la
+ * main, et une nuit de sommeil · c'est-à-dire, en pratique, rien.
+ *
+ * Deux gestes maintenant : Jarvis écrit, puis on classe. Et ce qu'on reprend au
+ * concurrent est la MÉCANIQUE, jamais les mots · la consigne de rédaction
+ * l'impose, et l'angle créé porte le ressort observé, pas le nom de la marque.
+ */
+function Trouvaille({ f }: { f: RadarFindingRow }) {
+  const [brouillon, setBrouillon] = useState<DraftView | null>(null);
+  const [hypo, setHypo] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const [redige, ecrit] = useTransition();
+  const [classe, range] = useTransition();
+
+  const mecanique = f.openingType || f.hookType || null;
+
+  const ecrire = () => ecrit(async () => {
+    setNote(null);
+    const r = await draftConceptAction({
+      origin: 'radar',
+      intent: f.summary
+        ? `Une créa de ${f.advertiser ?? 'un concurrent'} tient depuis ${f.daysRunning} jours : ${f.summary}. Écris une créa pour notre marque qui reprenne ce qui la fait tenir.`
+        : `Une créa de ${f.advertiser ?? 'un concurrent'} tient depuis ${f.daysRunning} jours. Écris une créa pour notre marque qui en reprenne le ressort.`,
+      marketMechanic: mecanique,
+    });
+    if (r.error) { setNote(r.error); return; }
+    setBrouillon(r.view ?? null);
+    // L'hypothèse écrite par Jarvis est un point de départ, pas une signature ·
+    // elle reste modifiable avant d'être posée sur la carte.
+    if (r.view) setHypo(r.view.draft.hypothesis);
+  });
+
+  const classer = () => range(async () => {
+    if (!brouillon) return;
+    setNote(null);
+    const r = await conceptFromFindingAction({
+      externalId: f.externalId, hypothesis: hypo,
+      headline: brouillon.draft.headline, beats: brouillon.draft.beats,
+    });
+    if (r.error) { setNote(r.error); return; }
+    setNote('Concept posé sur la carte · il arrive « proposé », et l’ad attend son brief. Une trouvaille de veille ne décide pas de ta taxonomie.');
+    setBrouillon(null);
+  });
+
+  return (
+    <div style={{ ...carte, gap: 7, padding: '13px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+        <strong style={{ fontSize: 13.5, color: 'var(--ink)' }}>{f.advertiser ?? 'Concurrent'}</strong>
+        <span style={{ fontSize: 11.5, padding: '2px 9px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)' }}>
+          {f.signalLabel}
+        </span>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{f.daysRunning} j en ligne</span>
+        <span style={{ flex: 1 }} />
+        {f.reportedAt && (
+          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+            {new Date(f.reportedAt).toLocaleDateString('fr-FR')}
+          </span>
+        )}
+      </div>
+      {f.summary && (
+        <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>{f.summary}</p>
+      )}
+      {f.reason && (
+        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55 }}>{f.reason}</p>
+      )}
+
+      {brouillon && (
+        <DraftCard view={brouillon}>
+          <label style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 700, marginTop: 2 }}>
+            Ce que ce test parie · relis-la, c’est elle qui rendra le résultat lisible
+          </label>
+          <textarea
+            value={hypo} onChange={(e) => setHypo(e.target.value)} rows={2}
+            style={{ width: '100%', padding: '9px 11px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }}
+          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={classer} disabled={classe || hypo.trim().length < 10}
+              style={{ padding: '8px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 12.5, cursor: classe ? 'wait' : 'pointer', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : '#0d070c' }}
+            >
+              {classe ? 'Classement…' : 'Poser sur la carte'}
+            </button>
+            <button
+              onClick={ecrire} disabled={redige}
+              style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
+            >
+              {redige ? 'Jarvis écrit…' : 'Réécrire'}
+            </button>
+          </div>
+        </DraftCard>
+      )}
+
+      {!brouillon && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            onClick={ecrire} disabled={redige}
+            style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
+          >
+            {redige ? 'Jarvis écrit…' : 'Demander le concept à Jarvis'}
+          </button>
+          {mecanique && (
+            <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+              il reprendra la mécanique · {mecanique}, jamais les mots
+            </span>
+          )}
+        </div>
+      )}
+
+      {note && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink)', lineHeight: 1.55 }}>{note}</p>}
     </div>
   );
 }

@@ -1736,3 +1736,54 @@ mesure. C'est le seul endroit de l'outil où cette phrase arrive avant le clic.
 **Chaque compteur est lu isolément.** Une page de garde qui tombe entière parce
 qu'une colonne manque est pire qu'une page sans compteur · c'est la leçon de la
 lecture unique qui avait fait tomber Jarvis en entier.
+
+---
+
+## D88 — Le radar ne s'arrête plus sur le constat
+
+**Décision.** Chaque trouvaille porte « Demander le concept à Jarvis », puis
+« Poser sur la carte ».
+
+**Pourquoi.** Le radar disait « ce concurrent tient depuis 24 jours sur une
+ouverture que tu n'as jamais testée », et regardait quelqu'un d'autre
+travailler. Entre le lire et l'essayer, il y avait un écran de rédaction, un
+rattachement à faire à la main, et une nuit de sommeil · c'est-à-dire, en
+pratique, rien.
+
+**L'angle porte la mécanique, pas le concurrent.** Un angle « Nike » ne se
+réutilise pas ; un angle « démonstration en une prise » si.
+
+**Le concept arrive `proposed`, l'ad arrive `draft`.** Une trouvaille de veille
+ne décide pas de la taxonomie de la marque, et une ad née d'une observation
+extérieure n'est pas prête à tourner · elle est prête à être relue.
+
+**La provenance est écrite** (`sourceRef.radarExternalId`) · six mois plus tard,
+« d'où sortait cette idée » est une question qu'on se pose vraiment.
+
+---
+
+## D89 — Le chemin persona → désir → angle sort des actions
+
+**Décision.** `ensureGraphPath` vit dans `lib/adsmap-path.ts`, un module
+ordinaire.
+
+**Pourquoi.** Il était privé à la passerelle Studio. L'exporter depuis un
+fichier `'use server'` en aurait fait un point d'entrée public prenant `brandId`
+et `workspaceId` en paramètres · c'est-à-dire un moyen d'écrire dans la carte
+d'un autre espace. Un module appelé par des actions qui ont déjà vérifié qui
+parle ne pose pas ce problème.
+
+---
+
+## D90 — Le brouillon s'affiche au même endroit partout
+
+**Décision.** `DraftCard` est un composant unique, utilisé par les suites et
+par le radar.
+
+**Pourquoi.** Deux copies d'un même affichage divergent toujours, et celle qui
+aurait divergé ici est **la mention de la réécriture** · c'est la seule chose
+qui distingue Jarvis d'un générateur, et elle serait tombée en premier.
+
+**L'ordre de lecture est délibéré** : la correction, puis l'accroche, le
+déroulé, l'hypothèse, les réserves. On lit ce qui met en doute avant ce qui
+rassure · l'inverse fait valider avant d'avoir douté.
