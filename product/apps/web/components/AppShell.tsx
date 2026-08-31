@@ -388,16 +388,31 @@ function AppShellInner(props: Props) {
               })}
             </>
           ) : collapsed
-            ? nav.flatMap((grp) => branchesOf(grp.items).map((b) => (
-                <Link key={b.head.key} href={b.head.locked || b.head.soon ? '#' : b.head.href} title={b.head.label} style={{
+            ? nav.flatMap((grp) => branchesOf(grp.items).map((b) => {
+                // En replié, il n'y a plus d'enfant à allumer · l'icône du
+                // parent doit donc porter les DEUX états, sinon être sur un
+                // sous-écran n'allume plus rien du tout.
+                const ici = isNavActive(b.head.href, false);
+                const dedans = isNavInPath(b.head.href) || b.subs.some((su) => isNavActive(su.href, true));
+                const sousEcran = dedans ? b.subs.find((su) => isNavActive(su.href, true)) : undefined;
+                return (
+                <Link key={b.head.key} href={b.head.locked || b.head.soon ? '#' : b.head.href}
+                  // Le repli masque les libellés · l'infobulle doit alors dire
+                  // l'écran exact, pas seulement le module qui le contient.
+                  title={sousEcran ? `${b.head.label} · ${sousEcran.label}` : b.head.label}
+                  style={{
                   ...railIconBtn,
-                  color: isNavActive(b.head.href, false) ? 'var(--ink)' : 'var(--ink-2)',
-                  background: isNavActive(b.head.href, false) ? 'var(--accent-soft)' : 'transparent',
+                  color: ici || dedans ? 'var(--ink)' : 'var(--ink-2)',
+                  background: ici ? 'var(--accent-soft)' : 'transparent',
+                  // « Je suis dans cette branche » sans y être exactement · un
+                  // liseré, pas un fond, la même distinction qu'en déplié.
+                  boxShadow: !ici && dedans ? 'inset 2px 0 0 var(--accent-strong)' : 'none',
                   opacity: (b.head.locked || b.head.soon) ? .5 : 1,
                 }}>
                   <Icon name={b.head.icon} />
                 </Link>
-              )))
+                );
+              }))
             : nav.map((grp) => (
               <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>{grp.group}</div>

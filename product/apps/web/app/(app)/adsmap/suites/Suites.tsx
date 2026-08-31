@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type CSSProperties } from 'react';
 import { iterationPlanAction, createIterationAction, type IterationPlanView, type IterationRow } from '../../../actions/adsmap-iterate';
 import { Empty } from '../../../../components/Empty';
+import { draftConceptAction, type DraftView } from '../../../actions/adsmap-draft';
 
 /**
  * Le plan d'itération, et le geste qui le transforme en test.
@@ -94,7 +95,27 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
   const [hypo, setHypo] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [envoi, lance] = useTransition();
+  const [brouillon, setBrouillon] = useState<DraftView | null>(null);
+  const [redige, ecrit] = useTransition();
   const ton = TON[row.mode] ?? 'var(--muted)';
+
+  /**
+   * Jarvis rédige la suite qu'il vient de conseiller.
+   *
+   * On lui passe le GEL tel quel · c'est la contrainte que la suite a calculée,
+   * et la lui reformuler la diluerait.
+   */
+  const ecrire = () => ecrit(async () => {
+    setMsg(null);
+    const r = await draftConceptAction({
+      origin: 'suite',
+      intent: row.rationale,
+      freeze: row.freezeLabels,
+      changedVariable: row.variableLabel,
+    });
+    if (r.error) { setMsg(r.error); return; }
+    setBrouillon(r.view ?? null);
+  });
 
   const creer = () => lance(async () => {
     const r = await createIterationAction({
@@ -148,13 +169,58 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
         </p>
       )}
 
+      {/* Le brouillon · c'est ici que le conseil devient un texte à tourner.
+          Jarvis se relit avant de le montrer, et le dit quand il s'est corrigé. */}
+      {brouillon && (
+        <div style={{ border: '1px solid var(--line-2)', borderRadius: 12, padding: '12px 14px', display: 'grid', gap: 8, background: 'var(--paper)' }}>
+          {brouillon.rewritten && (
+            <p style={{ margin: 0, fontSize: 11.5, color: '#7ee8bf', fontWeight: 700 }}>
+              Jarvis a réécrit son accroche · la première reprenait une formulation qui avait déjà perdu ici.
+            </p>
+          )}
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.45 }}>
+            « {brouillon.draft.headline} »
+          </p>
+          <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3 }}>
+            {brouillon.draft.beats.map((b, i) => (
+              <li key={i} style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{b}</li>
+            ))}
+          </ol>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+            <b style={{ color: 'var(--ink-2)' }}>Hypothèse ·</b> {brouillon.draft.hypothesis}
+          </p>
+          {brouillon.warning && (
+            <p style={{ margin: 0, fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>{brouillon.warning}</p>
+          )}
+          {brouillon.draft.rationale?.map((r, i) => (
+            <p key={i} style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>{r}</p>
+          ))}
+          <button
+            onClick={() => { setHypo(brouillon.draft.hypothesis); onToggle(); }}
+            style={{ justifySelf: 'start', padding: '7px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
+          >
+            Créer la suite avec ce concept
+          </button>
+        </div>
+      )}
+
       {!ouvert ? (
-        <button
-          onClick={onToggle}
-          style={{ justifySelf: 'start', padding: '7px 14px', borderRadius: 999, border: `1px solid ${ton}`, background: 'transparent', color: ton, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}
-        >
-          Créer la suite
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={onToggle}
+            style={{ padding: '7px 14px', borderRadius: 999, border: `1px solid ${ton}`, background: 'transparent', color: ton, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}
+          >
+            Créer la suite
+          </button>
+          {!brouillon && (
+            <button
+              onClick={ecrire} disabled={redige}
+              style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
+            >
+              {redige ? 'Jarvis écrit…' : 'Demander le concept à Jarvis'}
+            </button>
+          )}
+        </div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           <label style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 700 }}>

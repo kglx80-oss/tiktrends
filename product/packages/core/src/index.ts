@@ -38,5 +38,6 @@ export * from './adsmap/radar';
 export * from './adsmap/written-source';
 export * from './adsmap/jarvis-chat';
 export * from './adsmap/rationale';
+export * from './adsmap/draft';
 export * from './creative-presets';
 export * from './onboarding';
