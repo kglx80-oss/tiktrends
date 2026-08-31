@@ -79,7 +79,7 @@ describe('le fil d’Ariane dit où l’on est', () => {
   it('un enfant hors marque montre son parent', () => {
     // Le tagging vit sous la veille · dire « Trouver › Veille › Tagging »
     // apprend quelque chose, là où « Espace › Membres » n'apprend rien.
-    expect(breadcrumb('/tags').map((x) => x.label)).toEqual(['Trouver', 'Veille', 'Tagging']);
+    expect(breadcrumb('/tags').map((x) => x.label)).toEqual(['Observatoire', 'Veille', 'Tagging']);
   });
 
   it('rien à dire sur une racine de section hors marque', () => {
@@ -98,12 +98,12 @@ describe('le fil d’Ariane dit où l’on est', () => {
 
   it('ouvre par la section', () => {
     const c = breadcrumb('/adsmap/suites');
-    expect(c[0]).toEqual({ label: 'Tester', href: null });
+    expect(c[0]).toEqual({ label: 'Laboratoire', href: null });
   });
 
   it('donne le chemin complet, pas une flèche vers le parent', () => {
     const c = breadcrumb('/adsmap/suites').map((x) => x.label);
-    expect(c).toEqual(['Tester', 'Adsmap', 'Suites']);
+    expect(c).toEqual(['Laboratoire', 'Adsmap', 'Suites']);
   });
 
   it('le dernier maillon n’est jamais un lien', () => {
@@ -118,17 +118,17 @@ describe('le fil d’Ariane dit où l’on est', () => {
 
   it('la marque s’insère après la section quand l’écran en dépend', () => {
     const c = breadcrumb('/adsmap/radar', { brandScoped: true, brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Tester', 'TrueFords', 'Adsmap', 'Radar de veille']);
+    expect(c.map((x) => x.label)).toEqual(['Laboratoire', 'TrueFords', 'Adsmap', 'Radar de veille']);
   });
 
   it('une racine par marque mérite un fil · le contexte manquerait sinon', () => {
     const c = breadcrumb('/jarvis', { brandScoped: true, brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Créer', 'TrueFords', 'Jarvis']);
+    expect(c.map((x) => x.label)).toEqual(['Atelier', 'TrueFords', 'Jarvis']);
   });
 
   it('sans nom de marque, on n’invente pas de maillon', () => {
     const c = breadcrumb('/adsmap/lots', { brandScoped: true, brandName: null });
-    expect(c.map((x) => x.label)).toEqual(['Tester', 'Adsmap', 'Lots de test']);
+    expect(c.map((x) => x.label)).toEqual(['Laboratoire', 'Adsmap', 'Lots de test']);
   });
 
   it('un segment dynamique prend le nom de la marque', () => {

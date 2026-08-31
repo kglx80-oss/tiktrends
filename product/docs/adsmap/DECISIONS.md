@@ -1505,3 +1505,55 @@ pas de tes résultats ».
 **Pourquoi.** Une proposition sans justification affichée se lit comme une
 proposition justifiée dont on cache la raison. C'est la même règle que pour les
 états vides et les refus : le silence n'est pas une réponse.
+
+---
+
+## D75 — Contenir la page courante et être la page courante sont deux états
+
+**Le défaut, visible à l'écran.** Sur `/adsmap/suites`, « Adsmap » ET « Suites »
+portaient tous deux le fond accentué. Deux entrées paraissaient sélectionnées, et
+on ne savait plus laquelle on lisait.
+
+Le code disait pourtant son intention : *« actif en exact ou sur une sous-route
+(met en évidence le fil de navigation) »*. L'intention était juste · c'est le
+rendu qui était le même que celui de « tu es ici ».
+
+**Décision.** Deux notions séparées. `active` — exact, **un seul élément à la
+fois**, seul à porter le fond plein. `inPath` — contient la page courante, rendu
+sobrement : libellé appuyé, aucun fond.
+
+**Le fond plein est réservé à la page courante.** Un parent qui le porte aussi
+produit deux « tu es ici » sur le même écran.
+
+---
+
+## D76 — Cliquer le nom d'un module doit montrer ce qu'il contient
+
+**Le défaut.** Déplier exigeait de viser la flèche · vingt-six pixels, à côté
+d'un libellé qui, lui, ne faisait que naviguer. Personne ne devine ça : on clique
+le nom du module et on s'attend à voir ce qu'il contient.
+
+**Décision.** Le libellé **navigue ET ouvre**. La flèche garde le repli, pour qui
+veut fermer la branche sans la quitter.
+
+**Il n'y a pas de bascule sur le libellé, et c'est délibéré.** Un nom qui cache
+des choses au deuxième clic est une surprise · on n'en veut pas dans une
+navigation. Le libellé ouvre, jamais il ne referme.
+
+---
+
+## D77 — Quatre lieux valent mieux que quatre impératifs
+
+**Le constat.** « Piloter, Trouver, Créer, Tester » disait juste et ne racontait
+rien · quatre ordres donnés à quelqu'un qui travaille déjà.
+
+**Décision.** Des lieux · **Pilotage, Observatoire, Atelier, Laboratoire**, plus
+« Ta marque ».
+
+**Pourquoi ça marche mieux.** On ne « crée » pas : on va à l'atelier. On ne
+« teste » pas : on va au laboratoire, avec une hypothèse et un protocole — ce qui
+est exactement ce qu'Adsmap fait. Et « Observatoire » dit ce qu'on y fait
+vraiment : regarder le marché sans agir dessus.
+
+Un registre unique, quatre endroits où l'on se rend · le rail se lit comme un
+plan plutôt que comme une liste de tâches.

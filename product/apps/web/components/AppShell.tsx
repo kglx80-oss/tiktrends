@@ -104,13 +104,20 @@ function Icon({ name }: { name: string }) {
   );
 }
 
-function NavLink({ it, active }: { it: NavItem; active: boolean }) {
+function NavLink({ it, active, inPath = false, onClick }: {
+  it: NavItem; active: boolean;
+  /** Contient la page courante, sans l'être · rendu plus sobre, jamais le fond plein. */
+  inPath?: boolean;
+  onClick?: () => void;
+}) {
   const disabled = it.locked || it.soon;
   const inner = (
     <span style={{
       display: 'flex', alignItems: 'center', gap: 11, padding: it.isSub ? '7px 10px 7px 30px' : '9px 10px', borderRadius: 10,
-      fontSize: it.isSub ? 13 : 14, fontWeight: active ? 700 : 500,
-      color: disabled ? 'var(--muted)' : active ? 'var(--ink)' : 'var(--ink-2)',
+      fontSize: it.isSub ? 13 : 14, fontWeight: active || inPath ? 700 : 500,
+      color: disabled ? 'var(--muted)' : active || inPath ? 'var(--ink)' : 'var(--ink-2)',
+      // Le fond plein est réservé à la page courante · un parent qui le porte
+      // aussi produit deux « tu es ici » sur le même écran.
       background: active ? 'var(--accent-soft)' : 'transparent',
       opacity: disabled ? 0.55 : 1, cursor: disabled ? 'default' : 'pointer',
     }}>
@@ -122,7 +129,7 @@ function NavLink({ it, active }: { it: NavItem; active: boolean }) {
   );
   return disabled
     ? <div title={it.locked ? 'Nécessite un abonnement supérieur' : 'Bientôt disponible'}>{inner}</div>
-    : <Link href={it.href} style={{ textDecoration: 'none' }}>{inner}</Link>;
+    : <Link href={it.href} onClick={onClick} style={{ textDecoration: 'none' }}>{inner}</Link>;
 }
 
 interface Branch { head: NavItem; subs: NavItem[] }
@@ -137,16 +144,44 @@ function branchesOf(items: NavItem[]): Branch[] {
 }
 
 /** Menu dépliable : parent + chevron, sous-items révélés au clic. Ouvert d'office si la branche est active. */
-function NavBranch({ b, isActive, open, onToggle }: { b: Branch; isActive: (href: string, isSub: boolean) => boolean; open: boolean; onToggle: () => void }) {
+/**
+ * Une entrée du rail et ses sous-écrans.
+ *
+ * ── Ce qui n'allait pas ──────────────────────────────────────────────────────
+ *
+ * Déplier exigeait de viser la flèche · vingt-six pixels, à côté d'un libellé
+ * qui, lui, ne faisait que naviguer. Personne ne devine ça : on clique le nom du
+ * module et on s'attend à voir ce qu'il contient.
+ *
+ * **Cliquer le libellé navigue ET ouvre.** Jamais il ne referme · un libellé qui
+ * cache des choses au deuxième clic est une surprise, et on n'en veut pas dans
+ * une navigation. La flèche garde le repli, pour qui veut fermer la branche
+ * sans la quitter.
+ */
+function NavBranch({ b, isActive, inPath, open, onToggle, onOpen }: {
+  b: Branch;
+  isActive: (href: string, isSub: boolean) => boolean;
+  inPath: (href: string) => boolean;
+  open: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+}) {
   const headActive = isActive(b.head.href, false);
   if (!b.subs.length) return <NavLink it={b.head} active={headActive} />;
+
+  // Le parent contient la page courante · il le montre sobrement, sans lui
+  // prendre la sélection.
+  const headInPath = inPath(b.head.href) || b.subs.some((su) => isActive(su.href, true));
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <div style={{ flex: 1, minWidth: 0 }}><NavLink it={b.head} active={headActive} /></div>
-        <button type="button" onClick={onToggle} aria-label={open ? 'Replier' : 'Déplier'} style={{
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <NavLink it={b.head} active={headActive} inPath={headInPath} onClick={onOpen} />
+        </div>
+        <button type="button" onClick={onToggle} aria-label={open ? 'Replier' : 'Déplier'} aria-expanded={open} style={{
           width: 26, height: 26, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', borderRadius: 8,
+          border: 'none', background: 'transparent', color: headInPath || headActive ? 'var(--ink-2)' : 'var(--muted)', cursor: 'pointer', borderRadius: 8,
         }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 6l6 6-6 6" /></svg>
         </button>
@@ -193,15 +228,27 @@ function AppShellInner(props: Props) {
 
   // État actif d'un item de nav : gère les routes imbriquées et l'onglet (?tab=) des marques.
   const currentTab = search.get('tab') || 'overview';
-  const isNavActive = (href: string, isSub: boolean): boolean => {
+  /**
+   * « Je suis ICI » · exact, et un seul élément à la fois.
+   *
+   * Le parent d'une page ouverte était marqué actif lui aussi, avec le MÊME
+   * fond que l'élément courant · deux entrées paraissaient sélectionnées, et on
+   * ne savait plus laquelle on lisait. Contenir la page courante et être la page
+   * courante sont deux états différents · ils ont maintenant deux rendus.
+   */
+  const isNavActive = (href: string, _isSub: boolean): boolean => {
     const [path, query] = href.split('?');
     if (query) {
       const tab = new URLSearchParams(query).get('tab') || 'overview';
       return pathname === path && currentTab === tab;
     }
-    if (isSub) return pathname === path;
-    // Parent : actif en exact ou sur une sous-route (met en évidence le fil de navigation).
-    return pathname === path || pathname.startsWith(path + '/');
+    return pathname === path;
+  };
+
+  /** « La branche où je suis » · le parent, sans lui voler la sélection. */
+  const isNavInPath = (href: string): boolean => {
+    const path = href.split('?')[0]!;
+    return pathname !== path && pathname.startsWith(path + '/');
   };
 
   // Commandes de la palette ⌘K : navigation (rail + compte) + actions + admin.
@@ -355,11 +402,17 @@ function AppShellInner(props: Props) {
               <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>{grp.group}</div>
                 {branchesOf(grp.items).map((b) => {
-                  const branchActive = isNavActive(b.head.href, false) || b.subs.some((su) => isNavActive(su.href, true));
-                  const open = expanded[b.head.key] ?? branchActive;
+                  // Une branche s'ouvre d'office quand on est dedans · sinon on
+                  // arrive sur une page dont les voisines sont cachées.
+                  const dedans = isNavActive(b.head.href, false) || isNavInPath(b.head.href)
+                    || b.subs.some((su) => isNavActive(su.href, true));
+                  const open = expanded[b.head.key] ?? dedans;
                   return (
-                    <NavBranch key={b.head.key} b={b} isActive={isNavActive} open={open}
-                      onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? branchActive) }))} />
+                    <NavBranch
+                      key={b.head.key} b={b} isActive={isNavActive} inPath={isNavInPath} open={open}
+                      onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? dedans) }))}
+                      onOpen={() => setExpanded((e) => ({ ...e, [b.head.key]: true }))}
+                    />
                   );
                 })}
               </div>

@@ -25,7 +25,14 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
 
 // Catalogue des fonctionnalités : rôle minimum + abonnement minimum.
 /**
- * Groupes du rail · ils suivent la BOUCLE de travail, pas l'ordre d'arrivée des
+ * Groupes du rail · des LIEUX, pas des impératifs.
+ *
+ * « Piloter, Trouver, Créer, Tester » disait juste et ne racontait rien · quatre
+ * ordres donnés à quelqu'un qui travaille déjà. On ne « crée » pas : on va à
+ * l'atelier. On ne « teste » pas : on va au laboratoire, avec une hypothèse et
+ * un protocole — ce qui est exactement ce qu'Adsmap fait.
+ *
+ * Ils suivent toujours la BOUCLE de travail, pas l'ordre d'arrivée des
  * fonctionnalités.
  *
  * « Analyse » et « Création » dataient d'avant les modules récents : Jarvis y
@@ -34,8 +41,8 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
  * travaille : on regarde où on en est, on cherche, on crée, on teste et on
  * apprend.
  */
-export type NavGroup = 'Piloter' | 'Trouver' | 'Créer' | 'Tester' | 'account';
-export const RAIL_GROUPS: NavGroup[] = ['Piloter', 'Trouver', 'Créer', 'Tester'];
+export type NavGroup = 'Pilotage' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'account';
+export const RAIL_GROUPS: NavGroup[] = ['Pilotage', 'Observatoire', 'Atelier', 'Laboratoire'];
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
 // Allocation de crédits mensuelle par abonnement.
@@ -61,40 +68,40 @@ export interface Feature {
 
 export const FEATURES: Feature[] = [
   // ── Piloter · où on en est ────────────────────────────────────────────────
-  { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   group: 'Piloter',  minRole: 'client_viewer', minPlan: 'starter' },
-  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Piloter',  minRole: 'client_viewer', minPlan: 'starter' },
+  { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   group: 'Pilotage',  minRole: 'client_viewer', minPlan: 'starter' },
+  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Pilotage',  minRole: 'client_viewer', minPlan: 'starter' },
 
   // ── Trouver · ce que fait le marché ───────────────────────────────────────
-  { key: 'inspo',     label: 'Veille',       href: '/inspo',       icon: 'bulb',   group: 'Trouver',  minRole: 'member',        minPlan: 'core' },
-  { key: 'scale',     label: 'Ce qui scale', href: '/inspo/scale', icon: 'trend',  group: 'Trouver',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
-  { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Trouver', parent: 'inspo', minRole: 'member', minPlan: 'core' },
-  { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Trouver',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
+  { key: 'inspo',     label: 'Veille',       href: '/inspo',       icon: 'bulb',   group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
+  { key: 'scale',     label: 'Ce qui scale', href: '/inspo/scale', icon: 'trend',  group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Observatoire', parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
   // « Radar produits » et non « Radar » · le module Adsmap en a un autre, et
   // deux entrées du même nom obligent à cliquer pour savoir laquelle est laquelle.
-  { key: 'radar',     label: 'Radar produits', href: '/radar',     icon: 'radar',  group: 'Trouver',  minRole: 'member',        minPlan: 'core' },
+  { key: 'radar',     label: 'Radar produits', href: '/radar',     icon: 'radar',  group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
 
   // ── Créer · Jarvis d'abord, c'est par lui qu'on entre ─────────────────────
   // Le rail le montre à partir de `core` : l'état des couches et les actions de
   // description valent pour tout le monde. Ce qui demande l'offre Plus, c'est la
   // mémoire MESURÉE, et c'est la page qui le dit.
-  { key: 'jarvis',    label: 'Jarvis',       href: '/jarvis',      icon: 'brain',  group: 'Créer',    minRole: 'member',        minPlan: 'core' },
-  { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Créer',    minRole: 'member',        minPlan: 'core' },
-  { key: 'ads',       label: 'Pubs IA',      href: '/studio/ads',   icon: 'spark', group: 'Créer',    parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Créer',    parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Créer',    parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'prompts',   label: 'Tes prompts',  href: '/studio/prompts', icon: 'bulb', group: 'Créer',   parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Créer',    minRole: 'member',        minPlan: 'core' },
+  { key: 'jarvis',    label: 'Jarvis',       href: '/jarvis',      icon: 'brain',  group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
+  { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
+  { key: 'ads',       label: 'Pubs IA',      href: '/studio/ads',   icon: 'spark', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'prompts',   label: 'Tes prompts',  href: '/studio/prompts', icon: 'bulb', group: 'Atelier',   parent: 'studio', minRole: 'member', minPlan: 'core' },
+  { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
 
   // ── Tester · la boucle hypothèse → verdict → itération ────────────────────
   // Les sous-écrans figurent dans le rail comme ceux du Studio. Ils vivaient
   // jusqu'ici dans une barre de sept boutons en haut de la carte, invisibles
   // depuis n'importe quel autre écran.
-  { key: 'adsmap',    label: 'Adsmap',       href: '/adsmap',      icon: 'radar',  group: 'Tester',   minRole: 'member',        minPlan: 'plus' },
-  { key: 'suites',    label: 'Suites',       href: '/adsmap/suites', icon: 'trend', group: 'Tester',  parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
-  { key: 'lots',      label: 'Lots de test', href: '/adsmap/lots', icon: 'layers', group: 'Tester',   parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
-  { key: 'ttradar',   label: 'Radar de veille', href: '/adsmap/radar', icon: 'radar', group: 'Tester', parent: 'adsmap', minRole: 'admin', minPlan: 'plus' },
-  { key: 'protocole', label: 'Protocole & seuils', href: '/adsmap/protocole', icon: 'gauge', group: 'Tester', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
-  { key: 'import',    label: 'Importer',     href: '/adsmap/import', icon: 'store', group: 'Tester',  parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
+  { key: 'adsmap',    label: 'Adsmap',       href: '/adsmap',      icon: 'radar',  group: 'Laboratoire',   minRole: 'member',        minPlan: 'plus' },
+  { key: 'suites',    label: 'Suites',       href: '/adsmap/suites', icon: 'trend', group: 'Laboratoire',  parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
+  { key: 'lots',      label: 'Lots de test', href: '/adsmap/lots', icon: 'layers', group: 'Laboratoire',   parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
+  { key: 'ttradar',   label: 'Radar de veille', href: '/adsmap/radar', icon: 'radar', group: 'Laboratoire', parent: 'adsmap', minRole: 'admin', minPlan: 'plus' },
+  { key: 'protocole', label: 'Protocole & seuils', href: '/adsmap/protocole', icon: 'gauge', group: 'Laboratoire', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
+  { key: 'import',    label: 'Importer',     href: '/adsmap/import', icon: 'store', group: 'Laboratoire',  parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
 
   // Menu profil · Compte (personnel · tous les rôles)
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
