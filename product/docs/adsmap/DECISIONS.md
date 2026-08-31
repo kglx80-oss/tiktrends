@@ -1821,3 +1821,57 @@ phrase suivante.
 profil qu'on ne connaît pas, et c'est souvent lui qui ouvre quelque chose. Le
 texte le dit explicitement : « ce n'est pas une raison de renoncer, c'en est une
 de le savoir ».
+
+---
+
+## D93 — Jarvis peut tout dire, il ne peut rien engager
+
+**Décision.** La frontière n'est pas « lecture / écriture ». Elle sépare ce qui
+est **gratuit et réversible** de ce qui **coûte ou structure**.
+
+- Sans confirmation : lire la mémoire, raisonner, écrire du texte dans le fil.
+- Sur clic explicite : tout ce qui crée un nœud sur la carte, dépense des
+  crédits, ou engage de l'argent.
+
+**Pourquoi pas lecture / écriture.** Lire ne coûte rien, mais rédiger non plus ·
+un brouillon qu'il faudrait autoriser avant de le voir est un brouillon que
+personne ne demande.
+
+**Pourquoi rien n'est déclenché tout seul, même de gratuit.** Une action que
+l'outil lance à la place de quelqu'un économise trois secondes et coûte la
+confiance : la fois où elle se trompe, plus personne ne sait ce que l'outil a
+fait sans le dire. Le clic n'est pas une friction, c'est la trace de qui a
+décidé.
+
+---
+
+## D94 — Le vocabulaire des gestes est fermé, et l'échec par défaut est le silence
+
+**Décision.** Six clés, pas une de plus. Une clé inconnue, mal formée ou hors
+liste est ignorée · et si elle est bien formée, elle est aussi retirée du texte.
+
+**Pourquoi les deux.** Un modèle qui invente `supprimer_tout` ne doit rien
+déclencher · il ne doit pas non plus laisser le mot s'afficher comme si l'outil
+y songeait.
+
+**Deux gestes au maximum.** Au-delà, on a remplacé une réponse par un menu.
+
+**Une seule action coûte** (`draft`), et elle l'annonce sur le bouton · les cinq
+autres ne font que déplacer. Un test vérifie que toute action gratuite mène
+quelque part : un bouton qui ne coûte rien et ne fait rien est pire qu'absent.
+
+---
+
+## D95 — La consigne lui interdit de dire qu'il a agi
+
+**Décision.** Le bloc de consigne dit trois choses, et la troisième est celle
+qui compte : « Tu ne DÉCLENCHES rien. Le marqueur affiche un bouton, et c'est la
+personne qui clique. »
+
+**Pourquoi.** Un modèle qui écrit « c'est lancé » alors qu'un bouton attend
+encore un clic détruit la confiance plus sûrement qu'une erreur de calcul · on
+peut vérifier un chiffre, on ne vérifie pas une action qu'on croit faite.
+
+**Les boutons vivent dans le message**, pas à côté · rouvrir la conversation
+trois jours plus tard réaffiche les mêmes propositions. Un bouton qui
+disparaîtrait au rechargement laisserait croire qu'on l'a déjà cliqué.
