@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type CSSProperties } from 'react';
 import { iterationPlanAction, createIterationAction, type IterationPlanView, type IterationRow } from '../../../actions/adsmap-iterate';
 import { Empty } from '../../../../components/Empty';
+import { DraftCard } from '../../../../components/DraftCard';
 import { draftConceptAction, type DraftView } from '../../../actions/adsmap-draft';
 
 /**
@@ -172,36 +173,14 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
       {/* Le brouillon · c'est ici que le conseil devient un texte à tourner.
           Jarvis se relit avant de le montrer, et le dit quand il s'est corrigé. */}
       {brouillon && (
-        <div style={{ border: '1px solid var(--line-2)', borderRadius: 12, padding: '12px 14px', display: 'grid', gap: 8, background: 'var(--paper)' }}>
-          {brouillon.rewritten && (
-            <p style={{ margin: 0, fontSize: 11.5, color: '#7ee8bf', fontWeight: 700 }}>
-              Jarvis a réécrit son accroche · la première reprenait une formulation qui avait déjà perdu ici.
-            </p>
-          )}
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.45 }}>
-            « {brouillon.draft.headline} »
-          </p>
-          <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3 }}>
-            {brouillon.draft.beats.map((b, i) => (
-              <li key={i} style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{b}</li>
-            ))}
-          </ol>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
-            <b style={{ color: 'var(--ink-2)' }}>Hypothèse ·</b> {brouillon.draft.hypothesis}
-          </p>
-          {brouillon.warning && (
-            <p style={{ margin: 0, fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>{brouillon.warning}</p>
-          )}
-          {brouillon.draft.rationale?.map((r, i) => (
-            <p key={i} style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>{r}</p>
-          ))}
+        <DraftCard view={brouillon}>
           <button
             onClick={() => { setHypo(brouillon.draft.hypothesis); onToggle(); }}
             style={{ justifySelf: 'start', padding: '7px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
           >
             Créer la suite avec ce concept
           </button>
-        </div>
+        </DraftCard>
       )}
 
       {!ouvert ? (

@@ -7,6 +7,7 @@ import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { runRadarForBrand, radarState, type RadarState } from '../../lib/radar';
 import { spendStatus } from '../../lib/spend-guard';
+import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -151,3 +152,107 @@ export async function radarCostPreviewAction(cap: number): Promise<{ nightly: nu
   const n = estimateCost(Math.max(0, Math.min(Math.round(cap), 20)));
   return { nightly: n, monthly: Math.round(n * 30 * 100) / 100 };
 }
+
+/* -------------------------------------------------------------------------- */
+/*  De la trouvaille au concept                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Le radar s'arrêtait sur le constat.
+ *
+ * Il disait « ce concurrent tient depuis 24 jours sur une ouverture que tu n'as
+ * jamais testée », et regardait quelqu'un d'autre travailler. Entre l'avoir lu
+ * et l'avoir essayé, il y avait un écran de rédaction, un rattachement à faire
+ * à la main, et une nuit de sommeil · c'est-à-dire, en pratique, rien.
+ *
+ * ── Ce qui entre dans la carte, et sous quelle forme ─────────────────────────
+ *
+ * Le concept arrive `proposed`, l'ad arrive `draft`. Une trouvaille de veille ne
+ * décide pas de la taxonomie de la marque · et une ad née d'une observation
+ * extérieure n'est pas prête à tourner, elle est prête à être relue.
+ *
+ * ── Ce qu'on reprend du concurrent ───────────────────────────────────────────
+ *
+ * La MÉCANIQUE, jamais les mots · la consigne de rédaction l'impose et le
+ * rappelle. On copie le ressort qui fait tenir, pas la créa qui tient.
+ */
+export async function conceptFromFindingAction(input: {
+  externalId: string;
+  hypothesis: string;
+  headline: string;
+  beats: string[];
+}): Promise<{ conceptId?: string; adId?: string; error?: string }> {
+  const g = await adsmapGuard({ minRole: 'member' });
+  if ('error' in g) return { error: g.error };
+
+  const hypothese = input.hypothesis.trim();
+  if (hypothese.length < 10) {
+    return { error: 'Écris l’hypothèse : sans elle, le résultat de ce test n’apprendra rien à personne.' };
+  }
+  const titre = input.headline.trim().slice(0, 160);
+  if (!titre) return { error: 'Le concept n’a pas d’accroche · relance la rédaction.' };
+
+  try {
+    const [f] = await db!.select({
+      externalId: schema.marketCreatives.externalId,
+      advertiser: schema.marketCreatives.advertiser,
+      hookType: schema.marketCreatives.hookType,
+      openingType: schema.marketCreatives.openingType,
+      format: schema.marketCreatives.format,
+    })
+      .from(schema.marketCreatives)
+      .where(and(
+        eq(schema.marketCreatives.workspaceId, g.s.workspaceId),
+        eq(schema.marketCreatives.externalId, input.externalId),
+      ))
+      .limit(1);
+    if (!f) return { error: 'Cette trouvaille n’est plus dans la veille.' };
+
+    // L'angle porte la mécanique observée, pas le nom du concurrent · un angle
+    // « Nike » ne se réutilise pas, un angle « démonstration en une prise » si.
+    const angleLabel = (f.openingType || f.hookType || titre).slice(0, 160);
+    const path = await ensureGraphPath({
+      workspaceId: g.s.workspaceId, brandId: g.brand.id,
+      desireLabel: 'À qualifier (Radar)',
+      angleLabel, mechanism: MECANIQUE[f.hookType ?? ''] ?? 'demo',
+    });
+    if (!path) return { error: 'Rattachement à la carte impossible.' };
+
+    const [concept] = await db!.insert(schema.concepts).values({
+      workspaceId: g.s.workspaceId, angleId: path.angleId, title: titre,
+      valueBlock: input.beats.filter((b) => b?.trim()).join(' · ').slice(0, 2000) || null,
+      adType: 'imitation', status: 'proposed',
+      // La provenance est écrite · six mois plus tard, « d'où sortait cette
+      // idée » est une question qu'on se pose vraiment.
+      sourceRef: { radarExternalId: f.externalId, advertiser: f.advertiser },
+    }).returning({ id: schema.concepts.id });
+    if (!concept) return { error: 'La création du concept n’a rien renvoyé.' };
+
+    const [ad] = await db!.insert(schema.ads).values({
+      workspaceId: g.s.workspaceId, conceptId: concept.id,
+      variantCode: await nextVariant(concept.id),
+      format: (f.format === 'static' ? 'static' : 'video_ugc') as typeof schema.ads.$inferInsert.format,
+      adType: 'imitation', hypothesis: hypothese, status: 'draft',
+    }).returning({ id: schema.ads.id });
+
+    revalidatePath('/adsmap');
+    revalidatePath('/adsmap/radar');
+    return { conceptId: concept.id, adId: ad?.id };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:radar-concept', e, { subject: 'la création du concept', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+/** Type d'accroche observé → mécanisme d'angle Adsmap. */
+const MECANIQUE: Record<string, string> = {
+  problem: 'problem_agitate', pain: 'problem_agitate',
+  demo: 'demo', product_demo: 'demo',
+  testimonial: 'social_proof', review: 'social_proof', ugc: 'story',
+  before_after: 'comparison', comparison: 'comparison', versus: 'us_vs_them',
+  story: 'story', question: 'curiosity', curiosity: 'curiosity',
+  stat: 'statistic_shock', number: 'statistic_shock',
+  expert: 'authority', authority: 'authority',
+  offer: 'scarcity', discount: 'scarcity', urgency: 'scarcity',
+  list: 'listicle', listicle: 'listicle',
+  myth: 'reverse', mistake: 'reverse',
+};
