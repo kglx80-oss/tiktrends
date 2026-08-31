@@ -35,6 +35,24 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
       .toEqual([]);
   });
 
+  /**
+   * Le garde manquait dans l'autre sens.
+   *
+   * « Chaque page a son entrée » empêche d'ajouter un écran sans le déclarer.
+   * Rien n'empêchait le contraire : supprimer un écran en laissant sa ligne
+   * ici · le rail aurait continué de proposer un lien vers un 404, ce que
+   * personne ne remarque avant de cliquer.
+   */
+  it('chaque entrée déclarée a sa page', () => {
+    // Ici on balaie tout `app/`, pas seulement le groupe applicatif · un écran
+    // déclaré peut légitimement vivre hors du rail (l'accueil d'onboarding),
+    // ce qui compte est qu'il existe.
+    const reelles = new Set(pagesDe(join(process.cwd(), 'app')));
+    const fantomes = ROUTES.map((r) => r.path).filter((p) => !reelles.has(p));
+    expect(fantomes, `Chemin(s) déclaré(s) sans page · le rail y mènerait dans le vide : ${fantomes.join(', ')}`)
+      .toEqual([]);
+  });
+
   it('chaque parent déclaré existe', () => {
     const connus = new Set(ROUTES.map((r) => r.path));
     const perdus = ROUTES.filter((r) => r.parent && !connus.has(r.parent)).map((r) => r.path);
@@ -152,7 +170,7 @@ describe('les écrans qui travaillent marque par marque sont déclarés', () => 
   it('Adsmap et Jarvis en font partie', () => {
     expect(isBrandScoped('/adsmap')).toBe(true);
     expect(isBrandScoped('/jarvis')).toBe(true);
-    expect(isBrandScoped('/studio/prompts')).toBe(true);
+    expect(isBrandScoped('/studio/image')).toBe(true);
   });
 
   it('les écrans d’espace n’en font pas partie', () => {

@@ -1618,3 +1618,74 @@ créatif là où il aimerait l'être.
 
 **Coût annoncé.** Un brouillon = un appel (~0,03 $). Le pire cas est 0,06 $, et
 il n'a lieu que dans le cas où il évite un test perdu d'avance.
+
+---
+
+## D81 — La barre de composition remplace « Tes prompts »
+
+**Décision.** L'écran `/studio/prompts` est supprimé. Les studios Image et Vidéo
+reçoivent une barre unique où la description prend toute la largeur, les réglages
+deviennent des pastilles, et le prix est sur le bouton.
+
+**Pourquoi.** Chaque studio avait son formulaire : un petit champ de texte, puis
+des cases à cocher, des sélecteurs et des boutons de ratio éparpillés autour. Le
+prompt — la seule chose qui décide vraiment de l'image — se retrouvait à égalité
+avec un menu déroulant de quantité.
+
+**On écrit d'abord, on règle ensuite** · c'est l'ordre dans lequel on pense une
+créa, et l'inverse de l'ordre dans lequel un formulaire est habituellement
+construit.
+
+**Le prix est SUR le bouton.** Il vivait dans une phrase grise à côté. Sur le
+bouton, il est lu au moment où l'on décide · à côté, il est lu après, ou jamais.
+
+---
+
+## D82 — Ce qu'on supprime est la rubrique, pas la mesure
+
+**Décision.** Les presets survivent sous le nom de « scènes enregistrées »,
+accessibles depuis la barre, avec leur bilan affiché AVANT leur nom.
+
+**Pourquoi.** La rubrique obligeait à quitter le studio pour écrire sa direction
+artistique puis à revenir · trois gestes pour une chose qu'on veut faire pendant
+qu'on compose. Mais « 3 gagnantes sur 9 tests tranchés » reste la seule chose
+qu'un générateur d'images ne saura jamais dire d'un prompt, et ce n'était pas une
+raison de lui garder un écran entier.
+
+**La scène reprise est consignée** dans `generations.input.presetId`, en Image
+comme en Vidéo · sans ça le bilan n'aurait jamais existé que pour le studio Pubs,
+et une scène reprise cent fois afficherait encore « jamais utilisée ».
+
+**Toute frappe libère la scène.** Un texte retouché n'est plus la scène
+enregistrée · lui attribuer le résultat fausserait le seul chiffre qui compte.
+
+---
+
+## D83 — Le studio Pubs ne décrit pas une scène, et ne reçoit pas la barre
+
+**Décision.** Pubs garde son formulaire structuré (gabarits, persona, référence
+à cloner). Il reçoit seulement le prix sur le bouton.
+
+**Pourquoi.** Il ne compose pas à partir d'une description : il compose une série
+à partir de gabarits, ou décline une pub de référence. Lui coller une barre de
+description ajouterait un champ que le générateur ignore · un réglage qui ne
+règle rien est pire qu'un réglage absent, parce qu'on croit avoir dirigé quelque
+chose.
+
+**Ce qui se transporte, c'est la doctrine, pas le composant.**
+
+---
+
+## D84 — Le garde de navigation manquait dans l'autre sens
+
+**Décision.** Un test vérifie que chaque chemin déclaré dans `ROUTES` a
+réellement sa page.
+
+**Pourquoi.** Le garde existant empêchait d'ajouter un écran sans le déclarer.
+Rien n'empêchait le contraire : supprimer un écran en laissant sa ligne · le rail
+aurait continué de proposer un lien vers un 404, ce que personne ne remarque
+avant de cliquer.
+
+**Il a trouvé quelque chose à sa première exécution** (`/onboarding`, déclaré
+hors du groupe applicatif · légitime, mais invisible du garde tel qu'il était
+écrit).

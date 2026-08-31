@@ -32,7 +32,7 @@ async function recordGeneration(
 }
 
 /** Texte → vidéo (gated + débit crédits). */
-export async function startVideoAction(input: { prompt: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number }): Promise<VideoStart> {
+export async function startVideoAction(input: { prompt: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number; presetId?: string }): Promise<VideoStart> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
   const prompt = input.prompt?.trim();
@@ -57,7 +57,7 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
       ? await falSubmitVideo(fal, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
       : await hfSubmitVideo(hf!, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
     const brand = await getActiveBrand(s.workspaceId);
-    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16' }, jobId, unlimited);
+    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16', ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
@@ -66,7 +66,7 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
 }
 
 /** Image → vidéo (anime une image de départ). */
-export async function startImageVideoAction(input: { prompt: string; imageUrl: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number }): Promise<VideoStart> {
+export async function startImageVideoAction(input: { prompt: string; imageUrl: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number; presetId?: string }): Promise<VideoStart> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
   const prompt = input.prompt?.trim();
@@ -91,7 +91,7 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
       ? await falSubmitVideo(fal, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
       : await hfSubmitImageVideo(hf!, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
     const brand = await getActiveBrand(s.workspaceId);
-    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16' }, jobId, unlimited);
+    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');

@@ -8,6 +8,8 @@ import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
+import { Composer } from '../../../../components/Composer';
+import { useScenes } from '../../../../components/useScenes';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -63,6 +65,12 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   const [suggesting, startSuggest] = useTransition();
   const [saving, startSave] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
+  // La scène reprise, s'il y en a une · consignée à la génération, c'est ce qui
+  // permet de lui bâtir un bilan. Toute frappe dans la barre la libère : un
+  // texte retouché n'est plus la scène enregistrée, et lui en attribuer le
+  // résultat fausserait le seul chiffre qui a de la valeur ici.
+  const [sceneId, setSceneId] = useState('');
+  const { scenes, enregistrer, erreur: sceneErreur } = useScenes('image');
 
   const selected = useMemo(() => prods.find((p) => p.id === productId) || null, [prods, productId]);
   // En mode « mise en scène », la source produit = photo uploadée, sinon la photo enregistrée sur le produit.
@@ -74,7 +82,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
     startSuggest(async () => {
       const r = await suggestImageBriefAction({ productId: productId || undefined });
       if (r.error) setError(r.error);
-      else if (r.text) setPrompt(r.text);
+      else if (r.text) { setPrompt(r.text); setSceneId(''); }
     });
   }
 
@@ -124,6 +132,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       imageUrl: usesProduct ? (source || undefined) : undefined,
       useProductImage: usesProduct,
       withText, enhance, count, productId: productId || undefined, headline: withText ? headline : undefined,
+      presetId: sceneId || undefined,
     });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
@@ -242,43 +251,60 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           </DropZone>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <label style={{ ...lbl, marginBottom: 0 }}>{mode === 't2i' ? "Décris l'image" : 'Décris la scène autour du produit'}</label>
-          <button type="button" onClick={suggest} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose une description à partir de ta marque et du produit' : 'IA non configurée'} style={{
-            fontSize: 11.5, fontWeight: 800, padding: '4px 10px', borderRadius: 999, cursor: ready && aiReady && !suggesting ? 'pointer' : 'default',
-            border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
-          }}>✦ {suggesting ? 'Rédaction…' : 'Générer une description'}</button>
-        </div>
-        <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} disabled={!ready || busy}
-          placeholder={mode === 't2i' ? 'Ex : boisson énergisante sur un bureau lumineux, ambiance productive, gros plan' : 'Ex : posé sur une table en marbre, lumière douce du matin, feuillage flou en arrière-plan'}
-          style={{ ...fld, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
-
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {RATIOS.map((r) => (
-              <button key={r} type="button" disabled={!ready || busy} onClick={() => setRatio(r)} style={{
-                fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
-                border: `1px solid ${ratio === r ? 'transparent' : 'var(--line-2)'}`,
-                background: ratio === r ? 'var(--grad-accent)' : 'transparent', color: ratio === r ? '#0d070c' : 'var(--ink-2)',
-              }}>{r}</button>
-            ))}
-          </div>
-          <label style={chk}><input type="checkbox" checked={withText} onChange={(e) => setWithText(e.target.checked)} disabled={!ready} /> Texte lisible sur l'image</label>
-          {withText && <input value={headline} onChange={(e) => setHeadline(e.target.value)} disabled={!ready} placeholder="Accroche à écrire (ex : Focus. Toute la journée.)" style={{ ...fld, flex: '1 1 220px', padding: '8px 10px' }} />}
-          <label style={{ ...chk, opacity: aiReady ? 1 : .5 }}><input type="checkbox" checked={enhance} onChange={(e) => setEnhance(e.target.checked)} disabled={!ready || !aiReady} /> Optimiser le prompt (Claude)</label>
-          <select value={count} onChange={(e) => setCount(Number(e.target.value))} disabled={!ready} style={{ ...fld, width: 'auto', padding: '8px 10px' }}>
-            {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} image{n > 1 ? 's' : ''}</option>)}
-          </select>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>4 crédits / image · {mode === 'i2i' ? (productPhotoReady ? 'Kontext (édition fidèle)' : 'photo produit requise') : withText ? 'Ideogram (texte)' : 'Flux'}</span>
-          <span style={{ flex: 1 }} />
-          <button type="button" onClick={run} disabled={!ready || busy || !prompt.trim()} style={{
-            padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
-            cursor: ready && !busy && prompt.trim() ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && prompt.trim() ? 1 : .5,
-          }}>{busy ? 'Génération…' : '✦ Générer'}</button>
-        </div>
+        {/* La barre de composition · la description prend toute la place, les
+            réglages deviennent des pastilles, le prix est sur le bouton. */}
+        <Composer
+          value={prompt}
+          onChange={(v) => { setPrompt(v); setSceneId(''); }}
+          placeholder={mode === 't2i'
+            ? 'Décris la scène que tu imagines · ex : boisson énergisante sur un bureau lumineux, ambiance productive, gros plan'
+            : 'Décris la scène autour du produit · ex : posé sur une table en marbre, lumière douce du matin, feuillage flou en arrière-plan'}
+          disabled={!ready}
+          busy={busy}
+          scenes={scenes}
+          onPickScene={(s) => setSceneId(s.id)}
+          onSaveScene={enregistrer}
+          onAttach={mode === 'i2i' ? () => fileRef.current?.click() : undefined}
+          attachLabel="Ajouter la photo de ton produit"
+          attachedCount={uploadedUri || imageUrl.trim() || selected?.hasImage ? 1 : 0}
+          controls={[
+            {
+              key: 'ratio', title: 'Format', icon: '⬚',
+              options: RATIOS.map((r) => ({ value: r, label: r })),
+              value: ratio, onChange: (v) => setRatio(v as FalAspect),
+            },
+            {
+              key: 'count', title: 'Nombre de visuels', icon: '⧉',
+              options: [1, 2, 3, 4].map((n) => ({ value: String(n), label: `${n} image${n > 1 ? 's' : ''}` })),
+              value: String(count), onChange: (v) => setCount(Number(v)),
+            },
+          ]}
+          toggles={[
+            { key: 'withText', label: 'Texte lisible', value: withText, onChange: setWithText },
+            { key: 'enhance', label: 'Prompt optimisé', value: enhance, onChange: setEnhance, disabled: !aiReady },
+          ]}
+          extra={
+            <>
+              <button type="button" onClick={suggest} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose une description à partir de ta marque et du produit' : 'IA non configurée'} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
+                cursor: ready && aiReady && !suggesting ? 'pointer' : 'default', whiteSpace: 'nowrap',
+                border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
+              }}>✦ {suggesting ? 'Rédaction…' : 'Proposer une description'}</button>
+              {withText && (
+                <input value={headline} onChange={(e) => setHeadline(e.target.value)} disabled={!ready}
+                  placeholder="Accroche à écrire sur l’image"
+                  style={{ ...fld, width: 'auto', flex: '1 1 200px', minWidth: 160, padding: '7px 11px', fontSize: 12.5, borderRadius: 999 }} />
+              )}
+            </>
+          }
+          cost={{
+            credits: 4 * count,
+            note: `4 crédits par visuel · ${mode === 'i2i' ? (productPhotoReady ? 'Kontext, ton vrai packaging est conservé' : 'ajoute une photo produit pour l’édition fidèle') : withText ? 'Ideogram, moteur qui écrit du texte lisible' : 'Flux'}`,
+          }}
+          onGenerate={run}
+          generateLabel="Générer"
+        />
+        {sceneErreur && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{sceneErreur}</div>}
         {notice && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(120,220,150,.4)', background: 'rgba(120,220,150,.10)', color: '#9fe6b3' }}>{notice}</div>}
         {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
       </div>
@@ -333,5 +359,4 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
 }
 
 const lbl = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBottom: 6 } as const;
-const chk = { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-2)', cursor: 'pointer' } as const;
 const thumb = { width: 88, height: 88, borderRadius: 12, objectFit: 'cover', border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.03)', flexShrink: 0 } as const;

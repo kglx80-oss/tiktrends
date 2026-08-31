@@ -20,6 +20,13 @@ export interface BrandImage { id: string; prompt: string; url: string | null; cr
 export async function generateImageAction(input: {
   prompt: string; aspectRatio?: FalAspect; imageUrl?: string; withText?: boolean; enhance?: boolean; count?: number;
   productId?: string; headline?: string; useProductImage?: boolean;
+  /**
+   * La scène enregistrée d'où vient cette description, si elle en vient d'une.
+   * Consignée dans `generations.input` · c'est par là que le bilan d'une scène
+   * remonte (génération → concept → ad → verdict). Sans elle, une scène
+   * reprise cent fois afficherait encore « jamais utilisée ».
+   */
+  presetId?: string;
 }): Promise<ImageResult> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
@@ -91,7 +98,7 @@ export async function generateImageAction(input: {
     let generationId: string | undefined;
     if (db) {
       if (brand) {
-        try { const [g] = await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1' }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }).returning({ id: schema.generations.id }); generationId = g?.id; } catch { /* ignore */ }
+        try { const [g] = await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1', ...(input.presetId ? { presetId: input.presetId } : {}) }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }).returning({ id: schema.generations.id }); generationId = g?.id; } catch { /* ignore */ }
       }
     }
     return { images, prompt, generationId };
