@@ -31,6 +31,8 @@
  * Pur : ni base, ni réseau, ni modèle.
  */
 
+import { actionsPromptBlock } from './jarvis-actions';
+
 export interface ChatContext {
   brandName: string;
   /** Mémoire complète · mesurée, marché, accroches. Vide si rien n'est mesuré. */
@@ -43,6 +45,11 @@ export interface ChatContext {
   measuredAds: number;
   /** Écrans où l'utilisateur peut agir · Jarvis y renvoie plutôt que de décrire. */
   canAdsmap: boolean;
+  /**
+   * Jarvis peut-il proposer des gestes ? Il ne les déclenche jamais lui-même ·
+   * il pose un bouton, et c'est la personne qui clique.
+   */
+  canPropose?: boolean;
 }
 
 /** Au-delà, on paie des jetons pour du contexte que le modèle ne lira plus. */
@@ -121,6 +128,8 @@ export function chatSystemPrompt(ctx: ChatContext): string {
       + '- Studio · générer les créas.',
     );
   }
+
+  if (ctx.canPropose) blocs.push(actionsPromptBlock());
 
   // Les règles maison en DERNIER · elles priment, et un modèle retient mieux la
   // fin de sa consigne. C'est le même ordre que dans les prompts de génération.

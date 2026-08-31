@@ -86,6 +86,9 @@ export async function POST(req: Request) {
       identity: [b?.description, b?.usp, b?.audience].filter(Boolean).join('\n') || null,
       measuredAds: stats?.nAds ?? 0,
       canAdsmap: voitMemoire,
+      // Il ne peut proposer que ce qu'on lui laisse ouvrir · sans la carte, les
+      // boutons mèneraient vers des écrans fermés.
+      canPropose: voitMemoire,
     });
 
     await db.insert(schema.jarvisMessages).values({

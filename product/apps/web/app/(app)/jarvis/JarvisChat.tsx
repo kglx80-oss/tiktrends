@@ -1,7 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useRouter } from 'next/navigation';
+import { parseAnswer, visibleWhileStreaming, JARVIS_ACTIONS, type JarvisAction } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
+import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
+import { DraftCard } from '../../../components/DraftCard';
 
 /**
  * L'espace où l'on parle à Jarvis.
@@ -24,6 +28,13 @@ import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } fro
  * Pas un curseur qui clignote. Un curseur devant une page blanche produit
  * surtout de la gêne · les entrées proposées apprennent au passage ce que Jarvis
  * sait faire, et elles changent selon qu'il a des chiffres ou non.
+ *
+ * ── Il propose, il ne déclenche pas ──────────────────────────────────────────
+ *
+ * Jarvis peut tout dire, il ne peut rien engager. Une réponse peut se terminer
+ * par un ou deux boutons · chacun annonce ce qu'il fera et ce qu'il coûtera
+ * AVANT le clic, et rien ne part sans lui. Le clic n'est pas une friction,
+ * c'est la trace de qui a décidé.
  */
 
 const bulle = (moi: boolean): CSSProperties => ({
@@ -174,10 +185,12 @@ export function JarvisChat() {
         )}
 
         {thread.turns.map((t) => (
-          <div key={t.id} style={bulle(t.role === 'user')}>{t.content}</div>
+          <Tour key={t.id} turn={t} />
         ))}
 
-        {partiel && <div style={bulle(false)}>{partiel}</div>}
+        {/* Pendant l'écriture, on coupe à la première ouverture de marqueur ·
+            voir « [[ACTI » une demi-seconde donne l'impression que ça fuit. */}
+        {partiel && <div style={bulle(false)}>{visibleWhileStreaming(partiel)}</div>}
         {enCours && !partiel && (
           <div style={{ ...bulle(false), color: 'var(--muted)', fontStyle: 'italic' }}>Jarvis relit ta mémoire…</div>
         )}
@@ -219,5 +232,89 @@ export function JarvisChat() {
         </button>
       </div>
     </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Un tour, et ce qu'il propose                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Une réponse de Jarvis, marqueurs retirés, gestes affichés.
+ *
+ * Le texte et les boutons viennent du MÊME message · rien n'est stocké à part,
+ * donc rouvrir la conversation trois jours plus tard réaffiche les mêmes
+ * propositions. Un bouton qui disparaît au rechargement laisserait croire qu'on
+ * l'a déjà cliqué.
+ */
+function Tour({ turn }: { turn: ChatTurn }) {
+  if (turn.role === 'user') return <div style={bulle(true)}>{turn.content}</div>;
+
+  const { text, actions } = parseAnswer(turn.content);
+  return (
+    <div style={{ display: 'contents' }}>
+      <div style={bulle(false)}>{text}</div>
+      {actions.length > 0 && <Gestes actions={actions} />}
+    </div>
+  );
+}
+
+/**
+ * Les gestes proposés.
+ *
+ * Chacun dit son effet et son coût AVANT le clic · un bouton qui n'annonce pas
+ * ce qu'il engage se clique une fois, puis plus jamais.
+ */
+function Gestes({ actions }: { actions: JarvisAction[] }) {
+  const router = useRouter();
+  const [brouillon, setBrouillon] = useState<DraftView | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [ecrit, setEcrit] = useState(false);
+
+  const rediger = async (intent: string | null) => {
+    if (ecrit) return;
+    setEcrit(true); setNote(null);
+    const r = await draftConceptAction({ origin: 'blank', intent: intent ?? '' });
+    setEcrit(false);
+    if (r.error) { setNote(r.error); return; }
+    setBrouillon(r.view ?? null);
+  };
+
+  return (
+    <div style={{ alignSelf: 'flex-start', maxWidth: '86%', display: 'grid', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {actions.map((a) => {
+          const def = JARVIS_ACTIONS[a.key];
+          const payant = def.cost !== null;
+          return (
+            <button
+              key={a.key}
+              onClick={() => (def.href ? router.push(def.href) : void rediger(a.intent))}
+              disabled={ecrit && payant}
+              title={def.effect}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                padding: '8px 14px', borderRadius: 999, cursor: ecrit && payant ? 'wait' : 'pointer',
+                border: `1px solid ${payant ? 'var(--accent-strong)' : 'var(--line-2)'}`,
+                background: 'var(--surface)', color: payant ? 'var(--accent-strong)' : 'var(--ink-2)',
+                fontSize: 12.5, fontWeight: 700, textAlign: 'left',
+              }}
+            >
+              {ecrit && payant ? 'Jarvis écrit…' : def.label}
+              {/* Le coût est SUR le bouton · à côté, il se lit après la décision. */}
+              {payant && !ecrit && <span style={{ fontSize: 11, opacity: 0.7 }}>· {def.cost}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Ce que le bouton fera · dit avant, pas après. */}
+      <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+        {actions.map((a) => JARVIS_ACTIONS[a.key].effect).join(' · ')}
+      </p>
+
+      {brouillon && <DraftCard view={brouillon} />}
+      {note && <p style={{ margin: 0, fontSize: 12, color: '#ff9db0', lineHeight: 1.5 }}>{note}</p>}
+    </div>
   );
 }
