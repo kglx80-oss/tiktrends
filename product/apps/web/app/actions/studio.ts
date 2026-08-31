@@ -1,6 +1,8 @@
 'use server';
 
+import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
+import { getActiveBrand } from '../../lib/brands';
 import { FEATURES, canAccess } from '../../lib/rbac';
 import { generateCreative, type CreativeOutput } from '@tiktrends/ai';
 import { costFor } from '@tiktrends/core';
@@ -50,6 +52,23 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
       language: 'fr',
       inspiration: norm(formData.get('inspiration')) || undefined,
     });
+
+    // Le brief était le seul studio à ne rien consigner · son résultat vivait le
+    // temps de l'onglet. On l'enregistre comme les autres : sans trace, le
+    // compteur de l'Atelier resterait à zéro quoi qu'on écrive, et un angle
+    // trouvé le mardi serait introuvable le mercredi.
+    const brand = await getActiveBrand(s.workspaceId);
+    if (db && brand) {
+      try {
+        await db.insert(schema.generations).values({
+          brandId: brand.id, kind: 'script',
+          input: { product, platform: norm(formData.get('platform')) === 'meta' ? 'meta' : 'tiktok' },
+          output: output as unknown as Record<string, unknown>,
+          status: 'completed', creditsCost: unlimited ? 0 : cost,
+        });
+      } catch { /* la génération est rendue même si la trace échoue */ }
+    }
+
     return { output };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · génération créative');

@@ -1689,3 +1689,50 @@ avant de cliquer.
 **Il a trouvé quelque chose à sa première exécution** (`/onboarding`, déclaré
 hors du groupe applicatif · légitime, mais invisible du garde tel qu'il était
 écrit).
+
+---
+
+## D85 — Une page de garde oriente, elle ne travaille pas
+
+**Décision.** `/studio` cesse d'être un formulaire. Elle dit ce que chaque
+studio produit, quand s'en servir, et où l'on en est.
+
+**Pourquoi.** Elle ouvrait sur « Produit / marque / offre * ». Devant ce champ,
+la question n'est pas « lequel choisir » mais « pourquoi on me demande ça alors
+que je voulais voir ce que l'outil sait faire ». Les quatre studios étaient
+relégués sous le formulaire, en liens · la racine de la section cachait la
+section.
+
+**Le « Quand ? » est la seule information qui manquait.** Devant quatre portes
+qui se ressemblent, ce qui manque n'est pas la description de chaque outil,
+c'est la question à laquelle il répond.
+
+---
+
+## D86 — Le formulaire n'était pas en trop, il était assis à l'accueil
+
+**Décision.** Le générateur de textes devient `/studio/textes` · un studio à
+part entière, déclaré dans le rail comme les trois autres.
+
+**Pourquoi.** Il est le seul à rendre du texte, et le texte est ce qu'on écrit
+avant de composer une image. Le supprimer aurait retiré une fonction pour
+régler un problème de placement.
+
+**Son résultat est désormais consigné** (`generations`, kind `script`) · il
+était le seul studio à ne rien enregistrer, son résultat vivait le temps de
+l'onglet.
+
+---
+
+## D87 — La page de garde sait dire de ne pas générer
+
+**Décision.** Le geste conseillé se calcule sur l'état réel : rien de produit →
+Pubs IA ; des créas et aucun verdict → les lots ; des verdicts → les suites.
+
+**Pourquoi.** Quand une marque a quarante créas et zéro verdict, conseiller d'en
+faire une quarante-et-unième serait vendre du volume à quelqu'un qui manque de
+mesure. C'est le seul endroit de l'outil où cette phrase arrive avant le clic.
+
+**Chaque compteur est lu isolément.** Une page de garde qui tombe entière parce
+qu'une colonne manque est pire qu'une page sans compteur · c'est la leçon de la
+lecture unique qui avait fait tomber Jarvis en entier.
