@@ -10,3 +10,4 @@ export * from './brand';
 export * from './chat';
 export * from './adsmap-asset';
 export * from './adsmap-agents';
+export * from './adsmap-draft';

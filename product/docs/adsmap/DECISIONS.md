@@ -1557,3 +1557,64 @@ vraiment : regarder le marché sans agir dessus.
 
 Un registre unique, quatre endroits où l'on se rend · le rail se lit comme un
 plan plutôt que comme une liste de tâches.
+
+---
+
+## D78 — Le rail replié n'allumait plus rien
+
+**La régression, introduite par D75.** Séparer « je suis ici » de « la branche
+qui me contient » était juste en mode déplié. En mode REPLIÉ, il n'y a plus
+d'enfant à afficher · seule l'icône du parent subsiste, et depuis que l'état
+actif est exact, être sur `/adsmap/suites` n'allumait plus **rien du tout**.
+
+**Décision.** En replié, l'icône du parent porte les deux états : fond plein
+quand on y est exactement, liseré latéral quand on est dans sa branche. La même
+distinction qu'en déplié, dans le seul espace disponible.
+
+**Et l'infobulle nomme l'écran exact.** Le repli masque les libellés · dire
+« Adsmap » quand on est sur Suites laisse chercher.
+
+---
+
+## D79 — Un brouillon qui ne se relit pas fait porter la vérification au lecteur
+
+**Où Jarvis s'arrêtait.** Suites disait « change l'offre, garde l'accroche ». Le
+radar disait « ce concurrent tient depuis 24 jours ». Dans les deux cas, la
+marche suivante était manuelle · l'outil conseillait puis regardait quelqu'un
+d'autre travailler.
+
+**Décision.** Jarvis rédige le concept — accroche, déroulé en 3 à 5 temps,
+hypothèse — puis **passe son propre texte au brief de pré-lancement**. S'il vient
+de reproposer une accroche qui a déjà perdu chez cette marque, il le voit avant
+l'utilisateur et réécrit.
+
+**Un générateur d'idées, tout le monde en a un.** Ce qui manque partout ailleurs,
+c'est le brouillon qui se relit lui-même avant d'être montré · un outil qui ne le
+fait pas fait porter la vérification à celui qui lit, c'est-à-dire exactement le
+travail qu'on prétendait lui enlever.
+
+**Une seule réécriture.** Deux signifieraient qu'il tourne en rond · au second
+échec, on le dit plutôt que de payer un troisième appel pour la même réponse.
+
+**Un profil statistiquement faible ne déclenche PAS de réécriture.** La mémoire
+éclaire, elle n'interdit pas · et un concept neuf a par construction un profil
+qu'on ne connaît pas. Seule une accroche réfutée impose la reprise : c'est un
+fait, pas une préférence.
+
+---
+
+## D80 — En réécriture, on renvoie le brouillon précédent
+
+**Décision.** La correction est demandée avec le texte d'origine dans le fil, pas
+seule.
+
+**Pourquoi.** Sans lui, le modèle repart de zéro et perd ce qui allait · on
+transforme une retouche en nouveau tirage, et le déroulé qu'on voulait garder
+disparaît avec l'accroche qu'on voulait corriger.
+
+**Le gel ferme la consigne**, juste avant les règles maison. C'est la contrainte
+qu'un modèle oublie le plus volontiers, parce qu'elle lui interdit d'être
+créatif là où il aimerait l'être.
+
+**Coût annoncé.** Un brouillon = un appel (~0,03 $). Le pire cas est 0,06 $, et
+il n'a lieu que dans le cas où il évite un test perdu d'avance.
