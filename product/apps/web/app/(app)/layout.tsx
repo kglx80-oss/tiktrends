@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Espace « Marque » (rail) : accès direct aux sections de la marque active.
   const bid = activeBrand?.id;
   const brandNav = roleAtLeast(s.role, 'admin') && bid ? [{
-    group: 'Marque',
+    group: 'Ta marque',
     items: [
       { key: 'm-home', label: 'Aperçu',      href: `/brands/${bid}?tab=overview`,    icon: 'store', locked: false, isSub: false },
       { key: 'm-aud',  label: 'Audience',    href: `/brands/${bid}?tab=audience`,    icon: 'users', locked: false, isSub: true },
