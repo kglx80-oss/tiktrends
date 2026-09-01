@@ -2360,3 +2360,61 @@ dater au hasard.
 
 **La ligne retirée en D119 revient**, maintenant qu'elle porte quelque chose de
 vrai.
+
+---
+
+## D123 — Le provisoire avait une entrée et pas de sortie
+
+**Décision.** Un écran `/adsmap/tri` accepte, refuse et renomme les nœuds
+proposés, par type et en lot.
+
+**Pourquoi.** Le radar, les studios et l'import poussent tous des nœuds
+« proposés » · c'était la bonne décision à chaque fois, une créa venue d'ailleurs
+ne décide pas de la taxonomie d'une marque. Mais **rien, nulle part, ne
+permettait de valider quoi que ce soit.**
+
+Une carte qu'on ne croit plus ne sert plus à attribuer, ce qui est exactement ce
+qu'on lui demande.
+
+---
+
+## D124 — Valider un nœud valide ce qui le porte
+
+**Décision.** Valider un concept remonte ses ancêtres encore proposés, et on le
+dit avant le clic.
+
+**Pourquoi.** Un concept validé sous un angle proposé serait accroché à rien.
+
+**Bloquer aurait été l'autre option, et c'est une impasse** · « valide d'abord le
+parent » sur un écran qui ne montre pas le parent oblige à chercher. Chaque
+branche porte une sortie.
+
+**L'ordre de l'écran suit la chaîne** : personas, désirs, angles, concepts.
+Trier par le haut évite de valider vingt fois le même persona sans s'en rendre
+compte.
+
+---
+
+## D125 — Refuser n'efface jamais un test payé
+
+**Décision.** Aucune cascade au refus. Ce qui pend en dessous reste à trier, et
+on prévient quand des tests y sont accrochés.
+
+**Pourquoi.** Un angle refusé dont un concept a déjà tourné effacerait un test
+qu'on a payé. On avertit, on laisse décider.
+
+---
+
+## D126 — Un nom provisoire ne devient pas définitif par distraction
+
+**Décision.** « À qualifier », « (auto) » et les noms de moins de trois
+caractères bloquent la validation, et sont **écartés** du geste de masse — avec
+la liste de ce qui a été écarté.
+
+**Pourquoi.** Le geste de masse est celui qui répond à la dette · trier trente
+concepts un par un, personne ne le fait deux fois. Mais valider « À qualifier »
+en lot ferait entrer le provisoire dans la carte définitive, c'est-à-dire
+exactement le problème qu'on règle.
+
+**Ce qu'on ne fait pas ici : fusionner.** Re-raccrocher les enfants de deux
+personas est un travail à part, et une fusion ratée perd des tests.

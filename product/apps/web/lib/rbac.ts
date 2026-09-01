@@ -100,6 +100,7 @@ export const FEATURES: Feature[] = [
   { key: 'suites',    label: 'Suites',       href: '/adsmap/suites', icon: 'trend', group: 'Laboratoire',  parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
   { key: 'lots',      label: 'Lots de test', href: '/adsmap/lots', icon: 'layers', group: 'Laboratoire',   parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
   { key: 'ttradar',   label: 'Radar de veille', href: '/adsmap/radar', icon: 'radar', group: 'Laboratoire', parent: 'adsmap', minRole: 'admin', minPlan: 'plus' },
+  { key: 'tri',       label: 'Tri des propositions', href: '/adsmap/tri', icon: 'check', group: 'Laboratoire', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
   { key: 'protocole', label: 'Protocole & seuils', href: '/adsmap/protocole', icon: 'gauge', group: 'Laboratoire', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
   { key: 'import',    label: 'Importer',     href: '/adsmap/import', icon: 'store', group: 'Laboratoire',  parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
 
