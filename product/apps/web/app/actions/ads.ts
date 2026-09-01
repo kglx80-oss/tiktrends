@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -127,6 +127,10 @@ async function composeBatch(o: {
   echec: { dernier?: unknown };
 }): Promise<AdItem[]> {
   const accents = pickAccents(o.colors);
+  // La variété vient d'ici · la règle du noyau garantit qu'un lot de quatre ne
+  // répète jamais la même mise en page. Sans elle, sept gabarits rendaient sept
+  // fois la même image : photo plein cadre, bandeau noir, texte blanc.
+  const mises = layoutsForBatch(o.concepts.length, Math.floor(Date.now() / 60000));
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction
@@ -221,6 +225,9 @@ async function composeBatch(o: {
       // Consigné pour que l'écran puisse montrer ce que cet univers donne chez
       // cette marque · sans ça, on choisit une ambiance sur un libellé.
       universe: o.universe ?? null,
+      // Rabattue sur ce que le gabarit accepte · `before_after` a besoin de
+      // l'image entière pour poser sa frontière.
+      layout: layoutFor(c.template, mises[i] ?? 'immersif'),
       // Recalculée depuis la mémoire injectée · elle ne peut donc pas inventer
       // un chiffre, contrairement à une phrase demandée au modèle.
       rationale: o.rationaleCtx

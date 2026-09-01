@@ -2836,3 +2836,69 @@ marque, pas une démonstration. La pastille dit lequel des deux on regarde.
 Le moteur est le moins cher du catalogue : un aperçu n'est pas la créa finale.
 Un échec sur un univers ne condamne pas les sept autres, et les crédits non
 utilisés sont remboursés.
+
+---
+
+## D143 — Sept gabarits, une seule composition
+
+**Constat (rapporté).** « Là nous faisons et obtenons toujours le même résultat,
+avec aucun copy sur le visuel. »
+
+Les deux moitiés de la phrase avaient la même cause, et elle était dans le code.
+
+**Les sept gabarits rendaient la MÊME composition** : photo plein cadre, dégradé
+noir en bas, texte blanc, pastille d'accent. Ils ne changeaient que les *champs
+affichés* — une note en étoiles, une liste à puces, un gros chiffre. Changer le
+contenu d'un bandeau ne change pas une publicité : vues dans une grille, sept
+gabarits donnaient sept fois la même image.
+
+**Et le copy n'était jamais DANS le visuel.** Il était posé PAR-DESSUS, dans une
+bande sombre qui recouvrait une photo qu'on venait de payer. Le texte ne
+participait pas à l'image, il la masquait. Le constat était exact au mot près.
+
+**Décision.** Séparer la coquille du contenu.
+
+- **la coquille** décide où va l'image, ce qu'il y a derrière, et sur quel fond
+  se lit le texte ;
+- **le contenu** décide ce que le gabarit a à dire.
+
+Quatre coquilles · **immersif** (l'existant, il reste légitime), **champ de
+couleur** (aplat de marque, photo en carte), **moitié / moitié** (frontière
+nette, pas un fondu — un dégradé les rendrait à nouveau jumelles), **affiche
+claire** (fond papier, encre sombre, accroche en capitales très grande, la photo
+devient un élément).
+
+Vingt-huit rendus à partir de onze morceaux de code.
+
+**Le catalogue n'est plus uniformément sombre.** C'était à soi seul une raison
+pour laquelle tout se ressemblait.
+
+## D144 — La variété est une règle, pas une intention
+
+**Aucune mise en page ne se répète tant que toutes n'ont pas servi.** Un tirage
+au hasard donnerait deux fois la même sur un lot de quatre une fois sur deux, et
+l'impression de « toujours le même résultat » survivrait au travail fait pour la
+dissiper.
+
+La distribution se fait par tours complets, décalés d'un lot à l'autre.
+
+**Deux restrictions, et pas une de plus** · une restriction inventée réduirait la
+variété qu'on essaie de créer :
+
+- `before_after` garde l'image entière — réduite à une carte, la comparaison
+  n'est plus montrée mais suggérée ;
+- `ugc` ne devient pas une affiche typographique — ça ne ressemble à rien de ce
+  qu'un créateur publie, et ça trahirait ce que le gabarit emprunte.
+
+**Des noms de mises en page différents ne prouvent rien · seul le pixel le
+prouve.** Un test rend les quatre coquilles et exige que leurs compositions
+diffèrent ; un autre vérifie que chacun des vingt-six couples gabarit × coquille
+sort une image ni vide ni uniforme. Vérifié en les faisant retomber toutes sur
+l'immersive : le test nomme le couple fautif.
+
+`RENDER_VERSION` passe à 3 · l'apparence change, les rendus déjà rangés doivent
+être refaits (D130).
+
+**Les pubs composées avant gardent l'immersive.** Elles n'ont pas de mise en page
+consignée, et un ancien rendu ne doit pas changer d'allure parce qu'on a ajouté
+des coquilles.
