@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { IMAGE_MODELS, imageModelByKey, CREDIT_EUR, analyzeCosts, VIDEO_DURATIONS, safeVideoDuration, videoUnits } from '../src/economics';
+import { IMAGE_MODELS, imageModelByKey, CREDIT_EUR, analyzeCosts, VIDEO_DURATIONS, safeVideoDuration, videoUnits, falModelFor } from '../src/economics';
 import { costFor } from '../src/credits';
 
 describe('catalogue de modèles image', () => {
@@ -72,5 +72,50 @@ describe('la durée d’une vidéo se paie à la tranche', () => {
 
   it('dix secondes coûtent bien le double de cinq', () => {
     expect(costFor('video') * videoUnits(10)).toBe(costFor('video') * 2);
+  });
+});
+
+describe('GPT Image 2 et le choix d’endpoint', () => {
+  it('GPT Image 2 est proposé, en deux qualités', () => {
+    const cles = IMAGE_MODELS.map((m) => m.key);
+    expect(cles).toContain('gpt2');
+    expect(cles).toContain('gpt2_high');
+  });
+
+  /**
+   * La qualité est un PARAMÈTRE, pas un endpoint · c'est elle qui fait varier le
+   * prix d'un facteur quatre. Deux entrées qui partagent l'adresse doivent donc
+   * différer par leurs paramètres, sinon on facture quatre fois plus cher le
+   * même appel (c'est exactement ce qu'avait fait « Nano Banana 2 · Haute »).
+   */
+  it('deux qualités du même modèle envoient des paramètres différents', () => {
+    const a = imageModelByKey('gpt2');
+    const b = imageModelByKey('gpt2_high');
+    expect(a.falModel).toBe(b.falModel);
+    expect(JSON.stringify(a.params)).not.toBe(JSON.stringify(b.params));
+    expect(b.credits).toBeGreaterThan(a.credits);
+  });
+
+  /**
+   * Appeler `.../edit` sans image renvoie une erreur du fournisseur · le modèle
+   * a l'air cassé alors qu'on s'est trompé de porte.
+   */
+  it('l’endpoint sans référence n’est pas celui d’édition', () => {
+    for (const m of IMAGE_MODELS) {
+      if (!m.falModelNoRef) continue;
+      expect(falModelFor(m, true), `${m.key} avec référence`).toBe(m.falModel);
+      expect(falModelFor(m, false), `${m.key} sans référence`).toBe(m.falModelNoRef);
+      expect(m.falModelNoRef, `${m.key} · l’adresse sans référence est identique`).not.toBe(m.falModel);
+    }
+  });
+
+  it('sans adresse alternative, on garde la même · pas de silence', () => {
+    const sans = IMAGE_MODELS.find((m) => !m.falModelNoRef);
+    if (sans) expect(falModelFor(sans, false)).toBe(sans.falModel);
+  });
+
+  it('un modèle cher reste rentable · le prix suit le coût réel', () => {
+    const haut = imageModelByKey('gpt2_high');
+    expect((haut.credits * CREDIT_EUR) / haut.realEur).toBeGreaterThanOrEqual(2);
   });
 });

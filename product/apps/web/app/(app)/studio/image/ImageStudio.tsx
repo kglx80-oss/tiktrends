@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from 'react';
 import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
 import { archiveCreativeAction } from '../../../actions/creatives';
 import type { FalAspect } from '@tiktrends/integrations';
+import { IMAGE_MODELS, imageModelByKey } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -55,6 +56,10 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   const [productId, setProductId] = useState('');
   const [prods, setProds] = useState<Product[]>(products);
   const [enhance, setEnhance] = useState(aiReady);
+  // Le moteur · le studio Image n'en proposait aucun, il subissait celui de
+  // l'environnement. Pubs IA le choisissait depuis toujours.
+  const [model, setModel] = useState('nano');
+  const modelSpec = imageModelByKey(model);
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -132,7 +137,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       imageUrl: usesProduct ? (source || undefined) : undefined,
       useProductImage: usesProduct,
       withText, enhance, count, productId: productId || undefined, headline: withText ? headline : undefined,
-      presetId: sceneId || undefined,
+      presetId: sceneId || undefined, model,
     });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
@@ -147,7 +152,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   async function vary(im: BrandImage) {
     if (busy || !im.prompt) return;
     setError(''); setNotice(''); setBusy(true);
-    const res = await generateImageAction({ prompt: im.prompt, aspectRatio: ratio, count: 3 });
+    const res = await generateImageAction({ prompt: im.prompt, aspectRatio: ratio, count: 3, model });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.images) {
@@ -279,6 +284,11 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               options: [1, 2, 3, 4].map((n) => ({ value: String(n), label: `${n} image${n > 1 ? 's' : ''}` })),
               value: String(count), onChange: (v) => setCount(Number(v)),
             },
+            {
+              key: 'modele', title: 'Moteur d’image', icon: '✦',
+              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${m.recommended ? ' · recommandé' : ''}` })),
+              value: model, onChange: setModel,
+            },
           ]}
           toggles={[
             { key: 'withText', label: 'Texte lisible', value: withText, onChange: setWithText },
@@ -299,8 +309,8 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
             </>
           }
           cost={{
-            credits: 4 * count,
-            note: `4 crédits par visuel · ${mode === 'i2i' ? (productPhotoReady ? 'Kontext, ton vrai packaging est conservé' : 'ajoute une photo produit pour l’édition fidèle') : withText ? 'Ideogram, moteur qui écrit du texte lisible' : 'Flux'}`,
+            credits: modelSpec.credits * count,
+            note: `${modelSpec.label} · ${modelSpec.credits} crédits par visuel · ${modelSpec.note}${mode === 'i2i' && !productPhotoReady ? ' · ajoute une photo produit pour l’édition fidèle' : ''}`,
           }}
           onGenerate={run}
           generateLabel="Générer"

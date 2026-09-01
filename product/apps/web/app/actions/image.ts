@@ -6,7 +6,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
 import { enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
-import { costFor } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
@@ -27,6 +27,8 @@ export async function generateImageAction(input: {
    * reprise cent fois afficherait encore « jamais utilisée ».
    */
   presetId?: string;
+  /** Moteur d'image choisi · le studio Image ne pouvait pas en changer. */
+  model?: string;
 }): Promise<ImageResult> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
@@ -37,9 +39,12 @@ export async function generateImageAction(input: {
   if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
 
   const count = Math.min(4, Math.max(1, input.count ?? 1));
+  // Le moteur choisi porte son propre tarif · facturer `costFor('image')` quel
+  // que soit le modèle reviendrait à vendre GPT Image 2 au prix de Nano Banana.
+  const spec = imageModelByKey(input.model);
   // Débit atomique AVANT l'appel Fal (remboursé si la génération échoue) : vérifier
   // puis débiter en deux temps laissait deux lancements simultanés passer pour un débit.
-  const cost = costFor('image', count);
+  const cost = spec.credits * count;
   const unlimited = unlimitedCredits(s.user.email);
   if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · image IA'))) {
     return { error: `Crédits insuffisants (${cost} requis pour ${count} image(s)).` };
@@ -94,11 +99,17 @@ export async function generateImageAction(input: {
   try {
     // Barrière de dépense réelle · la génération d'image est facturée au coup.
     await guardFixedCost('fal_image', { action: 'image', workspaceId: s.workspaceId, units: count });
-    const { images } = await falGenerateImage(cfg, { prompt: finalPrompt, aspectRatio: input.aspectRatio ?? '1:1', imageUrl: sourceImage, imageUrls: useAssetRefs ? assetRefUrls : undefined, withText: input.withText, count, edit: editMode || useAssetRefs });
+    const aRef = !!sourceImage || useAssetRefs;
+    const { images } = await falGenerateImage(cfg, {
+      prompt: finalPrompt, aspectRatio: input.aspectRatio ?? '1:1',
+      imageUrl: sourceImage, imageUrls: useAssetRefs ? assetRefUrls : undefined,
+      withText: input.withText, count, edit: editMode || useAssetRefs,
+      model: falModelFor(spec, aRef), params: spec.params,
+    });
     let generationId: string | undefined;
     if (db) {
       if (brand) {
-        try { const [g] = await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1', ...(input.presetId ? { presetId: input.presetId } : {}) }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }).returning({ id: schema.generations.id }); generationId = g?.id; } catch { /* ignore */ }
+        try { const [g] = await db.insert(schema.generations).values({ brandId: brand.id, kind: 'image', input: { prompt, aspectRatio: input.aspectRatio ?? '1:1', model: spec.key, ...(input.presetId ? { presetId: input.presetId } : {}) }, status: 'completed', assetUrls: images, creditsCost: unlimited ? 0 : cost }).returning({ id: schema.generations.id }); generationId = g?.id; } catch { /* ignore */ }
       }
     }
     return { images, prompt, generationId };

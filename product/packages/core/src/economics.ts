@@ -102,7 +102,16 @@ export function videoUnits(d: VideoDuration): number { return d / 5; }
 export interface ImageModelSpec {
   key: string;          // identifiant interne
   label: string;        // nom affiché
-  falModel: string;     // modèle Fal (env-surchargable côté intégration)
+  falModel: string;     // modèle Fal utilisé quand une image de référence est fournie
+  /**
+   * Endpoint à utiliser SANS image de référence.
+   *
+   * Certains modèles séparent les deux (`.../edit` n'accepte pas un appel sans
+   * image). Sans cette distinction, choisir GPT Image dans un studio qui ne
+   * fournit pas de photo produit renvoyait une erreur du fournisseur · le
+   * modèle avait l'air cassé alors qu'on l'appelait à la mauvaise adresse.
+   */
+  falModelNoRef?: string;
   realEur: number;      // coût API réel estimé par image
   credits: number;      // crédits facturés par variante (≈ réel × markup)
   note: string;         // description courte
@@ -120,12 +129,30 @@ export interface ImageModelSpec {
  * Le nombre de crédits suit la même logique que le reste (coût réel × marge), arrondi.
  */
 export const IMAGE_MODELS: ImageModelSpec[] = [
-  { key: 'nano',         label: 'Nano Banana 2',         falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.039, credits: 4,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
-  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', realEur: 0.09,  credits: 8,  note: 'Rendu 2K · détail & cohérence renforcés', supportsRef: true, params: { resolution: '2K' } },
-  { key: 'gpt_image',    label: 'GPT Image',             falModel: 'fal-ai/gpt-image-1/edit-image/byok', realEur: 0.08,  credits: 8,  note: 'Texte net & respect du brief', supportsRef: true },
-  // Note : l'identifiant du modèle GPT Image est surchargeable via FAL_IMAGE_MODEL_GPT
-  // (les variantes « byok » de Fal réclament une clé OpenAI côté serveur).
+  { key: 'nano',         label: 'Nano Banana 2',         falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.039, credits: 4,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
+  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.09,  credits: 8,  note: 'Rendu 2K · détail & cohérence renforcés', supportsRef: true, params: { resolution: '2K' } },
+
+  // GPT Image 2 · fal est partenaire officiel du lancement, les endpoints sont
+  // sous le préfixe `openai/`. La qualité est un PARAMÈTRE, pas un endpoint :
+  // c'est elle qui fait varier le prix d'un facteur quatre, et c'est pour ça
+  // que les deux variantes sont annoncées séparément plutôt que masquées
+  // derrière un réglage qu'on découvre sur la facture.
+  { key: 'gpt2',         label: 'GPT Image 2',           falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.049, credits: 5,  note: 'Texte net & respect strict du brief', supportsRef: true, params: { quality: 'medium' } },
+  { key: 'gpt2_high',    label: 'GPT Image 2 · Haute',   falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.195, credits: 20, note: 'Qualité maximale · quatre fois le prix, à réserver au visuel final', supportsRef: true, params: { quality: 'high' } },
+
+  { key: 'gpt_image',    label: 'GPT Image 1',           falModel: 'fal-ai/gpt-image-1/edit-image/byok', realEur: 0.08,  credits: 8,  note: 'Génération précédente · demande une clé OpenAI sur le serveur', supportsRef: true },
 ];
+
+/**
+ * L'endpoint à appeler pour ce modèle, selon qu'on lui donne une image ou non.
+ *
+ * Beaucoup de modèles exposent deux adresses · appeler `.../edit` sans image
+ * renvoie une erreur du fournisseur, et le modèle a l'air cassé alors qu'on
+ * s'est trompé de porte.
+ */
+export function falModelFor(spec: ImageModelSpec, hasRef: boolean): string {
+  return hasRef ? spec.falModel : (spec.falModelNoRef ?? spec.falModel);
+}
 
 export function imageModelByKey(key?: string | null): ImageModelSpec {
   const spec = IMAGE_MODELS.find((m) => m.key === key) || IMAGE_MODELS[0]!;
