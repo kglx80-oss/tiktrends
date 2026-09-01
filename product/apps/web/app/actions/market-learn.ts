@@ -2,6 +2,7 @@
 
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { MARKET_COLS, toMarketAd } from '../../lib/market-rows';
 import { analyzeAdAsset } from '@tiktrends/ai';
 import { ttSearchAds, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
@@ -255,7 +256,9 @@ export async function marketViewAction(): Promise<{ view?: MarketView; error?: s
   if ('error' in g) return { error: g.error };
 
   try {
-    const rows = await db!.select().from(schema.marketCreatives)
+    // Même projection que la mémoire de Jarvis · deux définitions auraient fini
+    // par donner deux chiffres de marché différents selon l'écran ouvert.
+    const rows = await db!.select(MARKET_COLS).from(schema.marketCreatives)
       .where(and(
         eq(schema.marketCreatives.workspaceId, g.s.workspaceId),
         eq(schema.marketCreatives.brandId, g.brand.id),
@@ -263,14 +266,7 @@ export async function marketViewAction(): Promise<{ view?: MarketView; error?: s
       .orderBy(desc(schema.marketCreatives.analyzedAt))
       .limit(600);
 
-    const ads: MarketAd[] = rows.map((r) => ({
-      advertiser: r.advertiser, platform: r.platform,
-      hookType: r.hookType as MarketAd['hookType'],
-      openingType: r.openingType as MarketAd['openingType'],
-      talent: r.talent as MarketAd['talent'],
-      lengthBucket: r.lengthBucket, format: r.format,
-      daysRunning: r.daysRunning, reachDelta30d: r.reachDelta30d, liveAdsCount: r.liveAdsCount,
-    }));
+    const ads: MarketAd[] = rows.map(toMarketAd);
 
     const marche = computeMarketStats(ads);
 

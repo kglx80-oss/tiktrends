@@ -1,6 +1,7 @@
 import 'server-only';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { MARKET_COLS, toMarketAd } from './market-rows';
 import {
   buildJarvisMemory, computeBrandStats, globalHitRate, prelaunchScore, summarizePrelaunch,
   computeMarketStats, contrastMarketVsBrand, buildMarketMemory,
@@ -166,7 +167,10 @@ export async function scoreConceptBeforeLaunch(
 export async function jarvisMarketMemory(brandId: string, workspaceId: string): Promise<string> {
   if (!db) return '';
 
-  const rows = await db.select().from(schema.marketCreatives)
+  // Neuf colonnes, pas la table · `analysis` contient la description IA
+  // complète de chaque créa, et six cents de ces documents traversaient la base
+  // pour alimenter des champs qui tiennent sur une ligne.
+  const rows = await db.select(MARKET_COLS).from(schema.marketCreatives)
     .where(and(
       eq(schema.marketCreatives.workspaceId, workspaceId),
       eq(schema.marketCreatives.brandId, brandId),
@@ -176,14 +180,7 @@ export async function jarvisMarketMemory(brandId: string, workspaceId: string): 
     .catch(() => []);
   if (!rows.length) return '';
 
-  const ads: MarketAd[] = rows.map((r) => ({
-    advertiser: r.advertiser, platform: r.platform,
-    hookType: r.hookType as MarketAd['hookType'],
-    openingType: r.openingType as MarketAd['openingType'],
-    talent: r.talent as MarketAd['talent'],
-    lengthBucket: r.lengthBucket, format: r.format,
-    daysRunning: r.daysRunning, reachDelta30d: r.reachDelta30d, liveAdsCount: r.liveAdsCount,
-  }));
+  const ads: MarketAd[] = rows.map(toMarketAd);
 
   const marche = computeMarketStats(ads);
   const { ads: nos } = await loadCached(brandId, workspaceId);

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, or, isNull, sql, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, or, isNull, sql, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { driveRefreshTokenFor } from '../../lib/drive-token';
@@ -148,7 +148,8 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
   if (!s || !db) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'assets' });
   if (!client) return { error: GUARD.aiOff() };
-  const [a] = await db.select().from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
+  const [a] = await db.select({ id: schema.assets.id, kind: schema.assets.kind, url: schema.assets.url })
+    .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   if (!a) return { error: 'Asset introuvable.' };
   if (a.kind !== 'image') return { error: 'Le tagging IA ne concerne que les images pour l’instant.' };
 
@@ -178,9 +179,15 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
 export async function countUntaggedImages(): Promise<number> {
   const s = await getSession();
   if (!s || !db) return 0;
-  const rows = await db.select({ id: schema.assets.id, tags: schema.assets.tags })
-    .from(schema.assets).where(and(eq(schema.assets.workspaceId, s.workspaceId), eq(schema.assets.kind, 'image')));
-  return rows.filter((r) => !r.tags || r.tags.length === 0).length;
+  // Compter se fait en SQL · on remontait toutes les images de l'espace pour
+  // faire un `.length` en JavaScript.
+  const [r] = await db.select({ n: count() }).from(schema.assets)
+    .where(and(
+      eq(schema.assets.workspaceId, s.workspaceId),
+      eq(schema.assets.kind, 'image'),
+      sql`(${schema.assets.tags} is null or cardinality(${schema.assets.tags}) = 0)`,
+    ));
+  return r?.n ?? 0;
 }
 
 /** Tague en lot les images non taguées (max 20 par appel), débit par image. */
@@ -192,10 +199,16 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('tag_image', 1);
 
-  const rows = await db.select().from(schema.assets)
-    .where(and(eq(schema.assets.workspaceId, s.workspaceId), eq(schema.assets.kind, 'image')))
-    .orderBy(desc(schema.assets.createdAt)).limit(200);
-  const todo = rows.filter((r) => !r.tags || r.tags.length === 0).slice(0, 20);
+  // Le filtre « sans tags » se fait en SQL · il remontait deux cents lignes
+  // entières, donc deux cents images en base64, pour en garder vingt.
+  const todo = await db.select({ id: schema.assets.id, url: schema.assets.url })
+    .from(schema.assets)
+    .where(and(
+      eq(schema.assets.workspaceId, s.workspaceId),
+      eq(schema.assets.kind, 'image'),
+      sql`(${schema.assets.tags} is null or cardinality(${schema.assets.tags}) = 0)`,
+    ))
+    .orderBy(desc(schema.assets.createdAt)).limit(20);
   if (!todo.length) return { ok: true, tagged: 0 };
 
   let tagged = 0;
