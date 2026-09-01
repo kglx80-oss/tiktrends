@@ -4,7 +4,7 @@ import { buildDigest, worthSending, digestText, MAX_LINES, type DigestFacts } fr
 const faits = (o: Partial<DigestFacts> = {}): DigestFacts => ({
   brandName: 'Klorea',
   verdictsWeek: 0, winnersWeek: 0, createdWeek: 0, pending: 0,
-  radarFindings: 0, radarUnexplored: 0, iterationsReady: 0,
+  radarFindings: 0, radarUnexplored: 0, newlyConclusive: [], iterationsReady: 0,
   ...o,
 });
 
@@ -23,6 +23,10 @@ describe('on n’envoie pas une lettre pour dire qu’il n’y a rien', () => {
 
   it('une trouvaille du radar suffit', () => {
     expect(worthSending(faits({ radarFindings: 1 }))).toBe(true);
+  });
+
+  it('une dimension qui vient de trancher suffit', () => {
+    expect(worthSending(faits({ newlyConclusive: ['listicle'] }))).toBe(true);
   });
 
   /**
@@ -46,6 +50,11 @@ describe('l’accroche porte le fait le plus lourd', () => {
   it('un gagnant passe devant tout', () => {
     const d = buildDigest(faits({ verdictsWeek: 4, winnersWeek: 2, radarUnexplored: 9 }));
     expect(d.headline).toContain('2 gagnante(s)');
+  });
+
+  it('sans gagnant, la mémoire qui tranche passe devant les tests perdus', () => {
+    const d = buildDigest(faits({ newlyConclusive: ['listicle'], verdictsWeek: 3, winnersWeek: 0 }));
+    expect(d.headline).toContain('listicle');
   });
 
   it('des tests tranchés sans gagnant ne sont pas présentés comme un échec', () => {
@@ -100,8 +109,12 @@ describe('un seul geste, et c’est la boucle du produit qui le choisit', () => 
     expect(d.action?.key).toBe('suites');
   });
 
-  it('le radar passe après les suites, mais avant le studio', () => {
-    expect(buildDigest(faits({ radarUnexplored: 1, createdWeek: 1 })).action?.key).toBe('radar');
+  it('le radar passe après les suites, mais avant la mémoire', () => {
+    expect(buildDigest(faits({ radarUnexplored: 1, newlyConclusive: ['ugc'] })).action?.key).toBe('radar');
+  });
+
+  it('la mémoire qui s’allume passe avant le studio', () => {
+    expect(buildDigest(faits({ newlyConclusive: ['ugc'] })).action?.key).toBe('jarvis');
   });
 
   it('sans rien produit ni rien en attente, on conseille de fabriquer', () => {

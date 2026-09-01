@@ -40,6 +40,7 @@ export * from './adsmap/jarvis-chat';
 export * from './adsmap/jarvis-actions';
 export * from './adsmap/rationale';
 export * from './adsmap/digest';
+export * from './adsmap/milestones';
 export * from './adsmap/draft';
 export * from './creative-presets';
 export * from './onboarding';

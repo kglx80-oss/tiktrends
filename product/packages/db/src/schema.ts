@@ -979,6 +979,26 @@ export const learnings = pgTable('adsmap_learnings', {
 /* --------------------- Mémoire calculée et bibliothèque ------------------- */
 
 /** Statistiques recalculées chaque nuit · mémoire principale des agents (§8.1). */
+/**
+ * Quand une dimension a franchi le seuil de conclusion · voir 0043.
+ *
+ * `adsmap_brand_stats` porte l'ÉTAT (ce qu'on sait aujourd'hui), cette table
+ * porte l'HISTOIRE (depuis quand on le sait). Les deux sont nécessaires : l'un
+ * répond à « où en est-on », l'autre à « qu'est-ce qui vient de changer ».
+ */
+export const statMilestones = pgTable('adsmap_stat_milestones', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  dimension: text('dimension').notNull(),
+  key: text('key').notNull(),
+  nConclusive: integer('n_conclusive').notNull().default(0),
+  hitRate: doublePrecision('hit_rate'),
+  /** Posé au premier passage sur la marque · ne s'annonce jamais. */
+  backfilled: boolean('backfilled').notNull().default(false),
+  reachedAt: timestamp('reached_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ brandIdx: index('adsmap_stat_milestones_brand_idx').on(t.brandId, t.reachedAt) }));
+
 export const brandStats = pgTable('adsmap_brand_stats', {
   id: uuid('id').primaryKey().defaultRandom(),
   brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),

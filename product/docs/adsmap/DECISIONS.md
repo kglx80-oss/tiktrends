@@ -2307,3 +2307,56 @@ Le champ a donc été retiré du type, pas laissé à `[]`.
 **En revanche, `unexplored` est RECALCULÉ** plutôt qu'abandonné : le radar ne le
 persiste pas, mais il se recompose exactement (une voie est testée au-delà de
 trois tests conclus). Lire un champ inexistant aurait compté zéro pour toujours.
+
+---
+
+## D120 — `adsmap_brand_stats` n'était écrite nulle part
+
+**Constat.** La table était lue par le radar pour savoir ce que la marque avait
+déjà testé, et **personne ne l'écrivait**. L'ensemble revenait donc toujours
+vide, et TOUTE trouvaille était annoncée comme « une voie que tu n'as jamais
+testée ».
+
+**Une phrase toujours vraie ne dit rien.** C'était le cœur du radar, et il
+tournait à vide depuis le premier jour.
+
+**Réparé par les jalons**, qui sont écrits et disent exactement la même chose :
+une dimension a un jalon si et seulement si elle a franchi le seuil.
+
+---
+
+## D121 — Un état sans historique répond à « où en est-on », et à rien d'autre
+
+**Décision.** Une table date le premier franchissement du seuil, par marque et
+par dimension. Migration 0043.
+
+**Pourquoi.** On savait à tout moment ce qu'une marque avait mesuré · jamais
+QUAND elle l'avait su. Ça manquait à trois endroits : le récapitulatif ne
+pouvait pas dire « vient de trancher », on ne pouvait pas répondre à « est-ce
+que Jarvis s'améliore », et le radar ne distinguait pas une voie jamais testée
+d'une voie tout juste tranchée.
+
+**L'écriture se fait au moment de lire.** Il n'existe aucun instant « les stats
+sont recalculées » : elles sont dérivées à la volée. Attendre un travail de fond
+qui n'existe pas aurait donné une seconde table vide.
+
+**Le jalon ne bouge plus** (`on conflict do nothing`) · ce qu'on veut savoir est
+quand la dimension a commencé à compter, pas quand elle a grossi.
+
+---
+
+## D122 — Le premier passage est du rattrapage, et ne s'annonce jamais
+
+**Décision.** Les jalons posés lors de la première lecture d'une marque sont
+marqués `backfilled` et n'apparaissent jamais dans le récapitulatif.
+
+**Pourquoi.** Six mois de tests franchissent le seuil le même jour · la première
+lettre hebdomadaire annoncerait un déluge d'apprentissages qui datent de l'an
+dernier.
+
+**On perd la date exacte de ce qui s'est produit avant qu'on regarde.** C'est le
+prix honnête de ne pas l'avoir enregistré à l'époque, et il vaut mieux que de
+dater au hasard.
+
+**La ligne retirée en D119 revient**, maintenant qu'elle porte quelque chose de
+vrai.

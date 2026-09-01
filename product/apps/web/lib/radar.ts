@@ -1,6 +1,7 @@
 import 'server-only';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { testedKeys } from './milestones';
 import { analyzeAdAsset } from '@tiktrends/ai';
 import { ttSearchAds, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
@@ -232,12 +233,11 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
  */
 async function marquerInexplore(brandId: string, trouvailles: RadarFinding[]): Promise<void> {
   if (!db) return;
-  const stats = await db.select({ key: schema.brandStats.key, n: schema.brandStats.nConclusive })
-    .from(schema.brandStats)
-    .where(eq(schema.brandStats.brandId, brandId));
-
-  // Moins de trois tests conclus sur une voie, c'est ne pas l'avoir testée.
-  const testees = new Set(stats.filter((s) => (s.n ?? 0) >= 3).map((s) => s.key));
+  // Les voies déjà testées viennent des JALONS, pas de `adsmap_brand_stats` ·
+  // cette table-là n'est écrite nulle part, l'ensemble revenait donc toujours
+  // vide et TOUTE trouvaille passait pour « une voie jamais testée ». Une phrase
+  // toujours vraie ne dit rien.
+  const testees = await testedKeys(brandId);
   for (const t of trouvailles) {
     t.unexplored = t.traits.length > 0 && t.traits.every((tr) => !testees.has(tr));
     t.headline = findingHeadline(t);
