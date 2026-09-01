@@ -41,8 +41,8 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   const brand = await getActiveBrand(s.workspaceId);
   // Enrichissement automatique (DA, produits, photos) · sans bouton, avant l'affichage.
   if (brand) await ensureBrandEnriched(brand.id);
-  const [ads, savedRefs, allAssets] = await Promise.all([listBrandAds(), listSavedAdRefs(), listAssets({ kind: 'image' })]);
-  const assetChoices = allAssets.slice(0, 24).map((a) => ({ id: a.id, name: a.name, url: a.url }));
+  const [ads, savedRefs, allAssets] = await Promise.all([listBrandAds(), listSavedAdRefs(), listAssets({ kind: 'image', limit: 24 })]);
+  const assetChoices = allAssets.map((a) => ({ id: a.id, name: a.name, url: a.url }));
   let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
   let personas: Array<{ id: string; name: string }> = [];
   let edenRules = '';

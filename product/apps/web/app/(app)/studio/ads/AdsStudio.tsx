@@ -115,6 +115,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // a.url porte déjà une version (?v=) qui suit les textes : la grille, l'aperçu et
   // le téléchargement se rafraîchissent ensemble après une édition.
   const detailSrc = detailAd ? `${detailAd.url}&r=${ratio}` : '';
+  // La grille demande des vignettes · elle affichait des cartes de 240 px et
+  // recevait des images de 1080, composées à la demande pour être réduites juste
+  // après. L'aperçu et le téléchargement, eux, gardent le plein format.
+  const vignette = (u: string) => `${u}&t=1`;
 
   async function openTextEditor(a: AdItem) {
     setEditText(true); setTextForm(null);
@@ -558,7 +562,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               <div style={{ position: 'relative' }}>
                 <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }}>
                   { }
-                  <img src={a.url} alt={a.headline} loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '4/5', objectFit: 'cover' }} />
+                  <img src={vignette(a.url)} alt={a.headline} loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '4/5', objectFit: 'cover' }} />
                 </button>
                 {/* Score Jarvis · notre signature, visible directement sur la carte */}
                 {typeof a.score === 'number' && <ScoreBadge score={a.score} />}
@@ -722,7 +726,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                       return (
                         <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', padding: 0, borderRadius: 10, flexShrink: 0, cursor: 'pointer', background: 'transparent', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}` }}>
                           { }
-                          <img src={a.url} alt="" style={{ width: 60, height: 76, objectFit: 'cover', borderRadius: 8, display: 'block', opacity: on ? 1 : 0.85 }} />
+                          <img src={vignette(a.url)} alt="" loading="lazy" decoding="async" style={{ width: 60, height: 76, objectFit: 'cover', borderRadius: 8, display: 'block', opacity: on ? 1 : 0.85 }} />
                           {on && <span style={{ position: 'absolute', top: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: '#18cc8c', color: '#04140d', fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
                         </button>
                       );

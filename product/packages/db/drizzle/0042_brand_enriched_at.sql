@@ -1,0 +1,12 @@
+-- Quand la marque a été enrichie pour la dernière fois.
+--
+-- L'enrichissement (DA, produits Shopify, photos manquantes) tournait à CHAQUE
+-- chargement des pages Marque et Pubs IA, avant l'affichage. Il est idempotent,
+-- mais « idempotent » ne veut pas dire « gratuit » : une photo produit
+-- introuvable reste introuvable, donc elle était recherchée sur le site de la
+-- boutique à chaque visite, pour rien, pendant que la page attendait.
+--
+-- Une date suffit à ne plus refaire ce travail. Elle est posée même quand
+-- l'enrichissement ne trouve rien · c'est justement ce cas qu'il fallait cesser
+-- de rejouer.
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS enriched_at timestamptz;

@@ -1875,3 +1875,65 @@ peut vérifier un chiffre, on ne vérifie pas une action qu'on croit faite.
 **Les boutons vivent dans le message**, pas à côté · rouvrir la conversation
 trois jours plus tard réaffiche les mêmes propositions. Un bouton qui
 disparaîtrait au rechargement laisserait croire qu'on l'a déjà cliqué.
+
+---
+
+## D96 — Aucun contenu d'image ne part dans la page
+
+**Décision.** Les images téléversées sont servies par `/api/asset/[id]`. La
+liste des assets ne remonte plus jamais le contenu de la colonne `url`.
+
+**Pourquoi.** Une image téléversée est stockée en base sous forme de `data:`
+URI · jusqu'à six mégaoctets de base64. `listAssets` faisait `select()` sans
+colonnes, sur quatre cents lignes, pour en garder vingt-quatre — et renvoyait
+le base64 dans la page. Vingt-quatre vignettes pesaient plus lourd que tout le
+reste de l'application.
+
+**Une page qui transporte ses images à l'intérieur d'elle-même ne peut pas être
+rapide, et aucun cache ne peut l'aider** · le navigateur ne sait pas mettre en
+cache un morceau de HTML.
+
+**Le test se fait en SQL** (`like 'data:%'`), donc le contenu n'est jamais lu.
+La page ne transporte plus qu'un lien de quarante caractères, et le navigateur
+télécharge les vignettes en parallèle, après l'affichage, une seule fois.
+
+**La règle vit dans `lib/asset-url.ts`**, pas dans l'action · dans un fichier
+`'use server'` elle ne pouvait pas être testée, tout export y devenant un point
+d'entrée réseau.
+
+---
+
+## D97 — La grille demande des vignettes
+
+**Décision.** `/api/ad/[id]?t=1` compose à 40 % de la taille d'impression. La
+grille et la bande de navigation l'utilisent ; l'aperçu et le téléchargement
+gardent le plein format.
+
+**Pourquoi.** La grille affichait des cartes de 240 pixels et recevait des
+images de 1080, composées à la demande par satori pour être réduites par le
+navigateur juste après. Le coût d'une composition suit la **surface** :
+432 × 540 fait six fois moins de pixels que 1080 × 1350.
+
+**Le cache devient immuable.** L'adresse porte déjà l'empreinte de la recette ·
+retoucher le texte d'une pub change son adresse, donc le navigateur peut garder
+l'image sans jamais revenir demander si elle a bougé. `max-age` seul ne le
+disait pas.
+
+---
+
+## D98 — « Idempotent » ne veut pas dire « gratuit »
+
+**Décision.** L'enrichissement de marque ne repasse pas avant six heures, et
+cherche au plus douze photos par passage. La date est posée **même quand il ne
+trouve rien**.
+
+**Pourquoi.** Il ne faisait du réseau que si quelque chose manquait, ce qui
+semble prudent jusqu'à ce qu'on remarque que **ce qui manque continue de
+manquer**. Une photo produit introuvable reste introuvable : elle était cherchée
+sur le site de la boutique à chaque chargement de page, pour rien, pendant que
+la page attendait.
+
+**C'est le cas « on n'a rien trouvé » qu'il fallait cesser de rejouer** · poser
+la date seulement en cas de succès aurait laissé le défaut entier.
+
+Migration 0042.
