@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, or, isNull } from 'drizzle-orm';
+import { and, desc, eq, or, isNull, sql, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { driveRefreshTokenFor } from '../../lib/drive-token';
@@ -12,6 +12,7 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
+import { servedAssetUrl, isPrivateDriveUrl } from '../../lib/asset-url';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
@@ -30,15 +31,18 @@ export interface AssetItem {
 
 const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
 
-/** Vrai si l'URL est un lien Drive privé (non affichable directement dans une balise <img>). */
-function isPrivateDriveUrl(url: string): boolean {
-  return /drive\.google\.com|googleusercontent\.com/.test(url);
-}
-
-function toItem(r: typeof schema.assets.$inferSelect): AssetItem {
-  // Image Drive privée : servie via notre proxy authentifié (sinon l'aperçu casse).
-  const url = r.kind === 'image' && r.source === 'drive' && isPrivateDriveUrl(r.url) ? `/api/drive-img/${r.id}` : r.url;
-  return { id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source, url, brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes, tags: r.tags ?? [], createdAt: r.createdAt.toISOString() };
+function toItem(r: {
+  id: string; name: string; kind: string; source: string; url: string; embarquee: boolean;
+  brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[] | null; createdAt: Date;
+}): AssetItem {
+  return {
+    id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source,
+    // La règle vit dans `lib/asset-url` · elle s'y teste, ce qu'un fichier
+    // `'use server'` interdit (tout export y devient un point d'entrée réseau).
+    url: servedAssetUrl({ id: r.id, kind: r.kind, source: r.source, url: r.url, embedded: r.embarquee }),
+    brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes,
+    tags: r.tags ?? [], createdAt: r.createdAt.toISOString(),
+  };
 }
 
 /**
@@ -46,7 +50,7 @@ function toItem(r: typeof schema.assets.$inferSelect): AssetItem {
  * chaque marque voit sa propre bibliothèque. Sans marque active, renvoie tout l'espace.
  * `brandOnly` force le strict-marque (exclut les communs).
  */
-export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean }): Promise<AssetItem[]> {
+export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean; limit?: number }): Promise<AssetItem[]> {
   const s = await getSession();
   if (!s || !db) return [];
   const conds = [eq(schema.assets.workspaceId, s.workspaceId)];
@@ -55,7 +59,25 @@ export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolea
   if (brand) {
     conds.push((filter?.brandOnly ? eq(schema.assets.brandId, brand.id) : or(eq(schema.assets.brandId, brand.id), isNull(schema.assets.brandId)))!);
   }
-  const rows = await db.select().from(schema.assets).where(and(...conds)).orderBy(desc(schema.assets.createdAt)).limit(400);
+
+  // `select()` remontait TOUTES les colonnes, dont `url` · qui contient jusqu'à
+  // six mégaoctets de base64 par image téléversée. Quatre cents lignes de ce
+  // genre traversaient la base, le serveur et la page, pour finir en vingt-quatre
+  // vignettes. On demande donc les colonnes une par une, et on laisse le contenu
+  // là où il est : le test `like 'data:%'` suffit à savoir qu'il faut le servir
+  // par le proxy, sans jamais le lire.
+  const rows = await db.select({
+    id: schema.assets.id, name: schema.assets.name, kind: schema.assets.kind,
+    source: schema.assets.source, brandId: schema.assets.brandId,
+    useForAi: schema.assets.useForAi, sizeBytes: schema.assets.sizeBytes,
+    tags: schema.assets.tags, createdAt: schema.assets.createdAt,
+    embarquee: sql<boolean>`${schema.assets.url} like 'data:%'`,
+    url: sql<string>`case when ${schema.assets.url} like 'data:%' then '' else ${schema.assets.url} end`,
+  })
+    .from(schema.assets).where(and(...conds))
+    .orderBy(desc(schema.assets.createdAt))
+    .limit(Math.max(1, Math.min(filter?.limit ?? 400, 400)));
+
   return rows.map(toItem);
 }
 
@@ -284,13 +306,18 @@ async function toAiImageUrls(workspaceId: string, rows: Array<{ url: string; ext
 /** Résout des URLs d'images de la bibliothèque à partir d'IDs (sélection explicite). */
 export async function resolveAssetImageUrls(workspaceId: string, ids: string[], limit = 6): Promise<string[]> {
   if (!db || !ids.length) return [];
+  // Le filtre par identifiants se fait en SQL · il se faisait en JavaScript
+  // après avoir remonté quatre cents lignes, donc quatre cents images en base64
+  // lues pour en garder six.
   const rows = await db.select({ id: schema.assets.id, url: schema.assets.url, externalId: schema.assets.externalId, mimeType: schema.assets.mimeType })
     .from(schema.assets)
-    .where(and(eq(schema.assets.workspaceId, workspaceId), eq(schema.assets.kind, 'image')))
-    .limit(400);
-  const set = new Set(ids);
-  const picked = rows.filter((r) => set.has(r.id) && r.url).slice(0, limit);
-  return toAiImageUrls(workspaceId, picked);
+    .where(and(
+      eq(schema.assets.workspaceId, workspaceId),
+      eq(schema.assets.kind, 'image'),
+      inArray(schema.assets.id, ids.slice(0, 50)),
+    ))
+    .limit(limit);
+  return toAiImageUrls(workspaceId, rows.filter((r) => r.url));
 }
 
 export async function listBrandAssetImageUrls(workspaceId: string, brandId: string, limit = 4): Promise<string[]> {

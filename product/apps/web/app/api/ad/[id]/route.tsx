@@ -13,6 +13,22 @@ const RATIO_SIZE: Record<string, { width: number; height: number }> = {
   '9:16': { width: 1080, height: 1920 },
 };
 
+/**
+ * La vignette · deux cinquièmes de la largeur d'impression.
+ *
+ * La grille affichait des cartes de deux cent quarante pixels de large, et on
+ * lui servait des images de mille quatre-vingts · composées à la demande par
+ * satori, à chaque fois, pour être réduites par le navigateur juste après.
+ *
+ * Le coût d'une composition suit la SURFACE : 432 × 540 fait six fois moins de
+ * pixels que 1080 × 1350. Treize pubs à l'écran, c'était donc treize rendus
+ * pleine résolution avant la première image visible.
+ *
+ * Le plein format reste servi tel quel · l'aperçu et le téléchargement le
+ * demandent, et eux le méritent : on les regarde un par un.
+ */
+const ECHELLE_VIGNETTE = 0.4;
+
 // Cache mémoire des PNG rendus (le rendu satori est coûteux). Clé = id:ratio:hash(texte+scène).
 // Borné en OCTETS, pas en nombre d'entrées : un 9:16 pèse plusieurs Mo, donc 300
 // entrées suffisaient à faire tomber le process. Éviction LRU (Map = ordre d'insertion,
@@ -20,6 +36,13 @@ const RATIO_SIZE: Record<string, { width: number; height: number }> = {
 const RENDER_CACHE = new Map<string, ArrayBuffer>();
 const CACHE_MAX_BYTES = 128 * 1024 * 1024; // 128 Mo
 let cacheBytes = 0;
+
+/**
+ * L'adresse porte l'empreinte de la recette (`?v=`) · retoucher le texte d'une
+ * pub change son adresse. Le navigateur peut donc garder l'image sans jamais
+ * revenir demander si elle a bougé, ce que `max-age` seul ne lui disait pas.
+ */
+const CACHE = 'private, max-age=31536000, immutable';
 
 function cachePut(key: string, png: ArrayBuffer): void {
   if (png.byteLength > CACHE_MAX_BYTES) return; // trop gros pour être mis en cache
@@ -47,7 +70,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   const s = await getSession();
   if (!s || !db) return new Response('Non autorisé', { status: 401 });
-  const r = new URL(req.url).searchParams.get('r') || '';
+  const q = new URL(req.url).searchParams;
+  const r = q.get('r') || '';
+  const vignette = q.get('t') === '1';
   const size = RATIO_SIZE[r];
 
   const [g] = await db
@@ -60,20 +85,24 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!g || g.kind !== 'ad' || g.workspaceId !== s.workspaceId) return new Response('Introuvable', { status: 404 });
   const base = g.input as unknown as AdRecipe;
   if (!base?.sceneUrl) return new Response('Recette invalide', { status: 422 });
-  const recipe: AdRecipe = size ? { ...base, width: size.width, height: size.height } : base;
-  const cacheKey = `${id}:${r || '4:5'}:${recipeHash(recipe)}`;
+  const plein = size ?? { width: base.width ?? 1080, height: base.height ?? 1350 };
+  const dims = vignette
+    ? { width: Math.round(plein.width * ECHELLE_VIGNETTE), height: Math.round(plein.height * ECHELLE_VIGNETTE) }
+    : plein;
+  const recipe: AdRecipe = { ...base, width: dims.width, height: dims.height };
+  const cacheKey = `${id}:${r || '4:5'}:${vignette ? 't' : 'f'}:${recipeHash(recipe)}`;
 
   const cached = RENDER_CACHE.get(cacheKey);
   if (cached) {
     RENDER_CACHE.delete(cacheKey); RENDER_CACHE.set(cacheKey, cached); // remonte en tête (LRU)
-    return new Response(cached, { headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=86400', 'x-cache': 'HIT' } });
+    return new Response(cached, { headers: { 'content-type': 'image/png', 'cache-control': CACHE, 'x-cache': 'HIT' } });
   }
 
   try {
     const png = await renderAdPng(recipe);
     cachePut(cacheKey, png);
     return new Response(png, {
-      headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=86400', 'x-cache': 'MISS' },
+      headers: { 'content-type': 'image/png', 'cache-control': CACHE, 'x-cache': 'MISS' },
     });
   } catch {
     // Repli : si la composition échoue, on affiche au moins la scène (sans la couche texte).
