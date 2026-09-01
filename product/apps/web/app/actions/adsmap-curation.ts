@@ -1,10 +1,10 @@
 'use server';
 
-import { and, count, eq } from 'drizzle-orm';
+import { and, count, eq, ne } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  planValidation, rejectImpact, needsRename, renameReason,
-  KIND_LABEL, type NodeKind, type NodeRef,
+  planValidation, rejectImpact, needsRename, renameReason, planMerge,
+  KIND_LABEL, type NodeKind, type NodeRef, type MergePersona, type MergePlan,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -23,8 +23,12 @@ import { revalidatePath } from 'next/cache';
  *
  * ── Ce que cet écran fait, et ce qu'il ne fait pas ───────────────────────────
  *
- * Accepter, refuser, renommer. Pas fusionner · re-raccrocher les enfants de
- * deux personas est un travail à part, et une fusion ratée perd des tests.
+ * Accepter, refuser, renommer · et fusionner deux personas. La fusion est à
+ * part : elle ne trie pas une proposition, elle répare un doublon que le tri
+ * lui-même pouvait laisser passer (deux « À qualifier » validés à trois
+ * semaines d'écart sont deux personas légitimes, et plus rien ne les signale).
+ * Elle vit donc ici, sur le même écran, mais avec son propre plan · une fusion
+ * ratée perd des tests payés, ce qu'aucun autre geste de ce fichier ne risque.
  */
 
 export interface ProposedNode {
@@ -331,3 +335,128 @@ async function renommer(kind: NodeKind, id: string, nom: string): Promise<void> 
   await db.update(schema.concepts).set({ title: nom }).where(eq(schema.concepts.id, id));
 }
 
+
+/* -------------------------------------------------------------------------- */
+/*  Fusionner deux personas                                                   */
+/* -------------------------------------------------------------------------- */
+
+export interface MergeCandidate { id: string; name: string; status: string; desires: number }
+
+/**
+ * Les personas entre lesquels on peut choisir.
+ *
+ * Tous, pas seulement les proposés · on fusionne justement un provisoire DANS
+ * un vrai, et ne montrer que les provisoires interdirait le seul geste utile.
+ */
+export async function mergeCandidatesAction(): Promise<{ personas?: MergeCandidate[]; error?: string }> {
+  const g = await adsmapGuard();
+  if ('error' in g) return { error: g.error };
+  try {
+    const rows = await db!.select({
+      id: schema.personas.id, name: schema.personas.name, status: schema.personas.status,
+      desires: count(schema.desires.id),
+    })
+      .from(schema.personas)
+      .leftJoin(schema.desires, eq(schema.desires.personaId, schema.personas.id))
+      .where(and(eq(schema.personas.brandId, g.brand.id), ne(schema.personas.status, 'archived')))
+      .groupBy(schema.personas.id, schema.personas.name, schema.personas.status)
+      .limit(100);
+    return { personas: rows.map((r) => ({ ...r, desires: Number(r.desires ?? 0) })) };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:merge-candidates', e, { subject: 'la liste des personas', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+/** Le persona et ses désirs, avec ce qui pend sous chacun. */
+async function personaComplet(id: string, brandId: string): Promise<MergePersona | null> {
+  if (!db) return null;
+  const [p] = await db.select({ id: schema.personas.id, name: schema.personas.name })
+    .from(schema.personas).where(and(eq(schema.personas.id, id), eq(schema.personas.brandId, brandId))).limit(1);
+  if (!p) return null;
+
+  const desires = await db.select({ id: schema.desires.id, label: schema.desires.label })
+    .from(schema.desires).where(eq(schema.desires.personaId, id)).limit(200);
+
+  const complet: MergePersona = { id: p.id, name: p.name, desires: [] };
+  for (const d of desires) {
+    const [a] = await db.select({ n: count() }).from(schema.angles).where(eq(schema.angles.desireId, d.id));
+    const [t] = await db.select({ n: count() }).from(schema.ads)
+      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .where(eq(schema.angles.desireId, d.id));
+    complet.desires.push({ id: d.id, label: d.label, angles: Number(a?.n ?? 0), tested: Number(t?.n ?? 0) });
+  }
+  return complet;
+}
+
+/** Le plan, sans rien écrire · c'est ce qu'on montre avant de demander confirmation. */
+export async function mergePlanAction(input: { sourceId: string; targetId: string }): Promise<{ plan?: MergePlan; error?: string }> {
+  const g = await adsmapGuard();
+  if ('error' in g) return { error: g.error };
+  try {
+    const [source, target] = await Promise.all([
+      personaComplet(input.sourceId, g.brand.id),
+      personaComplet(input.targetId, g.brand.id),
+    ]);
+    if (!source || !target) return { error: 'Un de ces personas n’existe plus sur cette marque.' };
+    return { plan: planMerge(source, target) };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:merge-plan', e, { subject: 'le plan de fusion', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+/**
+ * Exécute la fusion.
+ *
+ * ── L'ordre des écritures n'est pas indifférent ──────────────────────────────
+ *
+ * Les désirs bougent AVANT que la source soit archivée. Une suppression
+ * physique du persona emporterait ses désirs en cascade, donc ses angles, ses
+ * concepts et ses tests · on archive, et seulement une fois la branche
+ * raccrochée ailleurs.
+ *
+ * ── Le plan est recalculé côté serveur ───────────────────────────────────────
+ *
+ * Celui affiché a pu vieillir · un désir créé entre-temps se replierait mal, et
+ * on ne réécrit jamais la carte sur la foi d'identifiants venus du navigateur.
+ */
+export async function mergePersonasAction(input: { sourceId: string; targetId: string }): Promise<{ ok?: true; moved?: number; folded?: number; error?: string }> {
+  const g = await adsmapGuard({ minRole: 'admin' });
+  if ('error' in g) return { error: g.error };
+
+  try {
+    const [source, target] = await Promise.all([
+      personaComplet(input.sourceId, g.brand.id),
+      personaComplet(input.targetId, g.brand.id),
+    ]);
+    if (!source || !target) return { error: 'Un de ces personas n’existe plus sur cette marque.' };
+
+    const plan = planMerge(source, target);
+    if (!plan.ok) return { error: plan.blocked ?? 'Fusion impossible.' };
+
+    // 1. Les désirs qui n'ont pas d'homonyme changent de parent.
+    for (const m of plan.moves) {
+      await db!.update(schema.desires).set({ personaId: target.id, updatedAt: new Date() })
+        .where(eq(schema.desires.id, m.desireId));
+    }
+
+    // 2. Les doublons se replient · leurs angles rejoignent le désir jumeau,
+    //    puis le désir vidé est archivé plutôt que supprimé (il a une histoire).
+    for (const f of plan.folds) {
+      await db!.update(schema.angles).set({ desireId: f.intoDesireId, updatedAt: new Date() })
+        .where(eq(schema.angles.desireId, f.fromDesireId));
+      await db!.update(schema.desires).set({ status: 'archived', updatedAt: new Date() })
+        .where(eq(schema.desires.id, f.fromDesireId));
+    }
+
+    // 3. Seulement maintenant · la branche est raccrochée, la source peut partir.
+    await db!.update(schema.personas).set({ status: 'archived' })
+      .where(eq(schema.personas.id, source.id));
+
+    invalidateJarvisMemory(g.brand.id);
+    revalidatePath('/adsmap');
+    return { ok: true, moved: plan.moves.length, folded: plan.folds.length };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:merge', e, { subject: 'la fusion', workspaceId: g.s.workspaceId }) };
+  }
+}
