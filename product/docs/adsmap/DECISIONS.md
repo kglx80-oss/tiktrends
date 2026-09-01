@@ -2056,3 +2056,44 @@ double, et `guardFixedCost` doit voir passer deux unités, pas une.
 **Un test a trouvé une faute dans le repli** : `safeVideoDuration(undefined)`
 testait `d ?? 5` puis rendait `d`, donc laissait passer `undefined`. Tester et
 rendre la même valeur.
+
+---
+
+## D105 — GPT Image 2, en deux qualités annoncées
+
+**Décision.** Deux entrées au catalogue : `gpt2` (qualité moyenne, 5 crédits) et
+`gpt2_high` (qualité haute, 20 crédits). Endpoints `openai/gpt-image-2` et
+`openai/gpt-image-2/edit`.
+
+**Pourquoi deux entrées et pas un réglage caché.** Chez le fournisseur, la
+qualité fait varier le prix d'un facteur quatre (~0,05 $ contre ~0,21 $ par
+image). Un réglage qu'on découvre sur la facture n'est pas un réglage · deux
+lignes qui annoncent chacune son tarif en est un.
+
+**La qualité est un paramètre, pas une adresse.** Le garde anti-« variante
+fantôme » l'exige déjà : deux entrées qui produisent le même appel doivent
+coûter le même prix. Ici l'adresse est commune, `quality` diffère, le prix suit.
+
+---
+
+## D106 — Un modèle a deux adresses, selon qu'on lui donne une image
+
+**Décision.** `falModelNoRef` porte l'endpoint sans référence, et `falModelFor`
+choisit.
+
+**Pourquoi.** Appeler `.../edit` sans image renvoie une erreur du fournisseur ·
+le modèle a l'air cassé alors qu'on s'est trompé de porte. Nano Banana était
+dans ce cas depuis le début, sans qu'on le voie : le studio Image passe presque
+toujours une photo produit.
+
+---
+
+## D107 — Le studio Image choisit son moteur, et le paie
+
+**Décision.** La pastille « Moteur d'image » arrive dans le studio Image, et le
+débit crédits suit le modèle choisi.
+
+**Pourquoi.** Il subissait celui de l'environnement pendant que Pubs IA le
+choisissait depuis toujours. Et facturer `costFor('image')` quel que soit le
+moteur revenait à vendre GPT Image 2 · Haute au prix de Nano Banana, soit un
+quart de son coût réel.

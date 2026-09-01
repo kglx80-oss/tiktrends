@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, explainProposal, type StatRow, type HookEntry } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -98,7 +98,8 @@ async function composeBatch(o: {
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean;
   reservedCredits: number; // deja debite par l'appelant : on rembourse ce qui n'a pas ete produit
-  falModel?: string; falParams?: Record<string, string | number>; creditsPerImage: number; // modèle choisi (+ ses paramètres) et crédits par variante
+  /** Le moteur choisi, entier · l'endpoint et les paramètres s'en déduisent. */
+  modelSpec: ImageModelSpec; creditsPerImage: number;
   productId?: string; personaId?: string; objective?: string;
   /** Prompt maison · remplace l'univers fourni quand il est choisi. */
   preset?: { id: string; prompt: string; negative: string | null } | null;
@@ -149,7 +150,13 @@ async function composeBatch(o: {
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
       try {
         await guardFixedCost('fal_image', { action: 'ads:image', units: 1 });
-        const { images } = await falGenerateImage(o.cfg, { prompt, aspectRatio: '4:5', imageUrls, edit, count: 1, model: o.falModel, params: o.falParams });
+        // L'endpoint dépend de la présence d'une référence · appeler `.../edit`
+        // sans image renvoie une erreur du fournisseur, et le modèle a l'air
+        // cassé alors qu'on s'est trompé de porte.
+        const { images } = await falGenerateImage(o.cfg, {
+          prompt, aspectRatio: '4:5', imageUrls, edit, count: 1,
+          model: falModelFor(o.modelSpec, !!imageUrls?.length), params: o.modelSpec.params,
+        });
         if (images[0]) return images[0];
       } catch { /* réessai */ }
     }
@@ -368,7 +375,7 @@ export async function generateAdsAction(input: {
     productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
-    falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
+    modelSpec, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
     memoryUse: memoire.use, rationaleCtx,
   });
@@ -549,7 +556,7 @@ export async function cloneAdAction(input: {
     productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
     preset: presetClone,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
-    falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
+    modelSpec, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
     memoryUse: mesureClone.use,
   });
