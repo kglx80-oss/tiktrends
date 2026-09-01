@@ -2555,3 +2555,50 @@ plus tard. On dit ce qui bouge, chiffres compris, puis on demande.
 **Le panneau est rendu même quand il n'y a rien à trier** · c'est justement quand
 la file est vide que le doublon validé est le plus invisible. Le cacher derrière
 l'état vide reviendrait à retirer l'outil le jour où il sert.
+
+---
+
+## D134 — L'attribution mesurait au mauvais niveau
+
+**Constat.** Le lien génération → créa vivait sur le CONCEPT
+(`adsmap_concepts.source_ref`). Ça se voit dès qu'on lit la contrainte
+d'unicité des ads : `(concept_id, batch_id, variant_code)`. **Plusieurs ads
+pendent au même concept** · les variantes v1, v2, v3 sont exactement ça.
+
+Pire : la passerelle Studio réutilise un concept existant quand le titre
+coïncide, sans toucher à son `source_ref`. Deux créas générées à six semaines
+d'écart, l'une sans mémoire et l'autre avec, étaient attribuées à la **même**
+génération · celle de la première.
+
+**L'erreur n'était pas neutre.** Les concepts anciens sont ceux d'avant la
+mémoire. Toute variante récente ajoutée sous l'un d'eux tombait dans le groupe
+témoin — la mesure censée dire « est-ce que la mémoire aide » était biaisée
+**contre la réponse qu'elle cherchait**. C'est le pire biais possible : il ne
+crie pas, il rassure sur la prudence du chiffre.
+
+Le classement « quel prompt gagne » (`presets.ts`) lisait le même pont · un
+preset héritait des verdicts de variantes qu'il n'avait pas produites.
+
+**Décision.** `adsmap_ads.source_ref_json` (0044). Le lien est posé sur l'ad,
+là où la génération a eu lieu. Le concept ne sert plus que de repli, et
+seulement quand **une seule** ad y pend.
+
+## D135 — Une inconnue n'est pas un témoin
+
+Rien n'est rétro-rempli : on ne SAIT pas quelle génération a produit quelle
+variante historique.
+
+Devant une ad qu'on ne sait pas rattacher, la tentation est de la compter comme
+« sans mémoire ». C'est faux — on ignore ce qu'elle a reçu. Elle est donc
+écartée **des deux groupes**.
+
+Une inconnue rangée dans le témoin gonfle le témoin d'exactement ce qu'on essaie
+de mesurer. Le calcul distingue quatre origines (`ad`, `concept`, `ambiguous`,
+`none`), et seule `none` — aucune génération, donc une ad importée ou saisie à
+la main — est un témoin légitime.
+
+**Le nombre d'écartées s'affiche.** Une comparaison qui laisse tomber des tests
+en silence a l'air de porter sur tout.
+
+Un test bloque le retour en arrière : rétablir le repli inconditionnel sur le
+concept fait échouer « REFUSE le lien du concept quand plusieurs ads y pendent ».

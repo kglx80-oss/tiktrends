@@ -1,9 +1,9 @@
 'use server';
 
-import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  validatePreset, normalizePreset, presetPerformance,
+  validatePreset, normalizePreset, presetPerformance, memoryOrigin,
   type PresetInput, type PresetPerformance, type PresetUsageRow,
 } from '@tiktrends/core';
 import { VISUAL_UNIVERSES } from '@tiktrends/ai';
@@ -21,7 +21,7 @@ import { GUARD } from '../../lib/guard-error';
  *
  * On remonte exactement le même chemin que l'attribution : la génération
  * consigne le preset utilisé dans `input.presetId`, la passerelle Studio →
- * ADSMAP écrit `concepts.source_ref.generationId`, et le verdict pend à l'ad.
+ * ADSMAP écrit `ads.source_ref.generationId`, et le verdict pend à l'ad.
  *
  * Réutiliser ce pont plutôt que d'en poser un second garantit qu'un preset et
  * la mémoire de Jarvis parlent des mêmes tests · deux chemins finiraient par
@@ -95,6 +95,13 @@ export async function listPresetsAction(): Promise<{ view?: PresetsView; error?:
  *
  * Une seule requête pour toute la marque · calculer preset par preset ferait
  * autant d'allers-retours qu'il y a de prompts, pour la même donnée.
+ *
+ * ── Le lien se lit sur l'ad ──────────────────────────────────────────────────
+ *
+ * Il se lisait sur le concept, où plusieurs ads le partagent · un preset héritait
+ * alors des verdicts de variantes qu'il n'avait pas produites, et le classement
+ * « quel prompt gagne » notait le mauvais prompt. Le concept ne sert plus que de
+ * repli, et seulement quand une seule ad y pend.
  */
 async function usageRows(workspaceId: string, brandId: string): Promise<PresetUsageRow[]> {
   if (!db) return [];
@@ -111,9 +118,11 @@ async function usageRows(workspaceId: string, brandId: string): Promise<PresetUs
   }
   if (!presetDe.size) return [];
 
-  // Les ads issues de ces générations · le pont est `concepts.source_ref`.
+  // Les ads issues de ces générations · le pont est `ads.source_ref`.
   const ads = await db.select({
-    sourceRef: schema.concepts.sourceRef,
+    conceptId: schema.ads.conceptId,
+    adRef: schema.ads.sourceRef,
+    conceptRef: schema.concepts.sourceRef,
     validated: schema.verdicts.validated,
   })
     .from(schema.ads)
@@ -125,10 +134,24 @@ async function usageRows(workspaceId: string, brandId: string): Promise<PresetUs
     .where(eq(schema.ads.workspaceId, workspaceId))
     .limit(1200);
 
+  const conceptIds = [...new Set(ads.map((a) => a.conceptId))];
+  const compte = conceptIds.length
+    ? await db.select({ conceptId: schema.ads.conceptId, n: count() })
+        .from(schema.ads)
+        .where(inArray(schema.ads.conceptId, conceptIds))
+        .groupBy(schema.ads.conceptId)
+    : [];
+  const parConcept = new Map(compte.map((c) => [c.conceptId, Number(c.n ?? 0)]));
+  const ref = (x: unknown) => (x as { generationId?: string } | null)?.generationId ?? null;
+
   const out: PresetUsageRow[] = [];
   for (const a of ads) {
-    const gid = (a.sourceRef as { generationId?: string } | null)?.generationId;
-    const preset = gid ? presetDe.get(gid) : undefined;
+    const { generationId } = memoryOrigin({
+      adGenerationId: ref(a.adRef),
+      conceptGenerationId: ref(a.conceptRef),
+      adsUnderConcept: parConcept.get(a.conceptId) ?? 1,
+    });
+    const preset = generationId ? presetDe.get(generationId) : undefined;
     if (preset) out.push({ presetId: preset, verdict: a.validated ?? null });
   }
   return out;

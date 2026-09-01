@@ -1,0 +1,23 @@
+-- D'où vient une ad · sur l'ad, pas sur son concept.
+--
+-- Le lien génération → ad vivait sur `adsmap_concepts.source_ref_json`. C'est le
+-- mauvais niveau, et ça se voit dès qu'on regarde la contrainte d'unicité des
+-- ads : (concept_id, batch_id, variant_code). PLUSIEURS ads pendent au même
+-- concept · les variantes v1, v2, v3 sont exactement ça.
+--
+-- Pire, la passerelle Studio réutilise un concept existant quand le titre
+-- coïncide, sans toucher à son `source_ref`. Deux créas générées à six semaines
+-- d'écart, l'une sans mémoire et l'autre avec, étaient donc attribuées à la MÊME
+-- génération · celle de la première.
+--
+-- L'erreur n'était pas neutre. Les concepts anciens sont ceux d'avant la
+-- mémoire : toute variante récente ajoutée sous l'un d'eux tombait dans le
+-- groupe témoin. La mesure censée dire « est-ce que la mémoire aide » était
+-- biaisée contre la réponse qu'elle cherchait.
+--
+-- La colonne est nullable et rien n'est rétro-rempli : on ne SAIT pas quelle
+-- génération a produit quelle variante historique. Le calcul écarte ces ads des
+-- deux groupes plutôt que de deviner · une inconnue rangée dans le témoin gonfle
+-- le témoin d'exactement ce qu'on essaie de mesurer.
+ALTER TABLE adsmap_ads
+  ADD COLUMN IF NOT EXISTS source_ref_json jsonb;

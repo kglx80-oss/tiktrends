@@ -83,11 +83,20 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
       adType: 'ideation', status: 'proposed', sourceRef: { generationId: gen.id },
     }).returning({ id: schema.concepts.id }))[0]!.id;
 
+    // Le lien va sur l'AD, et pas seulement sur le concept.
+    //
+    // Le concept est réutilisé quand le titre coïncide · son `sourceRef` reste
+    // celui de la PREMIÈRE génération, et les variantes suivantes héritaient
+    // alors d'une mémoire qui n'était pas la leur. Comme les concepts anciens
+    // sont ceux d'avant la mémoire, chaque variante récente tombait dans le
+    // groupe témoin de l'attribution · la mesure était biaisée contre la
+    // réponse qu'elle cherchait.
     const [ad] = await db!.insert(schema.ads).values({
       workspaceId: g.s.workspaceId, conceptId,
       variantCode: await nextVariant(conceptId),
       format: 'static', adType: 'ideation', status: 'draft',
       assetUrl: (gen.assetUrls && gen.assetUrls[0]) || `/api/ad/${gen.id}`,
+      sourceRef: { generationId: gen.id },
     }).returning({ id: schema.ads.id });
     if (!ad) return { error: 'Création impossible.' };
 

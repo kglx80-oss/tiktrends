@@ -885,6 +885,9 @@ export const ads = pgTable('adsmap_ads', {
   landingPageId: uuid('landing_page_id').references(() => landingPages.id, { onDelete: 'set null' }),
   briefUrl: text('brief_url'),
   assetUrl: text('asset_url'),
+  // D'où vient CETTE ad · { generationId }. Le lien vivait sur le concept, où
+  // plusieurs variantes le partageaient · voir 0044.
+  sourceRef: jsonb('source_ref_json'),
   platform: platformEnum('platform').notNull().default('meta'),
   externalIds: jsonb('external_ids_json'),                // { ad_id, adset_id, campaign_id }
   generatedName: text('generated_name'),                  // nom attendu côté régie (§8.6)

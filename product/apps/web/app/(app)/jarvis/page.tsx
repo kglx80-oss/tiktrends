@@ -194,6 +194,16 @@ export default async function JarvisPage() {
                 : 'Aucun test arbitré ne l’alimente pour l’instant.'}
             </p>
           )}
+          {/* Ce qui a été écarté se dit · une comparaison qui laisse tomber des
+              tests en silence a l'air de porter sur tout. */}
+          {(attr?.overall.excluded ?? 0) > 0 && (
+            <p style={{ margin: '9px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+              {attr!.overall.excluded} test(s) arbitré(s) sont écartés des deux groupes · plusieurs créas
+              partagent leur concept et rien ne dit laquelle est née de quelle génération. Les ranger
+              parmi les témoins gonflerait le témoin de créas qui ont peut-être profité de la mémoire.
+              Les créas suivies depuis maintenant portent le lien sur elles.
+            </p>
+          )}
           {attr?.parts.some((p) => p.liftPoints !== null) && (
             <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
               {attr.parts.filter((p) => p.liftPoints !== null).map((p) => (

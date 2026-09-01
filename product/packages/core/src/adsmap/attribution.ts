@@ -37,11 +37,65 @@ export interface MemoryUse {
   hooks: number;
 }
 
+/**
+ * D'où vient la mémoire qu'on attribue à une ad.
+ *
+ * - `ad` · la génération est notée sur l'ad elle-même, le lien est certain ;
+ * - `concept` · elle n'est notée que sur le concept, mais **une seule** ad y
+ *   pend · le lien reste sans ambiguïté ;
+ * - `ambiguous` · elle n'est notée que sur le concept et PLUSIEURS ads y pendent
+ *   · on sait qu'une génération existe, pas laquelle a produit cette ad ;
+ * - `none` · aucune génération · l'ad a été importée ou saisie à la main, elle
+ *   n'a bénéficié d'aucune mémoire, et c'est un témoin légitime.
+ */
+export type MemoryOrigin = 'ad' | 'concept' | 'ambiguous' | 'none';
+
 export interface AttributedAd {
   /** Ce dont la génération a bénéficié · `null` quand rien n'a été consigné. */
   memory: MemoryUse | null;
   /** Verdict arbitré de l'ad qui en est issue. */
   verdict: string | null;
+  /** Solidité du lien génération → ad · voir `MemoryOrigin`. */
+  origin: MemoryOrigin;
+}
+
+/**
+ * Quelle génération a produit cette ad ?
+ *
+ * ── Pourquoi cette fonction existe ───────────────────────────────────────────
+ *
+ * Le lien a longtemps vécu sur le CONCEPT (`concepts.source_ref`). Or plusieurs
+ * ads pendent au même concept · c'est même la règle, les variantes v1, v2, v3
+ * sont exactement ça. Et la passerelle Studio réutilise un concept existant
+ * quand le titre coïncide, sans toucher à son `source_ref`.
+ *
+ * Deux créas générées à six semaines d'écart, l'une sans mémoire et l'autre avec,
+ * étaient donc attribuées à la MÊME génération · celle de la première.
+ *
+ * **Et l'erreur n'était pas neutre.** Les concepts anciens sont ceux d'avant la
+ * mémoire : toute variante récente ajoutée sous l'un d'eux tombait dans le
+ * groupe témoin. La mesure censée dire « est-ce que la mémoire aide » était
+ * biaisée contre la réponse qu'elle cherchait.
+ *
+ * ── Ce qu'on refuse de faire ─────────────────────────────────────────────────
+ *
+ * Devant une ad qu'on ne sait pas rattacher, la tentation est de la compter
+ * comme « sans mémoire ». C'est faux : on ignore ce qu'elle a reçu. Elle est
+ * donc écartée des DEUX groupes · une inconnue rangée dans le témoin gonfle le
+ * témoin d'exactement ce qu'on essaie de mesurer.
+ */
+export function memoryOrigin(input: {
+  /** Génération notée sur l'ad · le lien direct. */
+  adGenerationId: string | null;
+  /** Génération notée sur le concept · le lien historique. */
+  conceptGenerationId: string | null;
+  /** Combien d'ads pendent à ce concept · décide si le lien historique tient. */
+  adsUnderConcept: number;
+}): { generationId: string | null; origin: MemoryOrigin } {
+  if (input.adGenerationId) return { generationId: input.adGenerationId, origin: 'ad' };
+  if (!input.conceptGenerationId) return { generationId: null, origin: 'none' };
+  if (input.adsUnderConcept <= 1) return { generationId: input.conceptGenerationId, origin: 'concept' };
+  return { generationId: null, origin: 'ambiguous' };
 }
 
 const GAGNANTS = new Set(['winner', 'baby_winner', 'relative_winner']);
@@ -75,8 +129,16 @@ export interface AttributionResult {
    * seule situation où l'écart observé vaut mieux qu'une impression.
    */
   conclusive: boolean;
+  /**
+   * Ads conclues qu'on n'a pas su rattacher à une génération précise · écartées
+   * des deux groupes. Se dit, sinon la comparaison paraît porter sur tout.
+   */
+  excluded: number;
   summary: string;
 }
+
+/** Ce qui entre dans la comparaison · une inconnue n'est pas un témoin. */
+const attribuable = (a: AttributedAd) => a.origin !== 'ambiguous';
 
 function group(ads: AttributedAd[]): Group {
   // Une ad non concluante n'apprend rien et ne compte nulle part · même règle
@@ -103,8 +165,14 @@ const pts = (x: number) => `${x > 0 ? '+' : ''}${Math.round(x * 100)} point(s)`;
 export function attributionStats(ads: AttributedAd[]): AttributionResult {
   const hasMemory = (a: AttributedAd) => !!a.memory && (a.memory.measured || a.memory.hooks > 0);
 
-  const withMemory = group(ads.filter(hasMemory));
-  const without = group(ads.filter((a) => !hasMemory(a)));
+  const retenues = ads.filter(attribuable);
+  const withMemory = group(retenues.filter(hasMemory));
+  const without = group(retenues.filter((a) => !hasMemory(a)));
+
+  // Ce qu'on a écarté se compte sur les mêmes ads que les groupes · une ad non
+  // concluante n'aurait compté nulle part de toute façon, l'annoncer comme
+  // « écartée faute de lien » ferait porter le chapeau à la mauvaise cause.
+  const excluded = group(ads.filter((a) => !attribuable(a))).n;
 
   const assez = withMemory.n >= MIN_N_GROUP && without.n >= MIN_N_GROUP;
   const liftPoints = assez && withMemory.rate !== null && without.rate !== null
@@ -115,7 +183,7 @@ export function attributionStats(ads: AttributedAd[]): AttributionResult {
   // sévère. Deux taux qui se touchent ne se départagent pas.
   const conclusive = assez && (withMemory.lo > without.hi || without.lo > withMemory.hi);
 
-  return { withMemory, without, liftPoints, conclusive, summary: summarize(withMemory, without, liftPoints, conclusive) };
+  return { withMemory, without, liftPoints, conclusive, excluded, summary: summarize(withMemory, without, liftPoints, conclusive) };
 }
 
 function summarize(a: Group, b: Group, lift: number | null, conclusive: boolean): string {
@@ -161,9 +229,11 @@ export function attributionByPart(ads: AttributedAd[]): PartResult[] {
     { part: 'market', has: (a) => !!a.memory?.market },
   ];
 
+  const retenues = ads.filter(attribuable);
+
   return tests.map(({ part, has }) => {
-    const withIt = group(ads.filter(has));
-    const withoutIt = group(ads.filter((a) => !has(a)));
+    const withIt = group(retenues.filter(has));
+    const withoutIt = group(retenues.filter((a) => !has(a)));
     const assez = withIt.n >= MIN_N_GROUP && withoutIt.n >= MIN_N_GROUP;
     return {
       part, withIt, withoutIt,
