@@ -144,6 +144,29 @@ export const IMAGE_MODELS: ImageModelSpec[] = [
 ];
 
 /**
+ * Corriger une adresse de modèle sans redéployer.
+ *
+ * Un fournisseur renomme ses endpoints sans prévenir, et une adresse fausse se
+ * traduit par « la demande a été refusée par le service » · un message exact et
+ * inutilisable. Le serveur peut donc reprendre la main avec une variable
+ * d'environnement, le temps qu'une correction arrive dans le code.
+ *
+ * Nommage : `FAL_IMAGE_MODEL_<CLÉ>` et `FAL_IMAGE_MODEL_<CLÉ>_NOREF`, la clé en
+ * majuscules (`FAL_IMAGE_MODEL_GPT2`, `FAL_IMAGE_MODEL_GPT2_NOREF`).
+ */
+function surcharge(spec: ImageModelSpec): ImageModelSpec {
+  const K = spec.key.toUpperCase();
+  const avecRef = process.env[`FAL_IMAGE_MODEL_${K}`];
+  const sansRef = process.env[`FAL_IMAGE_MODEL_${K}_NOREF`];
+  if (!avecRef && !sansRef) return spec;
+  return {
+    ...spec,
+    falModel: avecRef || spec.falModel,
+    falModelNoRef: sansRef || (avecRef ? undefined : spec.falModelNoRef),
+  };
+}
+
+/**
  * L'endpoint à appeler pour ce modèle, selon qu'on lui donne une image ou non.
  *
  * Beaucoup de modèles exposent deux adresses · appeler `.../edit` sans image
@@ -155,10 +178,7 @@ export function falModelFor(spec: ImageModelSpec, hasRef: boolean): string {
 }
 
 export function imageModelByKey(key?: string | null): ImageModelSpec {
-  const spec = IMAGE_MODELS.find((m) => m.key === key) || IMAGE_MODELS[0]!;
-  // Surcharge d'environnement de l'identifiant Fal (utile pour GPT Image / variantes byok).
-  const override = spec.key === 'gpt_image' ? process.env.FAL_IMAGE_MODEL_GPT : undefined;
-  return override ? { ...spec, falModel: override } : spec;
+  return surcharge(IMAGE_MODELS.find((m) => m.key === key) || IMAGE_MODELS[0]!);
 }
 
 export interface CostAnalysis extends CostItem {

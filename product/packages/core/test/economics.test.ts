@@ -119,3 +119,48 @@ describe('GPT Image 2 et le choix d’endpoint', () => {
     expect((haut.credits * CREDIT_EUR) / haut.realEur).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('une adresse de modèle se corrige sans redéployer', () => {
+  const nettoie = () => {
+    delete process.env.FAL_IMAGE_MODEL_GPT2;
+    delete process.env.FAL_IMAGE_MODEL_GPT2_NOREF;
+  };
+
+  it('sans variable, le catalogue fait foi', () => {
+    nettoie();
+    expect(imageModelByKey('gpt2').falModel).toBe('openai/gpt-image-2/edit');
+  });
+
+  it('la variable reprend la main sur l’adresse avec référence', () => {
+    process.env.FAL_IMAGE_MODEL_GPT2 = 'fal-ai/autre/edit';
+    expect(imageModelByKey('gpt2').falModel).toBe('fal-ai/autre/edit');
+    nettoie();
+  });
+
+  /**
+   * Corriger l'adresse d'édition sans dire quoi appeler sans référence doit
+   * OUBLIER l'ancienne adresse sans référence · la garder ferait cohabiter un
+   * endpoint corrigé et un endpoint périmé, et le studio Image tomberait sur
+   * le second sans qu'on comprenne pourquoi.
+   */
+  it('corriger l’édition seule oublie l’ancienne adresse sans référence', () => {
+    process.env.FAL_IMAGE_MODEL_GPT2 = 'fal-ai/autre/edit';
+    expect(imageModelByKey('gpt2').falModelNoRef).toBeUndefined();
+    nettoie();
+  });
+
+  it('les deux adresses se corrigent séparément', () => {
+    process.env.FAL_IMAGE_MODEL_GPT2 = 'fal-ai/autre/edit';
+    process.env.FAL_IMAGE_MODEL_GPT2_NOREF = 'fal-ai/autre';
+    const m = imageModelByKey('gpt2');
+    expect(m.falModel).toBe('fal-ai/autre/edit');
+    expect(m.falModelNoRef).toBe('fal-ai/autre');
+    nettoie();
+  });
+
+  it('une surcharge ne touche pas les autres modèles', () => {
+    process.env.FAL_IMAGE_MODEL_GPT2 = 'fal-ai/autre/edit';
+    expect(imageModelByKey('nano').falModel).toBe('fal-ai/nano-banana-2/edit');
+    nettoie();
+  });
+});
