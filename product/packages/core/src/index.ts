@@ -45,6 +45,7 @@ export * from './adsmap/curation';
 export * from './adsmap/preflight';
 export * from './adsmap/studio-templates';
 export * from './generation-outcome';
+export * from './visual-universes';
 export * from './adsmap/merge';
 export * from './adsmap/draft';
 export * from './creative-presets';
