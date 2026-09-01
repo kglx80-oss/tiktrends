@@ -8,6 +8,7 @@ import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { Composer } from '../../../../components/Composer';
+import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
 
 type Ratio = '9:16' | '1:1' | '16:9';
@@ -47,6 +48,10 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   // La scène reprise · consignée à la génération, c'est ce qui lui bâtit un
   // bilan. Toute frappe la libère : un texte retouché n'est plus la scène.
   const [sceneId, setSceneId] = useState('');
+  // Ce que la mémoire dit de la description AVANT de payer la génération ·
+  // le brief de pré-lancement n'arrivait qu'une fois la créa posée dans un lot,
+  // c'est-à-dire après l'avoir fabriquée. Ici, il économise les deux.
+  const preflight = usePreflight(prompt);
   const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('video');
   const [vidPage, setVidPage] = useState(0);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
@@ -189,6 +194,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           scenes={scenes}
           onPickScene={(s) => setSceneId(s.id)}
           advice={conseil(sceneId)}
+          preflight={preflight}
           onSaveScene={enregistrer}
           controls={[
             {

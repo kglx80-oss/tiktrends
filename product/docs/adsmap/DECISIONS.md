@@ -2418,3 +2418,56 @@ exactement le problème qu'on règle.
 
 **Ce qu'on ne fait pas ici : fusionner.** Re-raccrocher les enfants de deux
 personas est un travail à part, et une fusion ratée perd des tests.
+
+---
+
+## D127 — Le brief de pré-lancement arrivait après la génération
+
+**Décision.** La barre de composition interroge la mémoire pendant qu'on écrit,
+dans les trois studios.
+
+**Pourquoi.** Jarvis relit ses propres brouillons, et une créa rencontrait son
+brief une fois posée dans un lot · c'est-à-dire **après** avoir été fabriquée.
+Dire « cette accroche a déjà perdu » à ce moment-là économise le test, pas la
+génération. Dans la barre, la même phrase économise les deux.
+
+**Coût nul.** Le brief est calculé depuis les verdicts arbitrés · aucun appel
+modèle. Une vérification qui dépenserait à chaque frappe serait coupée dans la
+semaine, et à raison.
+
+---
+
+## D128 — Interrompre quelqu'un qui écrit se mérite
+
+**Décision.** Deux cas seulement : une accroche déjà réfutée, ou une réserve
+explicite de la mémoire. Une seule phrase, jamais deux.
+
+**Pourquoi.** Une ligne qui apparaît à chaque frappe devient un bruit qu'on
+cesse de lire · et la fois où elle compte vraiment, elle est déjà invisible.
+Empiler trois réserves dans une barre, c'est demander une revue de code à
+quelqu'un qui écrit.
+
+**Un profil simplement moyen ne dit rien. Un concept neuf non plus** · il a par
+construction un profil qu'on ne connaît pas, et c'est souvent lui qui ouvre
+quelque chose.
+
+**Le préflight passe devant le conseil de scène** quand les deux existent :
+« cette accroche a déjà perdu ici » est un fait, « une autre scène fait mieux »
+est une comparaison.
+
+---
+
+## D129 — Elle éclaire, elle n'interdit jamais
+
+**Décision.** Le bouton reste actif quoi que dise la mémoire.
+
+**Pourquoi.** Le jour où l'outil empêche de lancer une créa parce qu'un chiffre
+lui déplaît, il a cessé d'être un outil.
+
+**Trois silences par construction** : texte trop court (le seuil vient du noyau,
+l'écran n'invente pas le sien), marque sans tests mesurés (la mémoire n'aurait
+rien à confronter), et vérification en échec — elle n'a jamais empêché de
+lancer, elle ne va pas commencer par un message d'erreur.
+
+**La réponse tardive ne s'affiche jamais** · deux vérifications qui se croisent
+afficheraient une réserve portant sur une phrase déjà effacée.

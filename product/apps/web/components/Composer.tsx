@@ -87,6 +87,15 @@ export interface ComposerProps {
    * choix devient un bruit qu'on cesse de lire au bout de trois jours.
    */
   advice?: string | null;
+  /**
+   * Ce que la mémoire dit de la DESCRIPTION, avant de payer la génération.
+   *
+   * Elle passe devant `advice` quand les deux existent · « cette accroche a
+   * déjà perdu ici » est un fait, « une autre scène fait mieux » est une
+   * comparaison. On n'en montre qu'une : deux réserves dans une barre, c'est
+   * demander une revue de code à quelqu'un qui écrit.
+   */
+  preflight?: { tone: 'stop' | 'warn'; text: string } | null;
   /** Ce que coûte le clic · affiché SUR le bouton. */
   cost?: { credits?: number; note?: string };
   onGenerate: () => void;
@@ -116,7 +125,7 @@ export function Composer(props: ComposerProps) {
     value, onChange, placeholder = 'Décris la scène que tu imagines',
     controls = [], toggles = [], scenes = [],
     onPickScene, onSaveScene, onAttach, attachLabel, attachedCount = 0,
-    advice, cost, onGenerate, busy, disabled, generateLabel = 'Générer', extra,
+    advice, preflight, cost, onGenerate, busy, disabled, generateLabel = 'Générer', extra,
     requireText = true,
   } = props;
 
@@ -299,13 +308,15 @@ export function Composer(props: ComposerProps) {
         </div>
       )}
 
-      {/* Ce que la mémoire sait de la scène choisie · elle éclaire, elle
-          n'interdit pas. Placée sous la barre, elle se lit avant de cliquer. */}
-      {advice && (
+      {/* Ce que la mémoire sait · elle éclaire, elle n'interdit pas. Le bouton
+          reste actif dans tous les cas : le jour où l'outil empêche de lancer
+          une créa parce qu'un chiffre lui déplaît, il a cessé d'être un outil. */}
+      {(preflight || advice) && (
         <p style={{
-          margin: 0, fontSize: 12, lineHeight: 1.55, color: '#ffcf8f',
-          borderLeft: '2px solid rgba(245,166,35,.5)', paddingLeft: 10,
-        }}>{advice}</p>
+          margin: 0, fontSize: 12, lineHeight: 1.55, paddingLeft: 10,
+          color: preflight?.tone === 'stop' ? '#ff9db0' : '#ffcf8f',
+          borderLeft: `2px solid ${preflight?.tone === 'stop' ? 'rgba(255,77,109,.55)' : 'rgba(245,166,35,.5)'}`,
+        }}>{preflight?.text ?? advice}</p>
       )}
 
       {cost?.note && (

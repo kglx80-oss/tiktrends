@@ -10,6 +10,7 @@ import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { Composer } from '../../../../components/Composer';
+import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
@@ -75,6 +76,10 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   // texte retouché n'est plus la scène enregistrée, et lui en attribuer le
   // résultat fausserait le seul chiffre qui a de la valeur ici.
   const [sceneId, setSceneId] = useState('');
+  // Ce que la mémoire dit de la description AVANT de payer la génération ·
+  // le brief de pré-lancement n'arrivait qu'une fois la créa posée dans un lot,
+  // c'est-à-dire après l'avoir fabriquée. Ici, il économise les deux.
+  const preflight = usePreflight(prompt);
   const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('image');
 
   const selected = useMemo(() => prods.find((p) => p.id === productId) || null, [prods, productId]);
@@ -269,6 +274,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           scenes={scenes}
           onPickScene={(s) => setSceneId(s.id)}
           advice={conseil(sceneId)}
+          preflight={preflight}
           onSaveScene={enregistrer}
           onAttach={mode === 'i2i' ? () => fileRef.current?.click() : undefined}
           attachLabel="Ajouter la photo de ton produit"
