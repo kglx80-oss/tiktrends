@@ -75,3 +75,69 @@ export function worthChecking(text: string, measuredAds: number, minAds = 3): bo
   // un silence coûteux à chaque frappe.
   return measuredAds >= minAds;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Le concept complet, pas seulement sa description                          */
+/* -------------------------------------------------------------------------- */
+
+/** Un gabarit envisagé, avec ce que la mémoire en dit. */
+export interface PreflightOption { label: string; brief: PrelaunchBrief }
+
+const POIDS: Record<PreflightTone, number> = { stop: 2, warn: 1 };
+
+/**
+ * Ce que la mémoire dit du concept tel qu'il est composé.
+ *
+ * ── Ce qui manquait ──────────────────────────────────────────────────────────
+ *
+ * La barre ne transmettait que la description. `prelaunchScore` sait pourtant
+ * situer un mécanisme, un format, un stade de conscience · on lui donnait une
+ * phrase et on ignorait tout le reste du composeur, qui est renseigné à l'écran
+ * juste au-dessus.
+ *
+ * Résultat : la seule réserve possible portait sur l'accroche. « Ce gabarit-là
+ * n'a jamais rien donné ici » ne pouvait pas être dit, alors que c'est
+ * exactement le genre de fait qui fait changer d'avis avant de payer.
+ *
+ * ── Nommer le gabarit, mais seulement quand ça sert ──────────────────────────
+ *
+ * Une réserve qui vaut pour TOUS les gabarits envisagés n'est pas réparable en
+ * changeant de gabarit · la nommer enverrait sur une fausse piste, on la dit
+ * telle quelle. Une réserve qui n'en touche qu'un est actionnable : on dit
+ * lequel, et on dit que les autres passent.
+ *
+ * C'est la différence entre une information et une consigne.
+ *
+ * ── L'accroche l'emporte, et elle ne dépend d'aucun gabarit ──────────────────
+ *
+ * « Cette formulation a déjà perdu ici » est un souvenir, pas un profil. Elle
+ * passe avant tout le reste et n'est jamais rattachée à un gabarit.
+ */
+export function preflightAcross(options: PreflightOption[]): Preflight | null {
+  if (!options.length) return null;
+
+  const refutee = options
+    .flatMap((o) => o.brief.flags)
+    .find((f) => f.kind === 'hook_refuted');
+  if (refutee) return { tone: 'stop', text: refutee.message };
+
+  const lignes = options.map((o) => ({ label: o.label, line: preflightLine(o.brief) }));
+  const parlantes = lignes.filter((l): l is { label: string; line: Preflight } => l.line !== null);
+  if (!parlantes.length) return null;
+
+  // La plus lourde · empiler trois réserves dans une barre, c'est demander une
+  // revue de code à quelqu'un qui écrit.
+  const pire = parlantes.reduce((a, b) => (POIDS[b.line.tone] > POIDS[a.line.tone] ? b : a));
+
+  // Toutes touchées, ou un seul gabarit en lice · le gabarit n'explique rien.
+  if (parlantes.length === options.length || options.length === 1) return pire.line;
+
+  // Le compte porte sur les gabarits MUETS, pas sur « les autres » · avec trois
+  // gabarits dont deux parlent, « les autres ne déclenchent rien » serait faux.
+  const propres = options.length - parlantes.length;
+  const fait = /[.!?]$/.test(pire.line.text.trim()) ? pire.line.text.trim() : `${pire.line.text.trim()}.`;
+  return {
+    tone: pire.line.tone,
+    text: `Avec « ${pire.label} » · ${fait} ${propres} gabarit(s) sur ${options.length} ne déclenchent rien.`,
+  };
+}
