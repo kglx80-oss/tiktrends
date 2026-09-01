@@ -2215,3 +2215,44 @@ a décidé d'envoyer · la moitié du problème, mais la moitié qui était aveu
 
 **Validé en le faisant échouer** sur la vraie panne (GPT Image 2 recevant la
 convention de GPT Image 1) avant de la corriger : trois tests tombent.
+
+---
+
+## D115 — La maquette est proportionnelle, et c'est mesuré
+
+**Décision.** Toute longueur de la maquette passe par `u()`, qui convertit une
+valeur calée sur 1080 en pixels réels. Les vignettes reviennent.
+
+**Pourquoi.** La maquette était en pixels durs · réduire le canevas gardait
+`fontSize: 74` sur une image large de 432. C'est la régression livrée, et rien
+ne l'avait vue : compilation, lint et huit cents tests au vert.
+
+**La réécriture est prouvée neutre.** Les vingt-et-un rendus (sept gabarits,
+trois variantes) sont identiques à l'octet près à 1080 · à cette taille `u()`
+est l'identité, et la comparaison d'empreintes le vérifie.
+
+**L'échelle vit dans une variable de module.** C'est sûr parce que la
+construction de l'arbre ne contient aucun `await` · elle est atomique pour la
+boucle d'événements. Un test lance deux rendus de tailles différentes en
+parallèle : le jour où quelqu'un rend ce chemin asynchrone, il tombe.
+
+---
+
+## D116 — Un rendu ne se vérifie pas en lisant le code qui l'a produit
+
+**Décision.** Les tests décodent le PNG et mesurent **la quantité d'encre** et
+**son centre de gravité**.
+
+**Pourquoi pas une comparaison d'images.** Une différence d'un pixel ferait
+échouer pour rien. Et pas non plus un profil bande à bande : un texte ne se
+recompose pas proportionnellement — une accroche peut tenir sur deux lignes là
+où elle en prenait trois, et le bloc remonte. C'est correct, et le profil fin le
+signalait comme une faute.
+
+**Ce que ces deux mesures distinguent.** Une maquette qui se recompose garde son
+encre et son centre. Une maquette qui ne se redimensionne pas voit son texte
+exploser : elle couvre bien plus de surface et son centre remonte vers le titre
+devenu géant.
+
+**Validé en simulant la régression** (échelle forcée à 1) : quatre tests
+tombent, dont celui sur chaque gabarit.
