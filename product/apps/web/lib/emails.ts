@@ -68,3 +68,27 @@ export function resetEmail(token: string) {
   });
   return { subject: 'Réinitialiser ton mot de passe TikTrends', html, text: strip(html) };
 }
+
+/**
+ * La lettre hebdomadaire.
+ *
+ * Elle ne porte qu'un geste · une lettre qui propose cinq choses ne fait rien
+ * faire. Et elle n'est envoyée que quand la semaine a produit quelque chose,
+ * c'est le noyau qui en décide (`worthSending`).
+ */
+export function digestEmail(opts: {
+  brandName: string; headline: string; lines: string[];
+  action: { label: string; href: string; why: string } | null;
+}) {
+  const lignes = opts.lines.map((l) => `<li style="margin:0 0 6px">${l}</li>`).join('');
+  const pourquoi = opts.action
+    ? `<p style="margin:14px 0 0;font-size:13px;color:#6a6a76;line-height:1.55">${opts.action.why}</p>`
+    : '';
+  const html = layout({
+    title: opts.headline,
+    body: `${lignes ? `<ul style="margin:0;padding-left:18px">${lignes}</ul>` : ''}${pourquoi}`,
+    cta: opts.action ? { label: opts.action.label, href: `${appUrl()}${opts.action.href}` } : undefined,
+    footer: `Récapitulatif hebdomadaire de ${opts.brandName} · envoyé uniquement les semaines où il s'est passé quelque chose.`,
+  });
+  return { subject: `${opts.brandName} · ${opts.headline}`, html, text: strip(html) };
+}
