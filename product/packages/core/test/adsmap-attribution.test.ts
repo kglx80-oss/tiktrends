@@ -69,7 +69,7 @@ describe('ce qui entre dans les groupes', () => {
 
   it('le marché seul ne compte pas comme mémoire', () => {
     // Le marché ne dit rien de ce qui marche ICI · l'inclure diluerait la mesure.
-    const marcheSeul: AttributedAd = { memory: { measured: false, market: true, hooks: 0 }, verdict: 'winner' };
+    const marcheSeul: AttributedAd = { memory: { measured: false, market: true, hooks: 0 }, verdict: 'winner', origin: 'ad' };
     const r = attributionStats([...rep(8, () => marcheSeul), ...rep(8, () => avec('winner'))]);
     expect(r.without.n).toBe(8);
   });
