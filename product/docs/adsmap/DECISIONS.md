@@ -2147,3 +2147,52 @@ faisaient attendre plus de dix minutes pour rien.
 
 La règle vit dans `lib/fal-retry.ts` · dans le `catch` d'un fichier
 `'use server'` elle ne se testait pas.
+
+---
+
+## D111 — Les deux générations de GPT Image ne parlent pas la même langue
+
+**Décision.** GPT Image 1 reçoit `image_size` en pixels (`"1024x1536"`), GPT
+Image 2 le reçoit en libellé Fal (`portrait_4_3`, `square_hd`).
+
+**Pourquoi.** `isGptImage` regroupait les deux · GPT Image 2 recevait donc la
+convention de son prédécesseur, et refusait la demande. L'utilisateur lisait
+« la demande a été refusée par le service » — exact, et inutilisable.
+
+**L'erreur porte maintenant le modèle et la réponse du fournisseur.** « 422 »
+tout seul ne permet ni de corriger le catalogue, ni de savoir quel réglage
+retirer.
+
+---
+
+## D112 — Un réglage optionnel refusé ne doit pas coûter la génération
+
+**Décision.** Repli progressif sur un `400`/`422` : on retire les paramètres de
+variante, puis la taille, avant d'abandonner.
+
+**Pourquoi.** Ce qui reste — la description et les références — est le strict
+nécessaire, et tous les modèles l'acceptent. Perdre une génération parce qu'un
+modèle n'aime pas un réglage accessoire fait payer à l'utilisateur une
+incompatibilité de catalogue.
+
+**Une adresse se corrige sans redéployer** (`FAL_IMAGE_MODEL_<CLÉ>`) · un
+fournisseur renomme ses endpoints sans prévenir.
+
+---
+
+## D113 — Le mode de service d'un asset est un type, pas une condition
+
+**Décision.** `assetServing()` rend `embedded | drive | direct`, et la route
+l'épuise avec un `never` final.
+
+**Pourquoi.** `servedAssetUrl` envoyait les images Drive privées vers
+`/api/asset/[id]`, une route qui ne savait pas les lire · elle redirigeait vers
+Google, qui répondait une page de connexion, et la bibliothèque affichait des
+cadres vides.
+
+**Le test existait pourtant · il vérifiait l'ADRESSE, pas que la porte
+s'ouvre.** C'est la leçon : j'avais écrit le test pour décrire ce que je venais
+de coder, pas ce qui devait être vrai.
+
+Un quatrième mode casse désormais la compilation tant que la route ne le traite
+pas · c'est la seule forme de rappel qui ne s'oublie pas.

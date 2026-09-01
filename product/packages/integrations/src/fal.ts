@@ -57,8 +57,18 @@ const IMAGE_SIZE: Record<FalAspect, string> = {
 // Nano Banana / modèles récents : ratio natif (le modèle choisit la résolution -> proportions respectées).
 const ASPECT_STR: Record<FalAspect, string> = { '9:16': '9:16', '4:5': '4:5', '1:1': '1:1', '16:9': '16:9' };
 const isNano = (model: string) => /nano-banana/i.test(model);
-const isGptImage = (model: string) => /gpt-image/i.test(model);
-// GPT Image attend une taille explicite (et non un image_size Flux).
+/**
+ * Les deux générations de GPT Image ne parlent pas la même langue.
+ *
+ * GPT Image **1** attend une taille en pixels (`"1024x1536"`). GPT Image **2**
+ * attend le vocabulaire habituel de Fal (`portrait_4_3`, `square_hd`…), comme
+ * Flux. Envoyer la convention de l'un à l'autre fait refuser la demande · c'est
+ * un `4xx`, donc un refus qui se reproduira à l'identique, et l'utilisateur voit
+ * « la demande a été refusée par le service » sans savoir pourquoi.
+ */
+const isGptImage1 = (model: string) => /gpt-image-1/i.test(model);
+const isGptImage2 = (model: string) => /gpt-image-2/i.test(model);
+// GPT Image 1 attend une taille explicite (et non un image_size Flux).
 const GPT_SIZE: Record<FalAspect, string> = {
   '9:16': '1024x1536', '4:5': '1024x1536', '1:1': '1024x1024', '16:9': '1536x1024',
 };
@@ -91,9 +101,13 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
     // Ratio natif : le modèle calcule la résolution -> pas de déformation.
     body.aspect_ratio = ASPECT_STR[ratio];
     if (hasRef) body.image_urls = refs; // Nano Banana : plusieurs références possibles
-  } else if (isGptImage(model)) {
-    // GPT Image : taille explicite + références multiples.
+  } else if (isGptImage1(model)) {
+    // GPT Image 1 : taille explicite en pixels + références multiples.
     body.image_size = GPT_SIZE[ratio];
+    if (hasRef) body.image_urls = refs;
+  } else if (isGptImage2(model)) {
+    // GPT Image 2 : vocabulaire de tailles habituel de Fal.
+    body.image_size = IMAGE_SIZE[ratio];
     if (hasRef) body.image_urls = refs;
   } else {
     body.image_size = IMAGE_SIZE[ratio];
@@ -112,15 +126,38 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
     signal: AbortSignal.timeout(90000),
   });
 
+  /**
+   * Repli progressif sur un refus de la demande.
+   *
+   * Un modèle qui n'accepte pas un réglage optionnel ne doit jamais coûter la
+   * génération à l'utilisateur · on retire d'abord les paramètres de variante,
+   * puis la taille, avant d'abandonner. Ce qui reste (la description et les
+   * références) est le strict nécessaire, et tous les modèles l'acceptent.
+   *
+   * Chaque repli est tenté UNE fois · au-delà on ne s'acharne pas, le refus
+   * porte alors sur autre chose que ces réglages.
+   */
   let res = await call(body);
-  // Un paramètre de variante refusé par le modèle (422) ne doit jamais faire perdre
-  // la génération au client : on rejoue une fois sans les extras.
-  if (!res.ok && extras && (res.status === 422 || res.status === 400)) {
-    const base = { ...body };
-    for (const k of Object.keys(extras)) delete base[k];
-    res = await call(base);
+  const refuse = () => !res.ok && (res.status === 422 || res.status === 400);
+
+  if (refuse() && extras) {
+    const sansExtras = { ...body };
+    for (const k of Object.keys(extras)) delete sansExtras[k];
+    res = await call(sansExtras);
   }
-  if (!res.ok) throw new Error(`Source image : ${res.status} ${(await res.text()).slice(0, 200)}`);
+  if (refuse() && (body.image_size || body.aspect_ratio)) {
+    const minimal = { ...body };
+    if (extras) for (const k of Object.keys(extras)) delete minimal[k];
+    delete minimal.image_size;
+    delete minimal.aspect_ratio;
+    res = await call(minimal);
+  }
+
+  if (!res.ok) {
+    // Le corps de la réponse dit CE QUI a été refusé · sans lui, « 422 » ne
+    // permet ni de corriger le catalogue, ni de savoir quel réglage retirer.
+    throw new Error(`Source image (${model}) : ${res.status} ${(await res.text()).slice(0, 300)}`);
+  }
   const data = (await res.json()) as Record<string, unknown>;
   const images = collectUrls(data);
   if (images.length === 0) throw new Error("Réponse inattendue de la source image (aucune image renvoyée).");
