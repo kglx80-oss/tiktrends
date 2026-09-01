@@ -2196,3 +2196,22 @@ de coder, pas ce qui devait être vrai.
 
 Un quatrième mode casse désormais la compilation tant que la route ne le traite
 pas · c'est la seule forme de rappel qui ne s'oublie pas.
+
+---
+
+## D114 — On regarde enfin ce qui part chez le fournisseur
+
+**Décision.** Un test intercepte `fetch` et vérifie, pour chaque modèle du
+catalogue, l'adresse appelée et le corps envoyé.
+
+**Pourquoi.** Deux pannes de suite sont venues du CORPS de la requête — une
+taille envoyée dans la convention du modèle précédent, une adresse d'édition
+appelée sans image. Les deux ont traversé la compilation, le lint et huit cents
+tests sans que rien ne bronche · parce que **rien ne regardait la requête**.
+
+**Ce qu'il ne teste pas** : que le fournisseur accepte. Seul un appel réel le
+dit, et il coûte de l'argent. Il teste que ce qu'on envoie correspond à ce qu'on
+a décidé d'envoyer · la moitié du problème, mais la moitié qui était aveugle.
+
+**Validé en le faisant échouer** sur la vraie panne (GPT Image 2 recevant la
+convention de GPT Image 1) avant de la corriger : trois tests tombent.
