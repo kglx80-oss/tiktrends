@@ -2015,3 +2015,44 @@ personne n'a demandé.
 **Le fichier est écrit AVANT que la ligne change.** Une coupure au milieu laisse
 un objet orphelin de quelques kilo-octets, jamais une image perdue. L'ordre
 inverse aurait donné exactement le contraire.
+
+---
+
+## D103 — Pubs IA reçoit la barre, contre mon avis précédent
+
+**Décision.** Le studio Pubs adopte la barre de composition : la description
+prend toute la largeur, produit, persona, objectif, quantité et moteur
+deviennent des pastilles, le prix est sur le bouton. Ce qui reste dessous —
+gabarits, photo produit, références — devient « Réglages de la série ».
+
+**Pourquoi je m'étais trompé.** J'avais écrit (D83) que Pubs ne décrit pas une
+scène et que lui coller une barre ajouterait un champ que le générateur ignore.
+Le premier point est vrai, le second était une paresse : il suffisait de rendre
+le champ utile. En mode marque, la description EST l'angle · elle existait déjà.
+En mode clone, elle est désormais une consigne libre **réellement transmise** au
+modèle, où elle prime sur sa lecture de la référence.
+
+**Un champ que le générateur ignore est pire qu'un champ absent** · c'était mon
+argument, et il tenait uniquement tant que je ne branchais pas le champ.
+
+**Les scènes enregistrées arrivent dans Pubs.** L'action acceptait `presetId`
+depuis le début, l'écran ne l'a jamais envoyé · une scène pouvait donc servir
+cent fois sans jamais quitter « jamais utilisée ».
+
+---
+
+## D104 — La durée d'une vidéo existait sans pouvoir être réglée
+
+**Décision.** 5 s ou 10 s, en pastille. Le débit crédits ET la barrière de
+dépense comptent en tranches de cinq secondes.
+
+**Pourquoi.** `durationS` traversait déjà Fal et Higgsfield, figé à cinq
+secondes et jamais exposé · un réglage réel qu'on ne pouvait pas régler.
+
+**L'exposer sans doubler le prix aurait été vendre à perte sans s'en
+apercevoir.** Une vidéo de dix secondes coûte au fournisseur à peu près le
+double, et `guardFixedCost` doit voir passer deux unités, pas une.
+
+**Un test a trouvé une faute dans le repli** : `safeVideoDuration(undefined)`
+testait `d ?? 5` puis rendait `d`, donc laissait passer `undefined`. Tester et
+rendre la même valeur.

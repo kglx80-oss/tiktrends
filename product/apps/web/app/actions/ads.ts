@@ -462,6 +462,10 @@ export async function listSavedAdRefs(): Promise<SavedAdRef[]> {
 export async function cloneAdAction(input: {
   referenceDataUri?: string; savedAdId?: string;
   productId?: string; personaId?: string; objective?: string; universe?: string; count?: number; model?: string;
+  /** Consigne libre · ce que l'utilisateur veut changer par rapport à la référence. */
+  direction?: string;
+  /** Scène enregistrée reprise · c'est ce rattachement qui lui bâtit un bilan. */
+  presetId?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
@@ -521,7 +525,7 @@ export async function cloneAdAction(input: {
 
   // 1) Analyse de la référence -> gabarit + angle à répliquer.
   let base: AdConcept | null;
-  try { base = await cloneAdFromReference(client, ref, ctx); }
+  try { base = await cloneAdFromReference(client, ref, ctx, input.direction); }
   catch (e) { return { error: logAndTranslate('ads:ref', e, { subject: 'l’analyse de la pub de référence', workspaceId: s.workspaceId }) }; }
   if (!base) return { error: "La pub de référence n'a pas pu être interprétée. Réessaie." };
   const angle = [base.kicker, base.headline].filter(Boolean).join(' · ') || base.headline;
@@ -535,9 +539,15 @@ export async function cloneAdAction(input: {
   }
   if (!concepts.length) concepts = [base]; // repli : au moins la reproduction directe
 
+  // La scène enregistrée vaut aussi pour le clonage · sans ce rattachement, une
+  // scène reprise cent fois afficherait encore « jamais utilisée ».
+  const resoluClone = await resolvePreset(s.workspaceId, input.presetId);
+  const presetClone = resoluClone && input.presetId ? { id: input.presetId, ...resoluClone } : null;
+
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
+    preset: presetClone,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     falModel: modelSpec.falModel, falParams: modelSpec.params, creditsPerImage: modelSpec.credits,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
