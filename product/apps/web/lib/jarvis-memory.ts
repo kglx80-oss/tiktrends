@@ -1,4 +1,5 @@
 import 'server-only';
+import { recordMilestones } from './milestones';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { MARKET_COLS, toMarketAd } from './market-rows';
@@ -139,10 +140,22 @@ export async function jarvisMeasuredMemory(brandId: string, workspaceId: string)
   return buildJarvisMemory(ads, { learnings });
 }
 
-/** Statistiques et taux global · pour le score de pré-lancement et les écrans. */
+/**
+ * Statistiques et taux global · pour le score de pré-lancement et les écrans.
+ *
+ * C'est aussi le seul endroit où les statistiques d'une marque existent · on en
+ * profite pour dater les seuils franchis (`recordMilestones`). Il n'y a pas
+ * d'instant « les stats sont recalculées » à attendre : elles sont dérivées à
+ * la volée, à chaque fois qu'on en a besoin.
+ *
+ * L'écriture ne bloque pas et n'est pas attendue · un historique qui n'a pas pu
+ * s'écrire sera posé au prochain passage, quelques heures plus tard.
+ */
 export async function jarvisStats(brandId: string, workspaceId: string): Promise<{ stats: StatRow[]; globalRate: number | null; nAds: number }> {
   const { ads } = await loadCached(brandId, workspaceId);
-  return { stats: computeBrandStats(ads), globalRate: globalHitRate(ads), nAds: ads.length };
+  const stats = computeBrandStats(ads);
+  void recordMilestones(brandId, workspaceId, stats);
+  return { stats, globalRate: globalHitRate(ads), nAds: ads.length };
 }
 
 /** Situe un concept avant de dépenser · agent A7, calculé en code. */

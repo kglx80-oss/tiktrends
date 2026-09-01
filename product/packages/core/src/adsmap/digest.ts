@@ -28,16 +28,16 @@
  * marque avec quarante créas et zéro verdict n'a rien appris ET a tout à faire.
  * Ce cas-là part.
  *
- * ── Ce qu'il ne dit PAS, et pourquoi ─────────────────────────────────────────
+ * ── « Ta mémoire vient de trancher sur l'UGC » ───────────────────────────────
  *
- * « Ta mémoire vient de trancher sur l'UGC » serait la plus belle ligne de la
- * lettre. Elle demande de comparer l'état d'aujourd'hui à celui d'il y a une
- * semaine, et nous ne gardons aucun historique des seuils franchis.
+ * Cette ligne avait été retirée faute d'historique des seuils franchis · un
+ * champ toujours vide laisse deux branches mortes et la tentation de les
+ * remplir approximativement.
  *
- * On ne l'écrit donc pas. Un champ qu'on remplirait toujours à vide laisserait
- * deux branches mortes dans ce fichier, et la tentation de les remplir
- * approximativement · une lettre qui annonce un apprentissage qui n'a pas eu
- * lieu vaut moins que pas de lettre du tout.
+ * L'historique existe maintenant (`milestones.ts`), et elle revient. Elle ne
+ * porte QUE des jalons datés, jamais du rattrapage : le premier passage sur une
+ * marque fait franchir le seuil à six mois de tests le même jour, et les
+ * annoncer présenterait une lecture de base comme un apprentissage.
  *
  * Pur : ni base, ni réseau, ni modèle.
  */
@@ -56,11 +56,19 @@ export interface DigestFacts {
   radarFindings: number;
   /** Parmi elles, celles qui touchent une voie jamais testée. */
   radarUnexplored: number;
+  /**
+   * Dimensions dont la mémoire vient de franchir le seuil pendant la fenêtre.
+   *
+   * Vide tant qu'aucun jalon n'a été daté · les jalons du premier passage sur
+   * une marque sont marqués « rattrapés » et n'apparaissent jamais ici, sinon
+   * six mois de tests seraient annoncés comme l'apprentissage de la semaine.
+   */
+  newlyConclusive: string[];
   /** Suites conseillées, prêtes à lancer. */
   iterationsReady: number;
 }
 
-export type DigestActionKey = 'lots' | 'suites' | 'radar' | 'studio';
+export type DigestActionKey = 'lots' | 'suites' | 'radar' | 'jarvis' | 'studio';
 
 export interface DigestAction {
   key: DigestActionKey;
@@ -92,6 +100,7 @@ export const MAX_LINES = 4;
 export function worthSending(f: DigestFacts): boolean {
   if (f.verdictsWeek > 0) return true;
   if (f.radarFindings > 0) return true;
+  if (f.newlyConclusive.length > 0) return true;
   // Rien appris, mais un stock qui dort · c'est la lettre la plus utile.
   if (f.pending >= 3) return true;
   return false;
@@ -130,6 +139,15 @@ function chooseAction(f: DigestFacts): DigestAction | null {
     };
   }
 
+  // La mémoire vient de s'allumer sur une dimension · c'est le moment où elle
+  // sert le plus, et le seul moment où on peut le dire.
+  if (f.newlyConclusive.length > 0) {
+    return {
+      key: 'jarvis', label: 'Demander à Jarvis ce qu’il en tire', href: '/jarvis',
+      why: `Sa mémoire vient de trancher sur ${f.newlyConclusive.join(', ')} · elle a désormais de quoi te contredire.`,
+    };
+  }
+
   // Rien produit et rien en attente · il faut bien commencer par fabriquer.
   if (f.createdWeek === 0 && f.pending === 0) {
     return {
@@ -151,6 +169,9 @@ function chooseAction(f: DigestFacts): DigestAction | null {
 function headline(f: DigestFacts): string {
   if (f.winnersWeek > 0) {
     return `${f.winnersWeek} gagnante(s) cette semaine sur ${f.verdictsWeek} test(s) tranché(s) chez ${f.brandName}.`;
+  }
+  if (f.newlyConclusive.length > 0) {
+    return `La mémoire de ${f.brandName} vient de trancher sur ${f.newlyConclusive.join(', ')}.`;
   }
   if (f.verdictsWeek > 0) {
     return `${f.verdictsWeek} test(s) tranché(s) chez ${f.brandName}, aucun gagnant · c'est une information, pas un échec.`;

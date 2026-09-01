@@ -2,6 +2,7 @@ import 'server-only';
 import { and, count, eq, gte, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { buildDigest, worthSending, digestText, type Digest, type DigestFacts } from '@tiktrends/core';
+import { learnedSinceFor, testedKeys } from './milestones';
 
 /**
  * Les faits de la semaine, ramassés marque par marque.
@@ -28,10 +29,9 @@ async function sansCasse<T>(p: Promise<T>, repli: T): Promise<T> {
 /**
  * Les trouvailles du radar de la semaine, et celles qui ouvrent une voie neuve.
  *
- * `unexplored` n'est PAS stocké · le radar le calcule à son passage et ne le
- * garde pas. On le recalcule donc de la même façon — une voie est « testée »
- * au-delà de trois tests conclus, exactement le seuil du radar — plutôt que de
- * lire un champ qui n'existe pas et de compter zéro pour toujours.
+ * `unexplored` n'est pas stocké · le radar le calcule à son passage et ne le
+ * garde pas. On le recompose donc à partir des mêmes jalons que lui, pour que
+ * les deux écrans ne puissent pas donner deux comptes différents.
  */
 async function trouvaillesRadar(
   brandId: string, workspaceId: string, depuis: Date,
@@ -48,13 +48,10 @@ async function trouvaillesRadar(
         gte(schema.marketCreatives.reportedAt, depuis),
       ))
       .limit(200),
-    db.select({ key: schema.brandStats.key, n: schema.brandStats.nConclusive })
-      .from(schema.brandStats).where(eq(schema.brandStats.brandId, brandId)),
+    testedKeys(brandId),
   ]);
 
-  // Moins de trois tests conclus sur une voie, c'est ne pas l'avoir testée ·
-  // même seuil que partout ailleurs.
-  const testees = new Set(stats.filter((s) => (s.n ?? 0) >= 3).map((s) => s.key));
+  const testees = stats;
   const neuves = rows.filter((r) => {
     const traits = [r.hookType, r.openingType].filter((t): t is string => !!t);
     return traits.length > 0 && traits.every((t) => !testees.has(t));
@@ -82,14 +79,14 @@ export async function brandFacts(
 ): Promise<DigestFacts> {
   const vide: DigestFacts = {
     brandName, verdictsWeek: 0, winnersWeek: 0, createdWeek: 0, pending: 0,
-    radarFindings: 0, radarUnexplored: 0, iterationsReady: 0,
+    radarFindings: 0, radarUnexplored: 0, newlyConclusive: [], iterationsReady: 0,
   };
   if (!db) return vide;
   const base = db;
 
   const GAGNANTS = ['winner', 'baby_winner', 'relative_winner'];
 
-  const [verdicts, creees, attente, radar, suites] = await Promise.all([
+  const [verdicts, creees, attente, radar, suites, appris] = await Promise.all([
     // Verdicts ARBITRÉS de la semaine · un verdict calculé peut encore bouger,
     // et annoncer un gagnant qui se dédit lundi prochain coûte la confiance.
     sansCasse(
@@ -143,6 +140,10 @@ export async function brandFacts(
         .then((r) => Number(r[0]?.n ?? 0)),
       0,
     ),
+
+    // Ce que la mémoire a appris pendant la fenêtre · les jalons rattrapés du
+    // premier passage sont écartés par le noyau.
+    sansCasse(learnedSinceFor(brandId, depuis), [] as string[]),
   ]);
 
   return {
@@ -153,6 +154,7 @@ export async function brandFacts(
     pending: attente,
     radarFindings: radar.n,
     radarUnexplored: radar.neuves,
+    newlyConclusive: appris,
     iterationsReady: suites,
   };
 }
