@@ -2602,3 +2602,77 @@ en silence a l'air de porter sur tout.
 
 Un test bloque le retour en arrière : rétablir le repli inconditionnel sur le
 concept fait échouer « REFUSE le lien du concept quand plusieurs ads y pendent ».
+
+---
+
+## D136 — Un gabarit entier était rangé sous la mauvaise étiquette
+
+**Constat.** La table gabarit → mécanisme vivait dans `adsmap-bridge.ts`, un
+fichier `'use server'` · donc intestable. Elle était écrite
+`Record<string, string>`, avec des clés inventées au fil de l'eau :
+`benefit_stack`, `listicle`, `comparison`, `story`, `demo`, `social_proof`.
+
+**Aucune de ces six clés n'existe dans la liste réelle des gabarits.** Et
+`benefits`, qui existe, n'y figurait pas.
+
+Toute créa « Bénéfices annotés » retombait donc sur le défaut, `demo`. Ses tests
+s'accumulaient sous une étiquette qui n'était pas la sienne, et la mémoire en
+tirait des conclusions sur un mécanisme qu'elle n'avait jamais mesuré.
+
+**Décision.** La table part dans le noyau, typée `Record<StudioTemplate, string>`
+· un gabarit ajouté sans mécanisme ne compile plus.
+
+`mechanismForTemplate` rend `null` plutôt qu'un défaut. Celui qui DOIT écrire
+quelque chose choisit son repli et l'assume dans son propre fichier · un défaut
+caché dans la table reproduirait exactement cette panne.
+
+La liste existe en double (`AD_TEMPLATES` dans `ai`, `STUDIO_TEMPLATES` dans
+`core`, deux paquets qui ne se dépendent pas). Un test dans l'application, seul
+endroit qui voit les deux, échoue quand elles divergent.
+
+---
+
+## D137 — La vérification arrivait sans le concept
+
+**Constat.** La barre n'envoyait que la description. `prelaunchScore` sait
+pourtant situer un mécanisme et un format · les gabarits cochés dix pixels plus
+haut étaient ignorés, et la seule réserve possible portait sur l'accroche.
+
+« Ce gabarit-là n'a jamais rien donné ici » ne pouvait pas être dit — alors que
+c'est exactement le genre de fait qui fait changer d'avis avant de payer.
+
+**Décision.** Un brief par gabarit envisagé. Le coût reste nul : la mémoire
+d'une marque est lue une fois et mise en cache, les briefs suivants ne sont que
+du calcul.
+
+**On ne nomme un gabarit que quand ça sert.** Une réserve qui vaut pour tous
+n'est pas réparable en changeant de gabarit · la nommer enverrait sur une fausse
+piste. Une réserve qui n'en touche qu'un est actionnable : on dit lequel, et
+combien passent. C'est la différence entre une information et une consigne.
+
+Le format n'est transmis que depuis le studio Pub (`static`), parce que la
+passerelle n'écrit que des ads statiques · envoyer `video_ugc` comparerait à une
+case vide en ayant l'air de comparer à quelque chose.
+
+---
+
+## D138 — `pnpm test` pouvait être vert sur du code rouge
+
+**Constat trouvé en vérifiant D136.** Le test inter-paquets échouait quand on le
+lançait seul, et **passait** dans `pnpm -w run test`.
+
+`turbo.json` déclarait `"test": {}` · sans `dependsOn`, l'empreinte de
+`@tiktrends/web:test` ne couvre que les fichiers de `apps/web`. Les paquets sont
+consommés en source (`main: src/index.ts`, pas de `dist`), donc **modifier le
+noyau n'invalidait pas le cache des tests de l'application**.
+
+C'est plus grave que n'importe quelle fonctionnalité : ça rend douteux tous les
+garde-fous écrits jusqu'ici, y compris ceux qui ont trouvé quelque chose.
+
+**Décision.** `"test": { "dependsOn": ["^test"] }`. L'empreinte d'une tâche
+inclut celle de ses dépendances · un changement dans le noyau relance les tests
+de l'application, et un noyau rouge empêche le dépendant de se déclarer vert.
+
+Vérifié dans les deux sens : en cassant le noyau (le dépendant ne tourne plus)
+et en cassant `@tiktrends/ai` (le test de l'application échoue, alors qu'il
+répondait « cache hit » avant le correctif).

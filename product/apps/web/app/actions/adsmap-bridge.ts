@@ -2,6 +2,7 @@
 
 import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { mechanismForTemplate } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory, briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
@@ -19,22 +20,6 @@ import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
  * exige hypothèse, variable, offre et page de destination avant le test · on ne
  * les invente pas ici, on amène la créa jusqu'à la porte.
  */
-
-/** Gabarit du Studio → mécanisme d'angle ADSMAP. */
-const TEMPLATE_MECHANISM: Record<string, string> = {
-  problem_solution: 'problem_agitate',
-  before_after: 'comparison',
-  testimonial: 'social_proof',
-  social_proof: 'social_proof',
-  benefit_stack: 'listicle',
-  listicle: 'listicle',
-  demo: 'demo',
-  offer: 'scarcity',
-  comparison: 'comparison',
-  story: 'story',
-  ugc: 'story',
-  stat: 'statistic_shock',
-};
 
 const guard = adsmapGuard;
 
@@ -66,7 +51,10 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
 
     const titre = (r.headline || 'Créa Studio').slice(0, 160);
     const angleLabel = (r.kicker || r.objective || titre).slice(0, 160);
-    const mechanism = TEMPLATE_MECHANISM[r.template ?? ''] ?? 'demo';
+    // Le repli est ici, et il est assumé · la table du noyau rend `null` plutôt
+    // que d'en cacher un. C'est ce défaut caché qui rangeait « Bénéfices
+    // annotés » sous `demo` depuis toujours, sans que rien ne le dise.
+    const mechanism = mechanismForTemplate(r.template) ?? 'demo';
 
     const path = await ensureGraphPath({
       workspaceId: g.s.workspaceId, brandId: g.brand.id, personaId: r.personaId ?? null,

@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -38,14 +38,17 @@ function fileToDataUri(file: File, maxSide = 1100, quality = 0.85): Promise<stri
   });
 }
 
+// Le nom vient du noyau · le serveur le renvoie dans la réserve de
+// pré-lancement (« Avec « Avant / après » · … »), et deux listes de noms
+// finiraient par ne plus désigner la même chose à l'écran et dans la phrase.
 const TEMPLATES: { key: AdTemplate; label: string; emoji: string }[] = [
-  { key: 'problem_solution', label: 'Problème / solution', emoji: '⚡' },
-  { key: 'before_after', label: 'Avant / après', emoji: '🔀' },
-  { key: 'testimonial', label: 'Témoignage / note', emoji: '⭐' },
-  { key: 'benefits', label: 'Bénéfices annotés', emoji: '✅' },
-  { key: 'ugc', label: 'UGC natif', emoji: '📱' },
-  { key: 'stat', label: 'Chiffre-clé', emoji: '📊' },
-  { key: 'offer', label: 'Offre / promo', emoji: '🏷️' },
+  { key: 'problem_solution', label: TEMPLATE_LABEL.problem_solution, emoji: '⚡' },
+  { key: 'before_after', label: TEMPLATE_LABEL.before_after, emoji: '🔀' },
+  { key: 'testimonial', label: TEMPLATE_LABEL.testimonial, emoji: '⭐' },
+  { key: 'benefits', label: TEMPLATE_LABEL.benefits, emoji: '✅' },
+  { key: 'ugc', label: TEMPLATE_LABEL.ugc, emoji: '📱' },
+  { key: 'stat', label: TEMPLATE_LABEL.stat, emoji: '📊' },
+  { key: 'offer', label: TEMPLATE_LABEL.offer, emoji: '🏷️' },
 ];
 const OBJECTIVES = ['Ventes', 'Prospection', 'Retargeting', 'Notoriété', 'Trafic', 'Considération', 'Lancement produit', 'Promo / soldes', 'Collecte d’avis', 'Génération de leads'];
 const TPL_LABEL: Record<AdTemplate, string> = {
@@ -114,7 +117,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // Ce que la mémoire dit de la description AVANT de payer la génération ·
   // le brief de pré-lancement n'arrivait qu'une fois la créa posée dans un lot,
   // c'est-à-dire après l'avoir fabriquée. Ici, il économise les deux.
-  const preflight = usePreflight(angle);
+  // Les gabarits cochés entrent dans la vérification · sans eux, la seule
+  // réserve possible portait sur l'accroche, et « ce gabarit-là n'a jamais rien
+  // donné ici » ne pouvait pas être dit.
+  const preflight = usePreflight(angle, { templates, format: 'static' });
   const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('image');
   const refInput = useRef<HTMLInputElement>(null);
 

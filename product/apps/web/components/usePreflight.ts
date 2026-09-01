@@ -25,23 +25,38 @@ import { preflightAction } from '../app/actions/preflight';
  *
  * Rien n'est appelé tant que le texte est trop court · le seuil vient du noyau,
  * l'écran n'invente pas le sien.
+ *
+ * ── Le reste du composeur compte aussi ───────────────────────────────────────
+ *
+ * On n'envoyait que la description. Les gabarits cochés juste au-dessus de la
+ * barre sont pourtant ce qui permet de dire « ce gabarit-là n'a jamais rien
+ * donné ici » · une réserve qu'on peut suivre, là où un profil d'accroche
+ * moyen ne fait rien changer à personne.
+ *
+ * Ils entrent dans les dépendances : décocher un gabarit doit relancer la
+ * vérification, sinon la barre parle d'un concept qu'on vient de modifier. La
+ * clé est sérialisée pour que `useEffect` compare des valeurs et non l'identité
+ * d'un tableau reconstruit à chaque rendu.
  */
-export function usePreflight(text: string): Preflight | null {
+export function usePreflight(text: string, opts?: { templates?: string[]; format?: 'static' }): Preflight | null {
   const [line, setLine] = useState<Preflight | null>(null);
+  const templates = opts?.templates;
+  const format = opts?.format;
+  const cle = (templates ?? []).join(',');
 
   useEffect(() => {
     if (text.trim().length < MIN_TEXT) { setLine(null); return; }
 
     let vivant = true;
     const t = setTimeout(async () => {
-      const r = await preflightAction({ text });
+      const r = await preflightAction({ text, templates: cle ? cle.split(',') : [], format });
       // La demande a été remplacée pendant l'attente · sa réponse ne concerne
       // plus ce que la personne a sous les yeux.
       if (vivant) setLine(r.line ?? null);
     }, 900);
 
     return () => { vivant = false; clearTimeout(t); };
-  }, [text]);
+  }, [text, cle, format]);
 
   return line;
 }
