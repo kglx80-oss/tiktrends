@@ -11,6 +11,7 @@ import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { Composer } from '../../../../components/Composer';
+import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -110,6 +111,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // La scène reprise · consignée à la génération, c'est ce qui lui bâtit un
   // bilan. Toute frappe la libère : un texte retouché n'est plus la scène.
   const [sceneId, setSceneId] = useState('');
+  // Ce que la mémoire dit de la description AVANT de payer la génération ·
+  // le brief de pré-lancement n'arrivait qu'une fois la créa posée dans un lot,
+  // c'est-à-dire après l'avoir fabriquée. Ici, il économise les deux.
+  const preflight = usePreflight(angle);
   const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('image');
   const refInput = useRef<HTMLInputElement>(null);
 
@@ -362,6 +367,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           onPickScene={(sc) => setSceneId(sc.id)}
           onSaveScene={enregistrer}
           advice={conseil(sceneId)}
+          preflight={preflight}
           controls={[
             ...(prods.length ? [{
               key: 'produit', title: 'Produit mis en scène', icon: '📦',
