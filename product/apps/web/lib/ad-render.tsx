@@ -27,6 +27,14 @@ export interface AdRecipe {
   /** Prompt maison utilisé · c'est ce rattachement qui rend un preset mesurable. */
   presetId?: string | null;
   /**
+   * Univers visuel demandé · non rendu, consigné.
+   *
+   * Il ne l'était pas, et il n'existait donc aucun moyen de montrer ce qu'un
+   * univers donne CHEZ CETTE MARQUE · le choix se faisait sur un libellé, et le
+   * seul moyen de vérifier était de payer une génération.
+   */
+  universe?: string | null;
+  /**
    * Pourquoi Jarvis a proposé ça · calculé depuis la mémoire, jamais rédigé par
    * le modèle. Une justification produite par le modèle est une affirmation ;
    * calculée depuis les chiffres injectés, c'est un fait.

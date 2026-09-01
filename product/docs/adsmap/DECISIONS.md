@@ -2713,3 +2713,45 @@ l'avancement et l'erreur dedans.
 arrive pendant qu'on regarde le formulaire ne se voit pas, et « rien ne s'est
 passé » est la conclusion raisonnable quand rien ne bouge dans le champ de
 vision.
+
+---
+
+## D140 — On ne choisit pas une ambiance en lisant son nom
+
+**Constat.** L'univers visuel était une rangée de libellés avec une pastille de
+couleur. « Éditorial premium » et « Sombre cinématique » ne se départagent pas en
+lisant deux lignes · on les reconnaît, ou on ne les choisit pas.
+
+Le seul moyen de savoir ce qu'un univers donnait était **de payer une
+génération pour voir**.
+
+**Décision.** Des vignettes, et un filtre par famille.
+
+**L'aperçu est une vraie créa de la marque, pas une image de démonstration.** Une
+image de démo montrerait ce que l'univers donne sur un produit qui n'est pas le
+sien — c'est-à-dire à peu près ce qu'on devine déjà en lisant son nom. La marque
+a déjà payé des générations : la meilleure démonstration est la sienne, et elle
+ne coûte rien.
+
+**L'univers n'était pas consigné.** Il entre dans la recette (métadonnée, jamais
+rendue · le garde d'empreinte a demandé la décision, l'apparence ne change pas
+donc la version reste à 2). Les pubs antérieures n'en portent pas : leur univers
+reste sans aperçu jusqu'à la prochaine série. **On ne devine pas** · une vignette
+attribuée au mauvais univers vendrait une ambiance pour une autre.
+
+**Les familles répondent à la question qui vient avant le style** : produit seul,
+quelqu'un qui s'en sert, ou une ambiance ? Huit vignettes se parcourent, pas se
+comparent.
+
+« Varié (auto) » traverse tous les filtres · ce n'est pas un univers, c'est le
+refus d'en choisir un, et le cacher obligerait à revenir sur « Tous » pour
+renoncer.
+
+**L'univers manquait dans le démarrage rapide.** Il gardait donc silencieusement
+celui du formulaire du dessous · un réglage silencieux est un réglage qu'on subit.
+
+Mêmes gardes que pour les gabarits : le catalogue vit dans `ai`, son classement
+dans `core`, et un test dans l'application — seul endroit qui voit les deux —
+échoue si un univers arrive sans famille, sans phrase ou sans dégradé. Il vérifie
+aussi qu'aucun filtre ne ramène rien, ni ne ramasse tout : un filtre qui ne
+filtre pas est un bouton qui ment.

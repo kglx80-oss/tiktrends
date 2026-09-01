@@ -4,13 +4,14 @@ import { useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, scoreCreativeAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
-import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
+import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
 import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, generationOutcome, producedSomething, type Outcome } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { Composer } from '../../../../components/Composer';
+import { UniversePicker } from '../../../../components/UniversePicker';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
 
@@ -54,13 +55,6 @@ const OBJECTIVES = ['Ventes', 'Prospection', 'Retargeting', 'Notoriété', 'Traf
 const TPL_LABEL: Record<AdTemplate, string> = {
   problem_solution: 'Problème / solution', before_after: 'Avant / après', testimonial: 'Témoignage', benefits: 'Bénéfices',
   ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
-};
-// Aperçu couleur/gradient par univers (pour des cartes visuelles).
-const UNIVERSE_SWATCH: Record<string, string> = {
-  studio: 'linear-gradient(135deg,#e9e9ee,#c7c7d1)', lifestyle: 'linear-gradient(135deg,#f4c99a,#d98c5f)',
-  editorial: 'linear-gradient(135deg,#2b2b33,#6b6b7a)', nature: 'linear-gradient(135deg,#8fd39a,#4c8a5a)',
-  bold: 'linear-gradient(135deg,#ff5db1,#7a5bff)', cinematic: 'linear-gradient(135deg,#141420,#3a2b52)',
-  flatlay: 'linear-gradient(135deg,#f0e6da,#cbb79b)', energy: 'linear-gradient(135deg,#ff8a3c,#ff3c6e)',
 };
 
 export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false }: {
@@ -531,21 +525,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </div>
         )}
 
-        {/* Univers visuel · commun aux deux modes */}
+        {/* Univers visuel · commun aux deux modes.
+
+             C'était une rangée de libellés avec une pastille de couleur. On ne
+             choisit pas une ambiance en lisant « Éditorial premium » · on la
+             reconnaît, et le seul moyen de vérifier était de payer une
+             génération pour voir. */}
         <label style={lbl}>Univers visuel <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'ambiance des visuels</span></label>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 16 }}>
-          {[{ key: 'auto', label: '✦ Varié (auto)' }, ...VISUAL_UNIVERSES].map((u) => {
-            const on = universe === u.key;
-            return (
-              <button key={u.key} type="button" disabled={!ready} onClick={() => setUniverse(u.key)} style={{
-                display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 12, cursor: ready ? 'pointer' : 'default',
-                border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'var(--accent-soft)' : 'transparent', textAlign: 'left',
-              }}>
-                <span style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0, background: UNIVERSE_SWATCH[u.key] || 'var(--grad-accent)', border: '1px solid rgba(255,255,255,.15)' }} />
-                <span style={{ fontSize: 12, fontWeight: on ? 800 : 600, color: on ? 'var(--ink)' : 'var(--ink-2)' }}>{u.label}</span>
-              </button>
-            );
-          })}
+        <div style={{ marginBottom: 16 }}>
+          <UniversePicker value={universe} onChange={setUniverse} disabled={!ready} />
         </div>
 
         {mode === 'brand' ? (
@@ -824,6 +812,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)' }}>Sinon, l'IA pioche automatiquement dans la bibliothèque de la marque.</p>
                 </div>
               )}
+
+              {/* L'univers manquait ici · le démarrage rapide décidait donc de
+                  l'ambiance sans le dire, en gardant celle du formulaire du
+                  dessous. Un réglage silencieux est un réglage qu'on subit. */}
+              <div style={{ marginTop: 18 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Univers visuel</div>
+                <UniversePicker value={universe} onChange={setUniverse} compact />
+              </div>
 
               {/* Réglages avancés (Persona · Offre) */}
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18 }}>

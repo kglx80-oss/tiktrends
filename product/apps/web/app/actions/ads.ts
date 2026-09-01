@@ -218,6 +218,9 @@ async function composeBatch(o: {
       // savait ce jour-là est impossible, la mémoire ayant changé depuis.
       memoryUse: o.memoryUse,
       presetId: o.preset?.id ?? null,
+      // Consigné pour que l'écran puisse montrer ce que cet univers donne chez
+      // cette marque · sans ça, on choisit une ambiance sur un libellé.
+      universe: o.universe ?? null,
       // Recalculée depuis la mémoire injectée · elle ne peut donc pas inventer
       // un chiffre, contrairement à une phrase demandée au modèle.
       rationale: o.rationaleCtx
@@ -616,6 +619,51 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       const rec = (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore };
       return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: adUrl(r.id, rec), createdAt: (r.createdAt as Date).toISOString(), rating: rec.rating ?? null, score: rec.jarvisScore?.score };
     });
+}
+
+/**
+ * Un exemple par univers, pris dans les pubs de la marque.
+ *
+ * ── Pourquoi pas des images de démonstration ─────────────────────────────────
+ *
+ * On aurait pu joindre huit visuels de référence. Ils montreraient ce que
+ * l'univers donne sur un produit qui n'est pas le vôtre · c'est-à-dire la seule
+ * chose qu'on sait déjà en lisant « Sombre cinématique ».
+ *
+ * Ce qu'on veut savoir, c'est ce que ça donne ICI. La marque a déjà payé des
+ * générations : la meilleure démonstration est la sienne, et elle ne coûte rien.
+ *
+ * L'univers n'était pas consigné jusqu'ici · les pubs antérieures n'en portent
+ * donc pas, et leur univers reste sans aperçu jusqu'à la prochaine série. On ne
+ * devine pas : une vignette attribuée au mauvais univers vendrait une ambiance
+ * pour une autre.
+ */
+export async function universeSamplesAction(): Promise<Record<string, string>> {
+  const s = await getSession();
+  if (!s || !db) return {};
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return {};
+
+  const rows = await db.select({ id: schema.generations.id, input: schema.generations.input })
+    .from(schema.generations)
+    .where(and(
+      eq(schema.generations.brandId, brand.id),
+      eq(schema.generations.kind, 'ad'),
+      eq(schema.generations.status, 'completed'),
+    ))
+    .orderBy(desc(schema.generations.createdAt))
+    .limit(160);
+
+  const out: Record<string, string> = {};
+  for (const r of rows) {
+    const rec = (r.input ?? {}) as Partial<AdRecipe>;
+    const u = rec.universe;
+    // La plus récente gagne · on parcourt du plus récent au plus ancien et on
+    // ne réécrit pas. Montrer une vieille créa donnerait une idée périmée de la
+    // direction artistique de la marque.
+    if (u && !out[u]) out[u] = `${adUrl(r.id, rec)}&t=1`;
+  }
+  return out;
 }
 
 /** Archive (ou restaure) un rendu de pub. */
