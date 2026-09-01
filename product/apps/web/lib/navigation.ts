@@ -71,6 +71,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/adsmap/protocole', label: 'Protocole & seuils', parent: '/adsmap', section: 'Laboratoire' },
   { path: '/adsmap/import', label: 'Importer', parent: '/adsmap', section: 'Laboratoire' },
   { path: '/adsmap/radar', label: 'Radar de veille', parent: '/adsmap', section: 'Laboratoire' },
+  { path: '/adsmap/tri', label: 'Tri des propositions', parent: '/adsmap', section: 'Laboratoire' },
   // Redirige vers `/jarvis` · déclarée pour que la carte reste complète, cachée
   // pour qu'un fil ne s'affiche jamais sur un écran qu'on ne fait que traverser.
   { path: '/adsmap/jarvis', label: 'Jarvis', parent: '/adsmap', section: 'Laboratoire', hidden: true },
@@ -170,7 +171,7 @@ export interface CrumbOptions {
 /** Écrans dont le contenu dépend entièrement de la marque active. */
 const PAR_MARQUE = new Set([
   '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/protocole',
-  '/adsmap/import', '/adsmap/radar',
+  '/adsmap/import', '/adsmap/radar', '/adsmap/tri',
   '/jarvis', '/studio', '/studio/ads', '/studio/image', '/studio/video',
   '/studio/textes', '/assets', '/analytics', '/dashboard',
 ]);
