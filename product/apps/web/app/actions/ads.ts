@@ -13,7 +13,8 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
-import { logAndTranslate } from '../../lib/error-log';
+import { logAndTranslate, logFailure } from '../../lib/error-log';
+import { refusDefinitif } from '../../lib/fal-retry';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 
@@ -24,6 +25,18 @@ export interface AdItem {
   rationale?: string[] | null;
 }
 export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
+
+/**
+ * Ce qu'on dit quand AUCUNE scène n'est sortie.
+ *
+ * « Les scènes n'ont pas pu être générées. Réessaie. » était la seule chose
+ * qu'on savait déjà en regardant l'écran vide · et elle conseillait de refaire
+ * exactement ce qui venait d'échouer, donc de repayer l'attente.
+ */
+function echecLisible(e: unknown, workspaceId: string): string {
+  if (!e) return 'Aucune scène n’est sortie, et le fournisseur n’a rien dit. Réessaie dans une minute.';
+  return logAndTranslate('ads:compose', e, { subject: 'la génération des scènes', workspaceId });
+}
 
 /** Ordonne les couleurs d'accent lisibles (bouton/CTA) de la DA ; défaut si aucune. */
 function pickAccents(colors?: string[] | null): string[] {
@@ -105,6 +118,13 @@ async function composeBatch(o: {
   preset?: { id: string; prompt: string; negative: string | null } | null;
   /** De quoi expliquer chaque proposition · les mêmes chiffres que ceux injectés. */
   rationaleCtx?: { stats: StatRow[]; globalRate: number | null; hooks: HookEntry[] } | null;
+  /**
+   * Le dernier échec rencontré · rempli au fil de l'eau.
+   *
+   * Sans lui, une série entièrement ratée rendait « les scènes n'ont pas pu
+   * être générées », c'est-à-dire la seule chose qu'on savait déjà.
+   */
+  echec: { dernier?: unknown };
 }): Promise<AdItem[]> {
   const accents = pickAccents(o.colors);
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
@@ -149,7 +169,7 @@ async function composeBatch(o: {
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
       try {
-        await guardFixedCost('fal_image', { action: 'ads:image', units: 1 });
+        await guardFixedCost('fal_image', { action: 'ads:image', workspaceId: o.workspaceId, units: 1 });
         // L'endpoint dépend de la présence d'une référence · appeler `.../edit`
         // sans image renvoie une erreur du fournisseur, et le modèle a l'air
         // cassé alors qu'on s'est trompé de porte.
@@ -158,7 +178,20 @@ async function composeBatch(o: {
           model: falModelFor(o.modelSpec, !!imageUrls?.length), params: o.modelSpec.params,
         });
         if (images[0]) return images[0];
-      } catch { /* réessai */ }
+        const vide = new Error('Le fournisseur n’a renvoyé aucune image.');
+        logFailure('ads:scene', vide, o.workspaceId);
+        o.echec.dernier = vide;
+      } catch (e) {
+        // On réessaie, mais on ne se tait plus · un catch vide transformait une
+        // panne diagnosticable (modèle inconnu, quota, référence illisible) en
+        // dix minutes d'attente suivies d'un message qui n'explique rien.
+        logFailure(`ads:scene:${attempt + 1}`, e, o.workspaceId);
+        o.echec.dernier = e;
+        // Un refus du fournisseur (4xx) se reproduira à l'identique · le
+        // réessayer fait attendre quatre-vingt-dix secondes de plus pour la
+        // même réponse, et douze pubs le font attendre dix minutes.
+        if (refusDefinitif(e)) break;
+      }
     }
     return null;
   };
@@ -370,16 +403,17 @@ export async function generateAdsAction(input: {
   const resolu = await resolvePreset(s.workspaceId, input.presetId);
   const presetChoisi = resolu && input.presetId ? { id: input.presetId, ...resolu } : null;
 
+  const echec: { dernier?: unknown } = {};
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
-    modelSpec, creditsPerImage: modelSpec.credits,
+    modelSpec, creditsPerImage: modelSpec.credits, echec,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
     memoryUse: memoire.use, rationaleCtx,
   });
-  if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
+  if (!ads.length) return { error: echecLisible(echec.dernier, s.workspaceId) };
   return { ads, requested: count };
 }
 
@@ -551,16 +585,17 @@ export async function cloneAdAction(input: {
   const resoluClone = await resolvePreset(s.workspaceId, input.presetId);
   const presetClone = resoluClone && input.presetId ? { id: input.presetId, ...resoluClone } : null;
 
+  const echec: { dernier?: unknown } = {};
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
     preset: presetClone,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
-    modelSpec, creditsPerImage: modelSpec.credits,
+    modelSpec, creditsPerImage: modelSpec.credits, echec,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
     memoryUse: mesureClone.use,
   });
-  if (!ads.length) return { error: "Les scènes n'ont pas pu être générées. Réessaie." };
+  if (!ads.length) return { error: echecLisible(echec.dernier, s.workspaceId) };
   return { ads, requested: count };
 }
 

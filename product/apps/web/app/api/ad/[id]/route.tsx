@@ -14,21 +14,25 @@ const RATIO_SIZE: Record<string, { width: number; height: number }> = {
   '9:16': { width: 1080, height: 1920 },
 };
 
-/**
- * La vignette · deux cinquièmes de la largeur d'impression.
+/*
+ * ── La vignette a été retirée, et pourquoi ───────────────────────────────────
  *
- * La grille affichait des cartes de deux cent quarante pixels de large, et on
- * lui servait des images de mille quatre-vingts · composées à la demande par
- * satori, à chaque fois, pour être réduites par le navigateur juste après.
+ * On composait la grille à 40 % (432 × 540) pour économiser six fois moins de
+ * pixels à rasteriser. L'idée était bonne, la mise en œuvre était fausse :
+ * **toute la maquette est en pixels absolus calés sur une largeur de 1080**
+ * (`fontSize: 74`, `padding: '150px 56px 56px'`, `top: 46`…). Réduire le
+ * canevas sans redimensionner l'arbre donne une accroche de 74 px sur une
+ * image large de 432 · c'est-à-dire un titre qui mange la moitié de la pub.
  *
- * Le coût d'une composition suit la SURFACE : 432 × 540 fait six fois moins de
- * pixels que 1080 × 1350. Treize pubs à l'écran, c'était donc treize rendus
- * pleine résolution avant la première image visible.
+ * Le gain qu'on cherchait est de toute façon devenu accessoire : depuis que le
+ * PNG est rangé dans le bucket au premier rendu (D101), une pub n'est composée
+ * qu'une seule fois dans sa vie. Ce qui restait était de la bande passante, et
+ * la bande passante ne vaut pas une maquette cassée.
  *
- * Le plein format reste servi tel quel · l'aperçu et le téléchargement le
- * demandent, et eux le méritent : on les regarde un par un.
+ * Pour la faire revenir proprement il faudrait rendre la maquette
+ * proportionnelle à sa largeur · c'est un vrai chantier sur les dix gabarits,
+ * pas un paramètre.
  */
-const ECHELLE_VIGNETTE = 0.4;
 
 // Cache mémoire des PNG rendus (le rendu satori est coûteux). Clé = id:ratio:hash(texte+scène).
 // Borné en OCTETS, pas en nombre d'entrées : un 9:16 pèse plusieurs Mo, donc 300
@@ -73,7 +77,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!s || !db) return new Response('Non autorisé', { status: 401 });
   const q = new URL(req.url).searchParams;
   const r = q.get('r') || '';
-  const vignette = q.get('t') === '1';
   const size = RATIO_SIZE[r];
 
   const [g] = await db
@@ -86,12 +89,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!g || g.kind !== 'ad' || g.workspaceId !== s.workspaceId) return new Response('Introuvable', { status: 404 });
   const base = g.input as unknown as AdRecipe;
   if (!base?.sceneUrl) return new Response('Recette invalide', { status: 422 });
-  const plein = size ?? { width: base.width ?? 1080, height: base.height ?? 1350 };
-  const dims = vignette
-    ? { width: Math.round(plein.width * ECHELLE_VIGNETTE), height: Math.round(plein.height * ECHELLE_VIGNETTE) }
-    : plein;
-  const recipe: AdRecipe = { ...base, width: dims.width, height: dims.height };
-  const cacheKey = `${id}:${r || '4:5'}:${vignette ? 't' : 'f'}:${recipeHash(recipe)}`;
+  const recipe: AdRecipe = size ? { ...base, width: size.width, height: size.height } : base;
+  const cacheKey = `${id}:${r || '4:5'}:${recipeHash(recipe)}`;
 
   const cached = RENDER_CACHE.get(cacheKey);
   if (cached) {
