@@ -2097,3 +2097,53 @@ débit crédits suit le modèle choisi.
 choisissait depuis toujours. Et facturer `costFor('image')` quel que soit le
 moteur revenait à vendre GPT Image 2 · Haute au prix de Nano Banana, soit un
 quart de son coût réel.
+
+---
+
+## D108 — La vignette est retirée · la maquette n'était pas redimensionnable
+
+**Décision.** On revient au plein format pour la grille. `?t=1` disparaît.
+
+**Pourquoi.** L'idée était bonne, la mise en œuvre était fausse : **toute la
+maquette est en pixels absolus calés sur une largeur de 1080** (`fontSize: 74`,
+`padding: '150px 56px 56px'`, `top: 46`…). Réduire le canevas sans
+redimensionner l'arbre donne une accroche de 74 px sur une image large de 432 ·
+un titre qui mange la moitié de la pub.
+
+**Le gain visé est devenu accessoire.** Depuis que le PNG est rangé au premier
+rendu (D101), une pub n'est composée qu'une fois dans sa vie · ce qui restait
+était de la bande passante, et la bande passante ne vaut pas une maquette
+cassée.
+
+La faire revenir proprement demande de rendre la maquette proportionnelle à sa
+largeur, sur les dix gabarits. C'est un chantier, pas un paramètre.
+
+---
+
+## D109 — Un réessai silencieux transforme une panne en mystère
+
+**Décision.** L'échec d'une scène est journalisé (`logFailure`) et le dernier
+échec remonte dans le message rendu à l'écran.
+
+**Pourquoi.** Le réessai vivait dans un `catch {}` strictement vide. Quand le
+fournisseur refusait un appel, l'erreur mourait là · on voyait une attente de
+plusieurs minutes puis « les scènes n'ont pas pu être générées », c'est-à-dire
+la seule chose qu'on savait déjà en regardant l'écran vide. Et le conseil
+« Réessaie » proposait de repayer exactement la même attente.
+
+Il faut réessayer. Il ne faut pas se taire en le faisant.
+
+---
+
+## D110 — Un `4xx` ne se rejoue pas
+
+**Décision.** Un refus du fournisseur interrompt la boucle de réessai. Les
+délais et les `5xx` gardent leur seconde chance.
+
+**Pourquoi.** Un `4xx` porte sur la DEMANDE — modèle inconnu, paramètre refusé,
+référence illisible. La seconde tentative envoie la même demande, donc reçoit la
+même réponse, quatre-vingt-dix secondes plus tard. Douze pubs dans ce cas
+faisaient attendre plus de dix minutes pour rien.
+
+La règle vit dans `lib/fal-retry.ts` · dans le `catch` d'un fichier
+`'use server'` elle ne se testait pas.

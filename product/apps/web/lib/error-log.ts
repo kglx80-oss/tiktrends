@@ -51,3 +51,30 @@ export function logAndTranslate(scope: string, e: unknown, opts: UserErrorOption
 
   return userError(e, opts);
 }
+
+/**
+ * Trace un échec SANS produire de message utilisateur.
+ *
+ * ── Le trou que ça bouche ────────────────────────────────────────────────────
+ *
+ * La génération de scènes réessayait dans un `catch {}` strictement vide. Quand
+ * le fournisseur refusait un appel — modèle inconnu, quota, image de référence
+ * illisible — l'erreur mourait là. On voyait une attente de plusieurs minutes
+ * puis « les scènes n'ont pas pu être générées », sans jamais savoir pourquoi,
+ * ni depuis l'écran, ni depuis les incidents.
+ *
+ * **Un réessai silencieux transforme une panne diagnosticable en mystère.** Il
+ * faut réessayer, oui ; il ne faut pas se taire en le faisant.
+ */
+export function logFailure(scope: string, e: unknown, workspaceId?: string): void {
+  const detail = rawMessage(e);
+  console.error(`[${scope}]`, detail);
+  if (!db) return;
+  void db.insert(schema.errorLog).values({
+    scope: scope.slice(0, 80),
+    family: errorFamily(e),
+    detail: detail.slice(0, DETAIL_MAX) || '(sans message)',
+    workspaceId: workspaceId ?? null,
+  }).catch(() => { /* au pire, il reste la ligne de console */ });
+  purgeSometimes();
+}
