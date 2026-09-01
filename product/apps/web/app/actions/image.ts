@@ -6,7 +6,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
 import { enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
@@ -275,6 +275,9 @@ export async function listBrandImages(): Promise<BrandImage[]> {
   const out: BrandImage[] = [];
   for (const g of rows) {
     if (g.status === 'archived') continue; // masquer les rendus archivés
+    // Les aperçus d'univers vivent dans la même table · ils n'ont jamais été
+    // demandés ici et n'ont rien à faire dans la galerie de la marque.
+    if (g.status === UNIVERSE_PREVIEW_STATUS) continue;
     const input = (g.input ?? {}) as { prompt?: string; rating?: import('./creatives').Rating };
     for (const url of g.assetUrls ?? []) out.push({ id: g.id + ':' + url, prompt: input.prompt || '', url, createdAt: (g.createdAt as Date).toISOString(), rating: input.rating ?? null });
   }

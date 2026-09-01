@@ -2796,3 +2796,43 @@ composeur existe encore, pas qu'il soit ouvert en permanence.
   donnait « il ne se passe rien » ;
 - le mode clone s'annonce dans l'en-tête replié · sinon sa référence chargée et
   son bouton de lancement disparaissent sans laisser de trace.
+
+---
+
+## D142 — Les aperçus d'univers, fabriqués une fois, jamais deux
+
+**Constat.** Les vignettes d'univers (D140) montrent une créa de la marque quand
+il y en a une. Une marque neuve n'en a aucune : elle voit huit dégradés, et la
+promesse « choisis à l'œil » ne tient qu'après plusieurs séries payées à
+l'aveugle.
+
+**Décision.** Un bouton qui fabrique les huit, sur le produit de la marque.
+
+**Le prix est écrit sur le bouton.** Un prix qu'on découvre après n'est pas un
+prix, c'est une facture.
+
+**Rien ne part au chargement d'une page.** Aucune fabrication n'est déclenchée
+par une lecture · seul un clic dépense.
+
+**Ce qui existe n'est jamais refait.** Un bouton peut être cliqué deux fois, une
+page rechargée, un second onglet ouvert. La règle vit donc dans le noyau, pure
+et testée — pas dans l'écran, dont la discipline dépend de l'attention de celui
+qui clique. Le plan est **recalculé côté serveur** : un plan reçu du navigateur
+referait ce qui existe déjà.
+
+Le plafond ne se négocie pas, et le forçage ne l'ouvre pas · sinon « tout
+refaire » deviendrait une dépense qui grandit avec le catalogue sans que
+personne ne l'ait décidé.
+
+**Le brief est le MÊME pour les huit.** C'est ce qui rend les vignettes
+comparables : si la scène changeait en même temps que l'univers, on ne saurait
+pas ce qui a produit la différence, et « choisir à l'œil » reviendrait à choisir
+au hasard avec une illustration. Seul le paragraphe de direction artistique
+change.
+
+**La créa réelle prime sur l'aperçu fabriqué** · elle porte le vrai travail de la
+marque, pas une démonstration. La pastille dit lequel des deux on regarde.
+
+Le moteur est le moins cher du catalogue : un aperçu n'est pas la créa finale.
+Un échec sur un univers ne condamne pas les sept autres, et les crédits non
+utilisés sont remboursés.
