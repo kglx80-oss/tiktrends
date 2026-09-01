@@ -59,6 +59,31 @@ export interface AdRecipe {
  * asynchrone un jour, deux pubs rendues en même temps prendraient l'échelle
  * l'une de l'autre, et personne ne comprendrait pourquoi.
  */
+/**
+ * La version de la MAQUETTE, pas de la recette.
+ *
+ * ── Le cache empoisonné ──────────────────────────────────────────────────────
+ *
+ * Les rendus sont rangés dans le bucket et retrouvés par une clé qui ne portait
+ * que l'identifiant, le ratio et l'empreinte du TEXTE. Rien n'y disait avec
+ * quelle version de la maquette l'image avait été composée.
+ *
+ * Conséquence : les vignettes produites par la première tentative — celle qui
+ * ne redimensionnait pas la maquette — sont restées dans le bucket sous la même
+ * clé. La correction proportionnelle n'a jamais pu les remplacer, parce que la
+ * route les retrouvait avant de composer quoi que ce soit. Les pubs récentes
+ * s'affichaient bien, les anciennes gardaient leur titre géant · d'où
+ * l'impression que « c'est toujours cassé ».
+ *
+ * **Un cache persistant a besoin d'une version du producteur, pas seulement
+ * d'une empreinte du contenu.** Sans elle, corriger un rendu ne corrige rien de
+ * ce qui a déjà été rendu.
+ *
+ * Un test relie ce numéro au contenu réel du fichier : le modifier sans
+ * l'incrémenter fait échouer la suite.
+ */
+export const RENDER_VERSION = 2;
+
 const LARGEUR_MAQUETTE = 1080;
 let ECHELLE = 1;
 

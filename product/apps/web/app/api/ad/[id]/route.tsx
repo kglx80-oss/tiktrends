@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
-import { renderAdPng, type AdRecipe } from '../../../../lib/ad-render';
+import { renderAdPng, RENDER_VERSION, type AdRecipe } from '../../../../lib/ad-render';
 import { renduConnu, rangerRendu } from '../../../../lib/ad-store';
 
 export const runtime = 'nodejs';
@@ -96,7 +96,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     ? { width: Math.round(plein.width * ECHELLE_VIGNETTE), height: Math.round(plein.height * ECHELLE_VIGNETTE) }
     : plein;
   const recipe: AdRecipe = { ...base, width: dims.width, height: dims.height };
-  const cacheKey = `${id}:${r || '4:5'}:${vignette ? 't' : 'f'}:${recipeHash(recipe)}`;
+  // La version de la maquette entre dans la clé · sans elle, une image composée
+  // par une version fautive reste servie pour toujours, et corriger le rendu ne
+  // corrige rien de ce qui a déjà été rendu.
+  const cacheKey = `v${RENDER_VERSION}:${id}:${r || '4:5'}:${vignette ? 't' : 'f'}:${recipeHash(recipe)}`;
 
   const cached = RENDER_CACHE.get(cacheKey);
   if (cached) {

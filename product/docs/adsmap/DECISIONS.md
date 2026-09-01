@@ -2471,3 +2471,36 @@ lancer, elle ne va pas commencer par un message d'erreur.
 
 **La réponse tardive ne s'affiche jamais** · deux vérifications qui se croisent
 afficheraient une réserve portant sur une phrase déjà effacée.
+
+---
+
+## D130 — Un cache persistant a besoin d'une version du producteur
+
+**Constat.** Les vignettes restaient cassées après leur correction · les images
+composées par la version fautive étaient rangées dans le bucket sous une clé qui
+ne portait que l'identifiant, le ratio et l'empreinte du TEXTE.
+
+**Rien n'y disait avec quelle version de la maquette l'image avait été
+composée.** La route les retrouvait avant de composer quoi que ce soit : la
+correction proportionnelle n'a jamais pu les remplacer. Les pubs récentes
+s'affichaient bien, les anciennes gardaient leur titre géant · d'où l'impression
+que rien n'avait bougé.
+
+**Corriger un rendu ne corrige rien de ce qui a déjà été rendu.** `RENDER_VERSION`
+entre donc dans la clé.
+
+C'est le prix de la persistance introduite en D101, et il n'avait pas été payé.
+
+---
+
+## D131 — Le rappel devient un test
+
+**Décision.** Un test empreint `ad-render.tsx` et `ad-fonts.ts`, et échoue quand
+la maquette change sans que la version ait été revue.
+
+**Pourquoi.** « Penser à incrémenter la version » est exactement le genre de
+consigne qu'on écrit en commentaire et qu'on n'applique pas · surtout six
+semaines plus tard, sur un changement qui paraît cosmétique.
+
+Le test ne peut pas deviner si l'apparence a changé · il oblige à **décider**, et
+dit quoi écrire dans les deux cas.
