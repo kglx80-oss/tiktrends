@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { renderAdPng, type AdRecipe } from '../../../../lib/ad-render';
+import { renduConnu, rangerRendu } from '../../../../lib/ad-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -76,7 +77,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const size = RATIO_SIZE[r];
 
   const [g] = await db
-    .select({ input: schema.generations.input, workspaceId: schema.brands.workspaceId, kind: schema.generations.kind })
+    .select({ input: schema.generations.input, output: schema.generations.output, workspaceId: schema.brands.workspaceId, kind: schema.generations.kind })
     .from(schema.generations)
     .leftJoin(schema.brands, eq(schema.generations.brandId, schema.brands.id))
     .where(eq(schema.generations.id, id))
@@ -98,9 +99,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return new Response(cached, { headers: { 'content-type': 'image/png', 'cache-control': CACHE, 'x-cache': 'HIT' } });
   }
 
+  // Déjà rangé dans le bucket lors d'un passage précédent · c'est ce qui rend la
+  // composition définitivement gratuite. Le cache mémoire, lui, repart à zéro à
+  // chaque déploiement : la première personne à ouvrir le studio après une mise
+  // en ligne repayait la composition de toutes ses pubs, une par une.
+  const range = renduConnu(g.output, cacheKey);
+  if (range) return Response.redirect(range, 302);
+
   try {
     const png = await renderAdPng(recipe);
     cachePut(cacheKey, png);
+    // On répond d'abord · faire attendre un aller-retour S3 rendrait le premier
+    // affichage plus lent pour accélérer les suivants. Échec silencieux : un
+    // cache qui tombe doit se contenter de ne pas accélérer.
+    void rangerRendu(id, cacheKey, png).catch(() => { /* le cache mémoire reste */ });
     return new Response(png, {
       headers: { 'content-type': 'image/png', 'cache-control': CACHE, 'x-cache': 'MISS' },
     });

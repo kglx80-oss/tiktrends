@@ -1968,3 +1968,50 @@ la mémoire de Jarvis et par l'écran marché.
 **Pourquoi.** Le mapper était copié aux deux endroits, à l'identique. Deux
 copies finissent par diverger · et la divergence, ici, se serait vue comme deux
 chiffres de marché différents selon l'écran ouvert.
+
+---
+
+## D101 — Un rendu payé une fois n'est jamais repayé
+
+**Décision.** Le PNG composé est rangé dans le bucket et son adresse notée dans
+`generations.output.renders[clé]`. Une requête suivante redirige, elle ne
+recompose pas.
+
+**Pourquoi.** Les rendus vivaient dans une `Map` du processus · ça marche
+jusqu'au prochain déploiement. Après chaque mise en ligne, la première personne
+à ouvrir le studio repayait la composition de toutes ses pubs, une par une,
+devant un écran vide. La recette n'avait pas changé : l'image aurait été
+identique au pixel près.
+
+**`output`, pas `input`.** `input` porte la recette — ce qu'il faut dessiner.
+`output` porte ce qui a été produit — où l'image se trouve. Ranger l'adresse
+dans la recette aurait mélangé la consigne et son résultat.
+
+**On répond d'abord, on range ensuite** · faire attendre un aller-retour S3
+rendrait le premier affichage plus lent pour accélérer les suivants. Et tout
+échoue en silence : un cache qui tombe doit se contenter de ne pas accélérer.
+
+**La fusion se fait à l'intérieur de `renders`** · l'opérateur `||` de jsonb ne
+fusionne qu'au premier niveau, donc deux ratios rendus le même jour se seraient
+écrasés l'un l'autre sans qu'on s'en aperçoive.
+
+---
+
+## D102 — Sortir les images de la base, par lots et à la main
+
+**Décision.** Un bouton dans les réglages déplace 25 images embarquées vers le
+bucket, avec le compte de ce qui reste.
+
+**Pourquoi.** Le proxy `/api/asset/[id]` avait réglé le symptôme · la page ne
+transporte plus les octets. Il n'avait rien réglé de la cause : ils sont
+toujours dans Postgres, donc dans chaque sauvegarde et dans chaque requête qui
+touche la table, même quand elle ne demande pas la colonne.
+
+**Par lots et déclenché à la main.** Une bibliothèque entière peut peser
+plusieurs gigaoctets · le faire en tâche de fond au premier chargement
+transformerait une visite anodine en transfert de plusieurs minutes que
+personne n'a demandé.
+
+**Le fichier est écrit AVANT que la ligne change.** Une coupure au milieu laisse
+un objet orphelin de quelques kilo-octets, jamais une image perdue. L'ordre
+inverse aurait donné exactement le contraire.
