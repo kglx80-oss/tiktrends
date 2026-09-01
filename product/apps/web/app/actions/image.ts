@@ -254,7 +254,11 @@ export async function listBrandImages(): Promise<BrandImage[]> {
   if (!s || !db) return [];
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return [];
-  const rows = await db.select().from(schema.generations)
+  const rows = await db.select({
+    id: schema.generations.id, input: schema.generations.input,
+    assetUrls: schema.generations.assetUrls, status: schema.generations.status,
+    createdAt: schema.generations.createdAt,
+  }).from(schema.generations)
     .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'image')))
     .orderBy(desc(schema.generations.createdAt)).limit(24);
   const out: BrandImage[] = [];

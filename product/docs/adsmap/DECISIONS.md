@@ -1937,3 +1937,34 @@ la page attendait.
 la date seulement en cas de succès aurait laissé le défaut entier.
 
 Migration 0042.
+
+---
+
+## D99 — Une table lourde se lit colonne par colonne
+
+**Décision.** Un test refuse `db.select()` sans liste de colonnes sur les tables
+qui portent du contenu : `assets`, `generations`, `marketCreatives`, `savedAds`,
+`jarvisMessages`.
+
+**Pourquoi.** C'est le défaut exact qui a rendu Pubs IA lente, et rien
+n'empêchait qu'il revienne · un `select()` nu ne ressemble pas à une faute, il
+ressemble à du code court.
+
+**Le garde ne juge pas la taille réelle — il ne peut pas — il juge l'intention.**
+Écrire les colonnes qu'on veut oblige à se demander si on veut vraiment celle
+qui pèse.
+
+**Il a trouvé cinq autres cas à sa première exécution**, dont deux qui lisaient
+six cents descriptions IA complètes pour alimenter neuf champs, et un qui
+remontait deux cents images en base64 pour en taguer vingt.
+
+---
+
+## D100 — La projection marché est partagée
+
+**Décision.** `lib/market-rows.ts` porte les colonnes et le mapper, utilisés par
+la mémoire de Jarvis et par l'écran marché.
+
+**Pourquoi.** Le mapper était copié aux deux endroits, à l'identique. Deux
+copies finissent par diverger · et la divergence, ici, se serait vue comme deux
+chiffres de marché différents selon l'écran ouvert.
