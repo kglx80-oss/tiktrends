@@ -2676,3 +2676,40 @@ de l'application, et un noyau rouge empêche le dépendant de se déclarer vert.
 Vérifié dans les deux sens : en cassant le noyau (le dépendant ne tourne plus)
 et en cassant `@tiktrends/ai` (le test de l'application échoue, alors qu'il
 répondait « cache hit » avant le correctif).
+
+---
+
+## D139 — Le démarrage rapide ne montrait rien de ce qu'il faisait
+
+**Rapporté.** « J'ai testé de générer des images en passant par Démarrage
+rapide, aucune image générée, est-ce que cette partie fonctionne ? »
+
+Elle fonctionnait. Elle ne le disait pas. Trois causes qui s'additionnent :
+
+**1 · La fenêtre se fermait avant que le travail commence.**
+`setQuickOpen(false)` précédait l'appel. Toute la suite — avancement, erreur,
+résultat — atterrissait derrière une fenêtre qui n'était plus là. Le clic
+n'avait aucune conséquence visible, ce qui se lit comme une panne.
+
+**2 · Le mode était lu avant d'avoir changé.** `setMode('brand')` puis
+`await run()` dans le même tour · `run` lisait `mode` dans la fermeture, donc
+l'ancienne valeur. Depuis l'onglet « Cloner une pub gagnante », le démarrage
+rapide partait dans la branche clone et échouait sur une référence qu'on ne lui
+avait jamais demandée. Le mode est maintenant un **argument**.
+
+**3 · Un lot vide sans erreur était un succès silencieux.** La troisième branche
+de `applyResult` s'écrivait `setNotice('')` : elle effaçait le dernier message
+et n'affichait rien.
+
+**Décision.** `generationOutcome` dans le noyau. **Zéro image produite est
+toujours quelque chose à dire** · un retour sans erreur et sans créa n'est pas
+un succès muet, c'est un échec dont on a perdu la cause. Le type le garantit :
+`done` est le seul cas sans message et exige `got > 0`.
+
+La fenêtre ne se referme que si `producedSomething` · sinon elle reste, avec
+l'avancement et l'erreur dedans.
+
+**Et la grille remonte sous les yeux.** Elle est en bas de page : un lot qui
+arrive pendant qu'on regarde le formulaire ne se voit pas, et « rien ne s'est
+passé » est la conclusion raisonnable quand rien ne bouge dans le champ de
+vision.
