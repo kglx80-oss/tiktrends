@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useState, useTransition, type CSSProperties } from 'react';
 import { VISUAL_UNIVERSES } from '@tiktrends/ai';
 import {
   UNIVERSE_AUTO, UNIVERSE_FAMILIES, UNIVERSE_HINT, UNIVERSE_SWATCH,
   filterUniverses, type UniverseFamily,
 } from '@tiktrends/core';
 import { universeSamplesAction } from '../app/actions/ads';
+import { universePreviewsAction, generateUniversePreviewsAction, type UniversePreviewsView } from '../app/actions/universe-previews';
 
 /**
  * Choisir un univers visuel à l'œil.
@@ -27,6 +28,17 @@ import { universeSamplesAction } from '../app/actions/ads';
  * sienne, et elle ne coûte rien. Tant qu'aucune n'existe pour un univers, on
  * montre son dégradé et sa phrase · jamais la créa d'un autre univers, qui
  * vendrait une ambiance pour une autre.
+ *
+ * ── Et quand la marque n'a encore rien ? ─────────────────────────────────────
+ *
+ * Une marque neuve voit huit dégradés · la promesse « choisis à l'œil » ne tient
+ * alors qu'après plusieurs séries payées à l'aveugle. On propose donc de
+ * fabriquer les huit aperçus, une fois, sur le produit de la marque, avec **le
+ * prix écrit sur le bouton**.
+ *
+ * Rien ne part au chargement de la page. Un aperçu fabriqué n'est jamais refait.
+ * Ces deux règles vivent dans le noyau, pas ici · un écran qui décide seul de ce
+ * qu'il regénère finit par regénérer ce qu'il a déjà.
  *
  * ── Les filtres répondent à la question qui vient avant ──────────────────────
  *
@@ -57,16 +69,32 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
 }) {
   const [famille, setFamille] = useState<UniverseFamily | null>(null);
   const [apercus, setApercus] = useState<Record<string, string>>({});
+  const [fabrique, setFabrique] = useState<UniversePreviewsView | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, lancer] = useTransition();
 
   // Les aperçus sont un confort, jamais une condition d'affichage · une lecture
   // en échec laisse les dégradés en place et ne dit rien.
-  useEffect(() => {
-    let vivant = true;
-    void universeSamplesAction()
-      .then((r) => { if (vivant) setApercus(r); })
-      .catch(() => {});
-    return () => { vivant = false; };
+  const charger = useCallback(async () => {
+    const [creas, faits] = await Promise.all([
+      universeSamplesAction().catch(() => ({} as Record<string, string>)),
+      universePreviewsAction().catch(() => null),
+    ]);
+    setApercus(creas);
+    setFabrique(faits);
   }, []);
+
+  useEffect(() => { void charger(); }, [charger]);
+
+  const fabriquer = () => lancer(async () => {
+    setMsg(null);
+    const r = await generateUniversePreviewsAction();
+    if (r.error) { setMsg(r.error); return; }
+    setMsg(r.failed
+      ? `${r.made} aperçu(s) fabriqué(s) · ${r.failed} ont échoué et gardent leur dégradé. Tu n’es débité que de ce qui a abouti.`
+      : `${r.made} aperçu(s) fabriqué(s).`);
+    await charger();
+  });
 
   const visibles = filterUniverses(OPTIONS, famille);
   const hauteur = compact ? 70 : 92;
@@ -82,10 +110,34 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
         ))}
       </div>
 
+      {/* Le prix est SUR le bouton · un prix qu'on découvre après n'est pas un
+          prix, c'est une facture. Rien ne part au chargement de la page. */}
+      {fabrique?.ready && fabrique.plan.missing.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 11,
+          padding: '9px 12px', borderRadius: 12, border: '1px dashed var(--line-2)', background: 'var(--paper)',
+        }}>
+          <span style={{ fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5, flex: '1 1 240px' }}>
+            {fabrique.plan.summary} Fabriqués une fois sur ton produit · un aperçu déjà fait n’est jamais refait.
+          </span>
+          <button type="button" onClick={fabriquer} disabled={disabled || busy} style={{
+            padding: '8px 15px', borderRadius: 999, border: 'none', fontSize: 12, fontWeight: 800,
+            cursor: disabled || busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c',
+            opacity: disabled || busy ? .55 : 1, whiteSpace: 'nowrap',
+          }}>
+            {busy ? 'Fabrication…' : `Fabriquer · ${fabrique.plan.credits} cr.`}
+          </button>
+        </div>
+      )}
+      {msg && <p style={{ margin: '0 0 11px', fontSize: 11.5, color: '#9fe6b3', lineHeight: 1.5 }}>{msg}</p>}
+
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${compact ? 132 : 150}px, 1fr))`, gap: 10 }}>
         {visibles.map((u) => {
           const on = value === u.key;
-          const apercu = apercus[u.key];
+          // La créa réelle prime sur l'aperçu fabriqué · elle porte le vrai
+          // travail de la marque, pas une démonstration.
+          const creaReelle = apercus[u.key];
+          const apercu = creaReelle ?? fabrique?.previews[u.key];
           return (
             <button
               key={u.key} type="button" disabled={disabled} onClick={() => onChange(u.key)}
@@ -117,7 +169,7 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
                     position: 'absolute', bottom: 5, left: 6, padding: '2px 7px', borderRadius: 999,
                     background: 'rgba(8,5,10,.66)', color: '#e8e6ee', fontSize: 9.5, fontWeight: 700,
                     backdropFilter: 'blur(3px)',
-                  }}>ta créa</span>
+                  }}>{creaReelle ? 'ta créa' : 'aperçu'}</span>
                 )}
               </div>
               <div style={{ padding: '8px 10px 10px' }}>
