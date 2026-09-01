@@ -99,6 +99,19 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [adsPage, setAdsPage] = useState(0);
   // La grille est en bas de page · on y amène le regard quand un lot arrive.
   const grille = useRef<HTMLDivElement>(null);
+  const composeur = useRef<HTMLDivElement>(null);
+  /**
+   * Le composeur complet est replié.
+   *
+   * Il ouvrait la page en doublant le démarrage rapide · les mêmes gabarits,
+   * le même produit, le même objectif, le même modèle, à dix centimètres
+   * d'écart. Deux formulaires qui pilotent le MÊME état ne donnent pas deux
+   * choix, ils donnent deux endroits où chercher celui qu'on a fait.
+   *
+   * Il garde ce que le démarrage rapide ne sait pas faire · cloner une pub,
+   * charger une photo produit, rappeler une scène enregistrée.
+   */
+  const [avance, setAvance] = useState(false);
   const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
@@ -353,14 +366,44 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               Choisis des gabarits gagnants, on applique ta marque{brandName ? <> <b>{brandName}</b></> : null} et ton produit, puis on génère plusieurs variantes.
             </p>
           </div>
-          <button type="button" disabled={!ready} onClick={() => setQuickOpen(true)} style={{
-            padding: '14px 24px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
-            background: 'var(--grad-accent)', color: '#0d070c', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
-          }}>✨ Créer des pubs</button>
+          {/* Deux entrées, et la seconde est la SEULE chose que le démarrage
+              rapide ne sait pas faire · c'est ce qui justifie qu'un second
+              formulaire existe encore, et il n'a plus à être ouvert pour être
+              trouvé. */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button type="button" disabled={!ready} onClick={() => setQuickOpen(true)} style={{
+              padding: '14px 24px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
+              background: 'var(--grad-accent)', color: '#0d070c', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
+            }}>✨ Créer des pubs</button>
+            <button type="button" disabled={!ready} onClick={() => { setMode('clone'); setAvance(true); setError(''); requestAnimationFrame(() => composeur.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} style={{
+              padding: '14px 20px', borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: ready ? 'pointer' : 'default',
+              border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
+            }}>Cloner une pub gagnante</button>
+          </div>
         </div>
       </div>
 
-      <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
+      <div ref={composeur} style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', marginBottom: 28, scrollMarginTop: 16 }}>
+        <button type="button" onClick={() => setAvance((v) => !v)} style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '15px 22px',
+          border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left',
+        }}>
+          <span style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Composeur complet</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            · cloner une pub, photo produit, scènes enregistrées, angle détaillé
+          </span>
+          {/* Replié, le mode clone deviendrait invisible · avec sa référence
+              chargée et son bouton de lancement. On le dit dans l'en-tête. */}
+          {mode === 'clone' && (
+            <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', padding: '2px 8px', borderRadius: 999, color: 'var(--accent-strong)', border: '1px solid var(--line-2)', whiteSpace: 'nowrap' }}>
+              Clonage armé
+            </span>
+          )}
+          <span style={{ flex: 1 }} />
+          <span style={{ fontSize: 12.5, color: 'var(--accent-strong)', fontWeight: 700 }}>{avance ? 'Replier' : 'Ouvrir'}</span>
+        </button>
+
+        <div hidden={!avance} style={{ padding: '0 22px 22px' }}>
         {!ready && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
             <span style={{ fontSize: 20 }}>🔒</span>
@@ -618,9 +661,17 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </DropZone>
         )}
 
-        {busy && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, déclinaison en variations et composition… (~20-40 s)' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
-        {notice && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}
-        {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
+        </div>
+
+        {/* Hors du repli · un message rangé dans un panneau fermé est un message
+            absent, et c'est précisément ce qui donnait « il ne se passe rien ». */}
+        {(busy || notice || error) && (
+          <div style={{ padding: '0 22px 18px' }}>
+            {busy && <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, déclinaison en variations et composition… (~20-40 s)' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
+            {notice && <div style={{ marginTop: 10, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}
+            {error && <div style={{ marginTop: 10, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
+          </div>
+        )}
       </div>
 
       <div ref={grille} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, scrollMarginTop: 16 }}>
@@ -812,6 +863,29 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)' }}>Sinon, l'IA pioche automatiquement dans la bibliothèque de la marque.</p>
                 </div>
               )}
+
+              {/* La description manquait · c'est pourtant le seul réglage qui
+                  DIRIGE la série, et le seul endroit où la mémoire répond. Sans
+                  elle, le démarrage rapide ne pouvait produire que du générique,
+                  et il fallait redescendre dans le composeur pour dire quoi que
+                  ce soit. */}
+              <div style={{ marginTop: 18 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>
+                  Angle <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, color: 'var(--ink-2)' }}>· facultatif, les gabarits suffisent</span>
+                </div>
+                <textarea
+                  value={angle} onChange={(e) => { setAngle(e.target.value); setSceneId(''); }} rows={2}
+                  placeholder="Ex : Focus sans caféine ni crash, pour créateurs en surrégime"
+                  style={{ ...fld, padding: '10px 12px', resize: 'vertical', lineHeight: 1.5, minHeight: 56 }}
+                />
+                {preflight && (
+                  <p style={{
+                    margin: '8px 0 0', paddingLeft: 9, fontSize: 11.5, lineHeight: 1.5,
+                    color: preflight.tone === 'stop' ? '#ff9db0' : '#ffcf8f',
+                    borderLeft: `2px solid ${preflight.tone === 'stop' ? 'rgba(255,77,109,.55)' : 'rgba(245,166,35,.5)'}`,
+                  }}>{preflight.text}</p>
+                )}
+              </div>
 
               {/* L'univers manquait ici · le démarrage rapide décidait donc de
                   l'ambiance sans le dire, en gardant celle du formulaire du

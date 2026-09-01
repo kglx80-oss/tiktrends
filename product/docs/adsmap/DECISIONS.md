@@ -2755,3 +2755,44 @@ dans `core`, et un test dans l'application — seul endroit qui voit les deux �
 échoue si un univers arrive sans famille, sans phrase ou sans dégradé. Il vérifie
 aussi qu'aucun filtre ne ramène rien, ni ne ramasse tout : un filtre qui ne
 filtre pas est un bouton qui ment.
+
+---
+
+## D141 — Deux formulaires pour un seul état
+
+**Constat (rapporté).** « Pourquoi gardons-nous le bloc en dessous, c'est
+redondant par rapport au démarrage rapide non ? »
+
+Oui. Le composeur ouvrait la page en doublant le démarrage rapide : les mêmes
+gabarits, le même produit, le même persona, le même objectif, le même nombre de
+variantes, le même modèle, à dix centimètres d'écart.
+
+Et ce ne sont pas deux configurations : **c'est le même état, affiché deux fois.**
+Ça ne donne pas deux choix, ça donne deux endroits où chercher celui qu'on a
+fait.
+
+**Décision.** Un seul chemin par défaut, deux profondeurs.
+
+Le composeur se replie. Il garde ce que le démarrage rapide ne sait pas faire ·
+cloner une pub, charger une photo produit, rappeler une scène enregistrée,
+proposer des angles.
+
+**Ce qui manquait au démarrage rapide y entre** :
+
+- **l'angle**, avec sa vérification de pré-lancement. C'est le seul réglage qui
+  DIRIGE la série et le seul endroit où la mémoire répond · sans lui, le chemin
+  rapide ne produisait que du générique et il fallait redescendre pour dire quoi
+  que ce soit ;
+- **l'univers visuel** (D140), qui était hérité en silence.
+
+**Le clonage remonte dans l'en-tête**, à côté de « Créer des pubs ». C'est la
+seule capacité vraiment absente du chemin rapide · elle justifie que le
+composeur existe encore, pas qu'il soit ouvert en permanence.
+
+**Deux détails qui décident si le repli est tenable :**
+
+- les messages (avancement, réserve, erreur) sortent du repli · un message rangé
+  dans un panneau fermé est un message absent, et c'est exactement ce qui
+  donnait « il ne se passe rien » ;
+- le mode clone s'annonce dans l'en-tête replié · sinon sa référence chargée et
+  son bouton de lancement disparaissent sans laisser de trace.
