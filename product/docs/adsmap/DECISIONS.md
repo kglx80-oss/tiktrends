@@ -2256,3 +2256,54 @@ devenu géant.
 
 **Validé en simulant la régression** (échelle forcée à 1) : quatre tests
 tombent, dont celui sur chaque gabarit.
+
+---
+
+## D117 — Le récapitulatif est calculé, jamais rédigé
+
+**Décision.** La lettre hebdomadaire vient de comptes. Aucun appel modèle.
+
+**Pourquoi.** Un modèle écrirait un résumé plus joli et parfois faux. C'est la
+même règle que pour les justifications de Jarvis (D72) : calculée depuis les
+chiffres, une phrase est un fait ; écrite par un modèle, c'est une affirmation.
+
+**Conséquence heureuse : elle ne coûte rien.** Une lettre hebdomadaire qui
+dépense à chaque envoi finirait coupée pour la mauvaise raison.
+
+---
+
+## D118 — On n'envoie pas une lettre pour dire qu'il n'y a rien
+
+**Décision.** Une marque dont la semaine n'a rien porté ne reçoit pas de lettre.
+
+**Pourquoi.** Trois semaines de « rien de neuf » et plus personne ne l'ouvre ·
+le jour où elle porte quelque chose, elle est déjà morte.
+
+**Mais « rien appris » et « rien à faire » sont deux choses différentes.** Une
+marque avec quarante créas et zéro verdict n'a rien appris ET a tout à faire ·
+ce cas-là part, et c'est même la lettre la plus utile.
+
+**Un seul geste conseillé, jamais une liste.** Et l'ordre n'est pas un goût,
+c'est la boucle du produit : trancher, puis itérer, puis explorer, puis
+fabriquer. On ne fabrique pas avant d'avoir tranché, et on ne tranche pas ce qui
+n'existe pas.
+
+---
+
+## D119 — Ce que le récapitulatif ne dit pas
+
+**Décision.** Pas de ligne « ta mémoire vient de trancher sur l'UGC ».
+
+**Pourquoi.** Ce serait la plus belle ligne de la lettre. Elle demande de
+comparer l'état d'aujourd'hui à celui d'il y a une semaine, et nous ne gardons
+aucun historique des seuils franchis.
+
+**Un champ toujours vide est pire qu'un champ absent** · il laisse deux branches
+mortes dans le code et la tentation de les remplir approximativement. Une lettre
+qui annonce un apprentissage qui n'a pas eu lieu vaut moins que pas de lettre.
+
+Le champ a donc été retiré du type, pas laissé à `[]`.
+
+**En revanche, `unexplored` est RECALCULÉ** plutôt qu'abandonné : le radar ne le
+persiste pas, mais il se recompose exactement (une voie est testée au-delà de
+trois tests conclus). Lire un champ inexistant aurait compté zéro pour toujours.

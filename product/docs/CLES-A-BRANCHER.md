@@ -147,3 +147,17 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 ### Rappel sécurité
 Ne jamais committer `.env.deploy` ni coller une clé dans le chat / le code.
 Le tableau des intégrations ne montre que **présent / absent**, jamais la valeur.
+
+## Récapitulatif hebdomadaire
+
+`/api/cron/digest` · une fois par semaine, le lundi matin.
+
+```
+0 7 * * 1  curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://app.tiktrends.co/api/cron/digest
+```
+
+Il ne dépense **rien** : la lettre est calculée à partir de comptes, jamais
+rédigée par un modèle. Et il n'envoie pas de lettre aux marques dont la semaine
+n'a rien porté · trois « rien de neuf » et personne ne l'ouvre plus.
+
+Sans `CRON_SECRET`, l'endpoint répond 503. Il est fermé par défaut.
