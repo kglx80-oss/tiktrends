@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useTransition } from 'react';
 import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
 import { archiveCreativeAction } from '../../../actions/creatives';
 import type { FalAspect } from '@tiktrends/integrations';
-import { IMAGE_MODELS, imageModelByKey } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, generationOutcome } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -145,12 +145,16 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       presetId: sceneId || undefined, model,
     });
     setBusy(false);
-    if (res.error) { setError(res.error); return; }
-    if (res.images) {
+    // Un lot vide sans erreur n'est pas un succès muet · c'est un échec dont on
+    // a perdu la cause, et le taire donne « il ne se passe rien ».
+    const out = generationOutcome({ error: res.error, got: res.images?.length ?? 0, requested: count });
+    if (res.images?.length) {
       // Id réel « genId:url » quand disponible (permet note Jarvis + archivage immédiats).
       const fresh: BrandImage[] = res.images.map((url, i) => ({ id: res.generationId ? `${res.generationId}:${url}` : 'new-' + i + '-' + url, prompt: res.prompt || prompt, url, createdAt: new Date().toISOString(), rating: null }));
       setImages((list) => [...fresh, ...list]);
     }
+    setError(out.kind === 'error' ? out.message : '');
+    setNotice(out.kind === 'partial' ? out.message : '');
   }
 
   /** Décline 3 variantes d'un visuel existant : même brief, nouvelles interprétations. */
@@ -159,12 +163,16 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
     setError(''); setNotice(''); setBusy(true);
     const res = await generateImageAction({ prompt: im.prompt, aspectRatio: ratio, count: 3, model });
     setBusy(false);
-    if (res.error) { setError(res.error); return; }
-    if (res.images) {
+    const out = generationOutcome({ error: res.error, got: res.images?.length ?? 0, requested: 3 });
+    if (res.images?.length) {
       const fresh: BrandImage[] = res.images.map((url, i) => ({ id: res.generationId ? `${res.generationId}:${url}` : 'new-' + i + '-' + url, prompt: res.prompt || im.prompt, url, createdAt: new Date().toISOString(), rating: null }));
       setImages((list) => [...fresh, ...list]);
-      setNotice('3 variantes ajoutées.');
     }
+    setError(out.kind === 'error' ? out.message : '');
+    // Le compte vient de ce qui est REVENU · « 3 variantes ajoutées » était
+    // écrit en dur et mentait dès qu'une seule échouait.
+    setNotice(out.kind === 'partial' ? out.message
+      : out.kind === 'done' ? `${out.got} variante${out.got > 1 ? 's' : ''} ajoutée${out.got > 1 ? 's' : ''}.` : '');
   }
 
   async function archiveImage(id: string) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
-import { VIDEO_DURATIONS, type VideoDuration } from '@tiktrends/core';
+import { VIDEO_DURATIONS, generationOutcome, type VideoDuration } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -107,7 +107,10 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
       ? await startVideoAction({ prompt, aspectRatio: ratio, durationS: duree, presetId: sceneId || undefined })
       : await startImageVideoAction({ prompt, imageUrl, aspectRatio: ratio, durationS: duree, presetId: sceneId || undefined });
     setBusy(false);
-    if (res.error) { setError(res.error); return; }
+    // Un lancement sans identifiant de tâche ET sans erreur ne laissait aucune
+    // trace · la vidéo n'apparaissait pas, et rien ne disait pourquoi.
+    const out = generationOutcome({ error: res.error, got: res.jobId ? 1 : 0 });
+    if (out.kind === 'error') { setError(out.message); return; }
     if (res.jobId) {
       const id = res.generationId ?? `tmp-${res.jobId}`;
       const fresh: BrandVideo = { id, prompt: prompt.trim() || '(image animée)', mode, status: 'processing', jobId: res.jobId, videoUrl: null, createdAt: new Date().toISOString() };
