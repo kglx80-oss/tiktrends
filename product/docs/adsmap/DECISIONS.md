@@ -2902,3 +2902,45 @@ l'immersive : le test nomme le couple fautif.
 **Les pubs composées avant gardent l'immersive.** Elles n'ont pas de mise en page
 consignée, et un ancien rendu ne doit pas changer d'allure parce qu'on a ajouté
 des coquilles.
+
+---
+
+## D145 — Le même succès silencieux, trois fois
+
+**Constat.** Le défaut trouvé sur Pub IA (D139) était identique sur Image et
+Vidéo. Les trois studios écrivaient :
+
+```
+if (res.error) { setError(res.error); return; }
+if (res.images) { … }
+```
+
+Un retour **sans erreur ET sans rien produit** tombe entre les deux : aucune
+branche ne s'exécute, aucun message n'apparaît.
+
+C'est le genre de défaut qui se recopie parce qu'il ressemble à du code prudent.
+
+**Décision.** Les trois passent par `generationOutcome`, et un test vérifie qu'ils
+l'importent · un quatrième studio écrit par quelqu'un qui n'a pas lu cette
+histoire réécrirait les deux `if` de bonne foi. Vérifié en retirant l'appel du
+studio Vidéo : le test échoue en nommant le fichier.
+
+**Trouvé au passage** : « 3 variantes ajoutées » était écrit en dur. Le message
+mentait dès qu'une des trois échouait. Le compte vient maintenant de ce qui est
+revenu.
+
+## D146 — Un test qui passe pour la mauvaise raison est pire que pas de test
+
+Le message écrit en dur n'a **pas** de garde, et c'est délibéré.
+
+Les deux formes essayées échouaient à leur tâche : la première ne voyait pas un
+compte caché dans un ternaire — vérifié, elle restait verte sur le défaut
+réintroduit ; la seconde, plus large, sonnait sur des libellés parfaitement
+légitimes des trois studios.
+
+Garder l'une ou l'autre aurait laissé une ligne verte à la place d'une
+vérification, et rassuré exactement là où il n'y a rien. Le défaut est corrigé,
+il n'est pas gardé, et le fichier de test le dit à voix haute.
+
+C'est la même exigence que partout ailleurs ici : un garde se valide en le
+faisant échouer, sinon on ne sait pas ce qu'il regarde.
