@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { IMAGE_MODELS, imageModelByKey, CREDIT_EUR, analyzeCosts } from '../src/economics';
+import { IMAGE_MODELS, imageModelByKey, CREDIT_EUR, analyzeCosts, VIDEO_DURATIONS, safeVideoDuration, videoUnits } from '../src/economics';
+import { costFor } from '../src/credits';
 
 describe('catalogue de modèles image', () => {
   /**
@@ -47,5 +48,29 @@ describe('barème de crédits', () => {
     for (const c of analyzeCosts()) {
       expect(c.resaleEur, `${c.action} vendu à perte`).toBeGreaterThan(c.realEur);
     }
+  });
+});
+
+describe('la durée d’une vidéo se paie à la tranche', () => {
+  it('cinq secondes valent une unité, dix en valent deux', () => {
+    expect(videoUnits(5)).toBe(1);
+    expect(videoUnits(10)).toBe(2);
+  });
+
+  it('une durée inconnue retombe sur cinq · rien d’inattendu n’est facturé', () => {
+    expect(safeVideoDuration(7)).toBe(5);
+    expect(safeVideoDuration(0)).toBe(5);
+    expect(safeVideoDuration(-10)).toBe(5);
+    expect(safeVideoDuration(undefined)).toBe(5);
+    expect(safeVideoDuration(null)).toBe(5);
+  });
+
+  it('les durées proposées sont toutes des multiples de la tranche', () => {
+    // Sinon `videoUnits` rendrait une fraction, et le débit crédits aussi.
+    for (const d of VIDEO_DURATIONS) expect(Number.isInteger(videoUnits(d))).toBe(true);
+  });
+
+  it('dix secondes coûtent bien le double de cinq', () => {
+    expect(costFor('video') * videoUnits(10)).toBe(costFor('video') * 2);
   });
 });

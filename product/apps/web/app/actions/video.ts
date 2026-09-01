@@ -6,13 +6,14 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
 import { suggestVideoBrief } from '@tiktrends/ai';
-import { costFor } from '@tiktrends/core';
+import { costFor, safeVideoDuration, videoUnits } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
+
 export interface VideoStatus { status: 'queued' | 'processing' | 'completed' | 'failed' | 'unknown'; videoUrl?: string; error?: string }
 export interface BrandVideo { id: string; prompt: string; mode: string; status: string; jobId: string | null; videoUrl: string | null; error?: string; createdAt: string; rating?: import('./creatives').Rating }
 
@@ -42,22 +43,24 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
   const hf = fal ? null : higgsfieldFromEnv();
   if (!fal && !hf) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
 
-  const cost = costFor('video');
+  const duree = safeVideoDuration(input.durationS);
+  const cost = costFor('video') * videoUnits(duree);
   const unlimited = unlimitedCredits(s.user.email);
   // Débit atomique avant la soumission (remboursé si le lancement échoue).
   if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · vidéo IA'))) {
-    return { error: `Crédits insuffisants (${cost} requis pour une vidéo).` };
+    return { error: `Crédits insuffisants (${cost} requis pour une vidéo de ${duree} s).` };
   }
 
   try {
     // La vidéo est le poste qui peut faire déraper une facture en quelques clics ·
-    // le forfait appliqué est nettement supérieur à celui d'une image.
-    await guardFixedCost('fal_video', { action: 'video:t2v', workspaceId: s.workspaceId, units: 1 });
+    // le forfait appliqué est nettement supérieur à celui d'une image, et il
+    // compte en unités de cinq secondes.
+    await guardFixedCost('fal_video', { action: 'video:t2v', workspaceId: s.workspaceId, units: videoUnits(duree) });
     const { jobId } = fal
-      ? await falSubmitVideo(fal, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
-      : await hfSubmitVideo(hf!, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
+      ? await falSubmitVideo(fal, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
+      : await hfSubmitVideo(hf!, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree });
     const brand = await getActiveBrand(s.workspaceId);
-    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16', ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
+    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
@@ -78,20 +81,21 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
   const hf = fal ? null : higgsfieldFromEnv();
   if (!fal && !hf) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
 
-  const cost = costFor('video');
+  const duree = safeVideoDuration(input.durationS);
+  const cost = costFor('video') * videoUnits(duree);
   const unlimited = unlimitedCredits(s.user.email);
   if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Studio · vidéo IA'))) {
-    return { error: `Crédits insuffisants (${cost} requis pour une vidéo).` };
+    return { error: `Crédits insuffisants (${cost} requis pour une vidéo de ${duree} s).` };
   }
 
   const motion = prompt || 'Anime cette image de façon naturelle et cinématographique.';
   try {
-    await guardFixedCost('fal_video', { action: 'video:i2v', workspaceId: s.workspaceId, units: 1 });
+    await guardFixedCost('fal_video', { action: 'video:i2v', workspaceId: s.workspaceId, units: videoUnits(duree) });
     const { jobId } = fal
-      ? await falSubmitVideo(fal, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 })
-      : await hfSubmitImageVideo(hf!, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: input.durationS ?? 5 });
+      ? await falSubmitVideo(fal, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
+      : await hfSubmitImageVideo(hf!, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree });
     const brand = await getActiveBrand(s.workspaceId);
-    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
+    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');

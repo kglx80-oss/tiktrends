@@ -10,6 +10,8 @@ import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
+import { Composer } from '../../../../components/Composer';
+import { useScenes } from '../../../../components/useScenes';
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
@@ -105,6 +107,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [quickOpen, setQuickOpen] = useState(false);
   const [model, setModel] = useState('nano');
   const modelSpec = imageModelByKey(model);
+  // La scène reprise · consignée à la génération, c'est ce qui lui bâtit un
+  // bilan. Toute frappe la libère : un texte retouché n'est plus la scène.
+  const [sceneId, setSceneId] = useState('');
+  const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('image');
   const refInput = useRef<HTMLInputElement>(null);
 
   const detailAd = detailIdx != null ? ads[detailIdx] ?? null : null;
@@ -264,7 +270,16 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     if (mode === 'clone') {
       if (!hasRef) { setError('Choisis une pub de référence (veille ou upload).'); return; }
       setBusy(true);
-      const res = await cloneAdAction({ referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined, productId: productId || undefined, personaId: personaId || undefined, objective, universe, count, model });
+      const res = await cloneAdAction({
+        referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined,
+        productId: productId || undefined, personaId: personaId || undefined,
+        objective, universe, count, model,
+        // En mode clone la description n'est pas un angle · c'est une consigne
+        // libre, et elle est vraiment transmise. Un champ que le générateur
+        // ignore est pire qu'un champ absent : on croit avoir dirigé.
+        direction: angle.trim() || undefined,
+        presetId: sceneId || undefined,
+      });
       setBusy(false);
       applyResult(res);
       return;
@@ -328,38 +343,94 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
-          <div style={{ flex: '1 1 220px' }}>
-            <label style={lbl}>Produit</label>
-            <select value={productId} onChange={(e) => { setProductId(e.target.value); setProdThumbs([]); setProdMsg(''); }} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
-              <option value="">· Aucun (générique)</option>
-              {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · 📷' : ''}</option>)}
-            </select>
+        {/* La barre de composition · la même que dans les studios Image et
+            Vidéo. On écrit d'abord, on règle ensuite, et le prix est sur le
+            bouton. Ce qui reste en dessous est structurel — gabarits, photo,
+            références — et ne se met pas en pastille sans devenir illisible. */}
+        <Composer
+          value={angle}
+          onChange={(v) => { setAngle(v); setSceneId(''); }}
+          placeholder={mode === 'brand'
+            ? 'Décris l’angle ou la scène que tu imagines · ex : Focus sans caféine ni crash, pour créateurs en surrégime'
+            : 'Consigne libre pour le clonage · ex : garde la structure mais passe en extérieur, lumière du matin'}
+          disabled={!ready}
+          busy={busy}
+          // L'angle est facultatif : les gabarits suffisent à lancer une série.
+          // Exiger un texte dont le générateur peut se passer serait inventer
+          // une contrainte.
+          requireText={false}
+          scenes={scenes}
+          onPickScene={(sc) => setSceneId(sc.id)}
+          onSaveScene={enregistrer}
+          advice={conseil(sceneId)}
+          controls={[
+            ...(prods.length ? [{
+              key: 'produit', title: 'Produit mis en scène', icon: '📦',
+              options: [{ value: '', label: 'Aucun produit' }, ...prods.map((p) => ({ value: p.id, label: `${p.name}${p.hasImage ? ' · 📷' : ''}` }))],
+              value: productId,
+              onChange: (v: string) => { setProductId(v); setProdThumbs([]); setProdMsg(''); },
+            }] : []),
+            ...(personas.length ? [{
+              key: 'persona', title: 'À qui on parle', icon: '👤',
+              options: [{ value: '', label: 'Persona · auto' }, ...personas.map((p) => ({ value: p.id, label: p.name }))],
+              value: personaId, onChange: setPersonaId,
+            }] : []),
+            {
+              key: 'objectif', title: 'Objectif de la série', icon: '🎯',
+              options: OBJECTIVES.map((o) => ({ value: o, label: o })),
+              value: objective, onChange: setObjective,
+            },
+            {
+              key: 'quantite', title: 'Nombre de variantes', icon: '⧉',
+              options: [1, 2, 3, 4, 5, 6, 8].map((n) => ({ value: String(n), label: `${n} pub${n > 1 ? 's' : ''}` })),
+              value: String(count), onChange: (v: string) => setCount(Number(v)),
+            },
+            {
+              key: 'modele', title: 'Moteur d’image', icon: '✦',
+              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${m.recommended ? ' · recommandé' : ''}` })),
+              value: model, onChange: setModel,
+            },
+          ]}
+          extra={
+            <>
+              {mode === 'brand' && (
+                <button type="button" onClick={proposeAngles} disabled={!ready || anglesBusy} style={pastilleAction(ready && !anglesBusy)}>
+                  ✦ {anglesBusy ? 'Analyse veille…' : 'Proposer des angles'}
+                </button>
+              )}
+              {templates.includes('offer') && (
+                <input value={offer} onChange={(e) => setOffer(e.target.value)} disabled={!ready}
+                  placeholder="Offre · ex : -20 %, code LANCEMENT"
+                  style={{ ...fld, width: 'auto', flex: '1 1 190px', minWidth: 150, padding: '7px 12px', fontSize: 12.5, borderRadius: 999 }} />
+              )}
+            </>
+          }
+          cost={{
+            credits: modelSpec.credits * count,
+            note: `${modelSpec.label} · ${modelSpec.credits} crédits par pub · ${modelSpec.note}`,
+          }}
+          onGenerate={run}
+          generateLabel={mode === 'clone' ? `Cloner en ${count}` : 'Générer les pubs'}
+        />
+
+        {/* Les angles proposés · sous la barre, ils remplissent la description. */}
+        {mode === 'brand' && angles.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            {angles.map((a, i) => (
+              <button key={i} type="button" onClick={() => { setAngle(a.title); setSceneId(''); }} title={a.rationale} style={{
+                fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', maxWidth: 300,
+                border: `1px solid ${angle === a.title ? 'transparent' : 'var(--line-2)'}`,
+                background: angle === a.title ? 'var(--grad-accent)' : 'transparent', color: angle === a.title ? '#0d070c' : 'var(--ink-2)',
+              }}>{a.title}</button>
+            ))}
           </div>
-          <div style={{ flex: '1 1 200px' }}>
-            <label style={lbl}>Persona</label>
-            <select value={personaId} onChange={(e) => setPersonaId(e.target.value)} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
-              <option value="">· Auto</option>
-              {personas.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div style={{ flex: '1 1 160px' }}>
-            <label style={lbl}>Objectif</label>
-            <select value={objective} onChange={(e) => setObjective(e.target.value)} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
-              {OBJECTIVES.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-          <div style={{ flex: '1 1 120px' }}>
-            <label style={lbl}>Quantité</label>
-            <select value={count} onChange={(e) => setCount(Number(e.target.value))} disabled={!ready} style={{ ...fld, padding: '9px 10px' }}>
-              {[1, 2, 3, 4, 5, 6, 8].map((n) => <option key={n} value={n}>{n} pub{n > 1 ? 's' : ''}</option>)}
-            </select>
-          </div>
-          <div style={{ flex: '1 1 200px' }}>
-            <label style={lbl}>Offre / promo <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· pour le gabarit Offre</span></label>
-            <input value={offer} onChange={(e) => setOffer(e.target.value)} disabled={!ready} placeholder="Ex : -20%, Code LANCEMENT, 2+1 offert" style={{ ...fld, padding: '9px 10px' }} />
-          </div>
-        </div>
+        )}
+
+        {sceneErreur && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{sceneErreur}</div>}
+
+        <h3 style={{ margin: '24px 0 12px', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', letterSpacing: '.02em' }}>
+          Réglages de la série
+        </h3>
 
         {!productId && prods.some((p) => p.hasImage) && (
           <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.07)', fontSize: 12.5, color: '#f5b043' }}>
@@ -400,30 +471,6 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               {prodBusy && <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--muted)' }}>Traitement…</div>}
               {prodMsg && <div style={{ marginTop: 6, fontSize: 11.5, color: '#9fe6b3' }}>{prodMsg}</div>}
             </div>
-          </div>
-        )}
-
-        {mode === 'brand' && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <label style={{ ...lbl, marginBottom: 0 }}>Angle <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'itération porte sur cet angle précis</span></label>
-              <button type="button" onClick={proposeAngles} disabled={!ready || anglesBusy} style={{
-                fontSize: 11.5, fontWeight: 800, padding: '4px 10px', borderRadius: 999, cursor: ready && !anglesBusy ? 'pointer' : 'default',
-                border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--accent-strong)', opacity: ready ? 1 : .55,
-              }}>✦ {anglesBusy ? 'Analyse veille…' : 'Proposer des angles'}</button>
-            </div>
-            <input value={angle} onChange={(e) => setAngle(e.target.value)} disabled={!ready} placeholder="Ex : Focus sans caféine ni crash · pour créateurs en surrégime" style={{ ...fld, padding: '10px 12px' }} />
-            {angles.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                {angles.map((a, i) => (
-                  <button key={i} type="button" onClick={() => setAngle(a.title)} title={a.rationale} style={{
-                    fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', maxWidth: 300,
-                    border: `1px solid ${angle === a.title ? 'transparent' : 'var(--line-2)'}`,
-                    background: angle === a.title ? 'var(--grad-accent)' : 'transparent', color: angle === a.title ? '#0d070c' : 'var(--ink-2)',
-                  }}>{a.title}</button>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
@@ -526,21 +573,6 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </DropZone>
         )}
 
-        {/* Le prix est SUR le bouton · la même règle que dans la barre de
-            composition des studios Image et Vidéo. À côté, il se lit après la
-            décision, ou jamais. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{modelSpec.label} · {modelSpec.credits} crédits par pub</span>
-          <span style={{ flex: 1 }} />
-          <button type="button" onClick={run} disabled={!ready || busy || (mode === 'brand' ? !templates.length : !hasRef)} style={{
-            padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            cursor: ready && !busy ? 'pointer' : 'default', background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && (mode === 'brand' ? templates.length : hasRef) ? 1 : .5,
-          }}>
-            {busy ? (mode === 'clone' ? 'Clonage…' : 'Création des pubs…') : mode === 'clone' ? `✨ Cloner en ${count}` : '✨ Générer les pubs'}
-            {!busy && <span style={{ fontSize: 12.5, opacity: 0.75 }}>✦ {modelSpec.credits * count}</span>}
-          </button>
-        </div>
         {busy && <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, déclinaison en variations et composition… (~20-40 s)' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
         {notice && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}
         {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
@@ -861,3 +893,13 @@ const miniBtn = { fontSize: 12, fontWeight: 800, padding: '7px 12px', borderRadi
 const toolPrimary = { width: '100%', padding: '11px 14px', borderRadius: 11, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
 const toolBtn = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 } as const;
 const navArrow = (side: 'left' | 'right'): React.CSSProperties => ({ position: 'absolute', [side]: 12, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 22, cursor: 'pointer', zIndex: 2 });
+
+/** Pastille d'action secondaire · même forme que celles de la barre de composition. */
+function pastilleAction(actif: boolean): React.CSSProperties {
+  return {
+    display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+    fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
+    cursor: actif ? 'pointer' : 'default', border: '1px solid var(--line-2)',
+    background: 'transparent', color: 'var(--accent-strong)', opacity: actif ? 1 : .55,
+  };
+}

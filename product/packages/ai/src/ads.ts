@@ -199,7 +199,16 @@ const CLONE_TOOL = {
 export interface CloneRefImage { base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' }
 
 /** Analyse une pub gagnante (vision) et en dérive un concept reproduisant l'angle + la structure, pour NOTRE produit. */
-export async function cloneAdFromReference(client: Anthropic, ref: CloneRefImage, ctx: AdConceptCtx): Promise<AdConcept | null> {
+export async function cloneAdFromReference(
+  client: Anthropic, ref: CloneRefImage, ctx: AdConceptCtx,
+  /**
+   * Consigne libre de l'utilisateur · ce qu'il veut changer par rapport à la
+   * référence. Elle ferme la consigne système, à l'endroit dont un modèle se
+   * souvient le mieux · et elle prime, parce que c'est la seule ligne qui vient
+   * de quelqu'un qui a vu les deux images.
+   */
+  direction?: string,
+): Promise<AdConcept | null> {
   const sys = [
     "Tu es directeur créatif. On te montre une PUBLICITÉ GAGNANTE d'une autre marque.",
     "Objectif : recréer la MÊME logique (angle, structure, type de gabarit, ton de l'accroche, présence d'un CTA, avant/après, témoignage, etc.) mais pour NOTRE marque et NOTRE produit.",
@@ -208,6 +217,9 @@ export async function cloneAdFromReference(client: Anthropic, ref: CloneRefImage
     "sceneBrief en anglais : décris une scène qui REPREND l'ambiance/cadrage de la référence mais met en scène NOTRE produit (le décrire comme « the product »). AUCUN texte incrusté.",
     "Ne copie pas la marque ni les mots exacts de la référence : inspire-toi de sa mécanique.",
     "Rends via l'outil return_ad.",
+    ...(direction?.trim()
+      ? [`CONSIGNE DE L'UTILISATEUR, elle prime sur ta lecture de la référence : ${direction.trim().slice(0, 400)}`]
+      : []),
   ].join(' ');
   const res = await client.messages.create({
     model: GEN_MODEL, max_tokens: 1200, system: sys,

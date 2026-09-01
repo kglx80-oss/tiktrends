@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
+import { VIDEO_DURATIONS, type VideoDuration } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -35,6 +36,10 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
     setError('');
   }
   const [ratio, setRatio] = useState<Ratio>('9:16');
+  // La durée existait de bout en bout mais n'était jamais exposée · un réglage
+  // réel qu'on ne pouvait pas régler. Le prix la suit, sinon dix secondes se
+  // paieraient au tarif de cinq.
+  const [duree, setDuree] = useState<VideoDuration>(5);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [suggesting, startSuggest] = useTransition();
@@ -94,8 +99,8 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
     if (mode === 'i2v' && !imageUrl.trim()) { setError("Ajoute l'URL d'une image de départ."); return; }
     setError(''); setBusy(true);
     const res = mode === 't2v'
-      ? await startVideoAction({ prompt, aspectRatio: ratio, presetId: sceneId || undefined })
-      : await startImageVideoAction({ prompt, imageUrl, aspectRatio: ratio, presetId: sceneId || undefined });
+      ? await startVideoAction({ prompt, aspectRatio: ratio, durationS: duree, presetId: sceneId || undefined })
+      : await startImageVideoAction({ prompt, imageUrl, aspectRatio: ratio, durationS: duree, presetId: sceneId || undefined });
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.jobId) {
@@ -191,6 +196,11 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
               options: RATIOS.map((r) => ({ value: r, label: r })),
               value: ratio, onChange: (v) => setRatio(v as Ratio),
             },
+            {
+              key: 'duree', title: 'Durée de la vidéo', icon: '⏱',
+              options: VIDEO_DURATIONS.map((d) => ({ value: String(d), label: `${d} s` })),
+              value: String(duree), onChange: (v) => setDuree(Number(v) as VideoDuration),
+            },
           ]}
           extra={
             <button type="button" onClick={suggestMotion} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose un mouvement à partir de ta marque' : 'IA non configurée'} style={{
@@ -199,7 +209,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
               border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
             }}>✦ {suggesting ? 'Rédaction…' : mode === 't2v' ? 'Proposer une description' : 'Proposer un mouvement'}</button>
           }
-          cost={{ credits: 20, note: '20 crédits par vidéo · le rendu prend une à trois minutes' }}
+          cost={{ credits: 20 * (duree / 5), note: `20 crédits par tranche de 5 secondes · une vidéo de ${duree} s en coûte ${20 * (duree / 5)}. Le rendu prend une à trois minutes.` }}
           onGenerate={generate}
           generateLabel="Générer la vidéo"
         />

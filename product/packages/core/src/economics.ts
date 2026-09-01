@@ -66,6 +66,37 @@ export const COST_MODEL: CostItem[] = [
   { action: 'score',            label: 'Score Jarvis',        provider: 'Anthropic · Claude',              realEur: 0.012, unit: 'évaluation', note: 'Évaluation performance d’une créa par Jarvis.' },
 ];
 
+/* ============ Durée vidéo ============ */
+
+/**
+ * Les durées de vidéo proposées.
+ *
+ * Elles existaient de bout en bout (`durationS` traverse Fal comme Higgsfield)
+ * mais étaient figées à cinq secondes, jamais exposées · un réglage réel qu'on
+ * ne pouvait pas régler.
+ *
+ * **Le coût suit la durée.** Une vidéo de dix secondes coûte au fournisseur à
+ * peu près le double d'une de cinq · l'exposer sans doubler le débit serait
+ * vendre à perte sans s'en apercevoir, et la barrière de dépense doit voir
+ * passer deux unités, pas une.
+ *
+ * Ça vit ici, avec le reste de l'économie, et pas dans l'action · un fichier
+ * `'use server'` ne peut exporter que des fonctions async.
+ */
+export const VIDEO_DURATIONS = [5, 10] as const;
+export type VideoDuration = (typeof VIDEO_DURATIONS)[number];
+
+/** Repli sur cinq secondes · une durée qui n'existe pas ne doit rien facturer d'inattendu. */
+export function safeVideoDuration(d?: number | null): VideoDuration {
+  // On teste ET on rend la MÊME valeur · tester `d ?? 5` puis rendre `d`
+  // laissait passer `undefined`, qui vaut 5 au test et rien à l'arrivée.
+  const v = d ?? 5;
+  return (VIDEO_DURATIONS as readonly number[]).includes(v) ? (v as VideoDuration) : 5;
+}
+
+/** Unités de facturation d'une durée · une tranche de cinq secondes vaut une unité. */
+export function videoUnits(d: VideoDuration): number { return d / 5; }
+
 /* ============ Catalogue de modèles image · coût réel -> crédits par variante ============ */
 
 export interface ImageModelSpec {
