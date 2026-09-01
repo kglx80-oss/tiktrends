@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { VISUAL_UNIVERSES, type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, generationOutcome, producedSomething, type Outcome } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -103,6 +103,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [notice, setNotice] = useState('');
   const [ads, setAds] = useState<AdItem[]>(initial);
   const [adsPage, setAdsPage] = useState(0);
+  // La grille est en bas de page · on y amène le regard quand un lot arrive.
+  const grille = useRef<HTMLDivElement>(null);
   const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
@@ -183,11 +185,18 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     if (res.ads?.length) { setAds((list) => [...res.ads!, ...list]); setDetailIdx(0); setAdsPage(0); }
   }
 
+  /**
+   * Générer depuis le démarrage rapide.
+   *
+   * La fenêtre ne se referme QUE si le lot a donné quelque chose · elle se
+   * fermait avant que le travail ne commence, emportant le seul endroit où
+   * l'erreur et l'avancement s'affichaient. Le clic n'avait alors aucune suite
+   * visible, ce qui se lit comme une panne.
+   */
   async function quickGenerate() {
     if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
-    setMode('brand');
-    setQuickOpen(false);
-    await run();
+    const out = await run('brand');
+    if (producedSomething(out)) { setMode('brand'); setQuickOpen(false); }
   }
 
   const selected = prods.find((p) => p.id === productId) || null;
@@ -265,20 +274,39 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
   const hasRef = !!refUri || !!savedAdId;
 
-  function applyResult(res: { error?: string; ads?: AdItem[]; requested?: number }) {
-    if (res.error) { setError(res.error); return; }
-    const got = res.ads?.length ?? 0;
-    if (got) setAds((list) => [...res.ads!, ...list]);
-    if (res.requested && got < res.requested) {
-      setNotice(`${got}/${res.requested} pubs générées. Certaines scènes ont échoué (souvent un pic de charge du modèle). Relance pour compléter : tu n'es débité que des pubs réussies.`);
-    } else setNotice('');
+  /**
+   * Le retour d'une génération, traduit en une seule décision.
+   *
+   * La règle vient du noyau · un lot vide sans erreur n'est plus un succès
+   * silencieux. C'est exactement ce qu'on obtenait avant : on cliquait, on
+   * attendait, aucune image n'apparaissait, et rien ne disait pourquoi.
+   */
+  function applyResult(res: { error?: string; ads?: AdItem[]; requested?: number }): Outcome {
+    const out = generationOutcome({ error: res.error, got: res.ads?.length ?? 0, requested: res.requested });
+    if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
+    setError(out.kind === 'error' ? out.message : '');
+    setNotice(out.kind === 'partial' ? out.message : '');
+    return out;
   }
 
-  async function run() {
-    if (busy) return;
+  /**
+   * Lance la génération.
+   *
+   * `m` est passé explicitement · `run` lisait `mode` dans l'état, et le
+   * démarrage rapide appelait `setMode('brand')` juste avant. Un `setState` ne
+   * prend pas effet dans le même tour : depuis l'onglet « Cloner une pub
+   * gagnante », le démarrage rapide partait donc dans la branche clone et
+   * échouait sur une référence qu'on ne lui avait jamais demandée.
+   */
+  async function run(m: 'brand' | 'clone' = mode): Promise<Outcome> {
+    if (busy) return { kind: 'error', message: 'Une génération est déjà en cours.' };
     setError(''); setNotice('');
-    if (mode === 'clone') {
-      if (!hasRef) { setError('Choisis une pub de référence (veille ou upload).'); return; }
+    if (m === 'clone') {
+      if (!hasRef) {
+        const message = 'Choisis une pub de référence (veille ou upload).';
+        setError(message);
+        return { kind: 'error', message };
+      }
       setBusy(true);
       const res = await cloneAdAction({
         referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined,
@@ -291,14 +319,32 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         presetId: sceneId || undefined,
       });
       setBusy(false);
-      applyResult(res);
-      return;
+      return apresLot(applyResult(res));
     }
-    if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
+    if (!templates.length) {
+      const message = 'Choisis au moins un gabarit.';
+      setError(message);
+      return { kind: 'error', message };
+    }
     setBusy(true);
     const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model });
     setBusy(false);
-    applyResult(res);
+    return apresLot(applyResult(res));
+  }
+
+  /**
+   * Amener les créas sous les yeux.
+   *
+   * La grille est en bas de page · un lot qui arrive pendant qu'on regarde le
+   * formulaire ne se voit pas, et « rien ne s'est passé » est la conclusion
+   * raisonnable quand rien ne bouge dans le champ de vision.
+   */
+  function apresLot(out: Outcome): Outcome {
+    if (out.kind !== 'error') {
+      setAdsPage(0);
+      requestAnimationFrame(() => grille.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+    return out;
   }
 
   return (
@@ -589,7 +635,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      <div ref={grille} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, scrollMarginTop: 16 }}>
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Tes pubs {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{ads.length}</span>
       </div>
@@ -729,7 +775,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
       {/* Modal « Démarrage rapide · gabarits qui performent » (façon Atria) */}
       {quickOpen && (
-        <div onMouseDown={() => setQuickOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(6,4,8,.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px 16px', overflowY: 'auto' }}>
+        <div onMouseDown={() => { if (!busy) setQuickOpen(false); }} style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(6,4,8,.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px 16px', overflowY: 'auto' }}>
           <div onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(880px, 96vw)', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '88vh' }}>
             {/* En-tête */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '18px 22px', borderBottom: '1px solid var(--line)' }}>
@@ -737,7 +783,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>Démarrage rapide · gabarits qui performent</h3>
                 <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--ink-2)' }}>Choisis un ou plusieurs gabarits, règle marque &amp; produit, puis génère.</p>
               </div>
-              <button type="button" onClick={() => setQuickOpen(false)} aria-label="Fermer" style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 17, cursor: 'pointer' }}>×</button>
+              <button type="button" onClick={() => setQuickOpen(false)} disabled={busy} aria-label="Fermer" style={{ opacity: busy ? .4 : 1, width: 32, height: 32, borderRadius: 9, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 17, cursor: 'pointer' }}>×</button>
             </div>
 
             {/* Grille de gabarits */}
@@ -794,7 +840,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 </div>
               </div>
 
-              {error && <div style={{ marginTop: 12, fontSize: 12.5, color: '#ff9db0' }}>{error}</div>}
+              {/* L'avancement s'affiche ici, pas ailleurs · c'est le seul endroit
+                  que la personne regarde après avoir cliqué. */}
+              {busy && (
+                <p style={{ margin: '14px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+                  Écriture des concepts, génération des scènes et composition… (~20-40 s) · la fenêtre se ferme dès que les pubs arrivent.
+                </p>
+              )}
+              {notice && <div style={{ marginTop: 12, fontSize: 12.5, color: '#f5b043', lineHeight: 1.55 }}>{notice}</div>}
+              {error && <div style={{ marginTop: 12, fontSize: 12.5, color: '#ff9db0', lineHeight: 1.55 }}>{error}</div>}
             </div>
 
             {/* Barre d'action (marque · produit · objectif · variantes · générer) */}
