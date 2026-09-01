@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { adFonts } from './ad-fonts';
 import type { AdTemplate } from '@tiktrends/ai';
+import { LAYOUT_CLAIR, layoutFor, type AdLayout } from '@tiktrends/core';
 
 export interface AdRecipe {
   template: AdTemplate;
@@ -11,7 +12,15 @@ export interface AdRecipe {
   badge?: string; quote?: string; author?: string; rating?: number; benefits?: string[];
   stat?: string; statLabel?: string;
   accent: string;            // couleur d'accent / bouton (hex)
-  variant?: number;          // variante de mise en page (diversité)
+  variant?: number;          // micro-variation (alignement) · la variété lourde vient de `layout`
+  /**
+   * La mise en page · d'où vient vraiment la variété.
+   *
+   * Sept gabarits rendaient la même composition : photo plein cadre, bandeau
+   * noir, texte blanc. Ils ne changeaient que les champs affichés. Absent, on
+   * garde l'immersive · une pub composée avant ne doit pas changer d'allure.
+   */
+  layout?: AdLayout;
   brandName?: string;
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.
@@ -90,7 +99,7 @@ export interface AdRecipe {
  * Un test relie ce numéro au contenu réel du fichier : le modifier sans
  * l'incrémenter fait échouer la suite.
  */
-export const RENDER_VERSION = 2;
+export const RENDER_VERSION = 3;
 
 const LARGEUR_MAQUETTE = 1080;
 let ECHELLE = 1;
@@ -192,9 +201,9 @@ function BottomPanel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Frame({ children }: { children: React.ReactNode }) {
+function Frame({ children, fond = DARK }: { children: React.ReactNode; fond?: string }) {
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', fontFamily: 'Sans', background: DARK, overflow: 'hidden' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', fontFamily: 'Sans', background: fond, overflow: 'hidden' }}>
       {children}
     </div>
   );
@@ -209,123 +218,26 @@ function TopBar({ r, center = false }: { r: AdRecipe; center?: boolean }) {
   );
 }
 
-/* --------------------------- Gabarits --------------------------- */
-
-function ProblemSolution(r: AdRecipe) {
-  // Variante 1 : accroche EN HAUT (gros titre), CTA en bas · casse la monotonie « tout en bas ».
-  if ((r.variant ?? 0) % 3 === 1) {
-    return (
-      <Frame>
-        <Bg url={r.sceneUrl} />
-        <div style={{ position: 'absolute', left: u(0), right: u(0), top: u(0), height: '52%', display: 'flex', backgroundImage: 'linear-gradient(to bottom, rgba(8,8,11,.92) 30%, rgba(8,8,11,.5) 70%, rgba(8,8,11,0))' }} />
-        <div style={{ position: 'absolute', top: u(46), left: u(56), right: u(56), display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Logo recipe={r} />{r.badge ? <div style={pill(r.accent, r.badge)}>{badgeText(r.badge, 22)}</div> : null}
-        </div>
-        <div style={{ position: 'absolute', top: u(116), left: u(56), right: u(56), display: 'flex', flexDirection: 'column' }}>
-          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
-          <div style={{ display: 'flex', fontSize: fitHeadline(r.headline, 74), lineHeight: 1.0, fontWeight: 700, color: WHITE, letterSpacing: u(-1.4) }}>{r.headline}</div>
-          {r.subhead ? <div style={{ display: 'flex', marginTop: u(16), fontSize: u(30), lineHeight: 1.28, color: 'rgba(255,255,255,.9)', maxWidth: u(840) }}>{r.subhead}</div> : null}
-        </div>
-        <div style={{ position: 'absolute', left: u(56), right: u(56), bottom: u(52), display: 'flex' }}><Cta recipe={r} /></div>
-      </Frame>
-    );
-  }
-  return (
-    <Frame>
-      <Bg url={r.sceneUrl} />
-      <div style={scrimTop} />
-      <TopBar r={r} />
-      <BottomPanel>
-        {r.kicker ? <div style={{ display: 'flex', marginBottom: u(16) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
-        <div style={{ display: 'flex', fontSize: fitHeadline(r.headline), lineHeight: 1.0, fontWeight: 700, color: WHITE, letterSpacing: u(-1.5), textAlign: (r.variant ?? 0) % 3 === 2 ? 'center' : 'left', alignSelf: (r.variant ?? 0) % 3 === 2 ? 'center' : 'flex-start' }}>{r.headline}</div>
-        {r.subhead ? <div style={{ display: 'flex', marginTop: u(18), fontSize: u(30), lineHeight: 1.28, color: 'rgba(255,255,255,.88)', maxWidth: u(840) }}>{r.subhead}</div> : null}
-        <div style={{ display: 'flex', marginTop: u(34), alignSelf: (r.variant ?? 0) % 3 === 2 ? 'center' : 'flex-start' }}><Cta recipe={r} /></div>
-      </BottomPanel>
-    </Frame>
-  );
-}
-
-function BeforeAfter(r: AdRecipe) {
-  return (
-    <Frame>
-      <Bg url={r.sceneUrl} />
-      <div style={{ position: 'absolute', top: u(0), bottom: u(0), left: '50%', width: u(4), marginLeft: u(-2), display: 'flex', background: 'rgba(255,255,255,.92)' }} />
-      <div style={{ position: 'absolute', top: u(34), left: u(44), display: 'flex', background: 'rgba(0,0,0,.62)', color: WHITE, fontSize: u(24), fontWeight: 700, padding: ux(8, 18), borderRadius: u(8), letterSpacing: u(2) }}>AVANT</div>
-      <div style={{ position: 'absolute', top: u(34), right: u(44), display: 'flex', background: r.accent, color: WHITE, fontSize: u(24), fontWeight: 700, padding: ux(8, 18), borderRadius: u(8), letterSpacing: u(2) }}>APRÈS</div>
-      <BottomPanel>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
-          <div style={{ display: 'flex', textAlign: 'center', fontSize: fitHeadline(r.headline, 68), lineHeight: 1.02, fontWeight: 700, color: WHITE, letterSpacing: u(-1.2), maxWidth: u(900) }}>{r.headline}</div>
-          <div style={{ display: 'flex', marginTop: u(30) }}><Cta recipe={r} /></div>
-        </div>
-      </BottomPanel>
-    </Frame>
-  );
-}
-
-function Testimonial(r: AdRecipe) {
-  const rating = Math.max(0, Math.min(5, Math.round(r.rating ?? 5)));
-  return (
-    <Frame>
-      <Bg url={r.sceneUrl} />
-      <div style={scrimTop} />
-      <TopBar r={r} center />
-      <div style={{ position: 'absolute', left: u(56), right: u(56), bottom: u(52), display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,.97)', borderRadius: u(28), padding: ux(32, 34), boxShadow: `0 ${u(22)}px ${u(50)}px rgba(0,0,0,.45)` }}>
-          <div style={{ display: 'flex' }}>{Array.from({ length: rating }).map((_, i) => <Star key={i} size={36} />)}</div>
-          <div style={{ display: 'flex', marginTop: u(16), fontSize: fitHeadline(r.quote || r.headline, 44, 32), lineHeight: 1.22, fontWeight: 700, color: '#15151b', letterSpacing: u(-0.4) }}>“{r.quote || r.headline}”</div>
-          {r.author ? <div style={{ display: 'flex', marginTop: u(16), fontSize: u(26), fontWeight: 700, color: r.accent }}>{r.author}</div> : null}
-        </div>
-        <div style={{ display: 'flex', marginTop: u(24) }}><Cta recipe={r} full /></div>
-      </div>
-    </Frame>
-  );
-}
-
-function Benefits(r: AdRecipe) {
-  const items = (r.benefits && r.benefits.length ? r.benefits : [r.subhead || '']).filter(Boolean).slice(0, 3);
-  return (
-    <Frame>
-      <Bg url={r.sceneUrl} />
-      <div style={scrimTop} />
-      <TopBar r={r} />
-      <div style={{ position: 'absolute', top: u(150), left: u(56), right: u(56), display: 'flex', flexDirection: 'column' }}>
-        {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
-        <div style={{ display: 'flex', fontSize: fitHeadline(r.headline, 66), lineHeight: 1.02, fontWeight: 700, color: WHITE, letterSpacing: u(-1.2), maxWidth: u(900), textShadow: shadow() }}>{r.headline}</div>
-      </div>
-      <div style={{ position: 'absolute', left: u(56), right: u(56), bottom: u(52), display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,.97)', borderRadius: u(24), padding: ux(26, 28), boxShadow: `0 ${u(20)}px ${u(46)}px rgba(0,0,0,.42)` }}>
-          {items.map((b, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', marginTop: i ? u(18) : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: u(42), height: u(42), borderRadius: u(999), background: r.accent }}><Check /></div>
-              <div style={{ display: 'flex', marginLeft: u(16), fontSize: u(32), fontWeight: 700, color: '#15151b' }}>{b}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', marginTop: u(22) }}><Cta recipe={r} full /></div>
-      </div>
-    </Frame>
-  );
-}
+/* ------------------------------- Pastilles --------------------------------- */
 
 /** Coupe un badge trop long (le texte long va dans le kicker/headline, pas dans la pastille). */
 function badgeText(s: string | undefined, max = 20): string {
   const t = (s || '').trim().replace(/\s+/g, ' ');
   return t.length > max ? t.slice(0, max).trim() : t;
 }
+
 /**
  * Taille de police d'un badge selon sa longueur (évite tout débordement).
  *
  * Comme `fitHeadline` · les seuils sont en unités de maquette, la conversion se
- * fait à la sortie. C'est ce qui manquait ici : le badge gardait sa taille
- * d'impression sur une vignette, et débordait de sa pastille.
+ * fait à la sortie.
  */
 function fitBadge(s: string, base = 40): number {
   const n = (s || '').length;
-  if (n <= 5) return u(base);
-  if (n <= 9) return u(Math.round(base * 0.7));
-  if (n <= 14) return u(Math.round(base * 0.52));
-  return u(Math.round(base * 0.42));
+  if (n <= 6) return u(base);
+  if (n <= 10) return u(base - 6);
+  if (n <= 14) return u(base - 12);
+  return u(Math.max(18, base - 18));
 }
 
 // Pastille top-bar (AVANT/APRÈS, etc.) · une ligne, jamais de débordement.
@@ -344,65 +256,295 @@ function OfferBadge({ r }: { r: AdRecipe }) {
   );
 }
 
-/** UGC : rendu natif « contenu créateur » · bulle de caption + pseudo. */
-function Ugc(r: AdRecipe) {
+/* ========================= Coquilles (mises en page) ========================= */
+
+/**
+ * ── Ce qui a changé, et pourquoi ─────────────────────────────────────────────
+ *
+ * Sept gabarits rendaient la MÊME composition : photo plein cadre, dégradé noir
+ * en bas, texte blanc. Ils ne changeaient que les champs affichés — une note en
+ * étoiles, une liste, un gros chiffre. Vues dans une grille, sept « gabarits »
+ * donnaient sept fois la même image.
+ *
+ * Et le texte n'était jamais DANS le visuel · il était posé PAR-DESSUS, dans une
+ * bande sombre qui recouvrait une photo qu'on venait de payer. Le copy ne
+ * participait pas à l'image, il la masquait.
+ *
+ * La mise en page est donc séparée du gabarit :
+ *
+ * - **la coquille** décide où va l'image, ce qu'il y a derrière, et sur quel
+ *   fond se lit le texte ;
+ * - **le contenu** décide ce que le gabarit a à dire.
+ *
+ * Quatre coquilles pour sept gabarits, c'est vingt-huit rendus à partir de onze
+ * morceaux de code. Le choix de la coquille vient du noyau, qui garantit qu'un
+ * lot de quatre ne répète jamais la même.
+ */
+
+/** Fond d'affiche · un papier chaud, pas un blanc d'écran. */
+const PAPIER = '#f4f1ea';
+const ENCRE = '#12121a';
+
+interface Ton {
+  /** Couleur du titre. */
+  texte: string;
+  /** Couleur des lignes secondaires. */
+  doux: string;
+  /** Ombre portée · inutile et salissante sur fond clair. */
+  ombre: string;
+  clair: boolean;
+}
+
+function tonDe(layout: AdLayout): Ton {
+  return LAYOUT_CLAIR[layout]
+    ? { texte: ENCRE, doux: 'rgba(18,18,26,.72)', ombre: 'none', clair: true }
+    : { texte: WHITE, doux: 'rgba(255,255,255,.88)', ombre: shadow(), clair: false };
+}
+
+/** La photo, dans une carte · elle devient un élément de la page, pas son fond. */
+function Carte({ url, hauteur }: { url: string; hauteur: string }) {
   return (
-    <Frame>
-      <Bg url={r.sceneUrl} />
-      <div style={scrimTop} />
-      <div style={{ position: 'absolute', top: u(46), left: u(56), right: u(56), display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div style={{ display: 'flex', width: u(44), height: u(44), borderRadius: u(999), background: r.accent, alignItems: 'center', justifyContent: 'center', color: WHITE, fontSize: u(22), fontWeight: 700 }}>{(r.author || r.brandName || '@').replace('@', '').slice(0, 1).toUpperCase()}</div>
-          <div style={{ display: 'flex', marginLeft: u(12), fontSize: u(26), fontWeight: 700, color: WHITE, textShadow: shadow() }}>{r.author || r.brandName || ''}</div>
-        </div>
-      </div>
-      <div style={{ position: 'absolute', left: u(56), right: u(56), bottom: u(52), display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', background: 'rgba(255,255,255,.97)', borderRadius: u(22), padding: ux(24, 26), fontSize: fitHeadline(r.quote || r.headline, 44, 32), lineHeight: 1.24, fontWeight: 700, color: '#15151b', letterSpacing: u(-0.4) }}>{r.quote || r.headline}</div>
-        <div style={{ display: 'flex', marginTop: u(22) }}><Cta recipe={r} full /></div>
-      </div>
-    </Frame>
+    <div style={{ position: 'relative', display: 'flex', width: '100%', height: hauteur, borderRadius: u(28), overflow: 'hidden' }}>
+      <Bg url={url} />
+    </div>
   );
 }
 
-/** Stat : un chiffre-clé hero + libellé + titre. */
-function Stat(r: AdRecipe) {
+/**
+ * La coquille.
+ *
+ * `deco` se superpose à l'image · c'est ce qui permet à `before_after` de poser
+ * sa frontière sans avoir besoin de sa propre coquille.
+ */
+function Coquille({ r, layout, deco, children }: {
+  r: AdRecipe; layout: AdLayout; deco?: React.ReactNode; children: React.ReactNode;
+}) {
+  if (layout === 'split') {
+    return (
+      <Frame>
+        <div style={{ position: 'relative', display: 'flex', width: '100%', height: '54%' }}>
+          <Bg url={r.sceneUrl} />
+          {deco}
+          <div style={scrimTop} />
+          <TopBar r={r} />
+        </div>
+        {/* Frontière nette, pas un dégradé · c'est ce qui distingue cette mise
+            en page de l'immersive, et un fondu les rendrait à nouveau jumelles. */}
+        <div style={{ display: 'flex', width: '100%', height: '4%', background: r.accent }} />
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', width: '100%', height: '42%', padding: ux(44, 56), background: DARK }}>
+          {children}
+        </div>
+      </Frame>
+    );
+  }
+
+  if (layout === 'champ') {
+    return (
+      <Frame fond={DARK}>
+        {/* L'aplat prend la couleur de la marque · c'est la seule mise en page
+            où l'accent tient toute l'image, et pas seulement un bouton. */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', backgroundImage: `linear-gradient(165deg, ${r.accent} -20%, ${DARK} 62%)` }} />
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: ux(46, 46, 50) }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: u(22) }}>
+            <Logo recipe={r} />
+            {r.badge ? <div style={pill('rgba(255,255,255,.18)', r.badge)}>{badgeText(r.badge, 22)}</div> : null}
+          </div>
+          <Carte url={r.sceneUrl} hauteur="46%" />
+          <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center', marginTop: u(30) }}>
+            {children}
+          </div>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (layout === 'affiche') {
+    return (
+      <Frame fond={PAPIER}>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: ux(50, 52, 54) }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: u(26) }}>
+            <Logo recipe={r} onDark={false} />
+            {r.badge ? <div style={pill(r.accent, r.badge)}>{badgeText(r.badge, 22)}</div> : null}
+          </div>
+          {/* Le texte passe DEVANT l'image, en taille et en surface · c'est
+              exactement ce qui manquait, le copy comme sujet du visuel. */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>{children}</div>
+          <div style={{ display: 'flex', flexGrow: 1, marginTop: u(28) }}>
+            <Carte url={r.sceneUrl} hauteur="100%" />
+          </div>
+        </div>
+      </Frame>
+    );
+  }
+
   return (
     <Frame>
       <Bg url={r.sceneUrl} />
+      {deco}
       <div style={scrimTop} />
       <TopBar r={r} />
-      <div style={{ position: 'absolute', top: u(150), left: u(56), right: u(56), display: 'flex', flexDirection: 'column' }}>
-        {r.kicker ? <div style={{ display: 'flex', marginBottom: u(16) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
-        <div style={{ display: 'flex', alignItems: 'baseline' }}>
-          <div style={{ display: 'flex', fontSize: u(150), lineHeight: 0.9, fontWeight: 700, color: r.accent, letterSpacing: u(-3), textShadow: shadow() }}>{r.stat || '92%'}</div>
-        </div>
-        {r.statLabel ? <div style={{ display: 'flex', marginTop: u(10), fontSize: u(38), fontWeight: 700, color: WHITE, maxWidth: u(640), lineHeight: 1.1, textShadow: shadow() }}>{r.statLabel}</div> : null}
-      </div>
-      <BottomPanel>
-        <div style={{ display: 'flex', fontSize: fitHeadline(r.headline, 60), lineHeight: 1.03, fontWeight: 700, color: WHITE, letterSpacing: u(-1.2) }}>{r.headline}</div>
-        <div style={{ display: 'flex', marginTop: u(28) }}><Cta recipe={r} /></div>
-      </BottomPanel>
+      <BottomPanel>{children}</BottomPanel>
     </Frame>
   );
 }
 
-/** Offer : promo · pastille d'offre saillante + titre urgence + CTA. */
-function Offer(r: AdRecipe) {
+/* ------------------------------ Briques de copie ---------------------------- */
+
+/**
+ * L'accroche.
+ *
+ * L'affiche la traite en capitales et beaucoup plus grande · c'est l'idiome du
+ * format, et c'est ce qui fait qu'on lit le message avant de voir la photo. Les
+ * trois autres coquilles gardent la casse d'origine, où une accroche criée sur
+ * une photo passerait pour une erreur.
+ */
+function Titre({ r, t, layout, base }: { r: AdRecipe; t: Ton; layout: AdLayout; base?: number }) {
+  const affiche = layout === 'affiche';
+  const texte = affiche ? r.headline.toLocaleUpperCase('fr-FR') : r.headline;
   return (
-    <Frame>
-      <Bg url={r.sceneUrl} />
-      <div style={scrimTop} />
-      <div style={{ position: 'absolute', top: u(46), left: u(56), right: u(56), display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Logo recipe={r} />
-        <OfferBadge r={r} />
-      </div>
-      <BottomPanel>
-        {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
-        <div style={{ display: 'flex', fontSize: fitHeadline(r.headline), lineHeight: 1.0, fontWeight: 700, color: WHITE, letterSpacing: u(-1.5) }}>{r.headline}</div>
-        {r.subhead ? <div style={{ display: 'flex', marginTop: u(16), fontSize: u(30), lineHeight: 1.28, color: 'rgba(255,255,255,.88)', maxWidth: u(840) }}>{r.subhead}</div> : null}
-        <div style={{ display: 'flex', marginTop: u(32) }}><Cta recipe={r} /></div>
-      </BottomPanel>
-    </Frame>
+    <div style={{
+      display: 'flex',
+      fontSize: fitHeadline(texte, base ?? (affiche ? 92 : 74), affiche ? 54 : 46),
+      lineHeight: affiche ? 0.94 : 1.0,
+      fontWeight: 700, color: t.texte,
+      letterSpacing: u(affiche ? -2.2 : -1.4),
+      textShadow: t.ombre,
+    }}>{texte}</div>
+  );
+}
+
+function SousTitre({ r, t }: { r: AdRecipe; t: Ton }) {
+  if (!r.subhead) return null;
+  return (
+    <div style={{ display: 'flex', marginTop: u(16), fontSize: u(30), lineHeight: 1.28, color: t.doux, maxWidth: u(840) }}>{r.subhead}</div>
+  );
+}
+
+/** Une carte de contenu · blanche sur sombre, cernée sur clair pour rester lisible. */
+function Bloc({ t, children }: { t: Ton; children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      background: t.clair ? '#ffffff' : 'rgba(255,255,255,.97)',
+      border: t.clair ? `${u(2)}px solid rgba(18,18,26,.12)` : 'none',
+      borderRadius: u(26), padding: ux(28, 30),
+      boxShadow: t.clair ? `0 ${u(10)}px ${u(26)}px rgba(18,18,26,.10)` : `0 ${u(20)}px ${u(46)}px rgba(0,0,0,.42)`,
+    }}>{children}</div>
+  );
+}
+
+function Pied({ r, plein = false }: { r: AdRecipe; plein?: boolean }) {
+  return <div style={{ display: 'flex', marginTop: u(28) }}><Cta recipe={r} full={plein} /></div>;
+}
+
+/* --------------------------------- Gabarits -------------------------------- */
+
+/** Ce que chaque gabarit a à dire · la coquille décide où ça se pose. */
+function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
+  switch (r.template) {
+    case 'testimonial': {
+      const rating = Math.max(0, Math.min(5, Math.round(r.rating ?? 5)));
+      return (
+        <>
+          <Bloc t={t}>
+            <div style={{ display: 'flex' }}>{Array.from({ length: rating }).map((_, i) => <Star key={i} size={36} />)}</div>
+            <div style={{ display: 'flex', marginTop: u(16), fontSize: fitHeadline(r.quote || r.headline, 44, 32), lineHeight: 1.22, fontWeight: 700, color: '#15151b', letterSpacing: u(-0.4) }}>“{r.quote || r.headline}”</div>
+            {r.author ? <div style={{ display: 'flex', marginTop: u(16), fontSize: u(26), fontWeight: 700, color: r.accent }}>{r.author}</div> : null}
+          </Bloc>
+          <Pied r={r} plein />
+        </>
+      );
+    }
+
+    case 'benefits': {
+      const items = (r.benefits && r.benefits.length ? r.benefits : [r.subhead || '']).filter(Boolean).slice(0, 3);
+      return (
+        <>
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 74 : 62} />
+          <div style={{ display: 'flex', flexDirection: 'column', marginTop: u(22) }}>
+            {items.map((b, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', marginTop: i ? u(16) : 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: u(40), height: u(40), borderRadius: u(999), background: r.accent }}><Check /></div>
+                <div style={{ display: 'flex', marginLeft: u(16), fontSize: u(31), fontWeight: 700, color: t.texte }}>{b}</div>
+              </div>
+            ))}
+          </div>
+          <Pied r={r} />
+        </>
+      );
+    }
+
+    case 'ugc':
+      return (
+        <>
+          <Bloc t={t}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: 'flex', width: u(40), height: u(40), borderRadius: u(999), background: r.accent, alignItems: 'center', justifyContent: 'center', color: WHITE, fontSize: u(20), fontWeight: 700 }}>
+                {(r.author || r.brandName || '@').replace('@', '').slice(0, 1).toUpperCase()}
+              </div>
+              <div style={{ display: 'flex', marginLeft: u(12), fontSize: u(24), fontWeight: 700, color: '#15151b' }}>{r.author || r.brandName || ''}</div>
+            </div>
+            <div style={{ display: 'flex', marginTop: u(14), fontSize: fitHeadline(r.quote || r.headline, 42, 30), lineHeight: 1.24, fontWeight: 700, color: '#15151b', letterSpacing: u(-0.4) }}>{r.quote || r.headline}</div>
+          </Bloc>
+          <Pied r={r} plein />
+        </>
+      );
+
+    case 'stat':
+      return (
+        <>
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(12) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          {/* Le chiffre EST le visuel · il prend la place d'un titre, pas celle
+              d'une annotation posée dans un coin. */}
+          <div style={{ display: 'flex', fontSize: u(150), lineHeight: 0.86, fontWeight: 700, color: t.clair ? r.accent : r.accent, letterSpacing: u(-4), textShadow: t.ombre }}>{r.stat || '92%'}</div>
+          {r.statLabel ? <div style={{ display: 'flex', marginTop: u(10), fontSize: u(36), fontWeight: 700, color: t.texte, maxWidth: u(680), lineHeight: 1.12, textShadow: t.ombre }}>{r.statLabel}</div> : null}
+          <div style={{ display: 'flex', marginTop: u(18) }}>
+            <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 62 : 52} />
+          </div>
+          <Pied r={r} />
+        </>
+      );
+
+    case 'offer':
+      return (
+        <>
+          <div style={{ display: 'flex', marginBottom: u(18) }}><OfferBadge r={r} /></div>
+          <Titre r={r} t={t} layout={layout} />
+          <SousTitre r={r} t={t} />
+          <Pied r={r} />
+        </>
+      );
+
+    case 'before_after':
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          <div style={{ display: 'flex', textAlign: 'center', fontSize: fitHeadline(r.headline, 66), lineHeight: 1.02, fontWeight: 700, color: t.texte, letterSpacing: u(-1.2), maxWidth: u(900), textShadow: t.ombre }}>{r.headline}</div>
+          <Pied r={r} />
+        </div>
+      );
+
+    default:
+      return (
+        <>
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(16) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          <Titre r={r} t={t} layout={layout} />
+          <SousTitre r={r} t={t} />
+          <Pied r={r} />
+        </>
+      );
+  }
+}
+
+/** La frontière avant/après · posée sur l'image, quelle que soit la coquille. */
+function decoAvantApres(r: AdRecipe): React.ReactNode {
+  return (
+    <>
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: u(4), marginLeft: u(-2), display: 'flex', background: 'rgba(255,255,255,.92)' }} />
+      <div style={{ position: 'absolute', top: u(34), left: u(44), display: 'flex', background: 'rgba(0,0,0,.62)', color: WHITE, fontSize: u(24), fontWeight: 700, padding: ux(8, 18), borderRadius: u(8), letterSpacing: u(2) }}>AVANT</div>
+      <div style={{ position: 'absolute', top: u(34), right: u(44), display: 'flex', background: r.accent, color: WHITE, fontSize: u(24), fontWeight: 700, padding: ux(8, 18), borderRadius: u(8), letterSpacing: u(2) }}>APRÈS</div>
+    </>
   );
 }
 
@@ -415,15 +557,13 @@ function Offer(r: AdRecipe) {
  */
 function element(r: AdRecipe) {
   ECHELLE = (r.width ?? LARGEUR_MAQUETTE) / LARGEUR_MAQUETTE;
-  switch (r.template) {
-    case 'before_after': return BeforeAfter(r);
-    case 'testimonial': return Testimonial(r);
-    case 'benefits': return Benefits(r);
-    case 'ugc': return Ugc(r);
-    case 'stat': return Stat(r);
-    case 'offer': return Offer(r);
-    default: return ProblemSolution(r);
-  }
+  // Les pubs d'avant n'ont pas de mise en page consignée · elles gardent
+  // l'immersive, celle avec laquelle elles ont été composées. Un ancien rendu ne
+  // doit pas changer d'allure parce qu'on a ajouté des coquilles.
+  const layout = layoutFor(r.template, r.layout ?? 'immersif');
+  const t = tonDe(layout);
+  const deco = r.template === 'before_after' ? decoAvantApres(r) : undefined;
+  return <Coquille r={r} layout={layout} deco={deco}>{contenu(r, t, layout)}</Coquille>;
 }
 
 /** Compose la publicité finale (scène + couche design) et renvoie un PNG. */

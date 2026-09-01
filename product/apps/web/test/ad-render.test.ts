@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { AD_TEMPLATES } from '@tiktrends/ai';
 import { renderAdPng, type AdRecipe } from '../lib/ad-render';
+import { AD_LAYOUTS, layoutsFor } from '@tiktrends/core';
 import { decodePng, inkProfile, composition } from './png';
 
 /**
@@ -121,4 +122,58 @@ describe('la construction de l’arbre reste synchrone', () => {
     expect(petit.width).toBe(432);
     expect(memeComposition(composition(grand), composition(petit)).encre).toBeLessThan(0.03);
   }, 120000);
+});
+
+describe('les mises en page produisent des images différentes', () => {
+  /**
+   * ── Le constat qui a déclenché ce travail ──────────────────────────────────
+   *
+   * « On fait et on obtient toujours le même résultat. » C'était exact : sept
+   * gabarits rendaient la même composition, photo plein cadre + bandeau noir +
+   * texte blanc, et ne changeaient que les champs affichés.
+   *
+   * Des noms de mises en page différents ne prouvent rien · seul le pixel le
+   * prouve. Ce test mesure ce qui sort, pas ce qu'on a déclaré.
+   */
+  it('quatre coquilles donnent quatre compositions distinctes', async () => {
+    const rendus = await Promise.all(
+      AD_LAYOUTS.map((layout) => rendre({ layout, width: 432, height: 540 })),
+    );
+    const comps = rendus.map(composition);
+
+    for (let a = 0; a < comps.length; a++) {
+      for (let b = a + 1; b < comps.length; b++) {
+        const d = memeComposition(comps[a]!, comps[b]!);
+        // Au moins l'une des deux mesures bouge nettement · deux coquilles qui
+        // se ressemblent sur les deux sont deux fois la même image.
+        expect(
+          Math.max(d.encre, d.centre),
+          `« ${AD_LAYOUTS[a]} » et « ${AD_LAYOUTS[b]} » rendent la même chose`,
+        ).toBeGreaterThan(0.02);
+      }
+    }
+  }, 180000);
+
+  it('l’affiche est claire là où l’immersif est sombre', async () => {
+    // Tout le catalogue était sombre · c'est à soi seul une raison pour laquelle
+    // toutes les créas se ressemblaient.
+    const [affiche, immersif] = await Promise.all([
+      rendre({ layout: 'affiche', width: 432, height: 540 }),
+      rendre({ layout: 'immersif', width: 432, height: 540 }),
+    ]);
+    expect(composition(affiche).ink).toBeGreaterThan(composition(immersif).ink);
+  }, 120000);
+
+  it('chaque gabarit tient dans chacune de ses coquilles', async () => {
+    // Une coquille qui casse un gabarit sortirait une image vide ou uniforme ·
+    // elle passerait la compilation et se verrait seulement en production.
+    for (const template of AD_TEMPLATES) {
+      for (const layout of layoutsFor(template)) {
+        const img = await rendre({ template, layout, width: 324, height: 405 });
+        const profil = inkProfile(img);
+        expect(Math.max(...profil), `${template} / ${layout}`).toBeGreaterThan(0.02);
+        expect(Math.min(...profil), `${template} / ${layout}`).toBeLessThan(0.95);
+      }
+    }
+  }, 600000);
 });
