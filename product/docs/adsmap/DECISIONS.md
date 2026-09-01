@@ -2504,3 +2504,54 @@ semaines plus tard, sur un changement qui paraît cosmétique.
 
 Le test ne peut pas deviner si l'apparence a changé · il oblige à **décider**, et
 dit quoi écrire dans les deux cas.
+
+---
+
+## D132 — Le tri ne suffisait pas · il fallait pouvoir rapprocher
+
+**Constat.** Les passerelles créent un persona « À qualifier » chaque fois
+qu'aucun n'est fourni. Le tri permettait de l'accepter, de le refuser ou de le
+renommer · jamais de le rapprocher d'un autre.
+
+Le résultat est pire que le vide : deux « À qualifier » validés à trois semaines
+d'écart deviennent deux personas légitimes, et **plus rien ne signale le
+doublon**. La carte prétend alors distinguer ce qu'elle confond, et la mémoire de
+Jarvis compte deux fois la même audience.
+
+Renommer les deux ne les rapproche pas · ça donne deux personas au même nom.
+
+**Décision.** Une fusion, avec deux cas et pas un seul :
+
+- **déplacement** · le désir n'existe pas chez la cible, il change de parent ;
+- **repli** · un homonyme existe déjà, ses angles rejoignent celui de la cible et
+  le doublon est archivé.
+
+Sans le repli, fusionner deux « À qualifier » donnerait deux désirs « À
+qualifier » sous un seul persona · on aurait déplacé le problème d'un cran.
+
+La comparaison ignore accents et casse. « Économiser » et « economiser » sont le
+même désir, et les laisser cohabiter recréerait le doublon qu'on vient d'effacer.
+
+---
+
+## D133 — L'ordre des écritures d'une fusion n'est pas indifférent
+
+**Les désirs bougent AVANT que la source soit archivée.** Les désirs pendent au
+persona, les angles aux désirs, les concepts aux angles, les tests aux concepts ·
+une suppression physique du persona emporterait la branche entière, donc des
+tests payés.
+
+Rien n'est supprimé : on archive. Un persona effacé emporterait l'historique de
+ce qui avait été choisi le jour où les créas ont été générées.
+
+**Le plan est recalculé côté serveur avant d'écrire.** Celui affiché a pu vieillir
+· un désir créé entre-temps se replierait mal, et on ne réécrit jamais la carte
+sur la foi d'identifiants venus du navigateur.
+
+**Le plan est montré avant le bouton.** La fusion est réversible en droit et pas
+en pratique : personne ne se souvient de quel désir venait d'où trois semaines
+plus tard. On dit ce qui bouge, chiffres compris, puis on demande.
+
+**Le panneau est rendu même quand il n'y a rien à trier** · c'est justement quand
+la file est vide que le doublon validé est le plus invisible. Le cacher derrière
+l'état vide reviendrait à retirer l'outil le jour où il sert.

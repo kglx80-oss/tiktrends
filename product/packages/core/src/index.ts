@@ -43,6 +43,7 @@ export * from './adsmap/digest';
 export * from './adsmap/milestones';
 export * from './adsmap/curation';
 export * from './adsmap/preflight';
+export * from './adsmap/merge';
 export * from './adsmap/draft';
 export * from './creative-presets';
 export * from './onboarding';
