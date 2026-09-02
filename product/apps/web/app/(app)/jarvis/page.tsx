@@ -11,7 +11,8 @@ import { jarvisStats, jarvisMeasuredMemory, jarvisHookView } from '../../../lib/
 import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../lib/jarvis-state';
 import { spendStatus } from '../../../lib/spend-guard';
 import { currentDeployment } from '../../../lib/deployment';
-import { attributionViewAction, creativeTrendAction } from '../../actions/adsmap-attribution';
+import { attributionViewAction, creativeTrendAction, essaisViewAction } from '../../actions/adsmap-attribution';
+import { ESSAI_LABEL, type EssaiVariable } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
@@ -94,11 +95,12 @@ export default async function JarvisPage() {
 
   // La mémoire n'est chargée que si elle est accessible · inutile de faire
   // travailler la base pour un bloc qu'on n'affichera pas.
-  const [memoire, hooks, attribution, tendance, stats, depense] = await Promise.all([
+  const [memoire, hooks, attribution, tendance, essais, stats, depense] = await Promise.all([
     voitMemoire ? jarvisMeasuredMemory(brand.id, s.workspaceId) : Promise.resolve(''),
     voitMemoire ? jarvisHookView(brand.id, s.workspaceId) : Promise.resolve(null),
     voitMemoire ? attributionViewAction() : Promise.resolve({ view: undefined }),
     voitMemoire ? creativeTrendAction() : Promise.resolve({ trend: undefined }),
+    voitMemoire ? essaisViewAction() : Promise.resolve({ view: undefined }),
     voitMemoire ? jarvisStats(brand.id, s.workspaceId) : Promise.resolve(null),
     fondateur ? spendStatus() : Promise.resolve(null),
   ]);
@@ -110,6 +112,8 @@ export default async function JarvisPage() {
   // L'échec de lecture se dit · un bloc qui s'évapore quand il n'a rien à
   // répondre laisse croire qu'il n'existe pas.
   const attrErreur = 'error' in attribution ? attribution.error : undefined;
+  const essaisVue = essais.view;
+  const essaisErreur = 'error' in essais ? essais.error : undefined;
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1040, margin: '0 auto' }}>
@@ -222,7 +226,90 @@ export default async function JarvisPage() {
         </section>
       )}
 
-      {/* 2 · Le contrôle AVANT la mémoire · un outil qui ne se vérifie pas accumule. */}
+      {/* 2 · Ce que les lots d'essai ont répondu.
+             Avant l'attribution, parce que c'est la seule comparaison du produit
+             où tout le reste était VRAIMENT tenu · l'attribution, elle, compare
+             deux époques et le dit. */}
+      {voitMemoire && (
+        <section id="essais" style={{
+          marginBottom: 24, padding: '16px 18px', borderRadius: 14,
+          border: `1px solid ${essaisVue?.cumuls.some((c) => c.conclusif) ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
+          background: 'var(--surface)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+              Qu’ont répondu tes lots d’essai ?
+            </h2>
+            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
+              Essais
+            </span>
+          </div>
+          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
+            Un lot d’essai fait varier <b>une seule chose</b> et tient tout le reste · même scène, mêmes
+            textes, même gabarit. C’est la seule comparaison de l’outil où l’écart est vraiment
+            attribuable à ce qu’on testait.
+          </p>
+
+          {essaisErreur ? (
+            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{essaisErreur}</p>
+          ) : !essaisVue?.lots.length ? (
+            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.55 }}>
+              Aucun lot d’essai n’a encore été poussé dans la carte. Dans <b>Pubs IA</b>, choisis ce que
+              le lot teste avant de générer · un essai d’accroches ou de mises en page ne produit
+              qu’une image, il coûte donc moins cher qu’un lot libre.
+            </p>
+          ) : (
+            <>
+              {/* Le cumul d'abord · c'est le seul endroit où un chiffre devient
+                  une mesure. Un lot seul est une observation par bras. */}
+              <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                {essaisVue.cumuls.filter((c) => c.essais > 0).map((c) => (
+                  <div key={c.variable} style={{ padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: `1px solid ${c.conclusif ? 'rgba(126,232,191,.4)' : 'var(--line)'}` }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: c.conclusif ? '#7ee8bf' : 'var(--ink)', lineHeight: 1.5 }}>
+                      {ESSAI_LABEL[c.variable as EssaiVariable]} · {c.resume}
+                    </div>
+                    <div style={{ display: 'grid', gap: 4, marginTop: 7 }}>
+                      {c.lignes.map((l) => (
+                        <div key={l.valeur} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12, flexWrap: 'wrap' }}>
+                          <span style={{ width: 150, color: 'var(--ink-2)' }}>{l.valeur}</span>
+                          <span style={{ fontWeight: 700, color: l.gagne ? '#7ee8bf' : 'var(--muted)' }}>
+                            {l.victoires}/{l.participations}
+                          </span>
+                          <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>
+                            {Math.round((l.taux ?? 0) * 100)} % de victoires · le hasard en donnerait {Math.round(c.hasard * 100)} %
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Puis les lots un par un · ce sont des pistes, et c'est écrit. */}
+              <div style={{ display: 'grid', gap: 7, marginTop: 12 }}>
+                {essaisVue.lots.slice(0, 8).map((e) => (
+                  <div key={e.groupe} style={{ fontSize: 12, lineHeight: 1.5 }}>
+                    <span style={{ fontWeight: 700, color: 'var(--ink-2)' }}>{ESSAI_LABEL[e.variable as EssaiVariable]}</span>
+                    <span style={{ color: 'var(--muted)' }}>
+                      {' · '}{e.bras.map((b) => `${b.valeur}${b.gagnant ? ' ✓' : b.arbitre ? '' : ' …'}`).join(', ')}
+                    </span>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>{e.resume}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <p style={{ margin: '11px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+            Un lot seul donne <b>une observation par bras</b> · pas un taux. C’est en répétant l’essai
+            que l’écart devient une mesure, et on ne conclut qu’au-dessus de ce que le hasard
+            expliquerait. Les accroches ne se cumulent pas d’un essai à l’autre : chacun en compare de
+            nouvelles.
+          </p>
+        </section>
+      )}
+
+      {/* 3 · Le contrôle AVANT la mémoire · un outil qui ne se vérifie pas accumule. */}
       {voitMemoire && (
         <section id="attribution" style={{
           marginBottom: 24, padding: '16px 18px', borderRadius: 14,
