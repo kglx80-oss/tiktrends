@@ -14,6 +14,7 @@ import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from 
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate, logFailure } from '../../lib/error-log';
+import { mesurerScene } from '../../lib/scene-light';
 import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
@@ -249,6 +250,17 @@ async function composeBatch(o: {
     done.forEach((url, k) => { scenes[start + k] = url; });
   }
 
+  // On regarde les scènes AVANT de les composer.
+  //
+  // Le voile qui porte le texte était une constante · sur une image déjà sombre
+  // il enterrait la photo qu'on venait de payer. La mesure est prise une fois et
+  // rangée dans la recette : la composition tourne à chaque affichage, décoder
+  // l'image à chaque rendu paierait cent fois une réponse qui ne change pas.
+  //
+  // En parallèle, et sans jamais faire échouer le lot · une scène non mesurée se
+  // rend avec les voiles d'avant, ce qui est moins bien et pas cassé.
+  const lumieres = await Promise.all(scenes.map((url) => (url ? mesurerScene(url) : Promise.resolve(null))));
+
   const ads: AdItem[] = [];
   for (let i = 0; i < o.concepts.length; i++) {
     const sceneUrl = scenes[i]; const c = o.concepts[i];
@@ -270,6 +282,9 @@ async function composeBatch(o: {
       // Rabattue sur ce que le gabarit accepte · `before_after` a besoin de
       // l'image entière pour poser sa frontière.
       layout: coquille(c, i),
+      // Ce que la scène a dans le ventre · c'est elle qui décide de l'épaisseur
+      // du voile, et donc de la part de photo qui survit.
+      light: lumieres[i] ?? null,
       // Recalculée depuis la mémoire injectée · elle ne peut donc pas inventer
       // un chiffre, contrairement à une phrase demandée au modèle.
       rationale: o.rationaleCtx

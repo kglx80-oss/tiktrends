@@ -1,8 +1,10 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { renderAdPng, RENDER_VERSION, type AdRecipe } from '../../../../lib/ad-render';
 import { renduConnu, rangerRendu } from '../../../../lib/ad-store';
+import { mesurerScene } from '../../../../lib/scene-light';
+import type { SceneLight } from '@tiktrends/core';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,10 +67,35 @@ function cachePut(key: string, png: ArrayBuffer): void {
   }
 }
 function recipeHash(r: AdRecipe): string {
-  const t = `${r.headline}|${r.subhead ?? ''}|${r.cta}|${r.kicker ?? ''}|${r.badge ?? ''}|${r.sceneUrl}`;
+  // La mesure de la scène entre dans l'empreinte · elle change les voiles, donc
+  // l'image. Sans elle, le rendu d'avant la mesure resterait servi pour
+  // toujours, et rattraper l'existant ne rattraperait rien.
+  const l = r.light ? `${r.light.haut.pic.toFixed(3)}/${r.light.bas.pic.toFixed(3)}` : '';
+  const t = `${r.headline}|${r.subhead ?? ''}|${r.cta}|${r.kicker ?? ''}|${r.badge ?? ''}|${r.sceneUrl}|${l}`;
   let h = 5381;
   for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
+}
+
+/**
+ * Mesure une scène qui n'avait pas été mesurée, et range le relevé.
+ *
+ * Le délai est court · faire attendre un affichage de grille pour un
+ * embellissement serait un mauvais marché. Un échec ne se retient pas : la
+ * prochaine ouverture réessaiera, et en attendant la publicité se rend avec les
+ * voiles d'avant.
+ */
+async function rattraperMesure(id: string, base: AdRecipe): Promise<SceneLight | null> {
+  const light = await mesurerScene(base.sceneUrl, 4_000);
+  try {
+    // Fusion côté SQL · la composition dure plusieurs secondes, et une retouche
+    // de texte faite pendant ce temps ne doit pas être écrasée par un
+    // instantané périmé.
+    await db!.update(schema.generations)
+      .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ light })}::jsonb` })
+      .where(eq(schema.generations.id, id));
+  } catch { /* le rendu de ce tour profite quand même de la mesure */ }
+  return light;
 }
 
 /** Rend la publicité composée (scène IA + couche design) en PNG, à la demande. Ratio via ?r=. */
@@ -91,11 +118,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!g || g.kind !== 'ad' || g.workspaceId !== s.workspaceId) return new Response('Introuvable', { status: 404 });
   const base = g.input as unknown as AdRecipe;
   if (!base?.sceneUrl) return new Response('Recette invalide', { status: 422 });
+
+  // Les publicités composées avant la mesure n'en portent pas · on la prend ici,
+  // une fois, et on la range. Rien n'est facturé : c'est une lecture de pixels,
+  // pas un appel de modèle. Sans ce rattrapage, la bibliothèque existante
+  // garderait son panneau noir pour toujours.
+  //
+  // `'light' in base` et non `base.light ??` · un échec est consigné en `null`,
+  // et doit compter comme une tentative. Sinon une scène devenue illisible
+  // (adresse expirée chez le fournisseur) referait quatre secondes d'attente à
+  // CHAQUE affichage de la grille, pour toujours.
+  const light = 'light' in base ? base.light ?? null : await rattraperMesure(id, base);
   const plein = size ?? { width: base.width ?? 1080, height: base.height ?? 1350 };
   const dims = vignette
     ? { width: Math.round(plein.width * ECHELLE_VIGNETTE), height: Math.round(plein.height * ECHELLE_VIGNETTE) }
     : plein;
-  const recipe: AdRecipe = { ...base, width: dims.width, height: dims.height };
+  const recipe: AdRecipe = { ...base, light, width: dims.width, height: dims.height };
   // La version de la maquette entre dans la clé · sans elle, une image composée
   // par une version fautive reste servie pour toujours, et corriger le rendu ne
   // corrige rien de ce qui a déjà été rendu.
