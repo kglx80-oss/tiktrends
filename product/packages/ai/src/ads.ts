@@ -316,3 +316,97 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
   const unique = concepts.filter((c) => { const k = norm(c.headline); if (seen.has(k)) return false; seen.add(k); return true; });
   return unique.slice(0, templates.length);
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Décliner : réécrire UNE chose, tenir tout le reste                          */
+/* -------------------------------------------------------------------------- */
+
+/** Ce qu'une déclinaison de texte peut toucher · le reste de la recette est tenu. */
+export interface AdCopyPatch {
+  headline?: string; subhead?: string; kicker?: string; cta?: string; badge?: string;
+}
+
+const COPY_TOOL = {
+  name: 'return_copy',
+  description: 'Renvoie la réécriture demandée, et RIEN d’autre.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      headline: { type: 'string', description: 'Accroche FR très courte (max ~5 mots), sans point final.' },
+      subhead: { type: 'string', description: 'Ligne de soutien courte.' },
+      kicker: { type: 'string', description: 'Eyebrow court en MAJUSCULES (2 à 4 mots).' },
+      cta: { type: 'string', description: "Appel à l'action court (FR), ex : « Je découvre »." },
+      badge: { type: 'string', description: 'Pastille courte (ex : « -30 % », « NOUVEAU »).' },
+    },
+  },
+} as const;
+
+/**
+ * Réécrit UNE dimension d'une publicité déjà composée.
+ *
+ * ── Pourquoi ce n'est pas `generateAdConcepts` ───────────────────────────────
+ *
+ * Regénérer un concept entier produit une autre scène, un autre gabarit et
+ * d'autres textes. C'est exactement ce qu'on veut éviter : si tout bouge, la
+ * mesure qui suivra n'attribuera l'écart à rien.
+ *
+ * La scène est déjà payée et elle reste. Le modèle reçoit donc les textes
+ * ACTUELS et une seule consigne · l'appelant vérifie ensuite que le contrat a
+ * été tenu, parce qu'un modèle rend parfois la même phrase à la ponctuation
+ * près.
+ */
+export async function rewriteAdCopy(
+  client: Anthropic,
+  ctx: AdConceptCtx,
+  actuel: { headline: string; subhead?: string; kicker?: string; cta: string; badge?: string; sceneBrief?: string },
+  quoi: 'accroche' | 'offre',
+): Promise<AdCopyPatch | null> {
+  const consigne = quoi === 'accroche'
+    ? [
+        'Réécris UNIQUEMENT l’accroche (headline), et si utile le kicker et la ligne de soutien.',
+        'NE TOUCHE PAS au bouton (cta) ni à la pastille (badge) · ils sont tenus constants.',
+        'La nouvelle accroche doit dire la même promesse AUTREMENT : autre entrée, autre tension, autre formulation.',
+        'Elle doit être NETTEMENT différente de l’actuelle · une reformulation à la virgule près ne sert à rien.',
+      ].join(' ')
+    : [
+        'Réécris UNIQUEMENT le bouton (cta) et la pastille d’offre (badge).',
+        'NE TOUCHE PAS à l’accroche, au kicker ni à la ligne de soutien · ils sont tenus constants.',
+        'Change la raison d’agir maintenant : autre bénéfice immédiat, autre urgence, autre engagement.',
+        'N’invente aucune promesse chiffrée qui ne figure pas dans le contexte de la marque.',
+      ].join(' ');
+
+  const sys = [
+    'Tu es concepteur-rédacteur publicitaire FR, TikTok-first.',
+    'Tu travailles sur une pub DÉJÀ COMPOSÉE dont l’image est définitive.',
+    'Une déclinaison change UNE seule dimension et tient tout le reste · c’est ce qui rend l’écart mesurable.',
+    consigne,
+    'Rends via l’outil return_copy.',
+  ].join(' ');
+
+  const info = [
+    ctxLines(ctx),
+    actuel.sceneBrief ? `La scène (inchangée, déjà produite) : ${actuel.sceneBrief.slice(0, 400)}` : '',
+    'Textes actuels :',
+    `- accroche : ${actuel.headline}`,
+    actuel.kicker ? `- kicker : ${actuel.kicker}` : '',
+    actuel.subhead ? `- soutien : ${actuel.subhead}` : '',
+    `- bouton : ${actuel.cta}`,
+    actuel.badge ? `- pastille : ${actuel.badge}` : '',
+  ].filter(Boolean).join('\n');
+
+  const res = await client.messages.create({
+    model: GEN_MODEL, max_tokens: 500, system: sys,
+    tools: [COPY_TOOL as unknown as Anthropic.Tool],
+    tool_choice: { type: 'tool', name: 'return_copy' },
+    messages: [{ role: 'user', content: info }],
+  });
+  const tool = res.content.find((c) => c.type === 'tool_use') as { input?: AdCopyPatch } | undefined;
+  const patch = tool?.input;
+  if (!patch) return null;
+  const net = (v?: string) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  // On ne retient QUE ce que la consigne autorisait · un modèle qui déborde ne
+  // doit pas pouvoir casser le contrat depuis sa réponse.
+  return quoi === 'accroche'
+    ? { headline: net(patch.headline), subhead: net(patch.subhead), kicker: net(patch.kicker) }
+    : { cta: net(patch.cta), badge: net(patch.badge) };
+}

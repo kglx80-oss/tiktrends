@@ -7,8 +7,8 @@ import { getActiveBrand } from '../../lib/brands';
 import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
-import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
+import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -24,6 +24,15 @@ export interface AdItem {
   rating?: import('./creatives').Rating; score?: number;
   /** Pourquoi Jarvis a proposé ça · une proposition muette se subit ou s'ignore. */
   rationale?: string[] | null;
+  /**
+   * La filiation · de qui elle descend, et ce qu'on y a changé.
+   *
+   * Une déclinaison qui ne se présente pas comme telle est une créa de plus
+   * dans la grille · on la compare à l'œil au lieu de la lire comme la réponse
+   * à une question posée.
+   */
+  parentId?: string | null;
+  variable?: StudioVariable | null;
 }
 export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
 
@@ -285,6 +294,9 @@ async function composeBatch(o: {
       // Ce que la scène a dans le ventre · c'est elle qui décide de l'épaisseur
       // du voile, et donc de la part de photo qui survit.
       light: lumieres[i] ?? null,
+      // Le brief de la scène · consigné pour pouvoir en produire une AUTRE du
+      // même concept sans redemander au modèle ce qu'il a déjà écrit.
+      sceneBrief: c.sceneBrief,
       // Recalculée depuis la mémoire injectée · elle ne peut donc pas inventer
       // un chiffre, contrairement à une phrase demandée au modèle.
       rationale: o.rationaleCtx
@@ -729,7 +741,12 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
     .filter((r) => (r.status === 'archived') === wantArchived)
     .map((r) => {
       const rec = (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore };
-      return { id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '', url: adUrl(r.id, rec), createdAt: (r.createdAt as Date).toISOString(), rating: rec.rating ?? null, score: rec.jarvisScore?.score };
+      return {
+        id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '',
+        url: adUrl(r.id, rec), createdAt: (r.createdAt as Date).toISOString(),
+        rating: rec.rating ?? null, score: rec.jarvisScore?.score,
+        parentId: rec.parentId ?? null, variable: rec.variable ?? null,
+      };
     });
 }
 
@@ -891,5 +908,150 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
     return { error: logAndTranslate('ads:score', e, { subject: 'l’analyse de la créa', workspaceId: s.workspaceId }) };
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Décliner une publicité                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Une déclinaison : UNE chose change, tout le reste est tenu.
+ *
+ * ── Ce qu'on ne pouvait pas faire ────────────────────────────────────────────
+ *
+ * Une publicité plaît à moitié · son accroche porte, sa composition l'enterre.
+ * La seule manœuvre offerte était de relancer un lot entier et de repayer
+ * quatre images, dont trois qu'on n'avait pas demandées.
+ *
+ * Et le nouveau lot changeait TOUT à la fois · quand la mesure arrivait, plus
+ * personne ne savait à quoi attribuer l'écart. On payait pour apprendre, et on
+ * n'apprenait rien.
+ *
+ * ── Pourquoi c'est presque gratuit ───────────────────────────────────────────
+ *
+ * La scène est déjà payée et elle reste. Changer la mise en page ne coûte donc
+ * **rien du tout** · la composition est un calcul. Réécrire l'accroche ou
+ * l'offre coûte une courte demande au modèle, pas une image.
+ *
+ * ── Le contrôle qui compte ───────────────────────────────────────────────────
+ *
+ * `verifieDeclinaison` refuse ce qui n'a rien changé (un modèle rend parfois la
+ * même phrase à la ponctuation près) ET ce qui a changé deux choses. Le second
+ * cas est le plus insidieux : il a l'air d'un progrès et ne prouve rien.
+ *
+ * Le contrôle passe AVANT la facturation · on ne fait pas payer un doublon.
+ */
+export async function declineAdAction(input: { id: string; variable: string }): Promise<{ ad?: AdItem; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: GUARD.session() };
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: GUARD.noBrand() };
+
+  const variable = (DECLINAISONS_DISPONIBLES as readonly string[]).includes(input.variable)
+    ? input.variable as StudioVariable
+    : null;
+  if (!variable) return { error: 'Cette déclinaison n’existe pas.' };
+
+  const [g] = await db.select({ input: schema.generations.input, creditsCost: schema.generations.creditsCost })
+    .from(schema.generations)
+    .where(and(eq(schema.generations.id, input.id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad')))
+    .limit(1);
+  if (!g) return { error: GUARD.notFound('cette publicité') };
+
+  const parent = (g.input ?? {}) as AdRecipe;
+  if (!parent.sceneUrl || !parent.headline) return { error: 'Cette publicité n’a pas de quoi être déclinée.' };
+  // La coquille du parent se LIT, elle ne se recalcule pas · elle a déjà été
+  // arbitrée à la génération, par la seule expression qui a le droit de le
+  // faire. La recalculer ici serait une seconde source de vérité, et un garde
+  // le refuse à juste titre.
+  const layoutParent = (parent.layout ?? 'immersif') as AdLayout;
+
+  const unlimited = unlimitedCredits(s.user.email);
+  // Le prix ne dépend pas du moteur d'images ici · les trois déclinaisons
+  // disponibles réutilisent toutes la scène, et un garde de noyau l'affirme.
+  const cost = prixDeclinaison(variable, 0, costFor('suggest'));
+  if (cost > 0 && !unlimited && !(await reserveCredits(s.workspaceId, cost, `Studio · décliner ${STUDIO_LABEL[variable].toLowerCase()}`))) {
+    return { error: `Crédits insuffisants (${cost} requis).` };
+  }
+  const rendre = async () => { if (cost > 0 && !unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · déclinaison'); };
+
+  // Ce qui change, selon la variable. Tout le reste est recopié tel quel · c'est
+  // la recopie qui fait le contrat, pas la consigne donnée au modèle.
+  let patch: Partial<AdRecipe> = {};
+  if (variable === 'mise_en_page') {
+    const suivante = miseSuivante(layoutParent, parent.headline, layoutsFor(parent.template) as AdLayout[]);
+    if (!suivante) {
+      await rendre();
+      return { error: 'Aucune autre mise en page ne tient cette accroche. Raccourcis-la d’abord, ou décline l’accroche.' };
+    }
+    patch = { layout: suivante };
+  } else if (variable === 'accroche' || variable === 'offre') {
+    const client = guardedAnthropic({ action: 'ads' });
+    if (!client) { await rendre(); return { error: GUARD.aiOff() }; }
+    const { da, product, persona } = await loadAdContext(brand.id, parent.productId, parent.personaId);
+    try {
+      const copie = await rewriteAdCopy(client, {
+        brand: brand.name, tone: da?.tone ?? undefined, colors: da?.colors ?? undefined, usp: da?.usp ?? undefined,
+        audience: da?.audience ?? undefined, category: da?.category ?? undefined,
+        productName: product?.name, productDesc: product?.description ?? undefined, productUsp: product?.usp ?? undefined,
+        persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
+        objective: parent.objective, creativeRules: da?.creativeRules ?? undefined,
+      }, {
+        headline: parent.headline, subhead: parent.subhead, kicker: parent.kicker,
+        cta: parent.cta, badge: parent.badge, sceneBrief: parent.sceneBrief,
+      }, variable);
+      if (!copie) { await rendre(); return { error: 'La réécriture n’a rien rendu. Réessaie.' }; }
+      patch = copie;
+    } catch (e) {
+      await rendre();
+      return { error: logAndTranslate('ads:decline', e, { subject: 'la déclinaison', workspaceId: s.workspaceId }) };
+    }
+  } else {
+    // `scene` et `univers` demandent de produire une autre image · elles ne
+    // sont pas dans le vivier disponible, et le rappeler ici évite qu'un
+    // élargissement du vivier passe en silence par une branche qui ne les
+    // traite pas.
+    await rendre();
+    return { error: 'Cette déclinaison n’est pas encore disponible.' };
+  }
+
+  const enfant: AdRecipe = {
+    ...parent,
+    ...patch,
+    layout: patch.layout ?? layoutParent,
+    // La filiation · sans elle, une déclinaison est une créa de plus dans la
+    // grille, et l'écart qu'elle mesure n'est rattaché à rien.
+    parentId: input.id,
+    variable,
+    // Le score du parent ne vaut pas pour l'enfant · le garder afficherait une
+    // note qui n'a pas été calculée sur ce qu'on regarde.
+    jarvisScore: undefined,
+    rating: undefined,
+  } as AdRecipe;
+
+  const vue = (r: AdRecipe): DeclinaisonSnapshot => ({
+    headline: r.headline, cta: r.cta, subhead: r.subhead ?? null, kicker: r.kicker ?? null,
+    badge: r.badge ?? null, sceneUrl: r.sceneUrl, layout: (r.layout ?? 'immersif') as AdLayout,
+    universe: r.universe ?? null,
+  });
+  const verdict = verifieDeclinaison(vue(parent), vue(enfant), variable);
+  if (!verdict.ok) {
+    // On rembourse AVANT de répondre · le travail a eu lieu, mais il n'a rien
+    // produit qu'on puisse comparer, et le facturer serait vendre un doublon.
+    await rendre();
+    return { error: verdict.probleme };
+  }
+
+  try {
+    const [row] = await db.insert(schema.generations).values({
+      brandId: brand.id, kind: 'ad', input: enfant as unknown as Record<string, unknown>,
+      status: 'completed', assetUrls: [enfant.sceneUrl], creditsCost: unlimited ? 0 : cost,
+    }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
+    if (!row) { await rendre(); return { error: 'La déclinaison n’a pas pu être enregistrée.' }; }
+    return { ad: { id: row.id, template: enfant.template, headline: enfant.headline, url: adUrl(row.id, enfant), createdAt: (row.createdAt as Date).toISOString(), rationale: null, parentId: input.id, variable } };
+  } catch (e) {
+    await rendre();
+    return { error: logAndTranslate('ads:decline:save', e, { subject: 'l’enregistrement de la déclinaison', workspaceId: s.workspaceId }) };
   }
 }

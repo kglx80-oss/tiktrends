@@ -1,11 +1,11 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, scoreCreativeAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
+import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, scoreCreativeAction, declineAdAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, type Outcome } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, type Outcome, type StudioVariable } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -198,6 +198,32 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     setVaryBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.ads?.length) { setAds((list) => [...res.ads!, ...list]); setDetailIdx(0); setAdsPage(0); }
+  }
+
+  /**
+   * Décliner : UNE chose change, tout le reste est tenu.
+   *
+   * C'est l'inverse de « Varier », qui produit trois créas entières et change
+   * donc tout à la fois · quand la mesure arrive, elle n'attribue l'écart à
+   * rien. Ici la scène déjà payée reste, et la déclinaison se place juste après
+   * son parent dans la grille pour qu'on les compare côte à côte.
+   */
+  const [declineBusy, setDeclineBusy] = useState<StudioVariable | null>(null);
+  async function decline(a: AdItem, variable: StudioVariable) {
+    if (declineBusy) return;
+    setDeclineBusy(variable); setError('');
+    const r = await declineAdAction({ id: a.id, variable });
+    setDeclineBusy(null);
+    if (r.error) { setError(r.error); return; }
+    if (r.ad) {
+      setAds((list) => {
+        const i = list.findIndex((x) => x.id === a.id);
+        if (i < 0) return [r.ad!, ...list];
+        return [...list.slice(0, i + 1), r.ad!, ...list.slice(i + 1)];
+      });
+      // On ouvre la déclinaison · sinon rien à l'écran ne dit qu'elle existe.
+      setDetailIdx((idx) => (idx == null ? idx : idx + 1));
+    }
   }
 
   /**
@@ -723,6 +749,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               </div>
               <div style={{ padding: '9px 11px' }}>
                 <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
+                {/* Une déclinaison qui ne se présente pas comme telle est une créa
+                    de plus dans la grille · on la compare à l'œil au lieu de la
+                    lire comme la réponse à une question posée. */}
+                {a.variable && <span style={filiation}>↳ {STUDIO_LABEL[a.variable].toLowerCase()}</span>}
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
                 {/* Pourquoi Jarvis a proposé ça · calculé depuis la mémoire, pas
                     rédigé par le modèle. Une proposition muette se subit ou
@@ -806,12 +836,50 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               ) : (
                 <>
                   <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[detailAd.template]}</span>
+                  {detailAd.variable && (
+                    <p style={{ margin: '5px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
+                      <b style={{ color: 'var(--ink-2)' }}>Déclinaison · {STUDIO_LABEL[detailAd.variable].toLowerCase()}</b><br />
+                      Change {CHANGE[detailAd.variable]} · garde {tenuConstant(detailAd.variable).join(', ')}.
+                    </p>
+                  )}
                   <p style={{ margin: '4px 0 14px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{detailAd.headline}</p>
 
                   <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={toolPrimary}>
                     {varyBusy ? 'Génération…' : '✨ Varier (3)'}
                   </button>
-                  <p style={{ margin: '6px 0 12px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 variantes de cette créa (même gabarit · {modelSpec.credits * 3} cr.).</p>
+                  <p style={{ margin: '6px 0 14px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 nouvelles créas · tout change à la fois ({modelSpec.credits * 3} cr.).</p>
+
+                  {/* Décliner · une seule chose change, la scène déjà payée reste. */}
+                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginBottom: 12 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-2)', marginBottom: 3 }}>Décliner</div>
+                    <p style={{ margin: '0 0 9px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
+                      Une seule chose change, le reste est tenu · c’est ce qui rend l’écart attribuable. La scène est déjà payée, elle reste.
+                    </p>
+                    {DECLINAISONS_DISPONIBLES.map((v) => {
+                      const prix = prixDeclinaison(v, modelSpec.credits, costFor('suggest'));
+                      return (
+                        <button key={v} type="button" onClick={() => decline(detailAd, v)}
+                          disabled={!!declineBusy || (v !== 'mise_en_page' && !aiReady)}
+                          title={STUDIO_HINT[v]}
+                          style={{ ...toolBtn, marginBottom: 6, textAlign: 'left', opacity: declineBusy && declineBusy !== v ? 0.5 : 1 }}>
+                          {declineBusy === v ? 'Déclinaison…' : (
+                            <>
+                              <span style={{ display: 'block' }}>
+                                {STUDIO_LABEL[v]}
+                                <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{' · '}{prix === 0 ? 'gratuit' : `${prix} cr.`}</span>
+                              </span>
+                              {/* Le contrat, écrit sur le bouton · une infobulle ne se
+                                  lit pas au doigt, et c'est ce qui est TENU qui donne
+                                  son sens à la déclinaison. */}
+                              <span style={{ display: 'block', fontSize: 10.5, fontWeight: 500, color: 'var(--muted)', lineHeight: 1.35, marginTop: 2 }}>
+                                Change {CHANGE[v]} · garde {tenuConstant(v).join(', ')}
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
 
                   {/* Score Jarvis · notre signature */}
                   {scoreFor === detailAd.id && scoreData ? (
@@ -1051,6 +1119,8 @@ function TextField({ label, value, onChange, area }: { label: string; value: str
 
 const lbl = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBottom: 6 } as const;
 const miniBtn = { fontSize: 12, fontWeight: 800, padding: '7px 12px', borderRadius: 999, cursor: 'pointer', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)' } as const;
+/** Repère de filiation · discret, mais lisible d'un coup d'œil dans la grille. */
+const filiation = { display: 'inline-block', marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--muted)' } as const;
 const toolPrimary = { width: '100%', padding: '11px 14px', borderRadius: 11, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
 const toolBtn = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 } as const;
 const navArrow = (side: 'left' | 'right'): React.CSSProperties => ({ position: 'absolute', [side]: 12, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 22, cursor: 'pointer', zIndex: 2 });

@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { adFonts } from './ad-fonts';
 import type { AdTemplate } from '@tiktrends/ai';
-import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, type SceneLight } from '@tiktrends/core';
+import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, type SceneLight, type StudioVariable } from '@tiktrends/core';
 
 export interface AdRecipe {
   template: AdTemplate;
@@ -28,6 +28,22 @@ export interface AdRecipe {
    * composée ne doit pas changer d'allure sans qu'on ait rien appris sur elle.
    */
   light?: SceneLight | null;
+  /**
+   * Le brief de la scène · non rendu, consigné.
+   *
+   * Il ne l'était pas, et produire UNE AUTRE scène du même concept était donc
+   * impossible : il aurait fallu redemander au modèle d'inventer le brief qu'il
+   * avait déjà écrit.
+   */
+  sceneBrief?: string;
+  /**
+   * De qui cette publicité descend, et ce qu'on y a changé.
+   *
+   * C'est ce qui distingue une déclinaison d'une créa de plus dans la grille ·
+   * sans filiation, l'écart mesuré plus tard n'est rattaché à rien.
+   */
+  parentId?: string | null;
+  variable?: StudioVariable | null;
   brandName?: string;
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.
