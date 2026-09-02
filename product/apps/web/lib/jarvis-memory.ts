@@ -1,13 +1,13 @@
 import 'server-only';
 import { recordMilestones } from './milestones';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { MARKET_COLS, toMarketAd } from './market-rows';
 import {
   buildJarvisMemory, computeBrandStats, globalHitRate, prelaunchScore, summarizePrelaunch,
   computeMarketStats, contrastMarketVsBrand, buildMarketMemory,
   buildHookLibrary, formatHooksForPrompt, countHooks, summarizeHooks,
-  prelaunchBrief,
+  prelaunchBrief, memoryOrigin,
   type HookSource, type HookEntry, type HookCounts,
   type PrelaunchBrief, type MarketRow,
   type StatSourceAd, type StatRow, type PrelaunchInput, type PrelaunchScore,
@@ -44,6 +44,53 @@ function lengthBucket(sec: number | null | undefined): string | null {
 }
 
 /**
+ * La coquille de chaque ad · lue à travers le pont ad → génération.
+ *
+ * Le même pont que l'attribution (D134, D135) : le lien porté par l'ad fait foi,
+ * celui du concept ne sert de repli que si une seule ad y pend. Une ad qu'on ne
+ * sait pas rattacher n'a **pas** de coquille connue et ne compte dans aucune ·
+ * la ranger dans la mauvaise apprendrait quelque chose de faux, ce qui est pire
+ * que de ne rien apprendre.
+ */
+async function layoutsParAd(
+  rows: Array<{ adId: string; conceptId: string | null; adRef: unknown; conceptRef: unknown }>,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!db || !rows.length) return out;
+
+  const conceptIds = [...new Set(rows.map((r) => r.conceptId).filter((x): x is string => !!x))];
+  const compte = conceptIds.length
+    ? await db.select({ conceptId: schema.ads.conceptId, n: count() })
+        .from(schema.ads).where(inArray(schema.ads.conceptId, conceptIds))
+        .groupBy(schema.ads.conceptId)
+    : [];
+  const parConcept = new Map(compte.map((c) => [c.conceptId, Number(c.n ?? 0)]));
+  const gid = (x: unknown) => (x as { generationId?: string } | null)?.generationId ?? null;
+
+  const resolus = rows.map((r) => ({
+    adId: r.adId,
+    ...memoryOrigin({
+      adGenerationId: gid(r.adRef),
+      conceptGenerationId: gid(r.conceptRef),
+      adsUnderConcept: r.conceptId ? parConcept.get(r.conceptId) ?? 1 : 1,
+    }),
+  }));
+
+  const ids = [...new Set(resolus.map((x) => x.generationId).filter((x): x is string => !!x))];
+  if (!ids.length) return out;
+
+  const gens = await db.select({ id: schema.generations.id, input: schema.generations.input })
+    .from(schema.generations).where(inArray(schema.generations.id, ids));
+  const parGen = new Map(gens.map((g) => [g.id, (g.input as { layout?: string } | null)?.layout]));
+
+  for (const r of resolus) {
+    const l = r.generationId ? parGen.get(r.generationId) : undefined;
+    if (l) out.set(r.adId, l);
+  }
+  return out;
+}
+
+/**
  * Lit les ads de la marque et les réduit à ce qui sert à apprendre.
  * Une seule requête pour la hiérarchie, une pour les éléments · pas de N+1.
  */
@@ -52,6 +99,9 @@ async function loadSourceAds(brandId: string, workspaceId: string): Promise<{ ad
 
   const rows = await db.select({
     adId: schema.ads.id,
+    conceptId: schema.ads.conceptId,
+    adRef: schema.ads.sourceRef,
+    conceptRef: schema.concepts.sourceRef,
     format: schema.ads.format,
     mechanism: schema.angles.mechanism,
     awareness: schema.desires.awarenessStage,
@@ -90,6 +140,13 @@ async function loadSourceAds(brandId: string, workspaceId: string): Promise<{ ad
     parAd.set(e.adId, [...(parAd.get(e.adId) ?? []), cle]);
   }
 
+  // La coquille de composition · elle vit dans la génération, pas sur l'ad. On
+  // emprunte le même pont que l'attribution (D134) : lien porté par l'ad, repli
+  // sur le concept seulement quand une seule ad y pend. Une créa qu'on ne sait
+  // pas rattacher n'a pas de coquille connue · elle ne compte dans aucune, ce
+  // qui vaut mieux que de la ranger dans la mauvaise.
+  const parLayout = await layoutsParAd(rows);
+
   const ads: StatSourceAd[] = rows.map((r) => {
     const agg = (r.metricsAgg ?? null) as { hookRate?: number; holdRate?: number; ctr?: number; cpa?: number } | null;
     return {
@@ -97,6 +154,7 @@ async function loadSourceAds(brandId: string, workspaceId: string): Promise<{ ad
       hookType: r.hookType, openingType: r.openingType, talent: r.talent,
       lengthBucket: lengthBucket(r.durationS),
       elementKeys: parAd.get(r.adId),
+      layout: parLayout.get(r.adId) ?? null,
       // Le verdict humain fait foi quand il existe : c'est lui qui a été validé.
       verdict: (r.verdictValidated ?? r.verdictComputed) as StatSourceAd['verdict'],
       comparable: !!r.comparable,

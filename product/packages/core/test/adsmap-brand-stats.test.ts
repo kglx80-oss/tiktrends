@@ -162,3 +162,48 @@ describe('score de pré-lancement · agent A7', () => {
       .toBeGreaterThan(prelaunchScore({ mechanism: 'demo' }, st, g).pConclusiveWin);
   });
 });
+
+describe('la mise en page s’apprend comme le reste', () => {
+  /**
+   * Elle n'existait pas comme dimension parce qu'elle n'existait pas tout court
+   * · les sept gabarits rendaient la même composition. Maintenant qu'il y en a
+   * quatre, « l'affiche claire gagne deux fois sur trois chez toi » est un fait
+   * mesurable, et c'est le genre de fait qui fait changer une décision.
+   */
+  const ads = [
+    ad({ layout: 'affiche', verdict: 'winner' }),
+    ad({ layout: 'affiche', verdict: 'winner' }),
+    ad({ layout: 'affiche', verdict: 'loser' }),
+    ad({ layout: 'immersif', verdict: 'loser' }),
+    ad({ layout: 'immersif', verdict: 'loser' }),
+    ad({ layout: 'immersif', verdict: 'loser' }),
+  ];
+
+  it('produit une ligne par coquille', () => {
+    const rows = computeBrandStats(ads).filter((r) => r.dimension === 'layout');
+    expect(rows.map((r) => r.key).sort()).toEqual(['affiche', 'immersif']);
+  });
+
+  it('mesure le taux de chaque coquille', () => {
+    const rows = computeBrandStats(ads).filter((r) => r.dimension === 'layout');
+    expect(rows.find((r) => r.key === 'affiche')!.hitRate).toBeCloseTo(2 / 3, 6);
+    expect(rows.find((r) => r.key === 'immersif')!.hitRate).toBe(0);
+  });
+
+  it('une ad sans coquille connue ne compte dans aucune', () => {
+    // La ranger dans la mauvaise apprendrait quelque chose de faux, ce qui est
+    // pire que de ne rien apprendre.
+    const rows = computeBrandStats([...ads, ad({ layout: null, verdict: 'winner' })])
+      .filter((r) => r.dimension === 'layout');
+    expect(rows.reduce((n, r) => n + r.nAds, 0)).toBe(ads.length);
+  });
+
+  it('le pré-lancement en tient compte avant de payer', () => {
+    // C'est tout l'intérêt de la mesurer · pouvoir dire « cette coquille n'a
+    // jamais rien donné ici » AVANT la génération, pas après le test.
+    const stats = computeBrandStats(ads);
+    const bonne = prelaunchScore({ layout: 'affiche' }, stats, globalHitRate(ads));
+    const mauvaise = prelaunchScore({ layout: 'immersif' }, stats, globalHitRate(ads));
+    expect(bonne.pConclusiveWin).toBeGreaterThan(mauvaise.pConclusiveWin);
+  });
+});

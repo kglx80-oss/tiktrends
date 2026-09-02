@@ -1,7 +1,7 @@
 'use server';
 
 import {
-  preflightAcross, preflightLine, worthChecking, mechanismForTemplate, isStudioTemplate,
+  preflightAcross, preflightLine, worthChecking, mechanismForTemplate, isStudioTemplate, AD_LAYOUTS,
   TEMPLATE_LABEL, type Preflight, type PreflightOption, type StudioTemplate,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -37,6 +37,8 @@ export interface PreflightRequest {
   text: string;
   /** Gabarits cochés dans le composeur · les inconnus sont ignorés. */
   templates?: string[];
+  /** Coquille envisagée · `auto` quand on laisse la rotation décider. */
+  layout?: string;
   /**
    * Format de l'ad qui sortira.
    *
@@ -47,6 +49,11 @@ export interface PreflightRequest {
    * comparer à quelque chose.
    */
   format?: 'static';
+}
+
+/** Ce qu'on accepte comme coquille · le reste vient du navigateur. */
+function isAdLayout(v: unknown): v is (typeof AD_LAYOUTS)[number] {
+  return typeof v === 'string' && (AD_LAYOUTS as readonly string[]).includes(v);
 }
 
 /** Ce qu'on accepte du navigateur · le reste est écarté sans bruit. */
@@ -71,6 +78,9 @@ export async function preflightAction(input: PreflightRequest): Promise<{ line?:
     const commun = {
       candidateHook: input.text.trim().slice(0, 300),
       format: input.format ?? null,
+      // `auto` n'est pas une coquille · c'est le refus d'en choisir une, et la
+      // mesurer reviendrait à inventer une mise en page qui n'existe pas.
+      layout: isAdLayout(input.layout) ? input.layout : null,
     };
 
     const choisis = gabarits(input);

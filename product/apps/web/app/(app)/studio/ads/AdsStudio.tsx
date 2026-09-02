@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, generationOutcome, producedSomething, type Outcome } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, type Outcome } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -87,6 +87,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [templates, setTemplates] = useState<AdTemplate[]>([]);
   const [angle, setAngle] = useState(initialAngle);
   const [universe, setUniverse] = useState('auto');
+  // « auto » n'est pas une coquille · c'est le refus d'en choisir une, et c'est
+  // le défaut. La rotation existe pour qu'un lot ne rende pas quatre fois la
+  // même image ; imposer la même à tout un lot reste possible, sur demande.
+  const [layout, setLayout] = useState('auto');
   const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
@@ -129,7 +133,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // Les gabarits cochés entrent dans la vérification · sans eux, la seule
   // réserve possible portait sur l'accroche, et « ce gabarit-là n'a jamais rien
   // donné ici » ne pouvait pas être dit.
-  const preflight = usePreflight(angle, { templates, format: 'static' });
+  const preflight = usePreflight(angle, { templates, format: 'static', layout });
   const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('image');
   const refInput = useRef<HTMLInputElement>(null);
 
@@ -334,7 +338,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       return { kind: 'error', message };
     }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model });
     setBusy(false);
     return apresLot(applyResult(res));
   }
@@ -574,6 +578,24 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
              choisit pas une ambiance en lisant « Éditorial premium » · on la
              reconnaît, et le seul moyen de vérifier était de payer une
              génération pour voir. */}
+        {/* La mise en page décide de la COMPOSITION, l'univers décide de
+            l'AMBIANCE. Deux décisions de forme · elles vont ensemble. */}
+        <label style={lbl}>Mise en page <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· la composition de la pub</span></label>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
+          {[{ key: 'auto', label: '✦ Variées (auto)', hint: 'Un lot ne répète jamais la même · c’est le réglage par défaut.' },
+            ...AD_LAYOUTS.map((k) => ({ key: k, label: LAYOUT_LABEL[k], hint: LAYOUT_HINT[k] }))].map((l) => {
+            const on = layout === l.key;
+            return (
+              <button key={l.key} type="button" disabled={!ready} title={l.hint} onClick={() => setLayout(l.key)} style={{
+                padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
+                fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
+                border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
+                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+              }}>{l.label}</button>
+            );
+          })}
+        </div>
+
         <label style={lbl}>Univers visuel <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'ambiance des visuels</span></label>
         <div style={{ marginBottom: 16 }}>
           <UniversePicker value={universe} onChange={setUniverse} disabled={!ready} />

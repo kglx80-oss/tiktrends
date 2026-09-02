@@ -38,10 +38,11 @@ import { preflightAction } from '../app/actions/preflight';
  * clé est sérialisée pour que `useEffect` compare des valeurs et non l'identité
  * d'un tableau reconstruit à chaque rendu.
  */
-export function usePreflight(text: string, opts?: { templates?: string[]; format?: 'static' }): Preflight | null {
+export function usePreflight(text: string, opts?: { templates?: string[]; format?: 'static'; layout?: string }): Preflight | null {
   const [line, setLine] = useState<Preflight | null>(null);
   const templates = opts?.templates;
   const format = opts?.format;
+  const layout = opts?.layout;
   const cle = (templates ?? []).join(',');
 
   useEffect(() => {
@@ -49,14 +50,14 @@ export function usePreflight(text: string, opts?: { templates?: string[]; format
 
     let vivant = true;
     const t = setTimeout(async () => {
-      const r = await preflightAction({ text, templates: cle ? cle.split(',') : [], format });
+      const r = await preflightAction({ text, templates: cle ? cle.split(',') : [], format, layout });
       // La demande a été remplacée pendant l'attente · sa réponse ne concerne
       // plus ce que la personne a sous les yeux.
       if (vivant) setLine(r.line ?? null);
     }, 900);
 
     return () => { vivant = false; clearTimeout(t); };
-  }, [text, cle, format]);
+  }, [text, cle, format, layout]);
 
   return line;
 }
