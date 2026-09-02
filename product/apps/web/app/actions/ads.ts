@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, sceneFraming, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -131,6 +131,14 @@ async function composeBatch(o: {
   // répète jamais la même mise en page. Sans elle, sept gabarits rendaient sept
   // fois la même image : photo plein cadre, bandeau noir, texte blanc.
   const mises = layoutsForBatch(o.concepts.length, Math.floor(Date.now() / 60000));
+  /**
+   * La coquille d'un visuel · UNE seule source.
+   *
+   * La scène est cadrée pour elle et la recette est composée avec elle. Deux
+   * calculs séparés finiraient par diverger, et on aurait payé une image cadrée
+   * pour une page qu'elle n'occupe pas · exactement le défaut qu'on corrige.
+   */
+  const coquille = (c: AdConcept, i: number): AdLayout => layoutFor(c.template, mises[i] ?? 'immersif');
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction
@@ -159,16 +167,16 @@ async function composeBatch(o: {
       edit = true;
     } else if (o.editMode) {
       imageUrls = [...(o.productImageUrls ?? []), ...assetRefs].slice(0, 8);
-      prompt = scenePrompt(c, true, universeFor(i)) + assetNote + exclusions;
+      prompt = scenePrompt(c, true, universeFor(i), coquille(c, i)) + assetNote + exclusions;
       edit = true;
     } else if (hasAssetRef) {
       // Pas de photo produit mais la bibliothèque est remplie -> l'IA s'en sert comme références marque.
       imageUrls = assetRefs.slice(0, 8);
-      prompt = scenePromptBrandRef(c, universeFor(i)) + exclusions;
+      prompt = scenePromptBrandRef(c, universeFor(i), coquille(c, i)) + exclusions;
       edit = true;
     } else {
       imageUrls = undefined;
-      prompt = scenePrompt(c, false, universeFor(i)) + exclusions;
+      prompt = scenePrompt(c, false, universeFor(i), coquille(c, i)) + exclusions;
       edit = false;
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
@@ -227,7 +235,7 @@ async function composeBatch(o: {
       universe: o.universe ?? null,
       // Rabattue sur ce que le gabarit accepte · `before_after` a besoin de
       // l'image entière pour poser sa frontière.
-      layout: layoutFor(c.template, mises[i] ?? 'immersif'),
+      layout: coquille(c, i),
       // Recalculée depuis la mémoire injectée · elle ne peut donc pas inventer
       // un chiffre, contrairement à une phrase demandée au modèle.
       rationale: o.rationaleCtx
@@ -257,10 +265,10 @@ async function composeBatch(o: {
 }
 
 /** Prompt « références marque » : composer une nouvelle scène inspirée des assets de la bibliothèque. */
-function scenePromptBrandRef(c: AdConcept, universePrompt?: string): string {
+function scenePromptBrandRef(c: AdConcept, universePrompt?: string, layout?: AdLayout): string {
   const base = c.sceneBrief.slice(0, 650);
   const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
-  return `The provided images are brand reference material (real brand/product/lifestyle shots). Compose a NEW premium advertising scene INSPIRED by their look, palette, materials and authenticity · do not copy them literally and do not reproduce any text or logo from them. New scene: ${base}. ${uni} Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. Composition: keep the main subject in the upper two thirds; keep the lower third calmer so a text panel can sit there. Vertical 4:5. Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
+  return `The provided images are brand reference material (real brand/product/lifestyle shots). Compose a NEW premium advertising scene INSPIRED by their look, palette, materials and authenticity · do not copy them literally and do not reproduce any text or logo from them. New scene: ${base}. ${uni} Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. ${sceneFraming(layout)} Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
 }
 
 /** Prompt de clonage : recomposer la mise en page de la référence avec NOTRE produit. */
@@ -272,10 +280,12 @@ function scenePromptClone(c: AdConcept, hasProduct: boolean): string {
   return `${product} Scene notes: ${base}. Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
 }
 
-function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string): string {
+function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, layout?: AdLayout): string {
   const base = c.sceneBrief.slice(0, 700);
-  // Cadrage pensé pour l'overlay : sujet dans les 2/3 hauts, bas plus calme/sombre pour le texte.
-  const framing = 'Composition: keep the main subject in the upper two thirds; keep the lower third calmer and less busy so a text panel can sit there. Vertical 4:5 framing, high-end commercial look, crisp focus, natural depth of field.';
+  // Le cadrage dépend de la coquille où l'image atterrit · il était écrit en dur
+  // pour l'immersive, et donc faux pour les trois autres : on payait une image
+  // composée pour une page qu'elle n'allait pas occuper.
+  const framing = sceneFraming(layout);
   const realism = 'Ultra realistic, photorealistic, true-to-life scale and proportions. The product must be at a believable real-world size (a supplement bottle is roughly 12 cm tall): never gigantic, never tiny, never floating. Hands, fingers and faces must be anatomically correct. Correct perspective and grounding (real contact shadow), no distortion, no warping, no stretching, no duplicated or extra objects, accurate label and cap proportions, physically plausible lighting, shadows and reflections.';
   const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
   const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI added to the image.';

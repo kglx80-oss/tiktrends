@@ -2944,3 +2944,56 @@ il n'est pas gardé, et le fichier de test le dit à voix haute.
 
 C'est la même exigence que partout ailleurs ici : un garde se valide en le
 faisant échouer, sinon on ne sait pas ce qu'il regarde.
+
+---
+
+## D147 — On cadrait l'image pour une page qu'elle n'occupait pas
+
+**Constat.** Une seule consigne de cadrage partait pour toutes les créas :
+
+> « garde le sujet dans les deux tiers hauts ; garde le tiers bas plus calme pour
+> qu'un panneau de texte puisse s'y poser. »
+
+Elle décrit exactement **une** mise en page · l'immersive. Depuis D143 il y en a
+quatre, et elle est fausse pour trois d'entre elles :
+
+- le **champ de couleur** recadre l'image dans une carte à mi-hauteur · le tiers
+  bas réservé est purement et simplement jeté ;
+- la **moitié / moitié** ne garde que le haut · on demandait de calmer une zone
+  qui ne serait pas visible ;
+- l'**affiche** met l'image en bas, sous un titre géant · réserver de la place
+  pour un texte qui est ailleurs gâche la moitié du cadre.
+
+**On payait une image composée pour une page qu'elle n'allait pas occuper.**
+
+**Décision.** La consigne dit maintenant où sera l'image, ce qui la recadrera, et
+où le texte ne sera PAS. C'est tout ce que le modèle a besoin de savoir pour
+cadrer utile.
+
+Sans coquille connue — passerelle, clonage, créa d'avant — on rend celle de
+l'immersive : c'est la mise en page que ces créas reçoivent, et leur rendu reste
+identique.
+
+## D148 — La scène et la recette parlent de la même coquille
+
+C'est l'invariant que D147 crée, et il se casse en silence : si le cadrage et la
+composition ne désignent pas la même coquille, le sujet se retrouve dans la
+moitié coupée et **la créa est perdue sans que rien ne le signale**.
+
+**Une seule expression calcule la coquille**, quatre endroits la lisent. Deux
+calculs séparés finiraient par diverger.
+
+`composeBatch` n'est pas exportée et l'exercer demanderait une base et le
+fournisseur d'images. Ce qui est vérifiable sans les deux, c'est la propriété de
+structure : un test compte les appels à `layoutFor` dans le fichier et exige
+qu'il y en ait **un**, et vérifie que la scène ET la recette passent toutes deux
+par lui.
+
+Il échoue pour qu'on réfléchisse, pas pour interdire · son message dit quoi
+faire. Vérifié en réintroduisant un second calcul : les deux moitiés sonnent.
+
+**Au passage** : la première écriture de ce test passait pour la mauvaise raison.
+Sa expression régulière s'arrêtait à la première parenthèse fermante, celle de
+`universeFor(i)`, et ne voyait donc jamais le `coquille(` qui suivait. Elle a été
+corrigée avant d'être gardée — c'est exactement pourquoi un garde se valide en le
+faisant échouer.
