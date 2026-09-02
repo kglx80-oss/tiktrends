@@ -3038,3 +3038,50 @@ mesurer reviendrait à inventer une mise en page qui n'existe pas.
 
 Ce que le navigateur envoie est vérifié contre le catalogue · une valeur inconnue
 rend la main à la rotation plutôt que d'échouer.
+
+---
+
+## D151 — Rétro-rattacher ce qui est certain, et rien d'autre
+
+**Le trou laissé par D135.** Aucune ad historique n'a été rétro-remplie : on ne
+SAIT pas quelle génération a produit quelle variante, et deviner aurait faussé
+l'attribution dans le sens qui l'arrange. C'était le bon choix, mais il vide la
+mesure sur tout le passé.
+
+**Ce qu'on avait sans le voir.** Un lien certain existait déjà, dans l'autre
+sens : la passerelle écrit `generations.input.adsmapAdId` au moment où elle crée
+l'ad. Une génération qui porte cet identifiant a produit CETTE ad · c'est une
+trace posée par le code, pas une reconstruction.
+
+**Décision.** 0045 rattache exactement ces ads-là, et aucune autre. Les imports,
+la veille, les itérations et les ads saisies à la main restent sans lien — elles
+n'ont jamais eu de génération, et c'est la bonne réponse.
+
+**Trois précautions, dont deux vérifiées portantes :**
+
+- on ne remplace **jamais** un lien existant · celui posé à l'insertion est plus
+  fiable, et rejouer la migration ne doit rien changer ;
+- un `CASE` entoure le cast en `uuid` · `adsmapAdId` peut contenir n'importe
+  quoi, et PostgreSQL ne garantit pas d'évaluer le filtre avant le cast ;
+- `DISTINCT ON` garde la génération la plus ancienne si deux revendiquent la même
+  ad. Le cas ne devrait pas se produire — **une migration qui « ne devrait pas »
+  rencontrer un cas doit quand même décider ce qu'elle en fait.**
+
+## D152 — Une migration se vérifie en la faisant tourner
+
+Une erreur de SQL n'apparaît que sur le serveur, au pire moment, sur une base
+qui compte. Celle-ci a donc été exécutée pour de vrai : PostgreSQL 16 monté à
+part, un jeu couvrant les quatre cas plus six valeurs mal formées.
+
+Résultat conforme : l'ad du Studio rattachée, celle qui portait déjà un lien
+intacte, l'ad importée sans lien, et sur deux revendications c'est la plus
+ancienne qui gagne.
+
+**Deux vérifications valent plus que le résultat lui-même** :
+
+- second passage → `UPDATE 0` · l'idempotence est constatée, pas espérée ;
+- migration privée de son `CASE` → `ERROR: invalid input syntax for type uuid:
+  "pas-un-uuid"`. **La précaution est portante** : une seule valeur mal formée en
+  base aurait fait échouer tout le déploiement.
+
+Sans cet essai, la troisième ligne du fichier aurait été un commentaire optimiste.
