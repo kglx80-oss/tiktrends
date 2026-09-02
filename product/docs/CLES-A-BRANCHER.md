@@ -161,3 +161,24 @@ rédigée par un modèle. Et il n'envoie pas de lettre aux marques dont la semai
 n'a rien porté · trois « rien de neuf » et personne ne l'ouvre plus.
 
 Sans `CRON_SECRET`, l'endpoint répond 503. Il est fermé par défaut.
+
+## Migrations en attente sur le VPS
+
+Quatre migrations sont écrites et **pas encore appliquées** :
+
+| # | Ce qu'elle fait | Sans elle |
+|---|---|---|
+| `0042_brand_enriched_at` | date d'enrichissement d'une marque | l'enrichissement repart à chaque chargement |
+| `0043_stat_milestones` | quand la mémoire a appris quelque chose | le récapitulatif ne peut rien annoncer |
+| `0044_ad_source_ref` | lien génération → ad, **sur l'ad** | l'attribution reste mesurée au mauvais niveau |
+| `0045_backfill_ad_source_ref` | rétro-rattache l'historique | l'attribution reste vide sur tout le passé |
+
+Elles s'appliquent dans l'ordre, avec la commande de déploiement habituelle.
+
+**0045 en particulier** ne devine rien : elle ne rattache que les ads dont une
+génération porte déjà `adsmapAdId`, une trace écrite par la passerelle au moment
+de la création. Elle ne remplace jamais un lien existant, et la rejouer ne change
+rien (vérifié : second passage `UPDATE 0`).
+
+Les ads importées, venues de la veille ou saisies à la main restent sans lien ·
+c'est correct, elles n'ont jamais eu de génération.
