@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, type Outcome, type StudioVariable, type EssaiVariable } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -57,7 +57,7 @@ const TPL_LABEL: Record<AdTemplate, string> = {
   ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false, suggestion = null }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
@@ -66,6 +66,13 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   initialAngle?: string;
   /** La carte ADSMAP est ouverte à cet espace · conditionne le bouton « Suivre ». */
   adsmap?: boolean;
+  /**
+   * Ce que l'outil conseille de tester · déduit de ce qui est déjà mesuré.
+   *
+   * `null` quand la carte n'est pas ouverte ou que la lecture a échoué · le
+   * sélecteur s'affiche alors sans conseil, ce qui est l'état d'avant.
+   */
+  suggestion?: Suggestion | null;
 }) {
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const toggleAsset = (id: string) => setAssetIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
@@ -631,6 +638,33 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
              génération pour voir. */}
         {/* La mise en page décide de la COMPOSITION, l'univers décide de
             l'AMBIANCE. Deux décisions de forme · elles vont ensemble. */}
+        {/* Ce que l'outil conseille · il sait quels essais ont tranché, ce que
+            ses notes reprochent aux images, et ce que chaque essai coûte. Rien
+            n'est demandé à un modèle : une phrase plausible remplacerait une
+            décision vérifiable, et se ferait payer. */}
+        {suggestion && (
+          <div style={{
+            margin: '0 0 12px', padding: '10px 13px', borderRadius: 11,
+            border: `1px solid ${suggestion.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
+            background: 'var(--paper)',
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
+              {suggestion.avantTout ? 'AVANT DE TESTER' : 'JARVIS CONSEILLE'}
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginTop: 3, lineHeight: 1.45 }}>{suggestion.question}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{suggestion.pourquoi}</div>
+            {suggestion.avantTout && (
+              <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 5, lineHeight: 1.45 }}>{suggestion.avantTout}</div>
+            )}
+            {suggestion.variable && suggestion.variable !== essai && (
+              <button type="button" onClick={() => setEssai(suggestion.variable!)} disabled={!ready} style={{
+                marginTop: 8, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 800,
+                border: 'none', background: 'var(--grad-accent)', color: '#0d070c', cursor: ready ? 'pointer' : 'default',
+              }}>Tester {ESSAI_LABEL[suggestion.variable].toLowerCase()}</button>
+            )}
+          </div>
+        )}
+
         {/* Ce que le lot cherche à savoir · écrit AVANT d'être payé. */}
         <label style={lbl}>Ce lot teste <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· une seule chose varie, le reste est tenu</span></label>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 8 }}>
