@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { AD_TEMPLATES } from '@tiktrends/ai';
 import { renderAdPng, type AdRecipe } from '../lib/ad-render';
 import { AD_LAYOUTS, layoutsFor } from '@tiktrends/core';
-import { decodePng, inkProfile, composition, bandLuminance, colorShare } from './png';
+import { decodePng, inkProfile, composition, bandLuminance, colorShare, colorShareInColumns } from './png';
 
 /**
  * Ce que le rendu produit VRAIMENT.
@@ -282,5 +282,61 @@ describe('la photo occupe la place que la mise en page lui promet', () => {
         `la photo de « ${layout} » a été écrasée par le texte`,
       ).toBeGreaterThan(min);
     }, 120000);
+  }
+});
+
+describe('rien ne sort du cadre', () => {
+  /**
+   * ── Le défaut livré, et pourquoi rien ne l'a vu ────────────────────────────
+   *
+   * `contenu` rendait un fragment `<>…</>`. Satori ne l'aplatit pas comme le
+   * DOM : il le traite comme un bloc, avec sa direction par défaut — **en
+   * ligne**. L'accroche, la liste et le bouton se retrouvaient donc côte à côte,
+   * superposés, et le bouton sortait du cadre par la droite.
+   *
+   * Trois gardes sont restés verts dessus : la pub n'était « ni vide ni
+   * uniforme », ses compositions restaient distinctes d'une mise en page à
+   * l'autre, et sa zone de texte restait sombre. Aucun ne regardait où l'encre
+   * se trouvait.
+   *
+   * ── Ce qu'on mesure ────────────────────────────────────────────────────────
+   *
+   * Le bouton d'action est le seul élément de couleur d'accent. La maquette lui
+   * réserve une marge · il ne doit donc JAMAIS toucher le bord droit.
+   */
+  const ACCENT: [number, number, number] = [0x25, 0x63, 0xEB];
+
+  const charge = {
+    kicker: 'ARRÊTE LE CASSE-TÊTE',
+    headline: '4 produits en 1 pastille',
+    benefits: ['Fini les 4 bidons chimiques', 'Dosage impossible à rater', 'Économie de temps et d’argent'],
+    cta: 'Je teste', accent: '#2563EB',
+  };
+
+  /**
+   * La bande exclue est la SEULE chose volontairement pleine largeur.
+   *
+   * La mise en page « moitié / moitié » sépare l'image de la copie par un trait
+   * d'accent qui va d'un bord à l'autre · c'est sa frontière nette, et c'est ce
+   * qui la distingue de l'immersive. Le garde a sonné dessus à sa première
+   * exécution : il avait raison de la voir, elle a le droit d'être là.
+   *
+   * On l'exclut nommément plutôt que d'élargir le seuil · un seuil élargi
+   * laisserait aussi passer un bouton à moitié coupé.
+   */
+  const FRONTIERE: [number, number] = [0.50, 0.62];
+
+  for (const template of AD_TEMPLATES) {
+    it(`« ${template} » garde son bouton dans le cadre`, async () => {
+      for (const layout of layoutsFor(template)) {
+        const img = await rendre({ ...charge, template, layout, width: 432, height: 540 });
+        for (const bande of [[0, FRONTIERE[0]], [FRONTIERE[1], 1]] as Array<[number, number]>) {
+          expect(
+            colorShareInColumns(img, 0.985, 1, ACCENT, bande),
+            `« ${template} » / « ${layout} » : un élément d’accent touche le bord droit`,
+          ).toBeLessThan(0.01);
+        }
+      }
+    }, 300000);
   }
 });

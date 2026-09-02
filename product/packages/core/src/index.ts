@@ -51,6 +51,7 @@ export * from './ad-layouts';
 export * from './scene-framing';
 export * from './copy-budget';
 export * from './deployment';
+export * from './url-param';
 export * from './adsmap/trend';
 export * from './adsmap/merge';
 export * from './adsmap/draft';

@@ -99,7 +99,7 @@ export interface AdRecipe {
  * Un test relie ce numéro au contenu réel du fichier : le modifier sans
  * l'incrémenter fait échouer la suite.
  */
-export const RENDER_VERSION = 4;
+export const RENDER_VERSION = 5;
 
 const LARGEUR_MAQUETTE = 1080;
 let ECHELLE = 1;
@@ -442,27 +442,46 @@ function Pied({ r, plein = false }: { r: AdRecipe; plein?: boolean }) {
 
 /* --------------------------------- Gabarits -------------------------------- */
 
+/**
+ * Une colonne EXPLICITE, jamais un fragment.
+ *
+ * ── Le défaut que ça répare ──────────────────────────────────────────────────
+ *
+ * `contenu` rendait un fragment `<>…</>`. Satori ne l'aplatit pas comme le DOM :
+ * il le traite comme un bloc, avec sa direction par défaut — **en ligne**.
+ *
+ * Résultat sur la pub : l'accroche, la liste et le bouton se retrouvaient côte à
+ * côte, superposés, et le bouton sortait du cadre. Tous les gabarits sauf
+ * `before_after` étaient touchés, parce que lui seul rendait déjà un `div`.
+ *
+ * Les tests ne l'ont pas vu · une pub aux textes empilés à l'horizontale reste
+ * « ni vide ni uniforme », ses compositions restent distinctes d'une mise en
+ * page à l'autre, et sa zone de texte reste sombre. Trois gardes verts sur une
+ * pub illisible.
+ */
+const colonne = { display: 'flex', flexDirection: 'column' } as const;
+
 /** Ce que chaque gabarit a à dire · la coquille décide où ça se pose. */
 function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
   switch (r.template) {
     case 'testimonial': {
       const rating = Math.max(0, Math.min(5, Math.round(r.rating ?? 5)));
       return (
-        <>
+        <div style={colonne}>
           <Bloc t={t}>
             <div style={{ display: 'flex' }}>{Array.from({ length: rating }).map((_, i) => <Star key={i} size={36} />)}</div>
             <div style={{ display: 'flex', marginTop: u(16), fontSize: fitHeadline(r.quote || r.headline, 44, 32), lineHeight: 1.22, fontWeight: 700, color: '#15151b', letterSpacing: u(-0.4) }}>“{r.quote || r.headline}”</div>
             {r.author ? <div style={{ display: 'flex', marginTop: u(16), fontSize: u(26), fontWeight: 700, color: r.accent }}>{r.author}</div> : null}
           </Bloc>
           <Pied r={r} plein />
-        </>
+        </div>
       );
     }
 
     case 'benefits': {
       const items = (r.benefits && r.benefits.length ? r.benefits : [r.subhead || '']).filter(Boolean).slice(0, 3);
       return (
-        <>
+        <div style={colonne}>
           {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
           <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 74 : 62} />
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: u(22) }}>
@@ -474,13 +493,13 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
             ))}
           </div>
           <Pied r={r} />
-        </>
+        </div>
       );
     }
 
     case 'ugc':
       return (
-        <>
+        <div style={colonne}>
           <Bloc t={t}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <div style={{ display: 'flex', width: u(40), height: u(40), borderRadius: u(999), background: r.accent, alignItems: 'center', justifyContent: 'center', color: WHITE, fontSize: u(20), fontWeight: 700 }}>
@@ -491,12 +510,12 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
             <div style={{ display: 'flex', marginTop: u(14), fontSize: fitHeadline(r.quote || r.headline, 42, 30), lineHeight: 1.24, fontWeight: 700, color: '#15151b', letterSpacing: u(-0.4) }}>{r.quote || r.headline}</div>
           </Bloc>
           <Pied r={r} plein />
-        </>
+        </div>
       );
 
     case 'stat':
       return (
-        <>
+        <div style={colonne}>
           {r.kicker ? <div style={{ display: 'flex', marginBottom: u(12) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
           {/* Le chiffre EST le visuel · il prend la place d'un titre, pas celle
               d'une annotation posée dans un coin. */}
@@ -506,17 +525,17 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
             <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 62 : 52} />
           </div>
           <Pied r={r} />
-        </>
+        </div>
       );
 
     case 'offer':
       return (
-        <>
+        <div style={colonne}>
           <div style={{ display: 'flex', marginBottom: u(18) }}><OfferBadge r={r} /></div>
           <Titre r={r} t={t} layout={layout} />
           <SousTitre r={r} t={t} />
           <Pied r={r} />
-        </>
+        </div>
       );
 
     case 'before_after':
@@ -530,24 +549,26 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
 
     default:
       return (
-        <>
+        <div style={colonne}>
           {r.kicker ? <div style={{ display: 'flex', marginBottom: u(16) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
           <Titre r={r} t={t} layout={layout} />
           <SousTitre r={r} t={t} />
           <Pied r={r} />
-        </>
+        </div>
       );
   }
 }
 
 /** La frontière avant/après · posée sur l'image, quelle que soit la coquille. */
 function decoAvantApres(r: AdRecipe): React.ReactNode {
+  // Un calque plein cadre, pas un fragment · satori traite un fragment comme un
+  // bloc, et les enfants absolus se positionneraient alors par rapport à LUI.
   return (
-    <>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
       <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: u(4), marginLeft: u(-2), display: 'flex', background: 'rgba(255,255,255,.92)' }} />
       <div style={{ position: 'absolute', top: u(34), left: u(44), display: 'flex', background: 'rgba(0,0,0,.62)', color: WHITE, fontSize: u(24), fontWeight: 700, padding: ux(8, 18), borderRadius: u(8), letterSpacing: u(2) }}>AVANT</div>
       <div style={{ position: 'absolute', top: u(34), right: u(44), display: 'flex', background: r.accent, color: WHITE, fontSize: u(24), fontWeight: 700, padding: ux(8, 18), borderRadius: u(8), letterSpacing: u(2) }}>APRÈS</div>
-    </>
+    </div>
   );
 }
 
