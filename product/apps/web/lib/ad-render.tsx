@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { adFonts } from './ad-fonts';
 import type { AdTemplate } from '@tiktrends/ai';
-import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, type AdLayout } from '@tiktrends/core';
+import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, type SceneLight } from '@tiktrends/core';
 
 export interface AdRecipe {
   template: AdTemplate;
@@ -21,6 +21,13 @@ export interface AdRecipe {
    * garde l'immersive · une pub composée avant ne doit pas changer d'allure.
    */
   layout?: AdLayout;
+  /**
+   * Ce qu'on a mesuré de la scène · deux bandes, relevées une fois.
+   *
+   * Absente, les voiles restent ceux d'avant la mesure : une publicité déjà
+   * composée ne doit pas changer d'allure sans qu'on ait rien appris sur elle.
+   */
+  light?: SceneLight | null;
   brandName?: string;
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.
@@ -99,7 +106,7 @@ export interface AdRecipe {
  * Un test relie ce numéro au contenu réel du fichier : le modifier sans
  * l'incrémenter fait échouer la suite.
  */
-export const RENDER_VERSION = 6;
+export const RENDER_VERSION = 7;
 
 const LARGEUR_MAQUETTE = 1080;
 let ECHELLE = 1;
@@ -196,12 +203,27 @@ function Bg({ url }: { url: string }) {
    
   return <img src={url} alt="" width={1080} height={1350} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'flex' }} />;
 }
-const scrimTop = { position: 'absolute' as const, left: u(0), right: u(0), top: u(0), height: '30%', display: 'flex', backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,.6), rgba(0,0,0,0))' };
+/**
+ * Le bandeau du haut · son opacité suit la bande qu'il couvre.
+ *
+ * Il était peint à `.6` quelle que soit la scène. Sur une image sombre, il
+ * assombrissait du noir ; sur une image claire, il tenait par chance.
+ */
+const scrimTop = (a: number) => ({
+  position: 'absolute' as const, left: u(0), right: u(0), top: u(0), height: '30%', display: 'flex',
+  backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,${a}), rgba(0,0,0,0))`,
+});
 
-/** Panneau bas dégradé (transparent -> sombre) qui accueille le texte : le look « pub finie ». */
-function BottomPanel({ children }: { children: React.ReactNode }) {
+/**
+ * Panneau bas dégradé qui accueille le texte : le look « pub finie ».
+ *
+ * Les deux arrêts viennent de la mesure. C'est le plus TRANSPARENT qui porte la
+ * garantie de lisibilité · le texte y monte, et dimensionner sur la base pleine
+ * laisserait sa moitié haute sans rien pour la tenir.
+ */
+function BottomPanel({ fort, doux, children }: { fort: number; doux: number; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'absolute', left: u(0), right: u(0), bottom: u(0), display: 'flex', flexDirection: 'column', padding: ux(190, 60, 62), backgroundImage: 'linear-gradient(to top, rgba(8,8,11,.97) 62%, rgba(8,8,11,.62) 84%, rgba(8,8,11,0))' }}>
+    <div style={{ position: 'absolute', left: u(0), right: u(0), bottom: u(0), display: 'flex', flexDirection: 'column', padding: ux(190, 60, 62), backgroundImage: `linear-gradient(to top, rgba(8,8,11,${fort}) 62%, rgba(8,8,11,${doux}) 84%, rgba(8,8,11,0))` }}>
       {children}
     </div>
   );
@@ -338,13 +360,18 @@ function Carte({ url, hauteur }: { url: string; hauteur: string }) {
 function Coquille({ r, layout, deco, children }: {
   r: AdRecipe; layout: AdLayout; deco?: React.ReactNode; children: React.ReactNode;
 }) {
+  // Une seule lecture de la mesure · deux calculs séparés finiraient par
+  // diverger, et le bandeau du haut ne parlerait plus de la même image que le
+  // panneau du bas.
+  const voiles = voilesDe(r.light);
+
   if (layout === 'split') {
     return (
       <Frame>
         <div style={{ position: 'relative', display: 'flex', width: '100%', height: '60%' }}>
           <Bg url={r.sceneUrl} />
           {deco}
-          <div style={scrimTop} />
+          <div style={scrimTop(voiles.haut)} />
           <TopBar r={r} />
         </div>
         {/* Un BLOC de couleur, pas une bande sombre.
@@ -404,9 +431,9 @@ function Coquille({ r, layout, deco, children }: {
     <Frame>
       <Bg url={r.sceneUrl} />
       {deco}
-      <div style={scrimTop} />
+      <div style={scrimTop(voiles.haut)} />
       <TopBar r={r} />
-      <BottomPanel>{children}</BottomPanel>
+      <BottomPanel fort={voiles.basFort} doux={voiles.basDoux}>{children}</BottomPanel>
     </Frame>
   );
 }
