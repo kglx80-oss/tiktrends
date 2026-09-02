@@ -3211,3 +3211,58 @@ presets sans jamais les appliquer, depuis toujours.
 C'est la troisième fois dans cette session qu'un garde trouve, à sa première
 exécution, un cas que je n'avais pas cherché. La règle tient : on n'écrit pas
 « penser à », on écrit un test qui échoue quand ce n'est pas fait.
+
+---
+
+## D159 — La pastille se dessinait deux fois
+
+**Constat.** La coquille pose une pastille en haut à droite, à côté du logo. Deux
+gabarits en posent une AUSSI, dans leur contenu :
+
+- `offer` a son sticker d'offre, incliné et large ;
+- `before_after` a ses étiquettes AVANT et APRÈS, aux deux coins hauts.
+
+Les deux se dessinaient en même temps · la pastille recouvrait le nom de la
+marque. **Une pub qui masque son propre logo est ratée avant qu'on lise
+l'accroche.**
+
+Le contenu gagne quand il en a une · la sienne dit quelque chose de précis,
+celle de la coquille est générique.
+
+## D160 — Trois corrections proposées, deux retirées avant d'être livrées
+
+Devant la grille rapportée, j'ai vu trois défauts et j'en ai corrigé trois. Deux
+ne se reproduisaient pas dans le code actuel, et je ne l'ai su qu'en essayant de
+les faire échouer.
+
+- **La carte photo écrasée par le texte.** J'ai ajouté `flexShrink: 0`, puis
+  mesuré : la part de photo est identique avec et sans (39 % dans les deux cas).
+  Le correctif est gardé — une carte photo ne doit pas être compressible — mais
+  il est **défensif, pas réparateur**, et le dire évite de croire qu'un
+  symptôme a disparu.
+
+- **Le chiffre-clé qui déborde sur la photo.** J'ai réduit sa taille et remonté
+  l'opacité du panneau. Une sonde par bandes a montré que le panneau est opaque
+  de 0,80 à 1,00 et que le bloc y tient entièrement · il n'y avait rien à
+  réparer. **Les deux changements ont été annulés**, et les deux tests écrits
+  pour eux supprimés : ils passaient sans rien garder.
+
+**Ce que la sonde a vraiment appris.** Le rendu montré est impossible à produire
+avec le code actuel — le chiffre y flotte au quart de la hauteur, là où la
+composition d'aujourd'hui le place tout en bas. La grille observée vient donc
+d'un build antérieur à ce travail.
+
+Corriger un symptôme qu'on n'a pas reproduit, c'est ajouter du code au hasard et
+appeler ça une réparation.
+
+## D161 — Un garde se valide sur ce qu'il garde, pas sur ce qu'on espère
+
+Le test de surface photo n'a pas pu être validé en retirant `flexShrink` · il
+restait vert, ce qui prouvait que ce n'était pas ce qu'il mesurait.
+
+Il a été validé autrement, en mettant la carte à `0%` de hauteur : il échoue
+alors en nommant la mise en page. Il garde donc bien « la photo occupe une place
+réelle » · simplement pas la cause que j'avais imaginée.
+
+Deux tests écrits le même jour ont été supprimés pour la raison inverse : aucune
+mutation ne les faisait échouer.

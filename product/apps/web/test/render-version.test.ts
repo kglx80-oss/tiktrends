@@ -42,8 +42,8 @@ function empreinteMaquette(): string {
  * Le test dit quoi écrire quand il échoue · si le rendu n'a pas vraiment changé
  * (un commentaire, un renommage), on recopie l'empreinte sans toucher au numéro.
  */
-const EMPREINTE_ATTENDUE = '44c625ac0c9c5747';
-const VERSION_ATTENDUE = 3;
+const EMPREINTE_ATTENDUE = 'de75279a46c9996a';
+const VERSION_ATTENDUE = 4;
 
 describe('la version de la maquette suit la maquette', () => {
   it('changer la maquette oblige à décider si les rendus rangés restent valables', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   AD_LAYOUTS, LAYOUT_CLAIR, LAYOUT_HINT, LAYOUT_LABEL,
-  layoutFor, layoutsFor, layoutsForBatch, layoutsToDrop, type AdLayout,
+  layoutFor, layoutsFor, layoutsForBatch, layoutsToDrop, shellShowsBadge, type AdLayout,
 } from '../src/ad-layouts';
 import { HEADLINE_CHARS, HEADLINE_WORDS, HEADLINE_FLOOR, copyBudgetLine, layoutFitsCopy, layoutForCopy } from '../src/copy-budget';
 
@@ -201,5 +201,27 @@ describe('une accroche trop longue change de mise en page, elle ne se coupe pas'
 
   it('une accroche vide ne bloque rien', () => {
     expect(layoutForCopy('', 'affiche')).toBe('affiche');
+  });
+});
+
+describe('la pastille ne se dessine pas deux fois', () => {
+  /**
+   * La coquille pose une pastille en haut à droite, à côté du logo. Deux
+   * gabarits en posent une AUSSI dans leur contenu · `offer` son sticker
+   * incliné, `before_after` ses étiquettes AVANT et APRÈS aux deux coins hauts.
+   *
+   * Les deux se dessinaient en même temps : la pastille recouvrait le nom de la
+   * marque. Une pub qui masque son propre logo est ratée avant qu'on lise
+   * l'accroche.
+   */
+  it('la coquille se tait quand le contenu a la sienne', () => {
+    expect(shellShowsBadge('offer')).toBe(false);
+    expect(shellShowsBadge('before_after')).toBe(false);
+  });
+
+  it('elle la dessine partout ailleurs', () => {
+    for (const t of ['problem_solution', 'testimonial', 'benefits', 'ugc', 'stat']) {
+      expect(shellShowsBadge(t), t).toBe(true);
+    }
   });
 });

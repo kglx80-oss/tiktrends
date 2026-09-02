@@ -182,3 +182,26 @@ export function bandLuminance(img: Image, from: number, to: number): number {
   lum.sort((a, b) => a - b);
   return lum[Math.floor(lum.length / 2)]!;
 }
+
+/**
+ * La part de l'image occupée par une couleur donnée.
+ *
+ * Sert à répondre à une question que rien ne posait : **la photo occupe-t-elle
+ * la place que la mise en page lui promet ?**
+ *
+ * On a livré des pubs où la carte photo était écrasée à zéro par le texte · la
+ * photo qu'on venait de payer avait disparu, et tous les tests passaient. « Ni
+ * vide ni uniforme » reste vrai quand il ne reste que du texte.
+ *
+ * En rendant sur une couleur qu'on ne trouve nulle part ailleurs dans la
+ * maquette, compter ses pixels revient à mesurer la surface de la photo.
+ */
+export function colorShare(img: Image, rgb: [number, number, number], tol = 40): number {
+  let n = 0;
+  for (let i = 0; i < img.rgba.length; i += 4) {
+    if (Math.abs(img.rgba[i]! - rgb[0]) <= tol
+      && Math.abs(img.rgba[i + 1]! - rgb[1]) <= tol
+      && Math.abs(img.rgba[i + 2]! - rgb[2]) <= tol) n++;
+  }
+  return n / (img.width * img.height);
+}
