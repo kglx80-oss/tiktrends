@@ -8,13 +8,13 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsToDrop, copyBudgetLine, layoutForCopy, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import type { AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate, logFailure } from '../../lib/error-log';
-import { refusDefinitif } from '../../lib/fal-retry';
+import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 
@@ -201,6 +201,10 @@ async function composeBatch(o: {
         const { images } = await falGenerateImage(o.cfg, {
           prompt, aspectRatio: '4:5', imageUrls, edit, count: 1,
           model: falModelFor(o.modelSpec, !!imageUrls?.length), params: o.modelSpec.params,
+          // Le délai suit le modèle · GPT Image 2 en haute qualité travaille
+          // plusieurs minutes, et l'échéance fixe de 90 s le condamnait à
+          // échouer en le faisant quand même facturer.
+          timeoutMs: imageTimeoutMs(o.modelSpec),
         });
         if (images[0]) return images[0];
         const vide = new Error('Le fournisseur n’a renvoyé aucune image.');
@@ -215,7 +219,9 @@ async function composeBatch(o: {
         // Un refus du fournisseur (4xx) se reproduira à l'identique · le
         // réessayer fait attendre quatre-vingt-dix secondes de plus pour la
         // même réponse, et douze pubs le font attendre dix minutes.
-        if (refusDefinitif(e)) break;
+        // On ne rejoue pas un délai dépassé · le fournisseur a déjà commencé et
+        // facture. Rejouer paierait une seconde image pour la même attente.
+        if (inutileDeReessayer(e)) break;
       }
     }
     return null;
@@ -482,7 +488,13 @@ export async function generateAdsAction(input: {
     productId: input.productId, personaId: input.personaId, objective: input.objective,
     memoryUse: memoire.use, rationaleCtx,
   });
-  if (!ads.length) return { error: echecLisible(echec.dernier, s.workspaceId) };
+  if (!ads.length) {
+    // Un délai dépassé sur un modèle lent ne se règle pas en demandant moins de
+    // créas · le conseil générique envoie vers une manœuvre qui ne change rien.
+    const conseil = delaiDepasse(echec.dernier) ? conseilDelai(modelSpec) : null;
+    const base = echecLisible(echec.dernier, s.workspaceId);
+    return { error: conseil ? `${base} ${conseil}` : base };
+  }
   return { ads, requested: count };
 }
 
