@@ -146,3 +146,39 @@ export function composition(img: Image): Composition {
     center: clairs ? (sommeY / clairs) / img.height : 0.5,
   };
 }
+
+/**
+ * La luminance médiane d'une bande horizontale.
+ *
+ * ── Une première version passait pour la mauvaise raison ─────────────────────
+ *
+ * J'ai d'abord mesuré l'ÉCART de luminance dans la bande. Vérifié en retirant le
+ * voile sombre de la mise en page immersive : le test restait vert. Le bouton
+ * d'action, coloré et saturé, fournissait l'écart à lui seul · la bande pouvait
+ * être entièrement blanche derrière un titre blanc, la mesure ne s'en apercevait
+ * pas.
+ *
+ * ── Ce qu'il faut mesurer ────────────────────────────────────────────────────
+ *
+ * Pas l'écart, mais **le fond sur lequel l'encre se pose**. Une encre blanche
+ * exige un fond sombre, une encre sombre un fond clair · c'est exactement ce que
+ * les voiles et les aplats sont censés garantir.
+ *
+ * La médiane, pas la moyenne : quelques pixels d'accent ne doivent pas déplacer
+ * le verdict sur le fond.
+ */
+export function bandLuminance(img: Image, from: number, to: number): number {
+  const y0 = Math.max(0, Math.floor(img.height * from));
+  const y1 = Math.min(img.height, Math.ceil(img.height * to));
+  const lum: number[] = [];
+  for (let y = y0; y < y1; y++) {
+    for (let x = 0; x < img.width; x++) {
+      const i = (y * img.width + x) * 4;
+      // Luminance perçue · le vert pèse plus que le rouge et le bleu.
+      lum.push((0.2126 * img.rgba[i]! + 0.7152 * img.rgba[i + 1]! + 0.0722 * img.rgba[i + 2]!) / 255);
+    }
+  }
+  if (!lum.length) return 0;
+  lum.sort((a, b) => a - b);
+  return lum[Math.floor(lum.length / 2)]!;
+}

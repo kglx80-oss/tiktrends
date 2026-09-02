@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsToDrop, copyBudgetLine, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -107,8 +107,14 @@ async function composeBatch(o: {
   /** Ce dont la génération a bénéficié · consigné pour mesurer si la mémoire aide (§attribution). */
   memoryUse?: { measured: boolean; market: boolean; hooks: number };
   productImageUrls: string[] | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
-  /** Coquille imposée pour tout le lot · `null` = rotation. */
-  layoutImpose?: AdLayout | null;
+  /**
+   * Les mises en page du lot, décidées PAR L'APPELANT.
+   *
+   * Elles étaient calculées ici, après l'écriture des concepts · le modèle ne
+   * pouvait donc pas savoir dans quelle mise en page son accroche allait
+   * atterrir, ni combien de place elle y aurait.
+   */
+  mises: AdLayout[];
   assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean;
@@ -132,7 +138,6 @@ async function composeBatch(o: {
   // La variété vient d'ici · la règle du noyau garantit qu'un lot de quatre ne
   // répète jamais la même mise en page. Sans elle, sept gabarits rendaient sept
   // fois la même image : photo plein cadre, bandeau noir, texte blanc.
-  const mises = layoutsForBatch(o.concepts.length, Math.floor(Date.now() / 60000));
   /**
    * La coquille d'un visuel · UNE seule source.
    *
@@ -141,7 +146,7 @@ async function composeBatch(o: {
    * pour une page qu'elle n'occupe pas · exactement le défaut qu'on corrige.
    */
   const coquille = (c: AdConcept, i: number): AdLayout =>
-    layoutFor(c.template, o.layoutImpose ?? mises[i] ?? 'immersif');
+    layoutFor(c.template, o.mises[i] ?? 'immersif');
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction
@@ -357,6 +362,10 @@ export async function generateAdsAction(input: {
   const pool = (input.templates && input.templates.length ? input.templates : AD_TEMPLATES);
   const count = Math.min(8, Math.max(1, Math.round(input.count ?? pool.length)));
   const templates = Array.from({ length: count }, (_, i) => pool[i % pool.length]!);
+  // Les mises en page sont décidées ICI · avant l'écriture des concepts, pour
+  // que le modèle connaisse la place dont il dispose, et avant la composition,
+  // qui les applique. Une seule décision, deux étapes servies.
+  const impose = isAdLayout(input.layout) ? input.layout : null;
   const modelSpec = imageModelByKey(input.model);
   const cost = modelSpec.credits * count;
   const unlimited = unlimitedCredits(s.user.email);
@@ -418,6 +427,24 @@ export async function generateAdsAction(input: {
     hooks: accroches as HookEntry[],
   };
 
+  // Les mises en page du lot · la rotation apprend de la marque.
+  //
+  // Une mise en page nettement perdante sort du vivier : mesurer qu'elle perd et
+  // continuer à la servir une fois sur quatre, c'est produire un rapport que
+  // personne n'applique. Le seuil est sévère et garde toujours deux mises en
+  // page en lice · une exclue ne produit plus de tests, donc ne peut plus se
+  // racheter.
+  const ecartees = impose ? [] : layoutsToDrop({
+    rates: (statsPourExpliquer.stats as StatRow[])
+      .filter((r) => r.dimension === 'layout')
+      .map((r) => ({ layout: r.key, nConclusive: r.nConclusive, hitRate: r.hitRate })),
+    globalRate: statsPourExpliquer.globalRate,
+  });
+  const vivier = AD_LAYOUTS.filter((l) => !ecartees.includes(l));
+  const mises = impose
+    ? templates.map(() => impose)
+    : layoutsForBatch(templates.length, Math.floor(Date.now() / 60000), vivier);
+
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
   try {
@@ -428,7 +455,7 @@ export async function generateAdsAction(input: {
       hasProductPhoto: editMode,
       persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
       objective: input.objective, angle: input.angle?.trim() || undefined, offer: input.offer?.trim() || undefined, creativeRules: da?.creativeRules ?? undefined, winningPatterns,
-    }, { templates, winningCopy, competitors: brow?.competitors ?? undefined });
+    }, { templates, copyBudget: mises.map(copyBudgetLine), winningCopy, competitors: brow?.competitors ?? undefined });
   } catch (e) {
     return { error: logAndTranslate('ads:concepts', e, { subject: "l'écriture des concepts", workspaceId: s.workspaceId }) };
   }
@@ -443,7 +470,7 @@ export async function generateAdsAction(input: {
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
-    layoutImpose: isAdLayout(input.layout) ? input.layout : null,
+    mises,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,
@@ -626,6 +653,10 @@ export async function cloneAdAction(input: {
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
+    // Le clonage reprend la mise en page de la RÉFÉRENCE, pas la nôtre · on
+    // garde donc l'immersive, celle qui laisse l'image entière parler. Faire
+    // tourner nos quatre mises en page contredirait la demande.
+    mises: concepts.map(() => 'immersif' as const),
     preset: presetClone,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,
