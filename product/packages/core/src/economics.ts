@@ -112,6 +112,19 @@ export interface ImageModelSpec {
    * modèle avait l'air cassé alors qu'on l'appelait à la mauvaise adresse.
    */
   falModelNoRef?: string;
+  /**
+   * Délai avant d'abandonner un appel · absent = `DELAI_IMAGE_DEFAUT`.
+   *
+   * Il était fixe à quatre-vingt-dix secondes pour tous les modèles. GPT Image 2
+   * en haute qualité coûte quatre fois le prix d'une génération ordinaire ·
+   * c'est-à-dire qu'il travaille bien plus longtemps. Une demande de deux créas
+   * s'interrompait donc systématiquement, et le message parlait de « réduire la
+   * quantité » alors que la quantité n'y était pour rien.
+   *
+   * Un délai trop court ne fait pas économiser : le fournisseur a déjà commencé,
+   * il facture, et on abandonne l'image qu'on vient de payer.
+   */
+  timeoutMs?: number;
   realEur: number;      // coût API réel estimé par image
   credits: number;      // crédits facturés par variante (≈ réel × markup)
   note: string;         // description courte
@@ -130,17 +143,17 @@ export interface ImageModelSpec {
  */
 export const IMAGE_MODELS: ImageModelSpec[] = [
   { key: 'nano',         label: 'Nano Banana 2',         falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.039, credits: 4,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
-  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.09,  credits: 8,  note: 'Rendu 2K · détail & cohérence renforcés', supportsRef: true, params: { resolution: '2K' } },
+  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.09,  credits: 8,  timeoutMs: 180_000, note: 'Rendu 2K · détail & cohérence renforcés', supportsRef: true, params: { resolution: '2K' } },
 
   // GPT Image 2 · fal est partenaire officiel du lancement, les endpoints sont
   // sous le préfixe `openai/`. La qualité est un PARAMÈTRE, pas un endpoint :
   // c'est elle qui fait varier le prix d'un facteur quatre, et c'est pour ça
   // que les deux variantes sont annoncées séparément plutôt que masquées
   // derrière un réglage qu'on découvre sur la facture.
-  { key: 'gpt2',         label: 'GPT Image 2',           falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.049, credits: 5,  note: 'Texte net & respect strict du brief', supportsRef: true, params: { quality: 'medium' } },
-  { key: 'gpt2_high',    label: 'GPT Image 2 · Haute',   falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.195, credits: 20, note: 'Qualité maximale · quatre fois le prix, à réserver au visuel final', supportsRef: true, params: { quality: 'high' } },
+  { key: 'gpt2',         label: 'GPT Image 2',           falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.049, credits: 5,  timeoutMs: 180_000,  note: 'Texte net & respect strict du brief', supportsRef: true, params: { quality: 'medium' } },
+  { key: 'gpt2_high',    label: 'GPT Image 2 · Haute',   falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.195, credits: 20, timeoutMs: 300_000, note: 'Qualité maximale · quatre fois le prix, à réserver au visuel final', supportsRef: true, params: { quality: 'high' } },
 
-  { key: 'gpt_image',    label: 'GPT Image 1',           falModel: 'fal-ai/gpt-image-1/edit-image/byok', realEur: 0.08,  credits: 8,  note: 'Génération précédente · demande une clé OpenAI sur le serveur', supportsRef: true },
+  { key: 'gpt_image',    label: 'GPT Image 1',           falModel: 'fal-ai/gpt-image-1/edit-image/byok', realEur: 0.08,  credits: 8,  timeoutMs: 180_000,  note: 'Génération précédente · demande une clé OpenAI sur le serveur', supportsRef: true },
 ];
 
 /**
@@ -291,4 +304,55 @@ export function analyzePlanNet(plan: string, priceEur: number, credits: number, 
     grossEur, grossPct: priceEur > 0 ? Math.round((grossEur / priceEur) * 100) : 0,
     taxEur, netEur, netPct: priceEur > 0 ? Math.round((netEur / priceEur) * 100) : 0,
   };
+}
+
+
+/**
+ * Combien de temps on laisse un modèle d'image avant d'abandonner.
+ *
+ * ── Pourquoi ce n'est pas une constante ──────────────────────────────────────
+ *
+ * Elle l'était : quatre-vingt-dix secondes pour tout le monde. Un modèle qui
+ * coûte quatre fois le prix d'un autre fait quatre fois plus de travail · lui
+ * donner la même échéance garantit qu'il ne finira jamais.
+ *
+ * ── Un délai trop court ne fait économiser personne ──────────────────────────
+ *
+ * Quand on abandonne, le fournisseur a déjà commencé et facture. On paie donc
+ * une image qu'on ne recevra pas, et on affiche un message d'échec. C'est la
+ * pire combinaison possible : la dépense sans le résultat.
+ */
+export const DELAI_IMAGE_DEFAUT = 90_000;
+
+export function imageTimeoutMs(spec: Pick<ImageModelSpec, 'timeoutMs'>): number {
+  return spec.timeoutMs ?? DELAI_IMAGE_DEFAUT;
+}
+
+/**
+ * Le conseil à donner quand un modèle a dépassé son délai.
+ *
+ * ── Le message qu'on affichait ───────────────────────────────────────────────
+ *
+ * « Réessaie · si ça se reproduit, réduis la quantité demandée. » Il était faux
+ * dans le cas le plus fréquent : deux créas en haute qualité échouaient parce
+ * que CHAQUE visuel met plusieurs minutes, pas parce qu'il y en avait deux.
+ *
+ * Conseiller une action qui ne change rien est pire que de ne rien conseiller ·
+ * on renvoie quelqu'un vers une manœuvre inutile, et il conclut que l'outil est
+ * cassé quand elle échoue à son tour.
+ *
+ * ── Ce qu'on propose à la place ──────────────────────────────────────────────
+ *
+ * Un modèle moins cher pour explorer, et la haute qualité réservée au visuel
+ * final · c'est déjà ce que dit la note du catalogue, et c'est ce qui répond
+ * vraiment au problème.
+ */
+export function conseilDelai(spec: Pick<ImageModelSpec, 'label' | 'timeoutMs' | 'credits'>): string | null {
+  if (!spec.timeoutMs || spec.timeoutMs <= DELAI_IMAGE_DEFAUT) return null;
+  const minutes = Math.round(spec.timeoutMs / 60_000);
+  const moinsCher = IMAGE_MODELS
+    .filter((m) => m.credits < spec.credits)
+    .sort((a, b) => b.credits - a.credits)[0];
+  return `« ${spec.label} » travaille longtemps · jusqu'à ${minutes} minutes par visuel.`
+    + (moinsCher ? ` Pour explorer, « ${moinsCher.label} » répond bien plus vite ; garde la qualité maximale pour le visuel final.` : '');
 }

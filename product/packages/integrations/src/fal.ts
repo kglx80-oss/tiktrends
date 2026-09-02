@@ -26,7 +26,9 @@ export interface FalConfig {
 }
 
 export type FalAspect = '9:16' | '1:1' | '16:9' | '4:5';
-export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; imageUrls?: string[]; withText?: boolean; count?: number; edit?: boolean; model?: string; params?: Record<string, string | number> }
+export interface FalImageInput { prompt: string; aspectRatio?: FalAspect; imageUrl?: string; imageUrls?: string[]; withText?: boolean; count?: number; edit?: boolean; model?: string; params?: Record<string, string | number>;
+  /** Délai avant abandon · dépend du modèle, voir `imageTimeoutMs`. */
+  timeoutMs?: number }
 export interface FalImageResult { images: string[] }
 
 export function falFromEnv(): FalConfig | null {
@@ -123,7 +125,9 @@ export async function falGenerateImage(cfg: FalConfig, input: FalImageInput): Pr
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Key ${cfg.apiKey}` },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(90000),
+    // Le délai vient du modèle · voir `imageTimeoutMs`. Fixe, il condamnait les
+    // modèles lents à ne jamais finir, tout en les faisant facturer.
+    signal: AbortSignal.timeout(input.timeoutMs ?? 90000),
   });
 
   /**

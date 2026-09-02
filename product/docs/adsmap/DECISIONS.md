@@ -3343,3 +3343,47 @@ disjoints, et trois silences distincts — pas assez des deux côtés, pas encor
 passé, ou **pas assez de présent**. Ce dernier dit « il faut lancer, pas seulement
 générer » · une marque qui génère sans tester ne fait pas avancer la mesure, et
 lui répondre « pas de données » lui cacherait pourquoi.
+
+---
+
+## D165 — Un délai fixe pour des modèles qui ne travaillent pas pareil
+
+**Rapporté.** Deux créas demandées en « GPT Image 2 · Haute » · « La génération
+des scènes a mis trop de temps et a été interrompue. Réessaie · si ça se
+reproduit, réduis la quantité demandée. »
+
+**L'échéance était de quatre-vingt-dix secondes pour TOUS les modèles.** GPT
+Image 2 en haute qualité coûte quatre fois le prix d'une génération ordinaire ·
+c'est-à-dire qu'il fait quatre fois plus de travail. Lui donner la même échéance
+garantit qu'il ne finira jamais.
+
+**Un délai trop court ne fait économiser personne.** Quand on abandonne, le
+fournisseur a déjà commencé : il finit l'image et la facture. On paie donc un
+visuel qu'on ne recevra pas, et on affiche un échec. La dépense sans le résultat.
+
+Le délai vient maintenant du catalogue, et **un test exige qu'il grandisse avec
+le prix**. Il a trouvé, à sa première exécution, un cas que je n'avais pas vu :
+`nano_high` coûte plus que `gpt2` et gardait les 90 secondes par défaut.
+
+## D166 — Un délai dépassé ne se rejoue pas
+
+Chaque scène tentait deux fois. Sur un délai, la seconde tentative lance une
+SECONDE image chez le fournisseur · qui sera facturée aussi, pour une attente
+doublée et le même risque d'échec.
+
+**On paierait deux images pour n'en afficher aucune.**
+
+Les `5xx` et les coupures réseau restent rejouables · là, rien n'a été produit.
+
+## D167 — Un conseil qui ne change rien est pire que pas de conseil
+
+« Réduis la quantité demandée » était **faux dans le cas le plus fréquent** :
+deux créas en haute qualité échouent parce que CHAQUE visuel met plusieurs
+minutes, pas parce qu'il y en a deux.
+
+On renvoyait vers une manœuvre inutile · elle échoue à son tour, et on conclut
+que l'outil est cassé.
+
+Le message nomme maintenant le modèle, dit combien de temps il prend, et propose
+le plus cher des modèles MOINS chers que celui qui vient d'échouer — jamais un
+plus cher, ce qui serait vendre une panne.
