@@ -178,37 +178,40 @@ describe('les mises en page produisent des images différentes', () => {
   }, 600000);
 });
 
-describe('une pub reste lisible sur une scène défavorable', () => {
+describe('une pub reste lisible, quelle que soit la photo', () => {
   /**
    * ── Ce que les autres tests ne voyaient pas ────────────────────────────────
    *
    * Ils vérifient qu'une pub n'est ni vide ni uniforme. Un titre blanc posé sur
-   * une zone claire de la photo passe les deux et ne se lit pas · c'est le genre
-   * de défaut qu'on ne remarque qu'en faisant défiler la grille.
+   * une zone claire de la photo passe les deux et ne se lit pas.
    *
-   * On rend donc sur la scène la PIRE possible — un blanc pur — et on exige que
-   * le FOND de la zone de texte reste opposé à son encre. C'est ce que les
-   * voiles sombres et les aplats sont censés garantir.
+   * On rend donc sur trois scènes réelles — claire, sombre, et un damier noir et
+   * blanc, le pire cas pour poser du texte — et on exige que le FOND de la zone
+   * de texte reste opposé à son encre. C'est ce que les voiles et les aplats
+   * sont censés garantir, sur n'importe quelle photo et pas seulement sur celles
+   * qui les arrangent.
    *
-   * ── La première version de ce test ne servait à rien ───────────────────────
+   * ── Les deux versions qui ne servaient à rien ──────────────────────────────
    *
-   * Elle mesurait l'écart de luminance dans la bande. Vérifiée en retirant le
-   * voile de l'immersive : elle restait verte, le bouton d'action fournissant
-   * l'écart à lui seul. Le fond pouvait être blanc derrière un titre blanc.
+   * La première mesurait l'ÉCART de luminance dans la bande · vérifiée en
+   * retirant le voile de l'immersive, elle restait verte : le bouton d'action
+   * fournissait l'écart à lui seul.
+   *
+   * La seconde mesurait le fond, mais sur un PNG de 1×1 qui ne se rasterise pas
+   * · une sonde l'a montré, la scène « blanche » rendait plus SOMBRE (0,036) que
+   * la transparente (0,104). Aucune image n'était dessinée, on mesurait le fond
+   * du cadre. Un test de lisibilité sur une photo qui n'existe pas passe pour la
+   * mauvaise raison.
+   *
+   * D'où de vraies images de 64 px. Les autres tests du fichier gardent le 1×1 ·
+   * ils mesurent la mise à l'échelle de la maquette, pas ce qui se passe
+   * au-dessus d'une photo.
    */
-  /**
-   * Un vrai carré blanc de 64 px · PAS un 1×1.
-   *
-   * Le 1×1 utilisé partout ailleurs dans ce fichier ne se rasterise pas : une
-   * sonde a montré que la scène « blanche » rendait PLUS SOMBRE que la scène
-   * transparente, c'est-à-dire que l'image n'était jamais dessinée et qu'on
-   * mesurait le fond du cadre. Un test de lisibilité sur une photo qui n'existe
-   * pas passerait pour la mauvaise raison.
-   *
-   * Les autres tests de ce fichier gardent le 1×1 · ils mesurent la mise à
-   * l'échelle de la maquette, pas ce qui se passe au-dessus d'une photo.
-   */
-  const BLANC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAkklEQVR4nO3QQREAAAiAMPuX1hh7yBJwzD43OkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAO0ARtDDsqXe37wAAAAASUVORK5CYII=';
+  const SCENES: Array<[string, string]> = [
+    ['claire', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAkklEQVR4nO3QQREAAAiAMPuX1hh7yBJwzD43OkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAO0ARtDDsqXe37wAAAAASUVORK5CYII='],
+    ['sombre', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAlklEQVR4nO3QsQ0AIAzAsI4V//8LZ3ggg/cos3vuz0YHaA3QAVoDdIDWAB2gNUAHaA3QAVoDdIDWAB2gNUAHaA3QAVoDdIDWAB2gNUAHaA3QAVoDdIDWAB2gNUAHaA3QAVoDdIDWAB2gNUAHaA3QAVoDdIDWAB2gNUAHaA3QAVoDdIDWAB2gNUAHaA3QAVoDdIDWAB2gPRfEkQBsCh6+AAAAAElFTkSuQmCC'],
+    ['damier', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAzklEQVR4nO3QwQnAIBQFQftvOukgOQSdH1jB48j61vVy1lqP9+/+9YXpH2iABmiABmiABvgwwPTAA54HaM8DtOcB2vMA7XmA9jxAex5g/fjAzb4BdID2DaADtG8AHaB9A0wPPOB5gPY8QHseoD0P0J4HaM8DtOcB1o8P3OwbQAdo3wA6QPsG0AHaN8D0wAOeB2jPA7TnAdrzAO15gPY8QHseYP34wM2+AXSA9g2gA7RvAB2gfQNMDzzgeYD2PEB7HqA9D9CeB2jPA7TnAdTfT6baSiuz9/AAAAAASUVORK5CYII='],
+  ];
 
   /** Où le texte se pose, et sur quel fond il DOIT se poser. */
   const ZONES: Array<{ layout: string; de: number; a: number; fond: 'sombre' | 'clair' }> = [
@@ -220,16 +223,18 @@ describe('une pub reste lisible sur une scène défavorable', () => {
   ];
 
   for (const z of ZONES) {
-    it(`« ${z.layout} » pose son texte sur un fond ${z.fond}, même sur une photo blanche`, async () => {
-      const img = await rendre({ layout: z.layout as never, sceneUrl: BLANC, width: 432, height: 540 });
-      const l = bandLuminance(img, z.de, z.a);
-      if (z.fond === 'sombre') {
-        expect(l, `le texte blanc de « ${z.layout} » se pose sur un fond clair · il s’y noie`)
-          .toBeLessThan(0.45);
-      } else {
-        expect(l, `le texte sombre de « ${z.layout} » se pose sur un fond sombre · il s’y noie`)
-          .toBeGreaterThan(0.6);
+    it(`« ${z.layout} » pose son texte sur un fond ${z.fond}, sur les trois scènes`, async () => {
+      for (const [nom, scene] of SCENES) {
+        const img = await rendre({ layout: z.layout as never, sceneUrl: scene, width: 432, height: 540 });
+        const l = bandLuminance(img, z.de, z.a);
+        if (z.fond === 'sombre') {
+          expect(l, `« ${z.layout} » sur scène ${nom} : texte blanc sur fond clair, il s’y noie`)
+            .toBeLessThan(0.45);
+        } else {
+          expect(l, `« ${z.layout} » sur scène ${nom} : texte sombre sur fond sombre, il s’y noie`)
+            .toBeGreaterThan(0.6);
+        }
       }
-    }, 120000);
+    }, 240000);
   }
 });

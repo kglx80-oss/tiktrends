@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsToDrop, copyBudgetLine, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsToDrop, copyBudgetLine, layoutForCopy, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -146,7 +146,12 @@ async function composeBatch(o: {
    * pour une page qu'elle n'occupe pas · exactement le défaut qu'on corrige.
    */
   const coquille = (c: AdConcept, i: number): AdLayout =>
-    layoutFor(c.template, o.mises[i] ?? 'immersif');
+    // Deux rabats, dans cet ordre · le gabarit d'abord (`before_after` a besoin
+    // de l'image entière), la longueur de l'accroche ensuite. On demande au
+    // modèle un titre court pour l'affiche, il obéit souvent, pas toujours · et
+    // rien ne le vérifiait. Une accroche trop longue ne se coupe pas, elle
+    // change de mise en page.
+    layoutForCopy(c.headline, layoutFor(c.template, o.mises[i] ?? 'immersif'));
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction

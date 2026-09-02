@@ -3,7 +3,7 @@ import {
   AD_LAYOUTS, LAYOUT_CLAIR, LAYOUT_HINT, LAYOUT_LABEL,
   layoutFor, layoutsFor, layoutsForBatch, layoutsToDrop, type AdLayout,
 } from '../src/ad-layouts';
-import { HEADLINE_CHARS, HEADLINE_WORDS, HEADLINE_FLOOR, copyBudgetLine } from '../src/copy-budget';
+import { HEADLINE_CHARS, HEADLINE_WORDS, HEADLINE_FLOOR, copyBudgetLine, layoutFitsCopy, layoutForCopy } from '../src/copy-budget';
 
 describe('un lot ne répète pas la même mise en page', () => {
   it('quatre créas donnent quatre mises en page différentes', () => {
@@ -167,5 +167,39 @@ describe('la place disponible dépend de la mise en page', () => {
   it('chaque mise en page a une consigne, et l’affiche s’explique', () => {
     for (const l of AD_LAYOUTS) expect(copyBudgetLine(l).length, l).toBeGreaterThan(30);
     expect(copyBudgetLine('affiche')).toMatch(/AFFICHE/);
+  });
+});
+
+describe('une accroche trop longue change de mise en page, elle ne se coupe pas', () => {
+  const court = 'Dors mieux ce soir';                       // 18
+  const long = 'Ton garage est encore plein le dimanche';   // 39
+
+  it('une accroche courte garde l’affiche', () => {
+    expect(layoutForCopy(court, 'affiche')).toBe('affiche');
+  });
+
+  it('une accroche longue quitte l’affiche', () => {
+    // Couper amputerait la phrase au milieu · le résultat le plus visiblement
+    // raté qu'on puisse produire. Une accroche longue n'est pas fautive, elle
+    // n'est simplement pas une affiche.
+    expect(layoutForCopy(long, 'affiche')).toBe('immersif');
+  });
+
+  it('l’immersive accepte ce que les autres refusent', () => {
+    expect(layoutFitsCopy(long, 'immersif')).toBe(true);
+    expect(layoutFitsCopy(long, 'affiche')).toBe(false);
+    expect(layoutForCopy(long, 'immersif')).toBe('immersif');
+  });
+
+  it('le repli ne se replie pas sur lui-même', () => {
+    // Rabattre vers l'immersive doit toujours aboutir · sinon une accroche
+    // très longue n'aurait aucune mise en page.
+    const enorme = 'x'.repeat(400);
+    expect(layoutForCopy(enorme, 'affiche')).toBe('immersif');
+    expect(AD_LAYOUTS).toContain(layoutForCopy(enorme, 'champ'));
+  });
+
+  it('une accroche vide ne bloque rien', () => {
+    expect(layoutForCopy('', 'affiche')).toBe('affiche');
   });
 });
