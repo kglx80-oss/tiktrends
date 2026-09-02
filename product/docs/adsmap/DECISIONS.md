@@ -3387,3 +3387,70 @@ que l'outil est cassé.
 Le message nomme maintenant le modèle, dit combien de temps il prend, et propose
 le plus cher des modèles MOINS chers que celui qui vient d'échouer — jamais un
 plus cher, ce qui serait vendre une panne.
+
+---
+
+## D168 — Un fragment n'est pas une colonne
+
+**Rapporté.** Une créa où l'accroche, la liste et le bouton se superposent, le
+bouton coupé par le bord droit. Reproduit à l'identique en rendant la même
+recette, puis **regardée** — pas déduite.
+
+**La cause.** `contenu` rendait un fragment `<>…</>`. Satori ne l'aplatit pas
+comme le DOM : il le traite comme un bloc, avec sa direction par défaut — **en
+ligne**. Les quatre morceaux de copie se retrouvaient côte à côte.
+
+Tous les gabarits sauf `before_after` étaient touchés · lui seul rendait déjà un
+`div`. C'est-à-dire toute la grille, depuis la refonte des mises en page.
+
+**Trois gardes sont restés verts dessus.** La pub n'était « ni vide ni
+uniforme ». Ses compositions restaient distinctes d'une mise en page à l'autre.
+Sa zone de texte restait sombre. Aucun ne regardait **où** l'encre se trouvait.
+
+Le nouveau garde mesure la seule chose qui trahit une mise en page effondrée :
+**le bouton d'accent ne touche jamais le bord droit.**
+
+**Il a sonné à sa première exécution sur un cas légitime** · la frontière de la
+mise en page « moitié / moitié » est volontairement pleine largeur. Elle est
+exclue nommément, pas en élargissant le seuil — un seuil élargi laisserait aussi
+passer un bouton à moitié coupé.
+
+Validé en remettant la direction par défaut : le garde échoue en nommant le
+couple gabarit / mise en page.
+
+## D169 — On consignait l'univers demandé, pas celui appliqué
+
+Le composeur propose « Varié (auto) » par défaut. Toutes les générations
+portaient donc `auto` · qui n'est pas un univers, mais le refus d'en choisir un.
+
+L'écran collait alors **tous** les aperçus sur la vignette « Varié », et les huit
+univers réels restaient vides. La promesse « choisis à l'œil » ne pouvait pas se
+tenir, quel que soit le nombre de séries lancées.
+
+On consigne maintenant l'univers **réellement appliqué** à chaque visuel. Un
+prompt maison remplace la direction artistique · il n'y a alors aucun univers à
+consigner, et on écrit `null` plutôt que de nommer celui qu'on n'a pas utilisé.
+
+## D170 — Concaténer une URL marche jusqu'au jour où elle change de forme
+
+Les vignettes ajoutaient `&t=1` à l'adresse. Ça marche pour une pub, dont
+l'adresse porte déjà `?v=…`. Pas pour une référence de la bibliothèque, dont
+l'adresse est `/api/asset/<id>` toute nue : on obtenait `/api/asset/<id>&t=1`, le
+routeur lisait un identifiant inexistant, et la vignette s'affichait cassée.
+
+**C'est la deuxième fois que les images de la bibliothèque cassent** · la
+première portait sur le mode de service, celle-ci sur la ponctuation d'une URL.
+
+`withParam` ouvre la query quand il n'y en a pas, enchaîne quand il y en a une,
+garde le fragment en queue, et laisse intactes les adresses `data:` et `blob:`
+qui portent la donnée elles-mêmes.
+
+## D171 — Regarder le rendu, pas seulement le mesurer
+
+Les trois défauts ci-dessus ont été trouvés en **rendant la recette exacte et en
+ouvrant l'image**. Le tour précédent avait été perdu à corriger des symptômes
+qu'on n'avait pas reproduits.
+
+Mesurer un PNG répond aux questions qu'on pense à poser. L'ouvrir répond à celles
+qu'on n'a pas pensé à poser · et une mise en page effondrée fait partie des
+secondes.

@@ -205,3 +205,32 @@ export function colorShare(img: Image, rgb: [number, number, number], tol = 40):
   }
   return n / (img.width * img.height);
 }
+
+/**
+ * La part d'une couleur dans une bande VERTICALE, en fractions de largeur.
+ *
+ * Sert à répondre à « quelque chose touche-t-il le bord ? ». Une pub dont un
+ * élément sort du cadre est ratée de la manière la plus visible qui soit, et
+ * aucune mesure de surface ou de luminance ne le voit : l'encre est toujours là,
+ * simplement au mauvais endroit.
+ */
+export function colorShareInColumns(
+  img: Image, fromX: number, toX: number, rgb: [number, number, number],
+  bande: [number, number] = [0, 1], tol = 40,
+): number {
+  const x0 = Math.max(0, Math.floor(img.width * fromX));
+  const x1 = Math.min(img.width, Math.ceil(img.width * toX));
+  const y0 = Math.max(0, Math.floor(img.height * bande[0]));
+  const y1 = Math.min(img.height, Math.ceil(img.height * bande[1]));
+  if (x1 <= x0 || y1 <= y0) return 0;
+  let n = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * img.width + x) * 4;
+      if (Math.abs(img.rgba[i]! - rgb[0]) <= tol
+        && Math.abs(img.rgba[i + 1]! - rgb[1]) <= tol
+        && Math.abs(img.rgba[i + 2]! - rgb[2]) <= tol) n++;
+    }
+  }
+  return n / ((x1 - x0) * (y1 - y0));
+}

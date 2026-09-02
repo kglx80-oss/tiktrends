@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, type Outcome } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, type Outcome } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -144,10 +144,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [ratio, setRatio] = useState<'4:5' | '1:1' | '9:16'>('4:5');
   // a.url porte déjà une version (?v=) qui suit les textes : la grille, l'aperçu et
   // le téléchargement se rafraîchissent ensemble après une édition.
-  const detailSrc = detailAd ? `${detailAd.url}&r=${ratio}` : '';
+  const detailSrc = detailAd ? withParam(detailAd.url, 'r', ratio) : '';
   // La grille demande des vignettes · elle affiche des cartes de 240 px, et la
   // maquette est proportionnelle depuis qu'un test mesure les pixels rendus.
-  const vignette = (u: string) => `${u}&t=1`;
+  // On AJOUTE un paramètre, on ne concatène pas · l'adresse d'une pub porte
+  // déjà `?v=`, celle d'une référence de la bibliothèque non. Coller « &t=1 »
+  // sur `/api/asset/<id>` donnait un identifiant inexistant et une vignette
+  // cassée.
+  const vignette = (u: string) => withParam(u, 't', 1);
 
   async function openTextEditor(a: AdItem) {
     setEditText(true); setTextForm(null);

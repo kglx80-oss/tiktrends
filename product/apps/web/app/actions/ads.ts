@@ -156,6 +156,19 @@ async function composeBatch(o: {
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction
   // artistique de la marque, elle ne se fait pas alterner avec la nôtre.
+  /**
+   * L'univers RÉELLEMENT utilisé pour un visuel.
+   *
+   * On consignait la valeur DEMANDÉE. Le composeur propose « Varié (auto) » par
+   * défaut · toutes les générations portaient donc `auto`, qui n'est pas un
+   * univers mais le refus d'en choisir un. L'écran de sélection collait alors
+   * tous les aperçus sur la vignette « Varié », et les huit univers réels
+   * restaient vides — c'est-à-dire que la promesse « choisis à l'œil » ne
+   * pouvait pas se tenir, quel que soit le nombre de séries lancées.
+   */
+  const universeUsed = (i: number) =>
+    chosen ? chosen.key : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.key;
+
   const universeFor = (i: number) => o.preset
     ? o.preset.prompt
     : chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
@@ -251,7 +264,9 @@ async function composeBatch(o: {
       presetId: o.preset?.id ?? null,
       // Consigné pour que l'écran puisse montrer ce que cet univers donne chez
       // cette marque · sans ça, on choisit une ambiance sur un libellé.
-      universe: o.universe ?? null,
+      // L'univers réellement appliqué · un prompt maison remplace la direction
+      // artistique, il n'y a alors aucun univers à consigner.
+      universe: o.preset ? null : universeUsed(i),
       // Rabattue sur ce que le gabarit accepte · `before_after` a besoin de
       // l'image entière pour poser sa frontière.
       layout: coquille(c, i),
