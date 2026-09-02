@@ -50,6 +50,8 @@ export * from './universe-previews';
 export * from './ad-layouts';
 export * from './scene-framing';
 export * from './copy-budget';
+export * from './deployment';
+export * from './adsmap/trend';
 export * from './adsmap/merge';
 export * from './adsmap/draft';
 export * from './creative-presets';

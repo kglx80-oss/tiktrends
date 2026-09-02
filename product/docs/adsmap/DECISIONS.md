@@ -3266,3 +3266,80 @@ réelle » · simplement pas la cause que j'avais imaginée.
 
 Deux tests écrits le même jour ont été supprimés pour la raison inverse : aucune
 mutation ne les faisait échouer.
+
+---
+
+## D162 — Rien ne disait ce que le serveur exécute
+
+**Le tour qu'on a perdu.** Une grille rapportée comme cassée venait d'un build
+antérieur au correctif. Il a fallu sonder le rendu bande par bande pour
+l'établir · et entre-temps, trois défauts avaient été « corrigés », dont deux
+n'existaient pas.
+
+Un produit qui ne dit pas ce qu'il exécute transforme chaque rapport de bug en
+enquête.
+
+**Décision.** Un bandeau, fondateur seulement : version de maquette, migrations
+appliquées sur migrations embarquées, empreinte du build.
+
+**Le retard de migrations est le chiffre qui compte.** Un code qui lit une
+colonne absente échoue à l'exécution, pas à la compilation · c'est la panne qu'on
+ne voit qu'en production.
+
+On compte les lignes de `drizzle.__drizzle_migrations` plutôt que d'apparier les
+empreintes · l'appariement demanderait de recalculer les hachages du journal pour
+répondre à une question qui n'a besoin que d'un nombre.
+
+**Une lecture en échec rend `null`, jamais zéro.** « Zéro migration appliquée » et
+« je n'ai pas pu regarder » ne se ressemblent pas du tout.
+
+**Le cas qu'on n'oublie pas** : la base peut être EN AVANCE sur le build, quand un
+déploiement est annulé après ses migrations. Le taire laisserait croire à un
+système sain alors qu'il est dans l'état le plus difficile à défaire.
+
+Le compte embarqué est recopié dans `packages/db` et **un test le compare au
+journal** · un compte périmé ferait dire « à jour » à un déploiement qui ne l'est
+pas, c'est-à-dire mentir précisément là où on a construit un écran pour ne plus
+avoir à deviner.
+
+## D163 — La vidéo générait sans rien savoir
+
+Les pubs et les images reçoivent la mémoire mesurée de la marque · la vidéo
+partait avec la seule phrase tapée. C'est pourtant le poste où une créa ratée
+coûte le plus : plusieurs fois une image, et par tranches de cinq secondes.
+
+**La marque est maintenant lue AVANT la soumission**, pas consignée après coup
+sur une vidéo qui n'en a rien su.
+
+On injecte les chiffres mesurés, pas les accroches mot pour mot · une vidéo n'a
+pas d'accroche incrustée, leur place serait dans un script qui n'existe pas ici.
+
+`memoryUse` est consigné comme pour les pubs · c'est ce qui permettra un jour de
+dire si la mémoire aide AUSSI en vidéo. Sans cette trace, la question ne se
+poserait jamais faute de données.
+
+Une mémoire illisible n'empêche pas de générer · on part sans.
+
+## D164 — « Est-ce que ça va mieux » se mesure sans se flatter
+
+Quatre mises en page, un cadrage revu, deux mesures corrigées · et aucun écran ne
+disait si le taux avait bougé. Sans réponse, chaque changement est un pari qu'on
+n'encaisse jamais.
+
+**Deux fenêtres glissantes, pas une date de sortie.** Caler la coupure sur un
+déploiement laisserait croire que l'écart mesure CE changement-là, alors que tout
+bouge en même temps — le produit, le marché, la saison, ce que la marque a appris.
+
+La question devient « est-ce que ça va mieux », pas « grâce à quoi ». C'est moins
+flatteur et c'est vrai.
+
+**On date sur la création de l'ad, pas sur son verdict** · c'est la date à
+laquelle le produit l'a fabriquée, donc celle qui porte l'effet d'un changement
+de produit. Dater sur le verdict décalerait tout du temps qu'un test met à
+conclure.
+
+Même exigence qu'ailleurs : effectif minimal par fenêtre, intervalles de Wilson
+disjoints, et trois silences distincts — pas assez des deux côtés, pas encore de
+passé, ou **pas assez de présent**. Ce dernier dit « il faut lancer, pas seulement
+générer » · une marque qui génère sans tester ne fait pas avancer la mesure, et
+lui répondre « pas de données » lui cacherait pourquoi.

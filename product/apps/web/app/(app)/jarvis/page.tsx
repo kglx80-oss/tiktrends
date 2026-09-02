@@ -10,7 +10,8 @@ import { getActiveBrand } from '../../../lib/brands';
 import { jarvisStats, jarvisMeasuredMemory, jarvisHookView } from '../../../lib/jarvis-memory';
 import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../lib/jarvis-state';
 import { spendStatus } from '../../../lib/spend-guard';
-import { attributionViewAction } from '../../actions/adsmap-attribution';
+import { currentDeployment } from '../../../lib/deployment';
+import { attributionViewAction, creativeTrendAction } from '../../actions/adsmap-attribution';
 import { PageInfo } from '../../../components/PageInfo';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
@@ -93,13 +94,18 @@ export default async function JarvisPage() {
 
   // La mémoire n'est chargée que si elle est accessible · inutile de faire
   // travailler la base pour un bloc qu'on n'affichera pas.
-  const [memoire, hooks, attribution, stats, depense] = await Promise.all([
+  const [memoire, hooks, attribution, tendance, stats, depense] = await Promise.all([
     voitMemoire ? jarvisMeasuredMemory(brand.id, s.workspaceId) : Promise.resolve(''),
     voitMemoire ? jarvisHookView(brand.id, s.workspaceId) : Promise.resolve(null),
     voitMemoire ? attributionViewAction() : Promise.resolve({ view: undefined }),
+    voitMemoire ? creativeTrendAction() : Promise.resolve({ trend: undefined }),
     voitMemoire ? jarvisStats(brand.id, s.workspaceId) : Promise.resolve(null),
     fondateur ? spendStatus() : Promise.resolve(null),
   ]);
+  // Ce que ce serveur exécute · fondateur seulement, c'est une information
+  // d'exploitation. Sans elle, chaque rapport de bug commence par une enquête
+  // pour savoir si le correctif est seulement en ligne.
+  const deploiement = fondateur ? await currentDeployment() : null;
   const attr = attribution.view;
   // L'échec de lecture se dit · un bloc qui s'évapore quand il n'a rien à
   // répondre laisse croire qu'il n'existe pas.
@@ -130,6 +136,31 @@ export default async function JarvisPage() {
            qu'on rencontre d'abord. */}
       <JarvisChat />
 
+      {/* 0 bis · Ce que CE serveur exécute.
+
+           Une grille rapportée comme cassée venait d'un build antérieur au
+           correctif · il a fallu sonder le rendu pixel par pixel pour
+           l'établir, et deux défauts ont été « corrigés » sans exister. */}
+      {deploiement && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          margin: '18px 0 0', padding: '10px 14px', borderRadius: 12,
+          border: `1px solid ${deploiement.ok ? 'var(--line)' : 'rgba(245,166,35,.45)'}`,
+          background: deploiement.ok ? 'var(--surface)' : 'rgba(245,166,35,.08)',
+        }}>
+          <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>
+            Ce serveur
+          </span>
+          <span style={{ fontSize: 12.5, color: deploiement.ok ? 'var(--ink-2)' : '#f5b043', lineHeight: 1.5, flex: '1 1 260px' }}>
+            {deploiement.summary}
+          </span>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+            maquette v{deploiement.renderVersion} · {deploiement.applied ?? '—'}/{deploiement.inBuild} migrations
+            {deploiement.build ? ` · ${deploiement.build}` : ''}
+          </span>
+        </div>
+      )}
+
       {/* 1 · L'état réel · avant toute promesse. */}
       <h2 style={{ margin: '30px 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Ce qui tourne, en ce moment</h2>
       <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 720, lineHeight: 1.55 }}>
@@ -151,6 +182,44 @@ export default async function JarvisPage() {
             Voir les formules ›
           </Link>
         </div>
+      )}
+
+      {/* 1 bis · Est-ce que ça va mieux qu'avant ?
+
+           On empilait des améliorations sans jamais encaisser le pari · aucun
+           écran ne disait si le taux avait bougé. Deux fenêtres glissantes, pas
+           une date de sortie : caler la coupure sur un déploiement laisserait
+           croire que l'écart mesure CE changement-là. */}
+      {voitMemoire && tendance.trend && (
+        <section style={{
+          marginBottom: 24, padding: '16px 18px', borderRadius: 14,
+          border: `1px solid ${tendance.trend.conclusive ? ((tendance.trend.liftPoints ?? 0) > 0 ? 'rgba(126,232,191,.4)' : 'rgba(255,77,109,.4)') : 'var(--line)'}`,
+          background: 'var(--surface)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+              Est-ce que ça marche mieux qu’avant ?
+            </h2>
+            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
+              {tendance.trend.days} jours
+            </span>
+          </div>
+          <p style={{
+            margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
+            background: 'var(--paper)', border: '1px solid var(--line)',
+            fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
+            color: tendance.trend.conclusive
+              ? ((tendance.trend.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095')
+              : 'var(--ink)',
+          }}>
+            {tendance.trend.summary}
+          </p>
+          <p style={{ margin: '9px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+            Deux périodes qui se touchent, datées sur la création de la créa · pas sur son verdict, qui
+            arrive des semaines plus tard. Ça répond à « est-ce que ça va mieux », pas à « grâce à quoi » :
+            le produit, le marché et la saison bougent en même temps.
+          </p>
+        </section>
       )}
 
       {/* 2 · Le contrôle AVANT la mémoire · un outil qui ne se vérifie pas accumule. */}
