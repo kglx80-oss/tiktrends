@@ -35,6 +35,7 @@ export * from './adsmap/attribution';
 export * from './adsmap/prelaunch';
 export * from './adsmap/iterate';
 export * from './adsmap/essai-resultat';
+export * from './adsmap/bilan-notes';
 export * from './adsmap/radar';
 export * from './adsmap/written-source';
 export * from './adsmap/jarvis-chat';
