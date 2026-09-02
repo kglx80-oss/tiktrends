@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, type Outcome, type StudioVariable } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, verdictDefauts, DEFECT_LABEL, DEFECT_FIX, type Outcome, type StudioVariable } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -1068,6 +1068,7 @@ function ScoreBadge({ score }: { score: number }) {
 function ScoreCard({ s, onRedo, busy }: { s: CreativeScore; onRedo: () => void; busy: boolean }) {
   const col = s.score >= 80 ? '#18cc8c' : s.score >= 60 ? '#7ee8bf' : s.score >= 45 ? '#f5b043' : '#ff9db0';
   const r = 22, c = 2 * Math.PI * r, off = c - (s.score / 100) * c;
+  const defauts = verdictDefauts(s.defauts);
   const Bar = ({ k, v }: { k: string; v: number }) => (
     <div style={{ display: 'grid', gap: 3 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--muted)' }}><span>{k}</span><b style={{ color: 'var(--ink-2)' }}>{v}</b></div>
@@ -1093,7 +1094,33 @@ function ScoreCard({ s, onRedo, busy }: { s: CreativeScore; onRedo: () => void; 
         <Bar k="Hook / scroll-stop" v={s.hook} />
         <Bar k="Clarté" v={s.clarity} />
         <Bar k="Adéquation" v={s.relevance} />
+        {/* La note regarde l'image depuis peu · une note produite à l'aveugle
+            ne doit pas afficher une barre « visuel » à zéro comme si le visuel
+            était nul, elle doit dire qu'elle n'a pas regardé. */}
+        {s.vu ? <Bar k="Visuel" v={s.visuel} /> : null}
       </div>
+      {!s.vu && (
+        <p style={{ margin: '8px 0 0', fontSize: 10.5, color: 'var(--muted)', lineHeight: 1.4 }}>
+          Note établie sur les textes seuls · l’image n’a pas pu être composée pour cette analyse.
+        </p>
+      )}
+      {/* Les ratés de fabrication · c'est le tri qu'on faisait à l'œil. */}
+      {defauts.defauts.length > 0 && (
+        <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 9, background: defauts.grave ? 'rgba(255,90,120,.10)' : 'rgba(245,166,35,.10)', border: `1px solid ${defauts.grave ? 'rgba(255,90,120,.35)' : 'rgba(245,166,35,.3)'}` }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: defauts.grave ? '#ff9db0' : '#ffca6b', letterSpacing: '.04em' }}>
+            {defauts.grave ? 'SCÈNE À REFAIRE' : 'DÉFAUT DE FABRICATION'}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, lineHeight: 1.4 }}>{defauts.resume}</div>
+          <div style={{ display: 'grid', gap: 5, marginTop: 6 }}>
+            {defauts.defauts.map((d) => (
+              <div key={d}>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-2)', fontWeight: 700 }}>{DEFECT_LABEL[d]}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--muted)', lineHeight: 1.4 }}>{DEFECT_FIX[d]}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {s.fix && (
         <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 9, background: 'rgba(245,166,35,.10)', border: '1px solid rgba(245,166,35,.3)' }}>
           <div style={{ fontSize: 10, fontWeight: 800, color: '#ffca6b', letterSpacing: '.04em' }}>À CORRIGER</div>

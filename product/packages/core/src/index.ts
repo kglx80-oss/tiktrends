@@ -51,6 +51,7 @@ export * from './ad-layouts';
 export * from './scene-framing';
 export * from './scene-light';
 export * from './studio-iterate';
+export * from './scene-defects';
 export * from './copy-budget';
 export * from './deployment';
 export * from './url-param';

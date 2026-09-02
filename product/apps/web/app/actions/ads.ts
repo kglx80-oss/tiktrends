@@ -8,11 +8,11 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
-import type { AdRecipe } from '../../lib/ad-render';
+import { renderAdPng, type AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate, logFailure } from '../../lib/error-log';
 import { mesurerScene } from '../../lib/scene-light';
 import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
@@ -887,24 +887,48 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
   const mesureScore = await jarvisFullMemory(brand.id, s.workspaceId);
 
   try {
+    // La publicité COMPOSÉE, pas ses textes.
+    //
+    // La note jugeait « la capacité à stopper le scroll » en ne lisant que la
+    // copie · une note de copywriting vendue comme une note de créa. Elle voit
+    // maintenant ce qu'un pouce voit, et peut donc signaler ce que rien ne
+    // signalait : du texte cuit dans l'image malgré la consigne, un produit
+    // déformé, une main anormale.
+    //
+    // Le rendu est demandé en petit · la vision n'a pas besoin de 1080 px, et
+    // chaque pixel envoyé est facturé. Un échec de composition ne fait pas
+    // échouer la note, il la ramène à ce qu'elle savait faire avant.
+    let image: { mediaType: 'image/png'; base64: string } | undefined;
+    try {
+      const png = await renderAdPng({ ...r, width: 512, height: 640 } as AdRecipe);
+      image = { mediaType: 'image/png', base64: Buffer.from(png).toString('base64') };
+    } catch (e) {
+      logFailure('ads:score:render', e, s.workspaceId);
+    }
+
     const score = await scoreCreative(client, {
       brand: brand.name, tone: da?.tone ?? undefined, usp: da?.usp ?? undefined, audience: da?.audience ?? undefined,
       category: da?.category ?? undefined, objective: r.objective, creativeRules: da?.creativeRules ?? undefined,
       winningPatterns: [mesureScore, da?.jarvisLearnings].filter(Boolean).join('\n\n') || undefined,
-    }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge });
+    }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge, image });
     if (!score) {
       if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
       return { error: "Score indisponible, réessaie." };
     }
+    // La note ne contredit pas ce qui est écrit juste en dessous · laisser
+    // passer 68 sur 100 avec une fausse accroche cuite dans l'image, c'est
+    // publier la note et enterrer le constat.
+    const vd = verdictDefauts(score.defauts);
+    const note: CreativeScore = { ...score, defauts: vd.defauts, score: plafonner(score.score, vd.grave) };
     // Mémorise le score (affichage direct sur la carte, pas de re-débit).
     // Fusion côté SQL : l'analyse dure plusieurs secondes, une note ou une édition de
     // texte faite pendant ce temps ne doit pas être écrasée par un instantané périmé.
     try {
       await db.update(schema.generations)
-        .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ jarvisScore: score })}::jsonb` })
+        .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ jarvisScore: note })}::jsonb` })
         .where(eq(schema.generations.id, id));
     } catch { /* best-effort */ }
-    return { score, cost: unlimited ? 0 : cost };
+    return { score: note, cost: unlimited ? 0 : cost };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
     return { error: logAndTranslate('ads:score', e, { subject: 'l’analyse de la créa', workspaceId: s.workspaceId }) };
