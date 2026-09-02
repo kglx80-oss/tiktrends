@@ -3454,3 +3454,57 @@ qu'on n'avait pas reproduits.
 Mesurer un PNG répond aux questions qu'on pense à poser. L'ouvrir répond à celles
 qu'on n'a pas pensé à poser · et une mise en page effondrée fait partie des
 secondes.
+
+---
+
+## D172 — La planche de contact, et ce qu'elle a trouvé en une image
+
+On mesure des rendus depuis des semaines : quantité d'encre, centre de gravité,
+luminance d'une bande, part d'une couleur. **Mesurer répond aux questions qu'on
+pense à poser.**
+
+Une planche met les vingt-cinq combinaisons gabarit × mise en page sur une seule
+image. Ouverte une fois, elle a montré **quatre défauts que rien ne mesurait** :
+
+- **« AVANT » recouvrait le logo**, et « APRÈS » comme la frontière ne
+  s'affichaient pas du tout · le calque enveloppe empêchait satori de sortir les
+  enfants absolus. Un tableau d'éléments, enfants directs du conteneur relatif,
+  les fait apparaître. Sans frontière, le gabarit montre une photo, pas une
+  comparaison ;
+- **le « champ de couleur » n'avait aucune couleur** · l'aplat était un calque
+  `inset: 0` qui ne peignait rien, et son dégradé démarrait à `-20 %`, hors du
+  cadre. Il est devenu le fond du cadre ;
+- **le chiffre-clé était encré en couleur d'accent** · invisible dès que le fond
+  porte cette couleur ;
+- **le split rendait la même composition que l'immersive** · photo en haut, noir
+  en bas. Mesurée, l'écart était de 0,7 %.
+
+Le test qui l'accompagne vérifie seulement que les vingt-cinq se rendent · c'est
+peu, et c'est vrai. La planche, elle, sert à REGARDER.
+
+## D173 — Un bloc de couleur, pas une bande sombre
+
+Le « moitié / moitié » se distinguait de l'immersive par un trait. C'était trop
+peu : les deux montraient une photo au-dessus d'un fond noir.
+
+Son champ de copie prend l'accent. Ce qui oblige à une chose que le code ne
+savait pas dire : **il existe une encre d'accent, distincte de la couleur
+d'accent.** Sur un fond coloré, elle devient blanche · sinon le kicker, le
+chiffre-clé et les pastilles disparaissent dans leur propre support. Le bouton
+s'inverse pour la même raison.
+
+Et la taille du chiffre-clé suit la place réelle · à 150 px il débordait des 40 %
+du bloc et remontait sur la photo, où le blanc s'efface.
+
+## D174 — Un garde dont la prémisse a changé se refonde, il ne s'assouplit pas
+
+« Le bouton d'accent ne touche jamais le bord droit » supposait que l'accent
+n'apparaît que sur le bouton. Deux mises en page portent maintenant l'accent sur
+tout leur fond · le garde répondait « oui » par construction.
+
+**On ne relève pas le seuil** — un seuil relevé laisserait aussi passer un bouton
+à moitié coupé. Le garde se limite aux deux mises en page où il prouve quelque
+chose, et le dit.
+
+Il reste efficace : vérifié en remettant la disposition en ligne, il échoue sur
+l'immersive, exactement la régression qui a motivé son écriture.

@@ -314,28 +314,29 @@ describe('rien ne sort du cadre', () => {
   };
 
   /**
-   * La bande exclue est la SEULE chose volontairement pleine largeur.
+   * Deux mises en page sont exclues, et c'est une VRAIE limite.
    *
-   * La mise en page « moitié / moitié » sépare l'image de la copie par un trait
-   * d'accent qui va d'un bord à l'autre · c'est sa frontière nette, et c'est ce
-   * qui la distingue de l'immersive. Le garde a sonné dessus à sa première
-   * exécution : il avait raison de la voir, elle a le droit d'être là.
+   * Le « champ de couleur » et le « moitié / moitié » portent l'accent sur tout
+   * leur fond · y compter les pixels d'accent au bord répond « oui » par
+   * construction, quelle que soit la position du bouton. Élargir le seuil pour
+   * les faire passer laisserait aussi passer un bouton à moitié coupé : on
+   * préfère un garde qui couvre deux mises en page sur quatre et le dit, à un
+   * garde qui les couvre toutes et ne prouve rien.
    *
-   * On l'exclut nommément plutôt que d'élargir le seuil · un seuil élargi
-   * laisserait aussi passer un bouton à moitié coupé.
+   * Il reste efficace : la régression qui a motivé son écriture — le contenu
+   * disposé en ligne au lieu d'en colonne — se voyait sur l'immersive.
    */
-  const FRONTIERE: [number, number] = [0.50, 0.62];
+  const MESURABLES = new Set(['immersif', 'affiche']);
 
   for (const template of AD_TEMPLATES) {
     it(`« ${template} » garde son bouton dans le cadre`, async () => {
       for (const layout of layoutsFor(template)) {
+        if (!MESURABLES.has(layout)) continue;
         const img = await rendre({ ...charge, template, layout, width: 432, height: 540 });
-        for (const bande of [[0, FRONTIERE[0]], [FRONTIERE[1], 1]] as Array<[number, number]>) {
-          expect(
-            colorShareInColumns(img, 0.985, 1, ACCENT, bande),
-            `« ${template} » / « ${layout} » : un élément d’accent touche le bord droit`,
-          ).toBeLessThan(0.01);
-        }
+        expect(
+          colorShareInColumns(img, 0.985, 1, ACCENT),
+          `« ${template} » / « ${layout} » : un élément d’accent touche le bord droit`,
+        ).toBeLessThan(0.01);
       }
     }, 300000);
   }
