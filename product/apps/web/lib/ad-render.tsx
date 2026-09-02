@@ -99,7 +99,7 @@ export interface AdRecipe {
  * Un test relie ce numéro au contenu réel du fichier : le modifier sans
  * l'incrémenter fait échouer la suite.
  */
-export const RENDER_VERSION = 5;
+export const RENDER_VERSION = 6;
 
 const LARGEUR_MAQUETTE = 1080;
 let ECHELLE = 1;
@@ -160,8 +160,8 @@ function Check({ size = 22, color = WHITE }: { size?: number; color?: string }) 
 function Kicker({ text, accent }: { text: string; accent: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center' }}>
-      <div style={{ display: 'flex', width: u(34), height: u(5), borderRadius: u(3), background: accent, marginRight: u(14) }} />
-      <div style={{ display: 'flex', fontSize: u(26), fontWeight: 700, letterSpacing: u(2), color: accent, textTransform: 'uppercase' }}>{text}</div>
+      <div style={{ display: 'flex', width: u(46), height: u(6), borderRadius: u(3), background: accent, marginRight: u(16) }} />
+      <div style={{ display: 'flex', fontSize: u(28), fontWeight: 800, letterSpacing: u(2.4), color: accent, textTransform: 'uppercase' }}>{text}</div>
     </div>
   );
 }
@@ -177,11 +177,17 @@ function Logo({ recipe, onDark = true }: { recipe: AdRecipe; onDark?: boolean })
   return <div style={{ display: 'flex' }} />;
 }
 
-function Cta({ recipe, full = false }: { recipe: AdRecipe; full?: boolean }) {
+/**
+ * Le bouton d'action.
+ *
+ * `invert` le rend blanc sur texte d'accent · nécessaire dès que le fond porte
+ * déjà l'accent, où un bouton d'accent se dissoudrait dans son support.
+ */
+function Cta({ recipe, full = false, invert = false }: { recipe: AdRecipe; full?: boolean; invert?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: full ? 'stretch' : 'flex-start', background: recipe.accent, color: WHITE, fontSize: u(34), fontWeight: 700, padding: ux(20, 34), borderRadius: u(16), boxShadow: `0 ${u(14)}px ${u(34)}px rgba(0,0,0,.4)` }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: full ? 'stretch' : 'flex-start', background: invert ? WHITE : recipe.accent, color: invert ? '#12121a' : WHITE, fontSize: u(36), fontWeight: 800, padding: ux(22, 38), borderRadius: u(18), boxShadow: `0 ${u(14)}px ${u(34)}px rgba(0,0,0,.4)` }}>
       <div style={{ display: 'flex', marginRight: u(12) }}>{recipe.cta}</div>
-      <Arrow />
+      <Arrow color={invert ? '#12121a' : WHITE} />
     </div>
   );
 }
@@ -195,7 +201,7 @@ const scrimTop = { position: 'absolute' as const, left: u(0), right: u(0), top: 
 /** Panneau bas dégradé (transparent -> sombre) qui accueille le texte : le look « pub finie ». */
 function BottomPanel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ position: 'absolute', left: u(0), right: u(0), bottom: u(0), display: 'flex', flexDirection: 'column', padding: ux(150, 56, 56), backgroundImage: 'linear-gradient(to top, rgba(8,8,11,.96) 55%, rgba(8,8,11,.55) 80%, rgba(8,8,11,0))' }}>
+    <div style={{ position: 'absolute', left: u(0), right: u(0), bottom: u(0), display: 'flex', flexDirection: 'column', padding: ux(190, 60, 62), backgroundImage: 'linear-gradient(to top, rgba(8,8,11,.97) 62%, rgba(8,8,11,.62) 84%, rgba(8,8,11,0))' }}>
       {children}
     </div>
   );
@@ -288,6 +294,14 @@ const ENCRE = '#12121a';
 interface Ton {
   /** Couleur du titre. */
   texte: string;
+  /**
+   * Ce qui s'encre en couleur d'accent · kicker, chiffre-clé, pastilles.
+   *
+   * Le bloc de couleur du split PORTE l'accent · un kicker d'accent y devient
+   * invisible, et le chiffre-clé disparaît complètement. Sur ce fond-là, l'encre
+   * d'accent est blanche.
+   */
+  accentInk: string;
   /** Couleur des lignes secondaires. */
   doux: string;
   /** Ombre portée · inutile et salissante sur fond clair. */
@@ -295,10 +309,12 @@ interface Ton {
   clair: boolean;
 }
 
-function tonDe(layout: AdLayout): Ton {
-  return LAYOUT_CLAIR[layout]
-    ? { texte: ENCRE, doux: 'rgba(18,18,26,.72)', ombre: 'none', clair: true }
-    : { texte: WHITE, doux: 'rgba(255,255,255,.88)', ombre: shadow(), clair: false };
+function tonDe(layout: AdLayout, accent: string): Ton {
+  if (LAYOUT_CLAIR[layout]) return { texte: ENCRE, accentInk: accent, doux: 'rgba(18,18,26,.72)', ombre: 'none', clair: true };
+  // Sur un bloc de couleur, l'ombre portée salit au lieu de détacher · le
+  // contraste vient déjà du fond. Et l'encre d'accent devient blanche.
+  if (layout === 'split') return { texte: WHITE, accentInk: WHITE, doux: 'rgba(255,255,255,.92)', ombre: 'none', clair: false };
+  return { texte: WHITE, accentInk: accent, doux: 'rgba(255,255,255,.88)', ombre: shadow(), clair: false };
 }
 
 /** La photo, dans une carte · elle devient un élément de la page, pas son fond. */
@@ -325,16 +341,19 @@ function Coquille({ r, layout, deco, children }: {
   if (layout === 'split') {
     return (
       <Frame>
-        <div style={{ position: 'relative', display: 'flex', width: '100%', height: '54%' }}>
+        <div style={{ position: 'relative', display: 'flex', width: '100%', height: '60%' }}>
           <Bg url={r.sceneUrl} />
           {deco}
           <div style={scrimTop} />
           <TopBar r={r} />
         </div>
-        {/* Frontière nette, pas un dégradé · c'est ce qui distingue cette mise
-            en page de l'immersive, et un fondu les rendrait à nouveau jumelles. */}
-        <div style={{ display: 'flex', width: '100%', height: '4%', background: r.accent }} />
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', width: '100%', height: '42%', padding: ux(44, 56), background: DARK }}>
+        {/* Un BLOC de couleur, pas une bande sombre.
+
+             La frontière nette ne suffisait pas : photo en haut, noir en bas,
+             c'était l'immersive avec un trait. Mesurée, la composition était la
+             même à 0,7 % près. Le fond prend donc l'accent, et le bouton
+             s'inverse pour ne pas s'y dissoudre. */}
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', width: '100%', height: '40%', padding: ux(40, 60), background: r.accent }}>
           {children}
         </div>
       </Frame>
@@ -343,10 +362,11 @@ function Coquille({ r, layout, deco, children }: {
 
   if (layout === 'champ') {
     return (
-      <Frame fond={DARK}>
-        {/* L'aplat prend la couleur de la marque · c'est la seule mise en page
-            où l'accent tient toute l'image, et pas seulement un bouton. */}
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', backgroundImage: `linear-gradient(165deg, ${r.accent} -20%, ${DARK} 62%)` }} />
+      /* L'aplat est le FOND du cadre, pas un calque posé dessus · un calque
+         « inset: 0 » ne peignait rien, et la mise en page nommée « champ de
+         couleur » n'en montrait aucune. Il commence À la couleur : écrit
+         « accent -20 % », il la plaçait hors de l'image. */
+      <Frame fond={`linear-gradient(178deg, ${r.accent} 0%, ${r.accent} 30%, ${DARK} 84%)`}>
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: ux(46, 46, 50) }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: u(22) }}>
             <Logo recipe={r} />
@@ -407,8 +427,8 @@ function Titre({ r, t, layout, base }: { r: AdRecipe; t: Ton; layout: AdLayout; 
   return (
     <div style={{
       display: 'flex',
-      fontSize: fitHeadline(texte, base ?? (affiche ? 92 : 74), affiche ? 54 : 46),
-      lineHeight: affiche ? 0.94 : 1.0,
+      fontSize: fitHeadline(texte, base ?? (affiche ? 98 : 86), affiche ? 58 : 52),
+      lineHeight: affiche ? 0.93 : 0.99,
       fontWeight: 700, color: t.texte,
       letterSpacing: u(affiche ? -2.2 : -1.4),
       textShadow: t.ombre,
@@ -419,7 +439,7 @@ function Titre({ r, t, layout, base }: { r: AdRecipe; t: Ton; layout: AdLayout; 
 function SousTitre({ r, t }: { r: AdRecipe; t: Ton }) {
   if (!r.subhead) return null;
   return (
-    <div style={{ display: 'flex', marginTop: u(16), fontSize: u(30), lineHeight: 1.28, color: t.doux, maxWidth: u(840) }}>{r.subhead}</div>
+    <div style={{ display: 'flex', marginTop: u(18), fontSize: u(33), lineHeight: 1.3, color: t.doux, maxWidth: u(880) }}>{r.subhead}</div>
   );
 }
 
@@ -436,8 +456,14 @@ function Bloc({ t, children }: { t: Ton; children: React.ReactNode }) {
   );
 }
 
-function Pied({ r, plein = false }: { r: AdRecipe; plein?: boolean }) {
-  return <div style={{ display: 'flex', marginTop: u(28) }}><Cta recipe={r} full={plein} /></div>;
+function Pied({ r, plein = false, layout }: { r: AdRecipe; plein?: boolean; layout?: AdLayout }) {
+  return (
+    <div style={{ display: 'flex', marginTop: u(28) }}>
+      {/* Le split pose son texte sur un bloc d'accent · un bouton d'accent y
+          serait invisible. */}
+      <Cta recipe={r} full={plein} invert={layout === 'split'} />
+    </div>
+  );
 }
 
 /* --------------------------------- Gabarits -------------------------------- */
@@ -473,7 +499,7 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
             <div style={{ display: 'flex', marginTop: u(16), fontSize: fitHeadline(r.quote || r.headline, 44, 32), lineHeight: 1.22, fontWeight: 700, color: '#15151b', letterSpacing: u(-0.4) }}>“{r.quote || r.headline}”</div>
             {r.author ? <div style={{ display: 'flex', marginTop: u(16), fontSize: u(26), fontWeight: 700, color: r.accent }}>{r.author}</div> : null}
           </Bloc>
-          <Pied r={r} plein />
+          <Pied r={r} plein layout={layout} />
         </div>
       );
     }
@@ -482,17 +508,17 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
       const items = (r.benefits && r.benefits.length ? r.benefits : [r.subhead || '']).filter(Boolean).slice(0, 3);
       return (
         <div style={colonne}>
-          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(20) }}><Kicker text={r.kicker} accent={t.accentInk} /></div> : null}
           <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 74 : 62} />
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: u(22) }}>
             {items.map((b, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', marginTop: i ? u(16) : 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: u(40), height: u(40), borderRadius: u(999), background: r.accent }}><Check /></div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: u(40), height: u(40), borderRadius: u(999), background: t.accentInk }}><Check color={layout === 'split' ? r.accent : WHITE} /></div>
                 <div style={{ display: 'flex', marginLeft: u(16), fontSize: u(31), fontWeight: 700, color: t.texte }}>{b}</div>
               </div>
             ))}
           </div>
-          <Pied r={r} />
+          <Pied r={r} layout={layout} />
         </div>
       );
     }
@@ -509,22 +535,28 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
             </div>
             <div style={{ display: 'flex', marginTop: u(14), fontSize: fitHeadline(r.quote || r.headline, 42, 30), lineHeight: 1.24, fontWeight: 700, color: '#15151b', letterSpacing: u(-0.4) }}>{r.quote || r.headline}</div>
           </Bloc>
-          <Pied r={r} plein />
+          <Pied r={r} plein layout={layout} />
         </div>
       );
 
     case 'stat':
       return (
         <div style={colonne}>
-          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(12) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(20) }}><Kicker text={r.kicker} accent={t.accentInk} /></div> : null}
           {/* Le chiffre EST le visuel · il prend la place d'un titre, pas celle
               d'une annotation posée dans un coin. */}
-          <div style={{ display: 'flex', fontSize: u(150), lineHeight: 0.86, fontWeight: 700, color: r.accent, letterSpacing: u(-3), textShadow: t.ombre }}>{r.stat || '92%'}</div>
+          {/* Encre d'accent, pas couleur d'accent · sur le bloc de couleur du
+              split, un chiffre d'accent disparaît dans son propre fond.
+
+              Et la taille suit la place réelle : le bloc « chiffre + libellé +
+              accroche + bouton » ne tient pas dans les 40 % du split. À 150 px
+              il débordait vers le haut, sur la photo, où le blanc s'efface. */}
+          <div style={{ display: 'flex', fontSize: u(layout === 'split' ? 96 : layout === 'champ' ? 122 : 150), lineHeight: 0.86, fontWeight: 700, color: t.accentInk, letterSpacing: u(-3), textShadow: t.ombre }}>{r.stat || '92%'}</div>
           {r.statLabel ? <div style={{ display: 'flex', marginTop: u(6), fontSize: u(30), fontWeight: 700, color: t.texte, maxWidth: u(680), lineHeight: 1.1, textShadow: t.ombre }}>{r.statLabel}</div> : null}
           <div style={{ display: 'flex', marginTop: u(18) }}>
-            <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 62 : 52} />
+            <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 62 : layout === 'split' ? 42 : 52} />
           </div>
-          <Pied r={r} />
+          <Pied r={r} layout={layout} />
         </div>
       );
 
@@ -534,26 +566,26 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
           <div style={{ display: 'flex', marginBottom: u(18) }}><OfferBadge r={r} /></div>
           <Titre r={r} t={t} layout={layout} />
           <SousTitre r={r} t={t} />
-          <Pied r={r} />
+          <Pied r={r} layout={layout} />
         </div>
       );
 
     case 'before_after':
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(14) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(20) }}><Kicker text={r.kicker} accent={t.accentInk} /></div> : null}
           <div style={{ display: 'flex', textAlign: 'center', fontSize: fitHeadline(r.headline, 66), lineHeight: 1.02, fontWeight: 700, color: t.texte, letterSpacing: u(-1.2), maxWidth: u(900), textShadow: t.ombre }}>{r.headline}</div>
-          <Pied r={r} />
+          <Pied r={r} layout={layout} />
         </div>
       );
 
     default:
       return (
         <div style={colonne}>
-          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(16) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
+          {r.kicker ? <div style={{ display: 'flex', marginBottom: u(20) }}><Kicker text={r.kicker} accent={t.accentInk} /></div> : null}
           <Titre r={r} t={t} layout={layout} />
           <SousTitre r={r} t={t} />
-          <Pied r={r} />
+          <Pied r={r} layout={layout} />
         </div>
       );
   }
@@ -561,15 +593,17 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
 
 /** La frontière avant/après · posée sur l'image, quelle que soit la coquille. */
 function decoAvantApres(r: AdRecipe): React.ReactNode {
-  // Un calque plein cadre, pas un fragment · satori traite un fragment comme un
-  // bloc, et les enfants absolus se positionneraient alors par rapport à LUI.
-  return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-      <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: u(4), marginLeft: u(-2), display: 'flex', background: 'rgba(255,255,255,.92)' }} />
-      <div style={{ position: 'absolute', top: u(34), left: u(44), display: 'flex', background: 'rgba(0,0,0,.62)', color: WHITE, fontSize: u(24), fontWeight: 700, padding: ux(8, 18), borderRadius: u(8), letterSpacing: u(2) }}>AVANT</div>
-      <div style={{ position: 'absolute', top: u(34), right: u(44), display: 'flex', background: r.accent, color: WHITE, fontSize: u(24), fontWeight: 700, padding: ux(8, 18), borderRadius: u(8), letterSpacing: u(2) }}>APRÈS</div>
-    </div>
-  );
+  // Un TABLEAU, pas un calque enveloppe · satori ne sort pas les enfants absolus
+  // d'un conteneur qu'on lui ajoute. Avec l'enveloppe, seule l'étiquette de
+  // gauche apparaissait : la frontière et « APRÈS » disparaissaient de la pub,
+  // c'est-à-dire tout ce qui fait la comparaison.
+  return [
+    <div key="ligne" style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: u(8), marginLeft: u(-4), display: 'flex', background: WHITE }} />,
+    // Sous la barre du haut · elles s'y superposaient au logo, et une pub qui
+    // écrase le nom de sa marque est ratée avant qu'on la lise.
+    <div key="avant" style={{ position: 'absolute', top: u(132), left: u(44), display: 'flex', background: 'rgba(10,10,14,.82)', color: WHITE, fontSize: u(28), fontWeight: 800, padding: ux(10, 20), borderRadius: u(10), letterSpacing: u(2.5) }}>AVANT</div>,
+    <div key="apres" style={{ position: 'absolute', top: u(132), right: u(44), display: 'flex', background: r.accent, color: WHITE, fontSize: u(28), fontWeight: 800, padding: ux(10, 20), borderRadius: u(10), letterSpacing: u(2.5) }}>APRÈS</div>,
+  ];
 }
 
 /**
@@ -585,7 +619,7 @@ function element(r: AdRecipe) {
   // l'immersive, celle avec laquelle elles ont été composées. Un ancien rendu ne
   // doit pas changer d'allure parce qu'on a ajouté des coquilles.
   const layout = layoutFor(r.template, r.layout ?? 'immersif');
-  const t = tonDe(layout);
+  const t = tonDe(layout, r.accent);
   const deco = r.template === 'before_after' ? decoAvantApres(r) : undefined;
   return <Coquille r={r} layout={layout} deco={deco}>{contenu(r, t, layout)}</Coquille>;
 }
