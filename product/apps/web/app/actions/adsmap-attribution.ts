@@ -4,10 +4,10 @@ import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   attributionStats, attributionByPart, memoryOrigin, creativeTrend, PART_LABEL,
-  lireEssais, cumulEssais, bilanNotes, defautsConnus,
+  lireEssais, cumulEssais, bilanNotes, defautsConnus, essaiSuivant,
   type AttributedAd, type AttributionResult, type MemoryUse, type PartResult, type TrendResult,
   type AdEssai, type EssaiLu, type CumulEssais, type VariableEssai,
-  type BilanNotes, type NoteLue,
+  type BilanNotes, type NoteLue, type Suggestion,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -366,4 +366,43 @@ export async function bilanNotesAction(): Promise<{ bilan?: BilanNotes; error?: 
   } catch (e) {
     return { error: logAndTranslate('adsmap:bilan-notes', e, { subject: 'le bilan des notes', workspaceId: g.s.workspaceId }) };
   }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/*  Quel essai poser maintenant                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Le pas qui manquait entre « l'outil range mes hypothèses » et « l'outil me
+ * dit laquelle poser ».
+ *
+ * ── Pourquoi ça ne coûte rien ────────────────────────────────────────────────
+ *
+ * Aucun modèle n'est appelé. La suggestion se déduit de ce qui est DÉJÀ mesuré
+ * · les cumuls d'essais et le bilan des notes, tous deux déjà lus pour l'écran.
+ * Demander à un modèle de choisir donnerait une phrase plausible plutôt qu'une
+ * décision vérifiable, et la ferait payer.
+ */
+export async function essaiSuivantAction(): Promise<{ suggestion?: Suggestion; error?: string }> {
+  const [e, b] = await Promise.all([essaisViewAction(), bilanNotesAction()]);
+  if (e.error) return { error: e.error };
+  if (b.error) return { error: b.error };
+
+  const lots = e.view?.lots ?? [];
+  const trancheParVariable: Partial<Record<VariableEssai, number>> = {};
+  for (const l of lots) {
+    if (!l.tranche) continue;
+    trancheParVariable[l.variable] = (trancheParVariable[l.variable] ?? 0) + 1;
+  }
+
+  const suspect = b.bilan?.defauts.suspects[0];
+  return {
+    suggestion: essaiSuivant({
+      cumuls: e.view?.cumuls ?? [],
+      trancheParVariable,
+      tauxDefauts: b.bilan?.defauts.taux ?? null,
+      suspect: suspect ? { quoi: suspect.cle, taux: suspect.taux } : null,
+    }),
+  };
 }

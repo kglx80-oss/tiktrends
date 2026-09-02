@@ -12,7 +12,7 @@ import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../lib/jarv
 import { spendStatus } from '../../../lib/spend-guard';
 import { currentDeployment } from '../../../lib/deployment';
 import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction } from '../../actions/adsmap-attribution';
-import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
+import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
@@ -116,6 +116,21 @@ export default async function JarvisPage() {
   const essaisVue = essais.view;
   const essaisErreur = 'error' in essais ? essais.error : undefined;
   const notes = bilan.bilan;
+  // Le conseil se déduit des deux lectures ci-dessus · aucun modèle n'est
+  // appelé, donc rien n'est facturé pour l'afficher.
+  const conseil = voitMemoire && essaisVue && notes
+    ? essaiSuivant({
+        cumuls: essaisVue.cumuls,
+        trancheParVariable: essaisVue.lots.reduce<Partial<Record<EssaiVariable, number>>>((acc, l) => {
+          if (l.tranche) acc[l.variable as EssaiVariable] = (acc[l.variable as EssaiVariable] ?? 0) + 1;
+          return acc;
+        }, {}),
+        tauxDefauts: notes.defauts.taux,
+        suspect: notes.defauts.suspects[0]
+          ? { quoi: notes.defauts.suspects[0].cle, taux: notes.defauts.suspects[0].taux }
+          : null,
+      })
+    : null;
   const notesErreur = 'error' in bilan ? bilan.error : undefined;
 
   return (
@@ -301,6 +316,28 @@ export default async function JarvisPage() {
                 ))}
               </div>
             </>
+          )}
+
+          {/* Ce qu'il faut poser ENSUITE · l'écran qui range les hypothèses
+              devient l'écran qui en propose une. */}
+          {conseil && (
+            <div style={{
+              marginTop: 12, padding: '10px 13px', borderRadius: 10,
+              border: `1px solid ${conseil.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
+              background: 'var(--paper)',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
+                {conseil.avantTout ? 'AVANT DE TESTER' : 'LE PROCHAIN ESSAI'}
+              </div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginTop: 3, lineHeight: 1.45 }}>{conseil.question}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{conseil.pourquoi}</div>
+              {conseil.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
+              {conseil.variable && (
+                <Link href="/studio/ads" style={{ display: 'inline-block', marginTop: 8, fontSize: 11.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>
+                  Lancer cet essai dans Pubs IA →
+                </Link>
+              )}
+            </div>
           )}
 
           <p style={{ margin: '11px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>

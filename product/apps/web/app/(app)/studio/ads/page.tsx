@@ -11,6 +11,7 @@ import { listBrandAds, listSavedAdRefs } from '../../../actions/ads';
 import { listAssets } from '../../../actions/assets';
 import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { AdsStudio } from './AdsStudio';
+import { essaiSuivantAction } from '../../../actions/adsmap-attribution';
 import { PageInfo } from '../../../../components/PageInfo';
 import { effectiveAccess } from '../../../../lib/access';
 
@@ -23,6 +24,10 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const initialMode = sp.mode === 'clone' ? 'clone' : 'brand';
   const initialAngle = (sp.angle ?? '').slice(0, 300);
+  // Ce que l'outil conseille de tester · déduit de ce qui est DÉJÀ mesuré, sans
+  // appeler aucun modèle. Un échec de lecture n'a pas à bloquer le studio : on
+  // affiche simplement le sélecteur sans conseil.
+  const suggestion = (await essaiSuivantAction().catch(() => ({ suggestion: undefined }))).suggestion ?? null;
   if (!canAccess(effectiveAccess(s), feature)) {
     const why = denyReason(effectiveAccess(s), feature);
     return (
@@ -94,7 +99,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} adsmap={adsmapOpen} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} adsmap={adsmapOpen} suggestion={suggestion} />
     </main>
   );
 }
