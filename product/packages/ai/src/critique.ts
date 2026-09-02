@@ -12,6 +12,15 @@ export interface CritiqueCtx {
 export interface CreativeInput {
   template?: AdTemplate | string;
   kicker?: string; headline: string; subhead?: string; cta?: string; badge?: string;
+  /**
+   * La publicité COMPOSÉE, telle qu'elle sera publiée.
+   *
+   * Elle manquait. La note jugeait « la capacité à stopper le scroll » en ne
+   * lisant que les textes · c'est-à-dire une note de copywriting vendue comme
+   * une note de créa. Absente, on retombe sur ce comportement, et le champ
+   * `visuel` reste nul plutôt que d'être inventé.
+   */
+  image?: { mediaType: 'image/png' | 'image/jpeg' | 'image/webp'; base64: string };
 }
 export interface CreativeScore {
   score: number;          // 0-100 · potentiel de performance global
@@ -21,6 +30,12 @@ export interface CreativeScore {
   relevance: number;      // 0-100 · adéquation marque/cible/offre
   strengths: string[];    // ce qui marche
   fix: string;            // LA correction la plus rentable
+  /** Force visuelle · 0 quand la note n'a pas vu l'image. */
+  visuel: number;
+  /** Ratés de fabrication observés · vocabulaire fermé (voir @tiktrends/core). */
+  defauts: string[];
+  /** La note a-t-elle regardé l'image · une note à l'aveugle doit le dire. */
+  vu: boolean;
 }
 
 const SCORE_TOOL = {
@@ -36,6 +51,12 @@ const SCORE_TOOL = {
       relevance: { type: 'integer', description: 'Adéquation marque / cible / offre, 0-100.' },
       strengths: { type: 'array', items: { type: 'string' }, description: '1 à 3 points forts, très courts.' },
       fix: { type: 'string', description: "LA modification la plus rentable à faire (concrète, 1 phrase)." },
+      visuel: { type: 'integer', description: "Force visuelle de l'image elle-même (scroll-stop, lisibilité du sujet, qualité de fabrication), 0-100. Ne remplis ce champ QUE si une image t'a été fournie." },
+      defauts: {
+        type: 'array',
+        items: { type: 'string', enum: ['texte_incruste', 'produit_deforme', 'anatomie', 'logo_invente', 'illisible'] },
+        description: "Ratés de FABRICATION visibles dans l'image, uniquement si tu les vois vraiment. « texte_incruste » = des mots/lettres ont été générés DANS la photo (hors étiquette légitime du produit). « produit_deforme » = proportions ou packaging impossibles. « anatomie » = main/visage anormal. « logo_invente » = un logo qui n'est pas celui de la marque. « illisible » = le sujet est absent, flou ou incompréhensible. Liste vide si l'image est saine.",
+      },
     },
     required: ['score', 'verdict', 'hook', 'clarity', 'relevance', 'fix'],
   },
@@ -47,12 +68,16 @@ const SCORE_TOOL = {
  * juger le potentiel réel de performance, pas l'esthétique.
  */
 export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creative: CreativeInput): Promise<CreativeScore | null> {
+  const aVu = !!creative.image;
   const sys = [
     "Tu es Jarvis, directeur créatif PERFORMANCE (niveau Atria/Motion) spécialiste des pubs qui SCALENT en paid social (Meta/TikTok).",
     "Tu notes le POTENTIEL DE PERFORMANCE réel d'une créa (scroll-stop, clarté, promesse, adéquation cible/offre), pas la beauté.",
     "Sois EXIGEANT et honnête : la plupart des créas moyennes sont entre 40 et 65. Une note ≥ 80 est réservée aux créas prêtes à scaler.",
     ctx.winningPatterns ? "Appuie-toi sur les PATTERNS GAGNANTS appris pour cette marque (fournis) : récompense ce qui s'en rapproche." : '',
     ctx.creativeRules ? "Respecte les RÈGLES MAISON de la marque (fournies)." : '',
+    aVu
+      ? "L'IMAGE de la pub composée t'est fournie : juge ce qu'un pouce voit en 0,5 s, pas seulement ce que le texte dit. Signale les RATÉS DE FABRICATION que tu vois vraiment (texte généré dans la photo, produit déformé, anatomie anormale, logo inventé, sujet illisible) · n'en invente aucun, une liste vide est la réponse normale."
+      : "Aucune image ne t'est fournie : note uniquement les textes, laisse « visuel » et « defauts » vides.",
     "Rends via l'outil return_score. Français, zéro tiret cadratin.",
   ].filter(Boolean).join(' ');
 
@@ -73,11 +98,18 @@ export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creativ
     creative.badge ? `Badge/offre : ${creative.badge}` : '',
   ].filter(Boolean).join('\n');
 
+  const contenu = creative.image
+    ? [
+        { type: 'image', source: { type: 'base64', media_type: creative.image.mediaType, data: creative.image.base64 } },
+        { type: 'text', text: user },
+      ]
+    : [{ type: 'text', text: user }];
+
   const res = await client.messages.create({
     model: GEN_MODEL, max_tokens: 700, system: sys,
     tools: [SCORE_TOOL as unknown as Anthropic.Tool],
     tool_choice: { type: 'tool', name: 'return_score' },
-    messages: [{ role: 'user', content: user }],
+    messages: [{ role: 'user', content: contenu as Anthropic.MessageParam['content'] }],
   });
   const tool = res.content.find((c) => c.type === 'tool_use') as { input?: CreativeScore } | undefined;
   const s = tool?.input;
@@ -88,5 +120,11 @@ export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creativ
     verdict: (s.verdict || '').replace(/[—–]/g, ',').trim(),
     strengths: Array.isArray(s.strengths) ? s.strengths.slice(0, 3) : [],
     fix: (s.fix || '').replace(/[—–]/g, ',').trim(),
+    // Sans image, ces deux champs restent vides quoi que le modèle ait rendu ·
+    // une note visuelle produite à l'aveugle serait une invention affichée
+    // comme un constat.
+    visuel: aVu ? clamp(s.visuel) : 0,
+    defauts: aVu && Array.isArray(s.defauts) ? s.defauts.filter((d) => typeof d === 'string') : [],
+    vu: aVu,
   };
 }
