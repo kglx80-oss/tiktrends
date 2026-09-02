@@ -13,6 +13,7 @@ import { resolveProductImage, probeProductImage } from '../../lib/product-image'
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
+import { resolvePreset } from './presets';
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string; generationId?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string; rating?: import('./creatives').Rating }
@@ -91,10 +92,26 @@ export async function generateImageAction(input: {
     }
   }
 
+  // Le prompt maison · il était CONSIGNÉ dans la génération et jamais appliqué.
+  //
+  // Choisir une scène enregistrée ne changeait donc rien à l'image produite, et
+  // c'est pire que de ne rien faire : la génération portait quand même le
+  // preset, et le classement « quel prompt gagne » lui attribuait des verdicts
+  // qu'il n'avait pas produits.
+  //
+  // Il passe APRÈS la description · celle-ci est ce que la personne veut voir,
+  // le preset est une direction artistique. L'ordre inverse ferait de la demande
+  // une nuance de la DA.
+  const preset = await resolvePreset(s.workspaceId, input.presetId);
+  const avecDa = preset
+    ? [prompt, preset.prompt.trim() ? `Art direction: ${preset.prompt.trim()}` : '',
+       preset.negative?.trim() ? `Avoid: ${preset.negative.trim()}` : ''].filter(Boolean).join('\n\n')
+    : prompt;
+
   // Références marque venant de la bibliothèque (quand pas de source produit).
   const finalPrompt = useAssetRefs
-    ? `${prompt}\nUse the provided images as brand reference material (style, palette, materials, authenticity); do not copy any text or logo from them.`
-    : prompt;
+    ? `${avecDa}\nUse the provided images as brand reference material (style, palette, materials, authenticity); do not copy any text or logo from them.`
+    : avecDa;
 
   try {
     // Barrière de dépense réelle · la génération d'image est facturée au coup.

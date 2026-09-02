@@ -11,6 +11,33 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
+import { resolvePreset } from './presets';
+
+/**
+ * Applique le prompt maison au brief vidéo.
+ *
+ * ── Le défaut que ça répare ──────────────────────────────────────────────────
+ *
+ * `presetId` était **consigné dans la génération et jamais appliqué**. Choisir
+ * une scène enregistrée ne changeait donc rien à la vidéo produite.
+ *
+ * C'est pire que de ne rien faire : la génération portait quand même le preset,
+ * et le classement « quel prompt gagne » lui attribuait des verdicts qu'il
+ * n'avait pas produits. On mesurait l'effet d'un réglage inopérant.
+ *
+ * ── Le prompt maison passe APRÈS la demande ──────────────────────────────────
+ *
+ * La description est ce que la personne veut voir ; le prompt maison est une
+ * direction artistique. Le mettre devant ferait de la demande une nuance de la
+ * DA, alors que c'est l'inverse.
+ */
+function avecPreset(prompt: string, preset: { prompt: string; negative: string | null } | null): string {
+  if (!preset) return prompt;
+  const da = preset.prompt.trim();
+  const sans = preset.negative?.trim();
+  return [prompt, da ? `Art direction: ${da}` : '', sans ? `Avoid: ${sans}` : '']
+    .filter(Boolean).join('\n\n');
+}
 
 export interface VideoStart { error?: string; jobId?: string; generationId?: string }
 
@@ -56,9 +83,10 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
     // le forfait appliqué est nettement supérieur à celui d'une image, et il
     // compte en unités de cinq secondes.
     await guardFixedCost('fal_video', { action: 'video:t2v', workspaceId: s.workspaceId, units: videoUnits(duree) });
+    const briefT2v = avecPreset(prompt, await resolvePreset(s.workspaceId, input.presetId));
     const { jobId } = fal
-      ? await falSubmitVideo(fal, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
-      : await hfSubmitVideo(hf!, { prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree });
+      ? await falSubmitVideo(fal, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
+      : await hfSubmitVideo(hf!, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree });
     const brand = await getActiveBrand(s.workspaceId);
     const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
@@ -91,9 +119,10 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
   const motion = prompt || 'Anime cette image de façon naturelle et cinématographique.';
   try {
     await guardFixedCost('fal_video', { action: 'video:i2v', workspaceId: s.workspaceId, units: videoUnits(duree) });
+    const briefI2v = avecPreset(motion, await resolvePreset(s.workspaceId, input.presetId));
     const { jobId } = fal
-      ? await falSubmitVideo(fal, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
-      : await hfSubmitImageVideo(hf!, { prompt: motion, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree });
+      ? await falSubmitVideo(fal, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
+      : await hfSubmitImageVideo(hf!, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree });
     const brand = await getActiveBrand(s.workspaceId);
     const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };

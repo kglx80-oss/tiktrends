@@ -3155,3 +3155,59 @@ rend enfin (0,800 en haut), et la mutation échoue comme elle doit —
 Les autres tests du fichier gardent le 1×1 · ils mesurent la mise à l'échelle de
 la maquette, pas ce qui se passe au-dessus d'une photo. Leur 1×1 ne les invalide
 pas ; il invalidait celui-ci, et seule la sonde l'a montré.
+
+---
+
+## D156 — Une accroche trop longue change de mise en page, elle ne se coupe pas
+
+D153 demande au modèle une accroche courte pour l'affiche. Il obéit souvent, pas
+toujours · et **rien ne le vérifiait**.
+
+Deux réponses possibles devant une accroche trop longue :
+
+- **la couper** · on ampute une phrase au milieu, et l'accroche ne veut plus rien
+  dire. C'est le résultat le plus visiblement raté qu'on puisse produire ;
+- **changer de mise en page** · l'affiche exige un titre court parce que le titre
+  EST le visuel. Une accroche longue n'est pas fautive, elle n'est simplement pas
+  une affiche.
+
+**On change de mise en page.** Le texte est ce que le modèle a écrit de mieux ; la
+mise en page est un contenant, et un contenant se choisit d'après ce qu'on y met.
+
+Le repli est l'immersive · celle qui tolère le plus de texte, et la seule qui
+prévoit un panneau fait pour lui.
+
+Deux rabats, dans cet ordre : le gabarit d'abord (`before_after` a besoin de
+l'image entière), la longueur ensuite.
+
+## D157 — Les mises en page testées sur de vraies photos
+
+Le test de lisibilité (D155) ne tournait que sur du blanc. Il tourne maintenant
+sur **trois scènes** : claire, sombre, et un damier noir et blanc — le pire cas
+pour poser du texte.
+
+Un voile qui tient sur une photo claire peut céder sur un damier · vérifier la
+seule scène qui arrange est une forme de complaisance.
+
+## D158 — Un preset consigné et jamais appliqué
+
+**Constat.** `startVideoAction` et `startImageVideoAction` écrivaient `presetId`
+dans la génération et **n'appliquaient jamais le prompt**. Choisir une scène
+enregistrée ne changeait rien à la vidéo produite.
+
+**C'est pire que de ne rien faire.** La génération portait quand même le preset,
+et le classement « quel prompt gagne » lui attribuait des verdicts qu'il n'avait
+pas produits. On mesurait l'effet d'un réglage inopérant, et le chiffre avait
+l'air d'un chiffre.
+
+Le prompt maison passe **après** la description · celle-ci est ce que la personne
+veut voir, le preset est une direction artistique. L'ordre inverse ferait de la
+demande une nuance de la DA.
+
+**Le garde écrit pour ça en a trouvé un troisième dès son premier passage** :
+`image.ts` avait exactement le même défaut. Le studio Image consignait ses
+presets sans jamais les appliquer, depuis toujours.
+
+C'est la troisième fois dans cette session qu'un garde trouve, à sa première
+exécution, un cas que je n'avais pas cherché. La règle tient : on n'écrit pas
+« penser à », on écrit un test qui échoue quand ce n'est pas fait.
