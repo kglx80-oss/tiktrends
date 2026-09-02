@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -35,6 +35,13 @@ export interface AdItem {
   variable?: StudioVariable | null;
   /** Ce que le lot déclarait tester · lu par la grille pour le montrer. */
   essai?: EssaiVariable | null;
+  /**
+   * La scène a-t-elle son brief · ce qui décide si elle peut être redéclinée.
+   *
+   * On envoie un booléen, pas le brief · c'est une consigne interne au modèle,
+   * et le navigateur n'en a rien à faire au-delà de savoir si le bouton s'ouvre.
+   */
+  sceneBrief?: boolean;
 }
 export interface AdsResult {
   error?: string; ads?: AdItem[]; requested?: number;
@@ -401,7 +408,7 @@ async function composeBatch(o: {
         brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null });
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim() });
     } catch { /* ignore */ }
   }
 
@@ -921,6 +928,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
         rating: rec.rating ?? null, score: rec.jarvisScore?.score,
         parentId: rec.parentId ?? null, variable: rec.variable ?? null,
         essai: rec.essai?.variable ?? null,
+        sceneBrief: !!rec.sceneBrief?.trim(),
       };
     });
 }
@@ -1141,13 +1149,13 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
  *
  * Le contrôle passe AVANT la facturation · on ne fait pas payer un doublon.
  */
-export async function declineAdAction(input: { id: string; variable: string }): Promise<{ ad?: AdItem; error?: string }> {
+export async function declineAdAction(input: { id: string; variable: string; model?: string }): Promise<{ ad?: AdItem; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
 
-  const variable = (DECLINAISONS_DISPONIBLES as readonly string[]).includes(input.variable)
+  const variable = (STUDIO_VARIABLES as readonly string[]).includes(input.variable)
     ? input.variable as StudioVariable
     : null;
   if (!variable) return { error: 'Cette déclinaison n’existe pas.' };
@@ -1166,10 +1174,17 @@ export async function declineAdAction(input: { id: string; variable: string }): 
   // le refuse à juste titre.
   const layoutParent = (parent.layout ?? 'immersif') as AdLayout;
 
+  // Ce que CETTE publicité-là permet · une scène ne se redécline pas sans le
+  // brief qui l'a produite.
+  const brief = parent.sceneBrief?.trim() || '';
+  const bloque = empechement(variable, !!brief);
+  if (bloque) return { error: bloque };
+
+  const modelSpec = imageModelByKey(input.model);
   const unlimited = unlimitedCredits(s.user.email);
-  // Le prix ne dépend pas du moteur d'images ici · les trois déclinaisons
-  // disponibles réutilisent toutes la scène, et un garde de noyau l'affirme.
-  const cost = prixDeclinaison(variable, 0, costFor('suggest'));
+  // Zéro pour une recomposition, le prix d'un texte court pour une réécriture,
+  // le prix du moteur pour une nouvelle image · une seule règle décide.
+  const cost = prixDeclinaison(variable, modelSpec.credits, costFor('suggest'));
   if (cost > 0 && !unlimited && !(await reserveCredits(s.workspaceId, cost, `Studio · décliner ${STUDIO_LABEL[variable].toLowerCase()}`))) {
     return { error: `Crédits insuffisants (${cost} requis).` };
   }
@@ -1206,19 +1221,62 @@ export async function declineAdAction(input: { id: string; variable: string }): 
       await rendre();
       return { error: logAndTranslate('ads:decline', e, { subject: 'la déclinaison', workspaceId: s.workspaceId }) };
     }
+  } else if (variable === 'scene' || variable === 'univers') {
+    // Une AUTRE image du MÊME concept · c'est le brief d'origine qui le
+    // garantit. Sans lui on obtiendrait une autre scène d'un autre concept,
+    // c'est-à-dire une créa de plus et pas une déclinaison.
+    const cfg = falFromEnv();
+    if (!cfg) { await rendre(); return { error: "La génération d'image n'est pas activée (clé Fal manquante)." }; }
+
+    let universCible = parent.universe ?? null;
+    if (variable === 'univers') {
+      universCible = universSuivant(parent.universe, VISUAL_UNIVERSES.map((u) => u.key));
+      if (!universCible) { await rendre(); return { error: 'Aucune autre ambiance à essayer.' }; }
+    }
+    const uni = VISUAL_UNIVERSES.find((u) => u.key === universCible)?.prompt;
+
+    // Le produit et la bibliothèque comme références · la déclinaison doit
+    // ressembler à la marque autant que l'originale, sinon elle change deux
+    // choses au lieu d'une.
+    const { product } = await loadAdContext(brand.id, parent.productId);
+    const produits = product ? (product.imageUrls?.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : null)) : null;
+    const refs = produits?.length ? produits : await listBrandAssetImageUrls(s.workspaceId, brand.id, 4);
+    const avecRef = !!refs.length;
+
+    const faux: AdConcept = {
+      template: parent.template, headline: parent.headline, cta: parent.cta, sceneBrief: brief,
+    };
+    try {
+      await guardFixedCost('fal_image', { action: 'ads:decline', workspaceId: s.workspaceId, units: 1 });
+      const { images } = await falGenerateImage(cfg, {
+        prompt: scenePrompt(faux, avecRef, uni, layoutParent),
+        aspectRatio: '4:5', imageUrls: avecRef ? refs.slice(0, 8) : undefined, edit: avecRef, count: 1,
+        model: falModelFor(modelSpec, avecRef), params: modelSpec.params,
+        timeoutMs: imageTimeoutMs(modelSpec),
+      });
+      const url = images[0];
+      if (!url) { await rendre(); return { error: 'Aucune scène n’est sortie. Réessaie dans une minute.' }; }
+      patch = { sceneUrl: url, universe: universCible, light: await mesurerScene(url) };
+    } catch (e) {
+      await rendre();
+      const base = logAndTranslate('ads:decline:scene', e, { subject: 'la nouvelle scène', workspaceId: s.workspaceId });
+      return { error: delaiDepasse(e) ? `${base} ${conseilDelai(modelSpec)}` : base };
+    }
   } else {
-    // `scene` et `univers` demandent de produire une autre image · elles ne
-    // sont pas dans le vivier disponible, et le rappeler ici évite qu'un
-    // élargissement du vivier passe en silence par une branche qui ne les
-    // traite pas.
+    // Exhaustif · une sixième variable ajoutée sans branche ne compilerait pas,
+    // au lieu de tomber en silence dans un `else` qui ne la traite pas.
+    const jamais: never = variable;
     await rendre();
-    return { error: 'Cette déclinaison n’est pas encore disponible.' };
+    return { error: `Cette déclinaison n’est pas traitée : ${String(jamais)}.` };
   }
 
   const enfant: AdRecipe = {
     ...parent,
     ...patch,
     layout: patch.layout ?? layoutParent,
+    // La mesure suit la scène · garder celle du parent sur une nouvelle image
+    // taillerait le voile pour une photo qui n'est plus là.
+    light: patch.light !== undefined ? patch.light : parent.light ?? null,
     // La filiation · sans elle, une déclinaison est une créa de plus dans la
     // grille, et l'écart qu'elle mesure n'est rattaché à rien.
     parentId: input.id,
@@ -1248,7 +1306,7 @@ export async function declineAdAction(input: { id: string; variable: string }): 
       status: 'completed', assetUrls: [enfant.sceneUrl], creditsCost: unlimited ? 0 : cost,
     }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
     if (!row) { await rendre(); return { error: 'La déclinaison n’a pas pu être enregistrée.' }; }
-    return { ad: { id: row.id, template: enfant.template, headline: enfant.headline, url: adUrl(row.id, enfant), createdAt: (row.createdAt as Date).toISOString(), rationale: null, parentId: input.id, variable } };
+    return { ad: { id: row.id, template: enfant.template, headline: enfant.headline, url: adUrl(row.id, enfant), createdAt: (row.createdAt as Date).toISOString(), rationale: null, parentId: input.id, variable, sceneBrief: !!enfant.sceneBrief?.trim() } };
   } catch (e) {
     await rendre();
     return { error: logAndTranslate('ads:decline:save', e, { subject: 'l’enregistrement de la déclinaison', workspaceId: s.workspaceId }) };

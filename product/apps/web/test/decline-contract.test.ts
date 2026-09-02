@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DECLINAISONS_DISPONIBLES } from '@tiktrends/core';
+import { STUDIO_VARIABLES } from '@tiktrends/core';
 
 /**
  * Une déclinaison ne s'enregistre pas sans avoir été vérifiée.
@@ -76,14 +76,28 @@ describe('la déclinaison respecte son contrat', () => {
     // Ajouter une variable au vivier sans lui écrire de branche la ferait
     // apparaître à l'écran et échouer au clic.
     const branches = CORPS.slice(0, CORPS.indexOf('const enfant'));
-    for (const v of DECLINAISONS_DISPONIBLES) {
+    for (const v of STUDIO_VARIABLES) {
       expect(branches, `« ${v} » est proposée à l’écran mais aucune branche ne la traite`).toContain(`'${v}'`);
     }
   });
 
-  it('ne facture jamais une déclinaison au prix d’une image', () => {
-    // Les déclinaisons disponibles réutilisent toutes la scène · passer le
-    // coût du moteur d'images ici ferait payer une image qu'on ne produit pas.
-    expect(CORPS).toMatch(/prixDeclinaison\(variable,\s*0,/);
+  it('refuse une déclinaison que cette publicité ne permet pas', () => {
+    // Une scène ne se redécline pas sans le brief qui l'a produite · sans ce
+    // refus on facturerait une image d'un autre concept.
+    const avant = CORPS.slice(0, CORPS.indexOf('const cost'));
+    expect(avant, 'l’empêchement n’est plus vérifié').toMatch(/empechement\(variable/);
+  });
+
+  it('le prix d’une nouvelle scène est celui du moteur choisi', () => {
+    // Passer zéro ferait produire une image gratuitement · c'est la faute qui
+    // ne se voit que sur la facture du fournisseur.
+    expect(CORPS).toMatch(/prixDeclinaison\(variable,\s*modelSpec\.credits,/);
+  });
+
+  it('la mesure de lumière suit la scène', () => {
+    // Garder celle du parent sur une nouvelle image taillerait le voile pour
+    // une photo qui n'est plus là.
+    const enfant = CORPS.slice(CORPS.indexOf('const enfant'), CORPS.indexOf('const vue'));
+    expect(enfant).toMatch(/light:\s*patch\.light !== undefined/);
   });
 });
