@@ -3,8 +3,8 @@
 import { and, count, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  attributionStats, attributionByPart, memoryOrigin, PART_LABEL,
-  type AttributedAd, type AttributionResult, type MemoryUse, type PartResult,
+  attributionStats, attributionByPart, memoryOrigin, creativeTrend, PART_LABEL,
+  type AttributedAd, type AttributionResult, type MemoryUse, type PartResult, type TrendResult,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -139,5 +139,61 @@ export async function attributionViewAction(): Promise<{ view?: AttributionView;
     };
   } catch (e) {
     return { error: logAndTranslate('adsmap:attribution', e, { subject: 'la mesure de l’effet de Jarvis', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Est-ce que ça marche mieux qu'avant ?
+ *
+ * ── Ce que ça répond, et ce que ça ne prétend pas ────────────────────────────
+ *
+ * Les trente derniers jours contre les trente précédents, sur les ads arbitrées
+ * de la marque. Deux fenêtres glissantes, pas une date de sortie · caler la
+ * coupure sur un déploiement laisserait croire que l'écart mesure CE
+ * changement-là, alors que tout bouge en même temps.
+ *
+ * La question devient « est-ce que ça va mieux », pas « grâce à quoi ». C'est
+ * moins flatteur et c'est vrai.
+ *
+ * On date sur la CRÉATION de l'ad, pas sur son verdict · c'est la date à
+ * laquelle le produit l'a fabriquée, donc celle qui porte l'effet d'un
+ * changement de produit. Dater sur le verdict décalerait tout du temps qu'un
+ * test met à conclure.
+ */
+export async function creativeTrendAction(days = 30): Promise<{ trend?: TrendResult; error?: string }> {
+  const g = await adsmapGuard();
+  if ('error' in g) return { error: g.error };
+
+  try {
+    const rows = await db!.select({
+      at: schema.ads.createdAt,
+      computed: schema.verdicts.computed,
+      validated: schema.verdicts.validated,
+    })
+      .from(schema.ads)
+      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .innerJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+      .where(and(
+        eq(schema.ads.workspaceId, g.s.workspaceId),
+        eq(schema.personas.brandId, g.brand.id),
+      ))
+      .limit(800);
+
+    return {
+      trend: creativeTrend(
+        // Le verdict humain fait foi quand il existe · c'est lui qui a été validé.
+        rows.map((r) => ({ at: (r.at as Date).getTime(), verdict: r.validated ?? r.computed ?? null })),
+        Date.now(),
+        days,
+      ),
+    };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:trend', e, { subject: 'la tendance', workspaceId: g.s.workspaceId }) };
   }
 }

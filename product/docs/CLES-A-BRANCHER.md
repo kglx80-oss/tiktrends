@@ -182,3 +182,21 @@ rien (vérifié : second passage `UPDATE 0`).
 
 Les ads importées, venues de la veille ou saisies à la main restent sans lien ·
 c'est correct, elles n'ont jamais eu de génération.
+
+## Savoir ce qui tourne
+
+La page Jarvis affiche, pour le fondateur, un bandeau « Ce serveur » : version de
+maquette, migrations appliquées sur migrations embarquées, et empreinte du build.
+
+Pour que l'empreinte apparaisse, passer le commit au build :
+
+```
+docker build --build-arg BUILD_SHA=$(git rev-parse HEAD) ...
+```
+
+et l'exposer à l'application (`ENV BUILD_SHA=$BUILD_SHA` dans le Dockerfile).
+
+**Sans cette variable, le reste fonctionne** · le bandeau dit simplement « build
+inconnu ». Ce qui compte le plus est le compte de migrations : il vire à l'orange
+dès qu'une migration embarquée n'est pas appliquée, et c'est exactement l'état où
+le code attend des colonnes que la base n'a pas.
