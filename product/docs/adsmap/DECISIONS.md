@@ -2997,3 +2997,44 @@ Sa expression régulière s'arrêtait à la première parenthèse fermante, cell
 `universeFor(i)`, et ne voyait donc jamais le `coquille(` qui suivait. Elle a été
 corrigée avant d'être gardée — c'est exactement pourquoi un garde se valide en le
 faisant échouer.
+
+---
+
+## D149 — La coquille se mesure comme le reste
+
+**Pourquoi elle n'était pas une dimension.** Parce qu'elle n'existait pas : les
+sept gabarits rendaient la même composition (D143). Il n'y avait rien à comparer.
+
+Maintenant qu'il y en a quatre, **« l'affiche claire gagne deux fois sur trois
+chez toi » est un fait mesurable** — et c'est le genre de fait qui fait changer
+une décision, contrairement à une préférence de goût.
+
+**Décision.** `layout` devient une dimension de la mémoire, au même titre que le
+mécanisme ou le format.
+
+La coquille vit dans la génération, pas sur l'ad. On emprunte donc **le pont de
+l'attribution** (D134/D135) : lien porté par l'ad, repli sur le concept
+uniquement quand une seule ad y pend. Une créa qu'on ne sait pas rattacher n'a
+pas de coquille connue et **ne compte dans aucune** · la ranger dans la mauvaise
+apprendrait quelque chose de faux, ce qui est pire que de ne rien apprendre.
+
+Elle pèse comme le format dans le score de pré-lancement · c'est une décision de
+forme, mesurée sur les mêmes verdicts, et elle ne prétend pas peser autant que le
+mécanisme.
+
+**Le préflight la reçoit** : « cette coquille n'a jamais rien donné ici » se dit
+AVANT la dépense, pas après le test.
+
+## D150 — On peut imposer une coquille, mais ce n'est pas le défaut
+
+Le composeur propose « Variées (auto) » en premier, et c'est ce qui reste coché.
+
+Imposer la même coquille à tout un lot est un choix légitime — on veut parfois
+quatre affiches. Mais en faire le défaut annulerait D144 : la rotation existe
+précisément pour qu'un lot ne rende pas quatre fois la même image.
+
+`auto` n'est donc pas une valeur de coquille, ni côté écran, ni côté mesure. La
+mesurer reviendrait à inventer une mise en page qui n'existe pas.
+
+Ce que le navigateur envoie est vérifié contre le catalogue · une valeur inconnue
+rend la main à la rotation plutôt que d'échouer.

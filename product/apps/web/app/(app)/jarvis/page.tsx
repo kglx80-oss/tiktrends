@@ -361,8 +361,9 @@ const DIM_LABEL: Record<string, string> = {
   mechanism: 'Mécanismes', hook_type: 'Types d’accroche', format: 'Formats',
   length_bucket: 'Durées', awareness: 'Stades de conscience', avatar: 'Avatars',
   talent: 'Talents', opening_type: 'Ouvertures', element: 'Éléments réutilisés',
+  layout: 'Mises en page',
 };
-const ORDRE = ['mechanism', 'element', 'hook_type', 'opening_type', 'format', 'length_bucket', 'awareness', 'talent', 'avatar'];
+const ORDRE = ['mechanism', 'element', 'hook_type', 'opening_type', 'layout', 'format', 'length_bucket', 'awareness', 'talent', 'avatar'];
 
 function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarvisStats>>; memoire: string }) {
   const utiles = stats.stats.filter((r) => r.nConclusive >= 3 && r.hitRate !== null);

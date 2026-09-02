@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, sceneFraming, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -107,6 +107,8 @@ async function composeBatch(o: {
   /** Ce dont la génération a bénéficié · consigné pour mesurer si la mémoire aide (§attribution). */
   memoryUse?: { measured: boolean; market: boolean; hooks: number };
   productImageUrls: string[] | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
+  /** Coquille imposée pour tout le lot · `null` = rotation. */
+  layoutImpose?: AdLayout | null;
   assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean;
@@ -138,7 +140,8 @@ async function composeBatch(o: {
    * calculs séparés finiraient par diverger, et on aurait payé une image cadrée
    * pour une page qu'elle n'occupe pas · exactement le défaut qu'on corrige.
    */
-  const coquille = (c: AdConcept, i: number): AdLayout => layoutFor(c.template, mises[i] ?? 'immersif');
+  const coquille = (c: AdConcept, i: number): AdLayout =>
+    layoutFor(c.template, o.layoutImpose ?? mises[i] ?? 'immersif');
   const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
   const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction
@@ -265,6 +268,11 @@ async function composeBatch(o: {
 }
 
 /** Prompt « références marque » : composer une nouvelle scène inspirée des assets de la bibliothèque. */
+/** Ce qu'on accepte comme coquille · le reste vient du navigateur. */
+function isAdLayout(v: unknown): v is AdLayout {
+  return typeof v === 'string' && (AD_LAYOUTS as readonly string[]).includes(v);
+}
+
 function scenePromptBrandRef(c: AdConcept, universePrompt?: string, layout?: AdLayout): string {
   const base = c.sceneBrief.slice(0, 650);
   const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
@@ -324,6 +332,14 @@ export async function generateAdsAction(input: {
   productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[]; offer?: string; model?: string;
   /** Identifiant d'un prompt maison · prime sur `universe`. */
   presetId?: string;
+  /**
+   * Coquille imposée · absente ou inconnue, la rotation décide.
+   *
+   * Imposer la même à tout un lot est un choix légitime — on veut parfois quatre
+   * affiches — mais ce n'est PAS le défaut : la rotation existe justement pour
+   * qu'un lot ne rende pas quatre fois la même image.
+   */
+  layout?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
@@ -427,6 +443,7 @@ export async function generateAdsAction(input: {
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
     productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
+    layoutImpose: isAdLayout(input.layout) ? input.layout : null,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,

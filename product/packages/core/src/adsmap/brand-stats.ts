@@ -23,7 +23,16 @@ import { median } from './stats';
 
 export type StatDimension =
   | 'mechanism' | 'hook_type' | 'format' | 'length_bucket'
-  | 'awareness' | 'avatar' | 'talent' | 'opening_type' | 'element';
+  | 'awareness' | 'avatar' | 'talent' | 'opening_type' | 'element'
+  /**
+   * La coquille dans laquelle la créa a été composée.
+   *
+   * Elle n'existait pas comme dimension parce qu'elle n'existait pas tout court
+   * · les sept gabarits rendaient la même composition. Maintenant qu'il y en a
+   * quatre, « l'affiche claire gagne deux fois sur trois chez toi » est un fait
+   * mesurable, et c'est le genre de fait qui fait changer une décision.
+   */
+  | 'layout';
 
 /** Une ad, réduite à ce qui sert à apprendre. */
 export interface StatSourceAd {
@@ -35,6 +44,8 @@ export interface StatSourceAd {
   openingType?: string | null;
   talent?: string | null;
   lengthBucket?: string | null;
+  /** Coquille de composition · lue via le pont ad → génération. */
+  layout?: string | null;
   elementKeys?: string[];
   verdict: VerdictValue | null;
   /** Un verdict hors protocole compte, mais moins · cf. `WEIGHT_NON_COMPARABLE`. */
@@ -76,6 +87,7 @@ const DIMENSIONS: Array<[StatDimension, (a: StatSourceAd) => string | string[] |
   ['awareness', (a) => a.awareness],
   ['avatar', (a) => a.avatar],
   ['element', (a) => a.elementKeys],
+  ['layout', (a) => a.layout],
 ];
 
 /** Agrège les verdicts par dimension. Une ad peut compter dans plusieurs éléments. */
@@ -133,6 +145,7 @@ const DIM_LABEL: Record<StatDimension, string> = {
   mechanism: 'Mécanismes', hook_type: 'Types d’accroche', format: 'Formats',
   length_bucket: 'Durées', awareness: 'Stades de conscience', avatar: 'Avatars',
   talent: 'Talents', opening_type: 'Ouvertures', element: 'Éléments réutilisés',
+  layout: 'Mises en page',
 };
 
 const pctFr = (x: number) => `${Math.round(x * 100)} %`;
@@ -206,6 +219,8 @@ export interface PrelaunchInput {
   awareness?: string | null;
   /** Éléments réutilisés depuis la bibliothèque · le meilleur signal disponible. */
   elementKeys?: string[];
+  /** Coquille envisagée · elle se mesure comme le reste. */
+  layout?: string | null;
 }
 
 export interface PrelaunchScore {
@@ -230,6 +245,9 @@ const POIDS_HOOK: Array<[StatDimension, keyof PrelaunchInput, number]> = [
 const POIDS_WIN: Array<[StatDimension, keyof PrelaunchInput, number]> = [
   ['element', 'elementKeys', 3],
   ['mechanism', 'mechanism', 3],
+  // La coquille pèse comme le format · c'est une décision de forme, mesurée sur
+  // les mêmes verdicts, et elle ne prétend pas peser plus que le mécanisme.
+  ['layout', 'layout', 2],
   ['format', 'format', 2],
   ['awareness', 'awareness', 2],
   ['hook_type', 'hookType', 1],
