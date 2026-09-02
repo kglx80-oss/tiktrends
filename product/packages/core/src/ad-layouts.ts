@@ -155,3 +155,27 @@ export function layoutsToDrop(input: {
   const parTaux = [...mauvaises].sort((a, b) => AD_LAYOUTS.indexOf(a) - AD_LAYOUTS.indexOf(b));
   return parTaux.slice(0, Math.max(0, AD_LAYOUTS.length - 2));
 }
+
+/**
+ * La coquille dessine-t-elle la pastille du haut ?
+ *
+ * ── Le défaut que ça répare ──────────────────────────────────────────────────
+ *
+ * La coquille pose une pastille en haut à droite, à côté du logo. Deux gabarits
+ * en posent une AUSSI, dans leur contenu :
+ *
+ * - **`offer`** a son sticker d'offre, incliné et saillant ;
+ * - **`before_after`** a ses étiquettes AVANT et APRÈS, aux deux coins hauts.
+ *
+ * Les deux se dessinaient en même temps · sur la grille, la pastille recouvrait
+ * le nom de la marque. Une pub qui masque son propre logo est ratée avant même
+ * qu'on lise l'accroche.
+ *
+ * Le contenu gagne quand il en a une · la sienne dit quelque chose de précis,
+ * celle de la coquille est générique.
+ */
+const PASTILLE_AU_CONTENU = new Set(['offer', 'before_after']);
+
+export function shellShowsBadge(template: string): boolean {
+  return !PASTILLE_AU_CONTENU.has(template);
+}

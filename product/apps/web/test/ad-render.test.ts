@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { AD_TEMPLATES } from '@tiktrends/ai';
 import { renderAdPng, type AdRecipe } from '../lib/ad-render';
 import { AD_LAYOUTS, layoutsFor } from '@tiktrends/core';
-import { decodePng, inkProfile, composition, bandLuminance } from './png';
+import { decodePng, inkProfile, composition, bandLuminance, colorShare } from './png';
 
 /**
  * Ce que le rendu produit VRAIMENT.
@@ -236,5 +236,51 @@ describe('une pub reste lisible, quelle que soit la photo', () => {
         }
       }
     }, 240000);
+  }
+});
+
+describe('la photo occupe la place que la mise en page lui promet', () => {
+  /**
+   * ── Ce qu'on a livré sans le voir ──────────────────────────────────────────
+   *
+   * La carte photo du « champ de couleur » et de l'« affiche » est un enfant
+   * flex sans `flexShrink: 0`. Dès que le texte grandissait, elle était écrasée
+   * jusqu'à zéro · la photo qu'on venait de payer disparaissait de la pub.
+   *
+   * Aucun test ne l'a vu. « Ni vide ni uniforme » reste vrai quand il ne reste
+   * que du texte, les compositions restaient distinctes, et la zone de texte
+   * restait lisible. Trois gardes verts sur une pub sans image.
+   *
+   * ── Ce qu'on mesure ────────────────────────────────────────────────────────
+   *
+   * Une scène magenta pur, couleur qu'on ne trouve nulle part ailleurs dans la
+   * maquette. Compter ses pixels revient à mesurer la surface de la photo.
+   *
+   * Les seuils sont bas volontairement · on vérifie que l'image EXISTE et tient
+   * une place réelle, pas qu'elle fait exactement 46 %.
+   */
+  const MAGENTA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAlElEQVR4nO3QMREAMBDDsOdPOoWhoR60+3y77WenA7QG6ACtATpAa4AO0BqgA7QG6ACtATpAa4AO0BqgA7QG6ACtATpAa4AO0BqgA7QG6ACtATpAa4AO0BqgA7QG6ACtATpAa4AO0BqgA7QG6ACtATpAa4AO0BqgA7QG6ACtATpAa4AO0BqgA7QG6ACtATpAa4AO0B5MtNLCmn7KywAAAABJRU5ErkJggg==';
+
+  const PLANCHER: Record<string, number> = {
+    immersif: 0.30,
+    champ: 0.20,
+    split: 0.30,
+    affiche: 0.15,
+  };
+
+  for (const [layout, min] of Object.entries(PLANCHER)) {
+    it(`« ${layout} » garde sa photo, même avec un texte long`, async () => {
+      const img = await rendre({
+        layout: layout as never, sceneUrl: MAGENTA, width: 432, height: 540,
+        // Un texte long · c'est lui qui écrasait la carte.
+        headline: 'Ton eau est trouble depuis trois semaines et personne ne sait pourquoi',
+        subhead: 'Trois minutes par jour, et le problème ne revient plus jamais de la saison.',
+        benefits: ['Sans effort quotidien', 'Résultat en une nuit', 'Sans danger pour les enfants'],
+      });
+      expect(
+        colorShare(img, [255, 0, 255]),
+        `la photo de « ${layout} » a été écrasée par le texte`,
+      ).toBeGreaterThan(min);
+    }, 120000);
   }
 });

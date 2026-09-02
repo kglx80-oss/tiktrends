@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { adFonts } from './ad-fonts';
 import type { AdTemplate } from '@tiktrends/ai';
-import { LAYOUT_CLAIR, layoutFor, type AdLayout } from '@tiktrends/core';
+import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, type AdLayout } from '@tiktrends/core';
 
 export interface AdRecipe {
   template: AdTemplate;
@@ -99,7 +99,7 @@ export interface AdRecipe {
  * Un test relie ce numéro au contenu réel du fichier : le modifier sans
  * l'incrémenter fait échouer la suite.
  */
-export const RENDER_VERSION = 3;
+export const RENDER_VERSION = 4;
 
 const LARGEUR_MAQUETTE = 1080;
 let ECHELLE = 1;
@@ -213,7 +213,7 @@ function TopBar({ r, center = false }: { r: AdRecipe; center?: boolean }) {
   return (
     <div style={{ position: 'absolute', top: u(46), left: u(56), right: u(56), display: 'flex', justifyContent: center ? 'center' : 'space-between', alignItems: 'flex-start' }}>
       <Logo recipe={r} />
-      {!center && r.badge ? <div style={pill(r.accent, r.badge)}>{badgeText(r.badge, 22)}</div> : null}
+      {!center && r.badge && shellShowsBadge(r.template) ? <div style={pill(r.accent, r.badge)}>{badgeText(r.badge, 22)}</div> : null}
     </div>
   );
 }
@@ -304,7 +304,10 @@ function tonDe(layout: AdLayout): Ton {
 /** La photo, dans une carte · elle devient un élément de la page, pas son fond. */
 function Carte({ url, hauteur }: { url: string; hauteur: string }) {
   return (
-    <div style={{ position: 'relative', display: 'flex', width: '100%', height: hauteur, borderRadius: u(28), overflow: 'hidden' }}>
+    // `flexShrink: 0` n'est pas décoratif · sans lui, la zone de copie qui
+    // grandit écrase la carte jusqu'à zéro, et la photo qu'on vient de payer
+    // disparaît de la pub sans que rien ne le signale.
+    <div style={{ position: 'relative', display: 'flex', flexShrink: 0, width: '100%', height: hauteur, borderRadius: u(28), overflow: 'hidden', background: DARK }}>
       <Bg url={url} />
     </div>
   );
@@ -347,7 +350,7 @@ function Coquille({ r, layout, deco, children }: {
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: ux(46, 46, 50) }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: u(22) }}>
             <Logo recipe={r} />
-            {r.badge ? <div style={pill('rgba(255,255,255,.18)', r.badge)}>{badgeText(r.badge, 22)}</div> : null}
+            {r.badge && shellShowsBadge(r.template) ? <div style={pill('rgba(255,255,255,.18)', r.badge)}>{badgeText(r.badge, 22)}</div> : null}
           </div>
           <Carte url={r.sceneUrl} hauteur="46%" />
           <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center', marginTop: u(30) }}>
@@ -364,7 +367,7 @@ function Coquille({ r, layout, deco, children }: {
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: ux(50, 52, 54) }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: u(26) }}>
             <Logo recipe={r} onDark={false} />
-            {r.badge ? <div style={pill(r.accent, r.badge)}>{badgeText(r.badge, 22)}</div> : null}
+            {r.badge && shellShowsBadge(r.template) ? <div style={pill(r.accent, r.badge)}>{badgeText(r.badge, 22)}</div> : null}
           </div>
           {/* Le texte passe DEVANT l'image, en taille et en surface · c'est
               exactement ce qui manquait, le copy comme sujet du visuel. */}
@@ -497,8 +500,8 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
           {r.kicker ? <div style={{ display: 'flex', marginBottom: u(12) }}><Kicker text={r.kicker} accent={r.accent} /></div> : null}
           {/* Le chiffre EST le visuel · il prend la place d'un titre, pas celle
               d'une annotation posée dans un coin. */}
-          <div style={{ display: 'flex', fontSize: u(150), lineHeight: 0.86, fontWeight: 700, color: t.clair ? r.accent : r.accent, letterSpacing: u(-4), textShadow: t.ombre }}>{r.stat || '92%'}</div>
-          {r.statLabel ? <div style={{ display: 'flex', marginTop: u(10), fontSize: u(36), fontWeight: 700, color: t.texte, maxWidth: u(680), lineHeight: 1.12, textShadow: t.ombre }}>{r.statLabel}</div> : null}
+          <div style={{ display: 'flex', fontSize: u(150), lineHeight: 0.86, fontWeight: 700, color: r.accent, letterSpacing: u(-3), textShadow: t.ombre }}>{r.stat || '92%'}</div>
+          {r.statLabel ? <div style={{ display: 'flex', marginTop: u(6), fontSize: u(30), fontWeight: 700, color: t.texte, maxWidth: u(680), lineHeight: 1.1, textShadow: t.ombre }}>{r.statLabel}</div> : null}
           <div style={{ display: 'flex', marginTop: u(18) }}>
             <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 62 : 52} />
           </div>
