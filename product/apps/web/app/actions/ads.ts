@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -33,8 +33,20 @@ export interface AdItem {
    */
   parentId?: string | null;
   variable?: StudioVariable | null;
+  /** Ce que le lot déclarait tester · lu par la grille pour le montrer. */
+  essai?: EssaiVariable | null;
 }
-export interface AdsResult { error?: string; ads?: AdItem[]; requested?: number }
+export interface AdsResult {
+  error?: string; ads?: AdItem[]; requested?: number;
+  /**
+   * Le lot devait être un essai et n'a pas pu en être un.
+   *
+   * Les publicités sont livrées · elles perdent seulement le droit de se
+   * présenter comme une comparaison contrôlée. Le taire laisserait conclure sur
+   * un lot dont on sait qu'il ne prouve rien.
+   */
+  essaiRompu?: string;
+}
 
 /**
  * Ce qu'on dit quand AUCUNE scène n'est sortie.
@@ -125,6 +137,31 @@ async function composeBatch(o: {
    * atterrir, ni combien de place elle y aurait.
    */
   mises: AdLayout[];
+  /**
+   * Quelle scène sert à quelle publicité · l'identité par défaut.
+   *
+   * Un lot d'essai tient la scène constante : les N publicités pointent alors
+   * toutes vers la scène 0, et une seule image est produite. C'est ce qui rend
+   * la comparaison honnête ET le lot presque gratuit.
+   */
+  sceneFor?: number[];
+  /**
+   * La coquille de tout le lot · un essai la tient constante.
+   *
+   * `null` laisse la règle habituelle décider, gabarit puis longueur d'accroche.
+   */
+  coquilleImposee?: AdLayout | null;
+  /**
+   * La scène servira PLUSIEURS coquilles · le cadrage devient un compromis.
+   *
+   * Vrai uniquement pour un essai de mise en page, où la même image est
+   * composée de quatre façons.
+   */
+  cadragePolyvalent?: boolean;
+  /** Ce que le lot déclare tester · consigné sur chaque publicité. */
+  essai?: { variable: EssaiVariable; groupe: string } | null;
+  /** Rempli quand le lot n'a PAS tenu son contrat d'essai · lu par l'appelant. */
+  essaiRompu?: string;
   assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean;
@@ -156,6 +193,10 @@ async function composeBatch(o: {
    * pour une page qu'elle n'occupe pas · exactement le défaut qu'on corrige.
    */
   const coquille = (c: AdConcept, i: number): AdLayout =>
+    // Un lot d'essai impose sa coquille · la laisser dépendre de la longueur de
+    // chaque accroche ferait varier DEUX choses dans un lot qui promet d'en
+    // faire varier une.
+    o.coquilleImposee ? o.coquilleImposee :
     // Deux rabats, dans cet ordre · le gabarit d'abord (`before_after` a besoin
     // de l'image entière), la longueur de l'accroche ensuite. On demande au
     // modèle un titre court pour l'affiche, il obéit souvent, pas toujours · et
@@ -203,16 +244,16 @@ async function composeBatch(o: {
       edit = true;
     } else if (o.editMode) {
       imageUrls = [...(o.productImageUrls ?? []), ...assetRefs].slice(0, 8);
-      prompt = scenePrompt(c, true, universeFor(i), coquille(c, i)) + assetNote + exclusions;
+      prompt = scenePrompt(c, true, universeFor(i), coquille(c, i), o.cadragePolyvalent) + assetNote + exclusions;
       edit = true;
     } else if (hasAssetRef) {
       // Pas de photo produit mais la bibliothèque est remplie -> l'IA s'en sert comme références marque.
       imageUrls = assetRefs.slice(0, 8);
-      prompt = scenePromptBrandRef(c, universeFor(i), coquille(c, i)) + exclusions;
+      prompt = scenePromptBrandRef(c, universeFor(i), coquille(c, i), o.cadragePolyvalent) + exclusions;
       edit = true;
     } else {
       imageUrls = undefined;
-      prompt = scenePrompt(c, false, universeFor(i), coquille(c, i)) + exclusions;
+      prompt = scenePrompt(c, false, universeFor(i), coquille(c, i), o.cadragePolyvalent) + exclusions;
       edit = false;
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
@@ -250,14 +291,21 @@ async function composeBatch(o: {
     return null;
   };
 
+  // Les scènes RÉELLEMENT produites · un lot d'essai n'en demande qu'une pour
+  // quatre publicités, et générer quatre fois la même consigne coûterait quatre
+  // images pour un lot qui doit justement en partager une.
+  const slots = o.sceneFor ?? o.concepts.map((_, i) => i);
+  const aProduire = [...new Set(slots)].sort((a, b) => a - b);
+
   // Génération par petits lots (max 3 en parallèle) pour éviter les rate-limits qui font perdre des pubs.
-  const scenes: (string | null)[] = new Array(o.concepts.length).fill(null);
+  const parSlot = new Map<number, string | null>();
   const LOT = 3;
-  for (let start = 0; start < o.concepts.length; start += LOT) {
-    const slice = o.concepts.slice(start, start + LOT);
-    const done = await Promise.all(slice.map((c, k) => genScene(c, start + k)));
-    done.forEach((url, k) => { scenes[start + k] = url; });
+  for (let start = 0; start < aProduire.length; start += LOT) {
+    const tranche = aProduire.slice(start, start + LOT);
+    const done = await Promise.all(tranche.map((slot) => genScene(o.concepts[slot]!, slot)));
+    tranche.forEach((slot, k) => { parSlot.set(slot, done[k] ?? null); });
   }
+  const scenes: (string | null)[] = slots.map((slot) => parSlot.get(slot) ?? null);
 
   // On regarde les scènes AVANT de les composer.
   //
@@ -268,9 +316,18 @@ async function composeBatch(o: {
   //
   // En parallèle, et sans jamais faire échouer le lot · une scène non mesurée se
   // rend avec les voiles d'avant, ce qui est moins bien et pas cassé.
-  const lumieres = await Promise.all(scenes.map((url) => (url ? mesurerScene(url) : Promise.resolve(null))));
+  const mesures = new Map<string, SceneLight | null>();
+  await Promise.all([...new Set(scenes.filter((u): u is string => !!u))].map(async (url) => {
+    mesures.set(url, await mesurerScene(url));
+  }));
+  const lumieres = scenes.map((url) => (url ? mesures.get(url) ?? null : null));
 
-  const ads: AdItem[] = [];
+  // On construit TOUTES les recettes avant d'en enregistrer une seule.
+  //
+  // Un lot d'essai doit pouvoir être vérifié dans son ensemble · un lot annoncé
+  // comme contrôlé qui ne l'est pas est pire qu'un lot libre, on lui fait
+  // confiance pour conclure.
+  const recettes: Array<{ c: AdConcept; sceneUrl: string; recipe: AdRecipe }> = [];
   for (let i = 0; i < o.concepts.length; i++) {
     const sceneUrl = scenes[i]; const c = o.concepts[i];
     if (!sceneUrl || !c) continue;
@@ -294,6 +351,9 @@ async function composeBatch(o: {
       // Ce que la scène a dans le ventre · c'est elle qui décide de l'épaisseur
       // du voile, et donc de la part de photo qui survit.
       light: lumieres[i] ?? null,
+      // Ce que le lot déclare tester · sans ça, quatre publicités sont quatre
+      // paris indépendants et la mesure n'attribue l'écart à rien.
+      essai: o.essai ?? null,
       // Le brief de la scène · consigné pour pouvoir en produire une AUTRE du
       // même concept sans redemander au modèle ce qu'il a déjà écrit.
       sceneBrief: c.sceneBrief,
@@ -307,20 +367,55 @@ async function composeBatch(o: {
           }).lines.map((l) => l.text)
         : null,
     };
+    recettes.push({ c, sceneUrl, recipe });
+  }
+
+  // Le lot mérite-t-il le nom d'essai ?
+  //
+  // Rien dans le chemin de génération ne le garantit mécaniquement : le modèle
+  // peut rendre deux fois la même accroche, une image peut manquer et réduire
+  // le lot à une seule publicité. Quand le contrat n'est pas tenu, les
+  // publicités sont livrées quand même · elles perdent seulement le droit de se
+  // présenter comme un essai. C'est le seul choix honnête : elles ont été
+  // payées, et une comparaison qu'on sait fausse ne doit pas être affichée
+  // comme vraie.
+  let essaiTenu = o.essai ?? null;
+  if (essaiTenu) {
+    const lot = recettes.map(({ recipe }) => ({
+      headline: recipe.headline, cta: recipe.cta, subhead: recipe.subhead ?? null,
+      kicker: recipe.kicker ?? null, badge: recipe.badge ?? null, sceneUrl: recipe.sceneUrl,
+      layout: (recipe.layout ?? 'immersif') as AdLayout, universe: recipe.universe ?? null,
+    }));
+    const verdict = verifieEssai(lot, essaiTenu.variable);
+    if (!verdict.ok) {
+      o.essaiRompu = verdict.probleme;
+      essaiTenu = null;
+      for (const r of recettes) r.recipe.essai = null;
+    }
+  }
+
+  const ads: AdItem[] = [];
+  for (const { c, sceneUrl, recipe } of recettes) {
     try {
       const [row] = await db!.insert(schema.generations).values({
         brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null });
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null });
     } catch { /* ignore */ }
   }
 
   // Les crédits ont été réservés en bloc avant la génération (débit atomique) : on
   // ne facture au final que les visuels réellement produits et on rend le reste.
   if (!o.unlimited) {
-    const unused = o.reservedCredits - o.creditsPerImage * ads.length;
-    if (unused > 0) await refundCredits(o.workspaceId, unused, 'Remboursement · pubs non générées');
+    // On facture les IMAGES produites, pas les publicités composées · un lot
+    // d'essai compose quatre publicités sur une seule image, et compter les
+    // publicités ferait payer trois images qui n'ont jamais été demandées.
+    const imagesProduites = new Set(
+      ads.length ? slots.filter((_, i) => scenes[i]).map((slot) => slot) : [],
+    ).size;
+    const unused = o.reservedCredits - o.creditsPerImage * imagesProduites;
+    if (unused > 0) await refundCredits(o.workspaceId, unused, 'Remboursement · images non produites');
   }
   return ads;
 }
@@ -331,10 +426,21 @@ function isAdLayout(v: unknown): v is AdLayout {
   return typeof v === 'string' && (AD_LAYOUTS as readonly string[]).includes(v);
 }
 
-function scenePromptBrandRef(c: AdConcept, universePrompt?: string, layout?: AdLayout): string {
+function scenePromptBrandRef(c: AdConcept, universePrompt?: string, layout?: AdLayout, polyvalent?: boolean): string {
   const base = c.sceneBrief.slice(0, 650);
   const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
-  return `The provided images are brand reference material (real brand/product/lifestyle shots). Compose a NEW premium advertising scene INSPIRED by their look, palette, materials and authenticity · do not copy them literally and do not reproduce any text or logo from them. New scene: ${base}. ${uni} Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. ${sceneFraming(layout)} Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
+  return `The provided images are brand reference material (real brand/product/lifestyle shots). Compose a NEW premium advertising scene INSPIRED by their look, palette, materials and authenticity · do not copy them literally and do not reproduce any text or logo from them. New scene: ${base}. ${uni} Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. ${cadrageDe(layout, polyvalent)} Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
+}
+
+/**
+ * Le cadrage demandé · celui de la coquille, ou le compromis d'un essai.
+ *
+ * Une SEULE expression choisit entre les deux · c'est ce qui empêche qu'un
+ * chemin de génération oublie le compromis et cadre pour une coquille alors que
+ * l'image en servira quatre.
+ */
+function cadrageDe(layout?: AdLayout, polyvalent?: boolean): string {
+  return polyvalent ? sceneFramingPolyvalent() : sceneFraming(layout);
 }
 
 /** Prompt de clonage : recomposer la mise en page de la référence avec NOTRE produit. */
@@ -346,12 +452,12 @@ function scenePromptClone(c: AdConcept, hasProduct: boolean): string {
   return `${product} Scene notes: ${base}. Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
 }
 
-function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, layout?: AdLayout): string {
+function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, layout?: AdLayout, polyvalent?: boolean): string {
   const base = c.sceneBrief.slice(0, 700);
   // Le cadrage dépend de la coquille où l'image atterrit · il était écrit en dur
   // pour l'immersive, et donc faux pour les trois autres : on payait une image
   // composée pour une page qu'elle n'allait pas occuper.
-  const framing = sceneFraming(layout);
+  const framing = cadrageDe(layout, polyvalent);
   const realism = 'Ultra realistic, photorealistic, true-to-life scale and proportions. The product must be at a believable real-world size (a supplement bottle is roughly 12 cm tall): never gigantic, never tiny, never floating. Hands, fingers and faces must be anatomically correct. Correct perspective and grounding (real contact shadow), no distortion, no warping, no stretching, no duplicated or extra objects, accurate label and cap proportions, physically plausible lighting, shadows and reflections.';
   const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
   const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI added to the image.';
@@ -398,6 +504,13 @@ export async function generateAdsAction(input: {
    * qu'un lot ne rende pas quatre fois la même image.
    */
   layout?: string;
+  /**
+   * Le lot déclare ce qu'il teste · une seule dimension varie, le reste est tenu.
+   *
+   * Absent, on garde le lot libre : quatre gabarits, quatre mises en page,
+   * quatre ambiances. C'est utile pour explorer, ça ne prouve rien.
+   */
+  essai?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
@@ -411,16 +524,38 @@ export async function generateAdsAction(input: {
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
 
+  // Le lot est-il un essai ?
+  //
+  // Un essai tient tout constant sauf une chose. Les conséquences descendent
+  // ensuite partout : un seul gabarit, une seule coquille (ou N, si c'est elle
+  // qu'on teste), une seule scène, et donc un prix qui n'est plus celui de N
+  // images.
+  const essaiVariable = (ESSAI_VARIABLES as readonly string[]).includes(input.essai ?? '')
+    ? input.essai as EssaiVariable
+    : null;
+
   // Pool de gabarits autorisés + quantité voulue -> liste ordonnée (avec répétitions).
   const pool = (input.templates && input.templates.length ? input.templates : AD_TEMPLATES);
-  const count = Math.min(8, Math.max(1, Math.round(input.count ?? pool.length)));
-  const templates = Array.from({ length: count }, (_, i) => pool[i % pool.length]!);
+  const brut = Math.min(8, Math.max(1, Math.round(input.count ?? pool.length)));
+  // Un essai de mise en page ne peut pas dépasser le nombre de coquilles · en
+  // demander cinq en produirait deux identiques, et le contrôle refuserait le
+  // lot entier après l'avoir payé.
+  const count = essaiVariable === 'mise_en_page' ? Math.min(brut, AD_LAYOUTS.length) : brut;
+  // Un essai garde UN gabarit · en faire varier un second ferait varier deux
+  // choses, ce qui est exactement ce qu'un essai refuse.
+  const templates = essaiVariable
+    ? Array.from({ length: count }, () => pool[0]!)
+    : Array.from({ length: count }, (_, i) => pool[i % pool.length]!);
   // Les mises en page sont décidées ICI · avant l'écriture des concepts, pour
   // que le modèle connaisse la place dont il dispose, et avant la composition,
   // qui les applique. Une seule décision, deux étapes servies.
   const impose = isAdLayout(input.layout) ? input.layout : null;
   const modelSpec = imageModelByKey(input.model);
-  const cost = modelSpec.credits * count;
+  // Le prix suit les IMAGES produites, pas les publicités composées · un essai
+  // d'accroches ou de mises en page en produit UNE pour quatre publicités.
+  const cost = essaiVariable
+    ? prixEssai(essaiVariable, count, modelSpec.credits)
+    : modelSpec.credits * count;
   const unlimited = unlimitedCredits(s.user.email);
   // Débit atomique en bloc avant la génération ; composeBatch rembourse les visuels
   // qui n'ont pas abouti. Vérifier puis débiter en deux temps laissait deux lots
@@ -494,9 +629,25 @@ export async function generateAdsAction(input: {
     globalRate: statsPourExpliquer.globalRate,
   });
   const vivier = AD_LAYOUTS.filter((l) => !ecartees.includes(l));
-  const mises = impose
-    ? templates.map(() => impose)
-    : layoutsForBatch(templates.length, Math.floor(Date.now() / 60000), vivier);
+
+  /**
+   * Les coquilles du lot.
+   *
+   * Un essai de mise en page en veut N DISTINCTES · c'est ce qu'il teste. Les
+   * deux autres n'en veulent qu'UNE, tenue pour tout le lot, et on prend
+   * l'immersive : c'est celle dont le budget de copie est le plus large, donc
+   * la seule sur laquelle une accroche un peu longue ne fera pas basculer une
+   * publicité du lot vers une autre coquille.
+   */
+  const coquilleEssai: AdLayout | null =
+    essaiVariable && essaiVariable !== 'mise_en_page' ? (impose ?? 'immersif') : null;
+  const mises = essaiVariable === 'mise_en_page'
+    ? layoutsFor(templates[0]!).slice(0, count) as AdLayout[]
+    : coquilleEssai
+      ? templates.map(() => coquilleEssai)
+      : impose
+        ? templates.map(() => impose)
+        : layoutsForBatch(templates.length, Math.floor(Date.now() / 60000), vivier);
 
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
@@ -508,7 +659,13 @@ export async function generateAdsAction(input: {
       hasProductPhoto: editMode,
       persona: persona ? { name: persona.name, pains: persona.pains ?? undefined, desires: persona.desires ?? undefined } : undefined,
       objective: input.objective, angle: input.angle?.trim() || undefined, offer: input.offer?.trim() || undefined, creativeRules: da?.creativeRules ?? undefined, winningPatterns,
-    }, { templates, copyBudget: mises.map(copyBudgetLine), winningCopy, competitors: brow?.competitors ?? undefined });
+    }, {
+      // Un essai de mise en page ou d'ambiance ne demande QU'UN concept · les N
+      // publicités partagent les mêmes textes, c'est ce qui est tenu. En
+      // demander N puis n'en garder qu'un ferait payer une écriture jetée.
+      templates: essaiVariable && essaiVariable !== 'accroche' ? [templates[0]!] : templates,
+      copyBudget: mises.map(copyBudgetLine), winningCopy, competitors: brow?.competitors ?? undefined,
+    });
   } catch (e) {
     return { error: logAndTranslate('ads:concepts', e, { subject: "l'écriture des concepts", workspaceId: s.workspaceId }) };
   }
@@ -519,17 +676,34 @@ export async function generateAdsAction(input: {
   const resolu = await resolvePreset(s.workspaceId, input.presetId);
   const presetChoisi = resolu && input.presetId ? { id: input.presetId, ...resolu } : null;
 
+  // Les N publicités d'un essai de mise en page ou d'ambiance partagent le même
+  // concept · une seule écriture, répétée, parce que c'est elle qui est tenue.
+  const lot = essaiVariable && essaiVariable !== 'accroche'
+    ? Array.from({ length: count }, () => concepts[0]!)
+    : concepts;
+
   const echec: { dernier?: unknown } = {};
-  const ads = await composeBatch({
+  // Typé explicitement · `essaiRompu` est rempli PAR `composeBatch`, et une
+  // inférence à partir de l'objet littéral le laisserait absent du type.
+  const options: Parameters<typeof composeBatch>[0] = {
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
-    productImageUrls, editMode, assetRefUrls, concepts, universe: input.universe,
+    productImageUrls, editMode, assetRefUrls, concepts: lot, universe: input.universe,
     mises,
+    // Tenir la scène, c'est n'en produire qu'une · toutes les publicités
+    // pointent alors vers la même.
+    sceneFor: essaiVariable && essaiVariable !== 'univers' ? lot.map(() => 0) : undefined,
+    coquilleImposee: coquilleEssai,
+    // La même image sera composée de N façons · son cadrage devient un
+    // compromis, et c'est dit dans la consigne au modèle.
+    cadragePolyvalent: essaiVariable === 'mise_en_page',
+    essai: essaiVariable ? { variable: essaiVariable, groupe: crypto.randomUUID() } : null,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
     memoryUse: memoire.use, rationaleCtx,
-  });
+  };
+  const ads = await composeBatch(options);
   if (!ads.length) {
     // Un délai dépassé sur un modèle lent ne se règle pas en demandant moins de
     // créas · le conseil générique envoie vers une manœuvre qui ne change rien.
@@ -537,7 +711,7 @@ export async function generateAdsAction(input: {
     const base = echecLisible(echec.dernier, s.workspaceId);
     return { error: conseil ? `${base} ${conseil}` : base };
   }
-  return { ads, requested: count };
+  return { ads, requested: count, essaiRompu: options.essaiRompu };
 }
 
 /** Propose des angles précis en s'appuyant sur la marque + les sauvegardes de veille + les concurrents. */
@@ -746,6 +920,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
         url: adUrl(r.id, rec), createdAt: (r.createdAt as Date).toISOString(),
         rating: rec.rating ?? null, score: rec.jarvisScore?.score,
         parentId: rec.parentId ?? null, variable: rec.variable ?? null,
+        essai: rec.essai?.variable ?? null,
       };
     });
 }

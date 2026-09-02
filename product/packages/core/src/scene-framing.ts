@@ -66,3 +66,27 @@ export function sceneFraming(layout?: AdLayout | null): string {
   return `Composition: ${CADRE[layout ?? 'immersif']} `
     + 'Vertical 4:5 framing, high-end commercial look, crisp focus, natural depth of field.';
 }
+
+/**
+ * Le cadrage d'une scène qui servira PLUSIEURS coquilles.
+ *
+ * ── Pourquoi ça existe, et ce que ça coûte ───────────────────────────────────
+ *
+ * Un lot d'essai sur la mise en page compose la MÊME image dans quatre
+ * coquilles · c'est ce qui rend la comparaison honnête, et c'est aussi ce qui
+ * rend le lot presque gratuit, une seule image étant produite.
+ *
+ * Mais les quatre recadrages ne gardent pas la même zone. Une consigne taillée
+ * pour l'une est fausse pour les trois autres.
+ *
+ * On demande donc l'intersection : sujet centré, marge confortable partout,
+ * périphérie calme. C'est un COMPROMIS, pas un optimum · chaque coquille aurait
+ * fait mieux avec sa consigne propre. Le dire ici évite qu'on s'étonne plus
+ * tard qu'un essai de mise en page rende des images un peu plus sages.
+ */
+export function sceneFramingPolyvalent(): string {
+  return 'Composition: the SAME image will be cropped several different ways · full frame, top half only, '
+    + 'a centred square card, and a wide bottom band. Centre the main subject with generous margin on all '
+    + 'four sides and keep the periphery calm and uncluttered, so that every one of those crops still reads. '
+    + 'Vertical 4:5 framing, high-end commercial look, crisp focus, natural depth of field.';
+}
