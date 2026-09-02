@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { adFonts } from './ad-fonts';
 import type { AdTemplate } from '@tiktrends/ai';
-import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, type SceneLight, type StudioVariable } from '@tiktrends/core';
+import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, type SceneLight, type StudioVariable, type EssaiVariable } from '@tiktrends/core';
 
 export interface AdRecipe {
   template: AdTemplate;
@@ -44,6 +44,13 @@ export interface AdRecipe {
    */
   parentId?: string | null;
   variable?: StudioVariable | null;
+  /**
+   * Ce que le LOT déclarait tester · non rendu, consigné.
+   *
+   * Sans lui, quatre publicités produites ensemble sont quatre paris
+   * indépendants, et la mesure qui suit n'attribue l'écart à rien.
+   */
+  essai?: { variable: EssaiVariable; groupe: string } | null;
   brandName?: string;
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.

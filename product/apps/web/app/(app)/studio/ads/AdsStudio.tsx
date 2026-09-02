@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, verdictDefauts, DEFECT_LABEL, DEFECT_FIX, type Outcome, type StudioVariable } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, verdictDefauts, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, type Outcome, type StudioVariable, type EssaiVariable } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -91,6 +91,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // le défaut. La rotation existe pour qu'un lot ne rende pas quatre fois la
   // même image ; imposer la même à tout un lot reste possible, sur demande.
   const [layout, setLayout] = useState('auto');
+  /**
+   * Le lot déclare-t-il ce qu'il teste ?
+   *
+   * Vide = lot libre : quatre gabarits, quatre mises en page, quatre ambiances.
+   * Utile pour explorer, ça ne prouve rien · la gagnante a tout changé à la
+   * fois, donc on ne sait pas quoi refaire.
+   */
+  const [essai, setEssai] = useState<'' | EssaiVariable>('');
   const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
@@ -124,6 +132,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [quickOpen, setQuickOpen] = useState(false);
   const [model, setModel] = useState('nano');
   const modelSpec = imageModelByKey(model);
+  /**
+   * Combien de publicités un essai produira RÉELLEMENT.
+   *
+   * Un essai de mise en page est borné par le nombre de coquilles · en demander
+   * cinq en produirait deux identiques, et le contrôle refuserait le lot entier
+   * APRÈS l'avoir payé. Le serveur applique la même borne · l'écran doit
+   * annoncer le même chiffre, sinon il promet ce qui n'arrivera pas.
+   */
+  const countEssai = essai === 'mise_en_page' ? Math.min(count, AD_LAYOUTS.length) : count;
   // La scène reprise · consignée à la génération, c'est ce qui lui bâtit un
   // bilan. Toute frappe la libère : un texte retouché n'est plus la scène.
   const [sceneId, setSceneId] = useState('');
@@ -322,11 +339,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * silencieux. C'est exactement ce qu'on obtenait avant : on cliquait, on
    * attendait, aucune image n'apparaissait, et rien ne disait pourquoi.
    */
-  function applyResult(res: { error?: string; ads?: AdItem[]; requested?: number }): Outcome {
+  function applyResult(res: { error?: string; ads?: AdItem[]; requested?: number; essaiRompu?: string }): Outcome {
     const out = generationOutcome({ error: res.error, got: res.ads?.length ?? 0, requested: res.requested });
     if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
     setError(out.kind === 'error' ? out.message : '');
-    setNotice(out.kind === 'partial' ? out.message : '');
+    // Le lot devait être un essai et n'a pas pu en être un · les publicités
+    // sont là, la comparaison n'est pas valable. Le taire laisserait conclure
+    // sur un lot dont on sait qu'il ne prouve rien.
+    const rompu = res.essaiRompu ? `Ce lot ne compte pas comme un essai · ${res.essaiRompu}` : '';
+    setNotice(out.kind === 'partial' ? out.message : rompu);
     return out;
   }
 
@@ -368,7 +389,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       return { kind: 'error', message };
     }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model, essai: essai || undefined });
     setBusy(false);
     return apresLot(applyResult(res));
   }
@@ -610,6 +631,36 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
              génération pour voir. */}
         {/* La mise en page décide de la COMPOSITION, l'univers décide de
             l'AMBIANCE. Deux décisions de forme · elles vont ensemble. */}
+        {/* Ce que le lot cherche à savoir · écrit AVANT d'être payé. */}
+        <label style={lbl}>Ce lot teste <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· une seule chose varie, le reste est tenu</span></label>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 8 }}>
+          {[{ key: '' as const, label: 'Rien · lot libre' },
+            ...ESSAI_VARIABLES.map((k) => ({ key: k, label: ESSAI_LABEL[k] }))].map((e) => {
+            const on = essai === e.key;
+            return (
+              <button key={e.key || 'libre'} type="button" disabled={!ready} onClick={() => setEssai(e.key)} style={{
+                padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
+                fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
+                border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
+                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+              }}>{e.label}</button>
+            );
+          })}
+        </div>
+        <p style={{ margin: '0 0 16px', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+          {essai ? (
+            <>
+              <b style={{ color: 'var(--ink-2)' }}>{hypotheseEssai(essai, countEssai)}</b><br />
+              Tenu : {tenuDansEssai(essai).join(', ')}.
+              {' '}{imagesPourEssai(essai, countEssai) === 1
+                ? <>Une seule image est produite pour les {countEssai} · <b style={{ color: 'var(--ink-2)' }}>{economieEssai(essai, countEssai, modelSpec.credits)} crédits de moins</b> qu’un lot libre.</>
+                : <>Une image par ambiance, donc {countEssai}.</>}
+            </>
+          ) : (
+            <>Quatre paris indépendants. Quand la mesure arrivera, la gagnante aura changé d’accroche <i>et</i> de composition <i>et</i> d’ambiance · on saura qu’elle a marché, pas pourquoi.</>
+          )}
+        </p>
+
         <label style={lbl}>Mise en page <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· la composition de la pub</span></label>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
           {[{ key: 'auto', label: '✦ Variées (auto)', hint: 'Un lot ne répète jamais la même · c’est le réglage par défaut.' },
@@ -753,6 +804,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     de plus dans la grille · on la compare à l'œil au lieu de la
                     lire comme la réponse à une question posée. */}
                 {a.variable && <span style={filiation}>↳ {STUDIO_LABEL[a.variable].toLowerCase()}</span>}
+                {a.essai && <span style={filiation}>⚖ essai · {ESSAI_LABEL[a.essai].toLowerCase()}</span>}
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
                 {/* Pourquoi Jarvis a proposé ça · calculé depuis la mémoire, pas
                     rédigé par le modèle. Une proposition muette se subit ou
