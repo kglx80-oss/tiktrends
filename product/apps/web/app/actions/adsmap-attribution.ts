@@ -4,7 +4,9 @@ import { and, count, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   attributionStats, attributionByPart, memoryOrigin, creativeTrend, PART_LABEL,
+  lireEssais, cumulEssais,
   type AttributedAd, type AttributionResult, type MemoryUse, type PartResult, type TrendResult,
+  type AdEssai, type EssaiLu, type CumulEssais, type VariableEssai,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -195,5 +197,106 @@ export async function creativeTrendAction(days = 30): Promise<{ trend?: TrendRes
     };
   } catch (e) {
     return { error: logAndTranslate('adsmap:trend', e, { subject: 'la tendance', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/*  Ce que les lots d'essai ont répondu                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Le retour de la mesure vers le studio.
+ *
+ * ── Ce qui manquait ──────────────────────────────────────────────────────────
+ *
+ * Chaque publicité d'un lot d'essai porte ce que le lot testait · la variable
+ * et le groupe. Personne ne le lisait. On avait donc un plan expérimental
+ * propre, tenu à la génération, dont les résultats n'étaient jamais rendus.
+ *
+ * Un essai qu'on ne relit pas est un rangement, pas une mesure.
+ *
+ * ── Le chemin de la donnée ───────────────────────────────────────────────────
+ *
+ * verdict → ad → `source_ref.generationId` → `generations.input.essai`.
+ *
+ * C'est le même pont que l'attribution, posé sur l'ad et non sur le concept ·
+ * les variantes d'un même concept sont exactement ce qu'un essai produit, et
+ * un lien porté par le concept les mélangerait toutes.
+ */
+
+export interface EssaisView {
+  /** Chaque lot, lu · le plus récent d'abord. */
+  lots: EssaiLu[];
+  /** Le cumul par variable · seul endroit où un chiffre devient une mesure. */
+  cumuls: CumulEssais[];
+}
+
+export async function essaisViewAction(): Promise<{ view?: EssaisView; error?: string }> {
+  const g = await adsmapGuard();
+  if ('error' in g) return { error: g.error };
+
+  try {
+    const rows = await db!.select({
+      adRef: schema.ads.sourceRef,
+      computed: schema.verdicts.computed,
+      validated: schema.verdicts.validated,
+    })
+      .from(schema.ads)
+      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+      .where(and(
+        eq(schema.ads.workspaceId, g.s.workspaceId),
+        eq(schema.personas.brandId, g.brand.id),
+      ))
+      .limit(800);
+
+    const gid = (ref: unknown) => (ref as { generationId?: string } | null)?.generationId ?? null;
+    const parGen = new Map<string, { computed: string | null; validated: string | null }>();
+    for (const r of rows) {
+      const id = gid(r.adRef);
+      // Une seule ad par génération · si deux la revendiquent, on garde la
+      // première plutôt que de compter la même créa deux fois dans un bras.
+      if (id && !parGen.has(id)) parGen.set(id, { computed: r.computed, validated: r.validated });
+    }
+    if (!parGen.size) return { view: { lots: [], cumuls: [] } };
+
+    const gens = await db!.select({ id: schema.generations.id, input: schema.generations.input })
+      .from(schema.generations)
+      .where(inArray(schema.generations.id, [...parGen.keys()]));
+
+    const ads: AdEssai[] = [];
+    for (const gen of gens) {
+      const rec = (gen.input ?? {}) as {
+        essai?: { variable?: string; groupe?: string } | null;
+        headline?: string; layout?: string; universe?: string | null;
+      };
+      const v = rec.essai?.variable as VariableEssai | undefined;
+      const groupe = rec.essai?.groupe;
+      if (!v || !groupe) continue;
+      // La valeur du bras EST ce que la variable fait varier · la lire ailleurs
+      // ferait comparer des choses qui n'ont pas été testées.
+      const valeur = v === 'accroche' ? (rec.headline ?? '') : v === 'mise_en_page' ? (rec.layout ?? '') : (rec.universe ?? '');
+      if (!valeur) continue;
+      const verdict = parGen.get(gen.id)!;
+      ads.push({
+        groupe, variable: v, valeur,
+        // Le verdict humain fait foi quand il existe · c'est lui qui a été validé.
+        verdict: (verdict.validated ?? verdict.computed ?? null) as AdEssai['verdict'],
+      });
+    }
+
+    const lots = lireEssais(ads);
+    return {
+      view: {
+        lots,
+        cumuls: (['mise_en_page', 'univers'] as VariableEssai[]).map((v) => cumulEssais(lots, v)),
+      },
+    };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:essais', e, { subject: 'les résultats des lots d’essai', workspaceId: g.s.workspaceId }) };
   }
 }
