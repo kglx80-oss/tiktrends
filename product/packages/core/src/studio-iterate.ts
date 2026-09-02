@@ -52,6 +52,46 @@ export type StudioVariable = typeof STUDIO_VARIABLES[number];
  */
 export const DECLINAISONS_DISPONIBLES: readonly StudioVariable[] = ['accroche', 'offre', 'mise_en_page'];
 
+/**
+ * Ce qu'on peut décliner POUR CETTE publicité-là.
+ *
+ * `scene` et `univers` produisent une autre image du MÊME concept · il leur
+ * faut donc le brief d'origine de la scène. Il est consigné depuis, mais les
+ * publicités produites avant ne le portent pas, et rien ne permet de le
+ * reconstruire : redemander au modèle d'inventer le brief qu'il avait déjà
+ * écrit donnerait une autre scène d'un autre concept, c'est-à-dire une créa de
+ * plus, pas une déclinaison.
+ *
+ * On les propose donc quand elles sont faisables, et on dit pourquoi quand
+ * elles ne le sont pas · un bouton absent laisse croire que la fonction
+ * n'existe pas, un bouton grisé qui s'explique se comprend.
+ */
+export function declinaisonsPour(aUnBrief: boolean): readonly StudioVariable[] {
+  return aUnBrief ? STUDIO_VARIABLES : DECLINAISONS_DISPONIBLES;
+}
+
+/** Pourquoi une déclinaison est hors de portée · vide quand elle est possible. */
+export function empechement(v: StudioVariable, aUnBrief: boolean): string {
+  if (aUnBrief || reutiliseScene(v)) return '';
+  return 'Cette publicité a été produite avant que le brief de sa scène soit consigné · les suivantes pourront l’être.';
+}
+
+/**
+ * L'ambiance suivante · jamais celle qu'on quitte.
+ *
+ * Même règle que pour les coquilles : on avance dans la liste au lieu de tirer
+ * au sort, pour que deux clics parcourent les ambiances plutôt que de retomber
+ * sur la même.
+ */
+export function universSuivant(actuel: string | null | undefined, cles: readonly string[]): string | null {
+  const dispo = cles.filter((k) => k && k !== 'auto');
+  if (!dispo.length) return null;
+  const i = actuel ? dispo.indexOf(actuel) : -1;
+  if (i < 0) return dispo[0] ?? null;
+  if (dispo.length === 1) return null;
+  return dispo[(i + 1) % dispo.length] ?? null;
+}
+
 export const STUDIO_LABEL: Record<StudioVariable, string> = {
   accroche: 'L’accroche',
   offre: 'L’offre',

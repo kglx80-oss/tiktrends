@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, DECLINAISONS_DISPONIBLES, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, verdictDefauts, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, type Outcome, type StudioVariable, type EssaiVariable } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, type Outcome, type StudioVariable, type EssaiVariable } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -229,7 +229,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   async function decline(a: AdItem, variable: StudioVariable) {
     if (declineBusy) return;
     setDeclineBusy(variable); setError('');
-    const r = await declineAdAction({ id: a.id, variable });
+    const r = await declineAdAction({ id: a.id, variable, model });
     setDeclineBusy(null);
     if (r.error) { setError(r.error); return; }
     if (r.ad) {
@@ -894,6 +894,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                       Change {CHANGE[detailAd.variable]} · garde {tenuConstant(detailAd.variable).join(', ')}.
                     </p>
                   )}
+                  {/* La lignée · « accroche v3 » n'a de sens qu'en face de v2 et
+                      v1. Une famille de tests dispersée dans la grille se lit à
+                      l'œil, c'est-à-dire pas du tout. */}
+                  <Lignee id={detailAd.id} ads={ads} onOuvrir={(i) => setDetailIdx(i)} />
                   <p style={{ margin: '4px 0 14px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{detailAd.headline}</p>
 
                   <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={toolPrimary}>
@@ -907,12 +911,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     <p style={{ margin: '0 0 9px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
                       Une seule chose change, le reste est tenu · c’est ce qui rend l’écart attribuable. La scène est déjà payée, elle reste.
                     </p>
-                    {DECLINAISONS_DISPONIBLES.map((v) => {
+                    {STUDIO_VARIABLES.map((v) => {
                       const prix = prixDeclinaison(v, modelSpec.credits, costFor('suggest'));
+                      // Un bouton absent laisse croire que la fonction n'existe
+                      // pas · un bouton grisé qui s'explique se comprend.
+                      const bloque = empechement(v, !!detailAd.sceneBrief);
                       return (
                         <button key={v} type="button" onClick={() => decline(detailAd, v)}
-                          disabled={!!declineBusy || (v !== 'mise_en_page' && !aiReady)}
-                          title={STUDIO_HINT[v]}
+                          disabled={!!declineBusy || !!bloque || (v !== 'mise_en_page' && !aiReady)}
+                          title={bloque || STUDIO_HINT[v]}
                           style={{ ...toolBtn, marginBottom: 6, textAlign: 'left', opacity: declineBusy && declineBusy !== v ? 0.5 : 1 }}>
                           {declineBusy === v ? 'Déclinaison…' : (
                             <>
@@ -924,7 +931,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                                   lit pas au doigt, et c'est ce qui est TENU qui donne
                                   son sens à la déclinaison. */}
                               <span style={{ display: 'block', fontSize: 10.5, fontWeight: 500, color: 'var(--muted)', lineHeight: 1.35, marginTop: 2 }}>
-                                Change {CHANGE[v]} · garde {tenuConstant(v).join(', ')}
+                                {bloque || <>Change {CHANGE[v]} · garde {tenuConstant(v).join(', ')}</>}
                               </span>
                             </>
                           )}
@@ -1212,4 +1219,47 @@ function pastilleAction(actif: boolean): React.CSSProperties {
     cursor: actif ? 'pointer' : 'default', border: '1px solid var(--line-2)',
     background: 'transparent', color: 'var(--accent-strong)', opacity: actif ? 1 : .55,
   };
+}
+
+/**
+ * La lignée d'une publicité · d'où elle vient, ce qui a changé à chaque pas.
+ *
+ * ── Ce qui manquait ──────────────────────────────────────────────────────────
+ *
+ * On sait décliner, et chaque enfant porte sa filiation. Mais une famille de
+ * tests reste DISPERSÉE dans la grille : v1 en haut, v2 quatre cartes plus
+ * loin, v3 sur la page suivante. On les compare à l'œil, c'est-à-dire pas du
+ * tout.
+ *
+ * Ici la chaîne se lit d'un coup, et chaque maillon s'ouvre.
+ *
+ * Elle ne s'affiche qu'à partir de deux maillons · une publicité seule n'a pas
+ * de lignée, et lui en dessiner une serait du décor.
+ */
+function Lignee({ id, ads, onOuvrir }: { id: string; ads: AdItem[]; onOuvrir: (i: number) => void }) {
+  const chaine = lignee(id, ads.map((a) => ({ id: a.id, parentId: a.parentId, variable: a.variable })));
+  if (chaine.length < 2) return null;
+  return (
+    <div style={{ margin: '9px 0 0', padding: '8px 10px', borderRadius: 9, border: '1px solid var(--line)', background: 'rgba(255,255,255,.02)' }}>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', color: 'var(--muted)' }}>LIGNÉE</div>
+      <div style={{ display: 'grid', gap: 2, marginTop: 4 }}>
+        {chaine.map((m, i) => {
+          const idx = ads.findIndex((a) => a.id === m.id);
+          const ici = m.id === id;
+          return (
+            <button key={m.id} type="button" onClick={() => { if (idx >= 0) onOuvrir(idx); }} disabled={idx < 0 || ici}
+              style={{
+                display: 'flex', gap: 6, alignItems: 'baseline', textAlign: 'left', padding: '2px 0',
+                border: 'none', background: 'transparent', cursor: idx >= 0 && !ici ? 'pointer' : 'default',
+                color: ici ? 'var(--ink)' : 'var(--ink-2)', fontWeight: ici ? 800 : 600, fontSize: 11.5,
+              }}>
+              <span style={{ color: 'var(--muted)', fontWeight: 700 }}>v{i + 1}</span>
+              <span>{m.variable ? STUDIO_LABEL[m.variable].toLowerCase() : 'originale'}</span>
+              {ici && <span style={{ color: 'var(--muted)', fontWeight: 500 }}>· celle-ci</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  STUDIO_VARIABLES, DECLINAISONS_DISPONIBLES, CHANGE, lignee, miseSuivante, prixDeclinaison, rang,
+  STUDIO_VARIABLES, DECLINAISONS_DISPONIBLES, declinaisonsPour, empechement, universSuivant, CHANGE, lignee, miseSuivante, prixDeclinaison, rang,
   reutiliseScene, tenuConstant, verifieDeclinaison,
   type DeclinaisonSnapshot, type Maillon, type StudioVariable,
 } from '../src/studio-iterate';
@@ -200,5 +200,51 @@ describe('ce qu’on propose réellement', () => {
     for (const v of DECLINAISONS_DISPONIBLES) {
       expect(STUDIO_VARIABLES).toContain(v);
     }
+  });
+});
+
+describe('ce qui est faisable pour CETTE publicité', () => {
+  it('ouvre tout quand le brief de la scène existe', () => {
+    expect(declinaisonsPour(true)).toEqual(STUDIO_VARIABLES);
+  });
+
+  it('se limite aux trois quand il manque', () => {
+    // Rien ne permet de reconstruire un brief · redemander au modèle donnerait
+    // une autre scène d'un autre concept, donc une créa de plus.
+    expect(declinaisonsPour(false)).toEqual(DECLINAISONS_DISPONIBLES);
+  });
+
+  it('explique l’empêchement, et seulement quand il y en a un', () => {
+    expect(empechement('scene', false)).toBeTruthy();
+    expect(empechement('scene', true)).toBe('');
+    // Celles qui réutilisent la scène ne sont jamais empêchées.
+    for (const v of DECLINAISONS_DISPONIBLES) {
+      expect(empechement(v, false), v).toBe('');
+    }
+  });
+});
+
+describe('l’ambiance suivante', () => {
+  const cles = ['studio', 'nature', 'urbain'];
+
+  it('n’est jamais celle qu’on quitte', () => {
+    for (const k of cles) expect(universSuivant(k, cles)).not.toBe(k);
+  });
+
+  it('parcourt la liste', () => {
+    expect(universSuivant('studio', cles)).toBe('nature');
+    expect(universSuivant('urbain', cles)).toBe('studio');
+  });
+
+  it('part du début quand l’ambiance actuelle est inconnue', () => {
+    expect(universSuivant(null, cles)).toBe('studio');
+    expect(universSuivant('inexistant', cles)).toBe('studio');
+  });
+
+  it('rend `null` quand il n’y a nulle part où aller', () => {
+    expect(universSuivant('studio', ['studio'])).toBeNull();
+    expect(universSuivant('studio', [])).toBeNull();
+    // « auto » n'est pas une ambiance, c'est le refus d'en choisir une.
+    expect(universSuivant('studio', ['auto'])).toBeNull();
   });
 });
