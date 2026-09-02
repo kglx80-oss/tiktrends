@@ -239,7 +239,18 @@ export async function cloneAdFromReference(
 }
 
 /** Génère des concepts publicitaires (accroche + CTA + brief de scène) pour les gabarits demandés. */
-export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, opts: { templates: AdTemplate[]; winningCopy?: string[]; competitors?: string[] }): Promise<AdConcept[]> {
+export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, opts: {
+  templates: AdTemplate[];
+  /**
+   * La place dont dispose chaque exécution, une ligne par gabarit demandé.
+   *
+   * Construite par l'appelant · la règle vit dans `@tiktrends/core`, et ce
+   * paquet-ci n'en dépend pas. Lui passer la phrase toute faite évite d'ajouter
+   * une dépendance pour une consigne de prompt.
+   */
+  copyBudget?: string[];
+  winningCopy?: string[]; competitors?: string[];
+}): Promise<AdConcept[]> {
   const templates = opts.templates.length ? opts.templates : AD_TEMPLATES;
   const sys = [
     "Tu es un directeur créatif et copywriter direct-response d'élite (TikTok-first, style Atria/Raya).",
@@ -247,6 +258,12 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
     "Principes de copywriting à appliquer : accroche qui crée une tension ou une curiosité en 3 mots, spécificité (chiffres, détails concrets) plutôt que du générique, bénéfice émotionnel avant la feature, angle inattendu / pattern interrupt, promesse crédible, CTA orienté action.",
     "INTERDIT : slogans plats et vagues (« Boostez votre énergie », « La qualité au meilleur prix »), superlatifs creux, langue de bois. Sois concret, humain, natif de la plateforme.",
     "Tu écris en français. Kicker en MAJUSCULES très court. Headline = 3 à 6 mots max, qui claque.",
+    // La place disponible dépend de la mise en page où l'accroche atterrira.
+    // On la rattrapait en rapetissant la police · sur l'affiche, dont tout
+    // l'effet tient à un titre énorme, c'est perdre ce qui la distingue.
+    opts.copyBudget?.length
+      ? `PLACE DISPONIBLE, exécution par exécution · elle n'est pas la même partout :\n${opts.copyBudget.map((l, i) => `- exécution ${i + 1} : ${l}`).join('\n')}`
+      : '',
     opts.winningCopy?.length
       ? "On te fournit des accroches de PUBS QUI FONCTIONNENT (concurrents / veille) : analyse leurs MÉCANIQUES (type d'accroche, angle, déclencheur émotionnel, structure) et réutilise ces mécaniques gagnantes pour NOTRE produit. Ne recopie jamais les mots : transpose la mécanique."
       : "",

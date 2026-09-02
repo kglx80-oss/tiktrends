@@ -95,10 +95,63 @@ export function layoutFor(template: string, wanted: AdLayout): AdLayout {
  * On distribue donc par tours complets. `seed` décale le point de départ pour
  * que deux lots successifs ne s'ouvrent pas sur la même image.
  */
-export function layoutsForBatch(n: number, seed = 0): AdLayout[] {
+export function layoutsForBatch(n: number, seed = 0, pool: readonly AdLayout[] = AD_LAYOUTS): AdLayout[] {
   const out: AdLayout[] = [];
-  const total = AD_LAYOUTS.length;
+  // Un vivier vidé par les exclusions rendrait la rotation impossible · on
+  // revient au catalogue complet plutôt que de ne rien produire.
+  const dispo = pool.length ? pool : AD_LAYOUTS;
+  const total = dispo.length;
   const depart = ((Math.trunc(seed) % total) + total) % total;
-  for (let i = 0; i < Math.max(0, n); i++) out.push(AD_LAYOUTS[(depart + i) % total]!);
+  for (let i = 0; i < Math.max(0, n); i++) out.push(dispo[(depart + i) % total]!);
   return out;
+}
+
+/**
+ * Les mises en page à retirer de la rotation, pour cette marque.
+ *
+ * ── Le geste qui manquait au bout de la mesure ───────────────────────────────
+ *
+ * Mesurer qu'une mise en page perd et continuer à la servir une fois sur quatre,
+ * c'est produire un rapport que personne n'applique. La rotation doit apprendre.
+ *
+ * ── Trois freins, parce qu'un retrait est difficile à défaire ────────────────
+ *
+ * Une mise en page retirée ne produit plus de tests, donc ne peut plus se
+ * racheter · elle sort du corpus qui la jugerait. Le seuil est donc sévère :
+ *
+ * - **assez de matière** · au moins `minN` tests conclus sur cette mise en page,
+ *   sinon on retire sur une anecdote ;
+ * - **nettement en dessous** · pas « un peu moins bien », mais sous une fraction
+ *   du taux de la marque · deux taux voisins ne se départagent pas ;
+ * - **jamais la dernière** · on garde toujours au moins deux mises en page en
+ *   lice, sinon le lot redevient quatre fois la même image, ce que toute cette
+ *   mécanique existe pour éviter.
+ */
+export function layoutsToDrop(input: {
+  /** Taux mesuré par mise en page · `null` quand rien n'est concluant. */
+  rates: Array<{ layout: string; nConclusive: number; hitRate: number | null }>;
+  /** Taux de la marque, toutes mises en page confondues. */
+  globalRate: number | null;
+  minN?: number;
+  /** Sous quelle fraction du taux de la marque on retire · 0.5 = deux fois moins bon. */
+  ratio?: number;
+}): AdLayout[] {
+  const { globalRate } = input;
+  if (globalRate === null || globalRate <= 0) return [];
+  const minN = input.minN ?? 6;
+  const seuil = globalRate * (input.ratio ?? 0.5);
+
+  const mauvaises = input.rates
+    .filter((r) => (AD_LAYOUTS as readonly string[]).includes(r.layout))
+    .filter((r) => r.nConclusive >= minN && r.hitRate !== null && r.hitRate < seuil)
+    .map((r) => r.layout as AdLayout);
+
+  // Jamais la dernière · on garde au moins deux mises en page en lice.
+  const restant = AD_LAYOUTS.length - mauvaises.length;
+  if (restant >= 2) return mauvaises;
+
+  // Trop d'exclusions : on ne garde que les pires, dans l'ordre du catalogue,
+  // pour que le résultat ne dépende pas de l'ordre des lignes reçues.
+  const parTaux = [...mauvaises].sort((a, b) => AD_LAYOUTS.indexOf(a) - AD_LAYOUTS.indexOf(b));
+  return parTaux.slice(0, Math.max(0, AD_LAYOUTS.length - 2));
 }

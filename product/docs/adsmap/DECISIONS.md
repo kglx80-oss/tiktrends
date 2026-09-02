@@ -3085,3 +3085,73 @@ ancienne qui gagne.
   base aurait fait échouer tout le déploiement.
 
 Sans cet essai, la troisième ligne du fichier aurait été un commentaire optimiste.
+
+---
+
+## D153 — Le modèle écrivait sans savoir où son texte atterrirait
+
+On demandait « 3 à 6 mots » pour toutes les mises en page, puis on réparait en
+rapetissant la police (`fitHeadline`). C'est un filet, pas une intention : sur
+l'affiche, dont tout l'effet tient à un titre énorme, une accroche de quarante
+caractères passe de 92 à 64 pixels et le format perd ce qui le distingue.
+
+**La contrainte est maintenant connue AVANT d'écrire**, et elle diffère selon
+l'endroit. Les seuils sont calés sur les paliers de `fitHeadline` · rester sous
+le palier garde la taille de base, le dépasser d'un caractère coûte dix pixels
+d'un coup.
+
+**La décision de mise en page remonte donc avant l'écriture des concepts.** Elle
+était prise à la composition, c'est-à-dire trop tard pour que le modèle en tienne
+compte. Une seule décision sert maintenant les deux étapes.
+
+`@tiktrends/ai` ne dépend pas du noyau · on lui passe la phrase toute faite
+plutôt que d'ajouter une dépendance pour une consigne de prompt.
+
+**Le clonage garde l'immersive** · il reprend la mise en page de la référence,
+faire tourner les nôtres contredirait la demande.
+
+## D154 — La rotation apprend, sinon la mesure ne sert à rien
+
+Mesurer qu'une mise en page perd (D149) et continuer à la servir une fois sur
+quatre, c'est produire un rapport que personne n'applique.
+
+Une mise en page nettement perdante sort du vivier. **Trois freins, parce qu'un
+retrait est difficile à défaire** — une exclue ne produit plus de tests, donc ne
+peut plus se racheter :
+
+- au moins six tests conclus, sinon on retire sur une anecdote ;
+- sous la moitié du taux de la marque · pas « un peu moins bien », deux taux
+  voisins ne se départagent pas ;
+- **jamais la dernière** · au moins deux restent en lice, sinon le lot redevient
+  quatre fois la même image, ce que toute cette mécanique existe pour éviter.
+
+Une mise en page imposée à la main court-circuite le retrait · c'est un choix
+explicite, il prime sur la mesure.
+
+## D155 — Le test de lisibilité a menti deux fois avant de dire vrai
+
+**Ce qu'on ne vérifiait pas.** Les tests de rendu disent qu'une pub n'est ni vide
+ni uniforme. Un titre blanc posé sur une zone claire de la photo passe les deux
+et ne se lit pas.
+
+**Première version : mesurer l'écart de luminance dans la bande de texte.**
+Vérifiée en retirant le voile sombre de l'immersive · elle restait verte. Le
+bouton d'action, coloré et saturé, fournissait l'écart à lui seul. Le fond
+pouvait être entièrement blanc derrière un titre blanc.
+
+**Deuxième version : mesurer le FOND, pas l'écart.** Toujours verte après la même
+mutation. En sondant, la cause : la scène de test est un PNG de **1×1** qui ne se
+rasterise pas. La preuve était dans les chiffres — la scène « blanche » rendait
+plus SOMBRE (0,036) que la scène transparente (0,104), c'est-à-dire qu'aucune
+image n'était dessinée et qu'on mesurait le fond du cadre.
+
+**Un test de lisibilité sur une photo qui n'existe pas passe pour la mauvaise
+raison.**
+
+**Troisième version, celle qui tient** : un vrai carré blanc de 64 px. La scène
+rend enfin (0,800 en haut), et la mutation échoue comme elle doit —
+`expected 0.9999 to be less than 0.45`.
+
+Les autres tests du fichier gardent le 1×1 · ils mesurent la mise à l'échelle de
+la maquette, pas ce qui se passe au-dessus d'une photo. Leur 1×1 ne les invalide
+pas ; il invalidait celui-ci, et seule la sonde l'a montré.

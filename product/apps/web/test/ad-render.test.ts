@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { AD_TEMPLATES } from '@tiktrends/ai';
 import { renderAdPng, type AdRecipe } from '../lib/ad-render';
 import { AD_LAYOUTS, layoutsFor } from '@tiktrends/core';
-import { decodePng, inkProfile, composition } from './png';
+import { decodePng, inkProfile, composition, bandLuminance } from './png';
 
 /**
  * Ce que le rendu produit VRAIMENT.
@@ -176,4 +176,60 @@ describe('les mises en page produisent des images différentes', () => {
       }
     }
   }, 600000);
+});
+
+describe('une pub reste lisible sur une scène défavorable', () => {
+  /**
+   * ── Ce que les autres tests ne voyaient pas ────────────────────────────────
+   *
+   * Ils vérifient qu'une pub n'est ni vide ni uniforme. Un titre blanc posé sur
+   * une zone claire de la photo passe les deux et ne se lit pas · c'est le genre
+   * de défaut qu'on ne remarque qu'en faisant défiler la grille.
+   *
+   * On rend donc sur la scène la PIRE possible — un blanc pur — et on exige que
+   * le FOND de la zone de texte reste opposé à son encre. C'est ce que les
+   * voiles sombres et les aplats sont censés garantir.
+   *
+   * ── La première version de ce test ne servait à rien ───────────────────────
+   *
+   * Elle mesurait l'écart de luminance dans la bande. Vérifiée en retirant le
+   * voile de l'immersive : elle restait verte, le bouton d'action fournissant
+   * l'écart à lui seul. Le fond pouvait être blanc derrière un titre blanc.
+   */
+  /**
+   * Un vrai carré blanc de 64 px · PAS un 1×1.
+   *
+   * Le 1×1 utilisé partout ailleurs dans ce fichier ne se rasterise pas : une
+   * sonde a montré que la scène « blanche » rendait PLUS SOMBRE que la scène
+   * transparente, c'est-à-dire que l'image n'était jamais dessinée et qu'on
+   * mesurait le fond du cadre. Un test de lisibilité sur une photo qui n'existe
+   * pas passerait pour la mauvaise raison.
+   *
+   * Les autres tests de ce fichier gardent le 1×1 · ils mesurent la mise à
+   * l'échelle de la maquette, pas ce qui se passe au-dessus d'une photo.
+   */
+  const BLANC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAkklEQVR4nO3QQREAAAiAMPuX1hh7yBJwzD43OkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAK0BOkBrgA7QGqADtAboAO0ARtDDsqXe37wAAAAASUVORK5CYII=';
+
+  /** Où le texte se pose, et sur quel fond il DOIT se poser. */
+  const ZONES: Array<{ layout: string; de: number; a: number; fond: 'sombre' | 'clair' }> = [
+    { layout: 'immersif', de: 0.74, a: 0.94, fond: 'sombre' },
+    { layout: 'champ', de: 0.70, a: 0.92, fond: 'sombre' },
+    { layout: 'split', de: 0.64, a: 0.92, fond: 'sombre' },
+    // L'affiche est la seule à encre sombre · son fond doit rester clair.
+    { layout: 'affiche', de: 0.14, a: 0.34, fond: 'clair' },
+  ];
+
+  for (const z of ZONES) {
+    it(`« ${z.layout} » pose son texte sur un fond ${z.fond}, même sur une photo blanche`, async () => {
+      const img = await rendre({ layout: z.layout as never, sceneUrl: BLANC, width: 432, height: 540 });
+      const l = bandLuminance(img, z.de, z.a);
+      if (z.fond === 'sombre') {
+        expect(l, `le texte blanc de « ${z.layout} » se pose sur un fond clair · il s’y noie`)
+          .toBeLessThan(0.45);
+      } else {
+        expect(l, `le texte sombre de « ${z.layout} » se pose sur un fond sombre · il s’y noie`)
+          .toBeGreaterThan(0.6);
+      }
+    }, 120000);
+  }
 });
