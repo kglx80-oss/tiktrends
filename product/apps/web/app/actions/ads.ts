@@ -364,6 +364,9 @@ async function composeBatch(o: {
       // Le brief de la scène · consigné pour pouvoir en produire une AUTRE du
       // même concept sans redemander au modèle ce qu'il a déjà écrit.
       sceneBrief: c.sceneBrief,
+      // Le moteur qui a produit cette image · c'est lui qu'on met en cause
+      // quand les ratés de fabrication s'accumulent.
+      model: o.modelSpec.key,
       // Recalculée depuis la mémoire injectée · elle ne peut donc pas inventer
       // un chiffre, contrairement à une phrase demandée au modèle.
       rationale: o.rationaleCtx

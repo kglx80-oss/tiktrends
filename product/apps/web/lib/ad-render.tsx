@@ -37,6 +37,14 @@ export interface AdRecipe {
    */
   sceneBrief?: string;
   /**
+   * Le moteur d'image qui a produit la scène · non rendu, consigné.
+   *
+   * Il ne l'était pas · on ne pouvait donc pas répondre à « d'où viennent mes
+   * ratés de fabrication », alors que c'est la question qui décide du moteur
+   * qu'on paie.
+   */
+  model?: string;
+  /**
    * De qui cette publicité descend, et ce qu'on y a changé.
    *
    * C'est ce qui distingue une déclinaison d'une créa de plus dans la grille ·

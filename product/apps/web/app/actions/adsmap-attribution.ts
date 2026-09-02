@@ -1,12 +1,13 @@
 'use server';
 
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   attributionStats, attributionByPart, memoryOrigin, creativeTrend, PART_LABEL,
-  lireEssais, cumulEssais,
+  lireEssais, cumulEssais, bilanNotes, defautsConnus,
   type AttributedAd, type AttributionResult, type MemoryUse, type PartResult, type TrendResult,
   type AdEssai, type EssaiLu, type CumulEssais, type VariableEssai,
+  type BilanNotes, type NoteLue,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -298,5 +299,71 @@ export async function essaisViewAction(): Promise<{ view?: EssaisView; error?: s
     };
   } catch (e) {
     return { error: logAndTranslate('adsmap:essais', e, { subject: 'les résultats des lots d’essai', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/*  Le bilan des notes                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Ce que vingt notes disent ensemble.
+ *
+ * ── Ce qu'on payait sans le lire ─────────────────────────────────────────────
+ *
+ * Le Score Jarvis coûte deux crédits et regarde une créa. Vingt notes, c'est
+ * quarante crédits, et rien n'en faisait la somme · chaque note servait une
+ * fois, à la carte qui l'avait demandée.
+ *
+ * ── Pourquoi ça ne passe pas par les verdicts ────────────────────────────────
+ *
+ * Une note est un PRONOSTIC · ce qu'un directeur créatif pense de la créa avant
+ * qu'elle tourne. Elle vit donc sur la génération, pas sur la carte, et ce bloc
+ * n'a rien à demander aux verdicts. Confondre les deux ferait passer un avis
+ * pour un résultat.
+ */
+export async function bilanNotesAction(): Promise<{ bilan?: BilanNotes; error?: string }> {
+  const g = await adsmapGuard();
+  if ('error' in g) return { error: g.error };
+
+  try {
+    const rows = await db!.select({ input: schema.generations.input })
+      .from(schema.generations)
+      .where(and(
+        eq(schema.generations.brandId, g.brand.id),
+        eq(schema.generations.kind, 'ad'),
+      ))
+      .orderBy(desc(schema.generations.createdAt))
+      .limit(400);
+
+    const notes: NoteLue[] = [];
+    for (const r of rows) {
+      const rec = (r.input ?? {}) as {
+        jarvisScore?: { score?: number; defauts?: string[]; vu?: boolean };
+        template?: string; layout?: string; universe?: string | null; model?: string;
+      };
+      const note = rec.jarvisScore;
+      if (!note || typeof note.score !== 'number') continue;
+      notes.push({
+        score: note.score,
+        // Filtré par le noyau · un modèle rend parfois un raté hors vocabulaire,
+        // et le compter fausserait le classement des types.
+        defauts: defautsConnus(note.defauts),
+        // Les notes d'avant n'ont pas regardé l'image · les compter comme
+        // « sans défaut » diluerait le taux avec des notes aveugles.
+        vu: note.vu === true,
+        cles: {
+          gabarit: rec.template || undefined,
+          coquille: rec.layout || undefined,
+          ambiance: rec.universe || undefined,
+          moteur: rec.model || undefined,
+        },
+      });
+    }
+
+    return { bilan: bilanNotes(notes) };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:bilan-notes', e, { subject: 'le bilan des notes', workspaceId: g.s.workspaceId }) };
   }
 }

@@ -11,8 +11,8 @@ import { jarvisStats, jarvisMeasuredMemory, jarvisHookView } from '../../../lib/
 import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../lib/jarvis-state';
 import { spendStatus } from '../../../lib/spend-guard';
 import { currentDeployment } from '../../../lib/deployment';
-import { attributionViewAction, creativeTrendAction, essaisViewAction } from '../../actions/adsmap-attribution';
-import { ESSAI_LABEL, type EssaiVariable } from '@tiktrends/core';
+import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction } from '../../actions/adsmap-attribution';
+import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
@@ -95,12 +95,13 @@ export default async function JarvisPage() {
 
   // La mémoire n'est chargée que si elle est accessible · inutile de faire
   // travailler la base pour un bloc qu'on n'affichera pas.
-  const [memoire, hooks, attribution, tendance, essais, stats, depense] = await Promise.all([
+  const [memoire, hooks, attribution, tendance, essais, bilan, stats, depense] = await Promise.all([
     voitMemoire ? jarvisMeasuredMemory(brand.id, s.workspaceId) : Promise.resolve(''),
     voitMemoire ? jarvisHookView(brand.id, s.workspaceId) : Promise.resolve(null),
     voitMemoire ? attributionViewAction() : Promise.resolve({ view: undefined }),
     voitMemoire ? creativeTrendAction() : Promise.resolve({ trend: undefined }),
     voitMemoire ? essaisViewAction() : Promise.resolve({ view: undefined }),
+    voitMemoire ? bilanNotesAction() : Promise.resolve({ bilan: undefined }),
     voitMemoire ? jarvisStats(brand.id, s.workspaceId) : Promise.resolve(null),
     fondateur ? spendStatus() : Promise.resolve(null),
   ]);
@@ -114,6 +115,8 @@ export default async function JarvisPage() {
   const attrErreur = 'error' in attribution ? attribution.error : undefined;
   const essaisVue = essais.view;
   const essaisErreur = 'error' in essais ? essais.error : undefined;
+  const notes = bilan.bilan;
+  const notesErreur = 'error' in bilan ? bilan.error : undefined;
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1040, margin: '0 auto' }}>
@@ -309,7 +312,96 @@ export default async function JarvisPage() {
         </section>
       )}
 
-      {/* 3 · Le contrôle AVANT la mémoire · un outil qui ne se vérifie pas accumule. */}
+      {/* 3 · Ce que les notes déjà payées disent ensemble.
+             Chaque note coûtait deux crédits et ne servait qu'une fois, à la
+             carte qui l'avait demandée. */}
+      {voitMemoire && (
+        <section id="bilan-notes" style={{
+          marginBottom: 24, padding: '16px 18px', borderRadius: 14,
+          border: `1px solid ${notes?.defauts.suspects.length ? 'rgba(255,90,120,.35)' : 'var(--line)'}`,
+          background: 'var(--surface)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+              Ce que tes notes disent ensemble
+            </h2>
+            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
+              Score Jarvis
+            </span>
+          </div>
+          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
+            Chaque Score Jarvis coûte deux crédits et ne servait qu’une fois. Voici leur somme ·
+            d’où viennent tes ratés de fabrication, et ce qui tient le mieux chez toi.
+          </p>
+
+          {notesErreur ? (
+            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{notesErreur}</p>
+          ) : !notes?.notes ? (
+            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.55 }}>
+              Aucune créa n’a encore été notée. Le Score Jarvis s’ouvre depuis le panneau d’une pub,
+              dans <b>Pubs IA</b>.
+            </p>
+          ) : (
+            <>
+              <p style={{
+                margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
+                background: 'var(--paper)', border: '1px solid var(--line)',
+                fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
+                color: notes.defauts.avecDefaut ? '#ff8095' : '#7ee8bf',
+              }}>
+                {notes.defauts.resume}
+              </p>
+
+              {notes.defauts.parType.length > 0 && (
+                <div style={{ display: 'grid', gap: 4, marginTop: 9 }}>
+                  {notes.defauts.parType.map((d) => (
+                    <div key={d.defaut} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12 }}>
+                      <span style={{ width: 230, color: 'var(--ink-2)' }}>{DEFECT_LABEL[d.defaut as SceneDefect]}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--muted)' }}>{d.n}×</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Les dimensions qui se détachent · les autres ne méritent pas
+                  une ligne, elles diraient « rien à signaler » quatre fois. */}
+              {notes.dimensions.filter((d) => d.conclusif).length > 0 && (
+                <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+                  {notes.dimensions.filter((d) => d.conclusif).map((d) => (
+                    <div key={d.dimension} style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.5 }}>
+                        {DIMENSION_LABEL[d.dimension]} · {d.resume}
+                      </div>
+                      <div style={{ display: 'grid', gap: 3, marginTop: 6 }}>
+                        {d.lignes.filter((l) => l.n >= MIN_NOTES).map((l) => (
+                          <div key={l.cle} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12 }}>
+                            <span style={{ width: 150, color: 'var(--ink-2)' }}>{l.cle}</span>
+                            <span style={{ fontWeight: 700, color: l.tranche ? (l.ecart > 0 ? '#7ee8bf' : '#ff8095') : 'var(--muted)' }}>
+                              {Math.round(l.moyenne)}/100
+                            </span>
+                            <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>
+                              sur {l.n} note(s){!l.tranche && ' · écart non tranché'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p style={{ margin: '11px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+                {notes.notes} note(s), moyenne {Math.round(notes.moyenne ?? 0)}/100. Une note est un
+                <b> pronostic</b>, pas un résultat · elle dit ce qu’un directeur créatif pense de la créa,
+                pas ce que le marché en a fait. Les vraies performances sont dans les verdicts. Un écart
+                n’est retenu qu’au-dessus de {MIN_NOTES} notes et s’il dépasse la dispersion.
+              </p>
+            </>
+          )}
+        </section>
+      )}
+
+      {/* 4 · Le contrôle AVANT la mémoire · un outil qui ne se vérifie pas accumule. */}
       {voitMemoire && (
         <section id="attribution" style={{
           marginBottom: 24, padding: '16px 18px', borderRadius: 14,
