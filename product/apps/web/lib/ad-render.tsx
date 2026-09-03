@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { adFonts } from './ad-fonts';
 import type { AdTemplate } from '@tiktrends/ai';
-import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, type SceneLight, type StudioVariable, type EssaiVariable } from '@tiktrends/core';
+import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, poseUneCouche, type SceneLight, type StudioVariable, type EssaiVariable, type ProductionMode } from '@tiktrends/core';
 
 export interface AdRecipe {
   template: AdTemplate;
@@ -59,6 +59,13 @@ export interface AdRecipe {
    * indépendants, et la mesure qui suit n'attribue l'écart à rien.
    */
   essai?: { variable: EssaiVariable; groupe: string } | null;
+  /**
+   * Comment la publicité a été fabriquée.
+   *
+   * Absent, elle est composée · c'est ce qu'on faisait, et une publicité
+   * produite avant ce mode ne doit pas changer d'allure.
+   */
+  mode?: ProductionMode | null;
   brandName?: string;
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.
@@ -725,6 +732,9 @@ function decoAvantApres(r: AdRecipe): React.ReactNode {
  */
 function element(r: AdRecipe) {
   ECHELLE = (r.width ?? LARGEUR_MAQUETTE) / LARGEUR_MAQUETTE;
+  // Une publicité entière porte déjà ses mots · lui superposer les nôtres les
+  // écrirait deux fois, l'un sur l'autre. On n'a plus qu'à la cadrer.
+  if (!poseUneCouche(r.mode)) return <PubEntiere r={r} />;
   // Les pubs d'avant n'ont pas de mise en page consignée · elles gardent
   // l'immersive, celle avec laquelle elles ont été composées. Un ancien rendu ne
   // doit pas changer d'allure parce qu'on a ajouté des coquilles.
@@ -732,6 +742,20 @@ function element(r: AdRecipe) {
   const t = tonDe(layout, r.accent);
   const deco = r.template === 'before_after' ? decoAvantApres(r) : undefined;
   return <Coquille r={r} layout={layout} deco={deco}>{contenu(r, t, layout)}</Coquille>;
+}
+
+/**
+ * Une publicité produite entière · on ne fait que la poser dans le cadre.
+ *
+ * Le `cover` reste nécessaire : le modèle rend le rapport demandé, mais on
+ * publie aussi en 1:1 et en 9:16, et une pub déformée se voit tout de suite.
+ */
+function PubEntiere({ r }: { r: AdRecipe }) {
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', background: DARK, overflow: 'hidden' }}>
+      <Bg url={r.sceneUrl} />
+    </div>
+  );
 }
 
 /** Compose la publicité finale (scène + couche design) et renvoie un PNG. */

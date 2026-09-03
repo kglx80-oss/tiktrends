@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, texteAttenduDansImage, type ProductionMode } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -175,6 +175,8 @@ async function composeBatch(o: {
   cadragePolyvalent?: boolean;
   /** Ce que le lot déclare tester · consigné sur chaque publicité. */
   essai?: { variable: EssaiVariable; groupe: string } | null;
+  /** Comment fabriquer · une publicité entière ne reçoit aucune couche de texte. */
+  mode?: ProductionMode;
   /** Rempli quand le lot n'a PAS tenu son contrat d'essai · lu par l'appelant. */
   essaiRompu?: string;
   assetRefUrls?: string[]; // images de la bibliothèque Assets (références marque pour l'IA)
@@ -270,6 +272,23 @@ async function composeBatch(o: {
       imageUrls = undefined;
       prompt = scenePrompt(c, false, universeFor(i), coquille(c, i), o.cadragePolyvalent) + exclusions;
       edit = false;
+    }
+
+    // La publicité ENTIÈRE remplace la consigne de scène.
+    //
+    // Les références et le point d'entrée restent ceux qu'on vient de choisir ·
+    // c'est la photo produit qui garantit l'étiquette, et elle compte encore
+    // plus ici : le modèle doit reproduire un packaging ET écrire par-dessus.
+    if (o.mode === 'entiere') {
+      prompt = promptPubEntiere({
+        copie: {
+          kicker: c.kicker, headline: c.headline, subhead: c.subhead,
+          benefits: c.benefits, cta: c.cta, badge: c.badge, brandName: o.brandName,
+        },
+        sceneBrief: c.sceneBrief,
+        avecProduit: !!imageUrls?.length,
+        universPrompt: o.preset ? o.preset.prompt : (chosen?.prompt ?? undefined),
+      }) + exclusions;
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
       try {
@@ -369,6 +388,10 @@ async function composeBatch(o: {
       // Ce que le lot déclare tester · sans ça, quatre publicités sont quatre
       // paris indépendants et la mesure n'attribue l'écart à rien.
       essai: o.essai ?? null,
+      // Comment elle a été fabriquée · c'est ce qui décide si la maquette pose
+      // une couche de texte par-dessus, et si « du texte dans l'image » est un
+      // raté ou exactement ce qu'on avait demandé.
+      mode: o.mode ?? 'composee',
       // Le brief de la scène · consigné pour pouvoir en produire une AUTRE du
       // même concept sans redemander au modèle ce qu'il a déjà écrit.
       sceneBrief: c.sceneBrief,
@@ -546,6 +569,15 @@ export async function generateAdsAction(input: {
    * quatre ambiances. C'est utile pour explorer, ça ne prouve rien.
    */
   essai?: string;
+  /**
+   * Comment fabriquer la publicité · composée par défaut.
+   *
+   * « entiere » demande au modèle la publicité complète, typographie comprise.
+   * Un essai côte à côte l'a montrée meilleure sur l'étiquette, le français et
+   * la mise en page · elle ne garantit simplement pas les textes au caractère
+   * près, et le mode le dit.
+   */
+  mode?: string;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
@@ -565,6 +597,8 @@ export async function generateAdsAction(input: {
   // ensuite partout : un seul gabarit, une seule coquille (ou N, si c'est elle
   // qu'on teste), une seule scène, et donc un prix qui n'est plus celui de N
   // images.
+  const mode: ProductionMode = estMode(input.mode) ? input.mode : 'composee';
+
   const essaiVariable = (ESSAI_VARIABLES as readonly string[]).includes(input.essai ?? '')
     ? input.essai as EssaiVariable
     : null;
@@ -742,6 +776,7 @@ export async function generateAdsAction(input: {
     // compromis, et c'est dit dans la consigne au modèle.
     cadragePolyvalent: essaiVariable === 'mise_en_page',
     essai: essaiVariable ? { variable: essaiVariable, groupe: crypto.randomUUID() } : null,
+    mode,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,
@@ -1131,7 +1166,7 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
       brand: brand.name, tone: da?.tone ?? undefined, usp: da?.usp ?? undefined, audience: da?.audience ?? undefined,
       category: da?.category ?? undefined, objective: r.objective, creativeRules: da?.creativeRules ?? undefined,
       winningPatterns: [mesureScore, da?.jarvisLearnings].filter(Boolean).join('\n\n') || undefined,
-    }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge, image });
+    }, { template: r.template, kicker: r.kicker, headline: r.headline ?? '', subhead: r.subhead, cta: r.cta, badge: r.badge, image, texteDansImage: texteAttenduDansImage(r.mode) });
     if (!score) {
       if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
       return { error: "Score indisponible, réessaie." };
