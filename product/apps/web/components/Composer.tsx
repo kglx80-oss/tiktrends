@@ -108,6 +108,14 @@ export interface ComposerProps {
    * n'a pas besoin.
    */
   requireText?: boolean;
+  /**
+   * Ce qui manque pour pouvoir lancer · vide quand rien ne manque.
+   *
+   * Écrit par l'appelant, parce que lui seul le sait. Le composeur ne peut pas
+   * deviner qu'aucun gabarit n'est coché · il constatait donc un bouton actif,
+   * l'appelant refusait au clic, et le refus s'affichait ailleurs sur la page.
+   */
+  blocage?: string;
   generateLabel?: string;
   /** Actions secondaires · « proposer une description », par exemple. */
   extra?: ReactNode;
@@ -126,7 +134,7 @@ export function Composer(props: ComposerProps) {
     controls = [], toggles = [], scenes = [],
     onPickScene, onSaveScene, onAttach, attachLabel, attachedCount = 0,
     advice, preflight, cost, onGenerate, busy, disabled, generateLabel = 'Générer', extra,
-    requireText = true,
+    requireText = true, blocage = '',
   } = props;
 
   const [menu, setMenu] = useState<string | null>(null);
@@ -142,7 +150,29 @@ export function Composer(props: ComposerProps) {
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [value]);
 
-  const pret = !disabled && !busy && (!requireText || value.trim().length > 0);
+  const pret = !disabled && !busy && !blocage && (!requireText || value.trim().length > 0);
+
+  /**
+   * Pourquoi le bouton ne répond pas.
+   *
+   * ── Le défaut que ça répare ──────────────────────────────────────────────
+   *
+   * Il était grisé, muet, et rien à l'écran ne disait ce qui manquait. « Le
+   * bouton Générer ne fonctionne pas » · c'est exactement ce qu'on voit quand
+   * une condition est vraie quelque part et n'est écrite nulle part.
+   *
+   * Un bouton désactivé sans raison affichée est pire qu'un bouton qui échoue :
+   * l'échec, au moins, se lit.
+   */
+  const empeche = busy
+    ? ''
+    : blocage
+      ? blocage
+      : disabled
+        ? 'Indisponible pour l’instant.'
+        : requireText && !value.trim()
+          ? 'Écris d’abord une description ci-dessus.'
+          : '';
 
   return (
     <div style={{
@@ -276,6 +306,11 @@ export function Composer(props: ComposerProps) {
           )}
         </button>
       </div>
+
+      {/* Ce qui manque, écrit là où on clique · pas en haut de page. */}
+      {empeche && (
+        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', textAlign: 'right' }}>{empeche}</p>
+      )}
 
       {/* Nommer la scène · en ligne, pas dans une boîte de dialogue du
           navigateur : celle-ci vole le focus et efface la barre de l'écran au
