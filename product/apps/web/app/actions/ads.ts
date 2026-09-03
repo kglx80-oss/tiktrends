@@ -8,13 +8,14 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatch, layoutFor, layoutsFor, layoutsToDrop, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import { renderAdPng, type AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate, logFailure } from '../../lib/error-log';
 import { mesurerScene } from '../../lib/scene-light';
+import { essaisViewAction } from './adsmap-attribution';
 import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
 import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
@@ -53,6 +54,13 @@ export interface AdsResult {
    * un lot dont on sait qu'il ne prouve rien.
    */
   essaiRompu?: string;
+  /**
+   * Ce que le lot a APPLIQUÉ de ce qui avait été mesuré.
+   *
+   * Un lot qui n'est plus une rotation égale sans rien dire se lit comme un
+   * hasard bizarre · l'appliquer sans l'annoncer revient à mesurer en cachette.
+   */
+  appliquee?: string;
 }
 
 /**
@@ -431,6 +439,23 @@ async function composeBatch(o: {
 }
 
 /** Prompt « références marque » : composer une nouvelle scène inspirée des assets de la bibliothèque. */
+/**
+ * Le cumul des essais de mise en page, pour la marque active.
+ *
+ * ── Pourquoi au mieux, et jamais bloquant ────────────────────────────────────
+ *
+ * La carte peut être fermée pour cette marque, ou la lecture échouer. Un studio
+ * qui refuserait de générer parce qu'il n'a pas pu consulter une statistique
+ * échangerait une amélioration contre une panne.
+ *
+ * Sans cumul, `appliquerEssais` retombe sur les taux, puis sur rien · la
+ * rotation d'avant, exactement.
+ */
+async function cumulCoquillesPourMarque(): Promise<CumulEssais | null> {
+  const { view } = await essaisViewAction();
+  return view?.cumuls.find((c) => c.variable === 'mise_en_page') ?? null;
+}
+
 /** Ce qu'on accepte comme coquille · le reste vient du navigateur. */
 function isAdLayout(v: unknown): v is AdLayout {
   return typeof v === 'string' && (AD_LAYOUTS as readonly string[]).includes(v);
@@ -632,12 +657,22 @@ export async function generateAdsAction(input: {
   // personne n'applique. Le seuil est sévère et garde toujours deux mises en
   // page en lice · une exclue ne produit plus de tests, donc ne peut plus se
   // racheter.
-  const ecartees = impose ? [] : layoutsToDrop({
-    rates: (statsPourExpliquer.stats as StatRow[])
-      .filter((r) => r.dimension === 'layout')
-      .map((r) => ({ layout: r.key, nConclusive: r.nConclusive, hitRate: r.hitRate })),
-    globalRate: statsPourExpliquer.globalRate,
-  });
+  //
+  // Les ESSAIS l'emportent sur les taux quand ils ont parlé · un essai tient
+  // tout le reste, un taux par coquille compare des coquilles et mesure tout ce
+  // qui les accompagnait. La lecture est au mieux : la carte peut être fermée
+  // pour cette marque, et un studio ne doit pas s'arrêter pour autant.
+  const cumulCoquilles = impose ? null : await cumulCoquillesPourMarque().catch(() => null);
+  const decision = impose
+    ? { ecartees: [] as AdLayout[], favori: null as AdLayout | null, source: 'aucune' as const, resume: '' }
+    : appliquerEssais({
+        cumul: cumulCoquilles,
+        rates: (statsPourExpliquer.stats as StatRow[])
+          .filter((r) => r.dimension === 'layout')
+          .map((r) => ({ layout: r.key, nConclusive: r.nConclusive, hitRate: r.hitRate })),
+        globalRate: statsPourExpliquer.globalRate,
+      });
+  const ecartees = decision.ecartees;
   const vivier = AD_LAYOUTS.filter((l) => !ecartees.includes(l));
 
   /**
@@ -657,7 +692,7 @@ export async function generateAdsAction(input: {
       ? templates.map(() => coquilleEssai)
       : impose
         ? templates.map(() => impose)
-        : layoutsForBatch(templates.length, Math.floor(Date.now() / 60000), vivier);
+        : layoutsForBatchFavori(templates.length, Math.floor(Date.now() / 60000), vivier, decision.favori);
 
   // 1) Concepts (Claude) · un par gabarit, tous au service de l'angle si fourni.
   let concepts: AdConcept[];
@@ -721,7 +756,7 @@ export async function generateAdsAction(input: {
     const base = echecLisible(echec.dernier, s.workspaceId);
     return { error: conseil ? `${base} ${conseil}` : base };
   }
-  return { ads, requested: count, essaiRompu: options.essaiRompu };
+  return { ads, requested: count, essaiRompu: options.essaiRompu, appliquee: decision.resume || undefined };
 }
 
 /** Propose des angles précis en s'appuyant sur la marque + les sauvegardes de veille + les concurrents. */
