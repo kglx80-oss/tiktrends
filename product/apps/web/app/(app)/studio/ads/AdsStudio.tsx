@@ -106,6 +106,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * fois, donc on ne sait pas quoi refaire.
    */
   const [essai, setEssai] = useState<'' | EssaiVariable>('');
+  /** Ce que le dernier lot a appliqué de ce qui avait été mesuré. */
+  const [applique, setApplique] = useState('');
   const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
@@ -346,7 +348,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * silencieux. C'est exactement ce qu'on obtenait avant : on cliquait, on
    * attendait, aucune image n'apparaissait, et rien ne disait pourquoi.
    */
-  function applyResult(res: { error?: string; ads?: AdItem[]; requested?: number; essaiRompu?: string }): Outcome {
+  function applyResult(res: { error?: string; ads?: AdItem[]; requested?: number; essaiRompu?: string; appliquee?: string }): Outcome {
     const out = generationOutcome({ error: res.error, got: res.ads?.length ?? 0, requested: res.requested });
     if (res.ads?.length) setAds((list) => [...res.ads!, ...list]);
     setError(out.kind === 'error' ? out.message : '');
@@ -355,6 +357,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     // sur un lot dont on sait qu'il ne prouve rien.
     const rompu = res.essaiRompu ? `Ce lot ne compte pas comme un essai · ${res.essaiRompu}` : '';
     setNotice(out.kind === 'partial' ? out.message : rompu);
+    // Ce que le lot a APPLIQUÉ de ce qui avait été mesuré · un lot qui n'est
+    // plus une rotation égale sans rien dire se lit comme un hasard bizarre.
+    if (res.appliquee) setApplique(res.appliquee);
     return out;
   }
 
@@ -638,6 +643,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
              génération pour voir. */}
         {/* La mise en page décide de la COMPOSITION, l'univers décide de
             l'AMBIANCE. Deux décisions de forme · elles vont ensemble. */}
+        {/* Ce que le lot a APPLIQUÉ · mesurer et appliquer en silence revient
+            à mesurer en cachette, et le lot suivant a l'air d'un hasard. */}
+        {applique && (
+          <p style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            <b style={{ color: '#7ee8bf' }}>Appliqué</b> · {applique}
+          </p>
+        )}
+
         {/* Ce que l'outil conseille · il sait quels essais ont tranché, ce que
             ses notes reprochent aux images, et ce que chaque essai coûte. Rien
             n'est demandé à un modèle : une phrase plausible remplacerait une

@@ -51,6 +51,7 @@ export * from './generation-outcome';
 export * from './visual-universes';
 export * from './universe-previews';
 export * from './ad-layouts';
+export * from './appliquer-essais';
 export * from './scene-framing';
 export * from './scene-light';
 export * from './studio-iterate';
