@@ -291,7 +291,7 @@ export function Composer(props: ComposerProps) {
 
         {/* Le prix EST le bouton · à côté, il se lit après la décision. */}
         <button
-          type="button" onClick={onGenerate} disabled={!pret}
+          type="button" onClick={() => onGenerate()} disabled={!pret}
           style={{
             padding: '11px 20px', borderRadius: 14, border: 'none',
             background: pret ? 'var(--grad-accent)' : 'var(--line-2)',
