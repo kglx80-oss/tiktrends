@@ -579,6 +579,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             note: `${modelSpec.label} · ${modelSpec.credits} crédits par pub · ${modelSpec.note}`,
           }}
           onGenerate={run}
+          // Ce qui manque, dit SOUS le bouton et avant le clic.
+          //
+          // Les gabarits démarrent vides. Le bouton avait donc l'air actif, le
+          // clic était refusé, et « Choisis au moins un gabarit » s'affichait
+          // ailleurs sur la page · hors du champ de vision de qui vient de
+          // cliquer. « Le bouton ne fonctionne pas » est exactement ce qu'on
+          // voit dans ce cas.
+          blocage={mode === 'brand' && !templates.length ? 'Coche au moins un gabarit ci-dessus.' : ''}
           generateLabel={mode === 'clone' ? `Cloner en ${count}` : 'Générer les pubs'}
         />
 
