@@ -6,7 +6,7 @@ import {
   validatePreset, normalizePreset, presetPerformance, memoryOrigin,
   type PresetInput, type PresetPerformance, type PresetUsageRow,
 } from '@tiktrends/core';
-import { VISUAL_UNIVERSES } from '@tiktrends/ai';
+import { AD_DIRECTIONS, directionScenePrompt } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { roleAtLeast } from '../../lib/rbac';
@@ -78,9 +78,13 @@ export async function listPresetsAction(): Promise<{ view?: PresetsView; error?:
           negative: r.negative, brandId: r.brandId, builtin: false,
           performance: presetPerformance(r.id, usage),
         })),
-        builtin: VISUAL_UNIVERSES.map((u) => ({
+        builtin: AD_DIRECTIONS.map((u) => ({
           id: `builtin:${u.key}`, name: u.label, kind: 'image',
-          prompt: u.prompt, negative: null, brandId: null, builtin: true,
+          // La scène et la lumière · pas la typographie ni la disposition. Un
+          // prompt maison sert de direction à une SCÈNE, et l'utilisateur le
+          // relit : lui montrer des consignes de mise en page qu'il ne peut pas
+          // appliquer serait du bruit.
+          prompt: directionScenePrompt(u), negative: null, brandId: null, builtin: true,
           performance: null,
         })),
       },
