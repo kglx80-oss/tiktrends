@@ -120,7 +120,18 @@ describe('la construction de l’arbre reste synchrone', () => {
     ]);
     expect(grand.width).toBe(1080);
     expect(petit.width).toBe(432);
-    expect(memeComposition(composition(grand), composition(petit)).encre).toBeLessThan(0.03);
+    // ── La marge, écrite ──────────────────────────────────────────────────
+    //
+    // À l'état sain l'écart vaut 0,033 ; avec l'échelle débranchée — le vrai
+    // défaut, une accroche de 86 px sur un cadre de 432 — il vaut 0,059. La
+    // tolérance passe donc de 0,03 à 0,04, et le garde attrape encore le défaut
+    // avec 46 % de marge.
+    //
+    // Elle a monté parce que la TYPOGRAPHIE a grossi : à 35 px comme à 86 px,
+    // une lettre ne pose pas la même proportion d'encre, et l'écart entre les
+    // deux échelles suit. C'est de la rastérisation, pas une maquette qui
+    // refuse de se redimensionner.
+    expect(memeComposition(composition(grand), composition(petit)).encre).toBeLessThan(0.04);
   }, 120000);
 });
 
@@ -144,12 +155,42 @@ describe('les mises en page produisent des images différentes', () => {
     for (let a = 0; a < comps.length; a++) {
       for (let b = a + 1; b < comps.length; b++) {
         const d = memeComposition(comps[a]!, comps[b]!);
-        // Au moins l'une des deux mesures bouge nettement · deux coquilles qui
-        // se ressemblent sur les deux sont deux fois la même image.
+        // Trois mesures, et il suffit qu'UNE bouge nettement.
+        //
+        // Le test n'en avait que deux, toutes deux fondées sur l'ENCRE · il
+        // déclarait donc identiques deux coquilles dont les fonds n'ont rien à
+        // voir, parce que leur texte tombe au même endroit. C'est arrivé le
+        // jour où le champ de couleur a reçu son aplat : plus différent que
+        // jamais à l'œil, et signalé comme un doublon.
+        //
+        // Le fond compte autant que le texte · c'est même la première chose
+        // qu'on voit.
+        //
+        // ── Le seuil, mesuré ────────────────────────────────────────────────
+        //
+        // À 0,02 le garde ne servait à rien : replier entièrement une coquille
+        // sur une autre le laissait VERT, parce que le ton de la coquille
+        // repliée suffisait à faire bouger l'encre de deux centièmes.
+        //
+        // Les six écarts réels valent 0,091 · 0,25 · 0,25 · 0,34 · 0,34 · 0,52.
+        // Le plus serré est champ/split. À 0,05 le garde a donc encore de la
+        // marge sur toutes les paires saines.
+        //
+        // ── Ce qu'il n'attrape PAS, et pourquoi on s'en contente ────────────
+        //
+        // Replier une coquille sur une autre en lui laissant son TON passe
+        // encore : l'encre d'accent et l'ombre portée suffisent à creuser
+        // l'écart. Vérifié en repliant `champ` sur `immersif`.
+        //
+        // La régression réaliste, elle, est attrapée : rendre le fond du champ
+        // sombre à nouveau — ce qu'il était, et qui a valu la remarque « toujours
+        // le même template » — le fait tomber. On garde donc ce garde pour ce
+        // qu'il sait faire, et on écrit sa limite plutôt que de la découvrir.
+        const fond = Math.abs(bandLuminance(rendus[a]!, 0.55, 0.95) - bandLuminance(rendus[b]!, 0.55, 0.95));
         expect(
-          Math.max(d.encre, d.centre),
+          Math.max(d.encre, d.centre, fond),
           `« ${AD_LAYOUTS[a]} » et « ${AD_LAYOUTS[b]} » rendent la même chose`,
-        ).toBeGreaterThan(0.02);
+        ).toBeGreaterThan(0.05);
       }
     }
   }, 180000);

@@ -137,7 +137,7 @@ export interface AdRecipe {
  * Un test relie ce numéro au contenu réel du fichier : le modifier sans
  * l'incrémenter fait échouer la suite.
  */
-export const RENDER_VERSION = 7;
+export const RENDER_VERSION = 8;
 
 const LARGEUR_MAQUETTE = 1080;
 let ECHELLE = 1;
@@ -165,13 +165,36 @@ const STAR = '#FFC531';
  */
 function fitHeadline(text: string, base = 78, min = 46): number {
   const n = (text || '').length;
-  if (n <= 16) return u(base);
-  if (n <= 24) return u(base - 10);
-  if (n <= 34) return u(base - 20);
-  if (n <= 46) return u(base - 28);
-  return u(min);
+  // Les paliers descendent en POURCENTAGE, pas en points fixes.
+  //
+  // Retirer 20 points à une base de 86 en enlève un quart ; les retirer d'une
+  // base de 150 en enlève un septième. Écrits en dur, les paliers écrasaient
+  // toute tentative d'agrandir l'accroche · c'est ce qui rendait la maquette
+  // impossible à sortir de sa timidité.
+  //
+  // L'arrondi se fait en unités de MAQUETTE, avant la conversion · arrondir
+  // après donnait une taille légèrement différente selon l'échelle, et la
+  // vignette cessait d'être la même composition que le plein format.
+  const palier = n <= 16 ? 1 : n <= 24 ? 0.88 : n <= 34 ? 0.77 : n <= 46 ? 0.67 : 0.58;
+  return u(Math.max(min, Math.round(base * palier)));
 }
 const shadow = () => `0 ${u(3)}px ${u(22)}px rgba(0,0,0,.55)`;
+
+/**
+ * Une couleur assombrie, en restant elle-même.
+ *
+ * Un dégradé vers le noir efface la teinte · c'est exactement ce qui vidait le
+ * « champ de couleur » de sa couleur. On multiplie donc les canaux au lieu de
+ * fondre vers autre chose.
+ */
+function assombrir(hex: string, part: number): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const k = Math.max(0, Math.min(1, 1 - part));
+  const c = (d: number) => Math.round(((n >> d) & 255) * k);
+  return `rgb(${c(16)}, ${c(8)}, ${c(0)})`;
+}
 
 function Star({ size = 32, color = STAR }: { size?: number; color?: string }) {
   return (
@@ -254,7 +277,7 @@ const scrimTop = (a: number) => ({
  */
 function BottomPanel({ fort, doux, children }: { fort: number; doux: number; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'absolute', left: u(0), right: u(0), bottom: u(0), display: 'flex', flexDirection: 'column', padding: ux(190, 60, 62), backgroundImage: `linear-gradient(to top, rgba(8,8,11,${fort}) 62%, rgba(8,8,11,${doux}) 84%, rgba(8,8,11,0))` }}>
+    <div style={{ position: 'absolute', left: u(0), right: u(0), bottom: u(0), display: 'flex', flexDirection: 'column', padding: ux(112, 60, 62), backgroundImage: `linear-gradient(to top, rgba(8,8,11,${fort}) 62%, rgba(8,8,11,${doux}) 84%, rgba(8,8,11,0))` }}>
       {children}
     </div>
   );
@@ -366,7 +389,9 @@ function tonDe(layout: AdLayout, accent: string): Ton {
   if (LAYOUT_CLAIR[layout]) return { texte: ENCRE, accentInk: accent, doux: 'rgba(18,18,26,.72)', ombre: 'none', clair: true };
   // Sur un bloc de couleur, l'ombre portée salit au lieu de détacher · le
   // contraste vient déjà du fond. Et l'encre d'accent devient blanche.
-  if (layout === 'split') return { texte: WHITE, accentInk: WHITE, doux: 'rgba(255,255,255,.92)', ombre: 'none', clair: false };
+  // Deux coquilles posent leur texte sur un aplat d'accent · l'encre d'accent y
+  // deviendrait invisible, et l'ombre portée salirait un fond déjà contrasté.
+  if (layout === 'split' || layout === 'champ') return { texte: WHITE, accentInk: WHITE, doux: 'rgba(255,255,255,.92)', ombre: 'none', clair: false };
   return { texte: WHITE, accentInk: accent, doux: 'rgba(255,255,255,.88)', ombre: shadow(), clair: false };
 }
 
@@ -424,7 +449,13 @@ function Coquille({ r, layout, deco, children }: {
          « inset: 0 » ne peignait rien, et la mise en page nommée « champ de
          couleur » n'en montrait aucune. Il commence À la couleur : écrit
          « accent -20 % », il la plaçait hors de l'image. */
-      <Frame fond={`linear-gradient(178deg, ${r.accent} 0%, ${r.accent} 30%, ${DARK} 84%)`}>
+      /* Un aplat, pas un dégradé vers le noir.
+           Écrit « accent 0 %, accent 30 %, sombre 84 % », le champ n'avait de
+           couleur QUE derrière la photo, qui la cache · le texte tombait sur du
+           noir, et la mise en page nommée « champ de couleur » n'en montrait
+           toujours aucune. Le dégradé reste, mais entre deux tons de l'accent :
+           il donne du relief sans reprendre la couleur qu'il est censé poser. */
+      <Frame fond={`linear-gradient(178deg, ${r.accent} 0%, ${assombrir(r.accent, 0.34)} 100%)`}>
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: ux(46, 46, 50) }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: u(22) }}>
             <Logo recipe={r} />
@@ -485,9 +516,12 @@ function Titre({ r, t, layout, base }: { r: AdRecipe; t: Ton; layout: AdLayout; 
   return (
     <div style={{
       display: 'flex',
-      fontSize: fitHeadline(texte, base ?? (affiche ? 98 : 86), affiche ? 58 : 52),
-      lineHeight: affiche ? 0.93 : 0.99,
-      fontWeight: 700, color: t.texte,
+      // Une publicité n'est pas une carte web · son accroche doit MANGER
+      // l'image. À 86, elle pesait à peine plus que ses propres puces, et les
+      // deux tiers hauts du cadre restaient vides.
+      fontSize: fitHeadline(texte, base ?? (affiche ? 168 : 140), affiche ? 82 : 74),
+      lineHeight: affiche ? 0.92 : 0.96,
+      fontWeight: 800, color: t.texte,
       letterSpacing: u(affiche ? -2.2 : -1.4),
       textShadow: t.ombre,
     }}>{texte}</div>
@@ -515,11 +549,17 @@ function Bloc({ t, children }: { t: Ton; children: React.ReactNode }) {
 }
 
 function Pied({ r, plein = false, layout }: { r: AdRecipe; plein?: boolean; layout?: AdLayout }) {
+  // Un bouton sans texte n'est pas un bouton.
+  //
+  // Le modèle rend parfois un `cta` vide. On dessinait quand même la pastille,
+  // avec sa seule flèche · une publicité qui affiche un bouton muet a l'air
+  // cassée, et elle l'est. Mieux vaut pas de bouton du tout : la publicité
+  // reste publiable, l'accroche porte seule.
+  if (!r.cta?.trim()) return <div style={{ display: 'flex' }} />;
   return (
     <div style={{ display: 'flex', marginTop: u(28) }}>
-      {/* Le split pose son texte sur un bloc d'accent · un bouton d'accent y
-          serait invisible. */}
-      <Cta recipe={r} full={plein} invert={layout === 'split'} />
+      {/* Un bloc de couleur pleine avale un bouton d'accent · il s'inverse. */}
+      <Cta recipe={r} full={plein} invert={layout === 'split' || layout === 'champ'} />
     </div>
   );
 }
@@ -567,12 +607,22 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
       return (
         <div style={colonne}>
           {r.kicker ? <div style={{ display: 'flex', marginBottom: u(20) }}><Kicker text={r.kicker} accent={t.accentInk} /></div> : null}
-          <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 74 : 62} />
+          {/* La liste ne fait PAS rétrécir l'accroche.
+               Elle était bridée à 62 pour laisser de la place aux puces · une
+               accroche de 42 px sur un cadre de 1080, c'est-à-dire quatre pour
+               cent de la largeur. La réponse à « le titre gêne la liste » n'est
+               pas de rapetisser le titre, c'est de rapetisser la liste. */}
+          <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 132 : 112} />
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: u(22) }}>
             {items.map((b, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', marginTop: i ? u(16) : 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: u(40), height: u(40), borderRadius: u(999), background: t.accentInk }}><Check color={layout === 'split' ? r.accent : WHITE} /></div>
-                <div style={{ display: 'flex', marginLeft: u(16), fontSize: u(31), fontWeight: 700, color: t.texte }}>{b}</div>
+                {/* La coche se lit sur SA pastille, pas sur un nom de coquille.
+                     La règle disait « si c'est le split » · le jour où le champ
+                     a rejoint les fonds d'accent, sa pastille blanche a reçu une
+                     coche blanche. Une règle qui énumère des coquilles casse à
+                     la coquille suivante. */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: u(40), height: u(40), borderRadius: u(999), background: t.accentInk }}><Check color={t.accentInk === WHITE ? r.accent : WHITE} /></div>
+                <div style={{ display: 'flex', marginLeft: u(16), fontSize: u(30), fontWeight: 600, color: t.doux }}>{b}</div>
               </div>
             ))}
           </div>
@@ -612,7 +662,9 @@ function contenu(r: AdRecipe, t: Ton, layout: AdLayout): React.ReactNode {
           <div style={{ display: 'flex', fontSize: u(layout === 'split' ? 96 : layout === 'champ' ? 122 : 150), lineHeight: 0.86, fontWeight: 700, color: t.accentInk, letterSpacing: u(-3), textShadow: t.ombre }}>{r.stat || '92%'}</div>
           {r.statLabel ? <div style={{ display: 'flex', marginTop: u(6), fontSize: u(30), fontWeight: 700, color: t.texte, maxWidth: u(680), lineHeight: 1.1, textShadow: t.ombre }}>{r.statLabel}</div> : null}
           <div style={{ display: 'flex', marginTop: u(18) }}>
-            <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 62 : layout === 'split' ? 42 : 52} />
+            {/* Le chiffre-clé occupe déjà la moitié du bloc · l'accroche reste
+                en dessous de la base commune, mais pas au point de disparaître. */}
+            <Titre r={r} t={t} layout={layout} base={layout === 'affiche' ? 112 : layout === 'split' ? 80 : 96} />
           </div>
           <Pied r={r} layout={layout} />
         </div>
