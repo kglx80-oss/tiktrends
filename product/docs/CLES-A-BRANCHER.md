@@ -162,23 +162,48 @@ n'a rien porté · trois « rien de neuf » et personne ne l'ouvre plus.
 
 Sans `CRON_SECRET`, l'endpoint répond 503. Il est fermé par défaut.
 
-## Migrations en attente sur le VPS
+## Migrations · où en est la base
 
-Quatre migrations sont écrites et **pas encore appliquées** :
+**Cette page ne dit pas ce qui est appliqué.** Elle l'a fait, et elle a eu tort :
+la liste des « migrations en attente » y est restée figée pendant des semaines
+après leur application, et elle a envoyé chercher une panne qui n'existait plus.
 
-| # | Ce qu'elle fait | Sans elle |
-|---|---|---|
-| `0042_brand_enriched_at` | date d'enrichissement d'une marque | l'enrichissement repart à chaque chargement |
-| `0043_stat_milestones` | quand la mémoire a appris quelque chose | le récapitulatif ne peut rien annoncer |
-| `0044_ad_source_ref` | lien génération → ad, **sur l'ad** | l'attribution reste mesurée au mauvais niveau |
-| `0045_backfill_ad_source_ref` | rétro-rattache l'historique | l'attribution reste vide sur tout le passé |
+Un document ne peut pas savoir ce qu'une base a exécuté. Deux endroits le
+savent, et un seul suffit :
 
-Elles s'appliquent dans l'ordre, avec la commande de déploiement habituelle.
+**Dans l'application** · le bloc de déploiement de la page Jarvis (fondateur).
+Il affiche la version de maquette, l'empreinte du build et le retard de
+migrations, et il le lit à chaque chargement.
 
-**0045 en particulier** ne devine rien : elle ne rattache que les ads dont une
-génération porte déjà `adsmapAdId`, une trace écrite par la passerelle au moment
-de la création. Elle ne remplace jamais un lien existant, et la rejouer ne change
-rien (vérifié : second passage `UPDATE 0`).
+**En ligne de commande** :
+
+```bash
+cd ~/tiktrends/product
+docker compose exec -T db psql -U tiktrends -d tiktrends \
+  -c "select count(*) from drizzle.__drizzle_migrations;"
+```
+
+Le compte doit égaler `MIGRATIONS_IN_BUILD` (`packages/db/src/journal.ts`), que
+le déploiement embarque et qu'un test compare au journal Drizzle. S'il est plus
+bas, il en manque.
+
+### Appliquer ce qui manque
+
+C'est fait automatiquement à chaque déploiement (voir `ops/README.md`). À la
+main, c'est la même commande :
+
+```bash
+docker compose exec -T -w /app workers pnpm --filter @tiktrends/db migrate
+```
+
+Drizzle n'applique que les nouvelles, dans l'ordre. La relancer ne fait rien.
+
+### Une seule migration mérite un mot
+
+`0045_backfill_ad_source_ref` rattrape l'historique. Elle ne devine rien : elle
+ne relie une ad à sa génération que là où la trace `adsmapAdId` existe déjà,
+écrite par la passerelle au moment de la création. Elle ne remplace jamais un
+lien, et un second passage affiche `UPDATE 0`.
 
 Les ads importées, venues de la veille ou saisies à la main restent sans lien ·
 c'est correct, elles n'ont jamais eu de génération.
