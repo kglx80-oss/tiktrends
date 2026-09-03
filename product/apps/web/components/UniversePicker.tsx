@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, useTransition, type CSSProperties } from 'react';
-import { VISUAL_UNIVERSES } from '@tiktrends/ai';
+import { AD_DIRECTIONS } from '@tiktrends/core';
 import {
   UNIVERSE_AUTO, UNIVERSE_FAMILIES, UNIVERSE_HINT, UNIVERSE_SWATCH,
   filterUniverses, type UniverseFamily,
@@ -50,7 +50,9 @@ import { universePreviewsAction, generateUniversePreviewsAction, type UniversePr
  * refus d'en choisir un.
  */
 
-const OPTIONS = [{ key: UNIVERSE_AUTO, label: '✦ Varié (auto)' }, ...VISUAL_UNIVERSES];
+// Les directions artistiques · quatorze, contre huit univers d'une phrase.
+// Chacune porte son cadrage, sa lumière, sa typographie et sa disposition.
+const OPTIONS = [{ key: UNIVERSE_AUTO, label: '✦ Varié (auto)', hint: '' }, ...AD_DIRECTIONS];
 
 const chip = (on: boolean): CSSProperties => ({
   padding: '6px 13px', borderRadius: 999, fontSize: 12, cursor: 'pointer',

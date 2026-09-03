@@ -2,7 +2,7 @@
 
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { VISUAL_UNIVERSES } from '@tiktrends/ai';
+import { AD_DIRECTIONS, directionScenePrompt } from '@tiktrends/core';
 import {
   planUniversePreviews, imageModelByKey, falModelFor,
   UNIVERSE_PREVIEW_STATUS, type PreviewPlan,
@@ -98,7 +98,7 @@ export async function universePreviewsAction(): Promise<UniversePreviewsView> {
       creditsPerImage: spec.credits,
       ready: !!falFromEnv(),
       plan: planUniversePreviews({
-        all: VISUAL_UNIVERSES.map((u) => u.key),
+        all: AD_DIRECTIONS.map((u) => u.key),
         existing: Object.keys(previews),
         creditsPerImage: spec.credits,
       }),
@@ -140,7 +140,7 @@ export async function generateUniversePreviewsAction(input?: { force?: boolean }
   try {
     const existants = await lireApercus(brand.id);
     const plan = planUniversePreviews({
-      all: VISUAL_UNIVERSES.map((u) => u.key),
+      all: AD_DIRECTIONS.map((u) => u.key),
       existing: Object.keys(existants),
       creditsPerImage: spec.credits,
       force: !!input?.force,
@@ -163,12 +163,12 @@ export async function generateUniversePreviewsAction(input?: { force?: boolean }
 
     let made = 0;
     for (const key of plan.missing) {
-      const uni = VISUAL_UNIVERSES.find((u) => u.key === key);
+      const uni = AD_DIRECTIONS.find((u) => u.key === key);
       if (!uni) continue;
       try {
         await guardFixedCost('fal_image', { action: 'universe:preview', workspaceId: s.workspaceId, units: 1 });
         const { images } = await falGenerateImage(cfg, {
-          prompt: `${BRIEF}\n\nArt direction / visual universe: ${uni.prompt}`,
+          prompt: `${BRIEF}\n\n${directionScenePrompt(uni)}`,
           aspectRatio: '4:5',
           imageUrls: refs.length ? refs : undefined,
           edit: refs.length > 0,

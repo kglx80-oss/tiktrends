@@ -31,6 +31,8 @@
  * Pur : ni base, ni réseau, ni modèle.
  */
 
+import { directionPrompt, type AdDirection } from './ad-directions';
+
 export const PRODUCTION_MODES = ['composee', 'entiere'] as const;
 export type ProductionMode = typeof PRODUCTION_MODES[number];
 
@@ -149,7 +151,9 @@ export function promptPubEntiere(o: {
   sceneBrief: string;
   /** Une photo du produit est fournie en référence. */
   avecProduit: boolean;
-  /** Direction artistique demandée. */
+  /** Direction artistique · scène, lumière, typographie, disposition, finition. */
+  direction?: AdDirection | null;
+  /** Prompt maison · remplace la direction quand il est choisi. */
   universPrompt?: string;
 }): string {
   const c = o.copie;
@@ -167,7 +171,12 @@ export function promptPubEntiere(o: {
     ? 'The provided image is the EXACT product. Reproduce it strictly identically: same packaging shape, same cap, same label artwork, same label text and its typography, same badges and logos, same colours, same real-world proportions. Do not redraw, restyle, translate or paraphrase anything printed on the packaging. The label must stay as sharp and legible as in the reference.'
     : 'No product photo is provided · invent nothing branded, and keep the composition centred on the scene.';
 
-  const uni = o.universPrompt ? `Art direction: ${o.universPrompt}` : '';
+  // La direction est écrite fragment par fragment, chacun nommé · fondus en un
+  // paragraphe ils se diluent, et le modèle traite la typographie comme une
+  // ambiance au lieu d'une instruction.
+  const uni = o.direction
+    ? `Art direction:\n${directionPrompt(o.direction)}`
+    : o.universPrompt ? `Art direction: ${o.universPrompt}` : '';
 
   return [
     'Produce a COMPLETE, ready-to-publish 4:5 social media advertisement · not a bare photograph.',

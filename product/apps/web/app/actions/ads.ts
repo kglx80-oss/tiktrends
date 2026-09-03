@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, texteAttenduDansImage, type ProductionMode } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, texteAttenduDansImage, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -220,8 +220,13 @@ async function composeBatch(o: {
     // rien ne le vérifiait. Une accroche trop longue ne se coupe pas, elle
     // change de mise en page.
     layoutForCopy(c.headline, layoutFor(c.template, o.mises[i] ?? 'immersif'));
-  const chosen = o.universe && o.universe !== 'auto' ? VISUAL_UNIVERSES.find((u) => u.key === o.universe) : null;
-  const offset = Math.floor(Date.now() / 1000) % VISUAL_UNIVERSES.length;
+  // Les directions artistiques remplacent les huit univers d'une phrase.
+  //
+  // Les huit premières clés sont les mêmes · les publicités déjà produites et
+  // les essais d'ambiance déjà cumulés continuent donc de compter. Les six
+  // nouvelles s'ajoutent au vivier de la rotation.
+  const chosen = o.universe && o.universe !== 'auto' ? directionByKey(o.universe) : null;
+  const offset = Math.floor(Date.now() / 1000) % AD_DIRECTIONS.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction
   // artistique de la marque, elle ne se fait pas alterner avec la nôtre.
   /**
@@ -235,11 +240,16 @@ async function composeBatch(o: {
    * pouvait pas se tenir, quel que soit le nombre de séries lancées.
    */
   const universeUsed = (i: number) =>
-    chosen ? chosen.key : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.key;
+    chosen ? chosen.key : AD_DIRECTIONS[(offset + i) % AD_DIRECTIONS.length]!.key;
 
+  /** La direction retenue pour ce visuel · un prompt maison la remplace. */
+  const directionPour = (i: number) => chosen ?? AD_DIRECTIONS[(offset + i) % AD_DIRECTIONS.length]!;
+  // En mode composé, on ne demande NI typographie NI disposition · c'est nous
+  // qui posons le texte. Lui demander un registre typographique lui ferait
+  // écrire des mots qu'on recouvrirait.
   const universeFor = (i: number) => o.preset
     ? o.preset.prompt
-    : chosen ? chosen.prompt : VISUAL_UNIVERSES[(offset + i) % VISUAL_UNIVERSES.length]!.prompt;
+    : directionScenePrompt(directionPour(i));
   // Les exclusions ferment la consigne · un moteur qui les ignore n'est pas gêné,
   // un moteur qui les lit les retient mieux en fin de prompt.
   const exclusions = o.preset?.negative?.trim() ? `\n\nAvoid: ${o.preset.negative.trim()}` : '';
@@ -287,7 +297,12 @@ async function composeBatch(o: {
         },
         sceneBrief: c.sceneBrief,
         avecProduit: !!imageUrls?.length,
-        universPrompt: o.preset ? o.preset.prompt : (chosen?.prompt ?? undefined),
+        // La direction ENTIÈRE ici · scène, lumière, typographie, disposition,
+        // finition. C'est la typographie et la disposition qui manquaient, et
+        // c'est pour ça que la mise en page changeait sans raison d'une image
+        // à l'autre : on ne lui en disait rien.
+        direction: o.preset ? null : directionPour(i),
+        universPrompt: o.preset ? o.preset.prompt : undefined,
       }) + exclusions;
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
