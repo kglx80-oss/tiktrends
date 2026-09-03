@@ -21,6 +21,16 @@ export interface CreativeInput {
    * `visuel` reste nul plutôt que d'être inventé.
    */
   image?: { mediaType: 'image/png' | 'image/jpeg' | 'image/webp'; base64: string };
+  /**
+   * Le texte est-il DANS l'image par construction ?
+   *
+   * Une publicité produite entière porte ses mots parce qu'on les a demandés.
+   * Signaler « du texte est cuit dans l'image » serait alors transformer la
+   * réussite en alerte · l'écran perdrait sa crédibilité d'un coup. Mais il
+   * reste quelque chose à vérifier, et c'est même plus important : le texte
+   * est-il ÉCRIT JUSTE.
+   */
+  texteDansImage?: boolean;
 }
 export interface CreativeScore {
   score: number;          // 0-100 · potentiel de performance global
@@ -75,9 +85,11 @@ export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creativ
     "Sois EXIGEANT et honnête : la plupart des créas moyennes sont entre 40 et 65. Une note ≥ 80 est réservée aux créas prêtes à scaler.",
     ctx.winningPatterns ? "Appuie-toi sur les PATTERNS GAGNANTS appris pour cette marque (fournis) : récompense ce qui s'en rapproche." : '',
     ctx.creativeRules ? "Respecte les RÈGLES MAISON de la marque (fournies)." : '',
-    aVu
-      ? "L'IMAGE de la pub composée t'est fournie : juge ce qu'un pouce voit en 0,5 s, pas seulement ce que le texte dit. Signale les RATÉS DE FABRICATION que tu vois vraiment (texte généré dans la photo, produit déformé, anatomie anormale, logo inventé, sujet illisible) · n'en invente aucun, une liste vide est la réponse normale."
-      : "Aucune image ne t'est fournie : note uniquement les textes, laisse « visuel » et « defauts » vides.",
+    aVu && creative.texteDansImage
+      ? "L'IMAGE de la pub t'est fournie, et sa typographie a été PRODUITE PAR LE MODÈLE D'IMAGES : c'est voulu, ce n'est donc PAS un défaut. Ne signale JAMAIS « texte_incruste » ici. En revanche vérifie que les mots sont ÉCRITS JUSTE (orthographe, accents français, lettres inventées) : une faute rend la pub impubliable · signale-la alors comme « illisible ». Juge aussi ce qu'un pouce voit en 0,5 s. Les autres ratés (produit déformé, anatomie anormale, logo inventé) restent des défauts."
+      : aVu
+        ? "L'IMAGE de la pub composée t'est fournie : juge ce qu'un pouce voit en 0,5 s, pas seulement ce que le texte dit. Signale les RATÉS DE FABRICATION que tu vois vraiment (texte généré dans la photo, produit déformé, anatomie anormale, logo inventé, sujet illisible) · n'en invente aucun, une liste vide est la réponse normale."
+        : "Aucune image ne t'est fournie : note uniquement les textes, laisse « visuel » et « defauts » vides.",
     "Rends via l'outil return_score. Français, zéro tiret cadratin.",
   ].filter(Boolean).join(' ');
 
@@ -124,7 +136,12 @@ export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creativ
     // une note visuelle produite à l'aveugle serait une invention affichée
     // comme un constat.
     visuel: aVu ? clamp(s.visuel) : 0,
-    defauts: aVu && Array.isArray(s.defauts) ? s.defauts.filter((d) => typeof d === 'string') : [],
+    // Un texte voulu dans l'image ne peut pas être un « texte incrusté » · le
+    // filtre le retire même si le modèle a désobéi à la consigne.
+    defauts: aVu && Array.isArray(s.defauts)
+      ? s.defauts.filter((d) => typeof d === 'string')
+          .filter((d) => !(creative.texteDansImage && d === 'texte_incruste'))
+      : [],
     vu: aVu,
   };
 }

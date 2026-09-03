@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -106,6 +106,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * fois, donc on ne sait pas quoi refaire.
    */
   const [essai, setEssai] = useState<'' | EssaiVariable>('');
+  /**
+   * Comment fabriquer la publicité.
+   *
+   * « Entière » par défaut · un essai côte à côte l'a montrée meilleure sur
+   * l'étiquette, le français et la mise en page. La composée reste offerte, et
+   * reste la seule à garantir les textes au caractère près.
+   */
+  const [fabrication, setFabrication] = useState<ProductionMode>('entiere');
   /** Ce que le dernier lot a appliqué de ce qui avait été mesuré. */
   const [applique, setApplique] = useState('');
   const [count, setCount] = useState(4);
@@ -401,7 +409,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       return { kind: 'error', message };
     }
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model, essai: essai || undefined });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model, essai: essai || undefined, mode: fabrication });
     setBusy(false);
     return apresLot(applyResult(res));
   }
@@ -643,6 +651,29 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
              génération pour voir. */}
         {/* La mise en page décide de la COMPOSITION, l'univers décide de
             l'AMBIANCE. Deux décisions de forme · elles vont ensemble. */}
+        {/* Comment on fabrique · le choix se fait sur ce que chaque mode TIENT,
+            pas sur son nom. Les deux garantissent le produit ; une seule
+            garantit les textes, et l'autre rend mieux. */}
+        <label style={lbl}>Fabrication</label>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 8 }}>
+          {PRODUCTION_MODES.map((m) => {
+            const on = fabrication === m;
+            return (
+              <button key={m} type="button" disabled={!ready} onClick={() => setFabrication(m)} style={{
+                padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
+                fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
+                border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
+                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+              }}>{PRODUCTION_LABEL[m]}</button>
+            );
+          })}
+        </div>
+        <p style={{ margin: '0 0 16px', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+          {PRODUCTION_RESUME[fabrication]}<br />
+          <b style={{ color: '#7ee8bf' }}>Garanti</b> · {garanties(fabrication).join(' · ')}.<br />
+          <b style={{ color: '#ffca6b' }}>Pas garanti</b> · {reserves(fabrication).join(' · ')}.
+        </p>
+
         {/* Ce que le lot a APPLIQUÉ · mesurer et appliquer en silence revient
             à mesurer en cachette, et le lot suivant a l'air d'un hasard. */}
         {applique && (
