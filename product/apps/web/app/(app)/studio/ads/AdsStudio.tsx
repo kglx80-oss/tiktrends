@@ -476,6 +476,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       </div>
 
       <div ref={composeur} style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', marginBottom: 28, scrollMarginTop: 16 }}>
+        {/* Le bandeau ouvre l'ASSISTANT · c'est le chemin demandé, une décision
+             par écran. Le composeur à plat n'est plus derrière ce clic : il a
+             son propre lien, à droite. Les avoir confondus a supprimé le seul
+             moyen de l'ouvrir, et je l'ai annoncé comme conservé. */}
         <button type="button" onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
           display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '15px 22px',
           border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left',
@@ -492,8 +496,20 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             </span>
           )}
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 12.5, color: 'var(--accent-strong)', fontWeight: 700 }}>{avance ? 'Replier' : 'Ouvrir'}</span>
+          <span style={{ fontSize: 12.5, color: 'var(--accent-strong)', fontWeight: 700 }}>Étape par étape ›</span>
         </button>
+
+        {/* Le composeur à plat · son propre lien, jamais confondu avec
+             l'assistant. Deux chemins vers la même génération : celui qui
+             guide, et celui qui va vite. */}
+        <div style={{ padding: '0 22px 14px', marginTop: -8 }}>
+          <button type="button" onClick={() => setAvance((v) => !v)} style={{
+            border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+            fontSize: 12, color: 'var(--muted)', textDecoration: 'underline', textUnderlineOffset: 3,
+          }}>
+            {avance ? 'Replier le composeur à plat' : 'Ou ouvrir tous les réglages sur une seule barre'}
+          </button>
+        </div>
 
         <div hidden={!avance} style={{ padding: '0 22px 22px' }}>
         {!ready && (
