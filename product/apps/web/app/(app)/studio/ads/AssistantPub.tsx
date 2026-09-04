@@ -48,6 +48,28 @@ export interface AssistantProps {
   onMoteur: (v: string) => void;
   onGenerer: () => void;
   busy: boolean;
+  /**
+   * Ce que la dernière génération a répondu quand elle a échoué.
+   *
+   * ── Le défaut que ça répare ────────────────────────────────────────────────
+   *
+   * L'écran savait déjà dire pourquoi · il posait `error`, et le bandeau rouge
+   * s'affichait sur la page. Sauf que la page est SOUS cette fenêtre, qui
+   * recouvre tout. Le lot échouait, le bouton cessait de dire « Génération… »,
+   * et il ne se passait plus rien.
+   *
+   * « Les images ne se génèrent pas, aucun résultat » décrit exactement ça : un
+   * échec expliqué à un endroit qu'on ne peut pas regarder.
+   */
+  erreur: string;
+  /**
+   * Le plafond de dépense · dit pendant qu'on choisit le nombre.
+   *
+   * Il est dur : au-delà, plus une seule image ne part, et le lot revient vide.
+   * L'apprendre au moment du refus, après cinq écrans, c'est le découvrir trop
+   * tard · ici, c'est encore une décision.
+   */
+  budget: { resume: string; bloque: boolean } | null;
 }
 
 export function AssistantPub(p: AssistantProps) {
@@ -139,7 +161,11 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
   const spec = imageModelByKey(p.etat.moteur);
   const total = spec.credits * Math.max(1, p.etat.nombre);
   const duree = dureeAttendue(p.etat.nombre, imageTimeoutMs(spec));
-  const pret = derniere ? peutGenerer(p.etat) && !p.busy : !bloquant;
+  // Le plafond atteint est un refus CERTAIN · aucune image ne partira, quels
+  // que soient les cinq écrans. Le laisser découvrir au bout du parcours ferait
+  // remplir un formulaire pour rien, puis rendrait un lot vide.
+  const bloqueBudget = p.budget?.bloque ? p.budget.resume : '';
+  const pret = derniere ? peutGenerer(p.etat) && !p.busy && !bloqueBudget : !bloquant;
   // Sur le dernier écran, ce qui manque peut venir d'une étape antérieure · on
   // le nomme, sinon le refus final est aussi opaque que celui qu'on a corrigé
   // sur le bouton de génération.
@@ -161,6 +187,14 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
             <b style={{ color: 'var(--ink-2)' }}>{total} crédits</b> · {duree}
           </span>
         )}
+        {/* Sur le dernier écran, c'est un chiffre à connaître avant de payer.
+             Quand le plafond est ATTEINT, c'est un refus certain · il s'annonce
+             dès le premier écran, pas au bout du parcours. */}
+        {(derniere || p.budget?.bloque) && p.budget && (
+          <span style={{ fontSize: 11.5, color: p.budget.bloque ? '#ff9db0' : 'var(--muted)' }}>
+            · {p.budget.resume}
+          </span>
+        )}
 
         <button type="button" onClick={derniere ? p.onGenerer : onSuivante} disabled={!pret} style={{
           padding: '11px 22px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14,
@@ -172,15 +206,28 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
       </div>
 
       {/* Ce qui manque, écrit sous le bouton · jamais un refus muet. */}
-      {(bloquant || (restant && restant !== etape)) && !p.busy && (
+      {(bloqueBudget || bloquant || (restant && restant !== etape)) && !p.busy && (
         <p style={{ margin: 0, fontSize: 11.5, color: '#ffb3c0', textAlign: 'right' }}>
-          {bloquant || `Étape « ${ETAPE_TITRE[restant!]} » incomplète · ${manque(restant!, p.etat)}`}
+          {bloqueBudget || bloquant || `Étape « ${ETAPE_TITRE[restant!]} » incomplète · ${manque(restant!, p.etat)}`}
         </p>
       )}
       {p.busy && (
         <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', textAlign: 'right' }}>
           Les images arrivent par groupes de trois · {duree}. Tu peux fermer cette fenêtre, la génération continue.
         </p>
+      )}
+
+      {/* L'échec s'affiche ICI, dans la fenêtre qui recouvre l'écran · le
+           bandeau de la page est derrière elle, donc invisible au moment
+           précis où il aurait quelque chose à apprendre. */}
+      {p.erreur && !p.busy && (
+        <div style={{
+          padding: '10px 13px', borderRadius: 11, fontSize: 12.5, lineHeight: 1.5,
+          border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0',
+        }}>
+          <b style={{ display: 'block', color: '#ffc2cd', marginBottom: 2 }}>La génération n’a rien produit</b>
+          {p.erreur}
+        </div>
       )}
     </div>
   );
