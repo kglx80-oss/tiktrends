@@ -44,7 +44,12 @@ describe('l’assistant lit le noyau', () => {
   it('un refus nomme toujours ce qui manque', () => {
     // C'est le défaut qu'on vient de corriger un cran plus bas · le refaire
     // ici serait apprendre à l'envers.
-    expect(UI).toMatch(/\{\(bloquant \|\|/);
+    // On cherche `bloquant ||` dans le pied, pas une ligne entière · le garde
+    // a cassé le jour où un troisième motif de refus (le plafond) s'est ajouté
+    // devant, alors que la règle qu'il défend n'avait pas bougé. Un garde qui
+    // tombe sur une virgule apprend à le contourner.
+    const pied = UI.slice(UI.indexOf('function Pied('), UI.indexOf('/* -------------------------------- Les étapes'));
+    expect(pied, 'le refus n’affiche plus ce qui manque').toMatch(/bloquant \|\|/);
     expect(UI, 'le dernier écran ne dit pas quelle étape antérieure bloque').toMatch(/premiereIncomplete\(p\.etat\)/);
   });
 
@@ -179,6 +184,33 @@ describe('le studio ouvre l’assistant', () => {
       if (!b.auto) pile.push({ nom: b.nom, masque });
     }
     expect(vu, 'l’assistant n’est plus monté du tout').toBe(true);
+  });
+
+  it('la fenêtre montre l’échec qu’elle a provoqué', () => {
+    // ── Le troisième défaut de la même famille ────────────────────────────
+    //
+    // L'écran savait dire pourquoi le lot avait échoué · `applyResult` posait
+    // `error`, et le bandeau rouge s'affichait sur la page. Sauf que la page
+    // est SOUS cette fenêtre, qui recouvre tout l'écran. Le lot échouait, le
+    // bouton cessait de dire « Génération… », et il ne se passait plus rien.
+    //
+    // « Les images ne se génèrent pas, aucun résultat » décrit exactement ça :
+    // un échec expliqué à un endroit qu'on ne peut pas regarder.
+    //
+    // La règle : ce qui déclenche une dépense doit afficher le refus de cette
+    // dépense, là où on a cliqué.
+    expect(UI, 'la fenêtre reçoit l’échec sans jamais l’afficher').toMatch(/\{p\.erreur &&/);
+  });
+
+  it('l’écran transmet à la fenêtre ce qu’elle doit montrer', () => {
+    // Ces deux-là ne se voient QUE d'ici · le rendu de la fenêtre, lui, est
+    // vérifié dans `assistant-rendu.test.tsx`, en lisant le HTML produit.
+    //
+    // Ce garde ne dit pas que l'information s'affiche · seulement qu'elle
+    // arrive. Croire qu'une mention suffit est exactement l'erreur qui a laissé
+    // passer les trois défauts précédents.
+    expect(STUDIO, 'l’échec n’est pas transmis à la fenêtre').toMatch(/erreur=\{error\}/);
+    expect(STUDIO, 'le plafond n’est pas transmis à la fenêtre').toMatch(/budget=\{budget\}/);
   });
 
   it('se ferme seulement quand le lot a produit quelque chose', () => {

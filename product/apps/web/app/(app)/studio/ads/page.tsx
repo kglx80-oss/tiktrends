@@ -14,6 +14,7 @@ import { AdsStudio } from './AdsStudio';
 import { essaiSuivantAction } from '../../../actions/adsmap-attribution';
 import { PageInfo } from '../../../../components/PageInfo';
 import { effectiveAccess } from '../../../../lib/access';
+import { spendStatus } from '../../../../lib/spend-guard';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
@@ -28,6 +29,13 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   // appeler aucun modèle. Un échec de lecture n'a pas à bloquer le studio : on
   // affiche simplement le sélecteur sans conseil.
   const suggestion = (await essaiSuivantAction().catch(() => ({ suggestion: undefined }))).suggestion ?? null;
+  // Le plafond de dépense, lu AVANT de proposer de générer.
+  //
+  // Il est dur : au-delà, plus une seule image ne part. Découvrir ça après
+  // avoir traversé cinq écrans, c'est exactement « aucun résultat » sans
+  // explication · le studio doit pouvoir le dire pendant qu'on choisit le
+  // nombre, pas une fois le lot refusé.
+  const budget = await spendStatus().catch(() => null);
   if (!canAccess(effectiveAccess(s), feature)) {
     const why = denyReason(effectiveAccess(s), feature);
     return (
@@ -99,7 +107,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} adsmap={adsmapOpen} suggestion={suggestion} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} />
     </main>
   );
 }

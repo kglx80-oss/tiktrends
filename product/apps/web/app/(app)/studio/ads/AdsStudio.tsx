@@ -58,7 +58,7 @@ const TPL_LABEL: Record<AdTemplate, string> = {
   ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false, suggestion = null }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false, suggestion = null, budget = null }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
@@ -74,6 +74,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * sélecteur s'affiche alors sans conseil, ce qui est l'état d'avant.
    */
   suggestion?: Suggestion | null;
+  /** Le plafond de dépense en vigueur · null quand on n'a pas pu le lire. */
+  budget?: { resume: string; bloque: boolean } | null;
 }) {
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const toggleAsset = (id: string) => setAssetIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
@@ -472,6 +474,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         onNombre={setCount}
         onMoteur={setModel}
         busy={busy}
+        erreur={error}
+        budget={budget}
         onGenerer={() => { void run('brand').then((out) => { if (producedSomething(out)) setAssistant(false); }); }}
       />
 
