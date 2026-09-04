@@ -448,6 +448,33 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
   return (
     <div>
+      {/* L'assistant est monté au PREMIER NIVEAU, jamais dans un panneau.
+           Il vivait sous `<div hidden={!avance}>` : ouvrir l'assistant posait
+           bien `assistant = true`, mais son ancêtre restait masqué, donc rien
+           n'apparaissait. Le bandeau semblait mort · il ne l'était pas, il
+           ouvrait une fenêtre à l'intérieur d'un tiroir fermé.
+
+           Une fenêtre modale n'a aucune raison d'être l'enfant d'un panneau
+           qu'on replie : ce qu'elle recouvre, c'est l'écran entier. */}
+      <AssistantPub
+        ouvert={assistant}
+        onFermer={() => setAssistant(false)}
+        etat={etatAssistant}
+        produits={prods}
+        libelleGabarit={(t) => TPL_LABEL[t]}
+        gabaritsDispo={Object.keys(TPL_LABEL) as AdTemplate[]}
+        onProduit={setProductId}
+        onGabarit={toggle}
+        onAngle={setAngle}
+        onOffre={setOffer}
+        onDirection={(v) => setUniverse(v || 'auto')}
+        onMode={(v) => setFabrication(v as ProductionMode)}
+        onNombre={setCount}
+        onMoteur={setModel}
+        busy={busy}
+        onGenerer={() => { void run('brand').then((out) => { if (producedSomething(out)) setAssistant(false); }); }}
+      />
+
       {/* Hero CTA · démarrage rapide (façon Atria) */}
       <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 20, marginBottom: 20, padding: '22px 24px', border: '1px solid var(--accent-strong)', background: 'linear-gradient(120deg, rgba(255,60,120,.16), rgba(255,140,66,.08) 60%, var(--surface))' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -715,26 +742,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           <b style={{ color: '#ffca6b' }}>Pas garanti</b> · {reserves(fabrication).join(' · ')}.
         </p>
 
-        <AssistantPub
-        ouvert={assistant}
-        onFermer={() => setAssistant(false)}
-        etat={etatAssistant}
-        produits={prods}
-        libelleGabarit={(t) => TPL_LABEL[t]}
-        gabaritsDispo={Object.keys(TPL_LABEL) as AdTemplate[]}
-        onProduit={setProductId}
-        onGabarit={toggle}
-        onAngle={setAngle}
-        onOffre={setOffer}
-        onDirection={(v) => setUniverse(v || 'auto')}
-        onMode={(v) => setFabrication(v as ProductionMode)}
-        onNombre={setCount}
-        onMoteur={setModel}
-        busy={busy}
-        onGenerer={() => { void run('brand').then((out) => { if (producedSomething(out)) setAssistant(false); }); }}
-      />
-
-      {/* Ce que le lot a APPLIQUÉ · mesurer et appliquer en silence revient
+        {/* Ce que le lot a APPLIQUÉ · mesurer et appliquer en silence revient
             à mesurer en cachette, et le lot suivant a l'air d'un hasard. */}
         {applique && (
           <p style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>

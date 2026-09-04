@@ -62,6 +62,61 @@ describe('l’assistant lit le noyau', () => {
   });
 });
 
+/**
+ * Les balises du fichier, dans l'ordre · assez pour dire qui contient qui.
+ *
+ * On ne parse pas du JSX en général : on répond à une seule question, « ce
+ * composant est-il sous un ancêtre masqué ». Deux précautions suffisent ·
+ *
+ * - un `<` précédé d'un caractère d'identifiant est un générique
+ *   (`useState<Etape>`), pas une balise ;
+ * - les accolades et les chaînes sont sautées pendant qu'on cherche le `>`,
+ *   sinon un attribut comme `style={{ a: '>' }}` couperait la balise en deux ;
+ * - les commentaires sont retirés d'abord · le premier essai de ce garde a
+ *   échoué sur le fichier CORRIGÉ, parce que le commentaire qui explique le
+ *   défaut cite `<div hidden={…}>` en toutes lettres. Un ancêtre masqué
+ *   imaginaire, né d'une phrase.
+ */
+function sansCommentaires(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
+function balisesDe(source: string): { nom: string; attrs: string; fermante: boolean; auto: boolean }[] {
+  const src = sansCommentaires(source);
+  const out: { nom: string; attrs: string; fermante: boolean; auto: boolean }[] = [];
+  for (let i = 0; i < src.length; i++) {
+    if (src[i] !== '<') continue;
+    if (/[A-Za-z0-9_$\])]/.test(src[i - 1] ?? ' ')) continue;
+    let j = i + 1;
+    const fermante = src[j] === '/';
+    if (fermante) j++;
+    const debut = j;
+    while (j < src.length && /[A-Za-z0-9_.]/.test(src[j]!)) j++;
+    const nom = src.slice(debut, j);
+    // Les balises JSX commencent par une majuscule ou sont du HTML en
+    // minuscules · `a < b` ne produit pas de balise.
+    if (!nom || !/^[A-Za-z]/.test(nom) || (nom === nom.toLowerCase() && !BALISES_HTML.has(nom))) continue;
+    let prof = 0, k = j, auto = false, fin = -1;
+    for (; k < src.length; k++) {
+      const c = src[k]!;
+      if (c === '{') prof++;
+      else if (c === '}') prof--;
+      else if (prof === 0 && (c === '"' || c === '\'' || c === '`')) { const q = c; k++; while (k < src.length && src[k] !== q) k++; }
+      else if (prof === 0 && c === '>') { auto = src[k - 1] === '/'; fin = k; break; }
+    }
+    if (fin < 0) continue;
+    out.push({ nom, attrs: src.slice(j, fin), fermante, auto });
+    i = fin;
+  }
+  return out;
+}
+
+const BALISES_HTML = new Set([
+  'div', 'span', 'p', 'a', 'b', 'i', 'ul', 'li', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5',
+  'button', 'input', 'textarea', 'select', 'option', 'label', 'form', 'img', 'br',
+  'code', 'pre', 'section', 'header', 'footer', 'nav', 'table', 'tr', 'td', 'th', 'small', 'strong',
+]);
+
 describe('le studio ouvre l’assistant', () => {
   it('« Composeur complet » l’ouvre', () => {
     expect(STUDIO).toMatch(/setAssistant\(true\)/);
@@ -93,6 +148,37 @@ describe('le studio ouvre l’assistant', () => {
     // Les confondre est précisément ce qui a fait disparaître le second.
     const partage = /onClick=\{[^}]*setAssistant\(true\)[^}]*setAvance\(/.test(STUDIO);
     expect(partage, 'un même clic pilote les deux panneaux').toBe(false);
+  });
+
+  it('l’assistant n’est enfant d’aucun panneau repliable', () => {
+    // ── Le vrai défaut, celui que le garde précédent laissait passer ──────
+    //
+    // « setAssistant apparaît dans un onClick » était vrai, et sans rapport.
+    // Le bandeau posait bien `assistant = true` · mais `<AssistantPub>` était
+    // monté SOUS `<div hidden={!avance}>`. Son ancêtre restait masqué, donc la
+    // fenêtre ne s'affichait pas. Le clic semblait mort.
+    //
+    // `position: fixed` n'y change rien : un ancêtre en `display: none` ne
+    // rend pas ses descendants, où qu'ils se croient placés.
+    //
+    // Ce garde vérifie la CONTENANCE, pas la présence d'un appel · c'est la
+    // différence entre « le code existe » et « on peut le voir ».
+    const pile: { nom: string; masque: boolean }[] = [];
+    let vu = false;
+    for (const b of balisesDe(STUDIO)) {
+      if (b.fermante) { pile.pop(); continue; }
+      const masque = /\bhidden=\{/.test(b.attrs);
+      if (b.nom === 'AssistantPub') {
+        const tiroir = pile.find((p) => p.masque);
+        expect(
+          tiroir,
+          `l’assistant est monté sous <${tiroir?.nom} hidden={…}> · il ne s’affichera jamais`,
+        ).toBeUndefined();
+        vu = true;
+      }
+      if (!b.auto) pile.push({ nom: b.nom, masque });
+    }
+    expect(vu, 'l’assistant n’est plus monté du tout').toBe(true);
   });
 
   it('se ferme seulement quand le lot a produit quelque chose', () => {
