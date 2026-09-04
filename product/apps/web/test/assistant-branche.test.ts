@@ -73,6 +73,28 @@ describe('le studio ouvre l’assistant', () => {
     expect(STUDIO).toMatch(/etat=\{etatAssistant\}/);
   });
 
+  it('chaque panneau a un moyen de l’ouvrir', () => {
+    // ── Le défaut que ça répare ──────────────────────────────────────────
+    //
+    // En branchant l'assistant sur le bandeau « Composeur complet », j'ai
+    // remplacé le seul clic qui ouvrait le composeur à plat. Il est resté dans
+    // le code, rendu derrière `hidden={!avance}`, sans plus aucun moyen de
+    // mettre `avance` à vrai · un panneau injoignable, et je l'ai annoncé
+    // comme conservé.
+    //
+    // Rien ne compile mal, rien ne plante. Ça se découvre en cliquant.
+    for (const panneau of ['setAvance', 'setAssistant']) {
+      const clics = STUDIO.match(new RegExp(`onClick=\\{[^}]*${panneau}\\(`, 'g')) ?? [];
+      expect(clics.length, `« ${panneau} » n’est plus atteignable depuis un clic`).toBeGreaterThan(0);
+    }
+  });
+
+  it('l’assistant et le composeur à plat ne partagent pas un bouton', () => {
+    // Les confondre est précisément ce qui a fait disparaître le second.
+    const partage = /onClick=\{[^}]*setAssistant\(true\)[^}]*setAvance\(/.test(STUDIO);
+    expect(partage, 'un même clic pilote les deux panneaux').toBe(false);
+  });
+
   it('se ferme seulement quand le lot a produit quelque chose', () => {
     // Se fermer sur un échec emporterait le seul endroit où l'erreur s'affiche
     // · c'est le défaut déjà corrigé sur le démarrage rapide.
