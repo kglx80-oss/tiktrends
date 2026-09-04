@@ -11,6 +11,7 @@ import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { Composer } from '../../../../components/Composer';
+import { AssistantPub } from './AssistantPub';
 import { UniversePicker } from '../../../../components/UniversePicker';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
@@ -141,6 +142,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * charger une photo produit, rappeler une scène enregistrée.
    */
   const [avance, setAvance] = useState(false);
+  /**
+   * L'assistant · une décision par écran.
+   *
+   * « Composeur complet » ouvre désormais celui-ci. Le composeur à plat reste
+   * accessible en dessous, pour qui le connaît · un assistant qui supprime le
+   * chemin rapide punit celui qui savait déjà.
+   */
+  const [assistant, setAssistant] = useState(false);
   const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
@@ -429,6 +438,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     return out;
   }
 
+  /** Ce que l'assistant lit · les règles vivent dans le noyau, pas ici. */
+  const etatAssistant = {
+    productId, aPhotoProduit: !!selected?.hasImage,
+    aDesProduits: prods.length > 0,
+    angle, offre: offer, gabarits: templates, direction: universe === 'auto' ? '' : universe,
+    mode: fabrication, nombre: count, moteur: model,
+  };
+
   return (
     <div>
       {/* Hero CTA · démarrage rapide (façon Atria) */}
@@ -459,7 +476,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       </div>
 
       <div ref={composeur} style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', marginBottom: 28, scrollMarginTop: 16 }}>
-        <button type="button" onClick={() => setAvance((v) => !v)} style={{
+        <button type="button" onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
           display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '15px 22px',
           border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left',
         }}>
@@ -682,7 +699,26 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           <b style={{ color: '#ffca6b' }}>Pas garanti</b> · {reserves(fabrication).join(' · ')}.
         </p>
 
-        {/* Ce que le lot a APPLIQUÉ · mesurer et appliquer en silence revient
+        <AssistantPub
+        ouvert={assistant}
+        onFermer={() => setAssistant(false)}
+        etat={etatAssistant}
+        produits={prods}
+        libelleGabarit={(t) => TPL_LABEL[t]}
+        gabaritsDispo={Object.keys(TPL_LABEL) as AdTemplate[]}
+        onProduit={setProductId}
+        onGabarit={toggle}
+        onAngle={setAngle}
+        onOffre={setOffer}
+        onDirection={(v) => setUniverse(v || 'auto')}
+        onMode={(v) => setFabrication(v as ProductionMode)}
+        onNombre={setCount}
+        onMoteur={setModel}
+        busy={busy}
+        onGenerer={() => { void run('brand').then((out) => { if (producedSomething(out)) setAssistant(false); }); }}
+      />
+
+      {/* Ce que le lot a APPLIQUÉ · mesurer et appliquer en silence revient
             à mesurer en cachette, et le lot suivant a l'air d'un hasard. */}
         {applique && (
           <p style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
