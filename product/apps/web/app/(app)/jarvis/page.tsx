@@ -11,8 +11,8 @@ import { jarvisStats, jarvisMeasuredMemory, jarvisHookView } from '../../../lib/
 import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../lib/jarvis-state';
 import { spendStatus } from '../../../lib/spend-guard';
 import { currentDeployment } from '../../../lib/deployment';
-import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction } from '../../actions/adsmap-attribution';
-import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
+import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction, bilanCopieAction } from '../../actions/adsmap-attribution';
+import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
@@ -95,13 +95,14 @@ export default async function JarvisPage() {
 
   // La mémoire n'est chargée que si elle est accessible · inutile de faire
   // travailler la base pour un bloc qu'on n'affichera pas.
-  const [memoire, hooks, attribution, tendance, essais, bilan, stats, depense] = await Promise.all([
+  const [memoire, hooks, attribution, tendance, essais, bilan, copies, stats, depense] = await Promise.all([
     voitMemoire ? jarvisMeasuredMemory(brand.id, s.workspaceId) : Promise.resolve(''),
     voitMemoire ? jarvisHookView(brand.id, s.workspaceId) : Promise.resolve(null),
     voitMemoire ? attributionViewAction() : Promise.resolve({ view: undefined }),
     voitMemoire ? creativeTrendAction() : Promise.resolve({ trend: undefined }),
     voitMemoire ? essaisViewAction() : Promise.resolve({ view: undefined }),
     voitMemoire ? bilanNotesAction() : Promise.resolve({ bilan: undefined }),
+    voitMemoire ? bilanCopieAction() : Promise.resolve({ bilan: undefined }),
     voitMemoire ? jarvisStats(brand.id, s.workspaceId) : Promise.resolve(null),
     fondateur ? spendStatus() : Promise.resolve(null),
   ]);
@@ -132,6 +133,8 @@ export default async function JarvisPage() {
       })
     : null;
   const notesErreur = 'error' in bilan ? bilan.error : undefined;
+  const relectures = copies.bilan;
+  const relecturesErreur = 'error' in copies ? copies.error : undefined;
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1040, margin: '0 auto' }}>
@@ -432,6 +435,85 @@ export default async function JarvisPage() {
                 <b> pronostic</b>, pas un résultat · elle dit ce qu’un directeur créatif pense de la créa,
                 pas ce que le marché en a fait. Les vraies performances sont dans les verdicts. Un écart
                 n’est retenu qu’au-dessus de {MIN_NOTES} notes et s’il dépasse la dispersion.
+              </p>
+            </>
+          )}
+        </section>
+      )}
+
+      {/* 3 bis · Ce que les relectures disent ensemble.
+             Chaque publicité produite entière est relue à sa génération, pour
+             trois pour cent du prix de son image. Ces constats existaient déjà
+             en base et personne ne les additionnait · la carte montrait le sien,
+             la grille montrait le sien, et « quel moteur se trompe le plus »
+             restait sans réponse. */}
+      {voitMemoire && (
+        <section id="bilan-copie" style={{
+          marginBottom: 24, padding: '16px 18px', borderRadius: 14,
+          border: `1px solid ${relectures?.dimensions.some((d) => d.conclusif) ? 'rgba(255,90,120,.35)' : 'var(--line)'}`,
+          background: 'var(--surface)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+              Quel moteur écrit tes mots, et garde ton produit
+            </h2>
+            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
+              Pubs générées entièrement
+            </span>
+          </div>
+          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
+            En mode « générée entièrement », c’est le modèle d’images qui écrit la typographie. Chaque
+            pub est relue à sa génération · voici la somme de ces relectures.
+          </p>
+
+          {relecturesErreur ? (
+            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{relecturesErreur}</p>
+          ) : !relectures?.relues ? (
+            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.55 }}>
+              Aucune publicité relue pour l’instant. La relecture tourne toute seule sur les pubs
+              produites en mode <b>Générée entièrement</b>, dans <b>Pubs IA</b>.
+            </p>
+          ) : (
+            <>
+              <p style={{
+                margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
+                background: 'var(--paper)', border: '1px solid var(--line)',
+                fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
+                color: (relectures.tauxReecriture ?? 0) > 0 || (relectures.tauxProduit ?? 0) > 0 ? '#ff8095' : '#7ee8bf',
+              }}>
+                {relectures.resume}
+              </p>
+
+              {/* Seules les dimensions qui tranchent · les autres diraient
+                  « rien à signaler » deux fois. */}
+              {relectures.dimensions.filter((d) => d.conclusif).map((d) => (
+                <div key={d.dimension} style={{ marginTop: 12, padding: '9px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)' }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.5 }}>
+                    {DIMENSION_COPIE_LABEL[d.dimension]} · {d.resume}
+                  </div>
+                  <div style={{ display: 'grid', gap: 3, marginTop: 6 }}>
+                    {d.lignes.map((l) => (
+                      <div key={l.cle} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12, flexWrap: 'wrap' }}>
+                        <span style={{ width: 150, color: 'var(--ink-2)' }}>{l.cle}</span>
+                        <span style={{ fontWeight: 700, color: l.verdict === 'meilleur' ? '#7ee8bf' : l.verdict === 'pire' ? '#ff8095' : 'var(--muted)' }}>
+                          {Math.round(l.tauxReecriture * 100)} % réécrites
+                        </span>
+                        <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>
+                          sur {l.n} pub(s)
+                          {l.tauxProduit !== null && ` · ${Math.round(l.tauxProduit * 100)} % de produits modifiés sur ${l.avecReference}`}
+                          {l.verdict === null && ' · écart non tranché'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <p style={{ margin: '11px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+                Un groupe ne se détache qu’au-dessus de {MIN_RELECTURES} publicités relues, et
+                seulement si son écart au taux général tient. La fidélité du produit ne se compte que
+                sur les pubs qui avaient une photo de référence · sans elle, on n’a pas pu regarder,
+                ce qui n’est pas la même chose que « conforme ».
               </p>
             </>
           )}
