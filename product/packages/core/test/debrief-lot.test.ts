@@ -14,6 +14,7 @@ function lot(n: number, o: Partial<RelecturePub> = {}): RelecturePub[] {
     accrocheReecrite: o.accrocheReecrite ?? false,
     copieMineure: o.copieMineure ?? false,
     produitFidele: o.produitFidele === undefined ? true : o.produitFidele,
+    texteLisible: o.texteLisible === undefined ? true : o.texteLisible,
   }));
 }
 
@@ -59,6 +60,24 @@ describe('« tout bon » ne s’allume que sur l’éliminatoire', () => {
     expect(d.produitInfidele).toBe(1);
     expect(d.toutBon).toBe(false);
     expect(d.resume).toContain('3 produits fidèles sur 4 avec photo, 1 modifié');
+  });
+
+  it('un texte illisible casse « tout bon » et se dit', () => {
+    // La 3e question · « y a-t-il du texte, est-il lisible ». Un texte présent
+    // mais illisible passait pour conforme si les mots collaient · ici il compte.
+    const d = debriefLot([...lot(5), ...lot(1, { texteLisible: false })])!;
+    expect(d.texteIllisible).toBe(1);
+    expect(d.toutBon).toBe(false);
+    expect(d.resume).toContain('1 au texte illisible');
+  });
+
+  it('un texte non jugé (pas de texte) ne compte pas comme illisible', () => {
+    // `null` n'est pas « illisible » · c'est « pas de texte à juger », et on ne
+    // le dit pas, comme on tait la copie exacte.
+    const d = debriefLot(lot(4, { texteLisible: null }))!;
+    expect(d.texteIllisible).toBe(0);
+    expect(d.toutBon).toBe(true);
+    expect(d.resume).not.toContain('illisible');
   });
 });
 

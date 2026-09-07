@@ -31,7 +31,7 @@ export interface AdItem {
    * n'est pas une mesure, c'est une archive. La grille doit dire, d'un coup
    * d'œil, laquelle de ces publicités dit encore ce qu'on voulait.
    */
-  controle?: { copieResume: string; copieGrave: boolean; produitFidele: boolean | null; ecarts: string[] } | null;
+  controle?: { copieResume: string; copieGrave: boolean; produitFidele: boolean | null; ecarts: string[]; texteLisible: boolean | null; problemesLisibilite: string[] } | null;
   /** Pourquoi Jarvis a proposé ça · une proposition muette se subit ou s'ignore. */
   rationale?: string[] | null;
   /**
@@ -157,11 +157,13 @@ function adUrl(id: string, recipe: Partial<AdRecipe>): string {
  * la bonne réponse : il n'y a eu aucune mesure.
  */
 function controleDepuisRecette(rec: Partial<AdRecipe>): AdItem['controle'] {
-  return rec.copieConforme || typeof rec.produitFidele === 'boolean' ? {
+  return rec.copieConforme || typeof rec.produitFidele === 'boolean' || typeof rec.texteLisible === 'boolean' ? {
     copieResume: rec.copieConforme?.resume ?? '',
     copieGrave: !!rec.copieConforme?.grave,
     produitFidele: rec.produitFidele ?? null,
     ecarts: rec.ecartsProduit ?? [],
+    texteLisible: rec.texteLisible ?? null,
+    problemesLisibilite: rec.problemesLisibilite ?? [],
   } : null;
 }
 
@@ -429,7 +431,7 @@ async function composeBatch(o: {
    * Un contrôle qui échoue ne fait jamais échouer le lot · une publicité
    * produite mais non relue reste une publicité produite.
    */
-  const controles = new Map<number, { copie: VerdictCopie; produitFidele: boolean | null; ecartsProduit: string[] }>();
+  const controles = new Map<number, { copie: VerdictCopie; produitFidele: boolean | null; ecartsProduit: string[]; texteLisible: boolean | null; problemesLisibilite: string[] }>();
   if (o.mode === 'entiere') {
     const relecteur = guardedAnthropic({ action: 'ads:controle', workspaceId: o.workspaceId });
     const ref = await imageJointe(o.productImageUrls?.[0]);
@@ -446,6 +448,8 @@ async function composeBatch(o: {
         }), vu.texteLu),
         produitFidele: vu.produitFidele,
         ecartsProduit: vu.ecartsProduit,
+        texteLisible: vu.texteLisible,
+        problemesLisibilite: vu.problemesLisibilite,
       };
     };
     if (relecteur) {
@@ -483,7 +487,7 @@ async function composeBatch(o: {
       if (!o.essai && (o.reprisesBudget ?? 0) > 0) {
         const constats = o.concepts.map((_, i) => {
           const ctl = controles.get(i);
-          return ctl ? { accrocheReecrite: ctl.copie.grave, produitFidele: ctl.produitFidele } : null;
+          return ctl ? { accrocheReecrite: ctl.copie.grave, produitFidele: ctl.produitFidele, texteLisible: ctl.texteLisible } : null;
         });
         for (const i of indicesARattraper(constats, o.reprisesBudget ?? 0)) {
           const c = o.concepts[i];
@@ -498,8 +502,8 @@ async function composeBatch(o: {
               relireScene(nouvelleUrl, c),
             ]);
             if (nouveauControle && reprisePreferable(
-              { accrocheReecrite: original.copie.grave, produitFidele: original.produitFidele },
-              { accrocheReecrite: nouveauControle.copie.grave, produitFidele: nouveauControle.produitFidele },
+              { accrocheReecrite: original.copie.grave, produitFidele: original.produitFidele, texteLisible: original.texteLisible },
+              { accrocheReecrite: nouveauControle.copie.grave, produitFidele: nouveauControle.produitFidele, texteLisible: nouveauControle.texteLisible },
             )) {
               scenes[i] = nouvelleUrl;
               lumieres[i] = nouvelleLum;
@@ -556,6 +560,8 @@ async function composeBatch(o: {
         copieConforme: controles.get(i)!.copie,
         produitFidele: controles.get(i)!.produitFidele,
         ecartsProduit: controles.get(i)!.ecartsProduit,
+        texteLisible: controles.get(i)!.texteLisible,
+        problemesLisibilite: controles.get(i)!.problemesLisibilite,
       } : {}),
       // Le brief de la scène · consigné pour pouvoir en produire une AUTRE du
       // même concept sans redemander au modèle ce qu'il a déjà écrit.
@@ -1240,11 +1246,11 @@ export async function universeSamplesAction(): Promise<Record<string, string>> {
       // Un raté de fabrication, ou une accroche que le modèle a réécrite · dans
       // les deux cas la créa ne représente pas sa direction, elle représente
       // une génération manquée.
-      // Trois façons de ne pas représenter sa direction · un raté de
-      // fabrication, une accroche réécrite, un produit qui n'est plus le nôtre.
-      // Le dernier est le critère éliminatoire n° 1 du mode entière : une
-      // publicité au packaging inventé est inutilisable, si belle soit-elle.
-      grave: vd.grave || !!rec.copieConforme?.grave || rec.produitFidele === false,
+      // Quatre façons de ne pas représenter sa direction · un raté de
+      // fabrication, une accroche réécrite, un produit qui n'est plus le nôtre,
+      // un texte illisible. Une pub au packaging inventé ou au texte brouillé est
+      // inutilisable, si belle soit-elle · elle ne vend pas sa direction.
+      grave: vd.grave || !!rec.copieConforme?.grave || rec.produitFidele === false || rec.texteLisible === false,
       rang: rows.length - i,
       rec,
     };

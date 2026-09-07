@@ -17,6 +17,7 @@ function relectures(o: Partial<RelecturePub>, n: number): RelecturePub[] {
     accrocheReecrite: o.accrocheReecrite ?? false,
     copieMineure: o.copieMineure ?? false,
     produitFidele: o.produitFidele === undefined ? true : o.produitFidele,
+    texteLisible: o.texteLisible === undefined ? true : o.texteLisible,
   }));
 }
 
@@ -44,5 +45,12 @@ describe('le panneau montre le verdict du lot', () => {
     const out = html(d);
     expect(out).toContain('5 accroches conformes, 1 réécrite');
     expect(out, 'un défaut éliminatoire est signalé').toContain('⚠');
+  });
+
+  it('un texte illisible remonte dans le débrief', () => {
+    const d = debriefLot([...relectures({}, 4), ...relectures({ texteLisible: false }, 2)]);
+    const out = html(d);
+    expect(out, 'la 3e question se lit dans le panneau').toContain('2 au texte illisible');
+    expect(out).toContain('⚠');
   });
 });

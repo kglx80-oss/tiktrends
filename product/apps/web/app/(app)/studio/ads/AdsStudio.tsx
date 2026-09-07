@@ -400,6 +400,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         accrocheReecrite: c.copieGrave,
         copieMineure: !c.copieGrave && c.copieResume.trim() !== '',
         produitFidele: c.produitFidele,
+        texteLisible: c.texteLisible,
       }))));
     return out;
   }
@@ -1326,14 +1327,18 @@ function ScoreBadge({ score }: { score: number }) {
 function ControleBadge({ c }: { c: AdItem['controle'] }) {
   if (!c) return null;
   const produitKo = c.produitFidele === false;
-  if (!produitKo && !c.copieResume) return null;
-  const rouge = produitKo || c.copieGrave;
+  const texteKo = c.texteLisible === false;
+  if (!produitKo && !texteKo && !c.copieResume) return null;
+  // Rouge pour l'éliminatoire · accroche réécrite, produit inventé, texte
+  // illisible. Ambre pour un écart mineur de copie qui se corrige.
+  const rouge = produitKo || texteKo || c.copieGrave;
   return (
     <span style={{
       display: 'block', marginTop: 4, fontSize: 10.5, lineHeight: 1.35,
       color: rouge ? '#ff9db0' : '#ffca6b',
     }}>
       {produitKo && <>⚠ produit modifié{c.ecarts.length ? ` · ${c.ecarts[0]}` : ''}<br /></>}
+      {texteKo && <>⚠ texte illisible{c.problemesLisibilite.length ? ` · ${c.problemesLisibilite[0]}` : ''}<br /></>}
       {c.copieResume && <>✎ {c.copieResume}</>}
     </span>
   );

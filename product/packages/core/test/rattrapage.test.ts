@@ -12,11 +12,12 @@ import {
  * budget borne sans jamais reprendre une pub saine.
  */
 
-const conforme: ConstatRelecture = { accrocheReecrite: false, produitFidele: true };
+const conforme: ConstatRelecture = { accrocheReecrite: false, produitFidele: true, texteLisible: true };
 const sansRef: ConstatRelecture = { accrocheReecrite: false, produitFidele: null };
 const produitKo: ConstatRelecture = { accrocheReecrite: false, produitFidele: false };
 const accrocheKo: ConstatRelecture = { accrocheReecrite: true, produitFidele: true };
 const doubleKo: ConstatRelecture = { accrocheReecrite: true, produitFidele: false };
+const illisibleKo: ConstatRelecture = { accrocheReecrite: false, produitFidele: true, texteLisible: false };
 
 describe('ce qui compte comme cassé', () => {
   it('un produit non regardé n’est pas cassé', () => {
@@ -27,13 +28,23 @@ describe('ce qui compte comme cassé', () => {
     expect(estCassee(null)).toBe(false);
   });
 
-  it('accroche réécrite ou produit modifié sont cassés', () => {
+  it('accroche réécrite, produit modifié ou texte illisible sont cassés', () => {
     expect(estCassee(accrocheKo)).toBe(true);
     expect(estCassee(produitKo)).toBe(true);
+    expect(estCassee(illisibleKo)).toBe(true);
   });
 
-  it('l’accroche pèse plus lourd que le produit', () => {
+  it('un texte non jugé (pas de texte) n’est pas cassé', () => {
+    // `texteLisible` absent ou null · comme le produit sans référence, on ne
+    // reprend pas sur un défaut qu'on n'a pas constaté.
+    expect(estCassee({ accrocheReecrite: false, produitFidele: true })).toBe(false);
+    expect(estCassee({ accrocheReecrite: false, produitFidele: true, texteLisible: null })).toBe(false);
+  });
+
+  it('l’accroche pèse plus lourd que le produit ou la lisibilité', () => {
     expect(graviteControle(accrocheKo)).toBeGreaterThan(graviteControle(produitKo));
+    expect(graviteControle(accrocheKo)).toBeGreaterThan(graviteControle(illisibleKo));
+    expect(graviteControle(illisibleKo), 'produit et lisibilité pèsent pareil').toBe(graviteControle(produitKo));
     expect(graviteControle(doubleKo)).toBeGreaterThan(graviteControle(accrocheKo));
     expect(graviteControle(conforme)).toBe(0);
   });

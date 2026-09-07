@@ -43,6 +43,8 @@ export interface RelecturePub {
   copieMineure: boolean;
   /** Le packaging correspond à la référence · `null` quand il n'y en avait pas. */
   produitFidele: boolean | null;
+  /** La typographie publicitaire est lisible · `null` quand il n'y a pas de texte. */
+  texteLisible?: boolean | null;
 }
 
 export interface DebriefLot {
@@ -56,7 +58,9 @@ export interface DebriefLot {
   produitFidele: number;
   produitInfidele: number;
   sansReference: number;
-  /** Aucun écart éliminatoire · ni accroche réécrite, ni produit modifié. */
+  /** Publicités dont la typographie publicitaire a été jugée illisible. */
+  texteIllisible: number;
+  /** Aucun écart éliminatoire · ni accroche réécrite, ni produit modifié, ni texte illisible. */
   toutBon: boolean;
   /** La phrase affichée · factuelle, sans intervalle, parce qu'un lot ne conclut pas. */
   resume: string;
@@ -85,7 +89,9 @@ export function debriefLot(relectures: readonly RelecturePub[]): DebriefLot | nu
   const produitInfidele = relectures.filter((r) => r.produitFidele === false).length;
   const sansReference = n - avecReference;
 
-  const toutBon = accrocheReecrite === 0 && produitInfidele === 0;
+  const texteIllisible = relectures.filter((r) => r.texteLisible === false).length;
+
+  const toutBon = accrocheReecrite === 0 && produitInfidele === 0 && texteIllisible === 0;
 
   // La copie · l'issue heureuse se dit en un mot, le reste s'énumère.
   const acc = accrocheReecrite === 0 && accrocheMineure === 0
@@ -103,11 +109,16 @@ export function debriefLot(relectures: readonly RelecturePub[]): DebriefLot | nu
     : `${produitFidele} produit${s(produitFidele)} fidèle${s(produitFidele)} sur ${avecReference} avec photo`
       + (produitInfidele ? `, ${produitInfidele} modifié${s(produitInfidele)}` : '');
 
-  const resume = `${n} publicité${s(n)} relue${s(n)} · ${acc} · ${prod}.`;
+  // La lisibilité · on ne la dit que quand elle a manqué. Un lot dont tout le
+  // texte se lit n'a pas besoin qu'on le signale · le silence est une réponse,
+  // ici comme pour la copie exacte.
+  const lisibilite = texteIllisible ? ` · ${texteIllisible} au texte illisible` : '';
+
+  const resume = `${n} publicité${s(n)} relue${s(n)} · ${acc} · ${prod}${lisibilite}.`;
 
   return {
     n, accrocheConforme, accrocheMineure, accrocheReecrite,
     avecReference, produitFidele, produitInfidele, sansReference,
-    toutBon, resume,
+    texteIllisible, toutBon, resume,
   };
 }

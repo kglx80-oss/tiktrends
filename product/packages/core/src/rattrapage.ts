@@ -15,11 +15,12 @@
  * en réserver d'avance. Il ne génère rien, ne relit rien, ne dépense rien · tout
  * ça vit dans le serveur, qui appelle ces règles. Ici, c'est pur, donc testable.
  *
- * ── Deux écarts éliminatoires, et un seul est le pire ────────────────────────
+ * ── Trois écarts éliminatoires, et un seul est le pire ───────────────────────
  *
  * L'accroche réécrite ou absente change ce que la pub DIT · c'est le plus grave.
- * Le produit modifié la rend suspecte mais lisible. Quand le budget de reprise
- * est court, on reprend les plus atteintes d'abord.
+ * Le produit modifié la rend suspecte, un texte illisible la rend inutilisable
+ * sans la trahir · les deux pèsent pareil, sous l'accroche. Quand le budget de
+ * reprise est court, on reprend les plus atteintes d'abord.
  *
  * ── Pourquoi la moitié, et pas tout ──────────────────────────────────────────
  *
@@ -39,26 +40,33 @@ export interface ConstatRelecture {
   accrocheReecrite: boolean;
   /** Le packaging correspond à la référence · `null` quand il n'y en avait pas. */
   produitFidele: boolean | null;
+  /** La typographie publicitaire est lisible · `null` quand il n'y a pas de texte. */
+  texteLisible?: boolean | null;
 }
 
 /**
- * La pub est-elle cassée · accroche réécrite, ou produit modifié.
+ * La pub est-elle cassée · accroche réécrite, produit modifié, ou texte illisible.
  *
- * `null` (pas de référence produit) n'est pas « cassé » · c'est « pas regardé »,
- * et on ne reprend pas une pub sur un défaut qu'on n'a pas constaté.
+ * `null` (pas de référence produit, ou pas de texte à juger) n'est pas « cassé » ·
+ * c'est « pas regardé », et on ne reprend pas une pub sur un défaut qu'on n'a
+ * pas constaté.
  */
 export function estCassee(c: ConstatRelecture | null | undefined): boolean {
   if (!c) return false;
-  return c.accrocheReecrite || c.produitFidele === false;
+  return c.accrocheReecrite || c.produitFidele === false || c.texteLisible === false;
 }
 
 /**
  * Combien une pub est cassée · sert à garder la meilleure des deux versions et
- * à traiter les plus atteintes d'abord. L'accroche pèse plus que le produit.
+ * à traiter les plus atteintes d'abord. L'accroche pèse plus que le reste ·
+ * elle change ce que la pub dit, là où un produit modifié ou un texte illisible
+ * la rendent inutilisable sans la trahir.
  */
 export function graviteControle(c: ConstatRelecture | null | undefined): number {
   if (!c) return 0;
-  return (c.accrocheReecrite ? 2 : 0) + (c.produitFidele === false ? 1 : 0);
+  return (c.accrocheReecrite ? 2 : 0)
+    + (c.produitFidele === false ? 1 : 0)
+    + (c.texteLisible === false ? 1 : 0);
 }
 
 /**
