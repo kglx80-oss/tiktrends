@@ -44,6 +44,7 @@ function rendu(o: { erreur?: string; busy?: boolean; budget?: { resume: string; 
       produits={[]}
       libelleGabarit={() => 'Bénéfices'}
       selecteurStyle={<div>sélecteur de style</div>}
+      conseilMoteurs={{ recommande: null, deconseilles: [], lignes: {}, resume: '' }}
       gabaritsDispo={['benefits'] as AdTemplate[]}
       onProduit={() => {}} onGabarit={() => {}} onAngle={() => {}} onOffre={() => {}}
       onDirection={() => {}} onMode={() => {}} onNombre={() => {}} onMoteur={() => {}}

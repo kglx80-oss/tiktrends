@@ -5,7 +5,7 @@ import {
   ETAPES, ETAPE_ROLE, ETAPE_TITRE, dureeAttendue, etapeComplete, etapePrecedente,
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
   AD_DIRECTIONS, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves,
-  imageModelByKey, imageTimeoutMs, IMAGE_MODELS,
+  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, type ConseilMoteur,
   type Etape, type EtatAssistant,
 } from '@tiktrends/core';
 import type { AdTemplate } from '@tiktrends/ai';
@@ -84,6 +84,16 @@ export interface AssistantProps {
    * On reçoit donc le sélecteur déjà construit, comme `libelleGabarit`.
    */
   selecteurStyle: ReactNode;
+  /**
+   * Ce que les relectures de cette marque conseillent · vide tant qu'elles ne
+   * tranchent pas.
+   *
+   * Le catalogue porte un `recommandé` éditorial, écrit une fois pour toutes
+   * les marques. Il reste le défaut · ce qui est mesuré ICI peut le contredire,
+   * et alors on l'écrit au lieu de changer le réglage en douce. Un réglage qui
+   * bouge tout seul entre deux visites se lit comme un bug.
+   */
+  conseilMoteurs: ConseilMoteur;
 }
 
 export function AssistantPub(p: AssistantProps) {
@@ -382,6 +392,16 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
       </div>
       <div>
         <Label>Moteur d’image</Label>
+        {/* Quand la mesure désigne un autre moteur que le catalogue, on le DIT
+             et on laisse choisir. Changer le réglage tout seul entre deux
+             visites se lit comme un bug, et la fois d'après on ne fait plus
+             confiance à l'écran. */}
+        {contredit(p.conseilMoteurs, IMAGE_MODELS.find((m) => m.recommended)?.key) && (
+          <p style={{ margin: '0 0 8px', padding: '8px 11px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+            <b style={{ color: '#7ee8bf' }}>Chez toi, la mesure ne dit pas la même chose que notre recommandation.</b>{' '}
+            {p.conseilMoteurs.resume}
+          </p>
+        )}
         <div style={{ display: 'grid', gap: 7 }}>
           {IMAGE_MODELS.map((m) => {
             const on = p.etat.moteur === m.key;
@@ -393,11 +413,28 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
               }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
                   {m.label}{m.recommended ? ' · recommandé' : ''}
+                  {p.conseilMoteurs.recommande === m.key && (
+                    <span style={{ color: '#7ee8bf' }}> · mesuré le meilleur ici</span>
+                  )}
                   <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{' · '}{m.credits} cr. par pub</span>
                 </span>
                 <span style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.4 }}>
                   {m.note} · {dureeAttendue(1, imageTimeoutMs(m))} par image
                 </span>
+                {/* Ce qu'on a mesuré chez CETTE marque · une ligne par moteur
+                     relu, même sans verdict. Savoir qu'un moteur a douze pubs à
+                     8 % est utile en soi ; le cacher jusqu'à ce qu'il se
+                     détache priverait de la seule information disponible la
+                     plupart du temps. */}
+                {p.conseilMoteurs.lignes[m.key] && (
+                  <span style={{
+                    fontSize: 11.5, lineHeight: 1.4,
+                    color: p.conseilMoteurs.lignes[m.key]!.verdict === 'meilleur' ? '#7ee8bf'
+                      : p.conseilMoteurs.lignes[m.key]!.verdict === 'pire' ? '#ff9db0' : 'var(--ink-2)',
+                  }}>
+                    {p.conseilMoteurs.lignes[m.key]!.texte}
+                  </span>
+                )}
               </button>
             );
           })}
