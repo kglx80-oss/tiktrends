@@ -466,6 +466,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         etat={etatAssistant}
         produits={prods}
         libelleGabarit={(t) => TPL_LABEL[t]}
+        selecteurStyle={<UniversePicker value={universe} onChange={setUniverse} compact />}
         gabaritsDispo={Object.keys(TPL_LABEL) as AdTemplate[]}
         onProduit={setProductId}
         onGabarit={toggle}

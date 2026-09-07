@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -1036,6 +1036,16 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
  * donc pas, et leur univers reste sans aperçu jusqu'à la prochaine série. On ne
  * devine pas : une vignette attribuée au mauvais univers vendrait une ambiance
  * pour une autre.
+ *
+ * ── On montre la MEILLEURE, pas la dernière ──────────────────────────────────
+ *
+ * C'était la plus récente jusqu'ici. Mais la vignette ne raconte pas
+ * l'historique · elle sert à décider, et ce qu'on veut savoir c'est ce que
+ * cette direction sait faire de mieux. Une dernière créa ratée fait écarter une
+ * direction qui marche.
+ *
+ * Les ratés sont écartés, et une direction qui n'a produit QUE des ratés reste
+ * sans vignette. La règle vit dans le noyau, où elle se teste.
  */
 export async function universeSamplesAction(): Promise<Record<string, string>> {
   const s = await getSession();
@@ -1053,14 +1063,29 @@ export async function universeSamplesAction(): Promise<Record<string, string>> {
     .orderBy(desc(schema.generations.createdAt))
     .limit(160);
 
+  // Les lignes arrivent du plus récent au plus ancien · le rang inverse
+  // l'ordre pour que « plus grand » veuille dire « plus récent », ce que la
+  // règle du noyau attend.
+  const candidats = rows.map((r, i) => {
+    const rec = (r.input ?? {}) as Partial<AdRecipe> & { jarvisScore?: CreativeScore; copieConforme?: VerdictCopie };
+    const vd = verdictDefauts(rec.jarvisScore?.defauts);
+    return {
+      id: r.id,
+      direction: rec.universe,
+      score: rec.jarvisScore?.score ?? null,
+      // Un raté de fabrication, ou une accroche que le modèle a réécrite · dans
+      // les deux cas la créa ne représente pas sa direction, elle représente
+      // une génération manquée.
+      grave: vd.grave || !!rec.copieConforme?.grave,
+      rang: rows.length - i,
+      rec,
+    };
+  });
+
   const out: Record<string, string> = {};
-  for (const r of rows) {
-    const rec = (r.input ?? {}) as Partial<AdRecipe>;
-    const u = rec.universe;
-    // La plus récente gagne · on parcourt du plus récent au plus ancien et on
-    // ne réécrit pas. Montrer une vieille créa donnerait une idée périmée de la
-    // direction artistique de la marque.
-    if (u && !out[u]) out[u] = `${adUrl(r.id, rec)}&t=1`;
+  for (const [direction, gagnant] of Object.entries(exemplesParDirection(candidats))) {
+    const c = candidats.find((x) => x.id === gagnant.id);
+    if (c) out[direction] = `${adUrl(c.id, c.rec)}&t=1`;
   }
   return out;
 }

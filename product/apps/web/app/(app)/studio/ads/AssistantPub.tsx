@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ETAPES, ETAPE_ROLE, ETAPE_TITRE, dureeAttendue, etapeComplete, etapePrecedente,
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
@@ -70,6 +70,20 @@ export interface AssistantProps {
    * tard · ici, c'est encore une décision.
    */
   budget: { resume: string; bloque: boolean } | null;
+  /**
+   * Le sélecteur de direction artistique, fourni tout monté.
+   *
+   * ── Pourquoi une prop et pas un import ─────────────────────────────────────
+   *
+   * Le sélecteur lit les vignettes de la marque, donc il appelle des actions
+   * serveur. L'importer ici ferait entrer `server-only` dans ce fichier · et
+   * cette fenêtre est justement testée en la RENDANT, ce qui n'est possible que
+   * parce qu'elle ne dépend de rien de serveur.
+   *
+   * Le garde qui vérifie qu'un échec s'affiche vaut plus qu'un import direct.
+   * On reçoit donc le sélecteur déjà construit, comme `libelleGabarit`.
+   */
+  selecteurStyle: ReactNode;
 }
 
 export function AssistantPub(p: AssistantProps) {
@@ -304,24 +318,24 @@ function EtapeMessage({ p }: { p: AssistantProps }) {
 }
 
 function EtapeStyle({ p }: { p: AssistantProps }) {
-  const choix = useMemo(() => [{ key: '', label: '✦ Variées', hint: 'Chaque pub du lot prend une direction différente.' }, ...AD_DIRECTIONS], []);
-  return (
-    <div style={{ display: 'grid', gap: 7 }}>
-      {choix.map((d) => {
-        const on = (p.etat.direction || '') === d.key;
-        return (
-          <button key={d.key || 'auto'} type="button" onClick={() => p.onDirection(d.key)} style={{
-            display: 'grid', gap: 2, padding: '9px 12px', borderRadius: 11, textAlign: 'left',
-            border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
-            background: on ? 'rgba(230,0,126,.06)' : 'transparent', cursor: 'pointer',
-          }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{d.label}</span>
-            <span style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.4 }}>{d.hint}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  /*
+   * ── Le sélecteur, pas une seconde liste ────────────────────────────────────
+   *
+   * Cette étape affichait quinze lignes de texte : « Éditorial », « Preuve »,
+   * « Comparatif »… et rien d'autre. Le rapport reçu était « j'ai toujours
+   * aucune vue pour les univers visuels » · il était juste, et je l'ai lu comme
+   * un manque à construire alors que le sélecteur à vignettes existait déjà,
+   * monté dans le composeur à plat.
+   *
+   * En réécrivant l'étape, j'avais recopié la liste des directions au lieu de
+   * réutiliser le composant. Deux sélecteurs pour un même choix : celui qui
+   * montre, et celui qu'on voit.
+   *
+   * En mode « générée entièrement », la direction porte aussi la typographie et
+   * la disposition · c'est devenu le principal levier de qualité, et le choisir
+   * sur une étiquette était le vrai plafond d'usage.
+   */
+  return <>{p.selecteurStyle}</>;
 }
 
 function EtapeFabrication({ p }: { p: AssistantProps }) {

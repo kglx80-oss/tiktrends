@@ -43,6 +43,7 @@ function rendu(o: { erreur?: string; busy?: boolean; budget?: { resume: string; 
       etat={ETAT}
       produits={[]}
       libelleGabarit={() => 'Bénéfices'}
+      selecteurStyle={<div>sélecteur de style</div>}
       gabaritsDispo={['benefits'] as AdTemplate[]}
       onProduit={() => {}} onGabarit={() => {}} onAngle={() => {}} onOffre={() => {}}
       onDirection={() => {}} onMode={() => {}} onNombre={() => {}} onMoteur={() => {}}
