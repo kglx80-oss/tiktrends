@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -210,6 +210,13 @@ async function composeBatch(o: {
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean;
   reservedCredits: number; // deja debite par l'appelant : on rembourse ce qui n'a pas ete produit
+  /**
+   * Combien d'images de reprise ce lot s'autorise · 0 hors mode entière.
+   *
+   * Le budget est réservé ET annoncé par l'appelant avant le clic · ici on ne
+   * fait que le consommer, pub cassée par pub cassée, sans jamais le dépasser.
+   */
+  reprisesBudget?: number;
   /** Le moteur choisi, entier · l'endpoint et les paramètres s'en déduisent. */
   modelSpec: ImageModelSpec; creditsPerImage: number;
   productId?: string; personaId?: string; objective?: string;
@@ -382,6 +389,12 @@ async function composeBatch(o: {
   }
   const scenes: (string | null)[] = slots.map((slot) => parSlot.get(slot) ?? null);
 
+  // Combien d'IMAGES le fournisseur a réellement produites · c'est ce qu'on
+  // facture, et ce dont on rembourse le reste. Un lot d'essai partage une scène,
+  // donc `aProduire` dédoublonne déjà les slots. Le rattrapage l'incrémentera au
+  // fil des reprises · une reprise est une image de plus, payée comme telle.
+  let imagesFal = aProduire.filter((slot) => parSlot.get(slot)).length;
+
   // On regarde les scènes AVANT de les composer.
   //
   // Le voile qui porte le texte était une constante · sur une image déjà sombre
@@ -420,6 +433,21 @@ async function composeBatch(o: {
   if (o.mode === 'entiere') {
     const relecteur = guardedAnthropic({ action: 'ads:controle', workspaceId: o.workspaceId });
     const ref = await imageJointe(o.productImageUrls?.[0]);
+    /** Relire UNE scène · le constat, ou null si on n'a pas pu regarder. */
+    const relireScene = async (url: string, c: AdConcept) => {
+      const img = await imageJointe(url);
+      if (!img || !relecteur) return null;
+      const vu = await controlePubEntiere(relecteur, { image: img, reference: ref });
+      if (!vu) return null;
+      return {
+        copie: verifieCopie(chainesImposees({
+          kicker: c.kicker, headline: c.headline, subhead: c.subhead,
+          benefits: c.benefits, cta: c.cta, badge: c.badge,
+        }), vu.texteLu),
+        produitFidele: vu.produitFidele,
+        ecartsProduit: vu.ecartsProduit,
+      };
+    };
     if (relecteur) {
       const aRelire = scenes.map((url, i) => ({ url, i })).filter((x): x is { url: string; i: number } => !!x.url);
       for (let d = 0; d < aRelire.length; d += 3) {
@@ -427,22 +455,60 @@ async function composeBatch(o: {
           const c = o.concepts[i];
           if (!c) return;
           try {
-            const img = await imageJointe(url);
-            if (!img) return;
-            const vu = await controlePubEntiere(relecteur, { image: img, reference: ref });
-            if (!vu) return;
-            controles.set(i, {
-              copie: verifieCopie(chainesImposees({
-                kicker: c.kicker, headline: c.headline, subhead: c.subhead,
-                benefits: c.benefits, cta: c.cta, badge: c.badge,
-              }), vu.texteLu),
-              produitFidele: vu.produitFidele,
-              ecartsProduit: vu.ecartsProduit,
-            });
+            const vu = await relireScene(url, c);
+            if (vu) controles.set(i, vu);
           } catch (e) {
             logFailure('ads:controle', e, o.workspaceId);
           }
         }));
+      }
+
+      /*
+       * ── On rattrape ce que la relecture vient de juger cassé ─────────────────
+       *
+       * Détecter sans agir laissait livrer du connu-cassé · l'accroche réécrite
+       * ou le produit inventé partaient dans la grille, et c'était à l'œil de les
+       * repérer. Ici, une pub cassée est régénérée UNE fois, dans le budget
+       * réservé et annoncé d'avance · aucune dépense qui n'ait été dite avant le
+       * clic. La règle (qui reprendre, combien, garder la meilleure) vit dans le
+       * noyau, où un test l'exerce.
+       *
+       * Pas sur un essai · il partage une seule scène entre N publicités, et
+       * reprendre l'une romprait la comparaison qu'il promet.
+       *
+       * Chaque reprise passe par `genScene`, donc par le plafond de dépense · s'il
+       * est atteint, la reprise ne part pas et on garde l'original. Une reprise
+       * plus mauvaise est rejetée · on ne remplace que sur un progrès strict.
+       */
+      if (!o.essai && (o.reprisesBudget ?? 0) > 0) {
+        const constats = o.concepts.map((_, i) => {
+          const ctl = controles.get(i);
+          return ctl ? { accrocheReecrite: ctl.copie.grave, produitFidele: ctl.produitFidele } : null;
+        });
+        for (const i of indicesARattraper(constats, o.reprisesBudget ?? 0)) {
+          const c = o.concepts[i];
+          const original = controles.get(i);
+          if (!c || !original) continue;
+          try {
+            const nouvelleUrl = await genScene(c, i);
+            if (!nouvelleUrl) continue; // plafond atteint ou échec · on garde l'original
+            imagesFal++;
+            const [nouvelleLum, nouveauControle] = await Promise.all([
+              mesurerScene(nouvelleUrl),
+              relireScene(nouvelleUrl, c),
+            ]);
+            if (nouveauControle && reprisePreferable(
+              { accrocheReecrite: original.copie.grave, produitFidele: original.produitFidele },
+              { accrocheReecrite: nouveauControle.copie.grave, produitFidele: nouveauControle.produitFidele },
+            )) {
+              scenes[i] = nouvelleUrl;
+              lumieres[i] = nouvelleLum;
+              controles.set(i, nouveauControle);
+            }
+          } catch (e) {
+            logFailure('ads:rattrapage', e, o.workspaceId);
+          }
+        }
       }
     }
   }
@@ -553,13 +619,13 @@ async function composeBatch(o: {
   // Les crédits ont été réservés en bloc avant la génération (débit atomique) : on
   // ne facture au final que les visuels réellement produits et on rend le reste.
   if (!o.unlimited) {
-    // On facture les IMAGES produites, pas les publicités composées · un lot
-    // d'essai compose quatre publicités sur une seule image, et compter les
-    // publicités ferait payer trois images qui n'ont jamais été demandées.
-    const imagesProduites = new Set(
-      ads.length ? slots.filter((_, i) => scenes[i]).map((slot) => slot) : [],
-    ).size;
-    const unused = o.reservedCredits - o.creditsPerImage * imagesProduites;
+    // On facture les IMAGES réellement produites, pas les publicités composées ·
+    // un lot d'essai compose quatre publicités sur une seule image, et une pub
+    // rattrapée a coûté deux images. `imagesFal` compte les deux cas justes ·
+    // le reste de ce qui a été réservé (dont la marge de reprise non utilisée)
+    // est rendu. Rien n'est produit → on rembourse tout, comme avant.
+    const facturables = ads.length ? imagesFal : 0;
+    const unused = o.reservedCredits - o.creditsPerImage * facturables;
     if (unused > 0) await refundCredits(o.workspaceId, unused, 'Remboursement · images non produites');
   }
   return ads;
@@ -724,11 +790,17 @@ export async function generateAdsAction(input: {
   // qui les applique. Une seule décision, deux étapes servies.
   const impose = isAdLayout(input.layout) ? input.layout : null;
   const modelSpec = imageModelByKey(input.model);
+  // Le rattrapage ne vaut que pour le mode entière hors essai · c'est le seul où
+  // une pub est relue puis peut être régénérée seule. Un essai partage sa scène,
+  // le mode composé écrit ses propres textes.
+  const reprisesBudget = mode === 'entiere' && !essaiVariable ? budgetReprises(count) : 0;
   // Le prix suit les IMAGES produites, pas les publicités composées · un essai
-  // d'accroches ou de mises en page en produit UNE pour quatre publicités.
+  // d'accroches ou de mises en page en produit UNE pour quatre publicités. En
+  // entière, on réserve EN PLUS la marge de reprise · elle est ainsi annoncée
+  // avant le clic, et le non-utilisé est remboursé par composeBatch.
   const cost = essaiVariable
     ? prixEssai(essaiVariable, count, modelSpec.credits)
-    : modelSpec.credits * count;
+    : modelSpec.credits * imagesAReserver(count, reprisesBudget > 0);
   const unlimited = unlimitedCredits(s.user.email);
   // Débit atomique en bloc avant la génération ; composeBatch rembourse les visuels
   // qui n'ont pas abouti. Vérifier puis débiter en deux temps laissait deux lots
@@ -881,6 +953,7 @@ export async function generateAdsAction(input: {
     cadragePolyvalent: essaiVariable === 'mise_en_page',
     essai: essaiVariable ? { variable: essaiVariable, groupe: crypto.randomUUID() } : null,
     mode,
+    reprisesBudget,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,

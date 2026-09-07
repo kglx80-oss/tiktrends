@@ -62,6 +62,7 @@ export * from './scene-light';
 export * from './studio-iterate';
 export * from './scene-defects';
 export * from './copie-conforme';
+export * from './rattrapage';
 export * from './exemple-direction';
 export * from './conseil-moteur';
 export * from './essai';

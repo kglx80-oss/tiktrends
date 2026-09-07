@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, type DebriefLot, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, type DebriefLot, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -664,7 +664,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           }
           cost={{
             credits: modelSpec.credits * count,
-            note: `${modelSpec.label} · ${modelSpec.credits} crédits par pub · ${modelSpec.note}`,
+            // En entière, la reprise des pubs cassées se réserve · on l'annonce
+            // ici, avant le clic, plafond et remboursement compris.
+            note: `${modelSpec.label} · ${modelSpec.credits} crédits par pub · ${modelSpec.note}`
+              + (fabrication === 'entiere' && !essai && budgetReprises(count) > 0
+                ? ` · reprise des pubs cassées jusqu’à +${modelSpec.credits * budgetReprises(count)} cr., remboursés si inutilisés`
+                : ''),
           }}
           onGenerate={run}
           // Ce qui manque, dit SOUS le bouton et avant le clic.

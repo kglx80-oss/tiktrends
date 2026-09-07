@@ -5,7 +5,7 @@ import {
   ETAPES, ETAPE_ROLE, ETAPE_TITRE, dureeAttendue, etapeComplete, etapePrecedente,
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
   AD_DIRECTIONS, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves,
-  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, type ConseilMoteur,
+  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, budgetReprises, type ConseilMoteur,
   type Etape, type EtatAssistant,
 } from '@tiktrends/core';
 import type { AdTemplate } from '@tiktrends/ai';
@@ -185,6 +185,10 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
   const spec = imageModelByKey(p.etat.moteur);
   const total = spec.credits * Math.max(1, p.etat.nombre);
   const duree = dureeAttendue(p.etat.nombre, imageTimeoutMs(spec));
+  // La marge de reprise · en entière, une pub cassée est régénérée une fois, et
+  // ça se réserve. On l'annonce comme un plafond, remboursé si inutilisé · un
+  // dollar ne se dépense jamais sans l'avoir dit avant le clic.
+  const margeReprise = p.etat.mode === 'entiere' ? spec.credits * budgetReprises(p.etat.nombre) : 0;
   // Le plafond atteint est un refus CERTAIN · aucune image ne partira, quels
   // que soient les cinq écrans. Le laisser découvrir au bout du parcours ferait
   // remplir un formulaire pour rien, puis rendrait un lot vide.
@@ -213,10 +217,13 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
         )}
         {/* La relecture automatique coûte, et rien ne se dépense sans le dire.
              Environ trois pour cent du prix d'une image · c'est ce qui autorise
-             à la lancer sans la demander, et ça se dit quand même. */}
+             à la lancer sans la demander, et ça se dit quand même. La reprise
+             des pubs cassées, elle, se réserve · on annonce son plafond ici,
+             avant le clic, et le non-utilisé est remboursé. */}
         {derniere && p.etat.mode === 'entiere' && (
           <span style={{ fontSize: 11, color: 'var(--muted)' }}>
             · relecture automatique incluse (~3 % du coût des images)
+            {margeReprise > 0 && <> · reprise des pubs cassées jusqu’à +{margeReprise} cr., remboursés si inutilisés</>}
           </span>
         )}
         {/* Sur le dernier écran, c'est un chiffre à connaître avant de payer.
