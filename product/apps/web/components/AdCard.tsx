@@ -1,4 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
+import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
 
@@ -66,9 +67,14 @@ export function AdCard({ ad, saved = false, following = false }: { ad: InspoAd; 
             {ad.landingDomain && <span>· {ad.landingDomain}</span>}
           </div>
         )}
-        <a href={`/studio?brand=${encodeURIComponent(ad.advertiserName || '')}&inspo=${encodeURIComponent(ad.body || '')}`}
+        {/* Le pont veille → création. Il pointait vers `/studio` (le hub, pas les
+             Pubs IA) avec des paramètres que la page ne lit pas, et charriait la
+             copy concurrente mot pour mot · un clic sans suite, ou une créa qui
+             recopie. Ici on distille l'ANGLE éprouvé et on arme les Pubs IA · la
+             règle « reprends l'angle, pas les mots » vit dans le noyau. */}
+        <a href={studioDepuisVeille(ad)}
           style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: 700, padding: '7px 10px', borderRadius: 10, border: '1px solid var(--line-2)', color: 'var(--ink)', textDecoration: 'none' }}>
-          ✨ Générer une variante
+          ✨ Génère ta version
         </a>
       </div>
     </div>
