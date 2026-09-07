@@ -51,7 +51,7 @@ export const PRODUCTION_RESUME: Record<ProductionMode, string> = {
 export function garanties(mode: ProductionMode): string[] {
   return mode === 'composee'
     ? ['Les textes sont exacts, toujours', 'La mise en page est prévisible', 'Le produit reste fidèle']
-    : ['Le produit reste fidèle', 'Le rendu est celui d’une agence'];
+    : ['Le produit reste fidèle', 'Le rendu est celui d’une agence', 'Chaque pub est relue · mots et packaging vérifiés'];
 }
 
 /** Ce que le mode NE garantit PAS · dit d'avance, pas découvert après. */

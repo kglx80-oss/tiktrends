@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { adFonts } from './ad-fonts';
 import type { AdTemplate } from '@tiktrends/ai';
-import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, poseUneCouche, type SceneLight, type StudioVariable, type EssaiVariable, type ProductionMode } from '@tiktrends/core';
+import { LAYOUT_CLAIR, layoutFor, shellShowsBadge, voilesDe, type AdLayout, poseUneCouche, type SceneLight, type StudioVariable, type EssaiVariable, type ProductionMode, type VerdictCopie } from '@tiktrends/core';
 
 export interface AdRecipe {
   template: AdTemplate;
@@ -66,6 +66,17 @@ export interface AdRecipe {
    * produite avant ce mode ne doit pas changer d'allure.
    */
   mode?: ProductionMode | null;
+  /**
+   * Ce que la relecture automatique a constaté · mode « entière » seulement.
+   *
+   * Rangé sous les mêmes clés que le contrôle payant de la note Jarvis, pour
+   * que la carte, la vignette d'exemple et le cumul lisent un seul endroit quelle
+   * que soit l'origine du constat. Absent tant que rien n'a été relu · un champ
+   * à `true` par défaut transformerait une absence de vérification en garantie.
+   */
+  copieConforme?: VerdictCopie | null;
+  produitFidele?: boolean | null;
+  ecartsProduit?: string[];
   brandName?: string;
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.

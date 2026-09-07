@@ -6,6 +6,7 @@ export * from './agent';
 export * from './generation';
 export * from './ads';
 export * from './critique';
+export * from './controle-pub';
 export * from './brand';
 export * from './chat';
 export * from './adsmap-asset';

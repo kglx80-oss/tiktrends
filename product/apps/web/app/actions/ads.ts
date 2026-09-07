@@ -7,7 +7,7 @@ import { getActiveBrand } from '../../lib/brands';
 import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
-import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
+import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
 import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
@@ -19,10 +19,19 @@ import { essaisViewAction } from './adsmap-attribution';
 import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
+import { imageJointe } from '../../lib/image-jointe';
 
 export interface AdItem {
   id: string; template: AdTemplate; headline: string; url: string; createdAt: string;
   rating?: import('./creatives').Rating; score?: number;
+  /**
+   * Ce que la relecture a constaté · lu par la grille pour le montrer sans clic.
+   *
+   * Une mesure rangée en base et visible seulement après avoir payé une analyse
+   * n'est pas une mesure, c'est une archive. La grille doit dire, d'un coup
+   * d'œil, laquelle de ces publicités dit encore ce qu'on voulait.
+   */
+  controle?: { copieResume: string; copieGrave: boolean; produitFidele: boolean | null; ecarts: string[] } | null;
   /** Pourquoi Jarvis a proposé ça · une proposition muette se subit ou s'ignore. */
   rationale?: string[] | null;
   /**
@@ -370,6 +379,56 @@ async function composeBatch(o: {
   }));
   const lumieres = scenes.map((url) => (url ? mesures.get(url) ?? null : null));
 
+  /*
+   * ── On relit ce que le modèle a écrit, tout de suite ───────────────────────
+   *
+   * La note Jarvis savait déjà transcrire · mais elle est manuelle et payante,
+   * une publicité à la fois. Un lot de quatre repartait donc sans qu'aucune
+   * n'ait été relue, et les deux questions qui décident si le mode « entière »
+   * est utilisable — a-t-il écrit nos mots, a-t-il gardé notre produit —
+   * restaient sans réponse.
+   *
+   * Ici c'est le modèle le moins cher, sur l'image réduite : environ 0,002 $ par
+   * publicité contre 0,08 $ pour l'image. Trois pour cent · c'est ce qui
+   * autorise à le lancer sans le demander.
+   *
+   * Uniquement en mode « entière ». En composé, c'est nous qui écrivons les
+   * textes · les relire reviendrait à vérifier notre propre travail.
+   *
+   * Un contrôle qui échoue ne fait jamais échouer le lot · une publicité
+   * produite mais non relue reste une publicité produite.
+   */
+  const controles = new Map<number, { copie: VerdictCopie; produitFidele: boolean | null; ecartsProduit: string[] }>();
+  if (o.mode === 'entiere') {
+    const relecteur = guardedAnthropic({ action: 'ads:controle', workspaceId: o.workspaceId });
+    const ref = await imageJointe(o.productImageUrls?.[0]);
+    if (relecteur) {
+      const aRelire = scenes.map((url, i) => ({ url, i })).filter((x): x is { url: string; i: number } => !!x.url);
+      for (let d = 0; d < aRelire.length; d += 3) {
+        await Promise.all(aRelire.slice(d, d + 3).map(async ({ url, i }) => {
+          const c = o.concepts[i];
+          if (!c) return;
+          try {
+            const img = await imageJointe(url);
+            if (!img) return;
+            const vu = await controlePubEntiere(relecteur, { image: img, reference: ref });
+            if (!vu) return;
+            controles.set(i, {
+              copie: verifieCopie(chainesImposees({
+                kicker: c.kicker, headline: c.headline, subhead: c.subhead,
+                benefits: c.benefits, cta: c.cta, badge: c.badge,
+              }), vu.texteLu),
+              produitFidele: vu.produitFidele,
+              ecartsProduit: vu.ecartsProduit,
+            });
+          } catch (e) {
+            logFailure('ads:controle', e, o.workspaceId);
+          }
+        }));
+      }
+    }
+  }
+
   // On construit TOUTES les recettes avant d'en enregistrer une seule.
   //
   // Un lot d'essai doit pouvoir être vérifié dans son ensemble · un lot annoncé
@@ -406,6 +465,14 @@ async function composeBatch(o: {
       // une couche de texte par-dessus, et si « du texte dans l'image » est un
       // raté ou exactement ce qu'on avait demandé.
       mode: o.mode ?? 'composee',
+      // Ce que la relecture a constaté · rangé sous les mêmes clés que le
+      // contrôle payant, pour que la carte, la vignette d'exemple et le cumul
+      // lisent un seul endroit quelle qu'en soit l'origine.
+      ...(controles.get(i) ? {
+        copieConforme: controles.get(i)!.copie,
+        produitFidele: controles.get(i)!.produitFidele,
+        ecartsProduit: controles.get(i)!.ecartsProduit,
+      } : {}),
       // Le brief de la scène · consigné pour pouvoir en produire une AUTRE du
       // même concept sans redemander au modèle ce qu'il a déjà écrit.
       sceneBrief: c.sceneBrief,
@@ -1016,6 +1083,12 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
         parentId: rec.parentId ?? null, variable: rec.variable ?? null,
         essai: rec.essai?.variable ?? null,
         sceneBrief: !!rec.sceneBrief?.trim(),
+        controle: rec.copieConforme || typeof rec.produitFidele === 'boolean' ? {
+          copieResume: rec.copieConforme?.resume ?? '',
+          copieGrave: !!rec.copieConforme?.grave,
+          produitFidele: rec.produitFidele ?? null,
+          ecarts: rec.ecartsProduit ?? [],
+        } : null,
       };
     });
 }
@@ -1076,7 +1149,11 @@ export async function universeSamplesAction(): Promise<Record<string, string>> {
       // Un raté de fabrication, ou une accroche que le modèle a réécrite · dans
       // les deux cas la créa ne représente pas sa direction, elle représente
       // une génération manquée.
-      grave: vd.grave || !!rec.copieConforme?.grave,
+      // Trois façons de ne pas représenter sa direction · un raté de
+      // fabrication, une accroche réécrite, un produit qui n'est plus le nôtre.
+      // Le dernier est le critère éliminatoire n° 1 du mode entière : une
+      // publicité au packaging inventé est inutilisable, si belle soit-elle.
+      grave: vd.grave || !!rec.copieConforme?.grave || rec.produitFidele === false,
       rang: rows.length - i,
       rec,
     };
