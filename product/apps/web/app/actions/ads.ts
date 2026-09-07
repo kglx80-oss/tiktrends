@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, texteAttenduDansImage, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -1125,7 +1125,7 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
  * Score Jarvis · évalue le POTENTIEL DE PERFORMANCE d'une créa (scroll-stop, clarté, adéquation),
  * en s'appuyant sur les règles maison + les patterns gagnants appris. Débite 2 crédits.
  */
-export async function scoreCreativeAction(id: string, opts?: { force?: boolean }): Promise<{ score?: CreativeScore; cost?: number; cached?: true; error?: string }> {
+export async function scoreCreativeAction(id: string, opts?: { force?: boolean }): Promise<{ score?: CreativeScore; copie?: VerdictCopie | null; cost?: number; cached?: true; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'ads' });
@@ -1136,10 +1136,13 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
   const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
     .where(and(eq(schema.generations.id, id), eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad'))).limit(1);
   if (!g) return { error: GUARD.notFound('ce rendu') };
-  const r = (g.input ?? {}) as Partial<AdRecipe> & { jarvisScore?: CreativeScore };
+  const r = (g.input ?? {}) as Partial<AdRecipe> & { jarvisScore?: CreativeScore; copieConforme?: VerdictCopie };
 
   // Score déjà calculé : on le renvoie sans redébiter (sauf nouvelle analyse demandée).
-  if (r.jarvisScore && !opts?.force) return { score: r.jarvisScore, cost: 0, cached: true };
+  // Le verdict de copie est rangé AVEC la note · le relire ici évite de perdre
+  // le constat en rouvrant une publicité déjà analysée, et d'avoir à repayer une
+  // analyse pour retrouver ce qu'on savait déjà.
+  if (r.jarvisScore && !opts?.force) return { score: r.jarvisScore, copie: r.copieConforme ?? null, cost: 0, cached: true };
 
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('score');
@@ -1189,16 +1192,39 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
     // passer 68 sur 100 avec une fausse accroche cuite dans l'image, c'est
     // publier la note et enterrer le constat.
     const vd = verdictDefauts(score.defauts);
-    const note: CreativeScore = { ...score, defauts: vd.defauts, score: plafonner(score.score, vd.grave) };
+    // A-t-elle écrit NOS mots ?
+    //
+    // En mode « entière », c'est le modèle d'images qui pose la typographie ·
+    // il lui arrive d'inventer une accroche, de traduire, ou de perdre les
+    // accents. On lui a demandé de RECOPIER ce qu'il voit ; la comparaison,
+    // elle, se fait ici, en code déterministe. Un avis de modèle ne se compte
+    // pas · un écart mesuré, si.
+    //
+    // Aucun appel de plus · c'est la même note, quelques jetons de sortie en
+    // sus. Un second appel de vision aurait doublé le coût d'une analyse pour
+    // une question que celle-là pouvait déjà porter.
+    const copie = texteAttenduDansImage(r.mode)
+      ? verifieCopie(chainesImposees({
+          kicker: r.kicker, headline: r.headline, subhead: r.subhead,
+          benefits: r.benefits, cta: r.cta, badge: r.badge,
+        }), score.texteLu)
+      : null;
+    // Une accroche réécrite plafonne la note au même titre qu'un raté de
+    // fabrication · publier 72 sur 100 sous une publicité qui ne dit plus ce
+    // qu'on voulait, c'est afficher la note et enterrer le constat.
+    const note: CreativeScore = {
+      ...score, defauts: vd.defauts,
+      score: plafonner(score.score, vd.grave || !!copie?.grave),
+    };
     // Mémorise le score (affichage direct sur la carte, pas de re-débit).
     // Fusion côté SQL : l'analyse dure plusieurs secondes, une note ou une édition de
     // texte faite pendant ce temps ne doit pas être écrasée par un instantané périmé.
     try {
       await db.update(schema.generations)
-        .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ jarvisScore: note })}::jsonb` })
+        .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ jarvisScore: note, ...(copie ? { copieConforme: copie } : {}) })}::jsonb` })
         .where(eq(schema.generations.id, id));
     } catch { /* best-effort */ }
-    return { score: note, cost: unlimited ? 0 : cost };
+    return { score: note, copie, cost: unlimited ? 0 : cost };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · analyse de créa');
     return { error: logAndTranslate('ads:score', e, { subject: 'l’analyse de la créa', workspaceId: s.workspaceId }) };

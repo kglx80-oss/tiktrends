@@ -46,6 +46,24 @@ export interface CreativeScore {
   defauts: string[];
   /** La note a-t-elle regardé l'image · une note à l'aveugle doit le dire. */
   vu: boolean;
+  /**
+   * Le texte LU dans l'image, ligne par ligne, tel quel.
+   *
+   * ── Pourquoi transcrire plutôt que juger ───────────────────────────────────
+   *
+   * On demandait au modèle « les mots sont-ils écrits juste ? ». C'est demander
+   * un AVIS · il ne se compte pas, ne se compare pas d'un mois à l'autre, et ne
+   * dit pas quel moteur se trompe le plus.
+   *
+   * On lui demande maintenant CE QUI EST ÉCRIT. La comparaison avec les chaînes
+   * qu'on avait imposées se fait dans le noyau, en code déterministe · le modèle
+   * fait ce qu'il fait bien (lire), nous faisons ce qu'un test peut vérifier
+   * (comparer).
+   *
+   * Vide quand la typographie n'a pas été produite par le modèle · dans le mode
+   * composé, c'est nous qui écrivons les textes, il n'y a rien à relire.
+   */
+  texteLu: string[];
 }
 
 const SCORE_TOOL = {
@@ -67,6 +85,11 @@ const SCORE_TOOL = {
         items: { type: 'string', enum: ['texte_incruste', 'produit_deforme', 'anatomie', 'logo_invente', 'illisible'] },
         description: "Ratés de FABRICATION visibles dans l'image, uniquement si tu les vois vraiment. « texte_incruste » = des mots/lettres ont été générés DANS la photo (hors étiquette légitime du produit). « produit_deforme » = proportions ou packaging impossibles. « anatomie » = main/visage anormal. « logo_invente » = un logo qui n'est pas celui de la marque. « illisible » = le sujet est absent, flou ou incompréhensible. Liste vide si l'image est saine.",
       },
+      texteLu: {
+        type: 'array',
+        items: { type: 'string' },
+        description: "TRANSCRIPTION littérale de tout le texte visible dans l'image, une entrée par ligne ou par bloc, EXACTEMENT tel qu'il est écrit (accents, apostrophes, majuscules compris). N'interprète pas, ne corrige pas, ne traduis pas : recopie. Inclus aussi le texte imprimé sur l'emballage du produit. Ne remplis ce champ QUE si on te le demande explicitement.",
+      },
     },
     required: ['score', 'verdict', 'hook', 'clarity', 'relevance', 'fix'],
   },
@@ -86,7 +109,7 @@ export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creativ
     ctx.winningPatterns ? "Appuie-toi sur les PATTERNS GAGNANTS appris pour cette marque (fournis) : récompense ce qui s'en rapproche." : '',
     ctx.creativeRules ? "Respecte les RÈGLES MAISON de la marque (fournies)." : '',
     aVu && creative.texteDansImage
-      ? "L'IMAGE de la pub t'est fournie, et sa typographie a été PRODUITE PAR LE MODÈLE D'IMAGES : c'est voulu, ce n'est donc PAS un défaut. Ne signale JAMAIS « texte_incruste » ici. En revanche vérifie que les mots sont ÉCRITS JUSTE (orthographe, accents français, lettres inventées) : une faute rend la pub impubliable · signale-la alors comme « illisible ». Juge aussi ce qu'un pouce voit en 0,5 s. Les autres ratés (produit déformé, anatomie anormale, logo inventé) restent des défauts."
+      ? "L'IMAGE de la pub t'est fournie, et sa typographie a été PRODUITE PAR LE MODÈLE D'IMAGES : c'est voulu, ce n'est donc PAS un défaut. Ne signale JAMAIS « texte_incruste » ici. RECOPIE dans « texteLu » tout le texte visible dans l'image, littéralement, ligne par ligne, sans rien corriger ni traduire · c'est une transcription, pas un jugement, et c'est notre code qui la comparera aux textes demandés. Juge aussi ce qu'un pouce voit en 0,5 s. Les autres ratés (produit déformé, anatomie anormale, logo inventé) restent des défauts."
       : aVu
         ? "L'IMAGE de la pub composée t'est fournie : juge ce qu'un pouce voit en 0,5 s, pas seulement ce que le texte dit. Signale les RATÉS DE FABRICATION que tu vois vraiment (texte généré dans la photo, produit déformé, anatomie anormale, logo inventé, sujet illisible) · n'en invente aucun, une liste vide est la réponse normale."
         : "Aucune image ne t'est fournie : note uniquement les textes, laisse « visuel » et « defauts » vides.",
@@ -143,5 +166,10 @@ export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creativ
           .filter((d) => !(creative.texteDansImage && d === 'texte_incruste'))
       : [],
     vu: aVu,
+    // Recopié tel quel · le corriger ici effacerait précisément la faute qu'on
+    // cherche à mesurer. Seul le mode « entière » a quelque chose à relire.
+    texteLu: aVu && creative.texteDansImage && Array.isArray(s.texteLu)
+      ? s.texteLu.filter((t): t is string => typeof t === 'string' && t.trim().length > 0).slice(0, 24)
+      : [],
   };
 }

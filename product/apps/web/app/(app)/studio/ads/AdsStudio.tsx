@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, type VerdictCopie, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -216,6 +216,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
   const [scoring, setScoring] = useState(false);
   const [scoreData, setScoreData] = useState<CreativeScore | null>(null);
+  /** Le verdict de copie · vide hors mode « entière », où il n'y a rien à relire. */
+  const [copieData, setCopieData] = useState<VerdictCopie | null>(null);
   const [scoreFor, setScoreFor] = useState<string | null>(null);
 
   async function runScore(a: AdItem, force = false) {
@@ -225,7 +227,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     setScoring(false);
     if (r.error) { setError(r.error); return; }
     if (r.score) {
-      setScoreData(r.score); setScoreFor(a.id);
+      setScoreData(r.score); setCopieData(r.copie ?? null); setScoreFor(a.id);
       // Reflète le score sur la carte (pastille) sans recharger.
       setAds((list) => list.map((x) => (x.id === a.id ? { ...x, score: r.score!.score } : x)));
     }
@@ -1092,7 +1094,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
                   {/* Score Jarvis · notre signature */}
                   {scoreFor === detailAd.id && scoreData ? (
-                    <ScoreCard s={scoreData} onRedo={() => runScore(detailAd, true)} busy={scoring} />
+                    <ScoreCard s={scoreData} copie={copieData} onRedo={() => runScore(detailAd, true)} busy={scoring} />
                   ) : (
                     <button type="button" onClick={() => runScore(detailAd)} disabled={scoring || !aiReady} style={{ ...toolBtn, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)', fontWeight: 800 }}>
                       {scoring ? 'Analyse Jarvis…' : typeof detailAd.score === 'number' ? `✦ Voir le Score Jarvis (${detailAd.score}/100)` : '✦ Score Jarvis · 2 cr.'}
@@ -1274,7 +1276,7 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-function ScoreCard({ s, onRedo, busy }: { s: CreativeScore; onRedo: () => void; busy: boolean }) {
+function ScoreCard({ s, copie, onRedo, busy }: { s: CreativeScore; copie?: VerdictCopie | null; onRedo: () => void; busy: boolean }) {
   const col = s.score >= 80 ? '#18cc8c' : s.score >= 60 ? '#7ee8bf' : s.score >= 45 ? '#f5b043' : '#ff9db0';
   const r = 22, c = 2 * Math.PI * r, off = c - (s.score / 100) * c;
   const defauts = verdictDefauts(s.defauts);
@@ -1325,6 +1327,34 @@ function ScoreCard({ s, onRedo, busy }: { s: CreativeScore; onRedo: () => void; 
               <div key={d}>
                 <div style={{ fontSize: 11.5, color: 'var(--ink-2)', fontWeight: 700 }}>{DEFECT_LABEL[d]}</div>
                 <div style={{ fontSize: 10.5, color: 'var(--muted)', lineHeight: 1.4 }}>{DEFECT_FIX[d]}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* A-t-elle écrit NOS mots ?
+           En mode « entière », c'est le modèle d'images qui pose la typographie.
+           On lui a demandé de recopier ce qu'il voit, et on compare ici, en
+           code. Rien ne s'affiche quand tout est exact · une copie
+           irréprochable n'a pas besoin d'un encadré pour le dire. */}
+      {copie && copie.resume && (
+        <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 9, background: copie.grave ? 'rgba(255,90,120,.10)' : 'rgba(245,166,35,.10)', border: `1px solid ${copie.grave ? 'rgba(255,90,120,.35)' : 'rgba(245,166,35,.3)'}` }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: copie.grave ? '#ff9db0' : '#ffca6b', letterSpacing: '.04em' }}>
+            {copie.grave ? 'LA PUB NE DIT PLUS CE QU’ON VOULAIT' : 'ÉCARTS DE COPIE'}
+            {copie.fidelite !== null && <span style={{ fontWeight: 700, color: 'var(--muted)' }}> · {Math.round(copie.fidelite * 100)} % exact</span>}
+          </div>
+          <div style={{ display: 'grid', gap: 6, marginTop: 6 }}>
+            {copie.lignes.filter((l) => l.etat !== 'exacte').map((l) => (
+              <div key={l.role}>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  <b style={{ color: 'var(--ink-2)' }}>{l.role}</b> · {ETAT_COPIE_LABEL[l.etat]}
+                </div>
+                {/* On montre les deux · « réécrite » sans montrer quoi oblige à
+                     rouvrir l'image pour comprendre. */}
+                <div style={{ fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.4 }}>Demandé · « {l.attendu} »</div>
+                <div style={{ fontSize: 11, color: '#ff9db0', lineHeight: 1.4 }}>
+                  {l.lu ? <>Lu · « {l.lu} »</> : 'Rien de comparable dans l’image.'}
+                </div>
               </div>
             ))}
           </div>
