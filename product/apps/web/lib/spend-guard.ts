@@ -1,10 +1,11 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
-import { gte, sql } from 'drizzle-orm';
+import { eq, gte, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { anthropicFromEnv } from '@tiktrends/ai';
+import { errorFamily } from './user-error';
 import {
-  checkBudget, costOfTokens, estimateCallCost, summarizeBudget, FIXED_COSTS,
+  checkBudget, costOfTokens, estimateCallCost, summarizeBudget, FIXED_COSTS, rienNaEteFacture,
   type FixedCostKind,
 } from '@tiktrends/core';
 
@@ -66,19 +67,21 @@ export async function spendStatus(): Promise<SpendStatus> {
 async function record(row: {
   workspaceId?: string | null; provider: string; model?: string | null; action: string;
   estimatedUsd: number; actualUsd: number; inputTokens?: number | null; outputTokens?: number | null;
-}): Promise<void> {
-  if (!db) return;
+}): Promise<string | null> {
+  if (!db) return null;
   try {
-    await db.insert(schema.aiSpend).values({
+    const [ligne] = await db.insert(schema.aiSpend).values({
       workspaceId: row.workspaceId ?? null,
       provider: row.provider, model: row.model ?? null, action: row.action,
       estimatedUsd: row.estimatedUsd, actualUsd: row.actualUsd,
       inputTokens: row.inputTokens ?? null, outputTokens: row.outputTokens ?? null,
-    });
+    }).returning({ id: schema.aiSpend.id });
+    return ligne?.id ?? null;
   } catch (e) {
     // Une écriture ratée fait perdre la trace d'une dépense · c'est grave, et
     // ça se voit dans les journaux plutôt que de casser la requête en cours.
     console.error('[spend] écriture impossible', (e as Error).message);
+    return null;
   }
 }
 
@@ -200,16 +203,85 @@ export function guardedAnthropic(opts: { workspaceId?: string | null; action: st
  */
 export async function guardFixedCost(
   kind: FixedCostKind, opts: { workspaceId?: string | null; action: string; units?: number },
-): Promise<void> {
+): Promise<string | null> {
   const cout = FIXED_COSTS[kind] * Math.max(1, Math.round(opts.units ?? 1));
   const status = await spendStatus();
   const decision = checkBudget({ spentUsd: status.spentUsd, capUsd: status.capUsd }, cout);
   if (!decision.allowed) throw new SpendBlockedError(decision.reason);
 
-  await record({
+  // On renvoie l'identifiant de la ligne · c'est ce qui rend la dépense
+  // annulable quand l'appel qui suit est refusé sans rien produire.
+  return record({
     workspaceId: opts.workspaceId, provider: 'fal', model: kind, action: opts.action,
     estimatedUsd: cout, actualUsd: cout,
   });
+}
+
+/**
+ * Rend une dépense que le fournisseur n'a pas facturée.
+ *
+ * ── Ce que ça répare ─────────────────────────────────────────────────────────
+ *
+ * Le coût était compté AVANT l'appel — et il fallait qu'il le soit, sinon
+ * douze images en vol passeraient toutes le même contrôle et dépasseraient le
+ * plafond ensemble. Mais rien ne revenait en arrière quand l'appel était refusé
+ * à la porte. Un modèle inconnu, une référence illisible, une clé morte :
+ * 0,08 $ retenus, 0,16 $ avec le réessai, pour zéro image.
+ *
+ * Un plafond dur de 10 $ se vide ainsi en quelques lots ratés, et le produit se
+ * verrouille sans avoir rien produit.
+ *
+ * ── Ce qu'on garde ───────────────────────────────────────────────────────────
+ *
+ * La ligne n'est pas supprimée · son `estimatedUsd` reste, seul `actualUsd`
+ * tombe à zéro. La tentative demeure donc lisible dans le journal — « on a
+ * essayé, ça n'a rien coûté » — alors qu'une suppression effacerait le fait
+ * qu'on a essayé.
+ *
+ * La règle de décision vit dans le noyau (`rienNaEteFacture`) · elle s'y teste,
+ * et le doute y est écrit une seule fois.
+ */
+export async function annuleCoutFixe(id: string | null, famille: string): Promise<boolean> {
+  if (!id || !db || !rienNaEteFacture(famille)) return false;
+  try {
+    await db.update(schema.aiSpend).set({ actualUsd: 0 }).where(eq(schema.aiSpend.id, id));
+    return true;
+  } catch (e) {
+    // Ne rien rendre est le côté prudent de l'erreur · on le dit sans casser
+    // l'action, qui vient déjà d'échouer pour une autre raison.
+    console.error('[spend] annulation impossible', (e as Error).message);
+    return false;
+  }
+}
+
+/**
+ * Exécute un appel payant sous le plafond, et rend la dépense s'il est refusé.
+ *
+ * ── Pourquoi un enveloppeur, et pas trois lignes à chaque endroit ────────────
+ *
+ * Le dépôt compte six points d'appel payants. « Penser à rendre la dépense »
+ * est exactement le genre de consigne qu'on applique cinq fois sur six · et la
+ * sixième est celle qui vide le plafond.
+ *
+ * Retenir puis rendre devient donc impossible à séparer : le seul moyen de
+ * dépenser est de passer par ici, et passer par ici rend déjà.
+ *
+ * L'erreur est relancée telle quelle · l'appelant garde son propre traitement,
+ * ses crédits à rembourser et son message à traduire. On ne s'occupe que des
+ * dollars.
+ */
+export async function sousPlafond<T>(
+  kind: FixedCostKind,
+  opts: { workspaceId?: string | null; action: string; units?: number },
+  appel: () => Promise<T>,
+): Promise<T> {
+  const ligne = await guardFixedCost(kind, opts);
+  try {
+    return await appel();
+  } catch (e) {
+    await annuleCoutFixe(ligne, errorFamily(e));
+    throw e;
+  }
 }
 
 /** Traduit une erreur de plafond en message utilisateur · null si autre chose. */

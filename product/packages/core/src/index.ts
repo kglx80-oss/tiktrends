@@ -5,6 +5,7 @@ export * from './tags';
 export * from './diagnostic';
 export * from './credits';
 export * from './spend-guard';
+export * from './spend-refund';
 export * from './economics';
 export * from './launch';
 export * from './briefs';

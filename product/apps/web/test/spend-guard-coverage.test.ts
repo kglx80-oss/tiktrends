@@ -39,18 +39,34 @@ describe('aucun chemin ne contourne le plafond de dépense', () => {
     expect(coupables, `utilise le client brut au lieu de guardedAnthropic : ${coupables.join(', ')}`).toEqual([]);
   });
 
-  it('chaque appel fal payant est précédé de son garde', () => {
+  it('chaque appel fal payant passe par l’enveloppeur', () => {
     // La génération d'image et de vidéo se facture au coup · sans garde, un
     // bouton cliqué en boucle passe la facture sans que rien ne l'arrête.
+    //
+    // On exige `sousPlafond`, pas `guardFixedCost` · le premier retient ET rend,
+    // le second ne fait que retenir. Six points d'appel utilisaient le second :
+    // chacun comptait 0,08 $ (0,60 $ en vidéo) même quand le fournisseur
+    // refusait la demande à la porte sans rien produire. Un plafond dur de 10 $
+    // se vidait ainsi en quelques lots ratés, sans qu'une seule image ne sorte.
+    //
+    // « Penser à rendre la dépense » est une consigne qu'on applique cinq fois
+    // sur six · la sixième est celle qui verrouille le produit.
     const coupables = sources
-      .filter((f) => /falGenerateImage\(|falSubmitVideo\(/.test(f.s) && !/guardFixedCost\(/.test(f.s))
+      .filter((f) => /falGenerateImage\(|falSubmitVideo\(|falSubmitImageVideo\(/.test(f.s) && !/sousPlafond\(/.test(f.s))
       .map((f) => f.p);
-    expect(coupables, `appelle fal sans guardFixedCost : ${coupables.join(', ')}`).toEqual([]);
+    expect(coupables, `appelle fal sans sousPlafond : ${coupables.join(', ')}`).toEqual([]);
+  });
+
+  it('personne ne retient une dépense sans pouvoir la rendre', () => {
+    // `guardFixedCost` seul est la moitié du contrat. Il reste exporté parce que
+    // `sousPlafond` s'en sert · l'appeler ailleurs réintroduit la fuite.
+    const coupables = sources.filter((f) => /guardFixedCost\(/.test(f.s)).map((f) => f.p);
+    expect(coupables, `retient une dépense sans enveloppeur : ${coupables.join(', ')}`).toEqual([]);
   });
 
   it('le garde existe et exporte ce sur quoi le reste s’appuie', () => {
     const g = readFileSync(join(RACINE, GARDE), 'utf8');
-    for (const nom of ['guardedAnthropic', 'guardFixedCost', 'spendStatus', 'SpendBlockedError']) {
+    for (const nom of ['guardedAnthropic', 'guardFixedCost', 'sousPlafond', 'annuleCoutFixe', 'spendStatus', 'SpendBlockedError']) {
       expect(g, `${nom} n\u2019est plus export\u00e9`).toMatch(
         new RegExp(`export\\s+(async\\s+)?(function|class)\\s+${nom}\\b`),
       );

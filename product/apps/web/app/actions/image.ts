@@ -11,7 +11,7 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
 import { logAndTranslate } from '../../lib/error-log';
-import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
+import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { resolvePreset } from './presets';
 
@@ -115,14 +115,13 @@ export async function generateImageAction(input: {
 
   try {
     // Barrière de dépense réelle · la génération d'image est facturée au coup.
-    await guardFixedCost('fal_image', { action: 'image', workspaceId: s.workspaceId, units: count });
     const aRef = !!sourceImage || useAssetRefs;
-    const { images } = await falGenerateImage(cfg, {
+    const { images } = await sousPlafond('fal_image', { action: 'image', workspaceId: s.workspaceId, units: count }, () => falGenerateImage(cfg, {
       prompt: finalPrompt, aspectRatio: input.aspectRatio ?? '1:1',
       imageUrl: sourceImage, imageUrls: useAssetRefs ? assetRefUrls : undefined,
       withText: input.withText, count, edit: editMode || useAssetRefs,
       model: falModelFor(spec, aRef), params: spec.params,
-    });
+    }));
     let generationId: string | undefined;
     if (db) {
       if (brand) {
