@@ -9,7 +9,7 @@ import { suggestVideoBrief } from '@tiktrends/ai';
 import { costFor, safeVideoDuration, videoUnits } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
-import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
+import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { resolvePreset } from './presets';
 import { jarvisMemoryWithUse } from '../../lib/jarvis-memory';
@@ -118,15 +118,14 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
     // La vidéo est le poste qui peut faire déraper une facture en quelques clics ·
     // le forfait appliqué est nettement supérieur à celui d'une image, et il
     // compte en unités de cinq secondes.
-    await guardFixedCost('fal_video', { action: 'video:t2v', workspaceId: s.workspaceId, units: videoUnits(duree) });
     // La marque est lue AVANT la soumission · sa mémoire doit entrer dans le
     // brief, pas être consignée après coup sur une vidéo qui n'en a rien su.
     const brand = await getActiveBrand(s.workspaceId);
     const memo = await avecMemoire(prompt, brand?.id ?? null, s.workspaceId);
     const briefT2v = avecPreset(memo.brief, await resolvePreset(s.workspaceId, input.presetId));
-    const { jobId } = fal
-      ? await falSubmitVideo(fal, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
-      : await hfSubmitVideo(hf!, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree });
+    const { jobId } = await sousPlafond('fal_video', { action: 'video:t2v', workspaceId: s.workspaceId, units: videoUnits(duree) }, () => (fal
+      ? falSubmitVideo(fal, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
+      : hfSubmitVideo(hf!, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })));
     const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(memo.use ? { memoryUse: memo.use } : {}), ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
@@ -157,13 +156,12 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
 
   const motion = prompt || 'Anime cette image de façon naturelle et cinématographique.';
   try {
-    await guardFixedCost('fal_video', { action: 'video:i2v', workspaceId: s.workspaceId, units: videoUnits(duree) });
     const brand = await getActiveBrand(s.workspaceId);
     const memo = await avecMemoire(motion, brand?.id ?? null, s.workspaceId);
     const briefI2v = avecPreset(memo.brief, await resolvePreset(s.workspaceId, input.presetId));
-    const { jobId } = fal
-      ? await falSubmitVideo(fal, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
-      : await hfSubmitImageVideo(hf!, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree });
+    const { jobId } = await sousPlafond('fal_video', { action: 'video:i2v', workspaceId: s.workspaceId, units: videoUnits(duree) }, () => (fal
+      ? falSubmitVideo(fal, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
+      : hfSubmitImageVideo(hf!, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })));
     const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(memo.use ? { memoryUse: memo.use } : {}), ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {

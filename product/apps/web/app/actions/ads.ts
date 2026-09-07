@@ -17,7 +17,7 @@ import { logAndTranslate, logFailure } from '../../lib/error-log';
 import { mesurerScene } from '../../lib/scene-light';
 import { essaisViewAction } from './adsmap-attribution';
 import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
-import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
+import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 
 export interface AdItem {
@@ -307,18 +307,17 @@ async function composeBatch(o: {
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
       try {
-        await guardFixedCost('fal_image', { action: 'ads:image', workspaceId: o.workspaceId, units: 1 });
         // L'endpoint dépend de la présence d'une référence · appeler `.../edit`
         // sans image renvoie une erreur du fournisseur, et le modèle a l'air
         // cassé alors qu'on s'est trompé de porte.
-        const { images } = await falGenerateImage(o.cfg, {
+        const { images } = await sousPlafond('fal_image', { action: 'ads:image', workspaceId: o.workspaceId, units: 1 }, () => falGenerateImage(o.cfg, {
           prompt, aspectRatio: '4:5', imageUrls, edit, count: 1,
           model: falModelFor(o.modelSpec, !!imageUrls?.length), params: o.modelSpec.params,
           // Le délai suit le modèle · GPT Image 2 en haute qualité travaille
           // plusieurs minutes, et l'échéance fixe de 90 s le condamnait à
           // échouer en le faisant quand même facturer.
           timeoutMs: imageTimeoutMs(o.modelSpec),
-        });
+        }));
         if (images[0]) return images[0];
         const vide = new Error('Le fournisseur n’a renvoyé aucune image.');
         logFailure('ads:scene', vide, o.workspaceId);
@@ -1335,13 +1334,12 @@ export async function declineAdAction(input: { id: string; variable: string; mod
       template: parent.template, headline: parent.headline, cta: parent.cta, sceneBrief: brief,
     };
     try {
-      await guardFixedCost('fal_image', { action: 'ads:decline', workspaceId: s.workspaceId, units: 1 });
-      const { images } = await falGenerateImage(cfg, {
+      const { images } = await sousPlafond('fal_image', { action: 'ads:decline', workspaceId: s.workspaceId, units: 1 }, () => falGenerateImage(cfg, {
         prompt: scenePrompt(faux, avecRef, uni, layoutParent),
         aspectRatio: '4:5', imageUrls: avecRef ? refs.slice(0, 8) : undefined, edit: avecRef, count: 1,
         model: falModelFor(modelSpec, avecRef), params: modelSpec.params,
         timeoutMs: imageTimeoutMs(modelSpec),
-      });
+      }));
       const url = images[0];
       if (!url) { await rendre(); return { error: 'Aucune scène n’est sortie. Réessaie dans une minute.' }; }
       patch = { sceneUrl: url, universe: universCible, light: await mesurerScene(url) };

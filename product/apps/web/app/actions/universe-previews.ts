@@ -12,7 +12,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { roleAtLeast } from '../../lib/rbac';
 import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credits';
-import { guardFixedCost } from '../../lib/spend-guard';
+import { sousPlafond } from '../../lib/spend-guard';
 import { listBrandAssetImageUrls } from './assets';
 import { logAndTranslate, logFailure } from '../../lib/error-log';
 import { GUARD } from '../../lib/guard-error';
@@ -166,8 +166,7 @@ export async function generateUniversePreviewsAction(input?: { force?: boolean }
       const uni = AD_DIRECTIONS.find((u) => u.key === key);
       if (!uni) continue;
       try {
-        await guardFixedCost('fal_image', { action: 'universe:preview', workspaceId: s.workspaceId, units: 1 });
-        const { images } = await falGenerateImage(cfg, {
+        const { images } = await sousPlafond('fal_image', { action: 'universe:preview', workspaceId: s.workspaceId, units: 1 }, () => falGenerateImage(cfg, {
           prompt: `${BRIEF}\n\n${directionScenePrompt(uni)}`,
           aspectRatio: '4:5',
           imageUrls: refs.length ? refs : undefined,
@@ -175,7 +174,7 @@ export async function generateUniversePreviewsAction(input?: { force?: boolean }
           count: 1,
           model: falModelFor(spec, refs.length > 0),
           params: spec.params,
-        });
+        }));
         const url = images[0];
         if (!url) continue;
 

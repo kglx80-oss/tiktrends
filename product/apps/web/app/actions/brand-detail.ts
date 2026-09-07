@@ -14,7 +14,7 @@ import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
 import { logAndTranslate } from '../../lib/error-log';
-import { guardedAnthropic, guardFixedCost } from '../../lib/spend-guard';
+import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
@@ -170,8 +170,7 @@ export async function generateScenarioImageAction(input: { brandId: string; scen
   const prompt = `Photographie lifestyle réaliste illustrant ce contexte d'usage : ${sc.title}. ${sc.context || ''} `
     + 'Cadrage naturel, lumière douce et crédible, ambiance authentique. Aucun texte, aucun logo, aucune marque visible.';
   try {
-    await guardFixedCost('fal_image', { action: 'brand-detail:image', workspaceId: g.workspaceId, units: 1 });
-    const { images } = await falGenerateImage(cfg, { prompt, aspectRatio: '1:1', count: 1 });
+    const { images } = await sousPlafond('fal_image', { action: 'brand-detail:image', workspaceId: g.workspaceId, units: 1 }, () => falGenerateImage(cfg, { prompt, aspectRatio: '1:1', count: 1 }));
     const url = images?.[0];
     if (!url) {
       if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · visuel de scénario');
