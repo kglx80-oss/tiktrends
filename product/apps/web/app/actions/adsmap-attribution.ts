@@ -4,10 +4,10 @@ import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   attributionStats, attributionByPart, memoryOrigin, creativeTrend, PART_LABEL,
-  lireEssais, cumulEssais, bilanNotes, defautsConnus, essaiSuivant,
+  lireEssais, cumulEssais, bilanNotes, defautsConnus, essaiSuivant, bilanCopie,
   type AttributedAd, type AttributionResult, type MemoryUse, type PartResult, type TrendResult,
   type AdEssai, type EssaiLu, type CumulEssais, type VariableEssai,
-  type BilanNotes, type NoteLue, type Suggestion,
+  type BilanNotes, type NoteLue, type Suggestion, type BilanCopie, type RelectureLue,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -365,6 +365,61 @@ export async function bilanNotesAction(): Promise<{ bilan?: BilanNotes; error?: 
     return { bilan: bilanNotes(notes) };
   } catch (e) {
     return { error: logAndTranslate('adsmap:bilan-notes', e, { subject: 'le bilan des notes', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+
+/**
+ * Ce que les relectures disent ensemble · quel moteur écrit le français juste.
+ *
+ * ── Pourquoi ça ne coûte rien ────────────────────────────────────────────────
+ *
+ * Les constats sont déjà en base : chaque publicité produite entière a été
+ * relue à sa génération, pour trois pour cent du prix de son image. On ne
+ * relance rien ici · on additionne.
+ *
+ * C'était justement le manque. La carte montrait son constat, la grille montrait
+ * le sien, et personne ne faisait la somme · alors que « quel moteur se trompe
+ * le plus » est exactement ce que cette matière peut dire, et ce qui décide du
+ * moteur qu'on prend par défaut.
+ */
+export async function bilanCopieAction(): Promise<{ bilan?: BilanCopie; error?: string }> {
+  const g = await adsmapGuard();
+  if ('error' in g) return { error: g.error };
+
+  try {
+    const rows = await db!.select({ input: schema.generations.input })
+      .from(schema.generations)
+      .where(and(
+        eq(schema.generations.brandId, g.brand.id),
+        eq(schema.generations.kind, 'ad'),
+      ))
+      .orderBy(desc(schema.generations.createdAt))
+      .limit(400);
+
+    const relectures: RelectureLue[] = [];
+    for (const r of rows) {
+      const rec = (r.input ?? {}) as {
+        copieConforme?: { grave?: boolean };
+        produitFidele?: boolean | null;
+        universe?: string | null; model?: string;
+      };
+      // Une publicité jamais relue n'entre pas · la compter comme conforme
+      // diluerait les taux avec des lots antérieurs à la relecture, et ferait
+      // paraître tous les moteurs meilleurs à mesure qu'on remonte le temps.
+      const relue = !!rec.copieConforme || typeof rec.produitFidele === 'boolean';
+      if (!relue) continue;
+      relectures.push({
+        accrocheReecrite: !!rec.copieConforme?.grave,
+        // `null` reste `null` · « on n'a pas pu regarder » n'est pas « conforme ».
+        produitFidele: typeof rec.produitFidele === 'boolean' ? rec.produitFidele : null,
+        cles: { moteur: rec.model || undefined, direction: rec.universe || undefined },
+      });
+    }
+
+    return { bilan: bilanCopie(relectures) };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:bilan-copie', e, { subject: 'le bilan des relectures', workspaceId: g.s.workspaceId }) };
   }
 }
 
