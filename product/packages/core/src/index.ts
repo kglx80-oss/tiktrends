@@ -38,6 +38,7 @@ export * from './adsmap/iterate';
 export * from './adsmap/essai-resultat';
 export * from './adsmap/bilan-notes';
 export * from './adsmap/bilan-copie';
+export * from './adsmap/debrief-lot';
 export * from './adsmap/essai-suivant';
 export * from './adsmap/radar';
 export * from './adsmap/written-source';

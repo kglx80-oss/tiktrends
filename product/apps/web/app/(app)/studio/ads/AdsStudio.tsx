@@ -5,13 +5,14 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, type DebriefLot, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { Composer } from '../../../../components/Composer';
 import { AssistantPub } from './AssistantPub';
+import { DebriefLotPanel } from './DebriefLotPanel';
 import { UniversePicker } from '../../../../components/UniversePicker';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
@@ -121,6 +122,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [fabrication, setFabrication] = useState<ProductionMode>('entiere');
   /** Ce que le dernier lot a appliqué de ce qui avait été mesuré. */
   const [applique, setApplique] = useState('');
+  // Le débrief du dernier lot entière · additionne les relectures des pubs qui
+  // viennent d'arriver. `null` dès qu'aucune n'a été relue (lot composé), et
+  // alors rien ne s'affiche.
+  const [debrief, setDebrief] = useState<DebriefLot | null>(null);
   const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
@@ -383,6 +388,19 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     // Ce que le lot a APPLIQUÉ de ce qui avait été mesuré · un lot qui n'est
     // plus une rotation égale sans rien dire se lit comme un hasard bizarre.
     if (res.appliquee) setApplique(res.appliquee);
+    // Le débrief du lot · additionne les relectures des SEULES pubs qui
+    // viennent d'arriver, pas de toute la grille. La règle (compter, ne pas
+    // conclure) vit dans le noyau · ici on ne fait que lui passer la matière et
+    // afficher sa phrase. `debriefLot` rend `null` si aucune n'a été relue, ce
+    // qui efface aussi le débrief du lot précédent.
+    setDebrief(debriefLot((res.ads ?? [])
+      .map((a) => a.controle)
+      .filter((c): c is NonNullable<AdItem['controle']> => !!c)
+      .map((c) => ({
+        accrocheReecrite: c.copieGrave,
+        copieMineure: !c.copieGrave && c.copieResume.trim() !== '',
+        produitFidele: c.produitFidele,
+      }))));
     return out;
   }
 
@@ -937,6 +955,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Tes pubs {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{ads.length}</span>
       </div>
+      {/* Le lot entière, lu d'un coup · les trois questions qui décident si le
+          mode est viable, additionnées sur les pubs qui viennent d'arriver.
+          Rien tant qu'aucune n'a été relue. */}
+      <DebriefLotPanel d={debrief} />
       {ads.length === 0 ? (
         <Empty
           tone="wait" title="Aucune pub pour l’instant."

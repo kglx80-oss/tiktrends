@@ -147,6 +147,24 @@ function adUrl(id: string, recipe: Partial<AdRecipe>): string {
   return `/api/ad/${id}?v=${adVersion(recipe)}`;
 }
 
+/**
+ * Le constat de relecture, tiré de la recette · une SEULE fonction le façonne.
+ *
+ * La carte le lit à deux moments · dès la génération, et au rechargement de la
+ * liste. Deux mises en forme séparées finiraient par diverger, et une même pub
+ * montrerait un défaut ici, rien là. `null` quand elle n'a pas été relue · mode
+ * composé, ou relecteur absent · et alors la carte n'affiche rien, ce qui est
+ * la bonne réponse : il n'y a eu aucune mesure.
+ */
+function controleDepuisRecette(rec: Partial<AdRecipe>): AdItem['controle'] {
+  return rec.copieConforme || typeof rec.produitFidele === 'boolean' ? {
+    copieResume: rec.copieConforme?.resume ?? '',
+    copieGrave: !!rec.copieConforme?.grave,
+    produitFidele: rec.produitFidele ?? null,
+    ecarts: rec.ecartsProduit ?? [],
+  } : null;
+}
+
 /** Compose une série : scènes (univers variés) + enregistrement + débit. Mutualisé par génération et clone. */
 async function composeBatch(o: {
   cfg: FalConfig; brandId: string; brandName: string; colors?: string[] | null; logoUrl?: string | null;
@@ -523,7 +541,12 @@ async function composeBatch(o: {
         brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim() });
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(),
+        // La relecture est faite · la poser ICI la rend visible dès la
+        // génération, et donne au débrief du lot la matière à additionner.
+        // Sans ça, la carte restait muette jusqu'à un rechargement, et le lot
+        // ne pouvait pas se lire d'un coup à l'instant où on le regarde.
+        controle: controleDepuisRecette(recipe) });
     } catch { /* ignore */ }
   }
 
@@ -1083,12 +1106,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
         parentId: rec.parentId ?? null, variable: rec.variable ?? null,
         essai: rec.essai?.variable ?? null,
         sceneBrief: !!rec.sceneBrief?.trim(),
-        controle: rec.copieConforme || typeof rec.produitFidele === 'boolean' ? {
-          copieResume: rec.copieConforme?.resume ?? '',
-          copieGrave: !!rec.copieConforme?.grave,
-          produitFidele: rec.produitFidele ?? null,
-          ecarts: rec.ecartsProduit ?? [],
-        } : null,
+        controle: controleDepuisRecette(rec),
       };
     });
 }
