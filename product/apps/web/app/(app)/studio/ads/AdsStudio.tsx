@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, type VerdictCopie, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -58,7 +58,7 @@ const TPL_LABEL: Record<AdTemplate, string> = {
   ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false, suggestion = null, budget = null }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
@@ -76,6 +76,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   suggestion?: Suggestion | null;
   /** Le plafond de dépense en vigueur · null quand on n'a pas pu le lire. */
   budget?: { resume: string; bloque: boolean } | null;
+  /** Ce que les relectures conseillent · vide tant qu'elles ne tranchent pas. */
+  conseilMoteurs: ConseilMoteur;
 }) {
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const toggleAsset = (id: string) => setAssetIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
@@ -467,6 +469,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         produits={prods}
         libelleGabarit={(t) => TPL_LABEL[t]}
         selecteurStyle={<UniversePicker value={universe} onChange={setUniverse} compact />}
+        conseilMoteurs={conseilMoteurs}
         gabaritsDispo={Object.keys(TPL_LABEL) as AdTemplate[]}
         onProduit={setProductId}
         onGabarit={toggle}

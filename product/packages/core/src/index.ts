@@ -62,6 +62,7 @@ export * from './studio-iterate';
 export * from './scene-defects';
 export * from './copie-conforme';
 export * from './exemple-direction';
+export * from './conseil-moteur';
 export * from './essai';
 export * from './copy-budget';
 export * from './deployment';

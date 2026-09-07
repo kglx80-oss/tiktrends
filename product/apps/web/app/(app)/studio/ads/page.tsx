@@ -15,6 +15,8 @@ import { essaiSuivantAction } from '../../../actions/adsmap-attribution';
 import { PageInfo } from '../../../../components/PageInfo';
 import { effectiveAccess } from '../../../../lib/access';
 import { spendStatus } from '../../../../lib/spend-guard';
+import { bilanCopieAction } from '../../../actions/adsmap-attribution';
+import { conseilMoteur } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
@@ -36,6 +38,10 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   // explication · le studio doit pouvoir le dire pendant qu'on choisit le
   // nombre, pas une fois le lot refusé.
   const budget = await spendStatus().catch(() => null);
+  // Ce que les relectures de cette marque conseillent · lecture pure, aucun
+  // modèle appelé, donc rien de facturé pour l'afficher. Un échec de lecture
+  // laisse simplement le catalogue décider, comme avant.
+  const conseilMoteurs = conseilMoteur((await bilanCopieAction().catch(() => ({ bilan: undefined }))).bilan);
   if (!canAccess(effectiveAccess(s), feature)) {
     const why = denyReason(effectiveAccess(s), feature);
     return (
@@ -107,7 +113,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} />
     </main>
   );
 }
