@@ -9,6 +9,7 @@ import { BrandRemoveButton } from '../../../components/InspoButtons';
 import { PageInfo } from '../../../components/PageInfo';
 import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
 import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed';
+import { DecouverteSection } from '../../../components/DecouverteSection';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,9 @@ export default async function SavedPage() {
 
       {/* Fil des nouveautés concurrents (tracking) */}
       <TrackerFeed events={trackerEvents} followedCount={brands.length} trackingEnabled={trackingEnabled} />
+
+      {/* La veille qui vient à toi · les gagnantes de ta catégorie, hors watchlist. */}
+      {trackingEnabled && <DecouverteSection />}
 
       {/* Marques suivies */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>
