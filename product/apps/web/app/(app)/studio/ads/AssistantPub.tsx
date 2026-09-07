@@ -201,6 +201,14 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
             <b style={{ color: 'var(--ink-2)' }}>{total} crédits</b> · {duree}
           </span>
         )}
+        {/* La relecture automatique coûte, et rien ne se dépense sans le dire.
+             Environ trois pour cent du prix d'une image · c'est ce qui autorise
+             à la lancer sans la demander, et ça se dit quand même. */}
+        {derniere && p.etat.mode === 'entiere' && (
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+            · relecture automatique incluse (~3 % du coût des images)
+          </span>
+        )}
         {/* Sur le dernier écran, c'est un chiffre à connaître avant de payer.
              Quand le plafond est ATTEINT, c'est un refus certain · il s'annonce
              dès le premier écran, pas au bout du parcours. */}

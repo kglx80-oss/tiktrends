@@ -958,6 +958,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     lire comme la réponse à une question posée. */}
                 {a.variable && <span style={filiation}>↳ {STUDIO_LABEL[a.variable].toLowerCase()}</span>}
                 {a.essai && <span style={filiation}>⚖ essai · {ESSAI_LABEL[a.essai].toLowerCase()}</span>}
+                {/* Ce que la relecture a constaté · visible SANS cliquer.
+                     Une mesure qui n'apparaît qu'après avoir payé une analyse
+                     n'est pas une mesure, c'est une archive. Rien ne s'affiche
+                     quand tout est conforme · le silence est une réponse. */}
+                <ControleBadge c={a.controle} />
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
                 {/* Pourquoi Jarvis a proposé ça · calculé depuis la mémoire, pas
                     rédigé par le modèle. Une proposition muette se subit ou
@@ -1274,6 +1279,33 @@ function ScoreBadge({ score }: { score: number }) {
       padding: '3px 9px', borderRadius: 999, background: 'rgba(8,5,10,.72)', border: `1px solid ${color}`,
       color, fontSize: 11.5, fontWeight: 800, backdropFilter: 'blur(4px)',
     }}>✦ {score}</span>
+  );
+}
+
+/**
+ * Ce que la relecture automatique a constaté, sur la carte.
+ *
+ * Deux constats seulement, et ils ne se valent pas · le produit d'abord, parce
+ * qu'une publicité au packaging inventé est inutilisable quelle que soit sa
+ * beauté ; la copie ensuite, parce qu'une accroche réécrite fait de la publicité
+ * une autre publicité.
+ *
+ * Rien ne s'affiche quand tout va bien. Un bandeau permanent apprend à ne plus
+ * lire les bandeaux, et c'est ainsi qu'un vrai raté finit par passer inaperçu.
+ */
+function ControleBadge({ c }: { c: AdItem['controle'] }) {
+  if (!c) return null;
+  const produitKo = c.produitFidele === false;
+  if (!produitKo && !c.copieResume) return null;
+  const rouge = produitKo || c.copieGrave;
+  return (
+    <span style={{
+      display: 'block', marginTop: 4, fontSize: 10.5, lineHeight: 1.35,
+      color: rouge ? '#ff9db0' : '#ffca6b',
+    }}>
+      {produitKo && <>⚠ produit modifié{c.ecarts.length ? ` · ${c.ecarts[0]}` : ''}<br /></>}
+      {c.copieResume && <>✎ {c.copieResume}</>}
+    </span>
   );
 }
 
