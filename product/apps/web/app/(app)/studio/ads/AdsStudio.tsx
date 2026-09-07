@@ -165,7 +165,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [varyBusy, setVaryBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [model, setModel] = useState('nano');
+  // Le défaut suit ce qu'on a MESURÉ chez la marque quand l'intervalle tranche ·
+  // sinon le recommandé du catalogue (nano). Partir du catalogue en n'affichant
+  // que « la mesure dit autre chose » revenait à proposer par défaut un a priori
+  // qu'on a déjà prouvé plus faible ici. Le changement n'est pas silencieux ·
+  // l'écran du volume dit qu'on a retenu le moteur mesuré, et lequel.
+  const [model, setModel] = useState(conseilMoteurs.recommande ?? 'nano');
   const modelSpec = imageModelByKey(model);
   /**
    * Combien de publicités un essai produira RÉELLEMENT.
@@ -645,7 +650,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             },
             {
               key: 'modele', title: 'Moteur d’image', icon: '✦',
-              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${m.recommended ? ' · recommandé' : ''}` })),
+              // Le moteur mesuré le meilleur chez la marque est marqué comme tel ·
+              // c'est lui qui est retenu par défaut quand la mesure tranche.
+              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${conseilMoteurs.recommande === m.key ? ' · mesuré le meilleur ici' : m.recommended ? ' · recommandé' : ''}` })),
               value: model, onChange: setModel,
             },
           ]}

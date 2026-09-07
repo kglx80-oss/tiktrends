@@ -3,20 +3,23 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Le conseil mesuré arrive jusqu'au choix du moteur.
+ * Le conseil mesuré arrive jusqu'au choix du moteur, ET devient le défaut.
  *
- * ── Ce qu'il remplace, et ce qu'il ne remplace pas ───────────────────────────
+ * ── Ce qui a changé, et pourquoi ─────────────────────────────────────────────
  *
  * Le catalogue porte un drapeau `recommended`, écrit une fois, identique pour
- * toutes les marques, et qui ne sait rien de ce que le moteur a produit ici. Ce
- * n'est pas mauvais · il faut bien un défaut pour une marque neuve.
+ * toutes les marques, et qui ne sait rien de ce que le moteur a produit ici. Il
+ * reste le défaut d'une marque neuve, tant que rien n'a été mesuré.
  *
- * Mais dès qu'il y a des relectures, cet avis figé doit pouvoir être contredit
- * par ce qui s'est réellement passé. Le conseil ne remplace donc pas le
- * réglage · il s'affiche à côté, avec ses chiffres, et laisse choisir.
+ * Mais dès que les relectures TRANCHENT, partir du catalogue en se contentant
+ * d'afficher « la mesure dit autre chose » revenait à proposer par défaut un
+ * a priori qu'on a déjà prouvé plus faible ici. Le moteur mesuré le meilleur
+ * devient donc le défaut · ce n'est pas un réglage qui bouge au hasard, c'est un
+ * défaut adossé à une mesure locale qui a tranché, et l'écran le DIT.
  *
- * Un réglage qui bouge tout seul entre deux visites se lit comme un bug, et la
- * fois d'après on ne fait plus confiance à l'écran.
+ * Ce qui reste interdit · un `onMoteur` réactif qui écraserait le choix de
+ * l'utilisateur entre deux rendus. Le mesuré fixe l'état INITIAL, une fois · le
+ * clic reste le seul à changer le réglage ensuite.
  */
 
 const ASSISTANT = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AssistantPub.tsx'), 'utf8');
@@ -40,23 +43,31 @@ describe('le conseil traverse jusqu’à l’écran', () => {
   });
 });
 
-describe('il ne se substitue pas au réglage', () => {
-  it('le désaccord s’écrit au lieu de changer le moteur', () => {
-    // C'est la règle · on le DIT, on ne l'applique pas.
-    expect(ASSISTANT).toMatch(/contredit\(p\.conseilMoteurs, IMAGE_MODELS\.find/);
-    expect(ASSISTANT).toMatch(/la mesure ne dit pas la même chose/);
+describe('le mesuré devient le défaut, sans se cacher', () => {
+  it('le défaut du studio est le moteur mesuré quand il tranche', () => {
+    // C'est le cœur du changement · l'état INITIAL du moteur suit la mesure,
+    // et retombe sur le catalogue (nano) quand rien n'a tranché.
+    expect(STUDIO).toMatch(/useState\(conseilMoteurs\.recommande \?\? 'nano'\)/);
   });
 
-  it('aucun `onMoteur` n’est déclenché par le conseil', () => {
-    // Un réglage qui change tout seul entre deux visites se lit comme un bug.
-    // Le seul `onMoteur` admis est celui du clic sur un moteur.
+  it('l’adoption est annoncée, jamais silencieuse', () => {
+    // Un défaut qui suit la mesure sans le dire se lit comme un bug · l'écran
+    // du volume dit qu'on a retenu le moteur mesuré, et montre ses chiffres.
+    expect(ASSISTANT).toMatch(/contredit\(p\.conseilMoteurs, IMAGE_MODELS\.find/);
+    expect(ASSISTANT).toMatch(/On a retenu le moteur que ta mesure désigne/);
+  });
+
+  it('aucun `onMoteur` réactif · le défaut se pose une fois, le clic seul change ensuite', () => {
+    // Le mesuré fixe l'état initial · il ne doit PAS écraser le choix de
+    // l'utilisateur par un setModel réactif. Le seul `onMoteur` admis est le clic.
     const appels = (ASSISTANT.match(/p\.onMoteur\(/g) ?? []).length;
-    expect(appels, 'le conseil pilote le réglage au lieu de l’éclairer').toBe(1);
+    expect(appels, 'le conseil pilote le réglage en continu au lieu de fixer le défaut').toBe(1);
     expect(ASSISTANT).toMatch(/onClick=\{\(\) => p\.onMoteur\(m\.key\)\}/);
   });
 
-  it('le drapeau du catalogue reste affiché', () => {
-    // Il reste le défaut · l'effacer priverait une marque neuve de tout repère.
+  it('le drapeau du catalogue reste affiché pour la marque neuve', () => {
+    // Sans mesure, le recommandé du catalogue reste le repère · l'effacer
+    // priverait une marque neuve de tout point de départ.
     expect(ASSISTANT).toMatch(/m\.recommended \? ' · recommandé' : ''/);
   });
 });

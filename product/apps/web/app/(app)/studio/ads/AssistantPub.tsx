@@ -399,13 +399,13 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
       </div>
       <div>
         <Label>Moteur d’image</Label>
-        {/* Quand la mesure désigne un autre moteur que le catalogue, on le DIT
-             et on laisse choisir. Changer le réglage tout seul entre deux
-             visites se lit comme un bug, et la fois d'après on ne fait plus
-             confiance à l'écran. */}
+        {/* Quand la mesure désigne un autre moteur que le catalogue, on l'a
+             RETENU par défaut et on le DIT · un défaut adossé à une mesure locale
+             qui a tranché suit ce qu'on a prouvé, il ne bouge pas au hasard. On
+             laisse choisir quand même · l'écran ne décide pas à la place. */}
         {contredit(p.conseilMoteurs, IMAGE_MODELS.find((m) => m.recommended)?.key) && (
           <p style={{ margin: '0 0 8px', padding: '8px 11px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
-            <b style={{ color: '#7ee8bf' }}>Chez toi, la mesure ne dit pas la même chose que notre recommandation.</b>{' '}
+            <b style={{ color: '#7ee8bf' }}>On a retenu le moteur que ta mesure désigne, pas notre recommandation par défaut.</b>{' '}
             {p.conseilMoteurs.resume}
           </p>
         )}
