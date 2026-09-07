@@ -20,7 +20,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function AdCard({ ad, saved = false, following = false }: { ad: InspoAd; saved?: boolean; following?: boolean }) {
+export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string }) {
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative' }}>
@@ -72,7 +72,7 @@ export function AdCard({ ad, saved = false, following = false }: { ad: InspoAd; 
              copy concurrente mot pour mot · un clic sans suite, ou une créa qui
              recopie. Ici on distille l'ANGLE éprouvé et on arme les Pubs IA · la
              règle « reprends l'angle, pas les mots » vit dans le noyau. */}
-        <a href={studioDepuisVeille(ad)}
+        <a href={studioDepuisVeille(ad, { ref: cloneRef })}
           style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: 700, padding: '7px 10px', borderRadius: 10, border: '1px solid var(--line-2)', color: 'var(--ink)', textDecoration: 'none' }}>
           ✨ Génère ta version
         </a>

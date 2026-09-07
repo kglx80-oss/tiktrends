@@ -42,4 +42,17 @@ describe('le pont mène aux Pubs IA, armé', () => {
   it('sans matière, pointe quand même vers le bon écran, à vide', () => {
     expect(studioDepuisVeille(ad({}))).toBe('/studio/ads');
   });
+
+  it('avec une pub sauvegardée en référence, ouvre le clone · angle ET structure', () => {
+    const url = studioDepuisVeille(ad({ body: 'La crème qui tient 24 h', daysRunning: 40 }), { ref: 'saved-123' });
+    const q = new URLSearchParams(url.split('?')[1]);
+    expect(q.get('mode'), 'la référence force le mode clone').toBe('clone');
+    expect(q.get('ref')).toBe('saved-123');
+    expect(q.get('angle'), 'le brief accompagne la structure').toContain('éprouvée');
+  });
+
+  it('sans référence, reste en mode marque · l’angle seul', () => {
+    const url = studioDepuisVeille(ad({ body: 'x', daysRunning: 40 }));
+    expect(new URLSearchParams(url.split('?')[1]).get('mode'), 'pas de clone sans référence').toBeNull();
+  });
 });

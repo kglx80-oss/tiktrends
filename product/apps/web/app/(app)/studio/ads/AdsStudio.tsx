@@ -58,13 +58,15 @@ const TPL_LABEL: Record<AdTemplate, string> = {
   ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
   assets?: Array<{ id: string; name: string; url: string }>;
   initialMode?: 'brand' | 'clone';
   initialAngle?: string;
+  /** Pub de veille pré-sélectionnée comme référence de clone · vient de `?ref=`. */
+  initialRef?: string;
   /** La carte ADSMAP est ouverte à cet espace · conditionne le bouton « Suivre ». */
   adsmap?: boolean;
   /**
@@ -125,7 +127,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
   const [refUri, setRefUri] = useState('');
-  const [savedAdId, setSavedAdId] = useState('');
+  // Pré-sélectionnée depuis la veille · le studio s'ouvre en clone avec cette
+  // pub en référence. On ne garde que ce qui est vraiment dans `savedRefs` ·
+  // une référence absente (sauvegarde retirée, hors des 40 récentes) laisserait
+  // un clone sans image, donc un bouton qui échoue.
+  const [savedAdId, setSavedAdId] = useState(initialRef && savedRefs.some((r) => r.id === initialRef) ? initialRef : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');

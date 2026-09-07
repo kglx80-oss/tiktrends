@@ -21,11 +21,15 @@ import { conseilMoteur } from '@tiktrends/core';
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
 
-export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string }> }) {
+export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string; ref?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   const sp = await searchParams;
-  const initialMode = sp.mode === 'clone' ? 'clone' : 'brand';
+  // La deep-link de veille · `ref` désigne une pub sauvegardée à cloner. Sa
+  // présence force le mode clone, sinon on aurait armé une référence sur un
+  // écran qui ne la lit pas · un réglage sans effet, pire qu'absent.
+  const initialRef = (sp.ref ?? '').slice(0, 64);
+  const initialMode = sp.mode === 'clone' || initialRef ? 'clone' : 'brand';
   const initialAngle = (sp.angle ?? '').slice(0, 300);
   // Ce que l'outil conseille de tester · déduit de ce qui est DÉJÀ mesuré, sans
   // appeler aucun modèle. Un échec de lecture n'a pas à bloquer le studio : on
@@ -113,7 +117,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} initialRef={initialRef} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} />
     </main>
   );
 }

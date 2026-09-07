@@ -6,7 +6,7 @@ import type { InspoAd } from '@tiktrends/integrations';
 import { AdCard } from './AdCard';
 import { setSavedAdFolder } from '../app/actions/inspo';
 
-export interface SavedItem { ad: InspoAd; folder: string | null; externalId: string; platform: string }
+export interface SavedItem { id: string; ad: InspoAd; folder: string | null; externalId: string; platform: string }
 
 /**
  * Boards / dossiers de rangement pour les créas sauvegardées (façon Foreplay/Atria).
@@ -75,7 +75,10 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
         {shown.map((it) => (
           <div key={it.platform + it.externalId} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <AdCard ad={it.ad} saved following={following.has(it.ad.platform + ':' + (it.ad.advertiserName || ''))} />
+            {/* La pub est sauvegardée · on connaît son identifiant, donc « Génère
+                ta version » ouvre le mode CLONE avec elle en référence · l'angle
+                ET la structure, pas seulement l'angle. */}
+            <AdCard ad={it.ad} saved following={following.has(it.ad.platform + ':' + (it.ad.advertiserName || ''))} cloneRef={it.id} />
             <FolderPicker current={it.folder} folders={folders} onPick={(f) => move(it, f)} />
             {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} />}
           </div>
