@@ -5,7 +5,7 @@ import {
   ETAPES, ETAPE_ROLE, ETAPE_TITRE, dureeAttendue, etapeComplete, etapePrecedente,
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
   AD_DIRECTIONS, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves,
-  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, type ConseilMoteur,
+  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, budgetReprises, moteurRecommande, type ProductionMode, type ConseilMoteur,
   type Etape, type EtatAssistant,
 } from '@tiktrends/core';
 import type { AdTemplate } from '@tiktrends/ai';
@@ -185,6 +185,10 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
   const spec = imageModelByKey(p.etat.moteur);
   const total = spec.credits * Math.max(1, p.etat.nombre);
   const duree = dureeAttendue(p.etat.nombre, imageTimeoutMs(spec));
+  // La marge de reprise · en entière, une pub cassée est régénérée une fois, et
+  // ça se réserve. On l'annonce comme un plafond, remboursé si inutilisé · un
+  // dollar ne se dépense jamais sans l'avoir dit avant le clic.
+  const margeReprise = p.etat.mode === 'entiere' ? spec.credits * budgetReprises(p.etat.nombre) : 0;
   // Le plafond atteint est un refus CERTAIN · aucune image ne partira, quels
   // que soient les cinq écrans. Le laisser découvrir au bout du parcours ferait
   // remplir un formulaire pour rien, puis rendrait un lot vide.
@@ -213,10 +217,13 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
         )}
         {/* La relecture automatique coûte, et rien ne se dépense sans le dire.
              Environ trois pour cent du prix d'une image · c'est ce qui autorise
-             à la lancer sans la demander, et ça se dit quand même. */}
+             à la lancer sans la demander, et ça se dit quand même. La reprise
+             des pubs cassées, elle, se réserve · on annonce son plafond ici,
+             avant le clic, et le non-utilisé est remboursé. */}
         {derniere && p.etat.mode === 'entiere' && (
           <span style={{ fontSize: 11, color: 'var(--muted)' }}>
             · relecture automatique incluse (~3 % du coût des images)
+            {margeReprise > 0 && <> · reprise des pubs cassées jusqu’à +{margeReprise} cr., remboursés si inutilisés</>}
           </span>
         )}
         {/* Sur le dernier écran, c'est un chiffre à connaître avant de payer.
@@ -380,6 +387,10 @@ function EtapeFabrication({ p }: { p: AssistantProps }) {
 
 function EtapeVolume({ p }: { p: AssistantProps }) {
   const spec = imageModelByKey(p.etat.moteur);
+  // Le moteur recommandé dépend du MODE · GPT Image 2 en entière (il écrit le
+  // texte), Nano Banana en composée (on l'écrit nous). Le catalogue, aveugle au
+  // mode, proposait le même partout.
+  const recommande = moteurRecommande((p.etat.mode === 'entiere' ? 'entiere' : 'composee') as ProductionMode);
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
@@ -392,13 +403,13 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
       </div>
       <div>
         <Label>Moteur d’image</Label>
-        {/* Quand la mesure désigne un autre moteur que le catalogue, on le DIT
-             et on laisse choisir. Changer le réglage tout seul entre deux
-             visites se lit comme un bug, et la fois d'après on ne fait plus
-             confiance à l'écran. */}
-        {contredit(p.conseilMoteurs, IMAGE_MODELS.find((m) => m.recommended)?.key) && (
+        {/* Quand la mesure désigne un autre moteur que le catalogue, on l'a
+             RETENU par défaut et on le DIT · un défaut adossé à une mesure locale
+             qui a tranché suit ce qu'on a prouvé, il ne bouge pas au hasard. On
+             laisse choisir quand même · l'écran ne décide pas à la place. */}
+        {contredit(p.conseilMoteurs, recommande) && (
           <p style={{ margin: '0 0 8px', padding: '8px 11px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
-            <b style={{ color: '#7ee8bf' }}>Chez toi, la mesure ne dit pas la même chose que notre recommandation.</b>{' '}
+            <b style={{ color: '#7ee8bf' }}>On a retenu le moteur que ta mesure désigne, pas notre recommandation par défaut.</b>{' '}
             {p.conseilMoteurs.resume}
           </p>
         )}
@@ -412,7 +423,7 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
                 background: on ? 'rgba(230,0,126,.06)' : 'transparent', cursor: 'pointer',
               }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                  {m.label}{m.recommended ? ' · recommandé' : ''}
+                  {m.label}{recommande === m.key ? ' · recommandé' : ''}
                   {p.conseilMoteurs.recommande === m.key && (
                     <span style={{ color: '#7ee8bf' }}> · mesuré le meilleur ici</span>
                   )}

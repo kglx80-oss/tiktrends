@@ -50,6 +50,27 @@ export interface ControlePub {
   produitFidele: boolean | null;
   /** Ce qui diffère sur le packaging · vide quand rien, ou quand sans référence. */
   ecartsProduit: string[];
+  /**
+   * La typographie PUBLICITAIRE est-elle lisible d'un coup d'œil ?
+   *
+   * ── Pourquoi c'est une question à part ─────────────────────────────────────
+   *
+   * `texteLu` dit ce que le modèle a RÉUSSI à lire · c'est circulaire pour la
+   * lisibilité, un modèle déchiffre un texte minuscule qu'un humain, en scroll,
+   * ne verrait pas. « Y a-t-il du texte » était la troisième des trois questions
+   * qui décident si l'entière est utilisable, et la seule encore sans réponse
+   * propre · une accroche cuite trop petite, coupée au bord, sur un fond qui
+   * l'avale, passait pour conforme dès que les mots correspondaient.
+   *
+   * On ne juge QUE la typographie ajoutée par la publicité (accroche, sous-titre,
+   * bouton, pastille). Le texte imprimé sur l'emballage est légitimement petit ·
+   * le compter ici condamnerait toute pub qui montre un vrai produit.
+   *
+   * `null` quand il n'y a aucun texte publicitaire à juger.
+   */
+  texteLisible: boolean | null;
+  /** Pourquoi le texte est difficile · vide quand il est lisible, ou sans texte. */
+  problemesLisibilite: string[];
 }
 
 const OUTIL = {
@@ -72,6 +93,15 @@ const OUTIL = {
         items: { type: 'string' },
         description: "Ce qui diffère concrètement sur le produit, en français, une différence par entrée, très court (« le bouchon est doré au lieu de noir »). Liste vide si le produit est identique ou si aucune référence n'est fournie.",
       },
+      texteLisible: {
+        type: 'boolean',
+        description: "La typographie PUBLICITAIRE ajoutée à l'image (accroche, sous-titre, bouton, pastille) est-elle lisible d'un coup d'œil, à la taille d'une vignette : nette, assez grande, contrastée sur son fond, entière dans le cadre, sans lettres déformées ou qui se chevauchent. Réponds false si un texte publicitaire est coupé au bord, trop petit, illisible sur son fond, ou aux lettres brouillées. IGNORE le texte imprimé sur l'emballage du produit, qui a le droit d'être petit. Ne remplis ce champ que s'il y a du texte publicitaire dans l'image.",
+      },
+      problemesLisibilite: {
+        type: 'array',
+        items: { type: 'string' },
+        description: "Ce qui rend un texte publicitaire difficile à lire, en français, un problème par entrée, très court (« l'accroche est coupée au bord droit », « le bouton se fond dans le fond »). Liste vide si tout est lisible ou s'il n'y a pas de texte publicitaire.",
+      },
     },
     required: ['texteLu'],
   },
@@ -93,7 +123,7 @@ export async function controlePubEntiere(
   const avecRef = !!o.reference;
   const sys = [
     'Tu relis une publicité qui vient d’être produite par un modèle d’images.',
-    'Tu ne juges RIEN : ni la beauté, ni l’efficacité, ni l’orthographe. Tu rapportes ce que tu vois.',
+    'Tu ne juges NI la beauté, NI l’efficacité, NI l’orthographe. Tu transcris le texte, tu compares le produit, et tu signales le texte publicitaire difficile à lire · rien d’autre.',
     avecRef
       ? 'La PREMIÈRE image est la publicité. La SECONDE est la photo de référence du produit. Compare le produit de la publicité à cette référence.'
       : 'Une seule image t’est fournie : la publicité. Aucune référence produit · laisse « produitFidele » et « ecartsProduit » vides.',
@@ -132,6 +162,12 @@ export async function controlePubEntiere(
     produitFidele: avecRef && typeof v.produitFidele === 'boolean' ? v.produitFidele : null,
     ecartsProduit: avecRef && Array.isArray(v.ecartsProduit)
       ? v.ecartsProduit.filter((t): t is string => typeof t === 'string' && t.trim().length > 0).slice(0, 5)
+      : [],
+    // Le modèle ne remplit ce champ que s'il y a du texte publicitaire · absent,
+    // on ne conclut rien plutôt que de déclarer « lisible » une image sans texte.
+    texteLisible: typeof v.texteLisible === 'boolean' ? v.texteLisible : null,
+    problemesLisibilite: Array.isArray(v.problemesLisibilite)
+      ? v.problemesLisibilite.filter((t): t is string => typeof t === 'string' && t.trim().length > 0).slice(0, 5)
       : [],
   };
 }

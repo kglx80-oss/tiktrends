@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bilanCopie, MIN_RELECTURES, type RelectureLue,
+  bilanCopie, directionsBiais, MIN_RELECTURES, type RelectureLue, type LigneCopie,
 } from '../src/adsmap/bilan-copie';
+
+const ligneCopie = (cle: string, verdict: LigneCopie['verdict'], taux = 0): LigneCopie => ({
+  cle, n: 10, reecrites: Math.round(taux * 10), tauxReecriture: taux,
+  intervalReecriture: { lo: 0, hi: 0 }, avecReference: 0, produitsModifies: 0,
+  tauxProduit: null, intervalProduit: null, verdict,
+});
 
 /**
  * Le cumul des relectures.
@@ -14,6 +20,8 @@ function lot(n: number, o: Partial<RelectureLue> & { cles?: RelectureLue['cles']
   return Array.from({ length: n }, () => ({
     accrocheReecrite: o.accrocheReecrite ?? false,
     produitFidele: o.produitFidele === undefined ? true : o.produitFidele,
+    accentsPerdus: o.accentsPerdus,
+    texteLisible: o.texteLisible,
     cles: o.cles ?? {},
   }));
 }
@@ -134,6 +142,65 @@ describe('on compare à la moyenne, pas à zéro', () => {
     ]);
     const moteurs = b.dimensions.find((d) => d.dimension === 'moteur')!;
     expect(moteurs.lignes.find((l) => l.cle === 'b')?.verdict).toBe('pire');
+  });
+});
+
+describe('accents et lisibilité par marque · le signal d’un futur durcissement', () => {
+  it('les accents perdus se comptent sur toutes les relues', () => {
+    const b = bilanCopie([...lot(3, { accentsPerdus: true }), ...lot(7)]);
+    expect(b.tauxAccents).toBeCloseTo(0.3);
+    expect(b.resume).toContain('30 % d’accents perdus');
+  });
+
+  it('la lisibilité ne se compte que sur celles où il y avait du texte', () => {
+    // Comme le produit ne se compte que sur les pubs avec référence · une pub
+    // sans texte publicitaire (`null`) n'entre pas au dénominateur.
+    const b = bilanCopie([
+      ...lot(1, { texteLisible: false }),
+      ...lot(3, { texteLisible: true }),
+      ...lot(6, { texteLisible: null }),
+    ]);
+    expect(b.avecTexte).toBe(4);
+    expect(b.tauxIllisible).toBeCloseTo(0.25);
+    expect(b.resume).toContain('25 % de texte illisible sur 4 avec texte');
+  });
+
+  it('un lot propre ne dit rien de ces défauts', () => {
+    // Le silence est une réponse · pas d'accents perdus, pas d'illisible → on
+    // ne charge pas le résumé.
+    const b = bilanCopie(lot(10, { texteLisible: true }));
+    expect(b.tauxAccents).toBe(0);
+    expect(b.tauxIllisible).toBe(0);
+    expect(b.resume).not.toContain('accents perdus');
+    expect(b.resume).not.toContain('illisible');
+  });
+});
+
+describe('biaiser la rotation des directions', () => {
+  it('écarte les pires, ancre la meilleure', () => {
+    const b = directionsBiais([
+      ligneCopie('sombre', 'pire', 0.5),
+      ligneCopie('editorial', 'meilleur', 0.05),
+      ligneCopie('pop', null, 0.2),
+    ]);
+    expect(b.ecartees).toEqual(['sombre']);
+    expect(b.favori).toBe('editorial');
+  });
+
+  it('à plusieurs meilleures, prend la plus fidèle (moins de réécritures)', () => {
+    const b = directionsBiais([
+      ligneCopie('a', 'meilleur', 0.12),
+      ligneCopie('b', 'meilleur', 0.03),
+    ]);
+    expect(b.favori).toBe('b');
+  });
+
+  it('sans verdict, rien ne bouge · la rotation reste égale', () => {
+    // Le silence est une conclusion · tant que la mesure n'a pas tranché, on ne
+    // biaise pas, et toutes les directions gardent leur tour.
+    const b = directionsBiais([ligneCopie('a', null), ligneCopie('b', null)]);
+    expect(b.ecartees).toEqual([]);
+    expect(b.favori).toBeNull();
   });
 });
 

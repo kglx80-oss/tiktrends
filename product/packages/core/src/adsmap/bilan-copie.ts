@@ -77,6 +77,17 @@ export interface RelectureLue {
    * deux ne se comptent pas de la même façon.
    */
   produitFidele: boolean | null;
+  /**
+   * Un texte imposé est revenu avec les accents perdus · le défaut français le
+   * plus fréquent, sous-type de réécriture qui ne casse pas le sens mais trahit
+   * la marque. Absent/`false` quand rien de tel n'a été vu.
+   */
+  accentsPerdus?: boolean;
+  /**
+   * La typographie publicitaire est-elle lisible · `null`/absent quand il n'y a
+   * pas de texte à juger. Même trichotomie que `produitFidele`.
+   */
+  texteLisible?: boolean | null;
   cles: Partial<Record<DimensionCopie, string>>;
 }
 
@@ -116,6 +127,16 @@ export interface BilanCopie {
   /** Sur les seules publicités qui avaient une référence produit. */
   avecReference: number;
   tauxProduit: number | null;
+  /**
+   * Part des relues où des accents ont été perdus · le signal qu'un futur
+   * durcissement de prompt ciblerait. Sur toutes les relues (chacune a du texte
+   * imposé). `null` quand il n'y a rien à mesurer.
+   */
+  tauxAccents: number | null;
+  /** Relues dont le texte publicitaire a pu être jugé lisible ou non · le dénominateur de la lisibilité. */
+  avecTexte: number;
+  /** Part de textes jugés illisibles, sur celles où il y avait du texte à juger. */
+  tauxIllisible: number | null;
   dimensions: BilanDimensionCopie[];
   resume: string;
 }
@@ -179,6 +200,31 @@ function resumeDimension(dimension: DimensionCopie, lignes: readonly LigneCopie[
 }
 
 /**
+ * De quel côté biaiser la rotation des directions d'entière.
+ *
+ * ── Pourquoi ─────────────────────────────────────────────────────────────────
+ *
+ * En entière, la direction porte la typographie et la disposition · c'est un
+ * levier de qualité, et la rotation le tirait à l'horloge, aveugle à ce que la
+ * relecture a mesuré. Une direction que le modèle rend en réécrivant l'accroche
+ * ou en inventant le produit ne mérite pas d'être servie une fois sur quatorze
+ * comme les autres.
+ *
+ * On ne fait que LIRE les verdicts déjà calculés · `pire` sort du vivier,
+ * `meilleur` est ancrée en tête. La discipline (intervalle de Wilson, minimum
+ * d'effectif) est celle du bilan · une direction n'est écartée que quand la
+ * mesure a tranché, jamais sur un compte brut. Sans verdict, rien ne bouge · la
+ * rotation reste égale, et c'est la réponse la plus fréquente.
+ */
+export function directionsBiais(lignes: readonly LigneCopie[]): { ecartees: string[]; favori: string | null } {
+  const ecartees = lignes.filter((l) => l.verdict === 'pire').map((l) => l.cle);
+  const meilleures = lignes
+    .filter((l) => l.verdict === 'meilleur')
+    .sort((a, b) => a.tauxReecriture - b.tauxReecriture);
+  return { ecartees, favori: meilleures[0]?.cle ?? null };
+}
+
+/**
  * Ce que toutes les relectures disent ensemble.
  *
  * Le silence est une conclusion valable · sur vingt publicités, aucun moteur ne
@@ -193,6 +239,15 @@ export function bilanCopie(relectures: readonly RelectureLue[]): BilanCopie {
   const regardees = relectures.filter((r) => r.produitFidele !== null);
   const modifies = regardees.filter((r) => r.produitFidele === false).length;
   const tauxProduit = regardees.length ? modifies / regardees.length : null;
+
+  // Accents · sur toutes les relues (chacune a du texte imposé). Lisibilité ·
+  // seulement sur celles où il y avait du texte publicitaire à juger, comme le
+  // produit ne se compte que sur les pubs qui avaient une référence.
+  const accents = relectures.filter((r) => r.accentsPerdus === true).length;
+  const tauxAccents = relues ? accents / relues : null;
+  const avecTexteRelues = relectures.filter((r) => r.texteLisible !== null && r.texteLisible !== undefined);
+  const illisibles = avecTexteRelues.filter((r) => r.texteLisible === false).length;
+  const tauxIllisible = avecTexteRelues.length ? illisibles / avecTexteRelues.length : null;
 
   const dimensions: BilanDimensionCopie[] = DIMENSIONS_COPIE.map((dimension) => {
     const par = new Map<string, RelectureLue[]>();
@@ -215,6 +270,12 @@ export function bilanCopie(relectures: readonly RelectureLue[]): BilanCopie {
   });
 
   const pct = (x: number) => `${Math.round(x * 100)} %`;
+  // Accents et lisibilité ne se disent que quand ils ont manqué · un lot propre
+  // n'a pas besoin qu'on l'annonce. Le silence est une réponse, ici comme ailleurs.
+  const defautsFrancais = !relues ? [] : [
+    accents ? `${pct(tauxAccents ?? 0)} d’accents perdus` : '',
+    illisibles ? `${pct(tauxIllisible ?? 0)} de texte illisible sur ${avecTexteRelues.length} avec texte` : '',
+  ].filter(Boolean);
   const resume = !relues
     ? 'Aucune publicité relue pour l’instant · la relecture ne tourne que sur les pubs générées entièrement.'
     : [
@@ -222,7 +283,12 @@ export function bilanCopie(relectures: readonly RelectureLue[]): BilanCopie {
         regardees.length
           ? `${pct(tauxProduit ?? 0)} de produits modifiés sur ${regardees.length} avec photo de référence`
           : 'aucune n’avait de photo produit · la fidélité du packaging n’a pas pu être vérifiée',
+        ...defautsFrancais,
       ].join(' · ') + '.';
 
-  return { relues, tauxReecriture, avecReference: regardees.length, tauxProduit, dimensions, resume };
+  return {
+    relues, tauxReecriture, avecReference: regardees.length, tauxProduit,
+    tauxAccents, avecTexte: avecTexteRelues.length, tauxIllisible,
+    dimensions, resume,
+  };
 }

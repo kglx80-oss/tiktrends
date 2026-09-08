@@ -77,6 +77,10 @@ export interface AdRecipe {
   copieConforme?: VerdictCopie | null;
   produitFidele?: boolean | null;
   ecartsProduit?: string[];
+  /** La typographie publicitaire est-elle lisible · `null`/absent quand pas de texte ou pas relu. */
+  texteLisible?: boolean | null;
+  /** Ce qui rend un texte difficile à lire · vide quand lisible. */
+  problemesLisibilite?: string[];
   brandName?: string;
   logoUrl?: string | null;
   // Méta (non rendues) · pour décliner (« iterate ») une pub existante.

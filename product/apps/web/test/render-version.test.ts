@@ -42,7 +42,7 @@ function empreinteMaquette(): string {
  * Le test dit quoi écrire quand il échoue · si le rendu n'a pas vraiment changé
  * (un commentaire, un renommage), on recopie l'empreinte sans toucher au numéro.
  */
-const EMPREINTE_ATTENDUE = 'bba16258eb32158a';
+const EMPREINTE_ATTENDUE = '2730497dbce5edf7';
 const VERSION_ATTENDUE = 8;
 
 describe('la version de la maquette suit la maquette', () => {

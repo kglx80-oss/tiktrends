@@ -128,16 +128,23 @@ lancer une génération, d'ouvrir une image produite, ou de consulter
 l'application en ligne. Toute question qui exige de VOIR un rendu doit être
 posée au propriétaire · ne jamais conclure à sa place.
 
-## La question encore ouverte
+## La question tranchée · le mode « générée entièrement » EST viable
 
-Le mode « générée entièrement » — le modèle d'images produit la publicité
-complète, typographie comprise — **n'a jamais traversé fal**. La consigne a été
-validée sur l'API d'un concurrent, côte à côte, et jugée meilleure. Elle n'a pas
-été exercée en production.
+Le mode — le modèle d'images produit la publicité complète, typographie
+comprise — **a traversé fal**. Le propriétaire a lancé le lot de contrôle sur un
+vrai produit : les trois choses que lui seul peut voir passent · l'étiquette
+tient, le français est juste, le texte est là et lisible. Le verrou du sujet
+unique est levé.
 
-Trois choses à vérifier sur un vrai lot, et une seule personne peut les voir :
-l'étiquette du produit tient-elle, le français est-il juste, y a-t-il du texte.
+**Le moteur dépend du MODE, mesuré côte à côte.** GPT Image 2 gagne nettement en
+entière — c'est lui qui écrit la typographie, et « texte net » est sa force.
+Nano Banana reste le meilleur en composée, où c'est nous qui écrivons le texte
+et où sa fidélité produit prime. Le défaut recommandé est désormais conscient du
+mode (`moteurRecommande`, `packages/core/economics.ts`) · un seul drapeau de
+catalogue proposait Nano partout, dont là où il perd.
 
-Depuis, la boucle se ferme sans intervention : chaque publicité entière est
-relue à sa génération, le constat s'affiche sur sa carte, et le cumul dit quel
-moteur réécrit le plus. Mais le premier lot reste à lancer.
+La boucle se ferme sans intervention : chaque publicité entière est relue à sa
+génération (mots, packaging, lisibilité), le débrief lit le lot d'un coup, les
+pubs cassées sont reprises une fois, et le cumul par marque affine le moteur par
+défaut quand il tranche. Ce qui reste · accumuler assez de relectures par marque
+pour que la mesure locale prenne la main sur le défaut éditorial.
