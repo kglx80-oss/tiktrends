@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/auth';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { railNav, accountSections, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL } from '../../lib/rbac';
+import { railNav, accountSections, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, RAIL_GROUP_LABEL } from '../../lib/rbac';
 import { listBrands, getActiveBrand } from '../../lib/brands';
 import { AppShell } from '../../components/AppShell';
 import { logoutAction } from '../actions/auth';
@@ -45,7 +45,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <AppShell
-      nav={[...railNav(access), ...brandNav]}
+      nav={[...railNav(access).map((g) => ({ ...g, group: RAIL_GROUP_LABEL[g.group] ?? g.group })), ...brandNav]}
       accountGroups={accountSections(access)}
       isStaff={isFounder(s.user.email)}
       showUpgrade={roleAtLeast(s.role, 'admin') && !planAtLeast(access.plan, 'business')}

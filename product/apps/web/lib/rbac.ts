@@ -42,7 +42,24 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
  * apprend.
  */
 export type NavGroup = 'Pilotage' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'account';
-export const RAIL_GROUPS: NavGroup[] = ['Pilotage', 'Observatoire', 'Atelier', 'Laboratoire'];
+/**
+ * L'ordre du rail suit la BOUCLE de travail, pas l'ordre historique.
+ *
+ * Le produit fait une seule chose · trouver une créative gagnante, la refaire,
+ * l'affiner. Cette boucle est observer → créer → tester. Le rail ouvrait sur
+ * « Pilotage » (le tableau de bord · un regard en arrière), reléguant le
+ * travail réel dessous. On mène par la boucle ; le pilotage, qu'on consulte,
+ * vient après.
+ */
+export const RAIL_GROUPS: NavGroup[] = ['Observatoire', 'Atelier', 'Laboratoire', 'Pilotage'];
+/**
+ * Ce que le rail AFFICHE · le verbe de l'étape, pas le nom de musée. Les clés
+ * internes ne bougent pas (elles servent aussi au fil d'Ariane) · seul le
+ * libellé montré nomme le geste, pour qu'on lise le rail comme la boucle.
+ */
+export const RAIL_GROUP_LABEL: Record<string, string> = {
+  Observatoire: 'Observer', Atelier: 'Créer', Laboratoire: 'Tester', Pilotage: 'Piloter',
+};
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
 // Allocation de crédits mensuelle par abonnement.
