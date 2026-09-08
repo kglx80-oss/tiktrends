@@ -72,8 +72,8 @@ export const FEATURES: Feature[] = [
   { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Pilotage',  minRole: 'client_viewer', minPlan: 'starter' },
 
   // ── Trouver · ce que fait le marché ───────────────────────────────────────
-  { key: 'inspo',     label: 'Veille',       href: '/inspo',       icon: 'bulb',   group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
-  { key: 'scale',     label: 'Ce qui scale', href: '/inspo/scale', icon: 'trend',  group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'inspo',     label: 'Veille',       href: '/veille',       icon: 'bulb',   group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
+  { key: 'scale',     label: 'Ce qui scale', href: '/veille/scale', icon: 'trend',  group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Observatoire', parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
   // « Radar produits » et non « Radar » · le module Adsmap en a un autre, et

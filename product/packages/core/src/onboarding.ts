@@ -110,7 +110,7 @@ export const STEPS: StepDef[] = [
   {
     key: 'competitors', label: 'Suivre des concurrents', needs: [], optional: true,
     why: 'La veille nourrit Jarvis en mécaniques éprouvées · et arme le radar.',
-    href: '/inspo',
+    href: '/veille',
   },
 ];
 

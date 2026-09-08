@@ -63,7 +63,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/dashboard', label: 'Dashboard', section: 'Pilotage' },
   { path: '/analytics', label: 'Analytics', section: 'Pilotage' },
   { path: '/radar', label: 'Radar produits', section: 'Observatoire' },
-  { path: '/tags', label: 'Tagging', parent: '/inspo', section: 'Observatoire' },
+  { path: '/tags', label: 'Tagging', parent: '/veille', section: 'Observatoire' },
 
   { path: '/adsmap', label: 'Adsmap', section: 'Laboratoire' },
   { path: '/adsmap/suites', label: 'Suites', parent: '/adsmap', section: 'Laboratoire' },
@@ -79,9 +79,9 @@ export const ROUTES: RouteNode[] = [
   // ── Création ───────────────────────────────────────────────────────────────
   { path: '/jarvis', label: 'Jarvis', section: 'Atelier' },
 
-  { path: '/inspo', label: 'Veille', section: 'Observatoire' },
-  { path: '/inspo/scale', label: 'Ce qui scale', parent: '/inspo', section: 'Observatoire' },
-  { path: '/saved', label: 'Sauvegardes', parent: '/inspo', section: 'Observatoire' },
+  { path: '/veille', label: 'Veille', section: 'Observatoire' },
+  { path: '/veille/scale', label: 'Ce qui scale', parent: '/veille', section: 'Observatoire' },
+  { path: '/saved', label: 'Sauvegardes', parent: '/veille', section: 'Observatoire' },
 
   { path: '/studio', label: 'Studio IA', section: 'Atelier' },
   { path: '/studio/ads', label: 'Pubs IA', parent: '/studio', section: 'Atelier' },

@@ -82,7 +82,7 @@ export default async function SavedPage() {
               : <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--paper)' }} />}
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{b.name}</span>
             <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)' }}>{b.platform}</span>
-            <a href={`/inspo?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
+            <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
             <BrandRemoveButton platform={b.platform} name={b.name} />
           </div>
         ))}
