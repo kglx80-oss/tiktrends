@@ -52,11 +52,11 @@ export default async function SavedPage() {
     <main style={{ padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
       <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Sauvegardes</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 24 }}>
-        Tes créas gardées et les marques que tu suis. Depuis l'<b>Inspo</b>, ★ sauvegarde une créa et « + Suivre » une marque.
+        Tes créas gardées et les marques que tu suis. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » une marque.
       </p>
 
       <PageInfo title="tes créas & marques gardées">
-        Retrouve ici tout ce que tu as sauvegardé depuis l'<b>Inspo</b>. Range tes créas dans des <b>boards</b>
+        Retrouve ici tout ce que tu as sauvegardé depuis la <b>Veille</b>. Range tes créas dans des <b>boards</b>
         (dossiers) pour organiser ta veille par angle, campagne ou concurrent. Clique <b>★</b> pour retirer une créa,
         <b> voir</b> pour relancer une recherche sur une marque suivie, et <b>✨ Générer une variante</b> pour l'envoyer au Studio.
       </PageInfo>

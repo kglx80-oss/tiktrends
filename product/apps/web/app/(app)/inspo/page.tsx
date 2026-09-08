@@ -53,7 +53,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     const why = denyReason(access, feature);
     return (
       <main style={wrap}>
-        <h1 style={h1}>Inspo</h1>
+        <h1 style={h1}>Veille</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ fontSize: 34 }}>🔒</div>
           <h2 style={{ margin: '10px 0 6px', fontSize: 18, color: 'var(--ink)' }}>
@@ -61,8 +61,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           </h2>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '0 auto' }}>
             {why === 'plan'
-              ? "L'Inspo (bibliothèque concurrentielle) est disponible à partir du plan Core. Passe ton espace en Core dans Réglages puis Abonnement."
-              : "Ton rôle ne permet pas d'accéder à l'Inspo."}
+              ? "La Veille (bibliothèque concurrentielle) est disponible à partir du plan Core. Passe ton espace en Core dans Réglages puis Abonnement."
+              : "Ton rôle ne permet pas d'accéder à la Veille."}
           </p>
           {why === 'plan' && s.role === 'owner' && (
             <a href="/settings" style={upgradeBtn}>Gérer l'abonnement →</a>
@@ -158,7 +158,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={h1}>Inspo</h1>
+        <h1 style={h1}>Veille</h1>
         <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>bibliothèque concurrentielle · {platformLabel[platform]}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>

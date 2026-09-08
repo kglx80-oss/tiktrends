@@ -257,7 +257,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
           <h2 style={hStep}>Avec qui es-tu en concurrence&nbsp;?</h2>
           <p style={pStep}>On surveille ces marques pour que tu saches toujours où tu te situes, et garder une longueur d'avance.</p>
           <Field label="Marques concurrentes" hint="une par ligne"><textarea name="competitors" value={f.competitors} onChange={set('competitors')} placeholder={'Norway Omega\nplnktn.\nNorsan'} style={{ ...area, minHeight: 140 }} /></Field>
-          <p style={{ fontSize: 12.5, color: 'var(--muted)' }}>Tu pourras les suivre en direct depuis l'Inspo une fois les bibliothèques branchées.</p>
+          <p style={{ fontSize: 12.5, color: 'var(--muted)' }}>Tu pourras les suivre en direct depuis la Veille une fois les bibliothèques branchées.</p>
         </section>
 
         {/* STEP 5 · Comptes pub */}

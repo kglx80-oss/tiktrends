@@ -265,7 +265,7 @@ function AppShellInner(props: Props) {
     { id: 'do-image', label: 'Générer une image', group: 'Actions', href: '/studio/image', emoji: '🖼️', keywords: 'image visuel produit scène' },
     { id: 'do-video', label: 'Générer une vidéo', group: 'Actions', href: '/studio/video', emoji: '🎬', keywords: 'vidéo animation clip' },
     { id: 'do-jarvis', label: 'Ce que Jarvis sait', group: 'Actions', href: '/jarvis', emoji: '🧠', keywords: 'jarvis ia memoire accroches regles couches etat' },
-    { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/inspo', emoji: '🔎', keywords: 'inspo veille concurrent recherche pub' },
+    { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/inspo', emoji: '🔎', keywords: 'veille concurrent recherche pub' },
     { id: 'do-scale', label: 'Voir ce qui scale', group: 'Actions', href: '/inspo/scale', emoji: '📈', keywords: 'scale tendance croissance winner' },
     { id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', emoji: '➕', keywords: 'créer marque ajouter' },
   );

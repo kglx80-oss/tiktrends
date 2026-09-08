@@ -62,7 +62,7 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
       <PageInfo title="gérer tes marques">
         Crée une marque via le parcours guidé (profil, charte, audience, concurrents) : elle devient <b>active</b>
         automatiquement. Le sélecteur en haut à gauche bascule d'une marque à l'autre. Ce que tu sauvegardes ou suis
-        dans l'Inspo est rattaché à la marque active.
+        dans la Veille est rattaché à la marque active.
       </PageInfo>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}

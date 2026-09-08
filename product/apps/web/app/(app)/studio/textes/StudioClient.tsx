@@ -45,7 +45,7 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration }: { h
             <select name="platform" defaultValue="tiktok" style={{ ...input, cursor: 'pointer' }}><option value="tiktok">TikTok</option><option value="meta">Meta</option></select>
           </div>
         </div>
-        <div><label style={lbl}>Inspiration (créa gagnante à réinterpréter)</label><textarea name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans l'Inspo…" style={{ ...input, resize: 'vertical' }} /></div>
+        <div><label style={lbl}>Inspiration (créa gagnante à réinterpréter)</label><textarea name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
         <button type="submit" disabled={pending || !hasKey} style={{ padding: '12px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending || !hasKey ? .6 : 1 }}>
           {pending ? 'Génération en cours…' : '✨ Générer la créative'}
         </button>
@@ -57,7 +57,7 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration }: { h
       <div style={{ display: 'grid', gap: 16 }}>
         {!out && !pending && (
           <div style={{ ...card, color: 'var(--muted)', fontSize: 14 }}>
-            Remplis le brief à gauche et lance la génération. Astuce : depuis l'<b>Inspo</b>, le bouton « ✨ Générer » pré-remplit l'inspiration avec une créa gagnante.
+            Remplis le brief à gauche et lance la génération. Astuce : depuis la <b>Veille</b>, le bouton « ✨ Générer » pré-remplit l'inspiration avec une créa gagnante.
           </div>
         )}
         {pending && <div style={{ ...card, color: 'var(--muted)', fontSize: 14 }}>✨ Le Studio compose angles, hooks, script et textes…</div>}
