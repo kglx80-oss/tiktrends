@@ -400,8 +400,9 @@ export async function bilanCopieAction(): Promise<{ bilan?: BilanCopie; error?: 
     const relectures: RelectureLue[] = [];
     for (const r of rows) {
       const rec = (r.input ?? {}) as {
-        copieConforme?: { grave?: boolean };
+        copieConforme?: { grave?: boolean; lignes?: Array<{ etat?: string }> };
         produitFidele?: boolean | null;
+        texteLisible?: boolean | null;
         universe?: string | null; model?: string;
       };
       // Une publicité jamais relue n'entre pas · la compter comme conforme
@@ -413,6 +414,10 @@ export async function bilanCopieAction(): Promise<{ bilan?: BilanCopie; error?: 
         accrocheReecrite: !!rec.copieConforme?.grave,
         // `null` reste `null` · « on n'a pas pu regarder » n'est pas « conforme ».
         produitFidele: typeof rec.produitFidele === 'boolean' ? rec.produitFidele : null,
+        // Un texte imposé revenu avec les accents perdus · le défaut français le
+        // plus fréquent, lu directement dans le verdict de copie déjà consigné.
+        accentsPerdus: !!rec.copieConforme?.lignes?.some((l) => l.etat === 'accents'),
+        texteLisible: typeof rec.texteLisible === 'boolean' ? rec.texteLisible : null,
         cles: { moteur: rec.model || undefined, direction: rec.universe || undefined },
       });
     }
