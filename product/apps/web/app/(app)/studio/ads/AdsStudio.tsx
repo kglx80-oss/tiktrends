@@ -786,32 +786,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </p>
         )}
 
-        {/* Ce que l'outil conseille · il sait quels essais ont tranché, ce que
-            ses notes reprochent aux images, et ce que chaque essai coûte. Rien
-            n'est demandé à un modèle : une phrase plausible remplacerait une
-            décision vérifiable, et se ferait payer. */}
-        {suggestion && (
-          <div style={{
-            margin: '0 0 12px', padding: '10px 13px', borderRadius: 11,
-            border: `1px solid ${suggestion.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
-            background: 'var(--paper)',
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
-              {suggestion.avantTout ? 'AVANT DE TESTER' : 'JARVIS CONSEILLE'}
-            </div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginTop: 3, lineHeight: 1.45 }}>{suggestion.question}</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{suggestion.pourquoi}</div>
-            {suggestion.avantTout && (
-              <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 5, lineHeight: 1.45 }}>{suggestion.avantTout}</div>
-            )}
-            {suggestion.variable && suggestion.variable !== essai && (
-              <button type="button" onClick={() => setEssai(suggestion.variable!)} disabled={!ready} style={{
-                marginTop: 8, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 800,
-                border: 'none', background: 'var(--grad-accent)', color: '#0d070c', cursor: ready ? 'pointer' : 'default',
-              }}>Tester {ESSAI_LABEL[suggestion.variable].toLowerCase()}</button>
-            )}
-          </div>
-        )}
+        {/* Le conseil d'itération (« prochaine hypothèse ») vit désormais près de
+            la grille de résultats, visible sans déplier · fermer la boucle là où
+            on voit ce qu'on vient de produire. Il n'est plus dupliqué ici. */}
 
         {/* Ce que le lot cherche à savoir · écrit AVANT d'être payé. */}
         <label style={lbl}>Ce lot teste <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· une seule chose varie, le reste est tenu</span></label>
@@ -958,6 +935,37 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           </div>
         )}
       </div>
+
+      {/* La boucle, fermée SUR PLACE · après un lot, l'hypothèse suivante à
+          tester s'affiche ici, déduite de ce qui est DÉJÀ mesuré (aucun modèle
+          appelé). Un clic l'arme et rouvre l'assistant · le prix est annoncé
+          avant de générer, et l'on ne part pas sur Adsmap pour itérer. Elle
+          vivait dans les réglages avancés, repliés · donc invisible au moment
+          exact où elle sert. `null` quand la mesure ne tranche pas · le silence
+          est une réponse. */}
+      {suggestion && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 16px', padding: '12px 15px', borderRadius: 14,
+          border: `1px solid ${suggestion.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
+          background: 'linear-gradient(120deg, rgba(255,60,120,.08), var(--surface))',
+        }}>
+          <span style={{ fontSize: 17 }}>{suggestion.avantTout ? '⚠️' : '🔁'}</span>
+          <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: suggestion.avantTout ? '#ffb3c0' : 'var(--accent-strong)' }}>
+              {suggestion.avantTout ? 'AVANT DE TESTER' : ads.length > 0 ? 'PROCHAINE HYPOTHÈSE' : 'JARVIS CONSEILLE'}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginTop: 2, lineHeight: 1.4 }}>{suggestion.question}</div>
+            {suggestion.pourquoi && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{suggestion.pourquoi}</div>}
+            {suggestion.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 4, lineHeight: 1.4 }}>{suggestion.avantTout}</div>}
+          </div>
+          {suggestion.variable && suggestion.variable !== essai && (
+            <button type="button" disabled={!ready} onClick={() => { setEssai(suggestion.variable!); setMode('brand'); setAssistant(true); setError(''); }} style={{
+              padding: '11px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: ready ? 'pointer' : 'default',
+              background: 'var(--grad-accent)', color: '#0d070c', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
+            }}>Tester {ESSAI_LABEL[suggestion.variable].toLowerCase()} ›</button>
+          )}
+        </div>
+      )}
 
       <div ref={grille} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, scrollMarginTop: 16 }}>
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Tes pubs {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
