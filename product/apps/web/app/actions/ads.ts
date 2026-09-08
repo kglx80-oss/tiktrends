@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, type AdDirection } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -228,6 +228,12 @@ async function composeBatch(o: {
   directionsVivier?: AdDirection[];
   /** La meilleure direction est ancrée en tête · la rotation part d'elle. */
   directionAncree?: boolean;
+  /**
+   * Renforts ciblés sur les défauts mesurés de CETTE marque (accents, lisibilité).
+   * Décidés au noyau (`durcirEntiere`) depuis le bilan, passés à `promptPubEntiere`.
+   * Vides le plus souvent · une marque sans mesure suffisante ne durcit rien.
+   */
+  durcissementsEntiere?: string[];
   /** Le moteur choisi, entier · l'endpoint et les paramètres s'en déduisent. */
   modelSpec: ImageModelSpec; creditsPerImage: number;
   productId?: string; personaId?: string; objective?: string;
@@ -359,6 +365,9 @@ async function composeBatch(o: {
         // à l'autre : on ne lui en disait rien.
         direction: o.preset ? null : directionPour(i),
         universPrompt: o.preset ? o.preset.prompt : undefined,
+        // Renforts mesurés · accents, lisibilité, seulement là où cette marque a
+        // le défaut installé. Vides sinon · le prompt reste léger.
+        durcissements: o.durcissementsEntiere,
       }) + exclusions;
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
@@ -1016,26 +1025,47 @@ export async function generateAdsAction(input: {
     ? Array.from({ length: count }, () => concepts[0]!)
     : concepts;
 
-  // La rotation des directions, biaisée par la mesure · uniquement en entière
-  // (le seul mode qui a un verdict par direction), sur une direction auto (pas
-  // imposée, pas un preset maison), hors essai. Lecture au mieux, jamais
-  // bloquante · un bilan illisible retombe sur la rotation égale d'avant.
+  // La mesure de la marque nourrit DEUX leviers d'entière · on la lit une seule
+  // fois. Lecture au mieux, jamais bloquante · un bilan illisible retombe sur le
+  // comportement d'avant (rotation égale, aucun renfort).
   let directionsVivier: AdDirection[] | undefined;
   let directionAncree = false;
-  if (mode === 'entiere' && !essaiVariable && !presetChoisi && (!input.universe || input.universe === 'auto')) {
+  let durcissementsEntiere: string[] | undefined;
+  if (mode === 'entiere' && !essaiVariable) {
     const bilan = (await bilanCopieAction().catch(() => ({ bilan: undefined }))).bilan;
-    const dirDim = bilan?.dimensions.find((d) => d.dimension === 'direction');
-    if (dirDim) {
-      const { ecartees, favori } = directionsBiais(dirDim.lignes);
-      if (ecartees.length || favori) {
-        const restants = AD_DIRECTIONS.filter((d) => !ecartees.includes(d.key));
-        // Toujours au moins deux directions · une rotation à une seule n'en est
-        // plus une, et une mesure qui condamnerait tout sauf une est plus
-        // probablement du bruit qu'une vérité.
-        const base = restants.length >= 2 ? restants : AD_DIRECTIONS;
-        const fav = favori ? base.find((d) => d.key === favori) : null;
-        directionsVivier = fav ? [fav, ...base.filter((d) => d.key !== fav.key)] : base;
-        directionAncree = !!fav;
+
+    // 1 · Le durcissement ciblé · renforts sur les défauts que CETTE marque a
+    // mesurément (accents perdus, texte illisible). S'applique à TOUTE entière
+    // hors essai, preset ou direction imposée comprises · un défaut d'accents ne
+    // dépend pas de la direction. Les compteurs se reconstruisent du taux et du
+    // dénominateur (taux = compte / n, donc l'arrondi rend le compte exact).
+    if (bilan) {
+      const d = durcirEntiere({
+        relues: bilan.relues,
+        accents: Math.round((bilan.tauxAccents ?? 0) * bilan.relues),
+        avecTexte: bilan.avecTexte,
+        illisibles: Math.round((bilan.tauxIllisible ?? 0) * bilan.avecTexte),
+      });
+      if (d.length) durcissementsEntiere = d;
+    }
+
+    // 2 · La rotation des directions, biaisée par la mesure · seulement sur une
+    // direction auto (pas imposée, pas un preset maison), là où la rotation a
+    // encore un sens.
+    if (bilan && !presetChoisi && (!input.universe || input.universe === 'auto')) {
+      const dirDim = bilan.dimensions.find((d) => d.dimension === 'direction');
+      if (dirDim) {
+        const { ecartees, favori } = directionsBiais(dirDim.lignes);
+        if (ecartees.length || favori) {
+          const restants = AD_DIRECTIONS.filter((d) => !ecartees.includes(d.key));
+          // Toujours au moins deux directions · une rotation à une seule n'en est
+          // plus une, et une mesure qui condamnerait tout sauf une est plus
+          // probablement du bruit qu'une vérité.
+          const base = restants.length >= 2 ? restants : AD_DIRECTIONS;
+          const fav = favori ? base.find((d) => d.key === favori) : null;
+          directionsVivier = fav ? [fav, ...base.filter((d) => d.key !== fav.key)] : base;
+          directionAncree = !!fav;
+        }
       }
     }
   }
@@ -1057,7 +1087,7 @@ export async function generateAdsAction(input: {
     essai: essaiVariable ? { variable: essaiVariable, groupe: crypto.randomUUID() } : null,
     mode,
     reprisesBudget,
-    directionsVivier, directionAncree,
+    directionsVivier, directionAncree, durcissementsEntiere,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,
