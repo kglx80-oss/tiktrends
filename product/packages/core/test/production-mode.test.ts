@@ -155,4 +155,25 @@ describe('la consigne de publicité entière', () => {
       'le renfort arrive après les textes · il se lira comme une note, pas une consigne',
     ).toBeLessThan(durci.indexOf(copie.headline));
   });
+
+  it('sans tendance de marché, n’en invente aucune', () => {
+    // Tant que la catégorie n'a pas été décrite, le prompt reste celui d'avant.
+    expect(p).not.toContain('this product category');
+  });
+
+  it('porte la tendance de marché avec la direction artistique', () => {
+    // La tendance de layout est une DIRECTION, pas une exigence · elle vit avec
+    // la scène et la direction, avant la consigne de rendu, et jamais parmi les
+    // renforts « CRITICAL ».
+    const avecMarche = promptPubEntiere({
+      copie, sceneBrief: 'x', avecProduit: true,
+      tendancesMarche: ['In this product category, the ads that keep running tend to place the headline at the TOP.'],
+    });
+    expect(avecMarche).toContain('In this product category');
+    expect(
+      avecMarche.indexOf('In this product category'),
+      'la tendance arrive après la consigne de rendu · elle se lira comme une note',
+    ).toBeLessThan(avecMarche.indexOf('Render the advertising typography'));
+    expect(avecMarche).not.toContain('CRITICAL · In this product category');
+  });
 });

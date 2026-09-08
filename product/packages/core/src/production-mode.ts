@@ -161,6 +161,12 @@ export function promptPubEntiere(o: {
    * rien. Décidés au noyau (`durcirEntiere`), sur la seule mesure, jamais d'instinct.
    */
   durcissements?: string[];
+  /**
+   * Tendances de mise en page GAGNANTES de la catégorie, distillées de la veille
+   * (`briefLayout`). Une consigne de direction artistique, pas une règle · le
+   * modèle garde la main. Vides tant que la catégorie n'a pas été décrite.
+   */
+  tendancesMarche?: string[];
 }): string {
   const c = o.copie;
   const textes = [
@@ -190,11 +196,17 @@ export function promptPubEntiere(o: {
   // ils ne sont là que parce que la mesure a montré ce défaut installé ici.
   const renforts = (o.durcissements ?? []).map((d) => `CRITICAL · ${d}`).join('\n');
 
+  // Les tendances de marché vivent avec la direction artistique · c'est une
+  // orientation de mise en page, pas une exigence. Placées après la scène et la
+  // direction, avant la consigne de rendu.
+  const marche = (o.tendancesMarche ?? []).join('\n');
+
   return [
     'Produce a COMPLETE, ready-to-publish 4:5 social media advertisement · not a bare photograph.',
     produit,
     `Scene: ${o.sceneBrief.slice(0, 600)}`,
     uni,
+    marche,
     'Render the advertising typography DIRECTLY INSIDE the image, integrated into the design.',
     'The copy below is FINAL · reproduce each string exactly, character for character, in FRENCH with all accents and apostrophes. Do not translate, rewrite, shorten or invent any wording.',
     renforts,
