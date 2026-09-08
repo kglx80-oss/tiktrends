@@ -23,7 +23,12 @@ describe('le lecteur agrège sans migration', () => {
     // C'est ce qui rend l'étape sûre et sans dépense · on lit ce que #265 a rangé
     // dans le blob, aucune promotion en colonne (qui serait la migration gated).
     expect(READER).toMatch(/schema\.marketCreatives\.analysis/);
-    expect(READER, 'la grammaire n’est plus agrégée par le noyau').toMatch(/briefLayout\(grammaireLayout\(/);
+    // La grammaire est agrégée par le noyau (`grammaireLayout`), puis distillée
+    // en consigne de génération (`briefLayout`) · le calcul est partagé avec la
+    // carte d'identité de l'écran, donc les deux appels vivent sur des lignes
+    // séparées.
+    expect(READER, 'la grammaire n’est plus agrégée par le noyau').toMatch(/grammaireLayout\(obs\)/);
+    expect(READER, 'la tendance de génération n’est plus distillée par le noyau').toMatch(/briefLayout\(g\)/);
   });
 });
 

@@ -10,6 +10,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
 import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed';
 import { DecouverteSection } from '../../../components/DecouverteSection';
+import { GrammaireCategorie } from '../../../components/GrammaireCategorie';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -65,6 +66,9 @@ export default async function SavedPage() {
 
       {/* La veille qui vient à toi · les gagnantes de ta catégorie, hors watchlist. */}
       {trackingEnabled && <DecouverteSection />}
+
+      {/* Ce que le poumon a appris de ta catégorie · rendu visible. */}
+      {trackingEnabled && <GrammaireCategorie />}
 
       {/* Marques suivies */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>
