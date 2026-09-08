@@ -77,10 +77,12 @@ describe('le mode voyage jusqu’au bout de la chaîne', () => {
     expect(SRC).toMatch(/promptPubEntiere\(/);
   });
 
-  it('le mode est consigné sur la recette', () => {
+  it('le mode est consigné sur la recette, par item', () => {
     // C'est lui qui décide de la couche ET du contrôle des ratés · perdu, la
-    // publicité se recompose au prochain rendu, textes par-dessus textes.
-    expect(SRC).toMatch(/mode: o\.mode \?\? 'composee'/);
+    // publicité se recompose au prochain rendu, textes par-dessus textes. Il est
+    // consigné PAR ITEM · une pub repliée en composée porte son mode à elle, et
+    // retombe sur celui du lot puis sur « composee » quand rien ne l'a changé.
+    expect(SRC).toMatch(/mode: modeParItem\.get\(i\) \?\? o\.mode \?\? 'composee'/);
   });
 
   it('le contrôle des ratés sait quel mode il regarde', () => {

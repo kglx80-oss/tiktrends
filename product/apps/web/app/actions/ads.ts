@@ -311,7 +311,7 @@ async function composeBatch(o: {
   // Références marque venant de la bibliothèque Assets, ajoutées en note quand on s'en sert.
   const assetNote = hasAssetRef ? ' Additional images are brand reference material (real brand/product shots from the asset library) · draw visual style, palette and authenticity from them, but do not copy any text or layout.' : '';
 
-  const genScene = async (c: AdConcept, i: number): Promise<string | null> => {
+  const genScene = async (c: AdConcept, i: number, modeForce?: ProductionMode): Promise<string | null> => {
     // Clone : on donne la référence EN PREMIER puis nos images produit -> Nano recompose la mise en page.
     // Sinon : produit (edit) et/ou images de la bibliothèque Assets comme références marque.
     let imageUrls: string[] | undefined;
@@ -341,7 +341,11 @@ async function composeBatch(o: {
     // Les références et le point d'entrée restent ceux qu'on vient de choisir ·
     // c'est la photo produit qui garantit l'étiquette, et elle compte encore
     // plus ici : le modèle doit reproduire un packaging ET écrire par-dessus.
-    if (o.mode === 'entiere') {
+    //
+    // `modeForce` sert au filet composée · une reprise en composée demande la
+    // SCÈNE (le prompt déjà construit ci-dessus), pas la publicité entière, pour
+    // qu'on pose NOTRE texte par-dessus.
+    if ((modeForce ?? o.mode) === 'entiere') {
       prompt = promptPubEntiere({
         copie: {
           kicker: c.kicker, headline: c.headline, subhead: c.subhead,
@@ -412,6 +416,15 @@ async function composeBatch(o: {
   // donc `aProduire` dédoublonne déjà les slots. Le rattrapage l'incrémentera au
   // fil des reprises · une reprise est une image de plus, payée comme telle.
   let imagesFal = aProduire.filter((slot) => parSlot.get(slot)).length;
+
+  // Images de reprise déjà dépensées · le filet composée puise dans le RESTE de
+  // la même marge réservée, jamais au-delà. Un dollar de plus que l'annoncé
+  // serait un dollar non dit.
+  let reprisesFaites = 0;
+  // Le mode RÉELLEMENT appliqué à chaque visuel · par défaut celui du lot, mais
+  // une pub repliée passe en composée pour elle seule. La maquette lit ce mode
+  // pour décider si elle pose une couche de texte par-dessus.
+  const modeParItem = new Map<number, ProductionMode>();
 
   // On regarde les scènes AVANT de les composer.
   //
@@ -513,6 +526,7 @@ async function composeBatch(o: {
             const nouvelleUrl = await genScene(c, i);
             if (!nouvelleUrl) continue; // plafond atteint ou échec · on garde l'original
             imagesFal++;
+            reprisesFaites++;
             const [nouvelleLum, nouveauControle] = await Promise.all([
               mesurerScene(nouvelleUrl),
               relireScene(nouvelleUrl, c),
@@ -527,6 +541,48 @@ async function composeBatch(o: {
             }
           } catch (e) {
             logFailure('ads:rattrapage', e, o.workspaceId);
+          }
+        }
+
+        /*
+         * ── Ce qui reste cassé après la reprise se refait en composée ──────────
+         *
+         * La reprise rejoue l'entière · le modèle échoue parfois encore de la
+         * même façon (accroche réécrite, texte illisible). Livrer ça « à revoir »
+         * revient à rendre du connu-cassé. On refait alors la pub en COMPOSÉE, où
+         * le texte est le NÔTRE — donc exact — et le produit vient de la photo —
+         * donc fidèle : la bascule résout par construction les trois écarts
+         * éliminatoires, elle n'a donc pas besoin d'être relue.
+         *
+         * Elle puise dans la MÊME marge de reprise, déjà réservée et annoncée ·
+         * jamais un dollar de plus. Quand la marge est épuisée, la cassée reste
+         * visible et comptée au débrief · un lot majoritairement cassé est un
+         * signal de mode, pas un incident à masquer.
+         */
+        const budgetReplis = (o.reprisesBudget ?? 0) - reprisesFaites;
+        if (budgetReplis > 0) {
+          const constatsFinaux = o.concepts.map((_, i) => {
+            const ctl = controles.get(i);
+            return ctl ? { accrocheReecrite: ctl.copie.grave, produitFidele: ctl.produitFidele, texteLisible: ctl.texteLisible } : null;
+          });
+          for (const i of indicesARattraper(constatsFinaux, budgetReplis)) {
+            const c = o.concepts[i];
+            if (!c) continue;
+            try {
+              const urlComposee = await genScene(c, i, 'composee');
+              if (!urlComposee) continue; // plafond atteint ou échec · on garde l'entière cassée
+              imagesFal++;
+              scenes[i] = urlComposee;
+              lumieres[i] = await mesurerScene(urlComposee);
+              // La pub devient composée pour elle seule · la maquette posera
+              // NOTRE texte par-dessus, exact par construction.
+              modeParItem.set(i, 'composee');
+              // Aucune relecture entière à consigner · le texte est le nôtre, le
+              // produit vient de la photo. La composée ne se relit pas.
+              controles.delete(i);
+            } catch (e) {
+              logFailure('ads:repli-composee', e, o.workspaceId);
+            }
           }
         }
       }
@@ -567,8 +623,9 @@ async function composeBatch(o: {
       essai: o.essai ?? null,
       // Comment elle a été fabriquée · c'est ce qui décide si la maquette pose
       // une couche de texte par-dessus, et si « du texte dans l'image » est un
-      // raté ou exactement ce qu'on avait demandé.
-      mode: o.mode ?? 'composee',
+      // raté ou exactement ce qu'on avait demandé. Par item · une pub repliée en
+      // composée porte son mode à elle, pas celui du lot.
+      mode: modeParItem.get(i) ?? o.mode ?? 'composee',
       // Ce que la relecture a constaté · rangé sous les mêmes clés que le
       // contrôle payant, pour que la carte, la vignette d'exemple et le cumul
       // lisent un seul endroit quelle qu'en soit l'origine.
