@@ -31,14 +31,18 @@
  * Pur : ni base, ni horloge, ni modèle.
  */
 
-import type { HeadlinePosition, Composition, TextDensity, Background } from './asset-taxonomy';
+import type {
+  HeadlinePosition, Composition, TextDensity, Background, TypoRegister, Palette,
+} from './asset-taxonomy';
 
-/** Une observation de layout · les quatre dimensions, chacune nullable. */
+/** Une observation de layout et de charte · chaque dimension nullable. */
 export interface ObservationLayout {
   headlinePosition: HeadlinePosition | null;
   composition: Composition | null;
   textDensity: TextDensity | null;
   background: Background | null;
+  typoRegister: TypoRegister | null;
+  palette: Palette | null;
 }
 
 export interface GrammaireLayout {
@@ -46,6 +50,8 @@ export interface GrammaireLayout {
   composition: Composition | null;
   textDensity: TextDensity | null;
   background: Background | null;
+  typoRegister: TypoRegister | null;
+  palette: Palette | null;
   /** Observations agrégées · toutes dimensions confondues. */
   n: number;
 }
@@ -86,6 +92,8 @@ export function grammaireLayout(obs: readonly ObservationLayout[]): GrammaireLay
     composition: dominante(obs.map((o) => o.composition)),
     textDensity: dominante(obs.map((o) => o.textDensity)),
     background: dominante(obs.map((o) => o.background)),
+    typoRegister: dominante(obs.map((o) => o.typoRegister)),
+    palette: dominante(obs.map((o) => o.palette)),
     n: obs.length,
   };
 }
@@ -121,6 +129,20 @@ const BACKGROUND_HINT: Record<Background, string> = {
   dark: 'use a DARK background',
   vibrant: 'use a VIBRANT, colourful background',
 };
+const TYPO_HINT: Record<TypoRegister, string> = {
+  sans: 'set the type in a clean SANS-SERIF register',
+  serif: 'set the type in a SERIF register',
+  display: 'use a bold DISPLAY typeface for the headline',
+  script: 'use a SCRIPT / handwritten register for accents',
+  mixed: '', // « mixte » ne se prescrit pas · c'est l'absence de parti pris typographique.
+};
+const PALETTE_HINT: Record<Palette, string> = {
+  monochrome: 'keep the palette MONOCHROME (a single hue)',
+  duotone: 'use a DUOTONE palette (two colours)',
+  pastel: 'use a soft PASTEL palette',
+  vibrant: 'use a SATURATED, vivid palette',
+  earthy: 'use an EARTHY, natural palette',
+};
 
 /**
  * Les consignes de layout à ajouter à la direction artistique de l'entière ·
@@ -134,6 +156,8 @@ export function briefLayout(g: GrammaireLayout): string[] {
     g.composition ? COMPOSITION_HINT[g.composition] : '',
     g.textDensity ? DENSITY_HINT[g.textDensity] : '',
     g.background ? BACKGROUND_HINT[g.background] : '',
+    g.typoRegister ? TYPO_HINT[g.typoRegister] : '',
+    g.palette ? PALETTE_HINT[g.palette] : '',
   ].filter(Boolean);
   if (!parts.length) return [];
   return [`In this product category, the ads that keep running tend to ${parts.join('; ')}. Lean that way unless the product demands otherwise.`];

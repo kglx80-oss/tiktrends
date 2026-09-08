@@ -162,6 +162,8 @@ async function analyseLot(
           // que la génération pourra suivre.
           headlinePosition: n.headlinePosition, composition: n.composition,
           textDensity: n.textDensity, background: n.background,
+          // Charte · typographie et palette, rangées structurées comme le layout.
+          typoRegister: n.typoRegister, palette: n.palette,
         },
         analysisConfidence: n.confidence,
         analyzedAt: new Date(),

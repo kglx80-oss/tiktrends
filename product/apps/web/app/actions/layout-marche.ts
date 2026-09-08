@@ -7,6 +7,7 @@ import { getActiveBrand } from '../../lib/brands';
 import {
   grammaireLayout, briefLayout,
   normalizeHeadlinePosition, normalizeComposition, normalizeTextDensity, normalizeBackground,
+  normalizeTypoRegister, normalizePalette,
   type ObservationLayout,
 } from '@tiktrends/core';
 
@@ -56,6 +57,8 @@ export async function tendancesLayoutMarcheAction(): Promise<string[]> {
       composition: normalizeComposition(str(a.composition)),
       textDensity: normalizeTextDensity(str(a.textDensity)),
       background: normalizeBackground(str(a.background)),
+      typoRegister: normalizeTypoRegister(str(a.typoRegister)),
+      palette: normalizePalette(str(a.palette)),
     };
   });
 

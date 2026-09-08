@@ -40,6 +40,8 @@ const ANALYSIS_TOOL = {
       composition: { type: ['string', 'null'], description: 'Pub statique · archétype de composition : product_hero (produit dominant, seul) | lifestyle (produit en situation, mains/scène) | before_after | comparison (deux options côte à côte) | text_card (le texte domine, peu de visuel) | packaging_closeup (gros plan étiquette). null si indéterminable.' },
       textDensity: { type: ['string', 'null'], description: 'Pub statique · quantité de texte publicitaire ajouté : minimal (accroche seule) | moderate | heavy (plusieurs blocs). null si indéterminable.' },
       background: { type: ['string', 'null'], description: 'Registre du fond : light (clair) | dark (sombre) | vibrant (couleur vive saturée). null si indéterminable.' },
+      typoRegister: { type: ['string', 'null'], description: 'Charte · registre TYPOGRAPHIQUE dominant (la famille, pas la police exacte) : sans | serif | display (titrage gras) | script (manuscrite) | mixed. null si indéterminable.' },
+      palette: { type: ['string', 'null'], description: 'Charte · caractère de la PALETTE couleur (distinct du fond) : monochrome (une teinte) | duotone (deux) | pastel (doux) | vibrant (saturé) | earthy (tons naturels). null si indéterminable.' },
       confidence: { type: 'number', description: 'Confiance globale entre 0 et 1. Sois honnête : une image seule ne dit rien du rythme.' },
     },
     required: ['hookType', 'openingType', 'talent', 'claims', 'proofElements', 'confidence'],
@@ -53,6 +55,7 @@ const SYSTEM = [
   'Quand un élément n’est pas déterminable depuis ce qu’on te donne, réponds null et baisse ta confiance.',
   'Une image fixe ne renseigne ni la durée, ni le rythme, ni les coupes · ne les invente pas.',
   'Pour une pub FIXE, renseigne en revanche la mise en page : position de l’accroche, composition, densité de texte, fond · c’est ce qui décrit sa grammaire visuelle.',
+  'Décris aussi la charte : le registre typographique dominant (famille, pas police exacte) et le caractère de la palette · c’est ce qui donne son identité de marque.',
   'Rends TOUJOURS ta réponse via l’outil return_asset_analysis.',
 ].join(' ');
 
@@ -75,6 +78,7 @@ export interface RawAssetAnalysisOut {
   durationS?: number | null; productFirstSec?: number | null; ctaFirstSec?: number | null;
   cutsFirst10s?: number | null; hasCaptions?: boolean | null; confidence?: number;
   headlinePosition?: string | null; composition?: string | null; textDensity?: string | null; background?: string | null;
+  typoRegister?: string | null; palette?: string | null;
 }
 
 /**

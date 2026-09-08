@@ -28,4 +28,10 @@ describe('market-learn range la grammaire de layout en clés structurées', () =
     expect(bloc, 'la densité de texte structurée n’est plus persistée').toMatch(/textDensity: n\.textDensity/);
     expect(bloc, 'le fond structuré n’est plus persisté').toMatch(/background: n\.background/);
   });
+
+  it('persiste aussi la charte · typographie et palette', () => {
+    const bloc = SRC.slice(SRC.indexOf('analysis: {'), SRC.indexOf('analysisConfidence'));
+    expect(bloc, 'le registre typographique n’est plus persisté').toMatch(/typoRegister: n\.typoRegister/);
+    expect(bloc, 'la palette n’est plus persistée').toMatch(/palette: n\.palette/);
+  });
 });
