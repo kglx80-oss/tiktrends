@@ -5,6 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   attributionStats, attributionByPart, memoryOrigin, creativeTrend, PART_LABEL,
   lireEssais, cumulEssais, bilanNotes, defautsConnus, essaiSuivant, bilanCopie,
+  temoinQualite, type FenetreDefauts, type TemoinQualite,
   type AttributedAd, type AttributionResult, type MemoryUse, type PartResult, type TrendResult,
   type AdEssai, type EssaiLu, type CumulEssais, type VariableEssai,
   type BilanNotes, type NoteLue, type Suggestion, type BilanCopie, type RelectureLue,
@@ -383,7 +384,7 @@ export async function bilanNotesAction(): Promise<{ bilan?: BilanNotes; error?: 
  * le plus » est exactement ce que cette matière peut dire, et ce qui décide du
  * moteur qu'on prend par défaut.
  */
-export async function bilanCopieAction(): Promise<{ bilan?: BilanCopie; error?: string }> {
+export async function bilanCopieAction(): Promise<{ bilan?: BilanCopie; temoin?: TemoinQualite; error?: string }> {
   const g = await adsmapGuard();
   if ('error' in g) return { error: g.error };
 
@@ -422,7 +423,22 @@ export async function bilanCopieAction(): Promise<{ bilan?: BilanCopie; error?: 
       });
     }
 
-    return { bilan: bilanCopie(relectures) };
+    // Le témoin · les relectures sont déjà triées de la plus récente à la plus
+    // ancienne (`createdAt desc`). On coupe en deux fenêtres, récente contre
+    // ancienne, pour constater si les défauts baissent. Le noyau ne conclut qu'à
+    // séparation nette des intervalles, et se tait sous le minimum d'effectif ·
+    // une marque neuve n'a pas d'avant à comparer.
+    const moitie = Math.floor(relectures.length / 2);
+    const fenetre = (rs: RelectureLue[]): FenetreDefauts => ({
+      n: rs.length,
+      accroche: rs.filter((r) => r.accrocheReecrite).length,
+      accents: rs.filter((r) => r.accentsPerdus === true).length,
+      avecTexte: rs.filter((r) => r.texteLisible !== null && r.texteLisible !== undefined).length,
+      illisibles: rs.filter((r) => r.texteLisible === false).length,
+    });
+    const temoin = temoinQualite(fenetre(relectures.slice(moitie)), fenetre(relectures.slice(0, moitie)));
+
+    return { bilan: bilanCopie(relectures), temoin };
   } catch (e) {
     return { error: logAndTranslate('adsmap:bilan-copie', e, { subject: 'le bilan des relectures', workspaceId: g.s.workspaceId }) };
   }

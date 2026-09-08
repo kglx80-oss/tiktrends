@@ -102,7 +102,7 @@ export default async function JarvisPage() {
     voitMemoire ? creativeTrendAction() : Promise.resolve({ trend: undefined }),
     voitMemoire ? essaisViewAction() : Promise.resolve({ view: undefined }),
     voitMemoire ? bilanNotesAction() : Promise.resolve({ bilan: undefined }),
-    voitMemoire ? bilanCopieAction() : Promise.resolve({ bilan: undefined }),
+    voitMemoire ? bilanCopieAction() : Promise.resolve({ bilan: undefined, temoin: undefined }),
     voitMemoire ? jarvisStats(brand.id, s.workspaceId) : Promise.resolve(null),
     fondateur ? spendStatus() : Promise.resolve(null),
   ]);
@@ -483,6 +483,20 @@ export default async function JarvisPage() {
               }}>
                 {relectures.resume}
               </p>
+
+              {/* Le témoin · ça s'améliore ou ça se dégrade, chez cette marque,
+                  entre ses premiers lots et les récents. Muet tant qu'une des
+                  deux fenêtres n'a pas l'effectif, ou que rien ne tranche. */}
+              {copies.temoin?.resume && (
+                <p style={{
+                  margin: '8px 0 0', padding: '9px 12px', borderRadius: 10,
+                  background: 'var(--paper)', border: '1px solid var(--line)',
+                  fontSize: 12, fontWeight: 600, lineHeight: 1.5,
+                  color: copies.temoin.evolutions.some((e) => e.sens === 'degradation') ? '#ffb86b' : '#7ee8bf',
+                }}>
+                  Témoin · {copies.temoin.resume}
+                </p>
+              )}
 
               {/* Seules les dimensions qui tranchent · les autres diraient
                   « rien à signaler » deux fois. */}
