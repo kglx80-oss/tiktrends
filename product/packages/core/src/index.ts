@@ -28,6 +28,7 @@ export * from './adsmap/brand-stats';
 export * from './adsmap/rollup';
 export * from './adsmap/graph';
 export * from './adsmap/asset-taxonomy';
+export * from './adsmap/grammaire-layout';
 export * from './adsmap/decisions';
 export * from './adsmap/proposal-taxonomy';
 export * from './adsmap/market-stats';

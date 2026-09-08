@@ -155,6 +155,13 @@ async function analyseLot(
         analysis: {
           hookSpoken: n.hookSpoken, claims: n.claims, proofElements: n.proofElements,
           unmapped: n.unmapped, summary: summarizeAnalysis(n),
+          // Grammaire de mise en page STRUCTURÉE (#261 ne la posait que dans le
+          // résumé texte). Rangée en clés à part, elle devient agrégeable par
+          // `grammaireLayout` · sans migration, le jsonb accueille ces champs.
+          // C'est ce qui arme le poumon : un futur lot mesuré produit des données
+          // que la génération pourra suivre.
+          headlinePosition: n.headlinePosition, composition: n.composition,
+          textDensity: n.textDensity, background: n.background,
         },
         analysisConfidence: n.confidence,
         analyzedAt: new Date(),
