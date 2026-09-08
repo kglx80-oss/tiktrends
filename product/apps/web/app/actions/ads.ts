@@ -16,6 +16,7 @@ import { renderAdPng, type AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate, logFailure } from '../../lib/error-log';
 import { mesurerScene } from '../../lib/scene-light';
 import { essaisViewAction, bilanCopieAction } from './adsmap-attribution';
+import { tendancesLayoutMarcheAction } from './layout-marche';
 import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
@@ -234,6 +235,13 @@ async function composeBatch(o: {
    * Vides le plus souvent · une marque sans mesure suffisante ne durcit rien.
    */
   durcissementsEntiere?: string[];
+  /**
+   * Tendances de mise en page gagnantes de la catégorie (`briefLayout`),
+   * distillées de la veille et injectées en direction artistique d'entière.
+   * Vides tant que la catégorie n'a pas été décrite · s'allument au premier lot
+   * market-learn. Lecture au mieux · un échec ne bloque pas la génération.
+   */
+  tendancesMarche?: string[];
   /** Le moteur choisi, entier · l'endpoint et les paramètres s'en déduisent. */
   modelSpec: ImageModelSpec; creditsPerImage: number;
   productId?: string; personaId?: string; objective?: string;
@@ -368,6 +376,9 @@ async function composeBatch(o: {
         // Renforts mesurés · accents, lisibilité, seulement là où cette marque a
         // le défaut installé. Vides sinon · le prompt reste léger.
         durcissements: o.durcissementsEntiere,
+        // Tendances de mise en page gagnantes de la catégorie · direction, pas
+        // règle. Vides tant que la veille n'a pas décrit la catégorie.
+        tendancesMarche: o.tendancesMarche,
       }) + exclusions;
     }
     for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
@@ -1031,8 +1042,19 @@ export async function generateAdsAction(input: {
   let directionsVivier: AdDirection[] | undefined;
   let directionAncree = false;
   let durcissementsEntiere: string[] | undefined;
+  let tendancesMarche: string[] | undefined;
   if (mode === 'entiere' && !essaiVariable) {
     const bilan = (await bilanCopieAction().catch(() => ({ bilan: undefined }))).bilan;
+
+    // 0 · La grammaire de layout gagnante de la catégorie · distillée de la veille
+    // déjà décrite (sans migration, sans dépense · #265 range les dimensions dans
+    // le jsonb). Une consigne de direction artistique, pas une règle · on ne la
+    // pose PAS sur un preset maison, qui porte sa propre direction. Inerte tant
+    // qu'aucune créa concurrente n'a été analysée. Lecture au mieux.
+    if (!presetChoisi) {
+      const t = await tendancesLayoutMarcheAction().catch(() => [] as string[]);
+      if (t.length) tendancesMarche = t;
+    }
 
     // 1 · Le durcissement ciblé · renforts sur les défauts que CETTE marque a
     // mesurément (accents perdus, texte illisible). S'applique à TOUTE entière
@@ -1087,7 +1109,7 @@ export async function generateAdsAction(input: {
     essai: essaiVariable ? { variable: essaiVariable, groupe: crypto.randomUUID() } : null,
     mode,
     reprisesBudget,
-    directionsVivier, directionAncree, durcissementsEntiere,
+    directionsVivier, directionAncree, durcissementsEntiere, tendancesMarche,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,
