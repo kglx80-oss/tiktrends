@@ -135,4 +135,24 @@ describe('la consigne de publicité entière', () => {
     });
     expect(trop).not.toContain('bullet 4');
   });
+
+  it('sans renfort, n’en invente aucun', () => {
+    // Une marque neuve ne durcit rien · le prompt reste celui d'avant, sans
+    // clause « CRITICAL ».
+    expect(p).not.toContain('CRITICAL');
+  });
+
+  it('porte les renforts mesurés, en priorité sur les textes', () => {
+    // Un renfort noyé en fin de prompt se lit comme une note · placé AVANT les
+    // textes, sur l'exigence qu'il durcit, il se lit comme une consigne.
+    const durci = promptPubEntiere({
+      copie, sceneBrief: 'x', avecProduit: true,
+      durcissements: ['Double-check every accent.'],
+    });
+    expect(durci).toContain('CRITICAL · Double-check every accent.');
+    expect(
+      durci.indexOf('CRITICAL'),
+      'le renfort arrive après les textes · il se lira comme une note, pas une consigne',
+    ).toBeLessThan(durci.indexOf(copie.headline));
+  });
 });

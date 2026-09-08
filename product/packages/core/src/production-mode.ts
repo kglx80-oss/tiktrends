@@ -155,6 +155,12 @@ export function promptPubEntiere(o: {
   direction?: AdDirection | null;
   /** Prompt maison · remplace la direction quand il est choisi. */
   universPrompt?: string;
+  /**
+   * Renforts ciblés sur les défauts que CETTE marque a mesurément (accents
+   * perdus, texte illisible). Vides le plus souvent · une marque neuve ne durcit
+   * rien. Décidés au noyau (`durcirEntiere`), sur la seule mesure, jamais d'instinct.
+   */
+  durcissements?: string[];
 }): string {
   const c = o.copie;
   const textes = [
@@ -178,6 +184,12 @@ export function promptPubEntiere(o: {
     ? `Art direction:\n${directionPrompt(o.direction)}`
     : o.universPrompt ? `Art direction: ${o.universPrompt}` : '';
 
+  // Les renforts vivent JUSTE APRÈS la règle de copie et AVANT les textes · un
+  // renfort noyé en fin de prompt se lit comme une note, placé sur l'exigence
+  // qu'il durcit il se lit comme une consigne. Chacun est nommé « CRITICAL » ·
+  // ils ne sont là que parce que la mesure a montré ce défaut installé ici.
+  const renforts = (o.durcissements ?? []).map((d) => `CRITICAL · ${d}`).join('\n');
+
   return [
     'Produce a COMPLETE, ready-to-publish 4:5 social media advertisement · not a bare photograph.',
     produit,
@@ -185,6 +197,7 @@ export function promptPubEntiere(o: {
     uni,
     'Render the advertising typography DIRECTLY INSIDE the image, integrated into the design.',
     'The copy below is FINAL · reproduce each string exactly, character for character, in FRENCH with all accents and apostrophes. Do not translate, rewrite, shorten or invent any wording.',
+    renforts,
     textes,
     'Typographic hierarchy: the headline dominates the frame, the rest supports it. Clean modern performance-marketing art direction, high contrast, generous margins, crisp legible type at every size.',
     'Do NOT add any text that is not listed above.',
