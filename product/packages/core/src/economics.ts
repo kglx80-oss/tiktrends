@@ -10,6 +10,7 @@
  */
 import type { CreditAction } from './credits';
 import { CREDIT_COSTS } from './credits';
+import type { ProductionMode } from './production-mode';
 
 /** Valeur de revente d'un crédit, en euros (référence : plan Core 99 € / 2000 crédits). */
 export const CREDIT_EUR = 0.05;
@@ -192,6 +193,31 @@ export function falModelFor(spec: ImageModelSpec, hasRef: boolean): string {
 
 export function imageModelByKey(key?: string | null): ImageModelSpec {
   return surcharge(IMAGE_MODELS.find((m) => m.key === key) || IMAGE_MODELS[0]!);
+}
+
+/** La clé du moteur « recommandé » par défaut du catalogue · celui qui porte le drapeau. */
+export const MOTEUR_RECOMMANDE_CATALOGUE = (IMAGE_MODELS.find((m) => m.recommended) ?? IMAGE_MODELS[0]!).key;
+
+/**
+ * Le moteur recommandé par défaut, selon le MODE de fabrication.
+ *
+ * ── Pourquoi le meilleur moteur dépend du mode ───────────────────────────────
+ *
+ * En COMPOSÉE, c'est nous qui écrivons le texte · le moteur n'a qu'à garder le
+ * produit fidèle. Nano Banana gagne là (« fidélité produit »).
+ *
+ * En ENTIÈRE, c'est le MOTEUR qui écrit la typographie dans l'image · GPT Image 2
+ * gagne là (« texte net & respect strict du brief »), et un lot de contrôle sur
+ * un vrai produit l'a confirmé côte à côte.
+ *
+ * Le catalogue ne porte qu'un seul drapeau `recommended`, aveugle au mode · il
+ * proposait donc Nano Banana par défaut y compris en entière, là où il est le
+ * mauvais choix. Cette fonction rend le défaut CONSCIENT du mode. La mesure par
+ * marque garde la priorité par-dessus quand elle tranche · c'est un défaut
+ * éditorial, pas une conclusion figée.
+ */
+export function moteurRecommande(mode: ProductionMode): string {
+  return mode === 'entiere' ? 'gpt2' : MOTEUR_RECOMMANDE_CATALOGUE;
 }
 
 export interface CostAnalysis extends CostItem {

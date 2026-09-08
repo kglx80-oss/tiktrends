@@ -36,10 +36,24 @@ describe('le lot d’essai tient son contrat', () => {
 
   it('facture les images produites, pas les publicités composées', () => {
     // Un essai compose quatre publicités sur une seule image · compter les
-    // publicités ferait payer trois images jamais demandées.
+    // publicités ferait payer trois images jamais demandées. Et une pub
+    // rattrapée a coûté deux images · le compteur `imagesFal` tient les deux
+    // cas, là où compter les publicités livrées les perdrait tous les deux.
     expect(SRC, 'le prix d’un essai ne passe plus par sa règle').toMatch(/prixEssai\(essaiVariable, count, modelSpec\.credits\)/);
     const bloc = SRC.slice(SRC.indexOf('Remboursement · images non produites') - 900);
-    expect(bloc, 'le remboursement compte encore les publicités').toMatch(/imagesProduites/);
+    expect(bloc, 'le remboursement ne compte plus les images réellement produites').toMatch(/creditsPerImage \* facturables/);
+    expect(bloc, 'le remboursement facture les publicités composées, pas les images').not.toMatch(/creditsPerImage \* ads\.length/);
+  });
+
+  it('réserve la marge de reprise en entière · le prix est annoncé, jamais découvert', () => {
+    // Une pub entière cassée est reprise une fois · cette image de plus doit
+    // être RÉSERVÉE avant le clic, sinon on dépenserait un dollar sans l'avoir
+    // dit. La marge n'existe qu'en entière hors essai, et le non-utilisé est
+    // remboursé par le compteur d'images réel.
+    expect(SRC, 'la réservation n’inclut plus la marge de reprise').toMatch(/imagesAReserver\(count, reprisesBudget > 0\)/);
+    expect(SRC, 'la reprise n’est plus bornée à l’entière hors essai')
+      .toMatch(/reprisesBudget = mode === 'entiere' && !essaiVariable \? budgetReprises\(count\) : 0/);
+    expect(SRC, 'la reprise ne passe plus par la règle du noyau').toMatch(/indicesARattraper\(constats, o\.reprisesBudget/);
   });
 
   it('ne produit qu’une scène quand la scène est tenue', () => {

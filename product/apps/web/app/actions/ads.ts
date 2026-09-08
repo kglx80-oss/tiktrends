@@ -8,14 +8,14 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import { renderAdPng, type AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate, logFailure } from '../../lib/error-log';
 import { mesurerScene } from '../../lib/scene-light';
-import { essaisViewAction } from './adsmap-attribution';
+import { essaisViewAction, bilanCopieAction } from './adsmap-attribution';
 import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
@@ -31,7 +31,7 @@ export interface AdItem {
    * n'est pas une mesure, c'est une archive. La grille doit dire, d'un coup
    * d'œil, laquelle de ces publicités dit encore ce qu'on voulait.
    */
-  controle?: { copieResume: string; copieGrave: boolean; produitFidele: boolean | null; ecarts: string[] } | null;
+  controle?: { copieResume: string; copieGrave: boolean; produitFidele: boolean | null; ecarts: string[]; texteLisible: boolean | null; problemesLisibilite: string[] } | null;
   /** Pourquoi Jarvis a proposé ça · une proposition muette se subit ou s'ignore. */
   rationale?: string[] | null;
   /**
@@ -147,6 +147,26 @@ function adUrl(id: string, recipe: Partial<AdRecipe>): string {
   return `/api/ad/${id}?v=${adVersion(recipe)}`;
 }
 
+/**
+ * Le constat de relecture, tiré de la recette · une SEULE fonction le façonne.
+ *
+ * La carte le lit à deux moments · dès la génération, et au rechargement de la
+ * liste. Deux mises en forme séparées finiraient par diverger, et une même pub
+ * montrerait un défaut ici, rien là. `null` quand elle n'a pas été relue · mode
+ * composé, ou relecteur absent · et alors la carte n'affiche rien, ce qui est
+ * la bonne réponse : il n'y a eu aucune mesure.
+ */
+function controleDepuisRecette(rec: Partial<AdRecipe>): AdItem['controle'] {
+  return rec.copieConforme || typeof rec.produitFidele === 'boolean' || typeof rec.texteLisible === 'boolean' ? {
+    copieResume: rec.copieConforme?.resume ?? '',
+    copieGrave: !!rec.copieConforme?.grave,
+    produitFidele: rec.produitFidele ?? null,
+    ecarts: rec.ecartsProduit ?? [],
+    texteLisible: rec.texteLisible ?? null,
+    problemesLisibilite: rec.problemesLisibilite ?? [],
+  } : null;
+}
+
 /** Compose une série : scènes (univers variés) + enregistrement + débit. Mutualisé par génération et clone. */
 async function composeBatch(o: {
   cfg: FalConfig; brandId: string; brandName: string; colors?: string[] | null; logoUrl?: string | null;
@@ -192,6 +212,22 @@ async function composeBatch(o: {
   cloneRefUrl?: string; // référence à répliquer visuellement (mode clone)
   workspaceId: string; unlimited: boolean;
   reservedCredits: number; // deja debite par l'appelant : on rembourse ce qui n'a pas ete produit
+  /**
+   * Combien d'images de reprise ce lot s'autorise · 0 hors mode entière.
+   *
+   * Le budget est réservé ET annoncé par l'appelant avant le clic · ici on ne
+   * fait que le consommer, pub cassée par pub cassée, sans jamais le dépasser.
+   */
+  reprisesBudget?: number;
+  /**
+   * Le vivier de directions de la rotation · en entière, biaisé par la mesure.
+   *
+   * Absent, la rotation tourne sur toutes les directions (comportement d'avant).
+   * Fourni, il exclut les directions mesurées pires et met la meilleure en tête.
+   */
+  directionsVivier?: AdDirection[];
+  /** La meilleure direction est ancrée en tête · la rotation part d'elle. */
+  directionAncree?: boolean;
   /** Le moteur choisi, entier · l'endpoint et les paramètres s'en déduisent. */
   modelSpec: ImageModelSpec; creditsPerImage: number;
   productId?: string; personaId?: string; objective?: string;
@@ -235,7 +271,14 @@ async function composeBatch(o: {
   // les essais d'ambiance déjà cumulés continuent donc de compter. Les six
   // nouvelles s'ajoutent au vivier de la rotation.
   const chosen = o.universe && o.universe !== 'auto' ? directionByKey(o.universe) : null;
-  const offset = Math.floor(Date.now() / 1000) % AD_DIRECTIONS.length;
+  // La rotation tourne sur un VIVIER · en entière, il exclut les directions que
+  // la relecture a mesurées nettement pires et met la meilleure en tête (calculé
+  // par l'appelant). Sans mesure qui tranche, c'est AD_DIRECTIONS entier · la
+  // rotation d'avant, exactement.
+  const rotation = o.directionsVivier && o.directionsVivier.length ? o.directionsVivier : AD_DIRECTIONS;
+  // La meilleure direction est ANCRÉE en tête (offset 0) · sinon on garde la
+  // variété d'un décalage horaire sur ce qui reste.
+  const offset = o.directionAncree ? 0 : Math.floor(Date.now() / 1000) % rotation.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction
   // artistique de la marque, elle ne se fait pas alterner avec la nôtre.
   /**
@@ -249,10 +292,10 @@ async function composeBatch(o: {
    * pouvait pas se tenir, quel que soit le nombre de séries lancées.
    */
   const universeUsed = (i: number) =>
-    chosen ? chosen.key : AD_DIRECTIONS[(offset + i) % AD_DIRECTIONS.length]!.key;
+    chosen ? chosen.key : rotation[(offset + i) % rotation.length]!.key;
 
   /** La direction retenue pour ce visuel · un prompt maison la remplace. */
-  const directionPour = (i: number) => chosen ?? AD_DIRECTIONS[(offset + i) % AD_DIRECTIONS.length]!;
+  const directionPour = (i: number) => chosen ?? rotation[(offset + i) % rotation.length]!;
   // En mode composé, on ne demande NI typographie NI disposition · c'est nous
   // qui posons le texte. Lui demander un registre typographique lui ferait
   // écrire des mots qu'on recouvrirait.
@@ -364,6 +407,12 @@ async function composeBatch(o: {
   }
   const scenes: (string | null)[] = slots.map((slot) => parSlot.get(slot) ?? null);
 
+  // Combien d'IMAGES le fournisseur a réellement produites · c'est ce qu'on
+  // facture, et ce dont on rembourse le reste. Un lot d'essai partage une scène,
+  // donc `aProduire` dédoublonne déjà les slots. Le rattrapage l'incrémentera au
+  // fil des reprises · une reprise est une image de plus, payée comme telle.
+  let imagesFal = aProduire.filter((slot) => parSlot.get(slot)).length;
+
   // On regarde les scènes AVANT de les composer.
   //
   // Le voile qui porte le texte était une constante · sur une image déjà sombre
@@ -398,10 +447,27 @@ async function composeBatch(o: {
    * Un contrôle qui échoue ne fait jamais échouer le lot · une publicité
    * produite mais non relue reste une publicité produite.
    */
-  const controles = new Map<number, { copie: VerdictCopie; produitFidele: boolean | null; ecartsProduit: string[] }>();
+  const controles = new Map<number, { copie: VerdictCopie; produitFidele: boolean | null; ecartsProduit: string[]; texteLisible: boolean | null; problemesLisibilite: string[] }>();
   if (o.mode === 'entiere') {
     const relecteur = guardedAnthropic({ action: 'ads:controle', workspaceId: o.workspaceId });
     const ref = await imageJointe(o.productImageUrls?.[0]);
+    /** Relire UNE scène · le constat, ou null si on n'a pas pu regarder. */
+    const relireScene = async (url: string, c: AdConcept) => {
+      const img = await imageJointe(url);
+      if (!img || !relecteur) return null;
+      const vu = await controlePubEntiere(relecteur, { image: img, reference: ref });
+      if (!vu) return null;
+      return {
+        copie: verifieCopie(chainesImposees({
+          kicker: c.kicker, headline: c.headline, subhead: c.subhead,
+          benefits: c.benefits, cta: c.cta, badge: c.badge,
+        }), vu.texteLu),
+        produitFidele: vu.produitFidele,
+        ecartsProduit: vu.ecartsProduit,
+        texteLisible: vu.texteLisible,
+        problemesLisibilite: vu.problemesLisibilite,
+      };
+    };
     if (relecteur) {
       const aRelire = scenes.map((url, i) => ({ url, i })).filter((x): x is { url: string; i: number } => !!x.url);
       for (let d = 0; d < aRelire.length; d += 3) {
@@ -409,22 +475,60 @@ async function composeBatch(o: {
           const c = o.concepts[i];
           if (!c) return;
           try {
-            const img = await imageJointe(url);
-            if (!img) return;
-            const vu = await controlePubEntiere(relecteur, { image: img, reference: ref });
-            if (!vu) return;
-            controles.set(i, {
-              copie: verifieCopie(chainesImposees({
-                kicker: c.kicker, headline: c.headline, subhead: c.subhead,
-                benefits: c.benefits, cta: c.cta, badge: c.badge,
-              }), vu.texteLu),
-              produitFidele: vu.produitFidele,
-              ecartsProduit: vu.ecartsProduit,
-            });
+            const vu = await relireScene(url, c);
+            if (vu) controles.set(i, vu);
           } catch (e) {
             logFailure('ads:controle', e, o.workspaceId);
           }
         }));
+      }
+
+      /*
+       * ── On rattrape ce que la relecture vient de juger cassé ─────────────────
+       *
+       * Détecter sans agir laissait livrer du connu-cassé · l'accroche réécrite
+       * ou le produit inventé partaient dans la grille, et c'était à l'œil de les
+       * repérer. Ici, une pub cassée est régénérée UNE fois, dans le budget
+       * réservé et annoncé d'avance · aucune dépense qui n'ait été dite avant le
+       * clic. La règle (qui reprendre, combien, garder la meilleure) vit dans le
+       * noyau, où un test l'exerce.
+       *
+       * Pas sur un essai · il partage une seule scène entre N publicités, et
+       * reprendre l'une romprait la comparaison qu'il promet.
+       *
+       * Chaque reprise passe par `genScene`, donc par le plafond de dépense · s'il
+       * est atteint, la reprise ne part pas et on garde l'original. Une reprise
+       * plus mauvaise est rejetée · on ne remplace que sur un progrès strict.
+       */
+      if (!o.essai && (o.reprisesBudget ?? 0) > 0) {
+        const constats = o.concepts.map((_, i) => {
+          const ctl = controles.get(i);
+          return ctl ? { accrocheReecrite: ctl.copie.grave, produitFidele: ctl.produitFidele, texteLisible: ctl.texteLisible } : null;
+        });
+        for (const i of indicesARattraper(constats, o.reprisesBudget ?? 0)) {
+          const c = o.concepts[i];
+          const original = controles.get(i);
+          if (!c || !original) continue;
+          try {
+            const nouvelleUrl = await genScene(c, i);
+            if (!nouvelleUrl) continue; // plafond atteint ou échec · on garde l'original
+            imagesFal++;
+            const [nouvelleLum, nouveauControle] = await Promise.all([
+              mesurerScene(nouvelleUrl),
+              relireScene(nouvelleUrl, c),
+            ]);
+            if (nouveauControle && reprisePreferable(
+              { accrocheReecrite: original.copie.grave, produitFidele: original.produitFidele, texteLisible: original.texteLisible },
+              { accrocheReecrite: nouveauControle.copie.grave, produitFidele: nouveauControle.produitFidele, texteLisible: nouveauControle.texteLisible },
+            )) {
+              scenes[i] = nouvelleUrl;
+              lumieres[i] = nouvelleLum;
+              controles.set(i, nouveauControle);
+            }
+          } catch (e) {
+            logFailure('ads:rattrapage', e, o.workspaceId);
+          }
+        }
       }
     }
   }
@@ -472,6 +576,8 @@ async function composeBatch(o: {
         copieConforme: controles.get(i)!.copie,
         produitFidele: controles.get(i)!.produitFidele,
         ecartsProduit: controles.get(i)!.ecartsProduit,
+        texteLisible: controles.get(i)!.texteLisible,
+        problemesLisibilite: controles.get(i)!.problemesLisibilite,
       } : {}),
       // Le brief de la scène · consigné pour pouvoir en produire une AUTRE du
       // même concept sans redemander au modèle ce qu'il a déjà écrit.
@@ -523,20 +629,25 @@ async function composeBatch(o: {
         brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim() });
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(),
+        // La relecture est faite · la poser ICI la rend visible dès la
+        // génération, et donne au débrief du lot la matière à additionner.
+        // Sans ça, la carte restait muette jusqu'à un rechargement, et le lot
+        // ne pouvait pas se lire d'un coup à l'instant où on le regarde.
+        controle: controleDepuisRecette(recipe) });
     } catch { /* ignore */ }
   }
 
   // Les crédits ont été réservés en bloc avant la génération (débit atomique) : on
   // ne facture au final que les visuels réellement produits et on rend le reste.
   if (!o.unlimited) {
-    // On facture les IMAGES produites, pas les publicités composées · un lot
-    // d'essai compose quatre publicités sur une seule image, et compter les
-    // publicités ferait payer trois images qui n'ont jamais été demandées.
-    const imagesProduites = new Set(
-      ads.length ? slots.filter((_, i) => scenes[i]).map((slot) => slot) : [],
-    ).size;
-    const unused = o.reservedCredits - o.creditsPerImage * imagesProduites;
+    // On facture les IMAGES réellement produites, pas les publicités composées ·
+    // un lot d'essai compose quatre publicités sur une seule image, et une pub
+    // rattrapée a coûté deux images. `imagesFal` compte les deux cas justes ·
+    // le reste de ce qui a été réservé (dont la marge de reprise non utilisée)
+    // est rendu. Rien n'est produit → on rembourse tout, comme avant.
+    const facturables = ads.length ? imagesFal : 0;
+    const unused = o.reservedCredits - o.creditsPerImage * facturables;
     if (unused > 0) await refundCredits(o.workspaceId, unused, 'Remboursement · images non produites');
   }
   return ads;
@@ -701,11 +812,17 @@ export async function generateAdsAction(input: {
   // qui les applique. Une seule décision, deux étapes servies.
   const impose = isAdLayout(input.layout) ? input.layout : null;
   const modelSpec = imageModelByKey(input.model);
+  // Le rattrapage ne vaut que pour le mode entière hors essai · c'est le seul où
+  // une pub est relue puis peut être régénérée seule. Un essai partage sa scène,
+  // le mode composé écrit ses propres textes.
+  const reprisesBudget = mode === 'entiere' && !essaiVariable ? budgetReprises(count) : 0;
   // Le prix suit les IMAGES produites, pas les publicités composées · un essai
-  // d'accroches ou de mises en page en produit UNE pour quatre publicités.
+  // d'accroches ou de mises en page en produit UNE pour quatre publicités. En
+  // entière, on réserve EN PLUS la marge de reprise · elle est ainsi annoncée
+  // avant le clic, et le non-utilisé est remboursé par composeBatch.
   const cost = essaiVariable
     ? prixEssai(essaiVariable, count, modelSpec.credits)
-    : modelSpec.credits * count;
+    : modelSpec.credits * imagesAReserver(count, reprisesBudget > 0);
   const unlimited = unlimitedCredits(s.user.email);
   // Débit atomique en bloc avant la génération ; composeBatch rembourse les visuels
   // qui n'ont pas abouti. Vérifier puis débiter en deux temps laissait deux lots
@@ -842,6 +959,30 @@ export async function generateAdsAction(input: {
     ? Array.from({ length: count }, () => concepts[0]!)
     : concepts;
 
+  // La rotation des directions, biaisée par la mesure · uniquement en entière
+  // (le seul mode qui a un verdict par direction), sur une direction auto (pas
+  // imposée, pas un preset maison), hors essai. Lecture au mieux, jamais
+  // bloquante · un bilan illisible retombe sur la rotation égale d'avant.
+  let directionsVivier: AdDirection[] | undefined;
+  let directionAncree = false;
+  if (mode === 'entiere' && !essaiVariable && !presetChoisi && (!input.universe || input.universe === 'auto')) {
+    const bilan = (await bilanCopieAction().catch(() => ({ bilan: undefined }))).bilan;
+    const dirDim = bilan?.dimensions.find((d) => d.dimension === 'direction');
+    if (dirDim) {
+      const { ecartees, favori } = directionsBiais(dirDim.lignes);
+      if (ecartees.length || favori) {
+        const restants = AD_DIRECTIONS.filter((d) => !ecartees.includes(d.key));
+        // Toujours au moins deux directions · une rotation à une seule n'en est
+        // plus une, et une mesure qui condamnerait tout sauf une est plus
+        // probablement du bruit qu'une vérité.
+        const base = restants.length >= 2 ? restants : AD_DIRECTIONS;
+        const fav = favori ? base.find((d) => d.key === favori) : null;
+        directionsVivier = fav ? [fav, ...base.filter((d) => d.key !== fav.key)] : base;
+        directionAncree = !!fav;
+      }
+    }
+  }
+
   const echec: { dernier?: unknown } = {};
   // Typé explicitement · `essaiRompu` est rempli PAR `composeBatch`, et une
   // inférence à partir de l'objet littéral le laisserait absent du type.
@@ -858,6 +999,8 @@ export async function generateAdsAction(input: {
     cadragePolyvalent: essaiVariable === 'mise_en_page',
     essai: essaiVariable ? { variable: essaiVariable, groupe: crypto.randomUUID() } : null,
     mode,
+    reprisesBudget,
+    directionsVivier, directionAncree,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,
@@ -1083,12 +1226,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
         parentId: rec.parentId ?? null, variable: rec.variable ?? null,
         essai: rec.essai?.variable ?? null,
         sceneBrief: !!rec.sceneBrief?.trim(),
-        controle: rec.copieConforme || typeof rec.produitFidele === 'boolean' ? {
-          copieResume: rec.copieConforme?.resume ?? '',
-          copieGrave: !!rec.copieConforme?.grave,
-          produitFidele: rec.produitFidele ?? null,
-          ecarts: rec.ecartsProduit ?? [],
-        } : null,
+        controle: controleDepuisRecette(rec),
       };
     });
 }
@@ -1149,11 +1287,11 @@ export async function universeSamplesAction(): Promise<Record<string, string>> {
       // Un raté de fabrication, ou une accroche que le modèle a réécrite · dans
       // les deux cas la créa ne représente pas sa direction, elle représente
       // une génération manquée.
-      // Trois façons de ne pas représenter sa direction · un raté de
-      // fabrication, une accroche réécrite, un produit qui n'est plus le nôtre.
-      // Le dernier est le critère éliminatoire n° 1 du mode entière : une
-      // publicité au packaging inventé est inutilisable, si belle soit-elle.
-      grave: vd.grave || !!rec.copieConforme?.grave || rec.produitFidele === false,
+      // Quatre façons de ne pas représenter sa direction · un raté de
+      // fabrication, une accroche réécrite, un produit qui n'est plus le nôtre,
+      // un texte illisible. Une pub au packaging inventé ou au texte brouillé est
+      // inutilisable, si belle soit-elle · elle ne vend pas sa direction.
+      grave: vd.grave || !!rec.copieConforme?.grave || rec.produitFidele === false || rec.texteLisible === false,
       rang: rows.length - i,
       rec,
     };

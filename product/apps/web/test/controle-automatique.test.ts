@@ -78,10 +78,11 @@ describe('elle reste bon marché', () => {
     // au lieu du code.
     //
     // On regarde donc ce que l'outil DÉCLARE · c'est ça, le contrat avec le
-    // modèle. Trois champs, tous des constats.
+    // modèle. Cinq champs, tous des constats · ce qui est écrit, ce qui diffère
+    // du produit, et si le texte publicitaire se lit. Aucune note, aucun verdict.
     const schema = CONTROLE.slice(CONTROLE.indexOf('input_schema:'), CONTROLE.indexOf('required:'));
     const champs = [...schema.matchAll(/^ {6}(\w+): \{$/gm)].map((m) => m[1]);
-    expect(champs.sort()).toEqual(['ecartsProduit', 'produitFidele', 'texteLu']);
+    expect(champs.sort()).toEqual(['ecartsProduit', 'problemesLisibilite', 'produitFidele', 'texteLisible', 'texteLu']);
   });
 
   it('le coût est annoncé avant de lancer', () => {

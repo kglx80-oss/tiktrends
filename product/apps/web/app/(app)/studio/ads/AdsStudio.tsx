@@ -5,13 +5,14 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, moteurRecommande, type DebriefLot, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { Composer } from '../../../../components/Composer';
 import { AssistantPub } from './AssistantPub';
+import { DebriefLotPanel } from './DebriefLotPanel';
 import { UniversePicker } from '../../../../components/UniversePicker';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
@@ -121,6 +122,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [fabrication, setFabrication] = useState<ProductionMode>('entiere');
   /** Ce que le dernier lot a appliqué de ce qui avait été mesuré. */
   const [applique, setApplique] = useState('');
+  // Le débrief du dernier lot entière · additionne les relectures des pubs qui
+  // viennent d'arriver. `null` dès qu'aucune n'a été relue (lot composé), et
+  // alors rien ne s'affiche.
+  const [debrief, setDebrief] = useState<DebriefLot | null>(null);
   const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
@@ -160,7 +165,13 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [varyBusy, setVaryBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [model, setModel] = useState('nano');
+  // Le défaut suit ce qu'on a MESURÉ chez la marque quand l'intervalle tranche ·
+  // sinon le recommandé SELON LE MODE (GPT Image 2 en entière, où le moteur écrit
+  // le texte ; Nano Banana en composée, où on l'écrit nous). Un seul drapeau
+  // aveugle au mode proposait Nano partout, dont en entière où un lot de contrôle
+  // l'a montré le mauvais choix. Le changement n'est pas silencieux · l'écran du
+  // volume dit ce qui est retenu, et lequel.
+  const [model, setModel] = useState(conseilMoteurs.recommande ?? moteurRecommande(fabrication));
   const modelSpec = imageModelByKey(model);
   /**
    * Combien de publicités un essai produira RÉELLEMENT.
@@ -383,6 +394,20 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     // Ce que le lot a APPLIQUÉ de ce qui avait été mesuré · un lot qui n'est
     // plus une rotation égale sans rien dire se lit comme un hasard bizarre.
     if (res.appliquee) setApplique(res.appliquee);
+    // Le débrief du lot · additionne les relectures des SEULES pubs qui
+    // viennent d'arriver, pas de toute la grille. La règle (compter, ne pas
+    // conclure) vit dans le noyau · ici on ne fait que lui passer la matière et
+    // afficher sa phrase. `debriefLot` rend `null` si aucune n'a été relue, ce
+    // qui efface aussi le débrief du lot précédent.
+    setDebrief(debriefLot((res.ads ?? [])
+      .map((a) => a.controle)
+      .filter((c): c is NonNullable<AdItem['controle']> => !!c)
+      .map((c) => ({
+        accrocheReecrite: c.copieGrave,
+        copieMineure: !c.copieGrave && c.copieResume.trim() !== '',
+        produitFidele: c.produitFidele,
+        texteLisible: c.texteLisible,
+      }))));
     return out;
   }
 
@@ -626,7 +651,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             },
             {
               key: 'modele', title: 'Moteur d’image', icon: '✦',
-              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${m.recommended ? ' · recommandé' : ''}` })),
+              // Le moteur mesuré le meilleur chez la marque est marqué comme tel ·
+              // c'est lui qui est retenu par défaut quand la mesure tranche.
+              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${conseilMoteurs.recommande === m.key ? ' · mesuré le meilleur ici' : moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}` })),
               value: model, onChange: setModel,
             },
           ]}
@@ -646,7 +673,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           }
           cost={{
             credits: modelSpec.credits * count,
-            note: `${modelSpec.label} · ${modelSpec.credits} crédits par pub · ${modelSpec.note}`,
+            // En entière, la reprise des pubs cassées se réserve · on l'annonce
+            // ici, avant le clic, plafond et remboursement compris.
+            note: `${modelSpec.label} · ${modelSpec.credits} crédits par pub · ${modelSpec.note}`
+              + (fabrication === 'entiere' && !essai && budgetReprises(count) > 0
+                ? ` · reprise des pubs cassées jusqu’à +${modelSpec.credits * budgetReprises(count)} cr., remboursés si inutilisés`
+                : ''),
           }}
           onGenerate={run}
           // Ce qui manque, dit SOUS le bouton et avant le clic.
@@ -937,6 +969,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Tes pubs {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{ads.length}</span>
       </div>
+      {/* Le lot entière, lu d'un coup · les trois questions qui décident si le
+          mode est viable, additionnées sur les pubs qui viennent d'arriver.
+          Rien tant qu'aucune n'a été relue. */}
+      <DebriefLotPanel d={debrief} />
       {ads.length === 0 ? (
         <Empty
           tone="wait" title="Aucune pub pour l’instant."
@@ -1256,7 +1292,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               </label>
               <label style={{ fontSize: 12, color: 'var(--muted)' }}>Modèle&nbsp;
                 <select value={model} onChange={(e) => setModel(e.target.value)} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
-                  {IMAGE_MODELS.map((m) => <option key={m.key} value={m.key}>{m.label} · {m.credits} cr/variante{m.recommended ? ' · recommandé' : ''}</option>)}
+                  {IMAGE_MODELS.map((m) => <option key={m.key} value={m.key}>{m.label} · {m.credits} cr/variante{moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}</option>)}
                 </select>
               </label>
               <span style={{ flex: 1 }} />
@@ -1299,14 +1335,18 @@ function ScoreBadge({ score }: { score: number }) {
 function ControleBadge({ c }: { c: AdItem['controle'] }) {
   if (!c) return null;
   const produitKo = c.produitFidele === false;
-  if (!produitKo && !c.copieResume) return null;
-  const rouge = produitKo || c.copieGrave;
+  const texteKo = c.texteLisible === false;
+  if (!produitKo && !texteKo && !c.copieResume) return null;
+  // Rouge pour l'éliminatoire · accroche réécrite, produit inventé, texte
+  // illisible. Ambre pour un écart mineur de copie qui se corrige.
+  const rouge = produitKo || texteKo || c.copieGrave;
   return (
     <span style={{
       display: 'block', marginTop: 4, fontSize: 10.5, lineHeight: 1.35,
       color: rouge ? '#ff9db0' : '#ffca6b',
     }}>
       {produitKo && <>⚠ produit modifié{c.ecarts.length ? ` · ${c.ecarts[0]}` : ''}<br /></>}
+      {texteKo && <>⚠ texte illisible{c.problemesLisibilite.length ? ` · ${c.problemesLisibilite[0]}` : ''}<br /></>}
       {c.copieResume && <>✎ {c.copieResume}</>}
     </span>
   );
