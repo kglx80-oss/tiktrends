@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bilanCopie, MIN_RELECTURES, type RelectureLue,
+  bilanCopie, directionsBiais, MIN_RELECTURES, type RelectureLue, type LigneCopie,
 } from '../src/adsmap/bilan-copie';
+
+const ligneCopie = (cle: string, verdict: LigneCopie['verdict'], taux = 0): LigneCopie => ({
+  cle, n: 10, reecrites: Math.round(taux * 10), tauxReecriture: taux,
+  intervalReecriture: { lo: 0, hi: 0 }, avecReference: 0, produitsModifies: 0,
+  tauxProduit: null, intervalProduit: null, verdict,
+});
 
 /**
  * Le cumul des relectures.
@@ -134,6 +140,34 @@ describe('on compare à la moyenne, pas à zéro', () => {
     ]);
     const moteurs = b.dimensions.find((d) => d.dimension === 'moteur')!;
     expect(moteurs.lignes.find((l) => l.cle === 'b')?.verdict).toBe('pire');
+  });
+});
+
+describe('biaiser la rotation des directions', () => {
+  it('écarte les pires, ancre la meilleure', () => {
+    const b = directionsBiais([
+      ligneCopie('sombre', 'pire', 0.5),
+      ligneCopie('editorial', 'meilleur', 0.05),
+      ligneCopie('pop', null, 0.2),
+    ]);
+    expect(b.ecartees).toEqual(['sombre']);
+    expect(b.favori).toBe('editorial');
+  });
+
+  it('à plusieurs meilleures, prend la plus fidèle (moins de réécritures)', () => {
+    const b = directionsBiais([
+      ligneCopie('a', 'meilleur', 0.12),
+      ligneCopie('b', 'meilleur', 0.03),
+    ]);
+    expect(b.favori).toBe('b');
+  });
+
+  it('sans verdict, rien ne bouge · la rotation reste égale', () => {
+    // Le silence est une conclusion · tant que la mesure n'a pas tranché, on ne
+    // biaise pas, et toutes les directions gardent leur tour.
+    const b = directionsBiais([ligneCopie('a', null), ligneCopie('b', null)]);
+    expect(b.ecartees).toEqual([]);
+    expect(b.favori).toBeNull();
   });
 });
 

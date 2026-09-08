@@ -8,14 +8,14 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import { renderAdPng, type AdRecipe } from '../../lib/ad-render';
 import { logAndTranslate, logFailure } from '../../lib/error-log';
 import { mesurerScene } from '../../lib/scene-light';
-import { essaisViewAction } from './adsmap-attribution';
+import { essaisViewAction, bilanCopieAction } from './adsmap-attribution';
 import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
@@ -219,6 +219,15 @@ async function composeBatch(o: {
    * fait que le consommer, pub cassée par pub cassée, sans jamais le dépasser.
    */
   reprisesBudget?: number;
+  /**
+   * Le vivier de directions de la rotation · en entière, biaisé par la mesure.
+   *
+   * Absent, la rotation tourne sur toutes les directions (comportement d'avant).
+   * Fourni, il exclut les directions mesurées pires et met la meilleure en tête.
+   */
+  directionsVivier?: AdDirection[];
+  /** La meilleure direction est ancrée en tête · la rotation part d'elle. */
+  directionAncree?: boolean;
   /** Le moteur choisi, entier · l'endpoint et les paramètres s'en déduisent. */
   modelSpec: ImageModelSpec; creditsPerImage: number;
   productId?: string; personaId?: string; objective?: string;
@@ -262,7 +271,14 @@ async function composeBatch(o: {
   // les essais d'ambiance déjà cumulés continuent donc de compter. Les six
   // nouvelles s'ajoutent au vivier de la rotation.
   const chosen = o.universe && o.universe !== 'auto' ? directionByKey(o.universe) : null;
-  const offset = Math.floor(Date.now() / 1000) % AD_DIRECTIONS.length;
+  // La rotation tourne sur un VIVIER · en entière, il exclut les directions que
+  // la relecture a mesurées nettement pires et met la meilleure en tête (calculé
+  // par l'appelant). Sans mesure qui tranche, c'est AD_DIRECTIONS entier · la
+  // rotation d'avant, exactement.
+  const rotation = o.directionsVivier && o.directionsVivier.length ? o.directionsVivier : AD_DIRECTIONS;
+  // La meilleure direction est ANCRÉE en tête (offset 0) · sinon on garde la
+  // variété d'un décalage horaire sur ce qui reste.
+  const offset = o.directionAncree ? 0 : Math.floor(Date.now() / 1000) % rotation.length;
   // Un prompt maison l'emporte sur les univers fournis · c'est la direction
   // artistique de la marque, elle ne se fait pas alterner avec la nôtre.
   /**
@@ -276,10 +292,10 @@ async function composeBatch(o: {
    * pouvait pas se tenir, quel que soit le nombre de séries lancées.
    */
   const universeUsed = (i: number) =>
-    chosen ? chosen.key : AD_DIRECTIONS[(offset + i) % AD_DIRECTIONS.length]!.key;
+    chosen ? chosen.key : rotation[(offset + i) % rotation.length]!.key;
 
   /** La direction retenue pour ce visuel · un prompt maison la remplace. */
-  const directionPour = (i: number) => chosen ?? AD_DIRECTIONS[(offset + i) % AD_DIRECTIONS.length]!;
+  const directionPour = (i: number) => chosen ?? rotation[(offset + i) % rotation.length]!;
   // En mode composé, on ne demande NI typographie NI disposition · c'est nous
   // qui posons le texte. Lui demander un registre typographique lui ferait
   // écrire des mots qu'on recouvrirait.
@@ -943,6 +959,30 @@ export async function generateAdsAction(input: {
     ? Array.from({ length: count }, () => concepts[0]!)
     : concepts;
 
+  // La rotation des directions, biaisée par la mesure · uniquement en entière
+  // (le seul mode qui a un verdict par direction), sur une direction auto (pas
+  // imposée, pas un preset maison), hors essai. Lecture au mieux, jamais
+  // bloquante · un bilan illisible retombe sur la rotation égale d'avant.
+  let directionsVivier: AdDirection[] | undefined;
+  let directionAncree = false;
+  if (mode === 'entiere' && !essaiVariable && !presetChoisi && (!input.universe || input.universe === 'auto')) {
+    const bilan = (await bilanCopieAction().catch(() => ({ bilan: undefined }))).bilan;
+    const dirDim = bilan?.dimensions.find((d) => d.dimension === 'direction');
+    if (dirDim) {
+      const { ecartees, favori } = directionsBiais(dirDim.lignes);
+      if (ecartees.length || favori) {
+        const restants = AD_DIRECTIONS.filter((d) => !ecartees.includes(d.key));
+        // Toujours au moins deux directions · une rotation à une seule n'en est
+        // plus une, et une mesure qui condamnerait tout sauf une est plus
+        // probablement du bruit qu'une vérité.
+        const base = restants.length >= 2 ? restants : AD_DIRECTIONS;
+        const fav = favori ? base.find((d) => d.key === favori) : null;
+        directionsVivier = fav ? [fav, ...base.filter((d) => d.key !== fav.key)] : base;
+        directionAncree = !!fav;
+      }
+    }
+  }
+
   const echec: { dernier?: unknown } = {};
   // Typé explicitement · `essaiRompu` est rempli PAR `composeBatch`, et une
   // inférence à partir de l'objet littéral le laisserait absent du type.
@@ -960,6 +1000,7 @@ export async function generateAdsAction(input: {
     essai: essaiVariable ? { variable: essaiVariable, groupe: crypto.randomUUID() } : null,
     mode,
     reprisesBudget,
+    directionsVivier, directionAncree,
     preset: presetChoisi,
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,

@@ -179,6 +179,31 @@ function resumeDimension(dimension: DimensionCopie, lignes: readonly LigneCopie[
 }
 
 /**
+ * De quel côté biaiser la rotation des directions d'entière.
+ *
+ * ── Pourquoi ─────────────────────────────────────────────────────────────────
+ *
+ * En entière, la direction porte la typographie et la disposition · c'est un
+ * levier de qualité, et la rotation le tirait à l'horloge, aveugle à ce que la
+ * relecture a mesuré. Une direction que le modèle rend en réécrivant l'accroche
+ * ou en inventant le produit ne mérite pas d'être servie une fois sur quatorze
+ * comme les autres.
+ *
+ * On ne fait que LIRE les verdicts déjà calculés · `pire` sort du vivier,
+ * `meilleur` est ancrée en tête. La discipline (intervalle de Wilson, minimum
+ * d'effectif) est celle du bilan · une direction n'est écartée que quand la
+ * mesure a tranché, jamais sur un compte brut. Sans verdict, rien ne bouge · la
+ * rotation reste égale, et c'est la réponse la plus fréquente.
+ */
+export function directionsBiais(lignes: readonly LigneCopie[]): { ecartees: string[]; favori: string | null } {
+  const ecartees = lignes.filter((l) => l.verdict === 'pire').map((l) => l.cle);
+  const meilleures = lignes
+    .filter((l) => l.verdict === 'meilleur')
+    .sort((a, b) => a.tauxReecriture - b.tauxReecriture);
+  return { ecartees, favori: meilleures[0]?.cle ?? null };
+}
+
+/**
  * Ce que toutes les relectures disent ensemble.
  *
  * Le silence est une conclusion valable · sur vingt publicités, aucun moteur ne
