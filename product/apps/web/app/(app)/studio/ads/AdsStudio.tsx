@@ -175,7 +175,6 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
   const [varyBusy, setVaryBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
   // Le défaut suit ce qu'on a MESURÉ chez la marque quand l'intervalle tranche ·
   // sinon le recommandé SELON LE MODE (GPT Image 2 en entière, où le moteur écrit
   // le texte ; Nano Banana en composée, où on l'écrit nous). Un seul drapeau
@@ -295,20 +294,6 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       // On ouvre la déclinaison · sinon rien à l'écran ne dit qu'elle existe.
       setDetailIdx((idx) => (idx == null ? idx : idx + 1));
     }
-  }
-
-  /**
-   * Générer depuis le démarrage rapide.
-   *
-   * La fenêtre ne se referme QUE si le lot a donné quelque chose · elle se
-   * fermait avant que le travail ne commence, emportant le seul endroit où
-   * l'erreur et l'avancement s'affichaient. Le clic n'avait alors aucune suite
-   * visible, ce qui se lit comme une panne.
-   */
-  async function quickGenerate() {
-    if (!templates.length) { setError('Choisis au moins un gabarit.'); return; }
-    const out = await run('brand');
-    if (producedSomething(out)) { setMode('brand'); setQuickOpen(false); }
   }
 
   const selected = prods.find((p) => p.id === productId) || null;
@@ -536,7 +521,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               formulaire existe encore, et il n'a plus à être ouvert pour être
               trouvé. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={!ready} onClick={() => setQuickOpen(true)} style={{
+            <button type="button" disabled={!ready} onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
               padding: '14px 24px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
               background: 'var(--grad-accent)', color: '#0d070c', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
             }}>✨ Créer des pubs</button>
@@ -548,41 +533,31 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         </div>
       </div>
 
+      {/* Le mode expert · un seul repli, clairement secondaire.
+           Le chemin principal est l'assistant (« Créer des pubs » ci-dessus),
+           une décision par écran, moteur et mode réglés au mieux mesuré. Ici
+           vit ce que l'assistant ne fait pas · cloner une pub, charger une photo
+           produit, rappeler une scène, forcer objectif et persona. On ne déplie
+           que pour forcer un réglage. */}
       <div ref={composeur} style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', marginBottom: 28, scrollMarginTop: 16 }}>
-        {/* Le bandeau ouvre l'ASSISTANT · c'est le chemin demandé, une décision
-             par écran. Le composeur à plat n'est plus derrière ce clic : il a
-             son propre lien, à droite. Les avoir confondus a supprimé le seul
-             moyen de l'ouvrir, et je l'ai annoncé comme conservé. */}
-        <button type="button" onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
-          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '15px 22px',
+        <button type="button" onClick={() => setAvance((v) => !v)} style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '14px 22px',
           border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left',
         }}>
-          <span style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Composeur complet</span>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-2)' }}>Réglages avancés</span>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            · cloner une pub, photo produit, scènes enregistrées, angle détaillé
+            · cloner une pub, photo produit, scènes, objectif, persona
           </span>
-          {/* Replié, le mode clone deviendrait invisible · avec sa référence
-              chargée et son bouton de lancement. On le dit dans l'en-tête. */}
+          {/* Armé en clone mais replié, la référence chargée deviendrait
+              invisible · on le dit dans l'en-tête. */}
           {mode === 'clone' && (
             <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', padding: '2px 8px', borderRadius: 999, color: 'var(--accent-strong)', border: '1px solid var(--line-2)', whiteSpace: 'nowrap' }}>
               Clonage armé
             </span>
           )}
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 12.5, color: 'var(--accent-strong)', fontWeight: 700 }}>Étape par étape ›</span>
+          <span style={{ fontSize: 12.5, color: 'var(--muted)', fontWeight: 700 }}>{avance ? 'Replier' : 'Déplier ›'}</span>
         </button>
-
-        {/* Le composeur à plat · son propre lien, jamais confondu avec
-             l'assistant. Deux chemins vers la même génération : celui qui
-             guide, et celui qui va vite. */}
-        <div style={{ padding: '0 22px 14px', marginTop: -8 }}>
-          <button type="button" onClick={() => setAvance((v) => !v)} style={{
-            border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
-            fontSize: 12, color: 'var(--muted)', textDecoration: 'underline', textUnderlineOffset: 3,
-          }}>
-            {avance ? 'Replier le composeur à plat' : 'Ou ouvrir tous les réglages sur une seule barre'}
-          </button>
-        </div>
 
         <div hidden={!avance} style={{ padding: '0 22px 22px' }}>
         {!ready && (
@@ -1176,150 +1151,6 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   <button type="button" onClick={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }} style={{ ...toolBtn, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Archiver</button>
                 </>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal « Démarrage rapide · gabarits qui performent » (façon Atria) */}
-      {quickOpen && (
-        <div onMouseDown={() => { if (!busy) setQuickOpen(false); }} style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(6,4,8,.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px 16px', overflowY: 'auto' }}>
-          <div onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(880px, 96vw)', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '88vh' }}>
-            {/* En-tête */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '18px 22px', borderBottom: '1px solid var(--line)' }}>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>Démarrage rapide · gabarits qui performent</h3>
-                <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--ink-2)' }}>Choisis un ou plusieurs gabarits, règle marque &amp; produit, puis génère.</p>
-              </div>
-              <button type="button" onClick={() => setQuickOpen(false)} disabled={busy} aria-label="Fermer" style={{ opacity: busy ? .4 : 1, width: 32, height: 32, borderRadius: 9, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 17, cursor: 'pointer' }}>×</button>
-            </div>
-
-            {/* Grille de gabarits */}
-            <div style={{ padding: '16px 22px', overflowY: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
-                {TEMPLATES.map((t) => {
-                  const on = templates.includes(t.key);
-                  return (
-                    <button key={t.key} type="button" onClick={() => toggle(t.key)} style={{
-                      position: 'relative', textAlign: 'left', padding: '14px 14px', borderRadius: 14, cursor: 'pointer',
-                      border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
-                      background: on ? 'var(--accent-soft)' : 'var(--paper)',
-                    }}>
-                      <span style={{ position: 'absolute', top: 10, right: 10, width: 20, height: 20, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, background: on ? '#18cc8c' : 'transparent', color: on ? '#04140d' : 'transparent', border: on ? 'none' : '1.5px solid var(--line-2)' }}>{on ? '✓' : ''}</span>
-                      <div style={{ fontSize: 26 }}>{t.emoji}</div>
-                      <div style={{ marginTop: 8, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{t.label}</div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Références de la bibliothèque (influencent le style · façon "pick references" Atria) */}
-              {assets.length > 0 && (
-                <div style={{ marginTop: 18 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Références · style de marque <span style={{ color: 'var(--ink-2)' }}>({assetIds.length} sélectionnée{assetIds.length > 1 ? 's' : ''})</span></div>
-                  <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-                    {assets.slice(0, 24).map((a) => {
-                      const on = assetIds.includes(a.id);
-                      return (
-                        <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', padding: 0, borderRadius: 10, flexShrink: 0, cursor: 'pointer', background: 'transparent', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}` }}>
-                          { }
-                          <img src={vignette(a.url)} alt="" loading="lazy" decoding="async" style={{ width: 60, height: 76, objectFit: 'cover', borderRadius: 8, display: 'block', opacity: on ? 1 : 0.85 }} />
-                          {on && <span style={{ position: 'absolute', top: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: '#18cc8c', color: '#04140d', fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)' }}>Sinon, l'IA pioche automatiquement dans la bibliothèque de la marque.</p>
-                </div>
-              )}
-
-              {/* La description manquait · c'est pourtant le seul réglage qui
-                  DIRIGE la série, et le seul endroit où la mémoire répond. Sans
-                  elle, le démarrage rapide ne pouvait produire que du générique,
-                  et il fallait redescendre dans le composeur pour dire quoi que
-                  ce soit. */}
-              <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>
-                  Angle <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, color: 'var(--ink-2)' }}>· facultatif, les gabarits suffisent</span>
-                </div>
-                <textarea
-                  value={angle} onChange={(e) => { setAngle(e.target.value); setSceneId(''); }} rows={2}
-                  placeholder="Ex : Focus sans caféine ni crash, pour créateurs en surrégime"
-                  style={{ ...fld, padding: '10px 12px', resize: 'vertical', lineHeight: 1.5, minHeight: 56 }}
-                />
-                {preflight && (
-                  <p style={{
-                    margin: '8px 0 0', paddingLeft: 9, fontSize: 11.5, lineHeight: 1.5,
-                    color: preflight.tone === 'stop' ? '#ff9db0' : '#ffcf8f',
-                    borderLeft: `2px solid ${preflight.tone === 'stop' ? 'rgba(255,77,109,.55)' : 'rgba(245,166,35,.5)'}`,
-                  }}>{preflight.text}</p>
-                )}
-              </div>
-
-              {/* L'univers manquait ici · le démarrage rapide décidait donc de
-                  l'ambiance sans le dire, en gardant celle du formulaire du
-                  dessous. Un réglage silencieux est un réglage qu'on subit. */}
-              <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Univers visuel</div>
-                <UniversePicker value={universe} onChange={setUniverse} compact />
-              </div>
-
-              {/* Réglages avancés (Persona · Offre) */}
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18 }}>
-                <div style={{ flex: '1 1 200px' }}>
-                  <label style={lbl}>Persona <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· optionnel</span></label>
-                  <select value={personaId} onChange={(e) => setPersonaId(e.target.value)} style={{ ...fld, padding: '9px 10px' }}>
-                    <option value="">· Auto</option>
-                    {personas.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-                <div style={{ flex: '1 1 200px' }}>
-                  <label style={lbl}>Offre / promo <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· si gabarit Offre</span></label>
-                  <input value={offer} onChange={(e) => setOffer(e.target.value)} placeholder="Ex : -20%, 2+1 offert" style={{ ...fld, padding: '9px 10px' }} />
-                </div>
-              </div>
-
-              {/* L'avancement s'affiche ici, pas ailleurs · c'est le seul endroit
-                  que la personne regarde après avoir cliqué. */}
-              {busy && (
-                <p style={{ margin: '14px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-                  Écriture des concepts, génération des scènes et composition… (~20-40 s) · la fenêtre se ferme dès que les pubs arrivent.
-                </p>
-              )}
-              {notice && <div style={{ marginTop: 12, fontSize: 12.5, color: '#f5b043', lineHeight: 1.55 }}>{notice}</div>}
-              {error && <div style={{ marginTop: 12, fontSize: 12.5, color: '#ff9db0', lineHeight: 1.55 }}>{error}</div>}
-            </div>
-
-            {/* Barre d'action (marque · produit · objectif · variantes · générer) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '14px 22px', borderTop: '1px solid var(--line)', background: 'var(--paper)' }}>
-              <div style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>Marque <b style={{ color: 'var(--ink)' }}>{brandName || '—'}</b></div>
-              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Produit&nbsp;
-                <select value={productId} onChange={(e) => setProductId(e.target.value)} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
-                  <option value="">· Aucun</option>
-                  {prods.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </label>
-              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Objectif&nbsp;
-                <select value={objective} onChange={(e) => setObjective(e.target.value)} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
-                  {OBJECTIVES.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </label>
-              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Variantes&nbsp;
-                <select value={count} onChange={(e) => setCount(Number(e.target.value))} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
-                  {[1, 2, 3, 4, 5, 6, 8].map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </label>
-              <label style={{ fontSize: 12, color: 'var(--muted)' }}>Modèle&nbsp;
-                <select value={model} onChange={(e) => setModel(e.target.value)} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
-                  {IMAGE_MODELS.map((m) => <option key={m.key} value={m.key}>{m.label} · {m.credits} cr/variante{moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}</option>)}
-                </select>
-              </label>
-              <span style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{templates.length} gabarit{templates.length > 1 ? 's' : ''} · {modelSpec.credits * count} cr.</span>
-              <button type="button" onClick={quickGenerate} disabled={!ready || busy || !templates.length} style={{
-                padding: '12px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 14, cursor: ready && !busy && templates.length ? 'pointer' : 'default',
-                background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && !busy && templates.length ? 1 : .5,
-              }}>{busy ? 'Génération…' : `✨ Générer ${count} variante${count > 1 ? 's' : ''}`}</button>
             </div>
           </div>
         </div>
