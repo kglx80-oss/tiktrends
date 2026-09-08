@@ -300,7 +300,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           <input type="hidden" name="preferredWords" value={j(b.preferredWords)} />
           <input type="hidden" name="avoidWords" value={j(b.avoidWords)} />
           <h2 style={sectionH}>Concurrents <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{competitors.length}</span></h2>
-          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>On surveille ces marques pour que tu saches toujours où tu te situes. Tu pourras les suivre en direct depuis l'Inspo une fois les bibliothèques branchées.</p>
+          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>On surveille ces marques pour que tu saches toujours où tu te situes. Tu pourras les suivre en direct depuis la Veille une fois les bibliothèques branchées.</p>
           {competitors.length > 0 && (
             <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
               {competitors.map((c, i) => (

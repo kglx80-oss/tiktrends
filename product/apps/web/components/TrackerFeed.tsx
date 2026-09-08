@@ -39,7 +39,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
         </h2>
         <span style={{ flex: 1 }} />
         {unseen > 0 && <button type="button" onClick={markSeen} disabled={busy} style={ghostBtn}>Tout marquer vu</button>}
-        <button type="button" onClick={scan} disabled={busy || !followedCount} title={!followedCount ? 'Suis d\'abord des marques dans l\'Inspo' : undefined} style={{
+        <button type="button" onClick={scan} disabled={busy || !followedCount} title={!followedCount ? 'Suis d\'abord des marques dans la Veille' : undefined} style={{
           padding: '9px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy || !followedCount ? 'default' : 'pointer',
           background: 'var(--grad-accent)', color: '#0d070c', opacity: busy || !followedCount ? .6 : 1,
         }}>{busy ? 'Scan en cours…' : '🛰️ Scanner maintenant'}</button>

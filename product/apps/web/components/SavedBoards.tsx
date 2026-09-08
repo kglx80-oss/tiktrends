@@ -50,7 +50,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
   };
 
   if (!list.length) {
-    return <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucune créa sauvegardée. Va dans l'Inspo et clique ★ sur une annonce.</p>;
+    return <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucune créa sauvegardée. Va dans la Veille et clique ★ sur une annonce.</p>;
   }
 
   const tabBtn = (key: string): CSSProperties => ({
