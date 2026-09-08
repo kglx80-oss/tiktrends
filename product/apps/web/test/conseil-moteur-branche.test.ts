@@ -28,7 +28,10 @@ const PAGE = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/page.tsx'), 
 
 describe('le conseil traverse jusqu’à l’écran', () => {
   it('la page le calcule depuis le bilan', () => {
-    expect(PAGE).toMatch(/conseilMoteur\(\(await bilanCopieAction\(\)/);
+    // Le bilan est lu UNE fois puis partagé avec le conseil de mode · le moteur
+    // se calcule donc de la variable, pas d'un appel inline.
+    expect(PAGE).toMatch(/const bilanCopie = \(await bilanCopieAction\(\)/);
+    expect(PAGE).toMatch(/conseilMoteur\(bilanCopie\)/);
   });
 
   it('une lecture en échec laisse le catalogue décider', () => {

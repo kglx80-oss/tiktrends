@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, moteurRecommande, type DebriefLot, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, moteurRecommande, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -59,7 +59,7 @@ const TPL_LABEL: Record<AdTemplate, string> = {
   ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
 };
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
@@ -81,6 +81,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   budget?: { resume: string; bloque: boolean } | null;
   /** Ce que les relectures conseillent · vide tant qu'elles ne tranchent pas. */
   conseilMoteurs: ConseilMoteur;
+  /** Le mode par défaut que la mesure conseille · composée si l'entière échoue mesurément ici. */
+  conseilModes: ConseilMode;
 }) {
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const toggleAsset = (id: string) => setAssetIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
@@ -121,7 +123,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * l'étiquette, le français et la mise en page. La composée reste offerte, et
    * reste la seule à garantir les textes au caractère près.
    */
-  const [fabrication, setFabrication] = useState<ProductionMode>('entiere');
+  // Le défaut suit la mesure · composée quand l'entière échoue mesurément pour
+  // cette marque, sinon entière (le mode que le lot de contrôle a montré viable).
+  // Le mesuré fixe l'état INITIAL une fois · le clic reste seul à changer ensuite.
+  const [fabrication, setFabrication] = useState<ProductionMode>(conseilModes.defaut);
   /** Ce que le dernier lot a appliqué de ce qui avait été mesuré. */
   const [applique, setApplique] = useState('');
   // Le débrief du dernier lot entière · additionne les relectures des pubs qui
@@ -780,10 +785,18 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
                 border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
                 background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
-              }}>{PRODUCTION_LABEL[m]}</button>
+              }}>{PRODUCTION_LABEL[m]}{conseilModes.mesure && conseilModes.defaut === m ? ' · conseillé' : ''}</button>
             );
           })}
         </div>
+        {/* L'adoption du mode mesuré est ANNONCÉE, jamais silencieuse · un défaut
+            qui suit la mesure sans le dire se lit comme un bug. Montré tant que le
+            mode conseillé est en place · un clic vers l'autre mode l'efface. */}
+        {conseilModes.mesure && fabrication === conseilModes.defaut && (
+          <p style={{ margin: '0 0 10px', padding: '9px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 11.5, fontWeight: 600, color: '#ffca6b', lineHeight: 1.5 }}>
+            {conseilModes.motif}
+          </p>
+        )}
         <p style={{ margin: '0 0 16px', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
           {PRODUCTION_RESUME[fabrication]}<br />
           <b style={{ color: '#7ee8bf' }}>Garanti</b> · {garanties(fabrication).join(' · ')}.<br />

@@ -66,6 +66,7 @@ export * from './copie-conforme';
 export * from './rattrapage';
 export * from './durcir-entiere';
 export * from './temoin-qualite';
+export * from './conseil-mode';
 export * from './brief-veille';
 export * from './decouverte-marche';
 export * from './exemple-direction';
