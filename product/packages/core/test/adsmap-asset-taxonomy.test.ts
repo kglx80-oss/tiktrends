@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeHookType, normalizeOpeningType, normalizeTalent,
   normalizeHeadlinePosition, normalizeComposition, normalizeTextDensity, normalizeBackground,
+  normalizeTypoRegister, normalizePalette,
   normalizeAnalysis, summarizeAnalysis,
 } from '../src/adsmap/asset-taxonomy';
 
@@ -155,5 +156,41 @@ describe('summarizeAnalysis', () => {
     // « pas d'accroche » n'est pas une position à annoncer · c'est l'absence.
     const s = summarizeAnalysis(normalizeAnalysis({ composition: 'text_card', headlinePosition: 'none', confidence: 0.8 }));
     expect(s).not.toContain('accroche');
+  });
+});
+
+describe('la charte · typographie et palette', () => {
+  it('accepte les valeurs canoniques', () => {
+    expect(normalizeTypoRegister('serif')).toBe('serif');
+    expect(normalizePalette('duotone')).toBe('duotone');
+  });
+
+  it('ramène les synonymes réels des sorties d’IA', () => {
+    expect(normalizeTypoRegister('sans-serif')).toBe('sans');
+    expect(normalizeTypoRegister('handwritten')).toBe('script');
+    expect(normalizePalette('two tone')).toBe('duotone');
+    expect(normalizePalette('grayscale')).toBe('monochrome');
+    expect(normalizePalette('muted')).toBe('pastel');
+  });
+
+  it('rend null sur l’inconnu plutôt que de ranger d’office', () => {
+    // Une valeur par défaut fausserait les taux de charte en silence · c'est le
+    // garde qui tient toute la mesure qui suit.
+    expect(normalizeTypoRegister('gothique-médiéval')).toBeNull();
+    expect(normalizePalette('arc-en-ciel-fluo')).toBeNull();
+    expect(normalizeTypoRegister(null)).toBeNull();
+  });
+
+  it('la charte entre dans le résumé', () => {
+    const s = summarizeAnalysis(normalizeAnalysis({ typoRegister: 'serif', palette: 'pastel', confidence: 0.8 }));
+    expect(s).toContain('typo');
+    expect(s).toContain('palette');
+  });
+
+  it('normalizeAnalysis range typo et palette, et signale l’inconnu', () => {
+    const a = normalizeAnalysis({ typoRegister: 'serif', palette: 'n’importe quoi', confidence: 0.8 });
+    expect(a.typoRegister).toBe('serif');
+    expect(a.palette).toBeNull();
+    expect(a.unmapped.some((u) => u.startsWith('palette :'))).toBe(true);
   });
 });

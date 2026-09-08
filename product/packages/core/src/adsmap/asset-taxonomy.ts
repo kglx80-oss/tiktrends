@@ -78,6 +78,24 @@ export type TextDensity = (typeof TEXT_DENSITIES)[number];
 export const BACKGROUNDS = ['light', 'dark', 'vibrant'] as const;
 export type Background = (typeof BACKGROUNDS)[number];
 
+/**
+ * Le registre TYPOGRAPHIQUE dominant · « la gestion des typo » de la charte.
+ *
+ * C'est la FAMILLE de caractère qui donne le ton, pas la police exacte (qu'on ne
+ * peut ni lire de façon fiable, ni imposer au modèle). Fermé, mutuellement
+ * exclusif.
+ */
+export const TYPO_REGISTERS = ['sans', 'serif', 'display', 'script', 'mixed'] as const;
+export type TypoRegister = (typeof TYPO_REGISTERS)[number];
+
+/**
+ * La PALETTE · le caractère de la charte couleur, distinct du fond (qui ne dit
+ * que clair/sombre/coloré). Ici c'est la RICHESSE et l'harmonie des couleurs de
+ * marque · combien de teintes, et lesquelles.
+ */
+export const PALETTES = ['monochrome', 'duotone', 'pastel', 'vibrant', 'earthy'] as const;
+export type Palette = (typeof PALETTES)[number];
+
 export const HEADLINE_POSITION_LABEL: Record<HeadlinePosition, string> = {
   top: 'Accroche en haut', center: 'Accroche centrée', bottom: 'Accroche en bas', none: 'Pas d’accroche',
 };
@@ -90,6 +108,14 @@ export const TEXT_DENSITY_LABEL: Record<TextDensity, string> = {
 };
 export const BACKGROUND_LABEL: Record<Background, string> = {
   light: 'Fond clair', dark: 'Fond sombre', vibrant: 'Fond coloré',
+};
+export const TYPO_REGISTER_LABEL: Record<TypoRegister, string> = {
+  sans: 'Sans serif', serif: 'Serif', display: 'Display / titrage',
+  script: 'Manuscrite', mixed: 'Mixte',
+};
+export const PALETTE_LABEL: Record<Palette, string> = {
+  monochrome: 'Monochrome', duotone: 'Deux tons', pastel: 'Pastel',
+  vibrant: 'Saturée', earthy: 'Naturelle / terreuse',
 };
 
 /**
@@ -140,6 +166,18 @@ const ALIASES: Record<string, string> = {
   clair: 'light', white: 'light', bright: 'light',
   sombre: 'dark', black: 'dark', moody: 'dark',
   colore: 'vibrant', colorful: 'vibrant', bold_color: 'vibrant', saturated: 'vibrant',
+  // Charte · registre typographique (synonymes réels des sorties d'IA). `sans`,
+  // `serif`, `display`, `script`, `mixed` sont déjà des valeurs directes.
+  sans_serif: 'sans', grotesque: 'sans', geometric_sans: 'sans',
+  slab: 'serif', slab_serif: 'serif', transitional: 'serif',
+  headline_type: 'display', condensed: 'display', bold_display: 'display', titling: 'display',
+  handwritten: 'script', cursive: 'script', brush: 'script', manuscrite: 'script',
+  multiple: 'mixed', mix: 'mixed',
+  // Charte · palette (`monochrome`, `duotone`, `pastel`, `vibrant`, `earthy` directs).
+  mono: 'monochrome', single_colour: 'monochrome', single_color: 'monochrome', grayscale: 'monochrome', greyscale: 'monochrome',
+  two_tone: 'duotone', two_colour: 'duotone', two_color: 'duotone',
+  soft: 'pastel', muted: 'pastel', desaturated: 'pastel',
+  natural: 'earthy', earth_tones: 'earthy', terreux: 'earthy', warm_tones: 'earthy',
 };
 
 const clef = (v: string) => v.trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -166,6 +204,8 @@ export const normalizeHeadlinePosition = (v: string | null | undefined) => norma
 export const normalizeComposition = (v: string | null | undefined) => normalize(v, COMPOSITIONS);
 export const normalizeTextDensity = (v: string | null | undefined) => normalize(v, TEXT_DENSITIES);
 export const normalizeBackground = (v: string | null | undefined) => normalize(v, BACKGROUNDS);
+export const normalizeTypoRegister = (v: string | null | undefined) => normalize(v, TYPO_REGISTERS);
+export const normalizePalette = (v: string | null | undefined) => normalize(v, PALETTES);
 
 /** Brut de l'agent A0 · tout est optionnel, le modèle peut ne pas savoir. */
 export interface RawAssetAnalysis {
@@ -186,6 +226,9 @@ export interface RawAssetAnalysis {
   composition?: string | null;
   textDensity?: string | null;
   background?: string | null;
+  // Charte · registre typographique et palette.
+  typoRegister?: string | null;
+  palette?: string | null;
 }
 
 export interface AssetAnalysis {
@@ -205,6 +248,9 @@ export interface AssetAnalysis {
   composition: Composition | null;
   textDensity: TextDensity | null;
   background: Background | null;
+  /** Charte · `null` quand le modèle n'a pas su. */
+  typoRegister: TypoRegister | null;
+  palette: Palette | null;
   /** Confiance déclarée, bornée à [0,1] · sous 0,5 l'écran invite à corriger. */
   confidence: number;
   /** Champs que le modèle a rendus mais qu'on n'a pas su ranger · affichés, pas devinés. */
@@ -237,6 +283,8 @@ export function normalizeAnalysis(raw: RawAssetAnalysis): AssetAnalysis {
   const composition = normalizeComposition(raw.composition);
   const textDensity = normalizeTextDensity(raw.textDensity);
   const background = normalizeBackground(raw.background);
+  const typoRegister = normalizeTypoRegister(raw.typoRegister);
+  const palette = normalizePalette(raw.palette);
   if (raw.hookType && !hookType) unmapped.push(`accroche : ${raw.hookType}`);
   if (raw.openingType && !openingType) unmapped.push(`ouverture : ${raw.openingType}`);
   if (raw.talent && !talent) unmapped.push(`présence : ${raw.talent}`);
@@ -244,6 +292,8 @@ export function normalizeAnalysis(raw: RawAssetAnalysis): AssetAnalysis {
   if (raw.composition && !composition) unmapped.push(`composition : ${raw.composition}`);
   if (raw.textDensity && !textDensity) unmapped.push(`densité texte : ${raw.textDensity}`);
   if (raw.background && !background) unmapped.push(`fond : ${raw.background}`);
+  if (raw.typoRegister && !typoRegister) unmapped.push(`typographie : ${raw.typoRegister}`);
+  if (raw.palette && !palette) unmapped.push(`palette : ${raw.palette}`);
 
   const conf = typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
     ? Math.min(1, Math.max(0, raw.confidence))
@@ -252,6 +302,7 @@ export function normalizeAnalysis(raw: RawAssetAnalysis): AssetAnalysis {
   return {
     hookType, openingType, talent,
     headlinePosition, composition, textDensity, background,
+    typoRegister, palette,
     durationS: seconde(raw.durationS, 900),
     hookSpoken: raw.hookSpoken?.replace(/\s+/g, ' ').trim().slice(0, 300) || null,
     claims: phrases(raw.claims, 8),
@@ -278,6 +329,9 @@ export function summarizeAnalysis(a: AssetAnalysis): string {
     a.headlinePosition && a.headlinePosition !== 'none' ? HEADLINE_POSITION_LABEL[a.headlinePosition].toLowerCase() : null,
     a.textDensity ? TEXT_DENSITY_LABEL[a.textDensity].toLowerCase() : null,
     a.background ? BACKGROUND_LABEL[a.background].toLowerCase() : null,
+    // Charte · typographie et palette.
+    a.typoRegister ? `typo ${TYPO_REGISTER_LABEL[a.typoRegister].toLowerCase()}` : null,
+    a.palette ? `palette ${PALETTE_LABEL[a.palette].toLowerCase()}` : null,
   ].filter(Boolean);
   if (!bouts.length) return 'Rien de reconnu dans cet asset · complète à la main.';
   const base = bouts.join(' · ');
