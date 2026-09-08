@@ -9,6 +9,7 @@ import { BrandRemoveButton } from '../../../components/InspoButtons';
 import { PageInfo } from '../../../components/PageInfo';
 import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
 import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed';
+import { DecouverteSection } from '../../../components/DecouverteSection';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,7 @@ export default async function SavedPage() {
       db.select().from(schema.followedBrands).where(followWhere).orderBy(desc(schema.followedBrands.createdAt)),
       db.select().from(schema.brandTrackerEvents).where(eq(schema.brandTrackerEvents.workspaceId, s.workspaceId)).orderBy(desc(schema.brandTrackerEvents.createdAt)).limit(48),
     ]);
-    items = sv.map((r) => ({ ad: r.snapshot as InspoAd, folder: r.folder ?? null, externalId: r.externalId, platform: r.platform }));
+    items = sv.map((r) => ({ id: r.id, ad: r.snapshot as InspoAd, folder: r.folder ?? null, externalId: r.externalId, platform: r.platform }));
     brands = fl;
     trackerEvents = ev.map((r) => ({ ad: r.snapshot as InspoAd, advertiserName: r.advertiserName, unseen: !r.seenAt }));
     for (const b of fl) followKeys.push(b.platform + ':' + b.name);
@@ -61,6 +62,9 @@ export default async function SavedPage() {
 
       {/* Fil des nouveautés concurrents (tracking) */}
       <TrackerFeed events={trackerEvents} followedCount={brands.length} trackingEnabled={trackingEnabled} />
+
+      {/* La veille qui vient à toi · les gagnantes de ta catégorie, hors watchlist. */}
+      {trackingEnabled && <DecouverteSection />}
 
       {/* Marques suivies */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>

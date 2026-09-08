@@ -63,6 +63,8 @@ export * from './studio-iterate';
 export * from './scene-defects';
 export * from './copie-conforme';
 export * from './rattrapage';
+export * from './brief-veille';
+export * from './decouverte-marche';
 export * from './exemple-direction';
 export * from './conseil-moteur';
 export * from './essai';
