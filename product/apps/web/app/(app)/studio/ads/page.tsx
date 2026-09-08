@@ -16,7 +16,7 @@ import { PageInfo } from '../../../../components/PageInfo';
 import { effectiveAccess } from '../../../../lib/access';
 import { spendStatus } from '../../../../lib/spend-guard';
 import { bilanCopieAction } from '../../../actions/adsmap-attribution';
-import { conseilMoteur } from '@tiktrends/core';
+import { conseilMoteur, conseilMode } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
@@ -45,7 +45,22 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   // Ce que les relectures de cette marque conseillent · lecture pure, aucun
   // modèle appelé, donc rien de facturé pour l'afficher. Un échec de lecture
   // laisse simplement le catalogue décider, comme avant.
-  const conseilMoteurs = conseilMoteur((await bilanCopieAction().catch(() => ({ bilan: undefined }))).bilan);
+  const bilanCopie = (await bilanCopieAction().catch(() => ({ bilan: undefined }))).bilan;
+  const conseilMoteurs = conseilMoteur(bilanCopie);
+  // Le MODE par défaut suit la mesure aussi · une marque dont l'entière échoue
+  // mesurément part en composée. Sans mesure suffisante, l'entière reste le
+  // défaut (le mode que le lot de contrôle a montré viable). Les compteurs se
+  // reconstruisent du taux et du dénominateur (taux = compte / n).
+  const conseilModes = bilanCopie
+    ? conseilMode({
+        relues: bilanCopie.relues,
+        accroche: Math.round((bilanCopie.tauxReecriture ?? 0) * bilanCopie.relues),
+        avecReference: bilanCopie.avecReference,
+        produitsInfideles: Math.round((bilanCopie.tauxProduit ?? 0) * bilanCopie.avecReference),
+        avecTexte: bilanCopie.avecTexte,
+        illisibles: Math.round((bilanCopie.tauxIllisible ?? 0) * bilanCopie.avecTexte),
+      })
+    : { defaut: 'entiere' as const, mesure: false, motif: '' };
   if (!canAccess(effectiveAccess(s), feature)) {
     const why = denyReason(effectiveAccess(s), feature);
     return (
@@ -117,7 +132,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
         </Link>
       )}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} initialRef={initialRef} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} />
+      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} initialRef={initialRef} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
     </main>
   );
 }
