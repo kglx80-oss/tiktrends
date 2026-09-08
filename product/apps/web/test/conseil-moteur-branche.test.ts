@@ -44,16 +44,18 @@ describe('le conseil traverse jusqu’à l’écran', () => {
 });
 
 describe('le mesuré devient le défaut, sans se cacher', () => {
-  it('le défaut du studio est le moteur mesuré quand il tranche', () => {
+  it('le défaut du studio est le moteur mesuré quand il tranche, sinon le mode-aware', () => {
     // C'est le cœur du changement · l'état INITIAL du moteur suit la mesure,
-    // et retombe sur le catalogue (nano) quand rien n'a tranché.
-    expect(STUDIO).toMatch(/useState\(conseilMoteurs\.recommande \?\? 'nano'\)/);
+    // et retombe sur le recommandé SELON LE MODE (mode-aware), plus « nano » en
+    // dur · Nano proposé partout mettait le mauvais moteur par défaut en entière.
+    expect(STUDIO).toMatch(/useState\(conseilMoteurs\.recommande \?\? moteurRecommande\(fabrication\)\)/);
   });
 
   it('l’adoption est annoncée, jamais silencieuse', () => {
     // Un défaut qui suit la mesure sans le dire se lit comme un bug · l'écran
     // du volume dit qu'on a retenu le moteur mesuré, et montre ses chiffres.
-    expect(ASSISTANT).toMatch(/contredit\(p\.conseilMoteurs, IMAGE_MODELS\.find/);
+    // La comparaison se fait au recommandé DU MODE, pas au drapeau figé.
+    expect(ASSISTANT).toMatch(/contredit\(p\.conseilMoteurs, recommande\)/);
     expect(ASSISTANT).toMatch(/On a retenu le moteur que ta mesure désigne/);
   });
 
@@ -65,10 +67,11 @@ describe('le mesuré devient le défaut, sans se cacher', () => {
     expect(ASSISTANT).toMatch(/onClick=\{\(\) => p\.onMoteur\(m\.key\)\}/);
   });
 
-  it('le drapeau du catalogue reste affiché pour la marque neuve', () => {
-    // Sans mesure, le recommandé du catalogue reste le repère · l'effacer
-    // priverait une marque neuve de tout point de départ.
-    expect(ASSISTANT).toMatch(/m\.recommended \? ' · recommandé' : ''/);
+  it('le recommandé du mode reste affiché pour la marque neuve', () => {
+    // Sans mesure, le recommandé SELON LE MODE reste le repère · l'effacer
+    // priverait une marque neuve de tout point de départ. Le mode-aware remplace
+    // le drapeau figé du catalogue.
+    expect(ASSISTANT).toMatch(/recommande === m\.key \? ' · recommandé' : ''/);
   });
 });
 

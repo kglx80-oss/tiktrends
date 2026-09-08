@@ -5,7 +5,7 @@ import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction,
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, type DebriefLot, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, moteurRecommande, type DebriefLot, type VerdictCopie, type ConseilMoteur, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -166,11 +166,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [copied, setCopied] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   // Le défaut suit ce qu'on a MESURÉ chez la marque quand l'intervalle tranche ·
-  // sinon le recommandé du catalogue (nano). Partir du catalogue en n'affichant
-  // que « la mesure dit autre chose » revenait à proposer par défaut un a priori
-  // qu'on a déjà prouvé plus faible ici. Le changement n'est pas silencieux ·
-  // l'écran du volume dit qu'on a retenu le moteur mesuré, et lequel.
-  const [model, setModel] = useState(conseilMoteurs.recommande ?? 'nano');
+  // sinon le recommandé SELON LE MODE (GPT Image 2 en entière, où le moteur écrit
+  // le texte ; Nano Banana en composée, où on l'écrit nous). Un seul drapeau
+  // aveugle au mode proposait Nano partout, dont en entière où un lot de contrôle
+  // l'a montré le mauvais choix. Le changement n'est pas silencieux · l'écran du
+  // volume dit ce qui est retenu, et lequel.
+  const [model, setModel] = useState(conseilMoteurs.recommande ?? moteurRecommande(fabrication));
   const modelSpec = imageModelByKey(model);
   /**
    * Combien de publicités un essai produira RÉELLEMENT.
@@ -652,7 +653,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               key: 'modele', title: 'Moteur d’image', icon: '✦',
               // Le moteur mesuré le meilleur chez la marque est marqué comme tel ·
               // c'est lui qui est retenu par défaut quand la mesure tranche.
-              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${conseilMoteurs.recommande === m.key ? ' · mesuré le meilleur ici' : m.recommended ? ' · recommandé' : ''}` })),
+              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${conseilMoteurs.recommande === m.key ? ' · mesuré le meilleur ici' : moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}` })),
               value: model, onChange: setModel,
             },
           ]}
@@ -1291,7 +1292,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               </label>
               <label style={{ fontSize: 12, color: 'var(--muted)' }}>Modèle&nbsp;
                 <select value={model} onChange={(e) => setModel(e.target.value)} style={{ ...fld, width: 'auto', padding: '7px 9px', display: 'inline-block' }}>
-                  {IMAGE_MODELS.map((m) => <option key={m.key} value={m.key}>{m.label} · {m.credits} cr/variante{m.recommended ? ' · recommandé' : ''}</option>)}
+                  {IMAGE_MODELS.map((m) => <option key={m.key} value={m.key}>{m.label} · {m.credits} cr/variante{moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}</option>)}
                 </select>
               </label>
               <span style={{ flex: 1 }} />

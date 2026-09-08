@@ -5,7 +5,7 @@ import {
   ETAPES, ETAPE_ROLE, ETAPE_TITRE, dureeAttendue, etapeComplete, etapePrecedente,
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
   AD_DIRECTIONS, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves,
-  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, budgetReprises, type ConseilMoteur,
+  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, budgetReprises, moteurRecommande, type ProductionMode, type ConseilMoteur,
   type Etape, type EtatAssistant,
 } from '@tiktrends/core';
 import type { AdTemplate } from '@tiktrends/ai';
@@ -387,6 +387,10 @@ function EtapeFabrication({ p }: { p: AssistantProps }) {
 
 function EtapeVolume({ p }: { p: AssistantProps }) {
   const spec = imageModelByKey(p.etat.moteur);
+  // Le moteur recommandé dépend du MODE · GPT Image 2 en entière (il écrit le
+  // texte), Nano Banana en composée (on l'écrit nous). Le catalogue, aveugle au
+  // mode, proposait le même partout.
+  const recommande = moteurRecommande((p.etat.mode === 'entiere' ? 'entiere' : 'composee') as ProductionMode);
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
@@ -403,7 +407,7 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
              RETENU par défaut et on le DIT · un défaut adossé à une mesure locale
              qui a tranché suit ce qu'on a prouvé, il ne bouge pas au hasard. On
              laisse choisir quand même · l'écran ne décide pas à la place. */}
-        {contredit(p.conseilMoteurs, IMAGE_MODELS.find((m) => m.recommended)?.key) && (
+        {contredit(p.conseilMoteurs, recommande) && (
           <p style={{ margin: '0 0 8px', padding: '8px 11px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
             <b style={{ color: '#7ee8bf' }}>On a retenu le moteur que ta mesure désigne, pas notre recommandation par défaut.</b>{' '}
             {p.conseilMoteurs.resume}
@@ -419,7 +423,7 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
                 background: on ? 'rgba(230,0,126,.06)' : 'transparent', cursor: 'pointer',
               }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                  {m.label}{m.recommended ? ' · recommandé' : ''}
+                  {m.label}{recommande === m.key ? ' · recommandé' : ''}
                   {p.conseilMoteurs.recommande === m.key && (
                     <span style={{ color: '#7ee8bf' }}> · mesuré le meilleur ici</span>
                   )}
