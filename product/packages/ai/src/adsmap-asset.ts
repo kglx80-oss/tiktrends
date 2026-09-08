@@ -36,6 +36,10 @@ const ANALYSIS_TOOL = {
       ctaFirstSec: { type: ['number', 'null'], description: 'Seconde à laquelle l’appel à l’action apparaît.' },
       cutsFirst10s: { type: ['number', 'null'], description: 'Nombre de coupes dans les 10 premières secondes.' },
       hasCaptions: { type: ['boolean', 'null'], description: 'Sous-titres incrustés présents.' },
+      headlinePosition: { type: ['string', 'null'], description: 'Pub statique · où se pose l’accroche PRINCIPALE dans le cadre : top | center | bottom | none (aucun texte d’accroche). null pour une vidéo ou si indéterminable.' },
+      composition: { type: ['string', 'null'], description: 'Pub statique · archétype de composition : product_hero (produit dominant, seul) | lifestyle (produit en situation, mains/scène) | before_after | comparison (deux options côte à côte) | text_card (le texte domine, peu de visuel) | packaging_closeup (gros plan étiquette). null si indéterminable.' },
+      textDensity: { type: ['string', 'null'], description: 'Pub statique · quantité de texte publicitaire ajouté : minimal (accroche seule) | moderate | heavy (plusieurs blocs). null si indéterminable.' },
+      background: { type: ['string', 'null'], description: 'Registre du fond : light (clair) | dark (sombre) | vibrant (couleur vive saturée). null si indéterminable.' },
       confidence: { type: 'number', description: 'Confiance globale entre 0 et 1. Sois honnête : une image seule ne dit rien du rythme.' },
     },
     required: ['hookType', 'openingType', 'talent', 'claims', 'proofElements', 'confidence'],
@@ -48,6 +52,7 @@ const SYSTEM = [
   'Reprends les mots de la créa pour l’accroche et les promesses · ne reformule pas, ne réécris pas.',
   'Quand un élément n’est pas déterminable depuis ce qu’on te donne, réponds null et baisse ta confiance.',
   'Une image fixe ne renseigne ni la durée, ni le rythme, ni les coupes · ne les invente pas.',
+  'Pour une pub FIXE, renseigne en revanche la mise en page : position de l’accroche, composition, densité de texte, fond · c’est ce qui décrit sa grammaire visuelle.',
   'Rends TOUJOURS ta réponse via l’outil return_asset_analysis.',
 ].join(' ');
 
@@ -69,6 +74,7 @@ export interface RawAssetAnalysisOut {
   hookSpoken?: string | null; claims?: string[]; proofElements?: string[];
   durationS?: number | null; productFirstSec?: number | null; ctaFirstSec?: number | null;
   cutsFirst10s?: number | null; hasCaptions?: boolean | null; confidence?: number;
+  headlinePosition?: string | null; composition?: string | null; textDensity?: string | null; background?: string | null;
 }
 
 /**

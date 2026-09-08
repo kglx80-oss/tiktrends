@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizeHookType, normalizeOpeningType, normalizeTalent,
+  normalizeHeadlinePosition, normalizeComposition, normalizeTextDensity, normalizeBackground,
   normalizeAnalysis, summarizeAnalysis,
 } from '../src/adsmap/asset-taxonomy';
 
@@ -41,6 +42,37 @@ describe('normalisation des valeurs', () => {
   });
 });
 
+describe('grammaire de mise en page · pubs statiques', () => {
+  it('accepte les valeurs canoniques', () => {
+    expect(normalizeHeadlinePosition('top')).toBe('top');
+    expect(normalizeComposition('product_hero')).toBe('product_hero');
+    expect(normalizeTextDensity('minimal')).toBe('minimal');
+    expect(normalizeBackground('dark')).toBe('dark');
+  });
+
+  it('ramène les synonymes fréquents des sorties d’IA', () => {
+    expect(normalizeHeadlinePosition('haut')).toBe('top');
+    expect(normalizeHeadlinePosition('bottom third')).toBe('bottom');
+    expect(normalizeComposition('label closeup')).toBe('packaging_closeup');
+    expect(normalizeComposition('side by side')).toBe('comparison');
+    expect(normalizeTextDensity('busy')).toBe('heavy');
+    expect(normalizeBackground('colorful')).toBe('vibrant');
+  });
+
+  it('rend null sur l’inconnu plutôt que de ranger d’office', () => {
+    expect(normalizeComposition('cinématique')).toBeNull();
+    expect(normalizeBackground('dégradé')).toBeNull();
+  });
+
+  it('un même mot ne déborde pas d’une famille sur l’autre', () => {
+    // « lifestyle » est une COMPOSITION statique, et reste une ouverture vidéo
+    // (b_roll) · c'est la liste admise par dimension qui les sépare, pas le mot.
+    expect(normalizeComposition('lifestyle')).toBe('lifestyle');
+    expect(normalizeOpeningType('lifestyle')).toBe('b_roll');
+    expect(normalizeHeadlinePosition('lifestyle')).toBeNull();
+  });
+});
+
 describe('normalizeAnalysis', () => {
   it('range une sortie propre', () => {
     const a = normalizeAnalysis({
@@ -60,6 +92,18 @@ describe('normalizeAnalysis', () => {
     expect(a.hookType).toBeNull();
     expect(a.unmapped).toHaveLength(2);
     expect(a.unmapped[0]).toContain('poétique');
+  });
+
+  it('range la grammaire de mise en page, et signale l’inconnu', () => {
+    const a = normalizeAnalysis({
+      headlinePosition: 'haut', composition: 'label closeup', textDensity: 'busy',
+      background: 'dégradé', confidence: 0.7,
+    });
+    expect(a.headlinePosition).toBe('top');
+    expect(a.composition).toBe('packaging_closeup');
+    expect(a.textDensity).toBe('heavy');
+    expect(a.background, 'un fond non reconnu ne se range pas d’office').toBeNull();
+    expect(a.unmapped.some((u) => u.includes('dégradé'))).toBe(true);
   });
 
   it('écarte une durée absurde au lieu de la corriger', () => {
@@ -95,5 +139,21 @@ describe('summarizeAnalysis', () => {
 
   it('dit clairement quand rien n’a été reconnu', () => {
     expect(summarizeAnalysis(normalizeAnalysis({}))).toContain('Rien de reconnu');
+  });
+
+  it('inclut la grammaire de mise en page d’une pub statique', () => {
+    const s = summarizeAnalysis(normalizeAnalysis({
+      composition: 'product_hero', headlinePosition: 'top', textDensity: 'minimal',
+      background: 'dark', confidence: 0.9,
+    }));
+    expect(s).toContain('produit héros');
+    expect(s).toContain('accroche en haut');
+    expect(s).toContain('fond sombre');
+  });
+
+  it('ne mentionne pas la position quand il n’y a pas d’accroche', () => {
+    // « pas d'accroche » n'est pas une position à annoncer · c'est l'absence.
+    const s = summarizeAnalysis(normalizeAnalysis({ composition: 'text_card', headlinePosition: 'none', confidence: 0.8 }));
+    expect(s).not.toContain('accroche');
   });
 });

@@ -40,6 +40,58 @@ export const TALENT_LABEL: Record<Talent, string> = {
   voice_over_only: 'Voix off seule', none: 'Personne à l’écran',
 };
 
+/* -------------------------------------------------------------------------- */
+/*  Grammaire de mise en page · pubs STATIQUES                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Ce que le mode « généré entièrement » a besoin d'apprendre du marché.
+ *
+ * La taxonomie ci-dessus décrit une créa VIDÉO · accroche parlée, ouverture,
+ * personne à l'écran, durée. Elle ne dit rien de la grammaire d'une pub
+ * STATIQUE : où se pose l'accroche, comment la scène est composée, combien de
+ * texte, sur quel fond. Or c'est précisément ce qui fait qu'une pub concurrente
+ * « a l'air d'une agence », et ce qu'on veut faire remonter à la direction
+ * artistique de l'entière.
+ *
+ * Fermé, comme le reste · une sortie d'IA laissée libre produit dix variantes de
+ * « accroche en haut » qui ne se comptent jamais ensemble. Les valeurs sont
+ * choisies pour être MUTUELLEMENT EXCLUSIVES et reconnaissables d'un coup d'œil ·
+ * c'est la condition pour qu'un taux veuille dire quelque chose.
+ */
+
+/** Où se pose l'accroche principale dans le cadre. */
+export const HEADLINE_POSITIONS = ['top', 'center', 'bottom', 'none'] as const;
+export type HeadlinePosition = (typeof HEADLINE_POSITIONS)[number];
+
+/** L'archétype de composition · ce que la scène montre et comment. */
+export const COMPOSITIONS = [
+  'product_hero', 'lifestyle', 'before_after', 'comparison', 'text_card', 'packaging_closeup',
+] as const;
+export type Composition = (typeof COMPOSITIONS)[number];
+
+/** Combien de texte publicitaire porte la pub. */
+export const TEXT_DENSITIES = ['minimal', 'moderate', 'heavy'] as const;
+export type TextDensity = (typeof TEXT_DENSITIES)[number];
+
+/** Le registre du fond · décide du contraste et de l'ambiance. */
+export const BACKGROUNDS = ['light', 'dark', 'vibrant'] as const;
+export type Background = (typeof BACKGROUNDS)[number];
+
+export const HEADLINE_POSITION_LABEL: Record<HeadlinePosition, string> = {
+  top: 'Accroche en haut', center: 'Accroche centrée', bottom: 'Accroche en bas', none: 'Pas d’accroche',
+};
+export const COMPOSITION_LABEL: Record<Composition, string> = {
+  product_hero: 'Produit héros', lifestyle: 'Mise en situation', before_after: 'Avant / après',
+  comparison: 'Comparatif', text_card: 'Carte typographique', packaging_closeup: 'Gros plan packaging',
+};
+export const TEXT_DENSITY_LABEL: Record<TextDensity, string> = {
+  minimal: 'Texte minimal', moderate: 'Texte modéré', heavy: 'Texte dense',
+};
+export const BACKGROUND_LABEL: Record<Background, string> = {
+  light: 'Fond clair', dark: 'Fond sombre', vibrant: 'Fond coloré',
+};
+
 /**
  * Synonymes fréquents dans les sorties d'IA · la liste vient de ce que le modèle
  * renvoie réellement quand on lui laisse la bride, pas d'une invention.
@@ -68,6 +120,26 @@ const ALIASES: Record<string, string> = {
   client: 'customer', user: 'customer',
   voiceover: 'voice_over_only', vo: 'voice_over_only', narration: 'voice_over_only',
   aucun: 'none', nobody: 'none',
+  // Grammaire de mise en page · synonymes fréquents des sorties d'IA.
+  haut: 'top', top_third: 'top', upper: 'top',
+  centre: 'center', middle: 'center', centered: 'center',
+  bas: 'bottom', lower: 'bottom', bottom_third: 'bottom',
+  hero: 'product_hero', product_shot_hero: 'product_hero', product_focus: 'product_hero',
+  in_situ: 'lifestyle', in_use: 'lifestyle', scene: 'lifestyle',
+  // `transformation` est déjà mappé plus haut sur before_after, valable pour la
+  // composition comme pour l'ouverture · on ne le redéclare pas.
+  avant_apres: 'before_after',
+  versus: 'comparison', vs: 'comparison', side_by_side: 'comparison',
+  typographic: 'text_card', text_only: 'text_card', quote_card: 'text_card',
+  // `packshot` sert déjà l'ouverture (product) · pour le gros plan packaging on
+  // s'appuie sur label_closeup et macro, sans clé en double.
+  label_closeup: 'packaging_closeup', macro: 'packaging_closeup',
+  clean: 'minimal', sparse: 'minimal',
+  medium: 'moderate', balanced: 'moderate',
+  dense: 'heavy', busy: 'heavy', text_heavy: 'heavy',
+  clair: 'light', white: 'light', bright: 'light',
+  sombre: 'dark', black: 'dark', moody: 'dark',
+  colore: 'vibrant', colorful: 'vibrant', bold_color: 'vibrant', saturated: 'vibrant',
 };
 
 const clef = (v: string) => v.trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -90,6 +162,10 @@ function normalize<T extends string>(value: string | null | undefined, allowed: 
 export const normalizeHookType = (v: string | null | undefined) => normalize(v, HOOK_TYPES);
 export const normalizeOpeningType = (v: string | null | undefined) => normalize(v, OPENING_TYPES);
 export const normalizeTalent = (v: string | null | undefined) => normalize(v, TALENTS);
+export const normalizeHeadlinePosition = (v: string | null | undefined) => normalize(v, HEADLINE_POSITIONS);
+export const normalizeComposition = (v: string | null | undefined) => normalize(v, COMPOSITIONS);
+export const normalizeTextDensity = (v: string | null | undefined) => normalize(v, TEXT_DENSITIES);
+export const normalizeBackground = (v: string | null | undefined) => normalize(v, BACKGROUNDS);
 
 /** Brut de l'agent A0 · tout est optionnel, le modèle peut ne pas savoir. */
 export interface RawAssetAnalysis {
@@ -105,6 +181,11 @@ export interface RawAssetAnalysis {
   cutsFirst10s?: number | null;
   hasCaptions?: boolean | null;
   confidence?: number | null;
+  // Grammaire de mise en page · renseignée surtout pour les pubs statiques.
+  headlinePosition?: string | null;
+  composition?: string | null;
+  textDensity?: string | null;
+  background?: string | null;
 }
 
 export interface AssetAnalysis {
@@ -119,6 +200,11 @@ export interface AssetAnalysis {
   ctaFirstSec: number | null;
   cutsFirst10s: number | null;
   hasCaptions: boolean | null;
+  /** Grammaire de mise en page · `null` quand le modèle n'a pas su, ou hors sujet (vidéo). */
+  headlinePosition: HeadlinePosition | null;
+  composition: Composition | null;
+  textDensity: TextDensity | null;
+  background: Background | null;
   /** Confiance déclarée, bornée à [0,1] · sous 0,5 l'écran invite à corriger. */
   confidence: number;
   /** Champs que le modèle a rendus mais qu'on n'a pas su ranger · affichés, pas devinés. */
@@ -147,9 +233,17 @@ export function normalizeAnalysis(raw: RawAssetAnalysis): AssetAnalysis {
   const hookType = normalizeHookType(raw.hookType);
   const openingType = normalizeOpeningType(raw.openingType);
   const talent = normalizeTalent(raw.talent);
+  const headlinePosition = normalizeHeadlinePosition(raw.headlinePosition);
+  const composition = normalizeComposition(raw.composition);
+  const textDensity = normalizeTextDensity(raw.textDensity);
+  const background = normalizeBackground(raw.background);
   if (raw.hookType && !hookType) unmapped.push(`accroche : ${raw.hookType}`);
   if (raw.openingType && !openingType) unmapped.push(`ouverture : ${raw.openingType}`);
   if (raw.talent && !talent) unmapped.push(`présence : ${raw.talent}`);
+  if (raw.headlinePosition && !headlinePosition) unmapped.push(`position accroche : ${raw.headlinePosition}`);
+  if (raw.composition && !composition) unmapped.push(`composition : ${raw.composition}`);
+  if (raw.textDensity && !textDensity) unmapped.push(`densité texte : ${raw.textDensity}`);
+  if (raw.background && !background) unmapped.push(`fond : ${raw.background}`);
 
   const conf = typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
     ? Math.min(1, Math.max(0, raw.confidence))
@@ -157,6 +251,7 @@ export function normalizeAnalysis(raw: RawAssetAnalysis): AssetAnalysis {
 
   return {
     hookType, openingType, talent,
+    headlinePosition, composition, textDensity, background,
     durationS: seconde(raw.durationS, 900),
     hookSpoken: raw.hookSpoken?.replace(/\s+/g, ' ').trim().slice(0, 300) || null,
     claims: phrases(raw.claims, 8),
@@ -178,6 +273,11 @@ export function summarizeAnalysis(a: AssetAnalysis): string {
     a.openingType ? `ouverture ${OPENING_LABEL[a.openingType].toLowerCase()}` : null,
     a.talent ? TALENT_LABEL[a.talent].toLowerCase() : null,
     a.durationS !== null ? `${Math.round(a.durationS)} s` : null,
+    // Grammaire de mise en page · surtout renseignée pour les pubs statiques.
+    a.composition ? COMPOSITION_LABEL[a.composition].toLowerCase() : null,
+    a.headlinePosition && a.headlinePosition !== 'none' ? HEADLINE_POSITION_LABEL[a.headlinePosition].toLowerCase() : null,
+    a.textDensity ? TEXT_DENSITY_LABEL[a.textDensity].toLowerCase() : null,
+    a.background ? BACKGROUND_LABEL[a.background].toLowerCase() : null,
   ].filter(Boolean);
   if (!bouts.length) return 'Rien de reconnu dans cet asset · complète à la main.';
   const base = bouts.join(' · ');
