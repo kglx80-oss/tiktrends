@@ -124,7 +124,7 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <Link href="/inspo" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>Veille</Link>
+        <Link href="/veille" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>Veille</Link>
         <span style={{ color: 'var(--muted)' }}>/</span>
         <h1 style={h1}>Ce qui scale</h1>
         {q && <span style={{ fontSize: 12, color: 'var(--muted)' }}>· {country} · {q}</span>}
@@ -149,7 +149,7 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <span style={{ fontSize: 12.5, color: 'var(--muted)', alignSelf: 'center' }}>Niches :</span>
         {PRESETS.map((p) => (
-          <Link key={p.q} href={`/inspo/scale?q=${encodeURIComponent(p.q)}&country=FR`} style={{ ...preset, ...(p.q === q ? { borderColor: 'var(--accent-strong)', color: 'var(--ink)' } : null) }}>{p.label}</Link>
+          <Link key={p.q} href={`/veille/scale?q=${encodeURIComponent(p.q)}&country=FR`} style={{ ...preset, ...(p.q === q ? { borderColor: 'var(--accent-strong)', color: 'var(--ink)' } : null) }}>{p.label}</Link>
         ))}
       </div>
 
@@ -159,7 +159,7 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
       {!sample && curated.length > 0 && (
         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
           Niche <b style={{ color: 'var(--ink-2)' }}>{q}</b> · {country} · {fromCache ? 'en cache' : 'à jour'}{fetchedAt ? ` · maj ${timeAgo(fetchedAt)}` : ''}
-          {' · '}<Link href={`/inspo/scale?q=${encodeURIComponent(q)}&country=${country}&refresh=1`} style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>Rafraîchir</Link>
+          {' · '}<Link href={`/veille/scale?q=${encodeURIComponent(q)}&country=${country}&refresh=1`} style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>Rafraîchir</Link>
         </p>
       )}
 

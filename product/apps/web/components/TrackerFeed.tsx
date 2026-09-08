@@ -63,7 +63,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
           <Empty
             tone="todo" title="Aucune marque suivie."
             why="Suis des marques dans la veille pour surveiller leurs nouvelles pubs ici."
-            action={{ label: 'Ouvrir la veille', href: '/inspo' }}
+            action={{ label: 'Ouvrir la veille', href: '/veille' }}
           />
         )
       ) : (

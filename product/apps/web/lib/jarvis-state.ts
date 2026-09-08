@@ -192,7 +192,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
     ...(nMarche >= 6 ? {} : {
       fix: nConcurrents > 0
         ? { label: 'Apprendre du marché', href: '/jarvis#marche' }
-        : { label: 'Suivre des concurrents', href: '/inspo' },
+        : { label: 'Suivre des concurrents', href: '/veille' },
     }),
   });
 

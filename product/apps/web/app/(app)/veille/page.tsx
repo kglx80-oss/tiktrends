@@ -41,7 +41,7 @@ function buildQS(sp: SP, over: Partial<SP>): string {
   const merged = { ...sp, ...over };
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(merged)) if (v) p.set(k, String(v));
-  return '/inspo?' + p.toString();
+  return '/veille?' + p.toString();
 }
 
 export default async function InspoPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -173,7 +173,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       </PageInfo>
 
       {/* Filtres */}
-      <form action="/inspo" method="get" style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+      <form action="/veille" method="get" style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: 1, minWidth: 240, ...inputBase }} />
           <button type="submit" style={searchBtn}>Rechercher</button>

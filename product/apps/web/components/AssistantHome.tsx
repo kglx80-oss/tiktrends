@@ -42,8 +42,8 @@ function buildCategories(brandId: string | null): Category[] {
       { label: 'Écrire un script', desc: 'Un script vidéo seconde par seconde', href: '/studio' },
     ] },
     { key: 'inspo', label: 'Veille', icon: '💡', starters: [
-      { label: 'Ce qui scale en ce moment', desc: 'Le swipe file trié par croissance de reach', href: '/inspo/scale' },
-      { label: 'Explorer les bibliothèques pub', desc: 'Recherche Meta / TikTok / Google', href: '/inspo' },
+      { label: 'Ce qui scale en ce moment', desc: 'Le swipe file trié par croissance de reach', href: '/veille/scale' },
+      { label: 'Explorer les bibliothèques pub', desc: 'Recherche Meta / TikTok / Google', href: '/veille' },
     ] },
   ];
 }
@@ -51,7 +51,7 @@ function buildCategories(brandId: string | null): Category[] {
 const ROUTINES: Array<{ icon: string; title: string; desc: string; hrefFor: (b: string | null) => string }> = [
   { icon: '📈', title: 'Analyse hebdo de performance', desc: 'Passe en revue les KPI de la semaine et les actions clés.', hrefFor: () => '/analytics' },
   { icon: '🔭', title: 'Veille concurrents', desc: 'Suis les mouvements, messages et offres des concurrents.', hrefFor: (b) => (b ? `/brands/${b}?tab=competitors` : '/brands') },
-  { icon: '✨', title: 'Inspirations du marché', desc: 'Trouve des tendances et idées créatives fraîches.', hrefFor: () => '/inspo' },
+  { icon: '✨', title: 'Inspirations du marché', desc: 'Trouve des tendances et idées créatives fraîches.', hrefFor: () => '/veille' },
 ];
 
 export function AssistantHome({ firstName, credits, brandName, brandId, aiReady }: AssistantHomeProps) {
