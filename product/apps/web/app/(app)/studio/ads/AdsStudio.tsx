@@ -419,35 +419,49 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   async function run(m: 'brand' | 'clone' = mode): Promise<Outcome> {
     if (busy) return { kind: 'error', message: 'Une génération est déjà en cours.' };
     setError(''); setNotice('');
-    if (m === 'clone') {
-      if (!hasRef) {
-        const message = 'Choisis une pub de référence (veille ou upload).';
-        setError(message);
-        return { kind: 'error', message };
-      }
-      setBusy(true);
-      const res = await cloneAdAction({
-        referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined,
-        productId: productId || undefined, personaId: personaId || undefined,
-        objective, universe, count, model,
-        // En mode clone la description n'est pas un angle · c'est une consigne
-        // libre, et elle est vraiment transmise. Un champ que le générateur
-        // ignore est pire qu'un champ absent : on croit avoir dirigé.
-        direction: angle.trim() || undefined,
-        presetId: sceneId || undefined,
-      });
-      setBusy(false);
-      return apresLot(applyResult(res));
+    if (m === 'clone' && !hasRef) {
+      const message = 'Choisis une pub de référence (veille ou upload).';
+      setError(message);
+      return { kind: 'error', message };
     }
-    if (!templates.length) {
+    if (m === 'brand' && !templates.length) {
       const message = 'Choisis au moins un gabarit.';
       setError(message);
       return { kind: 'error', message };
     }
+    // Le bouton reste sur « Génération… » tant que `busy` est vrai. Les actions
+    // RENVOIENT normalement { error }, et alors tout se dénoue. Mais si l'une
+    // LÈVE au lieu de renvoyer — coupure réseau, exception du fournisseur non
+    // rattrapée côté serveur, délai de la requête serveur — le `await` propage,
+    // `setBusy(false)` était sauté, et l'appelant (`onGenerer`) n'attrape pas.
+    // Une seule exception figeait alors le bouton POUR TOUJOURS, sans un mot ·
+    // c'est exactement « l'outil ne fonctionne plus », un échec rendu muet.
+    //
+    // Le `finally` garantit qu'on rend la main quoi qu'il arrive ; le `catch`
+    // rend l'échec VISIBLE et le bouton de nouveau cliquable. On ne répare pas
+    // la panne serveur ici · on refuse qu'elle passe pour une panne de l'outil.
     setBusy(true);
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model, essai: essai || undefined, mode: fabrication });
-    setBusy(false);
-    return apresLot(applyResult(res));
+    try {
+      const res = m === 'clone'
+        ? await cloneAdAction({
+            referenceDataUri: refUri || undefined, savedAdId: savedAdId || undefined,
+            productId: productId || undefined, personaId: personaId || undefined,
+            objective, universe, count, model,
+            // En mode clone la description n'est pas un angle · c'est une consigne
+            // libre, et elle est vraiment transmise. Un champ que le générateur
+            // ignore est pire qu'un champ absent : on croit avoir dirigé.
+            direction: angle.trim() || undefined,
+            presetId: sceneId || undefined,
+          })
+        : await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model, essai: essai || undefined, mode: fabrication });
+      return apresLot(applyResult(res));
+    } catch (e) {
+      const message = `La génération s'est interrompue · ${(e as Error)?.message || 'erreur inattendue'}. Réessaie · si ça persiste, c'est côté serveur, pas ton lot.`;
+      setError(message);
+      return { kind: 'error', message };
+    } finally {
+      setBusy(false);
+    }
   }
 
   /**
