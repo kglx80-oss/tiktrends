@@ -25,7 +25,7 @@ const CUMUL = ACTIONS.slice(ACTIONS.indexOf('export async function bilanCopieAct
 
 describe('les relectures sont additionnées', () => {
   it('l’action existe et appelle la règle du noyau', () => {
-    expect(CUMUL, 'le cumul ne passe plus par le noyau').toMatch(/return \{ bilan: bilanCopie\(relectures\) \}/);
+    expect(CUMUL, 'le cumul ne passe plus par le noyau').toMatch(/return \{ bilan: bilanCopie\(relectures\), temoin \}/);
   });
 
   it('une pub jamais relue n’entre pas dans les taux', () => {
