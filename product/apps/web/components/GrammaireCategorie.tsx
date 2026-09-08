@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import type { LigneGrammaire } from '@tiktrends/core';
 import { grammaireCategorieAction } from '../app/actions/layout-marche';
+import { grammaireVideoAction } from '../app/actions/video-marche';
 
 /**
  * « La carte d'identité de ta catégorie » · rendre le poumon VISIBLE.
@@ -14,17 +15,41 @@ import { grammaireCategorieAction } from '../app/actions/layout-marche';
  * déjà décrites, pas de dépense · muette tant que la catégorie n'a pas été
  * décrite (le lot market-learn la remplit).
  */
+/** Un volet de la carte d'identité · un titre, l'effectif, et la grille des axes. */
+function Volet({ titre, n, lignes }: { titre: string; n: number; lignes: LigneGrammaire[] }) {
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', marginBottom: 10 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', marginBottom: 2 }}>{titre}</div>
+      <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10 }}>
+        D’après {n} créa(s) concurrente(s) analysée(s) · ce qui revient chez les gagnantes.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+        {lignes.map((l) => (
+          <div key={l.axe} style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>{l.axe}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginTop: 2 }}>{l.valeur}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function GrammaireCategorie() {
   const [lignes, setLignes] = useState<LigneGrammaire[] | null>(null);
   const [n, setN] = useState(0);
+  const [video, setVideo] = useState<{ lignes: LigneGrammaire[]; n: number } | null>(null);
   const [busy, start] = useTransition();
 
   function voir() {
     if (busy) return;
     start(async () => {
-      const r = await grammaireCategorieAction();
-      setLignes(r.lignes);
-      setN(r.n);
+      // Deux volets, un seul geste · le statique (mise en page, charte) et la
+      // vidéo (accroche, ouverture, personne à l'écran).
+      const [stat, vid] = await Promise.all([grammaireCategorieAction(), grammaireVideoAction()]);
+      setLignes(stat.lignes);
+      setN(stat.n);
+      setVideo(vid);
     });
   }
 
@@ -40,22 +65,14 @@ export function GrammaireCategorie() {
       </div>
 
       {lignes && lignes.length > 0 && (
-        <div style={{ padding: '14px 16px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)' }}>
-          <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10 }}>
-            D’après {n} pub(s) concurrente(s) analysée(s) · ce qui revient chez les gagnantes.
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-            {lignes.map((l) => (
-              <div key={l.axe} style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)' }}>
-                <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>{l.axe}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginTop: 2 }}>{l.valeur}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Volet titre="Statique · mise en page & charte" n={n} lignes={lignes} />
       )}
 
-      {lignes && lignes.length === 0 && (
+      {video && video.lignes.length > 0 && (
+        <Volet titre="Vidéo · accroche, ouverture, présence" n={video.n} lignes={video.lignes} />
+      )}
+
+      {lignes && lignes.length === 0 && (!video || video.lignes.length === 0) && (
         <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>
           {n > 0
             ? `Rien ne se détache encore nettement dans ta catégorie (${n} pub(s) analysée(s)) · il faut un motif majoritaire pour conclure.`
