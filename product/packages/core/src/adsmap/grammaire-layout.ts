@@ -34,6 +34,10 @@
 import type {
   HeadlinePosition, Composition, TextDensity, Background, TypoRegister, Palette,
 } from './asset-taxonomy';
+import {
+  HEADLINE_POSITION_LABEL, COMPOSITION_LABEL, TEXT_DENSITY_LABEL, BACKGROUND_LABEL,
+  TYPO_REGISTER_LABEL, PALETTE_LABEL,
+} from './asset-taxonomy';
 
 /** Une observation de layout et de charte · chaque dimension nullable. */
 export interface ObservationLayout {
@@ -161,4 +165,35 @@ export function briefLayout(g: GrammaireLayout): string[] {
   ].filter(Boolean);
   if (!parts.length) return [];
   return [`In this product category, the ads that keep running tend to ${parts.join('; ')}. Lean that way unless the product demands otherwise.`];
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Rendre la grammaire LISIBLE · la carte d'identité de la catégorie          */
+/* -------------------------------------------------------------------------- */
+
+/** Une ligne lisible de la carte d'identité · un intitulé et sa valeur dominante. */
+export interface LigneGrammaire {
+  /** L'axe · « Accroche », « Composition », « Typo »… */
+  axe: string;
+  /** La valeur dominante, en clair · « Accroche en haut », « Serif »… */
+  valeur: string;
+}
+
+/**
+ * La grammaire en clair, pour l'afficher · une ligne par dimension qui a
+ * tranché, dans la langue de l'interface. Vide quand rien ne domine · on ne
+ * montre pas une carte d'identité à moitié devinée.
+ *
+ * On saute les valeurs qui ne se prescrivent pas non plus à la génération
+ * (« pas d'accroche », « mixte ») · elles n'apprennent rien à montrer.
+ */
+export function resumeGrammaire(g: GrammaireLayout): LigneGrammaire[] {
+  const lignes: LigneGrammaire[] = [];
+  if (g.headlinePosition && g.headlinePosition !== 'none') lignes.push({ axe: 'Accroche', valeur: HEADLINE_POSITION_LABEL[g.headlinePosition] });
+  if (g.composition) lignes.push({ axe: 'Composition', valeur: COMPOSITION_LABEL[g.composition] });
+  if (g.textDensity) lignes.push({ axe: 'Texte', valeur: TEXT_DENSITY_LABEL[g.textDensity] });
+  if (g.background) lignes.push({ axe: 'Fond', valeur: BACKGROUND_LABEL[g.background] });
+  if (g.typoRegister && g.typoRegister !== 'mixed') lignes.push({ axe: 'Typo', valeur: TYPO_REGISTER_LABEL[g.typoRegister] });
+  if (g.palette) lignes.push({ axe: 'Palette', valeur: PALETTE_LABEL[g.palette] });
+  return lignes;
 }

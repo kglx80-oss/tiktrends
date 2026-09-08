@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  grammaireLayout, briefLayout, MIN_MARCHE, SEUIL_DOMINANT,
+  grammaireLayout, briefLayout, resumeGrammaire, MIN_MARCHE, SEUIL_DOMINANT,
   type ObservationLayout, type GrammaireLayout,
 } from '../src/adsmap/grammaire-layout';
 
@@ -96,5 +96,29 @@ describe('la distillation en consignes', () => {
     const cs = briefLayout(g);
     expect(cs[0]).toMatch(/SERIF/);
     expect(cs[0]).toMatch(/PASTEL/i);
+  });
+});
+
+describe('la carte d’identité · rendre la grammaire lisible', () => {
+  it('une grammaire vide ne montre rien', () => {
+    // On ne montre pas une carte d'identité à moitié devinée.
+    expect(resumeGrammaire(vide)).toEqual([]);
+  });
+
+  it('une grammaire nette se lit en lignes françaises', () => {
+    const lignes = resumeGrammaire({
+      ...vide, headlinePosition: 'top', composition: 'product_hero',
+      typoRegister: 'serif', palette: 'pastel', n: 40,
+    });
+    const parAxe = Object.fromEntries(lignes.map((l) => [l.axe, l.valeur]));
+    expect(parAxe['Accroche']).toBe('Accroche en haut');
+    expect(parAxe['Composition']).toBe('Produit héros');
+    expect(parAxe['Typo']).toBe('Serif');
+    expect(parAxe['Palette']).toBe('Pastel');
+  });
+
+  it('ne montre pas les valeurs qui ne se prescrivent pas', () => {
+    // « pas d'accroche » et « typo mixte » n'apprennent rien à afficher.
+    expect(resumeGrammaire({ ...vide, headlinePosition: 'none', typoRegister: 'mixed', n: 40 })).toEqual([]);
   });
 });
