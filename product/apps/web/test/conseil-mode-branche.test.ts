@@ -16,7 +16,9 @@ const STUDIO = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.
 
 describe('le conseil de mode traverse jusqu’à l’écran', () => {
   it('la page le calcule depuis le MÊME bilan que le moteur · une seule lecture', () => {
-    expect(PAGE).toMatch(/const bilanCopie = /);
+    // Une seule lecture du bilan, partagée · le moteur ET le mode s'en déduisent.
+    expect((PAGE.match(/bilanCopieAction\(\)/g) ?? []).length, 'une seule lecture du bilan').toBe(1);
+    expect(PAGE).toMatch(/conseilMoteur\(bilanCopie\)/);
     expect(PAGE).toMatch(/conseilMode\(\{/);
     expect(PAGE, 'le mode est passé à l’écran').toMatch(/conseilModes=\{conseilModes\}/);
   });
