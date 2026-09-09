@@ -4,8 +4,8 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { COMPETITORS, AI_STACK, CAPABILITIES, GAPS, ADVANTAGES, type Cap } from '../../../../lib/intel';
-import { analyseSurvie, PROVEN_DAYS, bilanHypotheses, type AnalyseSurvie, type BilanHypotheses } from '@tiktrends/core';
-import { eq } from 'drizzle-orm';
+import { analyseSurvie, PROVEN_DAYS, bilanHypotheses, perfParAngle, type AnalyseSurvie, type BilanHypotheses, type PerfParAngle, type CreaLancee, type VerdictValue } from '@tiktrends/core';
+import { eq, inArray } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +37,46 @@ export default async function IntelligencePage() {
       const rec = (g.input ?? {}) as { angle?: string | null; rating?: 'up' | 'down' | null };
       return { angle: rec.angle ?? null, rating: rec.rating ?? null };
     }));
+  }
+
+  // Le pendant OBJECTIF · la performance réelle (verdict ADSMAP) par angle. On
+  // relie chaque ad lancée à la génération qui l'a produite (lien AD-level, le
+  // plus sûr · on écarte les rattachements ambigus plutôt que de les deviner),
+  // puis à l'angle de cette génération (#300). ⚠ Jointure non vérifiée sur
+  // données réelles · à confirmer côté propriétaire.
+  let perf: PerfParAngle | null = null;
+  if (db) {
+    const rows = await db.select({
+      sourceRef: schema.ads.sourceRef,
+      computed: schema.verdicts.computed,
+      metricsAgg: schema.verdicts.metricsAgg,
+    })
+      .from(schema.ads)
+      .innerJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id));
+
+    // 1) L'angle de chaque génération référencée par une ad.
+    const genIds = Array.from(new Set(rows
+      .map((r) => (r.sourceRef as { generationId?: string } | null)?.generationId)
+      .filter((x): x is string => !!x)));
+    const angleParGen = new Map<string, string | null>();
+    if (genIds.length) {
+      const gs = await db.select({ id: schema.generations.id, input: schema.generations.input })
+        .from(schema.generations).where(inArray(schema.generations.id, genIds));
+      for (const g of gs) angleParGen.set(g.id, ((g.input ?? {}) as { angle?: string | null }).angle ?? null);
+    }
+
+    // 2) Chaque ad conclusive rattachée devient une ligne {angle, verdict, métriques}.
+    const creas: CreaLancee[] = rows.map((r) => {
+      const genId = (r.sourceRef as { generationId?: string } | null)?.generationId;
+      const agg = (r.metricsAgg ?? null) as { spend?: number; ctr?: number } | null;
+      return {
+        angle: genId ? angleParGen.get(genId) ?? null : null,
+        verdict: (r.computed ?? null) as VerdictValue | null,
+        spend: agg?.spend ?? null,
+        ctr: agg?.ctr ?? null,
+      };
+    });
+    perf = perfParAngle(creas);
   }
 
   return (
@@ -239,6 +279,50 @@ export default async function IntelligencePage() {
                     <td style={std}>{l.jugees}</td>
                     <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxPertinence != null ? Math.round(l.tauxPertinence * 100) + ' %' : '—'}</td>
                     <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (bilan!.tauxGeneral != null && l.tauxPertinence != null ? (l.tauxPertinence >= bilan!.tauxGeneral ? <span style={{ fontSize: 11, color: '#2fd6a0', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: '#f5a623' }}>en dessous</span>) : null)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Le pendant OBJECTIF · la performance réelle par angle */}
+      <h2 style={{ margin: '4px 0 6px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Hypothèses d'angle · ce qui a PAYÉ</h2>
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 0, marginBottom: 6, maxWidth: 760, lineHeight: 1.6 }}>
+        Le vote objectif · pour chaque angle, la part de créas lancées jugées <b>gagnantes</b> par ADSMAP (sur métriques
+        réelles), comparée au taux général. « Le client a aimé » et « le marché a payé » sont deux choses · voici la seconde.
+      </p>
+      <p style={{ color: '#f5a623', fontSize: 11.5, marginTop: 0, marginBottom: 14 }}>
+        ⚠ Jointure ad → génération → angle <b>non encore vérifiée sur données réelles</b> · lien AD-level seul (les
+        rattachements ambigus sont écartés, pas devinés). À confirmer avant tout usage de décision.
+      </p>
+      {!perf || perf.lignes.length === 0 ? (
+        <div style={cardSurvie}><p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
+          Aucune créa lancée n'est encore rattachable à un angle · ce tableau se remplit quand des créas générées depuis
+          un angle (#300) sont lancées via ADSMAP et reçoivent un verdict.
+        </p></div>
+      ) : (
+        <div style={cardSurvie}>
+          <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--ink-2)' }}>
+            Référence · taux de gagnants général <b style={{ color: 'var(--ink)' }}>{perf.tauxGeneral != null ? Math.round(perf.tauxGeneral * 100) + ' %' : '—'}</b> sur {perf.conclusifsTotal} créa(s) conclusive(s).
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 620 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
+                  <th style={sth}>Angle</th><th style={sth}>Lancées</th><th style={sth}>Conclusives</th><th style={sth}>Gagnants</th><th style={sth}>CTR moyen</th><th style={sth}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {perf.lignes.map((l) => (
+                  <tr key={l.angle} style={{ borderTop: '1px solid var(--line)' }}>
+                    <td style={{ ...std, color: 'var(--ink)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={l.angle}>{l.angle}</td>
+                    <td style={std}>{l.total}</td>
+                    <td style={std}>{l.conclusifs}</td>
+                    <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxGagnant != null ? Math.round(l.tauxGagnant * 100) + ' %' : '—'}</td>
+                    <td style={std}>{l.ctrMoyen != null ? (l.ctrMoyen * 100).toFixed(2).replace('.', ',') + ' %' : '—'}</td>
+                    <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (perf!.tauxGeneral != null && l.tauxGagnant != null ? (l.tauxGagnant >= perf!.tauxGeneral ? <span style={{ fontSize: 11, color: '#2fd6a0', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: '#f5a623' }}>en dessous</span>) : null)}</td>
                   </tr>
                 ))}
               </tbody>
