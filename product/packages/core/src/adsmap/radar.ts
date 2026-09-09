@@ -125,6 +125,39 @@ export function survivalSignal(c: RadarCandidate): RadarSignal | null {
   return null;
 }
 
+/** L'état de survie d'une créa déjà en base · ce qu'on compare au frais. */
+export interface SurvieAncienne { daysRunning: number; signal: RadarSignal | null }
+/** Ce qu'on réécrit pour une créa connue revue · les chiffres, jamais la mise en page. */
+export interface SurvieMaj { daysRunning: number; reachDelta30d: number | null; liveAdsCount: number | null; signal: RadarSignal | null }
+
+/**
+ * Rafraîchir une créa DÉJÀ connue, revue une nuit plus tard.
+ *
+ * ── L'angle mort que ça ferme ────────────────────────────────────────────────
+ *
+ * Une créa vue jeune (5 j) était insérée avec ses chiffres de ce jour-là, puis
+ * plus jamais mise à jour · l'insert la laissait telle quelle sur conflit, donc
+ * `daysRunning` gelait. Quand elle franchissait vraiment le cap (21 j), le radar
+ * l'ignorait — déjà connue — et sa proven-ness restait figée sur sa jeunesse. Le
+ * radar était donc aveugle aux créas les plus prometteuses : celles qu'on avait
+ * repérées TÔT.
+ *
+ * La description (mise en page, charte) est stable · pas besoin de la repayer.
+ * Seuls les CHIFFRES de survie bougent · on les réécrit depuis la donnée fraîche
+ * (gratuite, elle vient de la recherche) et on recalcule le signal. `null` quand
+ * rien n'a bougé · pas d'écriture inutile.
+ */
+export function majSurvie(frais: RadarCandidate, ancien: SurvieAncienne): SurvieMaj | null {
+  const signal = survivalSignal(frais);
+  if (frais.daysRunning === ancien.daysRunning && signal === ancien.signal) return null;
+  return {
+    daysRunning: frais.daysRunning,
+    reachDelta30d: frais.reachDelta30d ?? null,
+    liveAdsCount: frais.liveAdsCount ?? null,
+    signal,
+  };
+}
+
 const RANG: Record<RadarSignal, number> = {
   crossed_proven: 0, reach_growing: 1, advertiser_scaling: 2,
 };
