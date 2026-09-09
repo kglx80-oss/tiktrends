@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
-import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequeMeta, type AngleKey } from '@tiktrends/core';
+import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, type AngleKey } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
 
 export interface SwipeItem { ad: InspoAd; angle: AngleKey; saved: boolean; following: boolean }
@@ -106,6 +106,7 @@ function Card({ it }: { it: SwipeItem }) {
   const canPlay = isVideo(ad) && !!ad.mediaUrl;
   // Un statique porte son image dans `mediaUrl` · l'aperçu retombe dessus.
   const poster = apercuImage({ isVideo: isVideo(ad), thumbnailUrl: ad.thumbnailUrl, mediaUrl: ad.mediaUrl });
+  const biblio = bibliothequePub({ platform: ad.platform, name: ad.advertiserName });
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative', aspectRatio: '4 / 5', background: poster ? `center/cover no-repeat url(${poster})` : '#140f18' }}>
@@ -162,13 +163,13 @@ function Card({ it }: { it: SwipeItem }) {
               {ctaLabel(ad)} <span style={{ color: 'var(--accent-strong)' }}>↗</span>
             </a>
           )}
-          {bibliothequeMeta({ platform: ad.platform, name: ad.advertiserName }) && (
-            <a href={bibliothequeMeta({ platform: ad.platform, name: ad.advertiserName })!} target="_blank" rel="noreferrer noopener" style={{
+          {biblio && (
+            <a href={biblio.url} target="_blank" rel="noreferrer noopener" style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               padding: '8px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent',
               color: 'var(--ink-2)', fontWeight: 700, fontSize: 12, textDecoration: 'none',
             }}>
-              Bibliothèque Meta <span style={{ color: 'var(--accent-strong)' }}>↗</span>
+              {biblio.label} <span style={{ color: 'var(--accent-strong)' }}>↗</span>
             </a>
           )}
         </div>

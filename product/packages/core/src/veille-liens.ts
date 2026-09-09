@@ -10,23 +10,41 @@
  */
 
 /**
- * La bibliothèque publicitaire Meta d'un annonceur · recherche par NOM.
+ * La bibliothèque publicitaire officielle d'un annonceur · recherche par NOM.
  *
- * On ne fait pas de lien profond par identifiant de page · l'id renvoyé par la
- * source n'est pas garanti d'être l'id de page Facebook, et un lien profond
+ * ── Pourquoi par nom, et par plateforme ──────────────────────────────────────
+ *
+ * On ne fait pas de lien profond par identifiant · l'id renvoyé par la source
+ * n'est pas garanti d'être l'id officiel de la plateforme, et un lien profond
  * faux ouvre une page vide. La recherche par nom, elle, atterrit toujours sur
- * les annonces de la marque. Réservé à Meta · les autres plateformes n'ont pas
- * cette bibliothèque au même endroit, on renvoie `null`.
+ * les annonces de la marque (ou, au pire, sur la bibliothèque prête à chercher).
+ *
+ * Chaque plateforme a SA bibliothèque · Meta (Ad Library) et TikTok (Commercial
+ * Content Library). Google n'expose pas de recherche par nom fiable dans son
+ * Transparency Center (il indexe par identifiant d'annonceur) · plutôt qu'un
+ * lien qui tomberait à côté, on renvoie `null` · pas de bouton vaut mieux qu'un
+ * bouton mort.
+ *
+ * Renvoie l'URL ET le libellé · le libellé nomme la bonne plateforme à l'écran.
  */
-export function bibliothequeMeta(o: { platform?: string | null; name?: string | null }): string | null {
-  if (o.platform && o.platform !== 'meta') return null;
+export function bibliothequePub(o: { platform?: string | null; name?: string | null }): { url: string; label: string } | null {
   const name = o.name?.trim();
   if (!name) return null;
+  const p = o.platform ?? 'meta';
+
+  if (p === 'tiktok') {
+    // TikTok Commercial Content Library · recherche par nom d'annonceur.
+    const q = new URLSearchParams({ region: 'all', type: 'all', adv_name: name });
+    return { url: 'https://library.tiktok.com/ads?' + q.toString(), label: 'Bibliothèque TikTok' };
+  }
+  if (p === 'google') return null;
+
+  // Meta Ad Library · par défaut (plateforme absente = Meta).
   const q = new URLSearchParams({
     active_status: 'all', ad_type: 'all', country: 'ALL',
     media_type: 'all', search_type: 'keyword_unordered', q: name,
   });
-  return 'https://www.facebook.com/ads/library/?' + q.toString();
+  return { url: 'https://www.facebook.com/ads/library/?' + q.toString(), label: 'Bibliothèque Meta' };
 }
 
 /** Le site de la marque · à partir du domaine d'atterrissage, sinon de l'URL. */

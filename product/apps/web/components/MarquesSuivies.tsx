@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { bibliothequeMeta, siteMarque, consigneAngleMarche, type BriefConcurrent } from '@tiktrends/core';
+import { bibliothequePub, siteMarque, consigneAngleMarche, type BriefConcurrent } from '@tiktrends/core';
 import { BrandRemoveButton } from './InspoButtons';
 import { briefMarqueAction } from '../app/actions/brief-marque';
 
@@ -34,7 +34,7 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
     <div style={{ marginBottom: 30 }}>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {brands.map((b) => {
-          const biblio = bibliothequeMeta({ platform: b.platform, name: b.name });
+          const biblio = bibliothequePub({ platform: b.platform, name: b.name });
           const site = siteMarque({ landingDomain: b.domain });
           return (
             <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 8px 6px 6px', background: ouvert === b.id ? 'var(--accent-soft)' : 'var(--surface)' }}>
@@ -48,7 +48,7 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
                 {ouvert === b.id ? '× fermer' : 'analyser'}
               </button>
               <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
-              {biblio && <a href={biblio} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>bibliothèque ↗</a>}
+              {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>bibliothèque ↗</a>}
               {site && <a href={site} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>site ↗</a>}
               <BrandRemoveButton platform={b.platform} name={b.name} />
             </div>

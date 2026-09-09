@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, bibliothequeMeta, siteMarque } from '@tiktrends/core';
+import { estGagnantVeille, bibliothequePub, siteMarque } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -29,7 +29,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
   // pas le énième lancement d'un concurrent.
   const gagnant = estGagnantVeille(ad);
   // Liens sortants · retrouver la marque à sa source, pas une impasse.
-  const biblio = bibliothequeMeta({ platform: ad.platform, name: ad.advertiserName });
+  const biblio = bibliothequePub({ platform: ad.platform, name: ad.advertiserName });
   const site = siteMarque({ landingDomain: ad.landingDomain, landingUrl: ad.landingUrl });
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
@@ -80,7 +80,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
         )}
         {(biblio || site) && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {biblio && <a href={biblio} target="_blank" rel="noreferrer" style={lienExterne}>Bibliothèque Meta ↗</a>}
+            {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={lienExterne}>{biblio.label} ↗</a>}
             {site && <a href={site} target="_blank" rel="noreferrer" style={lienExterne}>Site ↗</a>}
           </div>
         )}

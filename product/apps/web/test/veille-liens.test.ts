@@ -1,34 +1,41 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { bibliothequeMeta, siteMarque } from '@tiktrends/core';
+import { bibliothequePub, siteMarque } from '@tiktrends/core';
 
 /**
  * Depuis la Veille, on doit pouvoir SORTIR vers la source · la bibliothèque
- * publicitaire Meta d'une marque et son site. On teste les URL produites, pas
- * la présence d'un appel.
+ * publicitaire d'une marque (par plateforme) et son site. On teste les URL et
+ * libellés produits, pas la présence d'un appel.
  */
 
-describe('bibliothequeMeta · recherche par nom, réservée à Meta', () => {
-  it('construit une URL de recherche Meta pour un annonceur', () => {
-    const u = bibliothequeMeta({ platform: 'meta', name: 'HELL Ice Coffee' });
-    expect(u).toContain('https://www.facebook.com/ads/library/');
-    expect(u).toContain('q=HELL+Ice+Coffee');
-    expect(u).toContain('search_type=keyword_unordered');
+describe('bibliothequePub · la bonne bibliothèque par plateforme, par nom', () => {
+  it('Meta · Ad Library, recherche par nom', () => {
+    const b = bibliothequePub({ platform: 'meta', name: 'HELL Ice Coffee' })!;
+    expect(b.url).toContain('https://www.facebook.com/ads/library/');
+    expect(b.url).toContain('q=HELL+Ice+Coffee');
+    expect(b.url).toContain('search_type=keyword_unordered');
+    expect(b.label).toBe('Bibliothèque Meta');
   });
 
-  it('null hors Meta · pas de bibliothèque au même endroit', () => {
-    expect(bibliothequeMeta({ platform: 'tiktok', name: 'Klorea' })).toBeNull();
-    expect(bibliothequeMeta({ platform: 'google', name: 'Klorea' })).toBeNull();
+  it('TikTok · Commercial Content Library, par nom d’annonceur', () => {
+    const b = bibliothequePub({ platform: 'tiktok', name: 'Klorea' })!;
+    expect(b.url).toContain('https://library.tiktok.com/ads');
+    expect(b.url).toContain('adv_name=Klorea');
+    expect(b.label).toBe('Bibliothèque TikTok');
+  });
+
+  it('Google · null · pas de recherche par nom fiable, on n’ouvre pas un lien mort', () => {
+    expect(bibliothequePub({ platform: 'google', name: 'Klorea' })).toBeNull();
   });
 
   it('null sans nom · rien à chercher', () => {
-    expect(bibliothequeMeta({ platform: 'meta', name: '' })).toBeNull();
-    expect(bibliothequeMeta({ platform: 'meta', name: null })).toBeNull();
+    expect(bibliothequePub({ platform: 'meta', name: '' })).toBeNull();
+    expect(bibliothequePub({ platform: 'tiktok', name: null })).toBeNull();
   });
 
   it('plateforme absente · on suppose Meta', () => {
-    expect(bibliothequeMeta({ name: 'Klorea' })).toContain('q=Klorea');
+    expect(bibliothequePub({ name: 'Klorea' })!.url).toContain('q=Klorea');
   });
 });
 
@@ -55,9 +62,9 @@ const SWIPE = readFileSync(join(process.cwd(), 'app/(app)/veille/scale/SwipeFile
 const SAVED = readFileSync(join(process.cwd(), 'components/MarquesSuivies.tsx'), 'utf8');
 
 describe('les surfaces de veille exposent bien le lien bibliothèque', () => {
-  it('carte, swipe file et marques suivies appellent bibliothequeMeta', () => {
-    expect(CARD).toMatch(/bibliothequeMeta\(/);
-    expect(SWIPE).toMatch(/bibliothequeMeta\(/);
-    expect(SAVED).toMatch(/bibliothequeMeta\(/);
+  it('carte, swipe file et marques suivies appellent bibliothequePub', () => {
+    expect(CARD).toMatch(/bibliothequePub\(/);
+    expect(SWIPE).toMatch(/bibliothequePub\(/);
+    expect(SAVED).toMatch(/bibliothequePub\(/);
   });
 });
