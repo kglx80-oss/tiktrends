@@ -31,7 +31,7 @@
  * Pur : ni base, ni réseau, ni modèle.
  */
 
-import { PROVEN_DAYS } from './adsmap/market-stats';
+import { PROVEN_DAYS, isProven } from './adsmap/market-stats';
 
 /** Ce qu'on sait d'une pub de veille · le sous-ensemble qui fait un brief. */
 export interface PubVeille {
@@ -91,4 +91,17 @@ export function briefDepuisVeille(pub: PubVeille): BriefVeille | null {
     : '';
 
   return { angle: prefixe + indice + suffixe, eprouvee };
+}
+
+/**
+ * Une pub de veille est un GAGNANT quand elle est éprouvée · MÊME signal
+ * qu'`isProven` (elle tient depuis `PROVEN_DAYS`, ou sa portée progresse encore),
+ * mais pour la forme lâche d'une pub de veille · jours et delta peuvent manquer.
+ *
+ * Sert à flaguer et à remonter les gagnants dans la veille · on clone ce qui est
+ * PROUVÉ, pas chaque lancement. « Nouveau » n'est pas « gagnant » · un concurrent
+ * lance dix pubs, celles qui comptent sont celles qui tiennent.
+ */
+export function estGagnantVeille(ad: { daysRunning?: number | null; reachDelta30d?: number | null }): boolean {
+  return isProven({ daysRunning: ad.daysRunning ?? 0, reachDelta30d: ad.reachDelta30d ?? null });
 }
