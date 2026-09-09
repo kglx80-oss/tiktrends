@@ -8,6 +8,7 @@ import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type Ins
 import { AdCard, compact } from '../../../components/AdCard';
 import { PageInfo } from '../../../components/PageInfo';
 import { effectiveAccess } from '../../../lib/access';
+import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,8 @@ const DAYS = [['7', '7 j+'], ['30', '30 j+'], ['90', '90 j+']];
 type SP = {
   q?: string; p?: string; searchIn?: string; media?: string; sort?: string; status?: string;
   country?: string; lang?: string; minReach?: string; minDays?: string; page?: string;
+  /** `?refresh=1` court-circuite le cache mémoire · un appel frais à Trendtrack. */
+  refresh?: string;
 };
 
 const PLATFORMS: [AdPlatform, string][] = [['meta', 'Meta'], ['tiktok', 'TikTok'], ['google', 'Google']];
@@ -103,34 +106,45 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     ads = SAMPLE_INSPO_ADS;
     sample = true;
   } else if (query) {
-    try {
-      const media = sp.media === 'video' || sp.media === 'image' ? sp.media : undefined;
-      let r;
-      if (platform === 'tiktok') {
-        r = await ttSearchTikTok({ apiKey }, {
-          search: autoDomain ? undefined : effSearch,
-          domain: autoDomain ? effSearch : undefined,
-          limit: LIMIT, page, mediaType: media,
-        });
-      } else if (platform === 'google') {
-        r = await ttSearchGoogle({ apiKey }, { search: effSearch, limit: LIMIT, page, country: sp.country || undefined });
-      } else {
-        r = await ttSearchAds({ apiKey }, {
-          search: effSearch, limit: LIMIT, offset: (page - 1) * LIMIT,
-          mediaType: media,
-          status: sp.status === 'active' ? 'active' : 'all',
-          searchIn: effSearchIn,
-          sortBy: (sp.sort as AdSort) || 'newest',
-          country: sp.country || undefined,
-          adLanguage: sp.lang || undefined,
-          minReach: sp.minReach ? Number(sp.minReach) : undefined,
-          minDaysRunning: sp.minDays ? Number(sp.minDays) : undefined,
-        });
+    const media = sp.media === 'video' || sp.media === 'image' ? sp.media : undefined;
+    // Une même recherche ne repaie pas Trendtrack pendant quelques minutes ·
+    // paginer, ou rebasculer un filtre puis l'annuler, tape le cache mémoire.
+    // `?refresh=1` force un appel frais (et réécrit le cache).
+    const cle = cleRecherche([platform, autoDomain ? 'dom' : 'q', effSearch, effSearchIn, page, media, sp.status, sp.sort, sp.country, sp.lang, sp.minReach, sp.minDays]);
+    const enCache = sp.refresh ? undefined : lireRecherche(cle);
+    if (enCache) {
+      ads = enCache.ads;
+      total = enCache.total;
+    } else {
+      try {
+        let r;
+        if (platform === 'tiktok') {
+          r = await ttSearchTikTok({ apiKey }, {
+            search: autoDomain ? undefined : effSearch,
+            domain: autoDomain ? effSearch : undefined,
+            limit: LIMIT, page, mediaType: media,
+          });
+        } else if (platform === 'google') {
+          r = await ttSearchGoogle({ apiKey }, { search: effSearch, limit: LIMIT, page, country: sp.country || undefined });
+        } else {
+          r = await ttSearchAds({ apiKey }, {
+            search: effSearch, limit: LIMIT, offset: (page - 1) * LIMIT,
+            mediaType: media,
+            status: sp.status === 'active' ? 'active' : 'all',
+            searchIn: effSearchIn,
+            sortBy: (sp.sort as AdSort) || 'newest',
+            country: sp.country || undefined,
+            adLanguage: sp.lang || undefined,
+            minReach: sp.minReach ? Number(sp.minReach) : undefined,
+            minDaysRunning: sp.minDays ? Number(sp.minDays) : undefined,
+          });
+        }
+        ads = r.ads;
+        total = r.total;
+        ecrireRecherche(cle, { ads, total });
+      } catch (e) {
+        error = (e as Error).message;
       }
-      ads = r.ads;
-      total = r.total;
-    } catch (e) {
-      error = (e as Error).message;
     }
   }
 
