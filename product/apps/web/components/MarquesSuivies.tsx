@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { bibliothequeMeta, type BriefConcurrent } from '@tiktrends/core';
+import { bibliothequeMeta, siteMarque, type BriefConcurrent } from '@tiktrends/core';
 import { BrandRemoveButton } from './InspoButtons';
 import { briefMarqueAction } from '../app/actions/brief-marque';
 
-interface MarqueLite { id: string; platform: string; name: string; logoUrl?: string | null }
+interface MarqueLite { id: string; platform: string; name: string; logoUrl?: string | null; domain?: string | null }
 
 /**
  * Les marques suivies · chaque puce ouvre un brief À LA DEMANDE (sans IA).
@@ -35,6 +35,7 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {brands.map((b) => {
           const biblio = bibliothequeMeta({ platform: b.platform, name: b.name });
+          const site = siteMarque({ landingDomain: b.domain });
           return (
             <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 8px 6px 6px', background: ouvert === b.id ? 'var(--accent-soft)' : 'var(--surface)' }}>
               {b.logoUrl
@@ -48,6 +49,7 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
               </button>
               <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
               {biblio && <a href={biblio} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>bibliothèque ↗</a>}
+              {site && <a href={site} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>site ↗</a>}
               <BrandRemoveButton platform={b.platform} name={b.name} />
             </div>
           );

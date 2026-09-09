@@ -74,7 +74,7 @@ export default async function SavedPage() {
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>
       {brands.length === 0
         ? <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 30 }}>Aucune marque suivie pour l'instant.</p>
-        : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl }))} />}
+        : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} />}
 
       {/* Créas sauvegardées · organisées en boards */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Créas sauvegardées ({items.length})</h2>
