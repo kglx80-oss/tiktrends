@@ -11,4 +11,4 @@
  * À incrémenter en même temps qu'une migration est ajoutée. Le test échoue
  * sinon, en disant quoi écrire.
  */
-export const MIGRATIONS_IN_BUILD = 46;
+export const MIGRATIONS_IN_BUILD = 47;

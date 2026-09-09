@@ -40,12 +40,15 @@ export async function unsaveAd(input: { platform: string; externalId: string }):
   ));
 }
 
-export async function followBrand(input: { platform: string; name: string; externalId?: string; logoUrl?: string }): Promise<void> {
+export async function followBrand(input: { platform: string; name: string; externalId?: string; logoUrl?: string; domain?: string }): Promise<void> {
   const s = await getSession();
   if (!s || !db || !input.name) return;
   const brand = await getActiveBrand(s.workspaceId);
+  // On capte le domaine de la créa qui a servi à suivre · c'est ce qui offre le
+  // lien « site » sur la puce, sans nouvelle recherche.
+  const domain = input.domain?.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').trim() || null;
   await db.insert(schema.followedBrands)
-    .values({ workspaceId: s.workspaceId, brandId: brand?.id ?? null, platform: input.platform, name: input.name, externalId: input.externalId || null, logoUrl: input.logoUrl || null })
+    .values({ workspaceId: s.workspaceId, brandId: brand?.id ?? null, platform: input.platform, name: input.name, externalId: input.externalId || null, logoUrl: input.logoUrl || null, domain })
     .onConflictDoNothing();
 }
 

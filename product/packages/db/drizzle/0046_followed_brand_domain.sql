@@ -1,0 +1,11 @@
+-- Le domaine d'une marque suivie, capté au moment du « Suivre ».
+--
+-- « Marques suivies » offrait la bibliothèque publicitaire mais pas le site :
+-- on ne stockait nulle part le domaine de la marque, seulement son nom et son
+-- identifiant. La créa qui a servi à suivre porte pourtant son domaine
+-- d'atterrissage · on le range ici, une fois, pour offrir le lien « site » sur
+-- la puce sans nouvelle recherche.
+--
+-- Nullable : les marques déjà suivies n'ont pas de domaine tant qu'elles ne
+-- sont pas re-suivies · la puce montre alors la bibliothèque seule, comme avant.
+ALTER TABLE followed_brands ADD COLUMN IF NOT EXISTS domain text;

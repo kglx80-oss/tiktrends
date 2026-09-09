@@ -637,6 +637,7 @@ export const followedBrands = pgTable('followed_brands', {
   name: text('name').notNull(),
   externalId: text('external_id'),
   logoUrl: text('logo_url'),
+  domain: text('domain'),                          // domaine capté au « Suivre » · pour le lien « site »
   seenAdIds: jsonb('seen_ad_ids'),                 // ids d'annonces déjà vues (baseline anti-flood)
   lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

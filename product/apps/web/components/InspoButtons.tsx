@@ -37,7 +37,7 @@ export function FollowButton({ ad, initialFollowing }: { ad: InspoAd; initialFol
         setFollowing(next);
         start(async () => {
           try {
-            if (next) await followBrand({ platform: ad.platform, name: ad.advertiserName!, externalId: ad.advertiserId, logoUrl: ad.advertiserLogo });
+            if (next) await followBrand({ platform: ad.platform, name: ad.advertiserName!, externalId: ad.advertiserId, logoUrl: ad.advertiserLogo, domain: ad.landingDomain });
             else await unfollowBrand({ platform: ad.platform, name: ad.advertiserName! });
           } catch { setFollowing(!next); }
         });
