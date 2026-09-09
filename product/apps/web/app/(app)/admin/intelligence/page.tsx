@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation';
+import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { COMPETITORS, AI_STACK, CAPABILITIES, GAPS, ADVANTAGES, type Cap } from '../../../../lib/intel';
+import { analyseSurvie, PROVEN_DAYS, type AnalyseSurvie } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +13,16 @@ export default async function IntelligencePage() {
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
   if (!isFounder(s.user.email)) redirect('/dashboard');
+
+  // Mesurer le seuil « éprouvé » sur la donnée réelle · tous espaces confondus
+  // (vue fondateur). On ne lit qu'une colonne · l'âge de chaque créa concurrente
+  // déjà décrite. Le calcul est pur (`analyseSurvie`), la page ne fait que
+  // l'afficher à côté du 21 posé de tête.
+  let survie: AnalyseSurvie | null = null;
+  if (db) {
+    const rows = await db.select({ j: schema.marketCreatives.daysRunning }).from(schema.marketCreatives);
+    survie = analyseSurvie(rows.map((r) => r.j ?? 0));
+  }
 
   return (
     <main style={{ padding: '30px 36px 60px', maxWidth: 1080, margin: '0 auto' }}>
@@ -134,7 +146,66 @@ export default async function IntelligencePage() {
           </div>
         ))}
       </div>
+
+      {/* Seuil « éprouvé » · mesuré, pas posé de tête */}
+      <h2 style={{ margin: '4px 0 6px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Seuil « éprouvé » · mesuré</h2>
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 0, marginBottom: 14, maxWidth: 760, lineHeight: 1.6 }}>
+        Le code fige <b>PROVEN_DAYS = {PROVEN_DAYS} j</b>, écrit de tête. Voici ce que dit la donnée réelle
+        (âge de chaque créa concurrente décrite, tous espaces confondus). On <b>ne change rien</b> ici · on montre la
+        courbe pour décider sur mesure, avec de la marge.
+      </p>
+      {!survie ? (
+        <div style={cardSurvie}><p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>Base indisponible.</p></div>
+      ) : (
+        <div style={cardSurvie}>
+          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 14 }}>
+            <StatSurvie v={String(survie.effectifTotal)} label="Créas mesurées" />
+            <StatSurvie v={survie.mediane + ' j'} label="Médiane" />
+            <StatSurvie v={survie.p75 + ' j'} label="p75" />
+            <StatSurvie v={survie.p90 + ' j'} label="p90" />
+            <StatSurvie v={PROVEN_DAYS + ' j'} label="Seuil actuel (posé)" />
+            <StatSurvie v={survie.recommande != null ? survie.recommande + ' j' : '—'} label="Seuil mesuré" accent />
+          </div>
+          <div style={{ overflowX: 'auto', marginBottom: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 480 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
+                  <th style={sth}>Seuil</th><th style={sth}>Créas au-delà</th><th style={sth}>Part du marché</th><th style={sth}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {survie.paliers.map((p) => (
+                  <tr key={p.jour} style={{ borderTop: '1px solid var(--line)' }}>
+                    <td style={{ ...std, fontWeight: 700, color: p.jour === survie!.recommande ? 'var(--accent-strong)' : 'var(--ink)' }}>{p.jour} j{p.jour === PROVEN_DAYS && <span style={{ fontSize: 10, color: 'var(--muted)' }}> · actuel</span>}</td>
+                    <td style={std}>{p.effectif}</td>
+                    <td style={std}>{Math.round(p.partAuDela * 100)} %</td>
+                    <td style={{ ...std, width: 140 }}>
+                      <div style={{ height: 7, background: 'var(--paper)', borderRadius: 999, overflow: 'hidden' }}>
+                        <div style={{ width: Math.round(p.partAuDela * 100) + '%', height: '100%', background: 'var(--grad-accent)' }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>{survie.raison}</p>
+        </div>
+      )}
     </main>
+  );
+}
+
+const cardSurvie = { border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: 18, marginBottom: 30 } as const;
+const sth = { padding: '8px 12px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' } as const;
+const std = { padding: '8px 12px', color: 'var(--ink-2)' } as const;
+
+function StatSurvie({ v, label, accent }: { v: string; label: string; accent?: boolean }) {
+  return (
+    <div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: accent ? 'var(--accent-strong)' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+      <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', marginTop: 2 }}>{label}</div>
+    </div>
   );
 }
 
