@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apercuImage } from '@tiktrends/core';
 
 /** Zone média d'une créa : miniature cliquable → lecture vidéo en direct. */
 export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect = '1/1' }: {
@@ -8,6 +9,9 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
 }) {
   const [playing, setPlaying] = useState(false);
   const canPlay = isVideo && !!mediaUrl;
+  // Un statique porte son image dans `mediaUrl` · sans ça il montrait « Aperçu
+  // indisponible » alors que l'image existe.
+  const poster = apercuImage({ isVideo, thumbnailUrl, mediaUrl });
 
   if (playing && mediaUrl) {
     return (
@@ -20,9 +24,9 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
 
   const inner = (
     <>
-      {thumbnailUrl
-         
-        ? <img src={thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      {poster
+
+        ? <img src={poster} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
       {daysRunning != null && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>{daysRunning} j actifs</span>}
       {canPlay && (
