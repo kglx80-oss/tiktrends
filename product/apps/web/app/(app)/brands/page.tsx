@@ -9,6 +9,7 @@ import { deleteBrandAction } from '../../actions/brands';
 import { Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { NewBrandButton } from '../../../components/NewBrandButton';
+import { ConfirmButton } from '../../../components/ConfirmButton';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { costFor } from '@tiktrends/core';
 import { Empty } from '../../../components/Empty';
@@ -98,7 +99,7 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
                 <Link href={`/brands/${b.id}`} style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>Voir détails</Link>
                 <form action={deleteBrandAction} style={{ margin: 0 }}>
                   <input type="hidden" name="id" value={b.id} />
-                  <button type="submit" style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,77,109,.3)', background: 'transparent', color: '#ff9db0', fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>Supprimer</button>
+                  <ConfirmButton message={`Supprimer « ${b.name} » et TOUT son contenu (personas, produits, créas) ? Cette action est irréversible.`} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,77,109,.3)', background: 'transparent', color: '#ff9db0', fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>Supprimer</ConfirmButton>
                 </form>
               </div>
             </div>
