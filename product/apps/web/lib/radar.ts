@@ -6,7 +6,7 @@ import { analyzeAdAsset } from '@tiktrends/ai';
 import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
   selectForAnalysis, radarDigest, findingHeadline, estimateCost,
-  normalizeAnalysis,
+  normalizeAnalysis, majSurvie,
   type RadarCandidate, type RadarFinding, type RadarSignal,
 } from '@tiktrends/core';
 import { guardedAnthropic, SpendBlockedError } from './spend-guard';
@@ -49,6 +49,8 @@ interface RadarRun {
   analyzed: number;
   spentUsd: number;
   deferred: number;
+  /** Créas déjà connues dont on a rafraîchi les chiffres de survie · gratuit. */
+  refreshed?: number;
   digest: string;
   blocked?: string;
 }
@@ -110,6 +112,8 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
   const connues = ids.length
     ? await db.select({
         externalId: schema.marketCreatives.externalId, advertiser: schema.marketCreatives.advertiser,
+        platform: schema.marketCreatives.platform,
+        daysRunning: schema.marketCreatives.daysRunning, radarSignal: schema.marketCreatives.radarSignal,
       })
       .from(schema.marketCreatives)
       .where(eq(schema.marketCreatives.workspaceId, workspaceId))
@@ -132,6 +136,31 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
     hasText: !!a.body,
   }));
 
+  // 2·bis — Rafraîchir les créas DÉJÀ connues · GRATIS, sans vision.
+  // Sans ça, une créa vue jeune restait figée (`onConflictDoNothing` ne
+  // touchait jamais `daysRunning`) · elle ne franchissait JAMAIS le cap dans
+  // notre base, même en le franchissant en vrai, et le radar l'ignorait pour
+  // toujours — l'angle mort exact : les créas repérées tôt. On réécrit les
+  // chiffres de survie depuis la donnée fraîche · la mise en page ne bouge pas
+  // et n'est pas repayée.
+  const connuMap = new Map(connues.map((c) => [c.platform + ':' + c.externalId, c]));
+  const uniques = new Map(candidats.map((c, i) => [ads[i]!.platform + ':' + c.externalId, { c, platform: ads[i]!.platform }]));
+  let rafraichies = 0;
+  for (const { c, platform: plat } of uniques.values()) {
+    const ancien = connuMap.get(plat + ':' + c.externalId);
+    if (!ancien) continue;
+    const maj = majSurvie(c, { daysRunning: ancien.daysRunning ?? 0, signal: (ancien.radarSignal as RadarSignal | null) ?? null });
+    if (!maj) continue;
+    await db.update(schema.marketCreatives)
+      .set({ daysRunning: maj.daysRunning, reachDelta30d: maj.reachDelta30d, liveAdsCount: maj.liveAdsCount, radarSignal: maj.signal })
+      .where(and(
+        eq(schema.marketCreatives.workspaceId, workspaceId),
+        eq(schema.marketCreatives.platform, plat),
+        eq(schema.marketCreatives.externalId, c.externalId),
+      ));
+    rafraichies++;
+  }
+
   // 3 · Sélection · c'est ici que le budget est décidé, avant tout appel.
   const sel = selectForAnalysis(
     candidats,
@@ -141,7 +170,10 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
 
   if (!sel.picked.length) {
     await marquerPasse(brandId);
-    return { ...vide, deferred: sel.deferred, digest: radarDigest([], sel.deferred) };
+    const digest = rafraichies > 0
+      ? `${radarDigest([], sel.deferred)} · ${rafraichies} créa(s) suivie(s) réévaluée(s).`
+      : radarDigest([], sel.deferred);
+    return { ...vide, deferred: sel.deferred, refreshed: rafraichies, digest };
   }
 
   // 4 · Description · la seule partie payante.
@@ -204,7 +236,7 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
 
   return {
     brandId, analyzed: decrites, spentUsd: estimateCost(decrites),
-    deferred: sel.deferred, digest, blocked: bloque,
+    deferred: sel.deferred, refreshed: rafraichies, digest, blocked: bloque,
   };
 }
 
