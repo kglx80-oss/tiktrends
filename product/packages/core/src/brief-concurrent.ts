@@ -93,3 +93,25 @@ export function briefConcurrent(pubs: PubConcurrent[]): BriefConcurrent {
     domaines,
   };
 }
+
+/**
+ * La consigne d'angle prête pour le studio · du brief à la créa.
+ *
+ * ── Reprendre l'angle, jamais les mots ───────────────────────────────────────
+ *
+ * Le brief dit quel angle DOMINE chez un concurrent. Le pont existant
+ * (`briefDepuisVeille`) part d'UNE pub · ici on part de la FORME du compte : sa
+ * manière la plus fréquente. On la distille en directive bornée, attribuée
+ * (« la manière qui tient chez lui »), jamais en copy recopiée · le studio la
+ * lit dans `?angle=` et Jarvis réécrit NOTRE version. Sans angle exploitable,
+ * `null` · on n'arme rien plutôt que d'armer du vide.
+ */
+const MAX_CONSIGNE_MARCHE = 300;
+
+export function consigneAngleMarche(o: { angleLabel?: string | null; marque?: string | null }): string | null {
+  const label = o.angleLabel?.trim();
+  if (!label) return null;
+  const qui = o.marque?.trim() ? `chez ${o.marque.trim()}` : 'chez ce concurrent';
+  const s = `Reprends l'angle qui domine ${qui} · « ${label} » · c'est sa manière la plus fréquente, éprouvée. Écris NOTRE version pour notre produit, sans recopier sa marque ni ses mots.`;
+  return s.length <= MAX_CONSIGNE_MARCHE ? s : s.slice(0, MAX_CONSIGNE_MARCHE);
+}
