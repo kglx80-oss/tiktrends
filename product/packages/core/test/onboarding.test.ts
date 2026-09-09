@@ -105,6 +105,55 @@ describe('le résumé dit où l’on en est', () => {
   });
 });
 
+describe('le parcours tient compte du rôle · une porte fermée n’est pas la prochaine action', () => {
+  // Le défaut qu'on répare : un membre voyait « Créer ta marque » en grand ·
+  // le clic partait sur /brands/new, qui renvoie les non-admins au dashboard ·
+  // une boucle. Le parcours ne doit jamais désigner une porte qu'il fermera.
+
+  it('par défaut (aucune vue), tout est ouvert · compat rétro', () => {
+    expect(journey(fait()).next!.key).toBe('brand');
+  });
+
+  it('un membre ne se voit proposer aucune étape réservée aux admins', () => {
+    const j = journey(fait(), { canAdmin: false });
+    expect(j.steps.filter((s) => s.adminOnly && s.status === 'now')).toEqual([]);
+  });
+
+  it('sur un espace vierge, un membre n’a AUCUNE prochaine action · pas de boucle', () => {
+    expect(journey(fait(), { canAdmin: false }).next).toBeNull();
+  });
+
+  it('l’étape admin bloquée par le rôle le dit, sans dépendance manquante', () => {
+    const brand = journey(fait(), { canAdmin: false }).steps.find((s) => s.key === 'brand')!;
+    expect(brand.status).toBe('blocked');
+    expect(brand.lockedByRole).toBe(true);
+    expect(brand.blockedBy).toBeNull();
+  });
+
+  it('le résumé d’un membre en attente parle de l’administrateur, pas d’une distance', () => {
+    const sum = journey(fait(), { canAdmin: false }).summary;
+    expect(sum).toContain('administrateur');
+    expect(sum).not.toContain('Huit étapes');
+  });
+
+  it('dès que l’admin a posé marque + produit, le membre peut générer', () => {
+    const j = journey(fait('brand', 'identity'), { canAdmin: false });
+    expect(j.next!.key).toBe('generate');
+    expect(j.next!.adminOnly).toBeFalsy();
+  });
+
+  it('un admin garde la première action classique', () => {
+    expect(journey(fait(), { canAdmin: true }).next!.key).toBe('brand');
+  });
+
+  it('une étape non-admin reste ouverte au membre quand ses dépendances tiennent', () => {
+    // « generate » n'est pas réservé aux admins · un membre y a droit.
+    const gen = journey(fait('brand', 'identity'), { canAdmin: false }).steps.find((s) => s.key === 'generate')!;
+    expect(gen.status).toBe('now');
+    expect(gen.lockedByRole).toBe(false);
+  });
+});
+
 describe('pourquoi une étape est bloquée', () => {
   it('remonte toute la chaîne manquante', () => {
     const m = whyBlocked('memory', fait());

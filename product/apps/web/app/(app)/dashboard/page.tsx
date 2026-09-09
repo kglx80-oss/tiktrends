@@ -33,7 +33,7 @@ export default async function Dashboard() {
   // Le chemin de démarrage · calculé sur la donnée réelle, jamais sur des cases
   // cochées à la main. Ouvert à tous les rôles qui peuvent agir : un membre qui
   // ne voit pas où en est l'espace ne peut pas aider à l'avancer.
-  const parcours = s && roleAtLeast(s.role, 'member') ? await onboardingState(s.workspaceId) : null;
+  const parcours = s && roleAtLeast(s.role, 'member') ? await onboardingState(s.workspaceId, roleAtLeast(s.role, 'admin')) : null;
 
   return (
     <main style={{ minHeight: '100vh', padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>

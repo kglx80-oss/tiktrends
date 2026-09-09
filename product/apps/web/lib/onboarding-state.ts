@@ -19,9 +19,9 @@ import { journey, type Journey } from '@tiktrends/core';
  * volontairement · exiger la fiche parfaite ferait stagner quelqu'un qui a de
  * quoi générer.
  */
-export async function onboardingState(workspaceId: string): Promise<Journey> {
+export async function onboardingState(workspaceId: string, canAdmin: boolean): Promise<Journey> {
   const done = new Set<string>();
-  if (!db) return journey(done);
+  if (!db) return journey(done, { canAdmin });
 
   const marques = await db.select({
     id: schema.brands.id,
@@ -30,7 +30,7 @@ export async function onboardingState(workspaceId: string): Promise<Journey> {
     creativeRules: schema.brands.creativeRules,
   }).from(schema.brands).where(eq(schema.brands.workspaceId, workspaceId));
 
-  if (!marques.length) return journey(done);
+  if (!marques.length) return journey(done, { canAdmin });
   done.add('brand');
 
   const ids = marques.map((m) => m.id);
@@ -71,5 +71,5 @@ export async function onboardingState(workspaceId: string): Promise<Journey> {
   // annoncer l'étape faite serait un mensonge visible dès le clic.
   if (n(stats) >= 3 && n(verdicts) > 0) done.add('memory');
 
-  return journey(done);
+  return journey(done, { canAdmin });
 }

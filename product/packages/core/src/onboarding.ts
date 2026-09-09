@@ -49,6 +49,15 @@ export interface StepDef {
    * sans elles · c'est faux, et ça décourage.
    */
   optional?: boolean;
+  /**
+   * L'écran de l'étape est réservé aux administrateurs de l'espace.
+   *
+   * Sans cette information, le parcours désignait « Créer ta marque » comme
+   * prochaine action à un simple membre · le clic partait sur `/brands/new`,
+   * qui renvoie les non-admins au tableau de bord · une boucle. On ne propose
+   * pas à quelqu'un une porte qu'on lui fermera au visage.
+   */
+  adminOnly?: boolean;
 }
 
 /**
@@ -60,12 +69,12 @@ export interface StepDef {
  */
 export const STEPS: StepDef[] = [
   {
-    key: 'brand', label: 'Créer ta marque', needs: [],
+    key: 'brand', label: 'Créer ta marque', needs: [], adminOnly: true,
     why: 'Tout le produit travaille marque par marque · c’est le premier objet à poser.',
     href: '/brands/new',
   },
   {
-    key: 'identity', label: 'Renseigner la marque', needs: ['brand'],
+    key: 'identity', label: 'Renseigner la marque', needs: ['brand'], adminOnly: true,
     why: 'Direction artistique, promesse, au moins un produit · sans eux, Jarvis génère du générique.',
     href: '/brands',
   },
@@ -75,18 +84,18 @@ export const STEPS: StepDef[] = [
     href: '/studio/ads',
   },
   {
-    key: 'map', label: 'Poser la carte', needs: ['brand'],
+    key: 'map', label: 'Poser la carte', needs: ['brand'], adminOnly: true,
     why: 'Avatar → désir → angle → concept → ad. C’est elle qui rend un résultat attribuable à une cause.',
     href: '/adsmap/import',
   },
   {
-    key: 'batch', label: 'Ouvrir un lot de test', needs: ['map'],
+    key: 'batch', label: 'Ouvrir un lot de test', needs: ['map'], adminOnly: true,
     why: 'Un lot rend les ads comparables entre elles · sans lui, chaque test se juge seul et ne dit rien.',
     href: '/adsmap/lots',
   },
   {
     // Après le lot, et c'est le point de tout ce fichier.
-    key: 'meta', label: 'Connecter Meta', needs: ['batch'],
+    key: 'meta', label: 'Connecter Meta', needs: ['batch'], adminOnly: true,
     why: 'Pour faire remonter les chiffres du lot · le connecter avant d’avoir quelque chose à mesurer ne sert à rien.',
     href: '/connections',
   },
@@ -120,6 +129,18 @@ export interface JourneyStep extends StepDef {
   status: StepStatus;
   /** Libellé de l'étape qui bloque · vide quand rien ne bloque. */
   blockedBy: string | null;
+  /**
+   * Bloquée non par une dépendance manquante, mais parce que son écran est
+   * réservé aux admins et que le lecteur n'en est pas un · l'explication
+   * change (« réservé à un admin » plutôt que « après telle étape »).
+   */
+  lockedByRole: boolean;
+}
+
+/** Ce que le lecteur a le droit de faire · défaut : tout (compat rétro). */
+export interface JourneyView {
+  /** Le lecteur administre l'espace (peut créer marques, brancher, importer). */
+  canAdmin?: boolean;
 }
 
 export interface Journey {
@@ -139,15 +160,23 @@ export interface Journey {
  * `done` porte les clés déjà acquises · le calcul de ces clés appartient à
  * l'application, ce fichier ne sait pas lire une base.
  */
-export function journey(done: ReadonlySet<string>): Journey {
+export function journey(done: ReadonlySet<string>, view: JourneyView = {}): Journey {
+  const canAdmin = view.canAdmin ?? true;
   const parCle = new Map(STEPS.map((s) => [s.key, s]));
 
   const steps: JourneyStep[] = STEPS.map((s) => {
-    if (done.has(s.key)) return { ...s, status: 'done', blockedBy: null };
+    if (done.has(s.key)) return { ...s, status: 'done', blockedBy: null, lockedByRole: false };
     const manque = s.needs.find((n) => !done.has(n));
-    return manque
-      ? { ...s, status: 'blocked', blockedBy: parCle.get(manque)?.label ?? manque }
-      : { ...s, status: 'now', blockedBy: null };
+    if (manque) {
+      return { ...s, status: 'blocked', blockedBy: parCle.get(manque)?.label ?? manque, lockedByRole: false };
+    }
+    // Dépendances satisfaites · reste le verrou de rôle. Un écran admin proposé
+    // à un membre l'enverrait sur une redirection · on le bloque ICI, avec sa
+    // propre raison, plutôt que de le laisser cliquer dans le vide.
+    if (s.adminOnly && !canAdmin) {
+      return { ...s, status: 'blocked', blockedBy: null, lockedByRole: true };
+    }
+    return { ...s, status: 'now', blockedBy: null, lockedByRole: false };
   });
 
   const requises = steps.filter((s) => !s.optional);
@@ -156,18 +185,28 @@ export function journey(done: ReadonlySet<string>): Journey {
 
   // La prochaine action est la première étape BLOQUANTE ouverte · une étape
   // facultative ne doit jamais être présentée comme la marche à suivre, sinon
-  // on envoie quelqu'un régler un détail au lieu d'avancer.
+  // on envoie quelqu'un régler un détail au lieu d'avancer. Les étapes
+  // verrouillées par le rôle sont « blocked » · elles ne peuvent donc pas être
+  // désignées ici, exactement ce qu'on veut pour un membre.
   const next = steps.find((s) => !s.optional && s.status === 'now') ?? null;
+  // Un membre qui ne peut encore rien faire d'utile · la mise en route revient
+  // à un admin. On le distingue du « tout est terminé » (next null car complet).
+  const enAttenteAdmin = !complete && next === null && steps.some((s) => s.lockedByRole);
 
   return {
     steps, next, doneCount: faites, totalRequired: requises.length, complete,
-    summary: resume(faites, requises.length, next, complete),
+    summary: resume(faites, requises.length, next, complete, enAttenteAdmin),
   };
 }
 
-function resume(faites: number, total: number, next: JourneyStep | null, complete: boolean): string {
+function resume(faites: number, total: number, next: JourneyStep | null, complete: boolean, enAttenteAdmin: boolean): string {
   if (complete) {
     return 'Le circuit complet est en place · tu génères, tu testes, tu mesures, et Jarvis apprend de chaque verdict.';
+  }
+  // Le membre sans droits d'admin · la porte suivante lui est fermée, on le dit
+  // plutôt que de lui tendre un bouton qui boucle.
+  if (enAttenteAdmin) {
+    return 'La mise en route de l’espace revient à un administrateur · dès qu’une marque et un produit seront en place, tu pourras générer.';
   }
   if (faites === 0) {
     return 'Rien n’est encore posé. Huit étapes séparent un compte vide d’une créa dont on sait qu’elle a gagné.';
