@@ -58,7 +58,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
 
       {!trackingEnabled && (
         <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 12px' }}>
-          La veille auto s'active dès que la bibliothèque de pubs (Trendtrack) est branchée côté serveur.
+          La veille auto s'active dès que la bibliothèque de pubs est branchée côté serveur.
         </p>
       )}
 

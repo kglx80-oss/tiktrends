@@ -187,8 +187,8 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
             <span style={{ fontSize: 20 }}>🔒</span>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-              <b style={{ color: 'var(--ink)' }}>Image IA en attente de la clé Fal.</b> Cette fonction utilise Fal.ai (Flux / Ideogram / Kontext).
-              Une fois <code style={{ fontSize: 12 }}>FAL_KEY</code> posée sur le serveur, elle s'active ici.
+              <b style={{ color: 'var(--ink)' }}>Image IA bientôt disponible.</b> Cette fonction s'active dès que le
+              moteur d'image est branché côté serveur.
             </div>
           </div>
         )}
@@ -227,7 +227,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
 
         {mode === 'i2i' && (
           <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer la photo produit" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
-            <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· on garde ton vrai packaging, on ne change que la scène (Kontext) · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une photo</b></span></label>
+            <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· on garde ton vrai packaging, on ne change que la scène · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une photo</b></span></label>
 
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               {/* Aperçu : upload en cours, sinon photo déjà enregistrée sur le produit */}
