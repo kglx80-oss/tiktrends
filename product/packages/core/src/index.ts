@@ -70,6 +70,7 @@ export * from './temoin-qualite';
 export * from './conseil-mode';
 export * from './brief-veille';
 export * from './veille-media';
+export * from './veille-defaut';
 export * from './decouverte-marche';
 export * from './exemple-direction';
 export * from './conseil-moteur';
