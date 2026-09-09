@@ -1,0 +1,36 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
+
+/**
+ * En arrivant sur la Veille SANS requête, l'écran ne doit plus être vide · on
+ * amorce les gagnants installés, cadrés sur la catégorie de la marque active.
+ */
+
+describe('veilleSeedDefaut · le mot-clé d’amorçage', () => {
+  it('prend la catégorie de la marque quand elle existe', () => {
+    expect(veilleSeedDefaut({ category: 'compléments alimentaires' })).toEqual({ seed: 'compléments alimentaires', parCategorie: true });
+  });
+
+  it('retombe sur la niche par défaut sans catégorie', () => {
+    expect(veilleSeedDefaut({ category: null })).toEqual({ seed: NICHE_DEFAUT, parCategorie: false });
+    expect(veilleSeedDefaut({ category: '   ' })).toEqual({ seed: NICHE_DEFAUT, parCategorie: false });
+    expect(veilleSeedDefaut({})).toEqual({ seed: NICHE_DEFAUT, parCategorie: false });
+  });
+});
+
+const PAGE = readFileSync(join(process.cwd(), 'app/(app)/veille/page.tsx'), 'utf8');
+
+describe('la page Veille peuple l’écran par défaut', () => {
+  it('sans requête, elle amorce un browse gagnants au lieu de rester vide', () => {
+    // On amorce depuis la catégorie de la marque active.
+    expect(PAGE).toMatch(/veilleSeedDefaut\(\{ category: brand\?\.category \}\)/);
+    // Le browse par défaut trie « plus anciennes » + actives + ancienneté min ·
+    // le filtre gagnant, pas un browse au hasard.
+    const bloc = PAGE.slice(PAGE.indexOf('} else if (platform === \'meta\')'), PAGE.indexOf('// État sauvegardé'));
+    expect(bloc, 'le tri gagnant a disparu du browse par défaut').toMatch(/sortBy: 'longestRunning'/);
+    expect(bloc, 'le statut actif a disparu du browse par défaut').toMatch(/status: 'active'/);
+    expect(bloc, 'l’ancienneté minimale a disparu du browse par défaut').toMatch(/minDaysRunning: 30/);
+  });
+});

@@ -9,6 +9,7 @@ import { AdCard, compact } from '../../../components/AdCard';
 import { PageInfo } from '../../../components/PageInfo';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
+import { veilleSeedDefaut } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,10 +98,15 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     autoDomain = true;
   }
 
+  // Marque active · sa catégorie amorce l'affichage par défaut (sans requête).
+  const brand = db ? await getActiveBrand(s.workspaceId) : null;
+
   let ads: InspoAd[] = [];
   let total = 0;
   let error = '';
   let sample = false;
+  // Renseigné quand on montre la sélection par défaut (aucune requête tapée).
+  let defaut: { seed: string; parCategorie: boolean } | null = null;
 
   if (!apiKey) {
     ads = SAMPLE_INSPO_ADS;
@@ -146,13 +152,37 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         error = (e as Error).message;
       }
     }
+  } else if (platform === 'meta') {
+    // Aucune requête · on ne laisse pas l'écran vide. On montre les gagnants
+    // installés (tri « plus anciennes » + actives + 30 j·), amorcés sur la
+    // catégorie de la marque active. Le mot-clé et les filtres reprennent la
+    // main dès que l'utilisateur cherche.
+    defaut = veilleSeedDefaut({ category: brand?.category });
+    const cle = cleRecherche(['defaut', platform, defaut.seed, page, sp.country]);
+    const enCache = sp.refresh ? undefined : lireRecherche(cle);
+    if (enCache) {
+      ads = enCache.ads;
+      total = enCache.total;
+    } else {
+      try {
+        const r = await ttSearchAds({ apiKey }, {
+          search: defaut.seed, limit: LIMIT, offset: (page - 1) * LIMIT,
+          status: 'active', searchIn: 'ad_copy', sortBy: 'longestRunning',
+          minDaysRunning: 30, country: sp.country || undefined,
+        });
+        ads = r.ads;
+        total = r.total;
+        ecrireRecherche(cle, { ads, total });
+      } catch (e) {
+        error = (e as Error).message;
+      }
+    }
   }
 
   // État sauvegardé / suivi pour cocher les cartes.
   let savedSet = new Set<string>();
   let followSet = new Set<string>();
   if (db) {
-    const brand = await getActiveBrand(s.workspaceId);
     const savedWhere = brand
       ? and(eq(schema.savedAds.workspaceId, s.workspaceId), eq(schema.savedAds.brandId, brand.id))
       : eq(schema.savedAds.workspaceId, s.workspaceId);
@@ -214,7 +244,14 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
       {sample && <div style={banner('rgba(245,166,35,.12)', 'rgba(245,166,35,.4)', '#f5c877')}>Mode démonstration (échantillon réel). La source de données n'est pas encore configurée sur le serveur pour la recherche en direct.</div>}
       {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur de la source de données : {error}</div>}
-      {!sample && !error && !query && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}
+      {!sample && !error && !query && defaut && (
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>
+          Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>gagnants installés</b>
+          {defaut.parCategorie ? <> dans ta catégorie <b style={{ color: 'var(--ink-2)' }}>« {defaut.seed} »</b></> : <> ({defaut.seed})</>}
+          {' · '}lance une recherche ou choisis une thématique pour cibler.
+        </p>
+      )}
+      {!sample && !error && !query && !defaut && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}
       {!sample && !error && query && <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>≈ {compact(total)} annonce(s) · page {page}/{totalPages}{autoDomain && <> · recherche par domaine <b style={{ color: 'var(--ink-2)' }}>{effSearch}</b></>}</p>}
 
       {/* Grille */}
@@ -227,7 +264,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* Pagination */}
-      {!sample && !error && query && ads.length > 0 && (
+      {!sample && !error && (query || defaut) && ads.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 26 }}>
           {page > 1
             ? <a href={buildQS(sp, { page: String(page - 1) })} style={pageBtn}>← Précédent</a>
