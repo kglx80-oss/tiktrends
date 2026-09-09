@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
-import { ANGLE_LABEL, ANGLE_KEYS, type AngleKey } from '@tiktrends/core';
+import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, type AngleKey } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
 
 export interface SwipeItem { ad: InspoAd; angle: AngleKey; saved: boolean; following: boolean }
@@ -104,9 +104,11 @@ function Card({ it }: { it: SwipeItem }) {
   const [playing, setPlaying] = useState(false);
   const g = growthOf(ad);
   const canPlay = isVideo(ad) && !!ad.mediaUrl;
+  // Un statique porte son image dans `mediaUrl` · l'aperçu retombe dessus.
+  const poster = apercuImage({ isVideo: isVideo(ad), thumbnailUrl: ad.thumbnailUrl, mediaUrl: ad.mediaUrl });
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ position: 'relative', aspectRatio: '4 / 5', background: ad.thumbnailUrl ? `center/cover no-repeat url(${ad.thumbnailUrl})` : '#140f18' }}>
+      <div style={{ position: 'relative', aspectRatio: '4 / 5', background: poster ? `center/cover no-repeat url(${poster})` : '#140f18' }}>
         {playing && ad.mediaUrl ? (
           <video src={ad.mediaUrl} poster={ad.thumbnailUrl} controls autoPlay playsInline
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
@@ -116,7 +118,7 @@ function Card({ it }: { it: SwipeItem }) {
             {/* Angle en évidence sur le visuel */}
             <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, color: '#0d070c', background: ANGLE_COLOR[angle], boxShadow: '0 2px 8px rgba(0,0,0,.4)' }}>{ANGLE_LABEL[angle]}</span>
             <div style={{ position: 'absolute', top: 8, right: 8 }}><SaveButton ad={ad} initialSaved={it.saved} /></div>
-            {!ad.thumbnailUrl && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>{canPlay ? '' : 'Aperçu indisponible'}</div>}
+            {!poster && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>{canPlay ? '' : 'Aperçu indisponible'}</div>}
             {canPlay && (
               <button type="button" onClick={() => setPlaying(true)} aria-label="Lire la vidéo" style={{
                 position: 'absolute', inset: 0, margin: 'auto', width: 54, height: 54, borderRadius: '50%', border: 'none', cursor: 'pointer',
