@@ -69,6 +69,7 @@ export * from './durcir-entiere';
 export * from './temoin-qualite';
 export * from './conseil-mode';
 export * from './brief-veille';
+export * from './brief-concurrent';
 export * from './veille-media';
 export * from './veille-defaut';
 export * from './veille-liens';

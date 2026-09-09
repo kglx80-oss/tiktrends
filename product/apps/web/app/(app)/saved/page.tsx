@@ -5,8 +5,7 @@ import { getSession } from '../../../lib/auth';
 import { canAccess, FEATURES, roleAtLeast } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
 import { getActiveBrand } from '../../../lib/brands';
-import { bibliothequeMeta } from '@tiktrends/core';
-import { BrandRemoveButton } from '../../../components/InspoButtons';
+import { MarquesSuivies } from '../../../components/MarquesSuivies';
 import { PageInfo } from '../../../components/PageInfo';
 import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
 import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed';
@@ -73,24 +72,9 @@ export default async function SavedPage() {
 
       {/* Marques suivies */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>
-      {brands.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucune marque suivie pour l'instant.</p>}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 30 }}>
-        {brands.map((b) => (
-          <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 8px 6px 6px', background: 'var(--surface)' }}>
-            {b.logoUrl
-               
-              ? <img src={b.logoUrl} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
-              : <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--paper)' }} />}
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{b.name}</span>
-            <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)' }}>{b.platform}</span>
-            <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
-            {bibliothequeMeta({ platform: b.platform, name: b.name }) && (
-              <a href={bibliothequeMeta({ platform: b.platform, name: b.name })!} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>bibliothèque ↗</a>
-            )}
-            <BrandRemoveButton platform={b.platform} name={b.name} />
-          </div>
-        ))}
-      </div>
+      {brands.length === 0
+        ? <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 30 }}>Aucune marque suivie pour l'instant.</p>
+        : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl }))} />}
 
       {/* Créas sauvegardées · organisées en boards */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Créas sauvegardées ({items.length})</h2>
