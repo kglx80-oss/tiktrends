@@ -94,6 +94,7 @@ function Icon({ name }: { name: string }) {
     leaf: 'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10zM2 21c0-3 1.85-5.36 5.08-6',
     brain: 'M9.5 2a3 3 0 0 0-3 3 3 3 0 0 0-1.5 5.6A3 3 0 0 0 6 16a3 3 0 0 0 3.5 3V2zM14.5 2a3 3 0 0 1 3 3 3 3 0 0 1 1.5 5.6A3 3 0 0 1 18 16a3 3 0 0 1-3.5 3V2z',
     layers: 'M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+    check: 'M20 6 9 17l-5-5',
     user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
     logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
   };
@@ -255,6 +256,7 @@ function AppShellInner(props: Props) {
   const emojiFor: Record<string, string> = {
     grid: '🏠', chart: '📊', radar: '🛰️', tag: '🏷️', bulb: '💡', spark: '✨', film: '🎬',
     image: '🖼️', trend: '📈', store: '🏪', plug: '🔌', users: '👥', card: '💳', help: '🆘', bookmark: '🔖', layers: '🗂️',
+    brain: '🧠', gauge: '⏱️', gear: '⚙️', coin: '🪙', check: '✅',
   };
   const commands: Command[] = [];
   for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });

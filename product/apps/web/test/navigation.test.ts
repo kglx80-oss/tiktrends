@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROUTES, matchRoute, breadcrumb, isBrandScoped, routeLabel } from '../lib/navigation';
 import { FEATURES } from '../lib/rbac';
@@ -234,5 +234,71 @@ describe('le rail et le fil décrivent la même hiérarchie', () => {
     const labels = FEATURES.filter((f) => f.group !== 'account').map((f) => f.label);
     const doublons = labels.filter((l, i) => labels.indexOf(l) !== i);
     expect([...new Set(doublons)], `Libellé(s) en double : ${doublons.join(', ')}`).toEqual([]);
+  });
+});
+
+describe('chaque icône du rail existe · sinon un item rend un glyphe faux, en silence', () => {
+  /**
+   * Ce qui a manqué et qu'on ne voyait pas.
+   *
+   * `FEATURES[].icon` nomme un glyphe. Le rail (SVG) et la palette ⌘K (emoji)
+   * ont chacun leur table nom → glyphe, avec un repli muet · le SVG retombe sur
+   * `grid`, l'emoji sur `›`. « Tri des propositions » portait `check`, absent des
+   * deux tables · il s'affichait donc avec l'icône du dashboard et une flèche,
+   * sans que rien ne le signale. On lit les deux tables dans la SOURCE et on
+   * vérifie que tout `icon` déclaré y a une entrée · un ajout d'item sans glyphe
+   * casse ici, plus à l'écran.
+   */
+  const shell = readFileSync(join(process.cwd(), 'components', 'AppShell.tsx'), 'utf8');
+  // Extrait les clés d'une table `const <nom>: Record<string, string> = { … }`.
+  // Les clés sont les seuls `mot:` immédiatement suivis d'une valeur littérale
+  // (les chemins SVG et emojis sont des chaînes entre quotes, sans `mot:`).
+  const clesDeTable = (nomTable: string): Set<string> => {
+    const debut = shell.indexOf(`const ${nomTable}`);
+    if (debut < 0) throw new Error(`Table ${nomTable} introuvable dans AppShell.tsx`);
+    const ouvre = shell.indexOf('{', debut);
+    const ferme = shell.indexOf('};', ouvre);
+    const bloc = shell.slice(ouvre, ferme);
+    return new Set([...bloc.matchAll(/(\w+):\s*'/g)].map((m) => m[1]!));
+  };
+  const iconesDeclarees = [...new Set(FEATURES.map((f) => f.icon))];
+
+  it('le rail (SVG) a un tracé pour chaque icône déclarée', () => {
+    const tracés = clesDeTable('p:'); // `const p: Record<string, string>` dans Icon
+    const absentes = iconesDeclarees.filter((i) => !tracés.has(i));
+    expect(absentes, `Icône(s) sans tracé SVG · le rail retombe sur « grid » : ${absentes.join(', ')}`)
+      .toEqual([]);
+  });
+
+  it('la palette ⌘K (emoji) a un glyphe pour chaque icône déclarée', () => {
+    const emojis = clesDeTable('emojiFor:');
+    const absentes = iconesDeclarees.filter((i) => !emojis.has(i));
+    expect(absentes, `Icône(s) sans emoji · la palette affiche « › » : ${absentes.join(', ')}`)
+      .toEqual([]);
+  });
+});
+
+describe('les CTA de deep-link portent un paramètre que la cible relit', () => {
+  /**
+   * Un CTA qui transmet `?inspo=` à un écran qui ne lit que `angle`/`mode`/`ref`
+   * dépose un réglage perdu au chargement · le clic « marche » mais n'arme rien.
+   * Le Radar en souffrait. On lit la source du Radar et du studio, et on vérifie
+   * que le paramètre émis est bien parmi ceux que le studio déballe.
+   */
+  const litParams = (rel: string): Set<string> => {
+    const src = readFileSync(join(process.cwd(), 'app', '(app)', ...rel.split('/')), 'utf8');
+    const sig = src.match(/searchParams:\s*Promise<\{([^}]*)\}>/);
+    if (!sig) throw new Error(`Signature searchParams introuvable dans ${rel}`);
+    return new Set([...sig[1]!.matchAll(/(\w+)\??:/g)].map((m) => m[1]!));
+  };
+
+  it('le CTA Radar → Studio émet un paramètre lu par le studio', () => {
+    const radar = readFileSync(join(process.cwd(), 'app', '(app)', 'radar', 'page.tsx'), 'utf8');
+    const emis = [...radar.matchAll(/\/studio\/ads\?(\w+)=/g)].map((m) => m[1]!);
+    const lus = litParams('studio/ads/page.tsx');
+    const morts = emis.filter((p) => !lus.has(p));
+    expect(morts, `Paramètre(s) émis par le Radar que le studio ne relit pas : ${morts.join(', ')}`)
+      .toEqual([]);
+    expect(emis.length, 'Le Radar doit garder un CTA vers le studio').toBeGreaterThan(0);
   });
 });
