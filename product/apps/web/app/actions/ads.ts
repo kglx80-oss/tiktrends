@@ -245,6 +245,13 @@ async function composeBatch(o: {
   /** Le moteur choisi, entier · l'endpoint et les paramètres s'en déduisent. */
   modelSpec: ImageModelSpec; creditsPerImage: number;
   productId?: string; personaId?: string; objective?: string;
+  /**
+   * L'angle qui a armé ce lot · consigné sur chaque créa pour relier plus tard
+   * l'hypothèse au résultat (pertinence jugée). Sans ça, une créa générée depuis
+   * « l'angle qui domine chez X » n'était rattachable à aucune hypothèse · la
+   * boucle d'itération ne se lisait pas.
+   */
+  angle?: string | null;
   /** Prompt maison · remplace l'univers fourni quand il est choisi. */
   preset?: { id: string; prompt: string; negative: string | null } | null;
   /** De quoi expliquer chaque proposition · les mêmes chiffres que ceux injectés. */
@@ -703,7 +710,10 @@ async function composeBatch(o: {
   for (const { c, sceneUrl, recipe } of recettes) {
     try {
       const [row] = await db!.insert(schema.generations).values({
-        brandId: o.brandId, kind: 'ad', input: recipe as unknown as Record<string, unknown>,
+        brandId: o.brandId, kind: 'ad',
+        // On consigne l'hypothèse d'angle À CÔTÉ de la recette (sans toucher au
+        // type de rendu) · c'est ce qui relie plus tard la créa à son résultat.
+        input: { ...(recipe as unknown as Record<string, unknown>), angle: o.angle ?? null },
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
       if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(),
@@ -1134,6 +1144,7 @@ async function genererLotInterne(input: {
     workspaceId: s.workspaceId, unlimited, reservedCredits: unlimited ? 0 : cost,
     modelSpec, creditsPerImage: modelSpec.credits, echec,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
+    angle: input.angle?.trim() || null,
     memoryUse: memoire.use, rationaleCtx,
   };
   const ads = await composeBatch(options);
@@ -1327,6 +1338,8 @@ async function clonerLotInterne(input: {
   const echec: { dernier?: unknown } = {};
   const ads = await composeBatch({
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
+    // L'angle déduit de la référence · l'hypothèse du clone, consignée aussi.
+    angle,
     productImageUrls, editMode, concepts, universe: input.universe, cloneRefUrl: refForModel || undefined,
     // Le clonage reprend la mise en page de la RÉFÉRENCE, pas la nôtre · on
     // garde donc l'immersive, celle qui laisse l'image entière parler. Faire
