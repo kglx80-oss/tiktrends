@@ -19,6 +19,7 @@ import { BrandDA } from './BrandDA';
 import { SubmitButton } from '../../../../components/SubmitButton';
 import { BrandCreated } from '../../../../components/BrandCreated';
 import { ScenarioCard } from '../../../../components/ScenarioCard';
+import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { falConfigured } from '@tiktrends/integrations';
 
@@ -189,7 +190,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           {scenarios.map((sc) => (
             <ScenarioCard key={sc.id} brandId={id} scenarioId={sc.id} title={sc.title} context={sc.context}
               imageUrl={sc.imageUrl ?? null} cost={imageModelByKey('nano').credits} canGenerate={imgReady}>
-              <form action={deleteScenarioAction}><input type="hidden" name="brandId" value={id} /><input type="hidden" name="id" value={sc.id} /><button style={delBtn}>Retirer</button></form>
+              <form action={deleteScenarioAction}><input type="hidden" name="brandId" value={id} /><input type="hidden" name="id" value={sc.id} /><ConfirmButton message={`Retirer le scénario « ${sc.title} » ?`} style={delBtn}>Retirer</ConfirmButton></form>
             </ScenarioCard>
           ))}
           <form action={addScenarioAction} style={{ ...card, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -205,7 +206,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <div key={p.id} style={card}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <b style={{ color: 'var(--ink)', fontSize: 14, flex: 1 }}>{p.name}</b>
-                <form action={deletePersonaAction}><input type="hidden" name="brandId" value={id} /><input type="hidden" name="id" value={p.id} /><button style={delBtn}>Retirer</button></form>
+                <form action={deletePersonaAction}><input type="hidden" name="brandId" value={id} /><input type="hidden" name="id" value={p.id} /><ConfirmButton message={`Retirer le persona « ${p.name} » ?`} style={delBtn}>Retirer</ConfirmButton></form>
               </div>
               {p.description && <p style={{ margin: '6px 0 8px', fontSize: 13, color: 'var(--ink-2)' }}>{p.description}</p>}
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12.5 }}>
@@ -254,7 +255,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
                 <b style={{ color: 'var(--ink)', fontSize: 14, flex: 1, minWidth: 160 }}>{p.name}</b>
                 {p.price != null && <span style={{ fontSize: 12.5, color: 'var(--accent-strong)', fontWeight: 700 }}>{p.price} €</span>}
                 {p.url && <a href={p.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--muted)' }}>fiche ↗</a>}
-                <form action={deleteProductAction}><input type="hidden" name="brandId" value={id} /><input type="hidden" name="id" value={p.id} /><button style={delBtn}>Supprimer</button></form>
+                <form action={deleteProductAction}><input type="hidden" name="brandId" value={id} /><input type="hidden" name="id" value={p.id} /><ConfirmButton message={`Supprimer le produit « ${p.name} » ?`} style={delBtn}>Supprimer</ConfirmButton></form>
               </div>
               {p.description && <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--ink-2)' }}>{p.description}</p>}
               {p.usp && <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'pre-line' }}>{p.usp}</p>}
