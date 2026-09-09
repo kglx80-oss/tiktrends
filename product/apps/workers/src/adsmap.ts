@@ -1,11 +1,11 @@
 /**
- * ADSMAP · déclenchement de la mesure quotidienne de la carte.
+ * Déclencheurs des passages planifiés · ADSMAP, radar de veille, scan tracker.
  *
- * Le moteur lui-même vit côté web (`apps/web/lib/adsmap-sync.ts`), avec le
- * bouton « Mesurer maintenant » qui l'appelle aussi : le dupliquer ici pour que
- * le worker l'exécute en direct ferait deux copies d'une logique qui décide de
- * verdicts · elles finiraient par diverger, et personne ne saurait laquelle a
- * produit le chiffre affiché.
+ * Le moteur de chacun vit côté web (mesure ADSMAP, radar, scan des concurrents
+ * suivis), avec un bouton ou une route qui l'appelle aussi : le dupliquer ici
+ * pour que le worker l'exécute en direct ferait deux copies d'une logique qui
+ * décide de verdicts ou dépense · elles finiraient par diverger, et personne ne
+ * saurait laquelle a produit le chiffre affiché.
  *
  * Le worker garde donc ce qu'il sait faire — planifier — et appelle l'endpoint
  * protégé. On passe par le nom de service Docker plutôt que par le domaine
@@ -17,67 +17,60 @@ const INTERNAL = 'http://web:3000';
 
 export interface AdsMapTriggerResult { ok: boolean; status?: number; detail?: string }
 
-export async function triggerAdsMapSync(): Promise<AdsMapTriggerResult> {
+/**
+ * Appelle un endpoint cron protégé et rend compte · le SEUL point de contact
+ * worker → web. Sans `CRON_SECRET`, on ne déclenche rien et on dit pourquoi ·
+ * un succès silencieux laisserait un écran vide sans explication.
+ */
+async function triggerCron(path: string, tag: string, timeoutMs: number): Promise<AdsMapTriggerResult> {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
-    // Dire pourquoi rien ne s'est passé vaut mieux qu'un succès silencieux :
-    // sans ce message, la carte resterait vide sans que rien ne l'explique.
-    console.warn('[adsmap] CRON_SECRET absent · mesure non déclenchée.');
+    console.warn(`[${tag}] CRON_SECRET absent · passage non déclenché.`);
     return { ok: false, detail: 'cron_secret_missing' };
   }
-
   const base = (process.env.INTERNAL_APP_URL || INTERNAL).replace(/\/+$/, '');
   try {
-    const res = await fetch(`${base}/api/cron/adsmap`, {
+    const res = await fetch(`${base}${path}`, {
       headers: { authorization: `Bearer ${secret}` },
-      // La synchro appelle Meta marque par marque · elle prend des minutes.
-      signal: AbortSignal.timeout(15 * 60_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      console.error('[adsmap] mesure refusée', res.status, body.error ?? '');
+      console.error(`[${tag}] passage refusé`, res.status, body.error ?? '');
       return { ok: false, status: res.status, detail: String(body.error ?? res.status) };
     }
-    console.log('[adsmap] mesure terminée', JSON.stringify(body));
+    console.log(`[${tag}] passage terminé`, JSON.stringify(body));
     return { ok: true, status: res.status };
   } catch (e) {
-    console.error('[adsmap] mesure injoignable', (e as Error).message);
+    console.error(`[${tag}] passage injoignable`, (e as Error).message);
     return { ok: false, detail: (e as Error).message };
   }
 }
 
-/**
- * Radar de veille · même mécanique de déclenchement, autre heure.
- *
- * 5h du matin, AVANT la synchro des sources : le radar ne dépend d'aucune
- * donnée écrite par les autres passages, et le placer en tête laisse le compte
- * rendu prêt quand quelqu'un ouvre son écran au réveil.
- *
- * Il ne fait rien pour une marque non armée · le coût d'un passage à vide est
- * une requête.
- */
-export async function triggerRadar(): Promise<AdsMapTriggerResult> {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    console.warn('[radar] CRON_SECRET absent · passage non déclenché.');
-    return { ok: false, detail: 'cron_secret_missing' };
-  }
+/** Mesure ADSMAP · appelle Meta marque par marque, ça prend des minutes. */
+export function triggerAdsMapSync(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/adsmap', 'adsmap', 15 * 60_000);
+}
 
-  const base = (process.env.INTERNAL_APP_URL || INTERNAL).replace(/\/+$/, '');
-  try {
-    const res = await fetch(`${base}/api/cron/radar`, {
-      headers: { authorization: `Bearer ${secret}` },
-      signal: AbortSignal.timeout(10 * 60_000),
-    });
-    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) {
-      console.error('[radar] passage refusé', res.status, body.error ?? '');
-      return { ok: false, status: res.status, detail: String(body.error ?? res.status) };
-    }
-    console.log('[radar] passage terminé', JSON.stringify(body));
-    return { ok: true, status: res.status };
-  } catch (e) {
-    console.error('[radar] passage injoignable', (e as Error).message);
-    return { ok: false, detail: (e as Error).message };
-  }
+/**
+ * Radar de veille · décrit à l'IA les créas des marques ARMÉES.
+ *
+ * 5h du matin, AVANT la synchro des sources : il ne dépend d'aucune donnée
+ * écrite par les autres passages, et le placer en tête laisse le compte rendu
+ * prêt quand quelqu'un ouvre son écran au réveil. Rien pour une marque non
+ * armée · le coût d'un passage à vide est une requête.
+ */
+export function triggerRadar(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/radar', 'radar', 10 * 60_000);
+}
+
+/**
+ * Scan des concurrents suivis · détecte les NOUVELLES pubs (diff des
+ * identifiants déjà vus, aucune analyse modèle · donc rien de facturé). Il
+ * remplit le fil « tes concurrents viennent de sortir ça » de la page
+ * Sauvegardes. La route existait et était protégée · elle n'était simplement
+ * jamais déclenchée, donc le fil ne se remplissait pas tout seul.
+ */
+export function triggerTracker(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/tracker', 'tracker', 10 * 60_000);
 }
