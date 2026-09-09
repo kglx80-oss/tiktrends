@@ -5,6 +5,7 @@ import { getSession } from '../../../lib/auth';
 import { canAccess, FEATURES, roleAtLeast } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
 import { getActiveBrand } from '../../../lib/brands';
+import { bibliothequeMeta } from '@tiktrends/core';
 import { BrandRemoveButton } from '../../../components/InspoButtons';
 import { PageInfo } from '../../../components/PageInfo';
 import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
@@ -83,6 +84,9 @@ export default async function SavedPage() {
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{b.name}</span>
             <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)' }}>{b.platform}</span>
             <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
+            {bibliothequeMeta({ platform: b.platform, name: b.name }) && (
+              <a href={bibliothequeMeta({ platform: b.platform, name: b.name })!} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>bibliothèque ↗</a>
+            )}
             <BrandRemoveButton platform={b.platform} name={b.name} />
           </div>
         ))}

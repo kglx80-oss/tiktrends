@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
-import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, type AngleKey } from '@tiktrends/core';
+import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequeMeta, type AngleKey } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
 
 export interface SwipeItem { ad: InspoAd; angle: AngleKey; saved: boolean; following: boolean }
@@ -152,15 +152,26 @@ function Card({ it }: { it: SwipeItem }) {
           </div>
         )}
 
-        {siteHref(ad) && (
-          <a href={siteHref(ad)!} target="_blank" rel="noreferrer noopener" style={{
-            marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            padding: '9px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent',
-            color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none',
-          }}>
-            {ctaLabel(ad)} <span style={{ color: 'var(--accent-strong)' }}>↗</span>
-          </a>
-        )}
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {siteHref(ad) && (
+            <a href={siteHref(ad)!} target="_blank" rel="noreferrer noopener" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '9px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent',
+              color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none',
+            }}>
+              {ctaLabel(ad)} <span style={{ color: 'var(--accent-strong)' }}>↗</span>
+            </a>
+          )}
+          {bibliothequeMeta({ platform: ad.platform, name: ad.advertiserName }) && (
+            <a href={bibliothequeMeta({ platform: ad.platform, name: ad.advertiserName })!} target="_blank" rel="noreferrer noopener" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '8px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent',
+              color: 'var(--ink-2)', fontWeight: 700, fontSize: 12, textDecoration: 'none',
+            }}>
+              Bibliothèque Meta <span style={{ color: 'var(--accent-strong)' }}>↗</span>
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
