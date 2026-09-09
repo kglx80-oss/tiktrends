@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, scoreCreativeAction, declineAdAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
+import { demarrerGeneration, terminerGeneration } from '../../../../lib/generation-store';
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
@@ -441,6 +442,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     // rend l'échec VISIBLE et le bouton de nouveau cliquable. On ne répare pas
     // la panne serveur ici · on refuse qu'elle passe pour une panne de l'outil.
     setBusy(true);
+    // Déclaré au store d'app · l'indicateur « ça tourne » reste visible même si
+    // on quitte le studio. Retiré dans le `finally`, qui s'exécute quoi qu'il
+    // arrive (la promesse survit au démontage du composant).
+    const jobId = demarrerGeneration(count, m === 'clone' ? 'Clone' : 'Pubs IA');
     try {
       const res = m === 'clone'
         ? await cloneAdAction({
@@ -461,6 +466,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       return { kind: 'error', message };
     } finally {
       setBusy(false);
+      terminerGeneration(jobId);
     }
   }
 
