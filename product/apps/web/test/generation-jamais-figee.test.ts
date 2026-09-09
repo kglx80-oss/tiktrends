@@ -25,7 +25,10 @@ const STUDIO = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.
 
 describe('run rend toujours la main', () => {
   it('remet busy à faux dans un finally · jamais sauté sur une exception', () => {
-    expect(STUDIO).toMatch(/finally\s*\{\s*setBusy\(false\);\s*\}/);
+    // `setBusy(false)` est la PREMIÈRE chose du finally · d'autres nettoyages
+    // peuvent suivre (retrait de l'indicateur de génération), mais la main est
+    // rendue d'abord, et dans un finally impossible à sauter.
+    expect(STUDIO).toMatch(/finally\s*\{\s*setBusy\(false\);/);
   });
 
   it('rend l’échec visible quand l’action LÈVE au lieu de renvoyer', () => {
