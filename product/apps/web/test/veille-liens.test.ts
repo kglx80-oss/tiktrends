@@ -50,7 +50,9 @@ describe('siteMarque · domaine puis URL', () => {
 
 const CARD = readFileSync(join(process.cwd(), 'components/AdCard.tsx'), 'utf8');
 const SWIPE = readFileSync(join(process.cwd(), 'app/(app)/veille/scale/SwipeFile.tsx'), 'utf8');
-const SAVED = readFileSync(join(process.cwd(), 'app/(app)/saved/page.tsx'), 'utf8');
+// Le lien bibliothèque des marques suivies vit désormais dans le composant
+// client `MarquesSuivies` (qui porte aussi le brief à la demande).
+const SAVED = readFileSync(join(process.cwd(), 'components/MarquesSuivies.tsx'), 'utf8');
 
 describe('les surfaces de veille exposent bien le lien bibliothèque', () => {
   it('carte, swipe file et marques suivies appellent bibliothequeMeta', () => {
