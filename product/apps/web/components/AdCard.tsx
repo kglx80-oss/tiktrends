@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille } from '@tiktrends/core';
+import { estGagnantVeille, bibliothequeMeta, siteMarque } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -11,6 +11,8 @@ export const compact = (n?: number) => {
   return String(n);
 };
 const eur = (n?: number) => (n == null ? 'n/c' : '€' + compact(n));
+
+const lienExterne = { fontSize: 11, fontWeight: 600, padding: '4px 9px', borderRadius: 8, border: '1px solid var(--line-2)', color: 'var(--ink-2)', textDecoration: 'none', background: 'var(--bg)' } as const;
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -26,6 +28,9 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
   // On le flague et on pousse le clone · c'est la pub PROUVÉE qu'on veut refaire,
   // pas le énième lancement d'un concurrent.
   const gagnant = estGagnantVeille(ad);
+  // Liens sortants · retrouver la marque à sa source, pas une impasse.
+  const biblio = bibliothequeMeta({ platform: ad.platform, name: ad.advertiserName });
+  const site = siteMarque({ landingDomain: ad.landingDomain, landingUrl: ad.landingUrl });
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative' }}>
@@ -71,6 +76,12 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
           <div style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {ad.callToAction && <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{ad.callToAction}</span>}
             {ad.landingDomain && <span>· {ad.landingDomain}</span>}
+          </div>
+        )}
+        {(biblio || site) && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {biblio && <a href={biblio} target="_blank" rel="noreferrer" style={lienExterne}>Bibliothèque Meta ↗</a>}
+            {site && <a href={site} target="_blank" rel="noreferrer" style={lienExterne}>Site ↗</a>}
           </div>
         )}
         {/* Le pont veille → création. Il pointait vers `/studio` (le hub, pas les

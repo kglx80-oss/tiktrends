@@ -71,6 +71,7 @@ export * from './conseil-mode';
 export * from './brief-veille';
 export * from './veille-media';
 export * from './veille-defaut';
+export * from './veille-liens';
 export * from './decouverte-marche';
 export * from './exemple-direction';
 export * from './conseil-moteur';
