@@ -6,9 +6,9 @@ import { MARKET_COLS, toMarketAd, ligneMarketCreative } from '../../lib/market-r
 import { analyzeAdAsset } from '@tiktrends/ai';
 import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
-  normalizeAnalysis, costFor,
+  normalizeAnalysis, costFor, majSurvie,
   computeMarketStats, contrastMarketVsBrand, summarizeMarket,
-  type MarketAd, type MarketRow, type Contrast, type BrandRow,
+  type MarketAd, type MarketRow, type Contrast, type BrandRow, type RadarSignal,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -73,7 +73,10 @@ async function analyseLot(
   // Déjà décrites · la clé unique les protégerait, mais autant ne pas payer.
   const ids = ads.map((a) => a.id);
   const connues = ids.length
-    ? await db!.select({ externalId: schema.marketCreatives.externalId })
+    ? await db!.select({
+        externalId: schema.marketCreatives.externalId, platform: schema.marketCreatives.platform,
+        daysRunning: schema.marketCreatives.daysRunning, radarSignal: schema.marketCreatives.radarSignal,
+      })
         .from(schema.marketCreatives)
         .where(and(
           eq(schema.marketCreatives.workspaceId, ctx.workspaceId),
@@ -81,6 +84,31 @@ async function analyseLot(
         ))
     : [];
   const dejaVues = new Set(connues.map((c) => c.externalId));
+
+  // Les créas déjà décrites ne sont PAS repayées · mais leurs CHIFFRES de survie
+  // sont rafraîchis GRATIS depuis la donnée fraîche, comme le radar (#293). Sans
+  // ça, une créa vue jeune resterait figée par `onConflictDoNothing` et ne
+  // franchirait jamais le cap dans notre base, même en le franchissant en vrai.
+  // La description (mise en page, charte) ne change pas · on ne la repaie pas.
+  const parId = new Map(ads.map((a) => [a.platform + ':' + a.id, a]));
+  let rafraichies = 0;
+  for (const c of connues) {
+    const a = parId.get(c.platform + ':' + c.externalId);
+    if (!a) continue;
+    const maj = majSurvie(
+      { externalId: a.id, advertiser: a.advertiserName ?? null, daysRunning: a.daysRunning ?? 0, reachDelta30d: a.reachDelta30d ?? null, liveAdsCount: a.liveAdsCount ?? null, hasImage: true, hasText: true },
+      { daysRunning: c.daysRunning ?? 0, signal: (c.radarSignal as RadarSignal | null) ?? null },
+    );
+    if (!maj) continue;
+    await db!.update(schema.marketCreatives)
+      .set({ daysRunning: maj.daysRunning, reachDelta30d: maj.reachDelta30d, liveAdsCount: maj.liveAdsCount, radarSignal: maj.signal })
+      .where(and(
+        eq(schema.marketCreatives.workspaceId, ctx.workspaceId),
+        eq(schema.marketCreatives.platform, a.platform),
+        eq(schema.marketCreatives.externalId, a.id),
+      ));
+    rafraichies++;
+  }
 
   let candidats = ads.filter((a) => {
     if (dejaVues.has(a.id)) { skipped.push({ id: a.id, reason: 'Déjà décrite.' }); return false; }
@@ -95,9 +123,10 @@ async function analyseLot(
   candidats = candidats.slice(0, MAX_LOT);
 
   if (!candidats.length) {
+    const maj = rafraichies ? ` · ${rafraichies} créa(s) connue(s) rafraîchie(s)` : '';
     return {
       analyzed: 0, skipped,
-      summary: skipped.length ? `Rien de nouveau à décrire · ${skipped.length} créa(s) écartée(s).` : 'Aucune créa à décrire.',
+      summary: (skipped.length ? `Rien de nouveau à décrire · ${skipped.length} créa(s) écartée(s)` : 'Aucune nouvelle créa à décrire') + maj + '.',
     };
   }
 
@@ -150,6 +179,7 @@ async function analyseLot(
 
   if (analyzed) invalidateJarvisMemory(ctx.brandId);
   const parts = [`${analyzed} créa(s) concurrente(s) décrite(s)`];
+  if (rafraichies) parts.push(`${rafraichies} connue(s) rafraîchie(s)`);
   if (skipped.length) parts.push(`${skipped.length} écartée(s)`);
   // On dit quand les accroches sont devinées plutôt que lues · la différence de
   // fiabilité est trop grande pour rester implicite.
