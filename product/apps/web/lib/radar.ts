@@ -6,11 +6,12 @@ import { analyzeAdAsset } from '@tiktrends/ai';
 import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
   selectForAnalysis, radarDigest, findingHeadline, estimateCost,
-  normalizeAnalysis, summarizeAnalysis,
+  normalizeAnalysis,
   type RadarCandidate, type RadarFinding, type RadarSignal,
 } from '@tiktrends/core';
 import { guardedAnthropic, SpendBlockedError } from './spend-guard';
 import { invalidateJarvisMemory } from './jarvis-memory';
+import { ligneMarketCreative } from './market-rows';
 
 /**
  * Le passage de nuit.
@@ -51,15 +52,6 @@ interface RadarRun {
   digest: string;
   blocked?: string;
 }
-
-const bucket = (sec: number | null): string | null => {
-  if (sec === null || !Number.isFinite(sec)) return null;
-  if (sec < 10) return '<10s';
-  if (sec < 15) return '10-15s';
-  if (sec < 30) return '15-30s';
-  if (sec < 60) return '30-60s';
-  return '>60s';
-};
 
 /* -------------------------------------------------------------------------- */
 /*  Le passage                                                                */
@@ -173,25 +165,12 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
       if (!brut) continue;
 
       const n = normalizeAnalysis(brut);
-      await db.insert(schema.marketCreatives).values({
-        workspaceId, brandId,
-        platform: a.platform, externalId: a.id,
-        advertiser: a.advertiserName ?? null,
-        daysRunning: a.daysRunning ?? 0,
-        reachDelta30d: a.reachDelta30d ?? null,
-        liveAdsCount: a.liveAdsCount ?? null,
-        format: a.mediaType ?? null,
-        hookType: n.hookType, openingType: n.openingType, talent: n.talent,
-        lengthBucket: bucket(n.durationS),
-        analysis: {
-          hookSpoken: n.hookSpoken, claims: n.claims, proofElements: n.proofElements,
-          unmapped: n.unmapped, summary: summarizeAnalysis(n),
-          radarReason: p.reason,
-        },
-        analysisConfidence: n.confidence,
-        radarSignal: p.signal,
-        analyzedAt: new Date(),
-      }).onConflictDoNothing();
+      // Même ligne partagée que le lot on-demand · le radar range DÉSORMAIS aussi
+      // la grammaire de layout et de charte, qu'il oubliait · ses créas entrent
+      // donc dans `grammaireLayout` comme les autres.
+      await db.insert(schema.marketCreatives)
+        .values(ligneMarketCreative(a, n, { workspaceId, brandId }, { signal: p.signal, reason: p.reason }))
+        .onConflictDoNothing();
       decrites++;
 
       // Les dimensions viennent d'une taxonomie fermée · on les élargit en

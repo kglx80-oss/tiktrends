@@ -13,12 +13,13 @@ import { join } from 'node:path';
  * mesurer « 60 % des gagnantes posent l'accroche en haut », les dimensions
  * doivent être rangées en CLÉS STRUCTURÉES dans le jsonb `analysis`.
  *
- * Le jsonb accueille ces champs sans migration · c'est la seule étape sûre et
- * sans dépense avant que le lot mesuré remplisse la donnée. Si cette écriture
+ * Ces champs vivent désormais dans la ligne PARTAGÉE (`ligneMarketCreative`,
+ * `market-rows.ts`), construite à l'identique par le lot on-demand ET le radar ·
+ * un seul endroit à garder, qui couvre les deux pipelines. Si cette écriture
  * disparaît, le futur agrégat sera vide en silence · ce garde l'en empêche.
  */
 
-const SRC = readFileSync(join(process.cwd(), 'app/actions/market-learn.ts'), 'utf8');
+const SRC = readFileSync(join(process.cwd(), 'lib/market-rows.ts'), 'utf8');
 
 describe('market-learn range la grammaire de layout en clés structurées', () => {
   it('persiste les quatre dimensions dans le jsonb analysis', () => {

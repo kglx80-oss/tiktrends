@@ -2,11 +2,11 @@
 
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { MARKET_COLS, toMarketAd } from '../../lib/market-rows';
+import { MARKET_COLS, toMarketAd, ligneMarketCreative } from '../../lib/market-rows';
 import { analyzeAdAsset } from '@tiktrends/ai';
 import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
-  normalizeAnalysis, summarizeAnalysis, costFor,
+  normalizeAnalysis, costFor,
   computeMarketStats, contrastMarketVsBrand, summarizeMarket,
   type MarketAd, type MarketRow, type Contrast, type BrandRow,
 } from '@tiktrends/core';
@@ -54,15 +54,6 @@ export interface LearnResult {
   summary?: string;
   error?: string;
 }
-
-const bucket = (sec: number | null): string | null => {
-  if (sec === null || !Number.isFinite(sec)) return null;
-  if (sec < 10) return '<10s';
-  if (sec < 15) return '10-15s';
-  if (sec < 30) return '15-30s';
-  if (sec < 60) return '30-60s';
-  return '>60s';
-};
 
 /**
  * Décrit un lot de créas concurrentes et les range.
@@ -142,32 +133,11 @@ async function analyseLot(
         continue;
       }
       const n = normalizeAnalysis(brut);
-      await db!.insert(schema.marketCreatives).values({
-        workspaceId: ctx.workspaceId, brandId: ctx.brandId,
-        platform: a.platform, externalId: a.id,
-        advertiser: a.advertiserName ?? null,
-        daysRunning: a.daysRunning ?? 0,
-        reachDelta30d: a.reachDelta30d ?? null,
-        liveAdsCount: a.liveAdsCount ?? null,
-        format: a.mediaType ?? null,
-        hookType: n.hookType, openingType: n.openingType, talent: n.talent,
-        lengthBucket: bucket(n.durationS),
-        analysis: {
-          hookSpoken: n.hookSpoken, claims: n.claims, proofElements: n.proofElements,
-          unmapped: n.unmapped, summary: summarizeAnalysis(n),
-          // Grammaire de mise en page STRUCTURÉE (#261 ne la posait que dans le
-          // résumé texte). Rangée en clés à part, elle devient agrégeable par
-          // `grammaireLayout` · sans migration, le jsonb accueille ces champs.
-          // C'est ce qui arme le poumon : un futur lot mesuré produit des données
-          // que la génération pourra suivre.
-          headlinePosition: n.headlinePosition, composition: n.composition,
-          textDensity: n.textDensity, background: n.background,
-          // Charte · typographie et palette, rangées structurées comme le layout.
-          typoRegister: n.typoRegister, palette: n.palette,
-        },
-        analysisConfidence: n.confidence,
-        analyzedAt: new Date(),
-      }).onConflictDoNothing();
+      // La ligne stockée est construite UNE seule fois, partagée avec le radar ·
+      // deux copies avaient déjà divergé (le radar oubliait layout et charte).
+      await db!.insert(schema.marketCreatives)
+        .values(ligneMarketCreative(a, n, { workspaceId: ctx.workspaceId, brandId: ctx.brandId }))
+        .onConflictDoNothing();
       analyzed++;
     } catch (e) {
       if (!gratuit) await refundCredits(ctx.workspaceId, cout, `market:analyze:erreur:${a.id}`);
