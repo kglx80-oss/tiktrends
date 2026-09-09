@@ -32,7 +32,9 @@ const ACTION_CTA: Record<string, string> = {
 
 function Row({ r }: { r: AnalysisRow }) {
   const b = bucketDef(r.bucket);
-  const studioHref = `/studio/ads?inspo=${encodeURIComponent(r.title)}`;
+  // Le studio lit `angle` (le brief de départ), pas `inspo` · l'ancien lien
+  // déposait un réglage qu'aucun écran ne relisait, donc perdu au chargement.
+  const studioHref = `/studio/ads?angle=${encodeURIComponent(r.title)}`;
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px', display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
