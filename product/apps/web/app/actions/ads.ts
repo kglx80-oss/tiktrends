@@ -819,7 +819,27 @@ async function learnedPreferences(brandId: string): Promise<string | undefined> 
   return parts.join('\n\n');
 }
 
-export async function generateAdsAction(input: {
+/**
+ * Enveloppe · une exception qui S'ÉCHAPPE au lieu de renvoyer { error } ne doit
+ * ni figer le client (le bouton restait sur « Génération… »), ni disparaître
+ * dans les logs du conteneur que personne ne lit. On la JOURNALISE — elle
+ * remonte alors dans « Incidents techniques » (/admin/incidents) — et on la
+ * renvoie comme un échec lisible.
+ *
+ * C'est le trou qu'un incident a révélé · le lot levait, la page d'incidents
+ * restait vide (logAndTranslate ne journalise que ce qu'un catch lui donne), et
+ * il fallait le terminal du serveur pour voir quoi que ce soit. Le correctif
+ * client (#279) empêche le figeage ; celle-ci fait que l'échec est VU.
+ */
+export async function generateAdsAction(input: Parameters<typeof genererLotInterne>[0]): Promise<AdsResult> {
+  try {
+    return await genererLotInterne(input);
+  } catch (e) {
+    return { error: logAndTranslate('ads:generate', e, { subject: 'la génération des pubs' }) };
+  }
+}
+
+async function genererLotInterne(input: {
   productId?: string; personaId?: string; objective?: string; templates?: AdTemplate[]; angle?: string; universe?: string; count?: number; assetIds?: string[]; offer?: string; model?: string;
   /** Identifiant d'un prompt maison · prime sur `universe`. */
   presetId?: string;
@@ -1210,7 +1230,16 @@ export async function listSavedAdRefs(): Promise<SavedAdRef[]> {
  * Clone une pub gagnante : analyse la référence (vision), en déduit l'angle + le gabarit,
  * puis produit N variations sur ta marque/produit (même moteur que « Depuis la marque »).
  */
-export async function cloneAdAction(input: {
+/** Même barrière que la génération · un clone qui LÈVE remonte dans les incidents. */
+export async function cloneAdAction(input: Parameters<typeof clonerLotInterne>[0]): Promise<AdsResult> {
+  try {
+    return await clonerLotInterne(input);
+  } catch (e) {
+    return { error: logAndTranslate('ads:clone', e, { subject: 'le clonage de la pub' }) };
+  }
+}
+
+async function clonerLotInterne(input: {
   referenceDataUri?: string; savedAdId?: string;
   productId?: string; personaId?: string; objective?: string; universe?: string; count?: number; model?: string;
   /** Consigne libre · ce que l'utilisateur veut changer par rapport à la référence. */
