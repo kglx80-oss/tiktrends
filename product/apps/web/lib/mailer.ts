@@ -18,10 +18,6 @@ function getTransport(): nodemailer.Transporter | null {
   return transport;
 }
 
-export function mailConfigured(): boolean {
-  return !!process.env.SMTP_URL;
-}
-
 export function appUrl(): string {
   return (process.env.APP_URL || 'https://app.tiktrends.co').replace(/\/$/, '');
 }

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, asc, count, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   validatePreset, normalizePreset, presetPerformance, memoryOrigin,
@@ -208,30 +208,6 @@ export async function savePresetAction(input: PresetInput & { id?: string; scope
   }
 }
 
-/**
- * Archive un prompt.
- *
- * On n'efface pas · les créas déjà produites pointent dessus, et un bilan qui
- * perd son intitulé devient illisible six mois plus tard.
- */
-export async function archivePresetAction(id: string): Promise<{ ok?: boolean; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
-  if (!roleAtLeast(s.role, 'member')) return { error: 'Ton rôle ne permet pas cette action.' };
-  try {
-    await db.update(schema.creativePresets)
-      .set({ archived: true, updatedAt: new Date() })
-      .where(and(
-        eq(schema.creativePresets.id, id),
-        eq(schema.creativePresets.workspaceId, s.workspaceId),
-      ));
-    revalidatePath('/studio/prompts');
-    return { ok: true };
-  } catch (e) {
-    return { error: logAndTranslate('presets:archive', e, { subject: 'l’archivage du prompt', workspaceId: s.workspaceId }) };
-  }
-}
-
 /** Le prompt à appliquer, résolu · `null` pour un univers fourni ou un id inconnu. */
 export async function resolvePreset(workspaceId: string, id?: string | null): Promise<{ prompt: string; negative: string | null } | null> {
   if (!db || !id || id.startsWith('builtin:')) return null;
@@ -240,13 +216,4 @@ export async function resolvePreset(workspaceId: string, id?: string | null): Pr
     .where(and(eq(schema.creativePresets.id, id), eq(schema.creativePresets.workspaceId, workspaceId)))
     .limit(1);
   return row ?? null;
-}
-
-/** Compte les prompts maison · sert l'état des couches de Jarvis. */
-export async function countPresets(workspaceId: string): Promise<number> {
-  if (!db) return 0;
-  const [r] = await db.select({ n: sql<number>`count(*)` })
-    .from(schema.creativePresets)
-    .where(and(eq(schema.creativePresets.workspaceId, workspaceId), eq(schema.creativePresets.archived, false)));
-  return Number(r?.n ?? 0);
 }

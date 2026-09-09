@@ -1,9 +1,9 @@
 'use server';
 
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  iterationPlan, proposeIterations, checkIteration, wouldCreateCycle,
+  iterationPlan, checkIteration, wouldCreateCycle,
   MODE_LABEL, MODE_HINT, VARIABLE_LABEL, STAGE_LABEL,
   type IterationInput, type IterationTask, type TestedVariable, type FunnelStage, type VerdictValue,
 } from '@tiktrends/core';
@@ -297,87 +297,4 @@ export async function createIterationAction(
   } catch (e) {
     return { error: logAndTranslate('adsmap:iteration-create', e, { subject: 'la création de l’itération', workspaceId: g.s.workspaceId }) };
   }
-}
-
-/** Les suites possibles d'une ad précise · sert au tiroir de détail. */
-export async function iterationsForAdAction(adId: string): Promise<{ rows?: IterationRow[]; error?: string }> {
-  const g = await adsmapGuard();
-  if ('error' in g) return { error: g.error };
-
-  try {
-    const [r] = await db!.select({
-      adId: schema.ads.id,
-      variantCode: schema.ads.variantCode,
-      testedVariable: schema.ads.testedVariable,
-      conceptTitle: schema.concepts.title,
-      validated: schema.verdicts.validated,
-      failedStage: schema.verdicts.failedStage,
-      killFlag: schema.verdicts.killFlag,
-      metricsAgg: schema.verdicts.metricsAgg,
-    })
-      .from(schema.ads)
-      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
-      .innerJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
-      .where(and(eq(schema.ads.id, adId), eq(schema.ads.workspaceId, g.s.workspaceId)))
-      .limit(1);
-
-    if (!r?.validated || NON_CONCLUANTS.has(r.validated as VerdictValue)) return { rows: [] };
-
-    const arcs = await db!.select({
-      childAdId: schema.iterationEdges.childAdId,
-      parentAdId: schema.iterationEdges.parentAdId,
-      changedVariable: schema.iterationEdges.changedVariable,
-    }).from(schema.iterationEdges).where(eq(schema.iterationEdges.workspaceId, g.s.workspaceId));
-
-    const { depth, changed } = remonte(
-      adId,
-      new Map(arcs.map((a) => [a.childAdId, a.parentAdId])),
-      new Map(arcs.map((a) => [a.childAdId, a.changedVariable as TestedVariable])),
-    );
-
-    const agg = (r.metricsAgg ?? {}) as { spend?: unknown };
-    const verdict = r.validated as VerdictValue;
-    const props = proposeIterations({
-      adId, label: `${r.conceptTitle} · ${r.variantCode}`, verdict,
-      failedStage: (r.failedStage ?? null) as FunnelStage | null,
-      killFlag: (r.killFlag ?? null) as IterationInput['killFlag'],
-      testedVariable: (r.testedVariable ?? null) as TestedVariable | null,
-      lineageDepth: depth, lineageChanged: changed,
-      spend: typeof agg.spend === 'number' ? agg.spend : null,
-    });
-
-    return {
-      rows: props.map((t) => ({
-        ...t,
-        adId, label: `${r.conceptTitle} · ${r.variantCode}`,
-        spend: typeof agg.spend === 'number' ? agg.spend : null,
-        modeLabel: MODE_LABEL[t.mode], modeHint: MODE_HINT[t.mode],
-        variableLabel: VARIABLE_LABEL[t.changedVariable],
-        stageLabel: t.stageTargeted ? STAGE_LABEL[t.stageTargeted] : null,
-        freezeLabels: t.freeze.map((v) => VARIABLE_LABEL[v]),
-        conceptTitle: r.conceptTitle, parentVerdict: verdict,
-      })),
-    };
-  } catch (e) {
-    return { error: logAndTranslate('adsmap:iteration-ad', e, { subject: 'les suites de ce test', workspaceId: g.s.workspaceId }) };
-  }
-}
-
-/** Rendu inutile d'exporter les listes deux fois · l'écran lit celles-ci. */
-export async function iterationVocabularyAction(): Promise<{ variables: Array<{ key: string; label: string }> }> {
-  const cles = Object.keys(VARIABLE_LABEL) as TestedVariable[];
-  return { variables: cles.filter((k) => k !== 'none_control').map((k) => ({ key: k, label: VARIABLE_LABEL[k] })) };
-}
-
-/** Les ads que ce plan a fait naître · utile pour ne pas reproposer la même suite. */
-export async function iterationChildrenAction(parentIds: string[]): Promise<{ ids: string[] }> {
-  const g = await adsmapGuard();
-  if ('error' in g || !parentIds.length) return { ids: [] };
-  const arcs = await db!.select({ parentAdId: schema.iterationEdges.parentAdId })
-    .from(schema.iterationEdges)
-    .where(and(
-      eq(schema.iterationEdges.workspaceId, g.s.workspaceId),
-      inArray(schema.iterationEdges.parentAdId, parentIds),
-    ));
-  return { ids: [...new Set(arcs.map((a) => a.parentAdId))] };
 }
