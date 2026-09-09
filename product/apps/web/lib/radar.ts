@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { testedKeys } from './milestones';
 import { analyzeAdAsset } from '@tiktrends/ai';
-import { ttSearchAds, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
+import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
   selectForAnalysis, radarDigest, findingHeadline, estimateCost,
   normalizeAnalysis, summarizeAnalysis,
@@ -95,12 +95,19 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
   // 1 · Récolte · gratuite.
   const ads: InspoAd[] = [];
   for (const s of suivies) {
-    if (s.platform !== 'meta') continue;   // seule plateforme qui expose la durée de diffusion
+    // Meta ET TikTok · le produit est TikTok-first, le radar ne peut pas rester
+    // borgne. La sélection (`survivalSignal`) ne retient QUE ce qui porte un
+    // signal de survie (`daysRunning >= 7`) · une créa TikTok sans durée fiable
+    // est donc ignorée GRATIS, jamais analysée à perte. Le budget est protégé par
+    // la même barrière qu'avant, quelle que soit la plateforme.
+    if (s.platform !== 'meta' && s.platform !== 'tiktok') continue;
     try {
-      const r = await ttSearchAds({ apiKey }, {
-        search: s.name, searchIn: 'brand', status: 'active',
-        sortBy: 'longestRunning', order: 'desc', limit: PER_BRAND, offset: 0,
-      });
+      const r = s.platform === 'tiktok'
+        ? await ttSearchTikTok({ apiKey }, { search: s.name, type: 'ad', sortBy: 'longestRunning', limit: PER_BRAND })
+        : await ttSearchAds({ apiKey }, {
+            search: s.name, searchIn: 'brand', status: 'active',
+            sortBy: 'longestRunning', order: 'desc', limit: PER_BRAND, offset: 0,
+          });
       ads.push(...r.ads);
     } catch { /* un concurrent en échec n'arrête pas les autres */ }
   }
