@@ -30,21 +30,24 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   const initialRef = (sp.ref ?? '').slice(0, 64);
   const initialMode = sp.mode === 'clone' || initialRef ? 'clone' : 'brand';
   const initialAngle = (sp.angle ?? '').slice(0, 300);
-  // Ce que l'outil conseille de tester · déduit de ce qui est DÉJÀ mesuré, sans
-  // appeler aucun modèle. Un échec de lecture n'a pas à bloquer le studio : on
-  // affiche simplement le sélecteur sans conseil.
-  const suggestion = (await essaiSuivantAction().catch(() => ({ suggestion: undefined }))).suggestion ?? null;
-  // Le plafond de dépense, lu AVANT de proposer de générer.
+  // Trois lectures INDÉPENDANTES, menées en parallèle · les enchaîner ajoutait
+  // deux allers-retours à chaque ouverture du studio, pour rien.
   //
-  // Il est dur : au-delà, plus une seule image ne part. Découvrir ça après
-  // avoir traversé cinq écrans, c'est exactement « aucun résultat » sans
-  // explication · le studio doit pouvoir le dire pendant qu'on choisit le
-  // nombre, pas une fois le lot refusé.
-  const budget = await spendStatus().catch(() => null);
-  // Ce que les relectures de cette marque conseillent · lecture pure, aucun
-  // modèle appelé, donc rien de facturé pour l'afficher. Un échec de lecture
-  // laisse simplement le catalogue décider, comme avant.
-  const bilanCopie = (await bilanCopieAction().catch(() => ({ bilan: undefined }))).bilan;
+  // - `suggestion` · ce que l'outil conseille de tester, déduit de ce qui est
+  //   DÉJÀ mesuré (aucun modèle appelé). Un échec laisse le sélecteur sans conseil.
+  // - `budget` · le plafond de dépense, lu AVANT de proposer de générer · il est
+  //   dur, et le découvrir une fois le lot refusé, c'est « aucun résultat » sans
+  //   explication. Le studio doit pouvoir le dire pendant qu'on choisit le nombre.
+  // - `bilanCopie` · ce que les relectures de la marque conseillent · lecture
+  //   pure, rien de facturé. Un échec laisse le catalogue décider, comme avant.
+  //
+  // Chacune tolère son PROPRE échec · une lecture qui rate n'emporte pas les deux
+  // autres, exactement comme quand elles étaient séparées.
+  const [suggestion, budget, bilanCopie] = await Promise.all([
+    essaiSuivantAction().then((r) => r.suggestion ?? null).catch(() => null),
+    spendStatus().catch(() => null),
+    bilanCopieAction().then((r) => r.bilan).catch(() => undefined),
+  ]);
   const conseilMoteurs = conseilMoteur(bilanCopie);
   // Le MODE par défaut suit la mesure aussi · une marque dont l'entière échoue
   // mesurément part en composée. Sans mesure suffisante, l'entière reste le

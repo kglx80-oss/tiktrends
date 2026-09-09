@@ -29,15 +29,16 @@ const PAGE = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/page.tsx'), 
 describe('le conseil traverse jusqu’à l’écran', () => {
   it('la page le calcule depuis le bilan', () => {
     // Le bilan est lu UNE fois puis partagé avec le conseil de mode · le moteur
-    // se calcule donc de la variable, pas d'un appel inline.
-    expect(PAGE).toMatch(/const bilanCopie = \(await bilanCopieAction\(\)/);
+    // se calcule donc de la variable, pas d'un appel inline. La lecture est
+    // menée en parallèle des deux autres, mais reste UNIQUE.
+    expect((PAGE.match(/bilanCopieAction\(\)/g) ?? []).length, 'le bilan doit être lu une seule fois').toBe(1);
     expect(PAGE).toMatch(/conseilMoteur\(bilanCopie\)/);
   });
 
   it('une lecture en échec laisse le catalogue décider', () => {
     // Un bilan illisible ne doit pas priver du studio · il prive du conseil,
     // ce qui ramène au comportement d'avant.
-    expect(PAGE).toMatch(/bilanCopieAction\(\)\.catch\(/);
+    expect(PAGE).toMatch(/bilanCopieAction\(\).*\.catch\(/);
   });
 
   it('le studio le transmet, l’assistant l’affiche', () => {
