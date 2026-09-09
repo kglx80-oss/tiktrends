@@ -327,7 +327,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
             note: `${modelSpec.label} · ${modelSpec.credits} crédits par visuel · ${modelSpec.note}${mode === 'i2i' && !productPhotoReady ? ' · ajoute une photo produit pour l’édition fidèle' : ''}`,
           }}
           onGenerate={run}
-          generateLabel="Générer"
+          generateLabel="Générer le visuel"
         />
         {sceneErreur && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{sceneErreur}</div>}
         {notice && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(120,220,150,.4)', background: 'rgba(120,220,150,.10)', color: '#9fe6b3' }}>{notice}</div>}

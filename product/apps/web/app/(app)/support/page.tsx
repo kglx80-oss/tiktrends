@@ -68,7 +68,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
             <label style={lbl}>Message</label>
             <textarea name="body" required style={{ ...input, minHeight: 90, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} placeholder="Décris le contexte, ce que tu attendais, ce qui s'est passé." />
           </div>
-          <div><button type="submit" style={btn}>Envoyer</button></div>
+          <div><button type="submit" style={btn}>Envoyer le ticket</button></div>
         </form>
       </div>
 

@@ -40,7 +40,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <p style={sub}>Nom affiché de l'espace (agence / client).</p>
         <form action={updateWorkspaceAction} style={{ display: 'grid', gap: 14, maxWidth: 420 }}>
           <div><label style={lbl}>Nom de l'espace</label><input name="name" defaultValue={s.workspaceName} style={input} /></div>
-          <div><button type="submit" style={btn}>Enregistrer</button></div>
+          <div><button type="submit" style={btn}>Enregistrer le nom</button></div>
         </form>
       </div>
 
