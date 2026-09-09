@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { MARKET_COLS, toMarketAd } from '../../lib/market-rows';
 import { analyzeAdAsset } from '@tiktrends/ai';
-import { ttSearchAds, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
+import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
   normalizeAnalysis, summarizeAnalysis, costFor,
   computeMarketStats, contrastMarketVsBrand, summarizeMarket,
@@ -203,22 +203,33 @@ export async function learnFromFollowedAction(): Promise<LearnResult> {
   if (!apiKey) return { error: 'La source de veille n’est pas configurée sur le serveur.' };
 
   try {
-    const suivies = await db!.select({ name: schema.followedBrands.name })
+    // Les marques suivies sur les DEUX plateformes · le produit est TikTok-first,
+    // le poumon ne peut pas rester borgne sur Meta. Le stockage est déjà agnostique
+    // (`analyseLot` range `platform: a.platform`) · il ne manquait que d'aller
+    // chercher les créas TikTok. Au mieux · si l'API TikTok ne répond pas, ces
+    // marques rendent zéro et le lot se limite à Meta, sans jamais casser.
+    const suivies = await db!.select({ name: schema.followedBrands.name, platform: schema.followedBrands.platform })
       .from(schema.followedBrands)
       .where(and(
         eq(schema.followedBrands.workspaceId, g.s.workspaceId),
-        eq(schema.followedBrands.platform, 'meta'),
+        inArray(schema.followedBrands.platform, ['meta', 'tiktok']),
       ))
-      .limit(6);
+      .limit(12);
     if (!suivies.length) {
-      return { error: 'Aucune marque suivie · suis des concurrents depuis la Veille, puis relance.' };
+      return { error: 'Aucune marque suivie · suis des concurrents (Meta ou TikTok) depuis la Veille, puis relance.' };
     }
 
     const lots = await Promise.all(suivies.map((b) =>
-      ttSearchAds({ apiKey }, {
-        search: b.name, searchIn: 'brand', status: 'all',
-        sortBy: 'longestRunning', order: 'desc', limit: 8, offset: 0,
-      }).then((r) => r.ads).catch(() => [] as InspoAd[])));
+      (b.platform === 'tiktok'
+        // TikTok · on demande des PUBS (pas de l'organique) qui tiennent. Ses
+        // métriques diffèrent de Meta, mais la vignette + la transcription
+        // suffisent à l'agent A0 · c'est ce qui remplit la grammaire VIDÉO.
+        ? ttSearchTikTok({ apiKey }, { search: b.name, type: 'ad', sortBy: 'longestRunning', limit: 8 })
+        : ttSearchAds({ apiKey }, {
+            search: b.name, searchIn: 'brand', status: 'all',
+            sortBy: 'longestRunning', order: 'desc', limit: 8, offset: 0,
+          })
+      ).then((r) => r.ads).catch(() => [] as InspoAd[])));
 
     const ads = lots.flat();
     if (!ads.length) return { error: 'La source n’a rien renvoyé pour les marques suivies.' };
