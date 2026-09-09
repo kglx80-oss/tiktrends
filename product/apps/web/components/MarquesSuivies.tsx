@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { bibliothequePub, siteMarque, consigneAngleMarche, type BriefConcurrent } from '@tiktrends/core';
+import { bibliothequePub, siteMarque, consigneAngleMarche, formatDominant, type BriefConcurrent } from '@tiktrends/core';
 import { BrandRemoveButton } from './InspoButtons';
 import { briefMarqueAction } from '../app/actions/brief-marque';
 
@@ -99,14 +99,15 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
                   la marque · on reprend l'angle, jamais les mots (la consigne le
                   dit au studio). */}
               {(() => {
-                const consigne = consigneAngleMarche({ angleLabel: brief.angles[0]?.label, marque: active.name });
+                const consigne = consigneAngleMarche({ angleLabel: brief.angles[0]?.label, marque: active.name, partVideo: brief.partVideo });
+                const fmt = formatDominant(brief.partVideo);
                 return consigne && brief.angles[0] ? (
                   <a href={`/studio/ads?angle=${encodeURIComponent(consigne)}`} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 8, alignSelf: 'flex-start',
                     padding: '9px 16px', borderRadius: 10, border: 'none', background: 'var(--grad-accent)',
                     color: '#0d070c', fontWeight: 800, fontSize: 12.5, textDecoration: 'none',
                   }}>
-                    ✨ Génère une créa dans l'angle dominant · {brief.angles[0].label}
+                    ✨ Génère une créa · {brief.angles[0].label}{fmt ? ` · en ${fmt}` : ''}
                   </a>
                 ) : null;
               })()}

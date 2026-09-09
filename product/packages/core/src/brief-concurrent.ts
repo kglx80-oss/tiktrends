@@ -108,10 +108,31 @@ export function briefConcurrent(pubs: PubConcurrent[]): BriefConcurrent {
  */
 const MAX_CONSIGNE_MARCHE = 300;
 
-export function consigneAngleMarche(o: { angleLabel?: string | null; marque?: string | null }): string | null {
+/** Bornes explicites (pas de 1 - x · le flottant rendrait 0,34 > 1 - 0,66). */
+const SEUIL_VIDEO = 0.66;
+const SEUIL_STATIQUE = 0.34;
+
+/**
+ * Le format qui gagne, quand la donnée penche nettement · sinon null (silence).
+ * On ne pousse un format QUE s'il domine · un marché mitigé ne dit rien d'utile.
+ */
+export function formatDominant(partVideo?: number | null): 'video' | 'statique' | null {
+  if (partVideo == null || !Number.isFinite(partVideo)) return null;
+  if (partVideo >= SEUIL_VIDEO) return 'video';
+  if (partVideo <= SEUIL_STATIQUE) return 'statique';
+  return null;
+}
+
+export function consigneAngleMarche(o: { angleLabel?: string | null; marque?: string | null; partVideo?: number | null }): string | null {
   const label = o.angleLabel?.trim();
   if (!label) return null;
   const qui = o.marque?.trim() ? `chez ${o.marque.trim()}` : 'chez ce concurrent';
-  const s = `Reprends l'angle qui domine ${qui} · « ${label} » · c'est sa manière la plus fréquente, éprouvée. Écris NOTRE version pour notre produit, sans recopier sa marque ni ses mots.`;
+  const fmt = formatDominant(o.partVideo);
+  const clauseFormat = fmt === 'video'
+    ? ' Ce marché gagne surtout en VIDÉO · privilégie une créative vidéo.'
+    : fmt === 'statique'
+      ? ' Ce marché gagne surtout en STATIQUE · privilégie une créative image.'
+      : '';
+  const s = `Reprends l'angle qui domine ${qui} · « ${label} » · c'est sa manière la plus fréquente, éprouvée.${clauseFormat} Écris NOTRE version pour notre produit, sans recopier sa marque ni ses mots.`;
   return s.length <= MAX_CONSIGNE_MARCHE ? s : s.slice(0, MAX_CONSIGNE_MARCHE);
 }
