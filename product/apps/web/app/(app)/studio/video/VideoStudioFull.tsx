@@ -134,9 +134,9 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
             <span style={{ fontSize: 20 }}>🔒</span>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-              <b style={{ color: 'var(--ink)' }}>Vidéo IA en attente de la clé Fal.</b> La génération vidéo (Kling 2) utilise Fal.ai · la même clé que l'Image IA.
-              Une fois <code style={{ fontSize: 12 }}>FAL_KEY</code> posée sur le serveur, elle s'active ici.
-              En attendant, le <b>Studio IA</b> (scripts, hooks) et l'<b>assistant</b> fonctionnent déjà avec Claude.
+              <b style={{ color: 'var(--ink)' }}>Vidéo IA bientôt disponible.</b> La génération vidéo s'active dès que le
+              moteur vidéo est branché côté serveur.
+              En attendant, le <b>Studio IA</b> (scripts, hooks) et l'<b>assistant</b> fonctionnent déjà.
             </div>
           </div>
         )}
@@ -223,7 +223,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           generateLabel="Générer la vidéo"
         />
         {sceneErreur && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{sceneErreur}</div>}
-        {!ready && <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>La vidéo IA s'active dès que la clé Higgsfield est posée sur le serveur.</p>}
+        {!ready && <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>La vidéo IA s'active dès que le moteur vidéo est branché côté serveur.</p>}
         {error && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
       </div>
 

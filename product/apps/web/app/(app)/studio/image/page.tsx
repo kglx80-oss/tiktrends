@@ -46,17 +46,17 @@ export default async function ImageStudioPage() {
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
         <h1 style={h1}>Image IA</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>FAL · FLUX / IDEOGRAM</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>Moteur d'image</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
         Génère des visuels pub à partir d'un texte ou de ton image produit. Rattachés à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
       </p>
       <PageInfo title="générer un visuel">
         <b>Mise en scène produit</b> (recommandé) : importe la photo de ton produit, l'IA garde ton vrai
-        packaging et ne recompose que le décor (Kontext). Enregistre la photo une fois sur le produit, elle sera
+        packaging et ne recompose que le décor. Enregistre la photo une fois sur le produit, elle sera
         réutilisée. Le mode <b>Texte → Image</b> reste dispo pour des visuels d'ambiance sans produit. Coche
-        <b>Texte lisible</b> pour une accroche écrite propre (Ideogram), et <b>Optimiser le prompt</b> pour que
-        Claude rédige un prompt de qualité pub. 4 crédits par image.
+        <b>Texte lisible</b> pour une accroche écrite propre, et <b>Optimiser le prompt</b> pour qu'un
+        prompt de qualité pub soit rédigé pour toi. 4 crédits par image.
       </PageInfo>
 
       <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} />
