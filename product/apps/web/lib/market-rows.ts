@@ -1,5 +1,6 @@
 import { schema } from '@tiktrends/db';
-import type { MarketAd } from '@tiktrends/core';
+import type { InspoAd } from '@tiktrends/integrations';
+import { summarizeAnalysis, type MarketAd, type AssetAnalysis, type RadarSignal } from '@tiktrends/core';
 
 /**
  * Les colonnes d'une créa concurrente dont on se sert vraiment.
@@ -45,5 +46,61 @@ export function toMarketAd(r: MarketRowRaw): MarketAd {
     talent: r.talent as MarketAd['talent'],
     lengthBucket: r.lengthBucket, format: r.format,
     daysRunning: r.daysRunning, reachDelta30d: r.reachDelta30d, liveAdsCount: r.liveAdsCount,
+  };
+}
+
+/** Le seau de durée d'une créa · une seule définition, partagée par les deux pipelines. */
+export function bucketDuree(sec: number | null): string | null {
+  if (sec === null || !Number.isFinite(sec)) return null;
+  if (sec < 10) return '<10s';
+  if (sec < 15) return '10-15s';
+  if (sec < 30) return '15-30s';
+  if (sec < 60) return '30-60s';
+  return '>60s';
+}
+
+/**
+ * La ligne `marketCreatives` d'une créa décrite · UNE seule forme.
+ *
+ * ── La divergence que ça supprime ────────────────────────────────────────────
+ *
+ * Deux pipelines la produisaient — le lot on-demand (`market-learn`) et le radar
+ * nocturne (`radar`) — avec des champs qui avaient déjà divergé : le radar
+ * oubliait la grammaire de mise en page et de charte (`headlinePosition`,
+ * `composition`, `typoRegister`, `palette`…), si bien que ses créas
+ * n'alimentaient PAS `grammaireLayout`. Une seule fonction supprime la
+ * divergence · les créas du radar entrent désormais dans la même grammaire.
+ *
+ * Le signal radar est optionnel · absent hors radar.
+ */
+export function ligneMarketCreative(
+  ad: InspoAd,
+  n: AssetAnalysis,
+  ctx: { workspaceId: string; brandId: string },
+  radar?: { signal: RadarSignal; reason: string },
+): typeof schema.marketCreatives.$inferInsert {
+  return {
+    workspaceId: ctx.workspaceId, brandId: ctx.brandId,
+    platform: ad.platform, externalId: ad.id,
+    advertiser: ad.advertiserName ?? null,
+    daysRunning: ad.daysRunning ?? 0,
+    reachDelta30d: ad.reachDelta30d ?? null,
+    liveAdsCount: ad.liveAdsCount ?? null,
+    format: ad.mediaType ?? null,
+    hookType: n.hookType, openingType: n.openingType, talent: n.talent,
+    lengthBucket: bucketDuree(n.durationS),
+    analysis: {
+      hookSpoken: n.hookSpoken, claims: n.claims, proofElements: n.proofElements,
+      unmapped: n.unmapped, summary: summarizeAnalysis(n),
+      // Grammaire de mise en page ET charte · c'est ce qui arme `grammaireLayout`.
+      // Le radar les oubliait · désormais il les range comme le lot on-demand.
+      headlinePosition: n.headlinePosition, composition: n.composition,
+      textDensity: n.textDensity, background: n.background,
+      typoRegister: n.typoRegister, palette: n.palette,
+      ...(radar ? { radarReason: radar.reason } : {}),
+    },
+    analysisConfidence: n.confidence,
+    radarSignal: radar?.signal ?? null,
+    analyzedAt: new Date(),
   };
 }
