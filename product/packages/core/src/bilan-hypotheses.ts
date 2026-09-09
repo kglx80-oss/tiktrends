@@ -92,3 +92,23 @@ export function bilanHypotheses(creas: CreaJugee[]): BilanHypotheses {
     jugeesTotal,
   };
 }
+
+/**
+ * La consigne qui fait PILOTER la génération par le bilan · de la mesure à
+ * l'action.
+ *
+ * On ne liste que les angles qui ont le DROIT de parler (assez jugés) ET qui
+ * convainquent au moins autant que la référence · c'est ce qui distingue « cet
+ * angle marche » de « cet angle a eu de la chance sur deux créas ». Rien ne
+ * qualifie → `null` · on n'oriente pas la génération sur du bruit.
+ */
+export function consigneAnglesGagnants(bilan: BilanHypotheses): string | null {
+  if (bilan.tauxGeneral == null) return null;
+  const gagnants = bilan.lignes
+    .filter((l) => !l.aConfirmer && l.tauxPertinence != null && l.tauxPertinence >= bilan.tauxGeneral!)
+    .sort((a, b) => (b.tauxPertinence ?? 0) - (a.tauxPertinence ?? 0))
+    .slice(0, 5);
+  if (!gagnants.length) return null;
+  const liste = gagnants.map((l) => `« ${l.angle} » (${Math.round(l.tauxPertinence! * 100)} %)`).join(', ');
+  return `Angles déjà MESURÉS au-dessus de la moyenne chez cette marque (le client les a jugés pertinents · privilégie-les, reprends leur esprit) : ${liste}.`;
+}

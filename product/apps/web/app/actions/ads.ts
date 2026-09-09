@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, type AdDirection } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -830,6 +830,24 @@ async function learnedPreferences(brandId: string): Promise<string | undefined> 
 }
 
 /**
+ * Le bilan d'hypothèses (#300) rendu ACTIONNABLE · les angles mesurés au-dessus
+ * de la moyenne reviennent en préférence dans la génération. On lit les mêmes
+ * générations que `learnedPreferences`, mais on raisonne à l'échelle de l'ANGLE
+ * (l'hypothèse), pas de la créa · c'est ce qui referme la boucle sur l'action.
+ */
+async function preferencesAngles(brandId: string): Promise<string | undefined> {
+  if (!db) return undefined;
+  const rows = await db.select({ input: schema.generations.input })
+    .from(schema.generations)
+    .where(and(eq(schema.generations.brandId, brandId), eq(schema.generations.kind, 'ad')));
+  const bilan = bilanHypotheses(rows.map((r) => {
+    const rec = (r.input ?? {}) as { angle?: string | null; rating?: 'up' | 'down' | null };
+    return { angle: rec.angle ?? null, rating: rec.rating ?? null };
+  }));
+  return consigneAnglesGagnants(bilan) ?? undefined;
+}
+
+/**
  * Enveloppe · une exception qui S'ÉCHAPPE au lieu de renvoyer { error } ne doit
  * ni figer le client (le bouton restait sur « Génération… »), ni disparaître
  * dans les logs du conteneur que personne ne lit. On la JOURNALISE — elle
@@ -974,13 +992,16 @@ async function genererLotInterne(input: {
   // Ordre d'autorité, du plus fort au plus faible : ce que la marque a MESURÉ
   // (verdicts ADSMAP), puis ce qu'elle a distillé de la veille, puis les créas
   // notées au pouce. Le premier bloc n'existe qu'à partir de vrais verdicts.
-  const [memoire, prefs, statsPourExpliquer, accroches] = await Promise.all([
+  const [memoire, prefs, anglesGagnants, statsPourExpliquer, accroches] = await Promise.all([
     jarvisMemoryWithUse(brand.id, s.workspaceId),
     learnedPreferences(brand.id),
+    // Le bilan d'hypothèses (#300) PILOTE désormais la génération · les angles
+    // mesurés au-dessus de la moyenne reviennent en préférence, comme les 👍/👎.
+    preferencesAngles(brand.id),
     jarvisStats(brand.id, s.workspaceId).catch(() => ({ stats: [], globalRate: null, nAds: 0 })),
     jarvisHooks(brand.id, s.workspaceId).catch(() => []),
   ]);
-  const winningPatterns = [memoire.text, da?.jarvisLearnings, prefs].filter(Boolean).join('\n\n') || undefined;
+  const winningPatterns = [memoire.text, da?.jarvisLearnings, prefs, anglesGagnants].filter(Boolean).join('\n\n') || undefined;
   // Le contexte d'explication vient des MÊMES lectures que la mémoire injectée ·
   // expliquer avec d'autres chiffres que ceux qui ont servi serait une fiction.
   const rationaleCtx = {
