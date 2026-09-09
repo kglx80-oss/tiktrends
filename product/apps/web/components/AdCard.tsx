@@ -1,4 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
+import { estGagnantVeille } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -21,6 +22,10 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string }) {
+  // Gagnant = éprouvé · tient depuis assez longtemps, ou portée qui progresse.
+  // On le flague et on pousse le clone · c'est la pub PROUVÉE qu'on veut refaire,
+  // pas le énième lancement d'un concurrent.
+  const gagnant = estGagnantVeille(ad);
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative' }}>
@@ -37,6 +42,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
             <img src={ad.advertiserLogo} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
           )}
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ad.advertiserName || 'Annonceur'}</span>
+          {gagnant && <span title="Éprouvée · tient dans le temps ou sa portée progresse" style={{ fontSize: 10, fontWeight: 800, color: '#0d070c', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}>🏆 Gagnant</span>}
           <FollowButton ad={ad} initialFollowing={following} />
         </div>
         {ad.body && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}
@@ -72,9 +78,14 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
              copy concurrente mot pour mot · un clic sans suite, ou une créa qui
              recopie. Ici on distille l'ANGLE éprouvé et on arme les Pubs IA · la
              règle « reprends l'angle, pas les mots » vit dans le noyau. */}
+        {/* Le clone d'un gagnant est mis en avant · fond plein, l'action évidente.
+             Une pub non éprouvée garde le geste discret · rien n'y presse. */}
         <a href={studioDepuisVeille(ad, { ref: cloneRef })}
-          style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: 700, padding: '7px 10px', borderRadius: 10, border: '1px solid var(--line-2)', color: 'var(--ink)', textDecoration: 'none' }}>
-          ✨ Génère ta version
+          style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: gagnant ? 800 : 700, padding: '7px 10px', borderRadius: 10,
+            border: gagnant ? 'none' : '1px solid var(--line-2)',
+            background: gagnant ? 'var(--grad-accent)' : 'transparent',
+            color: gagnant ? '#0d070c' : 'var(--ink)', textDecoration: 'none' }}>
+          {gagnant ? '✨ Clone ce gagnant' : '✨ Génère ta version'}
         </a>
       </div>
     </div>

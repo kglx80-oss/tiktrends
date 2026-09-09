@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { InspoAd } from '@tiktrends/integrations';
+import { estGagnantVeille } from '@tiktrends/core';
 import { AdCard } from './AdCard';
 import { scanTrackerAction, markTrackerSeenAction } from '../app/actions/tracker';
 import { Empty } from './Empty';
@@ -18,6 +19,14 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const unseen = events.filter((e) => e.unseen).length;
+  // Les GAGNANTS d'abord · parmi les nouveautés détectées, celles qui sont
+  // éprouvées (tiennent, ou montent) remontent en tête · on clone ce qui est
+  // prouvé, pas le énième lancement. À égalité, la plus ancienne (donc la plus
+  // installée) passe devant.
+  const ordered = [...events].sort((a, b) =>
+    (estGagnantVeille(b.ad) ? 1 : 0) - (estGagnantVeille(a.ad) ? 1 : 0)
+    || (b.ad.daysRunning ?? 0) - (a.ad.daysRunning ?? 0),
+  );
 
   const scan = () => start(async () => {
     setMsg(null);
@@ -68,7 +77,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
         )
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
-          {events.map((e, i) => (
+          {ordered.map((e, i) => (
             <div key={e.ad.platform + e.ad.id + i} style={{ position: 'relative' }}>
               {e.unseen && <span style={{ position: 'absolute', top: 8, left: 8, zIndex: 3, fontSize: 10, fontWeight: 800, color: '#0d070c', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 8px' }}>NOUVEAU</span>}
               <AdCard ad={e.ad} />
