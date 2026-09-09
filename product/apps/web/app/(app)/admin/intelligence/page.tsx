@@ -4,7 +4,8 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { COMPETITORS, AI_STACK, CAPABILITIES, GAPS, ADVANTAGES, type Cap } from '../../../../lib/intel';
-import { analyseSurvie, PROVEN_DAYS, type AnalyseSurvie } from '@tiktrends/core';
+import { analyseSurvie, PROVEN_DAYS, bilanHypotheses, type AnalyseSurvie, type BilanHypotheses } from '@tiktrends/core';
+import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,20 @@ export default async function IntelligencePage() {
   if (db) {
     const rows = await db.select({ j: schema.marketCreatives.daysRunning }).from(schema.marketCreatives);
     survie = analyseSurvie(rows.map((r) => r.j ?? 0));
+  }
+
+  // La boucle d'itération · relier chaque créa générée à son angle d'origine et
+  // au jugement du client (👍/👎). Le calcul est pur (`bilanHypotheses`) · on lit
+  // les générations de pubs et on regroupe par angle. Vue fondateur, tous
+  // espaces.
+  let bilan: BilanHypotheses | null = null;
+  if (db) {
+    const gens = await db.select({ input: schema.generations.input })
+      .from(schema.generations).where(eq(schema.generations.kind, 'ad'));
+    bilan = bilanHypotheses(gens.map((g) => {
+      const rec = (g.input ?? {}) as { angle?: string | null; rating?: 'up' | 'down' | null };
+      return { angle: rec.angle ?? null, rating: rec.rating ?? null };
+    }));
   }
 
   return (
@@ -190,6 +205,45 @@ export default async function IntelligencePage() {
             </table>
           </div>
           <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>{survie.raison}</p>
+        </div>
+      )}
+
+      {/* La boucle d'itération · l'angle testé → la pertinence jugée */}
+      <h2 style={{ margin: '4px 0 6px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Hypothèses d'angle · ce qui convainc</h2>
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 0, marginBottom: 14, maxWidth: 760, lineHeight: 1.6 }}>
+        Chaque créa générée porte l'angle qui l'a armée · on la relie au jugement du client (👍/👎). Taux de
+        pertinence <b>par angle</b>, comparé au taux général · un angle sous {5} jugements « attend » plutôt que de trancher.
+      </p>
+      {!bilan || bilan.lignes.length === 0 ? (
+        <div style={cardSurvie}><p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
+          Aucune hypothèse d'angle encore mesurable · les créas générées depuis un angle de marché (« Génère dans l'angle dominant »)
+          apparaîtront ici dès qu'elles seront jugées.
+        </p></div>
+      ) : (
+        <div style={cardSurvie}>
+          <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--ink-2)' }}>
+            Référence · taux général <b style={{ color: 'var(--ink)' }}>{bilan.tauxGeneral != null ? Math.round(bilan.tauxGeneral * 100) + ' %' : '—'}</b> sur {bilan.jugeesTotal} créa(s) jugée(s).
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 560 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
+                  <th style={sth}>Angle</th><th style={sth}>Générées</th><th style={sth}>Jugées</th><th style={sth}>Pertinence</th><th style={sth}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {bilan.lignes.map((l) => (
+                  <tr key={l.angle} style={{ borderTop: '1px solid var(--line)' }}>
+                    <td style={{ ...std, color: 'var(--ink)', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={l.angle}>{l.angle}</td>
+                    <td style={std}>{l.total}</td>
+                    <td style={std}>{l.jugees}</td>
+                    <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxPertinence != null ? Math.round(l.tauxPertinence * 100) + ' %' : '—'}</td>
+                    <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (bilan!.tauxGeneral != null && l.tauxPertinence != null ? (l.tauxPertinence >= bilan!.tauxGeneral ? <span style={{ fontSize: 11, color: '#2fd6a0', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: '#f5a623' }}>en dessous</span>) : null)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </main>
