@@ -38,8 +38,8 @@ function buildCategories(brandId: string | null): Category[] {
     { key: 'creative', label: 'Créatif', icon: '🎬', starters: [
       { label: 'Générer un visuel IA', desc: 'Texte ou produit → image pub', href: '/studio/image' },
       { label: 'Générer une vidéo IA', desc: 'Texte ou image → vidéo verticale TikTok', href: '/studio/video' },
-      { label: 'Générer des hooks', desc: 'Des accroches prêtes à tourner', href: '/studio' },
-      { label: 'Écrire un script', desc: 'Un script vidéo seconde par seconde', href: '/studio' },
+      { label: 'Générer des hooks', desc: 'Des accroches prêtes à tourner', href: '/studio/textes' },
+      { label: 'Écrire un script', desc: 'Un script vidéo seconde par seconde', href: '/studio/textes' },
     ] },
     { key: 'inspo', label: 'Veille', icon: '💡', starters: [
       { label: 'Ce qui scale en ce moment', desc: 'Le swipe file trié par croissance de reach', href: '/veille/scale' },

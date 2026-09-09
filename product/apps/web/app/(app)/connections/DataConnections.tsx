@@ -74,9 +74,16 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
           <div><label style={lbl}>Domaine de la boutique</label><input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
           {oauth && (
             <>
-              <a href={/\.myshopify\.com/.test(domain) ? `/api/oauth/shopify?shop=${encodeURIComponent(domain.trim().replace(/^https?:\/\//, ''))}` : undefined}
-                onClick={(e) => { if (!/\.myshopify\.com/.test(domain)) { e.preventDefault(); setMsg('Renseigne d’abord ton domaine .myshopify.com.'); } }}
-                style={{ ...primary, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⚡ Connexion en un clic (OAuth)</a>
+              {/* Un vrai bouton · l'ancien `<a href={undefined}>` n'était ni
+                  focusable ni actionnable au clavier tant que le domaine était
+                  vide · il paraissait cliquable sans l'être. */}
+              <button type="button"
+                onClick={() => {
+                  const d = domain.trim().replace(/^https?:\/\//, '');
+                  if (!/\.myshopify\.com/.test(d)) { setMsg('Renseigne d’abord ton domaine .myshopify.com.'); return; }
+                  window.location.href = `/api/oauth/shopify?shop=${encodeURIComponent(d)}`;
+                }}
+                style={{ ...primary, textAlign: 'center' }}>⚡ Connexion en un clic (OAuth)</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 0' }}>
                 <span style={{ height: 1, flex: 1, background: 'var(--line)' }} /><span style={{ fontSize: 11, color: 'var(--muted)' }}>ou par token</span><span style={{ height: 1, flex: 1, background: 'var(--line)' }} />
               </div>
