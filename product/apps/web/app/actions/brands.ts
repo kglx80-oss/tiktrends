@@ -200,16 +200,6 @@ export async function updateBrandAction(formData: FormData): Promise<void> {
   redirect(`/brands/${id}?ok=saved`);
 }
 
-export async function renameBrandAction(formData: FormData): Promise<void> {
-  const s = await getSession();
-  if (!s || !db) redirect('/login');
-  if (!roleAtLeast(s.role, 'admin')) redirect('/brands?e=forbidden');
-  const id = norm(formData.get('id'));
-  const name = norm(formData.get('name'));
-  if (id && name) await db.update(schema.brands).set({ name }).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId)));
-  redirect('/brands?ok=renamed');
-}
-
 export async function deleteBrandAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');

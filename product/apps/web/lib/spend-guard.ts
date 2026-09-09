@@ -284,26 +284,6 @@ export async function sousPlafond<T>(
   }
 }
 
-/** Traduit une erreur de plafond en message utilisateur · null si autre chose. */
-export function spendErrorMessage(e: unknown): string | null {
-  return e instanceof SpendBlockedError ? e.message : null;
-}
-
-/** Dépense par espace sur la fenêtre · pour l'écran d'administration. */
-export async function spendByWorkspace(): Promise<Array<{ workspaceId: string | null; usd: number; calls: number }>> {
-  if (!db) return [];
-  const depuis = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
-  const rows = await db.select({
-    workspaceId: schema.aiSpend.workspaceId,
-    usd: sql<number>`coalesce(sum(${schema.aiSpend.actualUsd}), 0)`,
-    calls: sql<number>`count(*)`,
-  })
-    .from(schema.aiSpend)
-    .where(gte(schema.aiSpend.createdAt, depuis))
-    .groupBy(schema.aiSpend.workspaceId);
-  return rows.map((r) => ({ workspaceId: r.workspaceId, usd: Number(r.usd), calls: Number(r.calls) }));
-}
-
 /** Postes de dépense · dit OÙ part l'argent, pas seulement combien. */
 export async function spendByAction(limit = 12): Promise<Array<{ action: string; usd: number; calls: number }>> {
   if (!db) return [];

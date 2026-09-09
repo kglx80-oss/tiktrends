@@ -162,13 +162,3 @@ export async function probeProductImage(input: { productName: string; productUrl
   out.imageUrl = await resolveProductImage({ productName, productUrl, siteUrl });
   return out;
 }
-
-/** Rétro-compat : extraction depuis une URL de page (og:image + validation). */
-export async function extractProductImageUrl(pageUrl: string, opts: { validate?: boolean } = {}): Promise<string | null> {
-  const html = await getText(pageUrl);
-  if (!html) return null;
-  const img = imageFromHtml(html, pageUrl);
-  if (!img) return null;
-  if (opts.validate && !(await looksLikeImage(img))) return null;
-  return img;
-}

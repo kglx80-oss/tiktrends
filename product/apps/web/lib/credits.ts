@@ -28,19 +28,6 @@ export async function reserveCredits(workspaceId: string, cost: number, reason: 
   return true;
 }
 
-/**
- * Encaissement APRÈS livraison : le résultat est déjà entre les mains du client, on
- * ne peut plus refuser · on débite sans jamais passer sous zéro. Écrit toujours la
- * ligne de grand livre, sinon la consommation n'apparaît pas dans /usage.
- */
-export async function settleCredits(workspaceId: string, cost: number, reason: string): Promise<void> {
-  if (!db || cost <= 0) return;
-  await db.update(schema.workspaces)
-    .set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} - ${cost})` })
-    .where(eq(schema.workspaces.id, workspaceId));
-  await db.insert(schema.creditLedger).values({ workspaceId, delta: -cost, reason });
-}
-
 /** Remboursement (génération ratée, annulation) · toujours tracé. */
 export async function refundCredits(workspaceId: string, amount: number, reason: string): Promise<void> {
   if (!db || amount <= 0) return;

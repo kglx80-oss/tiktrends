@@ -189,21 +189,6 @@ async function analyseLot(
   return { analyzed, skipped, summary: parts.join(' · ') + '.' };
 }
 
-/** Décrit des créas déjà sous les yeux · appelé depuis la Veille. */
-export async function learnFromAdsAction(ads: InspoAd[]): Promise<LearnResult> {
-  const g = await adsmapGuard({ minRole: 'admin' });
-  if ('error' in g) return { error: g.error };
-  if (!Array.isArray(ads) || !ads.length) return { error: 'Aucune créa transmise.' };
-
-  try {
-    return await analyseLot(ads.slice(0, MAX_LOT * 2), {
-      workspaceId: g.s.workspaceId, brandId: g.brand.id, email: g.s.user.email,
-    });
-  } catch (e) {
-    return { error: logAndTranslate('market:learn', e, { subject: 'l’apprentissage marché', workspaceId: g.s.workspaceId }) };
-  }
-}
-
 /**
  * Va chercher les créas qui TIENNENT chez les marques suivies, puis les décrit.
  *

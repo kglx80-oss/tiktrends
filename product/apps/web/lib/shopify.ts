@@ -64,11 +64,6 @@ async function fetchProductsAt(origin: string, path: string, max = 250): Promise
   return out.length ? out : null;
 }
 
-/** Rétro-compat. */
-export async function fetchShopifyProducts(origin: string, max = 250): Promise<ShopifyProductNorm[] | null> {
-  return fetchProductsAt(origin, '/products.json', max);
-}
-
 /** Essaie plusieurs variantes de domaine/chemin pour trouver le catalogue Shopify public. */
 export async function discoverShopify(domainInput: string): Promise<{ origin: string; products: ShopifyProductNorm[] } | null> {
   const base = normalizeShopDomain(domainInput);

@@ -219,27 +219,6 @@ export async function setProductImagesAction(input: { productId: string; dataUri
   return { ok: true, imageUrls, imageUrl };
 }
 
-/** Récupère automatiquement la photo du produit depuis sa fiche (og:image), et l'enregistre. */
-export async function importProductImageAction(input: { productId: string }): Promise<{ ok?: true; imageUrl?: string; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
-  const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return { error: GUARD.noBrand() };
-
-  const [p] = await db.select({ id: schema.products.id, name: schema.products.name, url: schema.products.url })
-    .from(schema.products).where(and(eq(schema.products.id, input.productId), eq(schema.products.brandId, brand.id))).limit(1);
-  if (!p) return { error: GUARD.notFound('ce produit') };
-
-  const [b] = await db.select({ url: schema.brands.url }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
-  if (!p.url && !b?.url) return { error: "Ni le produit ni la marque n'ont d'URL de site. Ajoute l'URL sur la marque, ou importe la photo manuellement." };
-
-  const img = await resolveProductImage({ productName: p.name, productUrl: p.url, siteUrl: b?.url });
-  if (!img) return { error: "Aucune image exploitable trouvée sur le site. Importe-la manuellement." };
-
-  await db.update(schema.products).set({ imageUrl: img }).where(eq(schema.products.id, input.productId));
-  return { ok: true, imageUrl: img };
-}
-
 /** Récupère en masse les photos de tous les produits (sans photo) depuis leurs fiches / le site de la marque. */
 export async function importAllProductImagesAction(): Promise<{ updated: number; total: number; updatedIds: string[]; note?: string; error?: string }> {
   const s = await getSession();

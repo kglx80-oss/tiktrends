@@ -11,10 +11,6 @@ import 'server-only';
  */
 const REVISION = '2024-10-15';
 
-export function klaviyoConfigured(): boolean {
-  return !!process.env.KLAVIYO_API_KEY;
-}
-
 interface TrackOpts {
   email: string;
   name?: string | null;
