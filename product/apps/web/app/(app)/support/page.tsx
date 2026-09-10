@@ -4,6 +4,7 @@ import { and, eq, desc } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
+import { EmptyLine } from '../../../components/Empty';
 import { createTicketAction } from '../../actions/support';
 import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
@@ -73,7 +74,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
       </div>
 
       <h2 style={{ ...h2, marginBottom: 12 }}>{isAdmin ? 'Tickets de l’espace' : 'Tes tickets'} ({tickets.length})</h2>
-      {tickets.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucun ticket pour l'instant.</p>}
+      {tickets.length === 0 && <EmptyLine tone="good">Aucun ticket pour l'instant · tout roule. Écris-nous ci-dessus dès que tu bloques, on répond vite.</EmptyLine>}
       <div style={{ display: 'grid', gap: 10 }}>
         {tickets.map((t) => {
           const st = STATUS[t.status] ?? STATUS.open!;

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Empty } from '../../../components/Empty';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT } from '@tiktrends/core';
@@ -304,7 +305,16 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         {/* Historique */}
         <section style={panel}>
           <h2 style={h2}>Historique</h2>
-          {ledger.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucun mouvement pour l'instant.</p>}
+          {ledger.length === 0 && (
+            <div style={{ marginTop: 10 }}>
+              <Empty
+                tone="todo"
+                title="Aucun mouvement pour l'instant."
+                why="Tes crédits se dépensent à chaque génération · lance une première créa et le détail s'affiche ici."
+                action={{ label: 'Ouvrir le Studio', href: '/studio' }}
+              />
+            </div>
+          )}
           <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
             {ledger.map((l) => (
               <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '6px 0', borderTop: '1px solid var(--line)' }}>

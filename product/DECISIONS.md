@@ -32,8 +32,33 @@ du forfait. Ce fichier consigne les décisions prises sans le consulter.
 - **Miniatures increvables** · un asset dont l'URL ne charge plus bascule sur son
   icône de type au lieu de l'image cassée du navigateur (`apercuAsset`, pur).
 
+### Rail · aération
+- **Le rail respire** · plus d'espace entre sections et items, lignes plus
+  hautes, sans toucher à l'ordre ni aux libellés (la boucle reste). Répond au
+  « rail trop dense » sans rouvrir la structure. Garde `rail-air`.
+
+### États vides · le parcours client
+- **La queue d'états vides gris migre vers `Empty`/`EmptyLine`.** Le dépôt avait
+  déjà le composant (le type IMPOSE une sortie sur `todo`) et la plupart des
+  écrans l'adoptaient · restait une poignée de phrases grises sans issue. Les
+  plus coûteuses d'abord :
+  - **Connexions sans marque** · c'était l'étape d'activation (brancher Shopify /
+    Meta) réduite à un pavé gris sans bouton · devient un `todo` qui pousse à
+    choisir une marque. Le plus fort risque de churn du lot.
+  - **Crédits · historique vide** · devient une invitation à générer, comme sa
+    page sœur Consommation · pas une phrase grise sur une page d'argent.
+  - **Liens de partage** (marque blanche) · `EmptyLine` qui vend le partage sans
+    donner accès à l'outil · le geste « créer » est déjà au-dessus.
+  - **Support** · une liste de tickets vide est une BONNE nouvelle · ton `good`
+    (vert), pas le gris d'un manque.
+  - Garde `empty-adoption` étendu (source + rendu du ton `good`), validé par
+    mutation. `DriveConnect` laissé tel quel · fragment de statut en ligne, pas
+    un écran vide.
+
 ## Reste à faire (backlog priorisé)
-1. Modes d'emploi (`PageInfo`) plus visibles et présents partout.
-2. Parcours client / anti-churn : états d'accueil vendeurs, relances douces.
+1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
+2. Parcours client / anti-churn : ~~états d'accueil vendeurs~~ (fait, queue
+   d'états vides migrée) · reste les relances douces (relances d'onboarding,
+   nudge quand une étape traîne).
 3. Connectiques & délivrabilité : clarté des branchements (Meta, TikTok, Drive).
-4. Aération du rail (densité), en gardant l'ordre et les libellés.
+4. ~~Aération du rail (densité)~~ Fait.

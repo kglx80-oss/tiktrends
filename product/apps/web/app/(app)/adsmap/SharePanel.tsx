@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import {
   listShareLinksAction, createShareLinkAction, revokeShareLinkAction, type ShareLink,
 } from '../../actions/adsmap-share';
+import { EmptyLine } from '../../../components/Empty';
 
 /**
  * Partage client de la carte (§12).
@@ -123,7 +124,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
 
         <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 7 }}>
           {links === null && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Chargement…</span>}
-          {links?.length === 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Aucun lien actif.</span>}
+          {links?.length === 0 && <EmptyLine>Aucun lien actif · crée le premier ci-dessus pour partager tes créas gagnantes en marque blanche, sans jamais donner accès à l’outil.</EmptyLine>}
           {links?.map((l) => (
             <div key={l.id} style={{
               border: '1px solid var(--line)', borderRadius: 11, padding: '9px 12px',
