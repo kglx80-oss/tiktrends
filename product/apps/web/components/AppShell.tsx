@@ -119,7 +119,7 @@ function NavLink({ it, active, inPath = false, onClick }: {
   const disabled = it.locked || it.soon;
   const inner = (
     <span style={{
-      display: 'flex', alignItems: 'center', gap: 11, padding: it.isSub ? '7px 10px 7px 30px' : '9px 10px', borderRadius: 10,
+      display: 'flex', alignItems: 'center', gap: 11, padding: it.isSub ? '8px 10px 8px 30px' : '10px 11px', borderRadius: 10,
       fontSize: it.isSub ? 13 : 14, fontWeight: active || inPath ? 700 : 500,
       color: disabled ? 'var(--muted)' : active || inPath ? 'var(--ink)' : 'var(--ink-2)',
       // « Je suis ici » se dit d'un liséré accent + une teinte légère, pas d'un
@@ -408,7 +408,7 @@ function AppShellInner(props: Props) {
         )}
 
         {/* Navigation · rail client OU rail ADMIN+ (fondateur en coulisses) */}
-        <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 10), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
+        <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 14), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
           {inAdmin ? (
             <>
               {/* Retour à la vue SaaS (app) */}
@@ -418,7 +418,7 @@ function AppShellInner(props: Props) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
                 {!collapsed && <span>Retour à l'app</span>}
               </Link>
-              {!collapsed && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>ADMIN+ · Plateforme</div>}
+              {!collapsed && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 10px 5px' }}>ADMIN+ · Plateforme</div>}
               {ADMIN_NAV.map((it) => {
                 const active = pathname === it.href;
                 return collapsed ? (
@@ -459,8 +459,8 @@ function AppShellInner(props: Props) {
                 );
               }))
             : nav.map((grp) => (
-              <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 4px' }}>{grp.group}</div>
+              <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 10px 5px' }}>{grp.group}</div>
                 {branchesOf(grp.items).map((b) => {
                   // Une branche s'ouvre d'office quand on est dedans · sinon on
                   // arrive sur une page dont les voisines sont cachées.
