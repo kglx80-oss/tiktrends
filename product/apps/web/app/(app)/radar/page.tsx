@@ -7,6 +7,7 @@ import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { buildAnalysis, buildLiveAnalysis, BUCKETS, bucketDef, type AnalysisRow } from '../../../lib/analysis';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
+import { Bandeau } from '../../../components/Bandeau';
 import { effectiveAccess } from '../../../lib/access';
 
 export const dynamic = 'force-dynamic';
@@ -118,14 +119,9 @@ export default async function RadarPage() {
 
       {/* Bandeau démo · uniquement tant qu'aucune donnée réelle n'est synchronisée. */}
       {!isLive && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid rgba(245,166,35,.3)', borderRadius: 14, background: 'rgba(245,166,35,.08)', padding: '12px 16px', margin: '0 0 20px' }}>
-          <span style={{ fontSize: 18 }}>🧪</span>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>Mode démonstration</span>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-2)', marginLeft: 8 }}>Ces créas sont des exemples. Branche Meta Ads pour noter tes vraies créas.</span>
-          </div>
-          <a href="/connections" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Brancher un compte ›</a>
-        </div>
+        <Bandeau ton="demo" titre="Mode démonstration" sortie={{ href: '/connections', label: 'Brancher un compte' }}>
+          Ces créas sont des exemples. Branche Meta Ads pour noter tes vraies créas.
+        </Bandeau>
       )}
 
       <PageInfo title="comment lire le Radar">

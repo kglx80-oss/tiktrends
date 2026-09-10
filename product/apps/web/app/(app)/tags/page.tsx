@@ -1,6 +1,7 @@
 import { fixtures } from '@tiktrends/integrations';
 import { topCreativeTags, personaHookMatrix, type TaggedCreative } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
+import { Bandeau } from '../../../components/Bandeau';
 
 const creatives = (fixtures.tagged as { creatives: TaggedCreative[] }).creatives;
 const DIMS = [['hook_type', 'Type de hook'], ['persona', 'Persona'], ['angle', 'Angle'], ['emotion', 'Émotion']] as const;
@@ -17,14 +18,9 @@ export default function Tags() {
 
       {/* Toute cette page est calculée sur un échantillon · rien ne le disait, et
           aucune sortie n'était offerte. On le nomme, et on montre la porte. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid rgba(245,166,35,.3)', borderRadius: 14, background: 'rgba(245,166,35,.08)', padding: '12px 16px', margin: '0 0 22px' }}>
-        <span style={{ fontSize: 18 }}>🧪</span>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>Mode démonstration</span>
-          <span style={{ fontSize: 12.5, color: 'var(--ink-2)', marginLeft: 8 }}>Ces tags portent sur un échantillon. Branche un compte pour analyser tes vraies créas.</span>
-        </div>
-        <a href="/connections" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Brancher un compte ›</a>
-      </div>
+      <Bandeau ton="demo" titre="Mode démonstration" sortie={{ href: '/connections', label: 'Brancher un compte' }}>
+        Ces tags portent sur un échantillon. Branche un compte pour analyser tes vraies créas.
+      </Bandeau>
 
       <PageInfo title="lire tes tags créatifs">
         Le Tagging décompose tes créas en ingrédients (type de hook, persona, angle, émotion) et mesure leur
