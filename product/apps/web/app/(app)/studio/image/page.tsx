@@ -7,6 +7,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { listBrandImages } from '../../../actions/image';
+import { listAssets } from '../../../actions/assets';
 import { ImageStudio } from './ImageStudio';
 import { PageInfo } from '../../../../components/PageInfo';
 import { effectiveAccess } from '../../../../lib/access';
@@ -32,7 +33,7 @@ export default async function ImageStudioPage() {
     );
   }
 
-  const [brand, images] = await Promise.all([getActiveBrand(s.workspaceId), listBrandImages()]);
+  const [brand, images, assets] = await Promise.all([getActiveBrand(s.workspaceId), listBrandImages(), listAssets({ kind: 'image', limit: 24 })]);
   let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
   let colors: string[] = [];
   if (db && brand) {
@@ -59,7 +60,7 @@ export default async function ImageStudioPage() {
         prompt de qualité pub soit rédigé pour toi. 4 crédits par image.
       </PageInfo>
 
-      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} />
+      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} assets={assets.map((a) => ({ id: a.id, name: a.name, url: a.url }))} />
     </main>
   );
 }

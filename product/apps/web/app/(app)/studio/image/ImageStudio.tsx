@@ -9,6 +9,7 @@ import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
+import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Composer } from '../../../../components/Composer';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
@@ -44,9 +45,9 @@ function fileToDataUri(file: File, maxSide = 1280, quality = 0.85): Promise<stri
   });
 }
 
-export function ImageStudio({ ready, aiReady, brandName, initial, products, brandColors }: {
+export function ImageStudio({ ready, aiReady, brandName, initial, products, brandColors, assets = [] }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: BrandImage[];
-  products: Product[]; brandColors: string[];
+  products: Product[]; brandColors: string[]; assets?: Array<{ id: string; name: string; url: string }>;
 }) {
   const [mode, setMode] = useState<'t2i' | 'i2i'>('i2i');
   const [prompt, setPrompt] = useState('');
@@ -58,6 +59,10 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   // La direction artistique · même catalogue mesuré que Pubs IA. « Variées »
   // (vide) laisse le moteur libre · sinon la scène/lumière/finition sont dictées.
   const [direction, setDirection] = useState('');
+  // Références choisies dans la bibliothèque · à défaut, l'IA prend la
+  // bibliothèque de la marque automatiquement. Assets « plus présents ».
+  const [assetIds, setAssetIds] = useState<string[]>([]);
+  const toggleAsset = (id: string) => setAssetIds((l) => l.includes(id) ? l.filter((x) => x !== id) : [...l, id]);
   const [productId, setProductId] = useState('');
   const [prods, setProds] = useState<Product[]>(products);
   const [enhance, setEnhance] = useState(aiReady);
@@ -155,7 +160,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       imageUrl: usesProduct ? (source || undefined) : undefined,
       useProductImage: usesProduct,
       withText, enhance, count, productId: productId || undefined, headline: withText ? headline : undefined,
-      presetId: sceneId || undefined, model,
+      presetId: sceneId || undefined, model, assetIds: assetIds.length ? assetIds : undefined,
     });
     setBusy(false);
     // Un lot vide sans erreur n'est pas un succès muet · c'est un échec dont on
@@ -174,7 +179,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   async function vary(im: BrandImage) {
     if (busy || !im.prompt) return;
     setError(''); setNotice(''); setBusy(true);
-    const res = await generateImageAction({ prompt: im.prompt, aspectRatio: ratio, count: 3, model, directionKey: direction || undefined });
+    const res = await generateImageAction({ prompt: im.prompt, aspectRatio: ratio, count: 3, model, directionKey: direction || undefined, assetIds: assetIds.length ? assetIds : undefined });
     setBusy(false);
     const out = generationOutcome({ error: res.error, got: res.images?.length ?? 0, requested: 3 });
     if (res.images?.length) {
@@ -291,6 +296,25 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         </div>
 
         {mode === 'i2i' && photoBlock}
+
+        {/* Références (Assets) · à défaut, l'IA prend la bibliothèque de la marque.
+            Même miniature increvable que partout. */}
+        {assets.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl}>Références <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· {assetIds.length ? `${assetIds.length} sélectionnée(s)` : 'auto · toute la bibliothèque'}</span></label>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+              {assets.map((a) => {
+                const on = assetIds.includes(a.id);
+                return (
+                  <button key={a.id} type="button" disabled={!ready} onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 58, height: 58, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: ready ? 'pointer' : 'default', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)', opacity: on ? 1 : 0.85 }}>
+                    <MiniatureAsset kind="image" url={a.url} name={a.name} icon="🖼️" cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
+                    {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* La barre de composition · la description prend toute la place, les
             réglages deviennent des pastilles, le prix est sur le bouton. */}

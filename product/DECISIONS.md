@@ -88,6 +88,14 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
   sur icône de type via `onError`), qui gagne un `cadreStyle` pour tenir dans un
   sélecteur de taille fixe. Une seule miniature d'asset dans tout le produit.
   Gardes `picker-miniature` (rendu du `cadreStyle` + adoption) validés par mutation.
+- **Studio Image · choix explicite des références (Assets).** Le studio Image
+  n'avait aucun picker · il prenait la bibliothèque automatiquement, sans que la
+  personne puisse choisir. Il gagne un sélecteur (même `MiniatureAsset`
+  increvable) · les assets choisis priment, à défaut l'auto reste (comportement
+  inchangé). L'action `generateImageAction` accepte des `assetIds` explicites
+  (via `resolveAssetImageUrls`). « Assets plus présents dans la logique. »
+  Garde `image-asset-picker` (page charge + passe, studio rend + transmet,
+  action honore l'explicite avec repli auto).
 
 ### Connectiques · le catalogue est une feuille de route
 - **Les ~50 connecteurs à venir cessent d'être des boutons cassés.** Chacun

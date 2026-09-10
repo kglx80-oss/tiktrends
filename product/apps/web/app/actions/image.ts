@@ -8,7 +8,7 @@ import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integra
 import { enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
 import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS, promptImage } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
-import { listBrandAssetImageUrls } from './assets';
+import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
@@ -31,6 +31,9 @@ export async function generateImageAction(input: {
   /** Direction artistique choisie (catalogue `ad-directions`) · composée dans le
    *  prompt FINAL uniquement, jamais dans la légende affichée/stockée. */
   directionKey?: string;
+  /** Assets choisis explicitement comme références · à défaut, la bibliothèque
+   *  de la marque est utilisée automatiquement. */
+  assetIds?: string[];
   /** Moteur d'image choisi · le studio Image ne pouvait pas en changer. */
   model?: string;
 }): Promise<ImageResult> {
@@ -76,7 +79,11 @@ export async function generateImageAction(input: {
   const editMode = !!sourceImage;
 
   // Bibliothèque Assets : à défaut de source produit, l'IA s'appuie sur les images marque/communes.
-  const assetRefUrls = (db && brand && !sourceImage) ? await listBrandAssetImageUrls(s.workspaceId, brand.id, 3) : [];
+  // Références marque · les assets choisis explicitement priment, sinon la
+  // bibliothèque de la marque est utilisée automatiquement.
+  const assetRefUrls = (db && brand && !sourceImage)
+    ? (input.assetIds?.length ? await resolveAssetImageUrls(s.workspaceId, input.assetIds) : await listBrandAssetImageUrls(s.workspaceId, brand.id, 3))
+    : [];
   const useAssetRefs = !sourceImage && assetRefUrls.length > 0;
 
   // Optimisation du prompt par Claude (ancrée marque + produit + texte).
