@@ -7,6 +7,7 @@ import { Pager, PAGE_SIZE } from '../../../components/Pager';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
+import { MiniatureAsset } from '../../../components/MiniatureAsset';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -181,6 +182,8 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
     await toggleAssetAiAction({ id: a.id, useForAi: !a.useForAi });
   }
   async function remove(a: AssetItem) {
+    // Suppression destructive · on confirme avant, comme partout (doctrine #305).
+    if (!window.confirm(`Supprimer « ${a.name} » ? L'asset ne sera plus disponible pour l'IA.`)) return;
     setAssets((s) => s.filter((x) => x.id !== a.id));
     await deleteAssetAction({ id: a.id });
   }
@@ -302,14 +305,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
           {shown.map((a) => (
             <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ aspectRatio: '1 / 1', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                {a.kind === 'image'
-                   
-                  ? <img src={a.url} alt={a.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : a.kind === 'video' && a.source === 'upload'
-                    ? <video src={a.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontSize: 40 }}>{kindIcon[a.kind]}</span>}
-              </div>
+              <MiniatureAsset kind={a.kind} url={a.url} name={a.name} source={a.source} icon={kindIcon[a.kind] ?? '📎'} />
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--muted)' }}>
