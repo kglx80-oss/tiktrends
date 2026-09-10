@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useTransition } from 'react';
 import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
 import { archiveCreativeAction } from '../../../actions/creatives';
 import type { FalAspect } from '@tiktrends/integrations';
-import { IMAGE_MODELS, imageModelByKey, generationOutcome } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, generationOutcome, AD_DIRECTIONS } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -54,6 +54,9 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   const [ratio, setRatio] = useState<FalAspect>('1:1');
   const [withText, setWithText] = useState(false);
   const [headline, setHeadline] = useState('');
+  // La direction artistique · même catalogue mesuré que Pubs IA. « Variées »
+  // (vide) laisse le moteur libre · sinon la scène/lumière/finition sont dictées.
+  const [direction, setDirection] = useState('');
   const [productId, setProductId] = useState('');
   const [prods, setProds] = useState<Product[]>(products);
   const [enhance, setEnhance] = useState(aiReady);
@@ -138,7 +141,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
     }
     setError(''); setNotice(''); setBusy(true);
     const res = await generateImageAction({
-      prompt, aspectRatio: ratio,
+      prompt, aspectRatio: ratio, directionKey: direction || undefined,
       imageUrl: usesProduct ? (source || undefined) : undefined,
       useProductImage: usesProduct,
       withText, enhance, count, productId: productId || undefined, headline: withText ? headline : undefined,
@@ -161,7 +164,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   async function vary(im: BrandImage) {
     if (busy || !im.prompt) return;
     setError(''); setNotice(''); setBusy(true);
-    const res = await generateImageAction({ prompt: im.prompt, aspectRatio: ratio, count: 3, model });
+    const res = await generateImageAction({ prompt: im.prompt, aspectRatio: ratio, count: 3, model, directionKey: direction || undefined });
     setBusy(false);
     const out = generationOutcome({ error: res.error, got: res.images?.length ?? 0, requested: 3 });
     if (res.images?.length) {
@@ -302,6 +305,13 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               key: 'modele', title: 'Moteur d’image', icon: '✦',
               options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${m.recommended ? ' · recommandé' : ''}` })),
               value: model, onChange: setModel,
+            },
+            {
+              // Même catalogue de directions que Pubs IA · une scène/lumière/finition
+              // dictée bat la phrase libre qui rendait « toujours le même résultat ».
+              key: 'direction', title: 'Direction artistique', icon: '◐',
+              options: [{ value: '', label: 'Variées' }, ...AD_DIRECTIONS.map((d) => ({ value: d.key, label: d.label }))],
+              value: direction, onChange: setDirection,
             },
           ]}
           toggles={[
