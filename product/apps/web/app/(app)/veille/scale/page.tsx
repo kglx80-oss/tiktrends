@@ -8,6 +8,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
 import { classifyAngle, capPerBrand, median } from '@tiktrends/core';
 import { getVeilleCache, isFresh, setVeilleCache, refreshAllowed } from '../../../../lib/veille-cache';
+import { Empty } from '../../../../components/Empty';
 import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
 import { PageInfo } from '../../../../components/PageInfo';
 import { effectiveAccess } from '../../../../lib/access';
@@ -164,7 +165,10 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
       )}
 
       {curated.length === 0 && !error && (
-        <p style={{ color: 'var(--muted)', fontSize: 14 }}>Aucune créa trouvée pour cette niche. Essaie un autre mot-clé.</p>
+        <Empty
+          tone="wait" icon="🔍" title="Aucune créa trouvée pour cette niche."
+          why={<>Essaie un autre mot-clé, ou <Link href={`/veille/scale?q=${encodeURIComponent(q)}&country=${country}&refresh=1`} style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>rafraîchis la recherche</Link>.</>}
+        />
       )}
 
       {curated.length > 0 && <SwipeFile items={items} stats={stats} advertisers={advertisers} niche={q} country={country} />}

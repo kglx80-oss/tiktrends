@@ -274,11 +274,11 @@ export default async function JarvisPage() {
           {essaisErreur ? (
             <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{essaisErreur}</p>
           ) : !essaisVue?.lots.length ? (
-            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.55 }}>
-              Aucun lot d’essai n’a encore été poussé dans la carte. Dans <b>Pubs IA</b>, choisis ce que
-              le lot teste avant de générer · un essai d’accroches ou de mises en page ne produit
-              qu’une image, il coûte donc moins cher qu’un lot libre.
-            </p>
+            <Empty
+              tone="wait" title="Aucun lot d’essai poussé dans la carte."
+              why="Dans Pubs IA, choisis ce que le lot teste avant de générer · un essai d’accroches ou de mises en page ne produit qu’une image, il coûte donc moins cher qu’un lot libre."
+              action={{ label: 'Ouvrir Pubs IA', href: '/studio/ads' }}
+            />
           ) : (
             <>
               {/* Le cumul d'abord · c'est le seul endroit où un chiffre devient
@@ -377,10 +377,11 @@ export default async function JarvisPage() {
           {notesErreur ? (
             <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{notesErreur}</p>
           ) : !notes?.notes ? (
-            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.55 }}>
-              Aucune créa n’a encore été notée. Le Score Jarvis s’ouvre depuis le panneau d’une pub,
-              dans <b>Pubs IA</b>.
-            </p>
+            <Empty
+              tone="wait" title="Aucune créa notée pour l’instant."
+              why="Le Score Jarvis s’ouvre depuis le panneau d’une pub, dans Pubs IA."
+              action={{ label: 'Ouvrir Pubs IA', href: '/studio/ads' }}
+            />
           ) : (
             <>
               <p style={{
@@ -469,10 +470,11 @@ export default async function JarvisPage() {
           {relecturesErreur ? (
             <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{relecturesErreur}</p>
           ) : !relectures?.relues ? (
-            <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.55 }}>
-              Aucune publicité relue pour l’instant. La relecture tourne toute seule sur les pubs
-              produites en mode <b>Générée entièrement</b>, dans <b>Pubs IA</b>.
-            </p>
+            <Empty
+              tone="wait" title="Aucune publicité relue pour l’instant."
+              why="La relecture tourne toute seule sur les pubs produites en mode « Générée entièrement », dans Pubs IA."
+              action={{ label: 'Ouvrir Pubs IA', href: '/studio/ads' }}
+            />
           ) : (
             <>
               <p style={{
