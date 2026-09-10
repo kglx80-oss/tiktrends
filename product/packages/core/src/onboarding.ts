@@ -228,13 +228,23 @@ function resume(faites: number, total: number, next: JourneyStep | null, complet
  * laissée sans une seule génération, c'est le décrochage type · le compte a
  * franchi la porte et s'est arrêté sur le seuil.
  *
- * On ne relance donc qu'à ce palier (`generate`), et seulement après un délai ·
- * une relance le jour même agace, elle n'encourage pas. Le seuil est une CADENCE
- * produit (on laisse respirer, puis on tend la main), pas un seuil technique
- * mesurable · on l'assume tel quel.
+ * On relance à un palier de valeur, et seulement après un délai · une relance le
+ * jour même agace, elle n'encourage pas. Le seuil est une CADENCE produit (on
+ * laisse respirer, puis on tend la main), pas un seuil technique mesurable · on
+ * l'assume tel quel.
  *
- * Le message ne répète pas « génère une créa » (l'étape le dit déjà) · il retire
- * l'excuse la plus fréquente · « je n'ai pas de brief prêt ».
+ * ── Deux décrochages, deux moments ───────────────────────────────────────────
+ *
+ * - `generate` · une marque posée puis laissée sans une seule créa · le compte a
+ *   franchi la porte et s'est arrêté sur le seuil. Le message retire l'excuse la
+ *   plus fréquente · « je n'ai pas de brief prêt ».
+ * - `map` · des créas générées mais jamais testées. Générer ne dit pas laquelle
+ *   gagne · c'est le test qui tranche, et c'est là que la boucle du produit paie.
+ *   Un compte qui génère sans tester n'a pas encore touché la valeur.
+ *
+ * Chaque palier a SON horloge · le premier compte depuis la marque, le second
+ * depuis la dernière génération · relancer « teste tes créas » quelqu'un qui
+ * vient de générer serait aussi faux que le relancer le jour de son inscription.
  */
 export interface Relance {
   /** L'étape relancée · sert de clé de rendu et de test. */
@@ -243,21 +253,46 @@ export interface Relance {
   corps: string;
 }
 
+/** Ce qui date chaque décrochage · null quand la donnée manque (donc pas de relance). */
+export interface RelanceContexte {
+  /** Jours depuis la création de la marque · horloge du palier « générer ». */
+  joursDepuisMarque: number | null;
+  /** Jours depuis la dernière génération · horloge du palier « tester ». */
+  joursDepuisGeneration: number | null;
+}
+
 /** On laisse ce nombre de jours avant de relancer · en dessous, rien. */
 export const RELANCE_SEUIL_JOURS = 2;
 
-export function relance(j: Journey, ctx: { joursDepuisMarque: number | null }): Relance | null {
-  // Un seul palier relancé pour l'instant · la première créa. On généralisera
-  // le jour où un autre décrochage se mesure.
-  if (j.next?.key !== 'generate') return null;
-  const d = ctx.joursDepuisMarque;
-  if (d == null || d < RELANCE_SEUIL_JOURS) return null;
-  return {
-    cle: 'generate',
-    titre: 'Ta marque est prête · il ne manque que ta première pub',
-    corps:
-      'Deux minutes suffisent · pas besoin d’un brief parfait, l’assistant part de ta marque et te propose des angles. Tu ajustes ensuite.',
-  };
+export function relance(j: Journey, ctx: RelanceContexte): Relance | null {
+  const cle = j.next?.key;
+
+  if (cle === 'generate') {
+    const d = ctx.joursDepuisMarque;
+    if (d == null || d < RELANCE_SEUIL_JOURS) return null;
+    return {
+      cle: 'generate',
+      titre: 'Ta marque est prête · il ne manque que ta première pub',
+      corps:
+        'Deux minutes suffisent · pas besoin d’un brief parfait, l’assistant part de ta marque et te propose des angles. Tu ajustes ensuite.',
+    };
+  }
+
+  if (cle === 'map') {
+    // « map » n'est ouverte qu'après avoir généré · si rien n'a été généré,
+    // `joursDepuisGeneration` est null et on ne relance pas (ce serait le palier
+    // précédent). On ne pousse ici que celui qui a généré et laissé dormir.
+    const d = ctx.joursDepuisGeneration;
+    if (d == null || d < RELANCE_SEUIL_JOURS) return null;
+    return {
+      cle: 'map',
+      titre: 'Tes créas attendent d’être testées',
+      corps:
+        'Générer ne dit pas encore laquelle gagne · c’est le test qui tranche. Pose-les sur la carte et ouvre un lot · c’est là que la boucle commence à payer.',
+    };
+  }
+
+  return null;
 }
 
 /**

@@ -78,6 +78,14 @@ du forfait. Ce fichier consigne les décisions prises sans le consulter.
   - Le message retire l'excuse (« pas de brief prêt »), il ne répète pas la
     consigne. Gardes : `onboarding` (core, la logique) + `relance-onboarding`
     (web, le RENDU dans le panneau), validés par mutation.
+- **Second palier · généré mais jamais testé.** Générer ne dit pas laquelle
+  gagne · c'est le test qui tranche, et c'est là que la boucle du produit paie.
+  On relance donc aussi au palier `map` (poser la carte / ouvrir un lot) quand la
+  dernière génération dort depuis le délai. **Chaque palier a son horloge** ·
+  `generate` compte depuis la marque, `map` depuis la dernière génération ·
+  pousser à tester quelqu'un qui vient de générer serait aussi faux que le
+  relancer le jour de son inscription. Toujours sans migration · on lit
+  `max(generations.createdAt)`.
 
 ### Délivrabilité · proposer le partage au moment où une créa gagne
 - **Le partage marque blanche est rappelé sur le verdict gagnant.** Le bouton
@@ -101,9 +109,9 @@ du forfait. Ce fichier consigne les décisions prises sans le consulter.
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
 2. Parcours client / anti-churn : ~~états d'accueil vendeurs~~ (fait) ·
-   ~~relance douce au 1ᵉʳ palier~~ (fait) · possible suite · relancer aussi les
-   paliers suivants (lot de test, verdict) quand un signal de décrochage se
-   mesure.
+   ~~relance douce au 1ᵉʳ palier~~ (fait) · ~~relance au 2ᵉ palier · généré mais
+   pas testé~~ (fait) · possible suite · relancer au palier verdict quand un
+   signal de décrochage s'y mesure sans migration.
 3. Connectiques : ~~clarté du catalogue~~ (fait) · délivrabilité ·
    ~~partage marque blanche proposé sur le verdict gagnant~~ (fait) · reste
    l'**export/téléchargement groupé** des médias (angle mort visuel côté session).
