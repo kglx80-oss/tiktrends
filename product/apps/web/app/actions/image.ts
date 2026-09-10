@@ -6,7 +6,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
 import { enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS, promptImage } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
@@ -28,6 +28,9 @@ export async function generateImageAction(input: {
    * reprise cent fois afficherait encore « jamais utilisée ».
    */
   presetId?: string;
+  /** Direction artistique choisie (catalogue `ad-directions`) · composée dans le
+   *  prompt FINAL uniquement, jamais dans la légende affichée/stockée. */
+  directionKey?: string;
   /** Moteur d'image choisi · le studio Image ne pouvait pas en changer. */
   model?: string;
 }): Promise<ImageResult> {
@@ -108,10 +111,15 @@ export async function generateImageAction(input: {
        preset.negative?.trim() ? `Avoid: ${preset.negative.trim()}` : ''].filter(Boolean).join('\n\n')
     : prompt;
 
+  // Direction artistique · scène/lumière/finition (et typo/disposition si texte)
+  // du catalogue mesuré. Composée dans le prompt FINAL seulement · la légende
+  // affichée et stockée reste la description de la personne, pas le bloc anglais.
+  const avecDirection = promptImage(avecDa, input.directionKey, !!input.withText);
+
   // Références marque venant de la bibliothèque (quand pas de source produit).
   const finalPrompt = useAssetRefs
-    ? `${avecDa}\nUse the provided images as brand reference material (style, palette, materials, authenticity); do not copy any text or logo from them.`
-    : avecDa;
+    ? `${avecDirection}\nUse the provided images as brand reference material (style, palette, materials, authenticity); do not copy any text or logo from them.`
+    : avecDirection;
 
   try {
     // Barrière de dépense réelle · la génération d'image est facturée au coup.

@@ -123,6 +123,19 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
   n'y a pas accès (proxy), donc impossible à vérifier ici sans rendu · à faire
   quand le proprio peut valider le rendu, ou côté navigateur client.
 
+### Studios · vers la parité Pubs IA (mandat 2)
+- **Image · direction artistique réutilisée, pas dupliquée.** Le studio Image
+  générait sur une phrase libre · le même défaut « toujours le même résultat »
+  que le catalogue de directions a corrigé pour la pub. Plutôt qu'un second
+  catalogue à maintenir, on RÉUTILISE `ad-directions` · un visuel est une SCÈNE
+  (scène + lumière + finition via `directionScenePrompt`), et quand on écrit un
+  texte dessus, la direction complète entre (typo + disposition). Helper pur
+  `promptImage` (core, gardé par mutation) · la direction se compose dans le
+  prompt FINAL seulement, jamais dans la légende affichée/stockée. Câblage
+  studio + action gardé en source (fichiers non rendables · serveur/gros client).
+- Suite prévue pour Image · l'assistant guidé sur un moteur d'étapes pur, puis
+  la boucle relecture → débrief. Puis Vidéo (directions de mouvement) et Texte.
+
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
 2. Parcours client / anti-churn : ~~états d'accueil vendeurs~~ (fait) ·
