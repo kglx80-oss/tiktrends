@@ -12,6 +12,8 @@ import { QuickSettingsModal } from './QuickSettingsModal';
 import { CreditsMenu } from './CreditsMenu';
 import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
+import { useIsMobile } from './useIsMobile';
+import { chromeCoquille } from '../lib/chrome-coquille';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
 // Les pages « espace de travail » du client (marques, connexions, membres,
@@ -224,6 +226,13 @@ function AppShellInner(props: Props) {
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => { try { setCollapsed(localStorage.getItem('tt_rail_collapsed') === '1'); } catch { /* stockage indispo */ } }, []);
   const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('tt_rail_collapsed', n ? '1' : '0'); } catch { /* ignore */ } return n; });
+  // Sur écran étroit, le rail sort du flux en tiroir · un hamburger l'ouvre.
+  const mobile = useIsMobile();
+  const [drawer, setDrawer] = useState(false);
+  // On referme le tiroir dès qu'on navigue · sinon il masque la page qu'on vient
+  // d'ouvrir.
+  useEffect(() => { setDrawer(false); }, [pathname]);
+  const chrome = chromeCoquille({ mobile, collapsed, drawerOuvert: drawer });
   // Mode ADMIN+ (fondateur uniquement) : navigation + DA dédiées sur les routes plateforme.
   const onAdminPath = ADMIN_NAV.some((x) => pathname === x.href || pathname.startsWith(x.href + '/'));
   const inAdmin = isStaff && onAdminPath;
@@ -294,11 +303,19 @@ function AppShellInner(props: Props) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `${collapsed ? 72 : 250}px minmax(0,1fr)`, minHeight: '100vh' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: chrome.colonnes, minHeight: '100vh' }}>
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
-      <aside style={{ background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: collapsed ? '16px 10px' : '16px 12px', position: 'sticky', top: 0, height: '100vh' }}>
+      <aside style={{
+        background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column',
+        padding: collapsed ? '16px 10px' : '16px 12px', top: 0, height: '100vh',
+        // Desktop : rail collé, inchangé. Mobile : tiroir hors-flux, glissé hors
+        // écran quand fermé, au-dessus du contenu quand ouvert.
+        ...(chrome.railTiroir
+          ? { position: 'fixed', left: 0, width: chrome.largeurRail, zIndex: 90, transform: chrome.railVisible ? 'none' : 'translateX(-100%)', transition: 'transform .22s ease', boxShadow: chrome.railVisible ? '0 0 40px rgba(0,0,0,.55)' : 'none' }
+          : { position: 'sticky' }),
+      }}>
         {/* En-tête : menu d'espace (façon Pletor) + repli de la barre */}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Le logo ramène à l'accueil · la convention universelle qui manquait ·
@@ -505,7 +522,25 @@ function AppShellInner(props: Props) {
         </div>
       </aside>
 
+      {/* Voile du tiroir mobile · referme le rail quand on clique à côté. */}
+      {chrome.voile && (
+        <div onClick={() => setDrawer(false)} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(0,0,0,.5)' }} />
+      )}
+
       <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
+        {/* Barre du haut mobile · le rail est en tiroir, il faut un bouton pour
+            l'ouvrir · et le logo garde son retour à l'accueil. */}
+        {chrome.hamburger && (
+          <div style={{ position: 'sticky', top: 0, zIndex: 70, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--rail)', borderBottom: '1px solid var(--line)' }}>
+            <button type="button" onClick={() => setDrawer(true)} aria-label="Ouvrir le menu" style={{ width: 38, height: 38, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+            </button>
+            <Link href="/dashboard" aria-label="Accueil" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+              <span style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--grad-accent)', display: 'block' }} />
+              <b style={{ fontSize: 15, color: 'var(--ink)' }}>TikTrends</b>
+            </Link>
+          </div>
+        )}
         <NotificationBell />
         {/* Le fil d'Ariane est posé ICI, une fois pour toutes · vingt et une pages
             portaient le leur, écrit à la main, et ils avaient divergé. */}
