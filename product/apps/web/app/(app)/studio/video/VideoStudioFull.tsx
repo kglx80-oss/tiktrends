@@ -11,6 +11,7 @@ import { Composer } from '../../../../components/Composer';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
 import { VignetteDepart } from '../../../../components/VignetteDepart';
+import { AssistantVideo } from './AssistantVideo';
 
 type Ratio = '9:16' | '1:1' | '16:9';
 const RATIOS: Ratio[] = ['9:16', '1:1', '16:9'];
@@ -58,6 +59,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   const preflight = usePreflight(prompt);
   const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('video');
   const [vidPage, setVidPage] = useState(0);
+  const [assistantOuvert, setAssistantOuvert] = useState(false);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
   function suggestMotion() {
@@ -137,6 +139,32 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   const premiereManquante = premiereVideoIncomplete(etatVideo);
   const blocage = premiereManquante ? manqueVideo(premiereManquante, etatVideo) : '';
 
+  // La galerie d'images de départ · définie une fois, servie à la barre à plat
+  // et à l'étape « départ » de l'assistant guidé.
+  const departBlock = (
+    <div>
+      <label style={lbl}>Image de départ à animer <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· ton produit ou une pub déjà générée · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une image</b></span></label>
+      <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer l'image de départ" style={{ padding: 6, border: '1px dashed var(--line-2)' }}>
+        {shownAssets.length > 0 ? (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+            {shownAssets.map((a) => (
+              <VignetteDepart key={a.url} url={a.url} label={a.label} kind={a.kind}
+                selected={imageUrl === a.url} disabled={!ready || busy}
+                cassee={!!casses[a.url]} onError={() => setCasses((c) => ({ ...c, [a.url]: true }))}
+                onPick={setImageUrl} />
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0, padding: '18px 8px', fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>Glisse-dépose une image ici, ou génère d'abord une pub (Pubs IA) / ajoute une photo produit.</p>
+        )}
+      </DropZone>
+      <details style={{ marginTop: 8 }}>
+        <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien d'image</summary>
+        <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={!ready || busy} placeholder="https://…/mon-image.jpg" style={{ ...fld, marginTop: 8 }} />
+      </details>
+    </div>
+  );
+
   return (
     <div>
       {/* Générateur */}
@@ -151,7 +179,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           {([['t2v', 'Texte → Vidéo'], ['i2v', 'Image → Vidéo']] as const).map(([k, label]) => (
             <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
@@ -159,31 +187,14 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
               background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
             }}>{label}</button>
           ))}
+          <span style={{ flex: 1 }} />
+          <button type="button" disabled={!ready} onClick={() => setAssistantOuvert(true)} style={{
+            fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
+            border: '1px solid var(--accent-strong)', background: 'transparent', color: 'var(--accent-strong)',
+          }}>✨ Assistant guidé</button>
         </div>
 
-        {mode === 'i2v' && (
-          <div style={{ marginBottom: 12 }}>
-            <label style={lbl}>Image de départ à animer <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· ton produit ou une pub déjà générée · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une image</b></span></label>
-            <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer l'image de départ" style={{ padding: 6, border: '1px dashed var(--line-2)' }}>
-              {shownAssets.length > 0 ? (
-                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-                  {shownAssets.map((a) => (
-                    <VignetteDepart key={a.url} url={a.url} label={a.label} kind={a.kind}
-                      selected={imageUrl === a.url} disabled={!ready || busy}
-                      cassee={!!casses[a.url]} onError={() => setCasses((c) => ({ ...c, [a.url]: true }))}
-                      onPick={setImageUrl} />
-                  ))}
-                </div>
-              ) : (
-                <p style={{ margin: 0, padding: '18px 8px', fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>Glisse-dépose une image ici, ou génère d'abord une pub (Pubs IA) / ajoute une photo produit.</p>
-              )}
-            </DropZone>
-            <details style={{ marginTop: 8 }}>
-              <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien d'image</summary>
-              <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={!ready || busy} placeholder="https://…/mon-image.jpg" style={{ ...fld, marginTop: 8 }} />
-            </details>
-          </div>
-        )}
+        {mode === 'i2v' && <div style={{ marginBottom: 12 }}>{departBlock}</div>}
 
         {/* Même barre que le studio Image · un studio qui se règle autrement
             qu'un autre oblige à réapprendre la même chose deux fois. */}
@@ -291,6 +302,25 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
         </div>
         <Pager page={vidPage} total={videos.length} onPage={setVidPage} /></>
       )}
+      <AssistantVideo
+        ouvert={assistantOuvert}
+        onFermer={() => setAssistantOuvert(false)}
+        etat={etatVideo}
+        aiReady={aiReady}
+        suggesting={suggesting}
+        onMode={setMode}
+        slotDepart={departBlock}
+        onDescription={(v) => { setPrompt(v); setSceneId(''); }}
+        onSuggest={suggestMotion}
+        onRatio={(r) => setRatio(r as Ratio)}
+        onDuree={(d) => setDuree(d as VideoDuration)}
+        ratios={RATIOS}
+        durees={VIDEO_DURATIONS as unknown as number[]}
+        coutParVideo={20 * (duree / 5)}
+        busy={busy}
+        onGenerer={() => { setAssistantOuvert(false); void generate(); }}
+      />
+
       <style>{'@keyframes ttspin{to{transform:rotate(360deg)}}'}</style>
     </div>
   );
