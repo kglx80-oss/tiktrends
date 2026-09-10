@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, connectMetaAction, syncMetaAction, disconnectMetaAction, selectMetaAccountAction, type ConnectionState } from '../../actions/connections';
 import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
+import { Empty } from '../../../components/Empty';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
@@ -18,7 +19,20 @@ export function DataConnections({ initial, brandName, metaOAuth = false, shopify
   const refresh = () => router.refresh();
 
   if (!brandName) {
-    return <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 18, color: 'var(--muted)', fontSize: 13, marginBottom: 26 }}>Sélectionne une marque active pour brancher ses sources de données.</div>;
+    // Brancher Shopify et Meta est l'étape qui déverrouille tous les écrans « en
+    // direct » · sans marque active, c'était une impasse grise sans bouton. On
+    // pose le geste : choisir (ou créer) une marque.
+    return (
+      <div style={{ marginBottom: 26 }}>
+        <Empty
+          tone="todo"
+          icon="🔗"
+          title="Choisis une marque active pour brancher ses données."
+          why="Shopify remonte les ventes, Meta les performances · chaque marque a ses propres comptes. Sélectionne-en une, ou crée-la, pour commencer à connecter."
+          action={{ label: 'Choisir une marque', href: '/brands' }}
+        />
+      </div>
+    );
   }
 
   return (

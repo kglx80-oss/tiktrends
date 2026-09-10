@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Empty } from '../components/Empty';
+import { Empty, EmptyLine } from '../components/Empty';
 
 /**
  * Un état vide n'est pas une impasse · c'est le premier écran d'une fonction, et
@@ -42,6 +42,16 @@ describe("un « todo » peut poser le geste SUR PLACE · le children est une sor
   });
 });
 
+describe('EmptyLine · une bonne nouvelle se voit, un manque reste sobre', () => {
+  it('le ton « good » rend en vert · pas dans le gris d’un manque', () => {
+    const bon = renderToStaticMarkup(<EmptyLine tone="good">Tout roule.</EmptyLine>);
+    expect(bon).toContain('Tout roule.');
+    expect(bon, 'une réussite doit se lire en vert').toContain('#7ee8bf');
+    const neutre = renderToStaticMarkup(<EmptyLine>Rien pour l’instant.</EmptyLine>);
+    expect(neutre, 'un simple manque ne s’affiche pas en vert').not.toContain('#7ee8bf');
+  });
+});
+
 describe('les états vides migrés adoptent le composant partagé', () => {
   const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
   const CAS: Array<{ fichier: string; attendus: string[] }> = [
@@ -54,6 +64,18 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     { fichier: 'app/(app)/brands/[id]/page.tsx', attendus: ['<Empty', 'tone="todo"', '<AddProductForm', "href: '/connections'"] },
     // Bibliothèque d'assets : `todo` avec le bouton d'upload en children.
     { fichier: 'app/(app)/assets/AssetsLibrary.tsx', attendus: ['<Empty', 'tone="todo"', 'title="Aucun asset pour l\'instant."'] },
+    // Connexions · l'étape d'activation. Sans marque active, c'était une impasse
+    // grise sans bouton · devient un `todo` qui pousse à choisir une marque.
+    { fichier: 'app/(app)/connections/DataConnections.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/brands'"] },
+    // Crédits · l'historique vide devient une invitation à générer, comme sa
+    // page sœur Consommation, au lieu d'une phrase grise sur une page d'argent.
+    { fichier: 'app/(app)/credits/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/studio'"] },
+    // Liens de partage (marque blanche) · le geste « créer » est déjà au-dessus,
+    // donc une ligne `EmptyLine`, pas un bloc redondant.
+    { fichier: 'app/(app)/adsmap/SharePanel.tsx', attendus: ['<EmptyLine>', 'marque blanche'] },
+    // Support · une liste de tickets vide est une BONNE nouvelle · ton `good`.
+    { fichier: 'app/(app)/support/page.tsx', attendus: ['<EmptyLine tone="good">', 'tout roule'] },
+    { fichier: 'app/(app)/support/[id]/page.tsx', attendus: ['<EmptyLine>'] },
   ];
   for (const { fichier, attendus } of CAS) {
     it(`${fichier} adopte Empty`, () => {

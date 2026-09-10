@@ -3,6 +3,7 @@ import { and, eq, asc } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
+import { EmptyLine } from '../../../../components/Empty';
 import { replyTicketAction, setTicketStatusAction } from '../../../actions/support';
 import { input, Msg } from '../../../../components/ui';
 
@@ -91,7 +92,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
             <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{m.body}</p>
           </div>
         ))}
-        {thread.length === 0 && <p style={{ fontSize: 13, color: 'var(--muted)' }}>Aucun message dans ce fil.</p>}
+        {thread.length === 0 && <EmptyLine>Aucun message dans ce fil pour l'instant.</EmptyLine>}
       </div>
 
       {/* Répondre */}
