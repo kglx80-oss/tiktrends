@@ -5,12 +5,11 @@ import { getActiveBrand } from '../../../lib/brands';
 import { getConnectionState } from '../../actions/connections';
 import { DataConnections } from './DataConnections';
 import { PageInfo } from '../../../components/PageInfo';
-import { BrandTile } from '../../../components/BrandIcons';
+import { ConnecteurBientot, type ConnecteurAVenir } from '../../../components/ConnecteurBientot';
 
 export const dynamic = 'force-dynamic';
 
-interface Connector { name: string; color: string; glyph: string; priority?: boolean }
-const CATS: Array<{ cat: string; items: Connector[] }> = [
+const CATS: Array<{ cat: string; items: ConnecteurAVenir[] }> = [
   { cat: 'Publicité', items: [
     { name: 'Meta Ads', color: '#0668E1', glyph: 'M', priority: true },
     { name: 'TikTok Ads', color: '#010101', glyph: 'T', priority: true },
@@ -76,10 +75,6 @@ const CATS: Array<{ cat: string; items: Connector[] }> = [
 
 const TOTAL = CATS.reduce((n, c) => n + c.items.length, 0);
 
-function Tile({ c }: { c: Connector }) {
-  return <BrandTile name={c.name} color={c.color} glyph={c.glyph} />;
-}
-
 const OAUTH_OK: Record<string, string> = { meta: 'Meta Ads connecté. Lance une synchro pour remonter les performances.', meta_pick: 'Meta connecté · plusieurs comptes publicitaires trouvés : choisis celui de cette marque ci-dessous.', meta_noacct: 'Meta connecté, mais aucun compte publicitaire trouvé · renseigne l’ID manuellement.', shopify: 'Boutique Shopify connectée. Lance une synchro pour remonter les ventes.' };
 const OAUTH_ERR: Record<string, string> = { meta_config: 'OAuth Meta non configuré côté serveur (META_APP_ID/SECRET).', meta_state: 'Session OAuth expirée, réessaie.', meta_session: 'Session invalide, reconnecte-toi.', meta_token: 'Échange du token Meta impossible.', meta_exchange: 'Erreur lors de la connexion Meta.', nobrand: 'Sélectionne une marque active.', shopify_config: 'OAuth Shopify non configuré (SHOPIFY_API_KEY/SECRET).', shopify_shop: 'Domaine .myshopify.com attendu.', shopify_state: 'Session OAuth expirée, réessaie.', shopify_hmac: 'Vérification Shopify échouée.', shopify_token: 'Échange du token Shopify impossible.', shopify_exchange: 'Erreur lors de la connexion Shopify.', shopify_session: 'Session invalide, reconnecte-toi.' };
 
@@ -116,7 +111,13 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       {e && OAUTH_ERR[e] && <div style={{ border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.08)', color: '#ff9db0', borderRadius: 12, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>{OAUTH_ERR[e]}</div>}
       <DataConnections initial={connState} brandName={brand?.name ?? null} metaOAuth={metaOAuth} shopifyOAuth={shopifyOAuth} />
 
-      {/* Catalogue */}
+      {/* Feuille de route · le reste du catalogue n'est pas encore branchable.
+          On l'assume comme une feuille de route (statut « Bientôt ») plutôt que
+          comme une cinquantaine de boutons désactivés qui se lisent comme cassés. */}
+      <h2 style={{ ...h2, marginTop: 26 }}>Feuille de route <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· {TOTAL} intégrations en préparation</span></h2>
+      <p style={{ margin: '2px 0 12px', fontSize: 12.5, color: 'var(--muted)' }}>
+        Ces connecteurs arrivent · Meta Ads et TikTok Ads en tête. Un besoin urgent ? Dis-le au support, on priorise selon la demande.
+      </p>
       {CATS.map(({ cat, items }) => (
         <details key={cat} open style={{ marginBottom: 14 }}>
           <summary style={{ listStyle: 'none', cursor: 'pointer', ...h2, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -124,19 +125,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>({items.length})</span>
           </summary>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10, marginTop: 12 }}>
-            {items.map((c) => (
-              <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '12px 14px' }}>
-                <Tile c={c} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{c.name}</div>
-                  {c.priority && <div style={{ fontSize: 11, color: 'var(--accent-strong)', fontWeight: 600 }}>Prioritaire</div>}
-                </div>
-                <button type="button" disabled title="Connexion OAuth bientôt disponible" style={{
-                  fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
-                  background: 'transparent', color: 'var(--muted)', cursor: 'default', whiteSpace: 'nowrap',
-                }}>+ Connecter</button>
-              </div>
-            ))}
+            {items.map((c) => <ConnecteurBientot key={c.name} c={c} />)}
           </div>
         </details>
       ))}
