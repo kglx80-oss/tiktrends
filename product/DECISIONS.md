@@ -65,14 +65,31 @@ du forfait. Ce fichier consigne les décisions prises sans le consulter.
   `connecteur-bientot` · rendu (nom + statut) ET aucun `<button>` dans la carte,
   validé par mutation.
 
+### Anti-churn · la relance douce au premier palier de valeur
+- **On relance quand la première créa traîne.** Le `JourneyPanel` montrait la
+  même prochaine étape, du même ton, le 1ᵉʳ comme le 15ᵉ jour · or le moment qui
+  décide qu'un compte vit ou meurt est unique · la première génération. Une
+  marque posée puis laissée sans une seule créa, c'est le décrochage type.
+  - Règle PURE dans `packages/core` (`relance`, `RELANCE_SEUIL_JOURS`) · elle ne
+    parle QUE sur l'étape `generate`, et seulement après un délai (2 jours) ·
+    une relance le jour même agace. Le seuil est une **cadence produit**
+    assumée, pas un seuil technique mesurable.
+  - Aucune migration · on réutilise `brands.createdAt` pour dater le décrochage.
+  - Le message retire l'excuse (« pas de brief prêt »), il ne répète pas la
+    consigne. Gardes : `onboarding` (core, la logique) + `relance-onboarding`
+    (web, le RENDU dans le panneau), validés par mutation.
+
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
-2. Parcours client / anti-churn : ~~états d'accueil vendeurs~~ (fait, queue
-   d'états vides migrée) · reste les **relances douces** (relances d'onboarding,
-   nudge quand une étape traîne dans le `JourneyPanel`). Prochain gros item.
-3. Connectiques : ~~clarté du catalogue~~ (fait, feuille de route) · reste la
-   **délivrabilité** · sortir les créas gagnantes (export/téléchargement groupé,
-   lien de partage marque blanche proposé après un verdict « scale »).
+2. Parcours client / anti-churn : ~~états d'accueil vendeurs~~ (fait) ·
+   ~~relance douce au 1ᵉʳ palier~~ (fait) · possible suite · relancer aussi les
+   paliers suivants (lot de test, verdict) quand un signal de décrochage se
+   mesure.
+3. Connectiques : ~~clarté du catalogue~~ (fait) · reste la **délivrabilité** ·
+   sortir les créas gagnantes (export/téléchargement groupé, lien de partage
+   marque blanche proposé après un verdict « scale »).
 4. ~~Aération du rail (densité)~~ Fait.
-5. **Pop-up de première fois** · coach-marks dismissables sur les 2-3 écrans clés
-   (Studio Pubs IA, Radar, Adsmap), mémorisés en `localStorage`.
+5. **Pop-up de première fois** · écarté pour l'instant · l'orientation initiale
+   est déjà portée par le `OnboardingWizard` (inscription), le `JourneyPanel` et
+   l'`AssistantHome` · un modal de plus sur-oriente. À rouvrir si un besoin réel
+   apparaît, pas par principe.

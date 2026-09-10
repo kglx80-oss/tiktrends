@@ -1,7 +1,19 @@
 import 'server-only';
 import { and, count, eq, inArray, isNotNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { journey, type Journey } from '@tiktrends/core';
+import { journey, relance, type Journey, type Relance } from '@tiktrends/core';
+
+/** Le parcours ET, le cas échéant, une relance douce sur une étape qui traîne. */
+export interface ParcoursState {
+  journey: Journey;
+  relance: Relance | null;
+}
+
+/** Jours pleins écoulés depuis une date · null si absente. */
+function joursDepuis(d: Date | null | undefined): number | null {
+  if (!d) return null;
+  return Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
+}
 
 /**
  * Où en est réellement cet espace sur le chemin.
@@ -19,19 +31,27 @@ import { journey, type Journey } from '@tiktrends/core';
  * volontairement · exiger la fiche parfaite ferait stagner quelqu'un qui a de
  * quoi générer.
  */
-export async function onboardingState(workspaceId: string, canAdmin: boolean): Promise<Journey> {
+export async function onboardingState(workspaceId: string, canAdmin: boolean): Promise<ParcoursState> {
   const done = new Set<string>();
-  if (!db) return journey(done, { canAdmin });
+  if (!db) return { journey: journey(done, { canAdmin }), relance: null };
 
   const marques = await db.select({
     id: schema.brands.id,
     logoUrl: schema.brands.logoUrl, description: schema.brands.description,
     usp: schema.brands.usp, metaToken: schema.brands.metaToken,
     creativeRules: schema.brands.creativeRules,
+    createdAt: schema.brands.createdAt,
   }).from(schema.brands).where(eq(schema.brands.workspaceId, workspaceId));
 
-  if (!marques.length) return journey(done, { canAdmin });
+  if (!marques.length) return { journey: journey(done, { canAdmin }), relance: null };
   done.add('brand');
+
+  // Depuis quand la plus ancienne marque existe · sert à mesurer un décrochage
+  // au premier palier de valeur (marque posée, aucune créa générée).
+  const joursDepuisMarque = marques
+    .map((m) => joursDepuis(m.createdAt))
+    .filter((n): n is number => n != null)
+    .reduce<number | null>((max, n) => (max == null ? n : Math.max(max, n)), null);
 
   const ids = marques.map((m) => m.id);
   // Meta compte dès qu'UNE marque est branchée · le parcours décrit l'espace,
@@ -71,5 +91,6 @@ export async function onboardingState(workspaceId: string, canAdmin: boolean): P
   // annoncer l'étape faite serait un mensonge visible dès le clic.
   if (n(stats) >= 3 && n(verdicts) > 0) done.add('memory');
 
-  return journey(done, { canAdmin });
+  const j = journey(done, { canAdmin });
+  return { journey: j, relance: relance(j, { joursDepuisMarque }) };
 }

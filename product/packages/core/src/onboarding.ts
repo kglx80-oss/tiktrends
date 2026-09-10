@@ -218,6 +218,49 @@ function resume(faites: number, total: number, next: JourneyStep | null, complet
 }
 
 /**
+ * Une relance douce quand une étape de VALEUR traîne.
+ *
+ * ── Pourquoi ────────────────────────────────────────────────────────────────
+ *
+ * Le `JourneyPanel` montre toujours la même prochaine étape, du même ton, que
+ * ce soit le premier jour ou le quinzième. Or le moment qui décide qu'un compte
+ * vit ou meurt est un seul · la PREMIÈRE créa générée. Une marque créée puis
+ * laissée sans une seule génération, c'est le décrochage type · le compte a
+ * franchi la porte et s'est arrêté sur le seuil.
+ *
+ * On ne relance donc qu'à ce palier (`generate`), et seulement après un délai ·
+ * une relance le jour même agace, elle n'encourage pas. Le seuil est une CADENCE
+ * produit (on laisse respirer, puis on tend la main), pas un seuil technique
+ * mesurable · on l'assume tel quel.
+ *
+ * Le message ne répète pas « génère une créa » (l'étape le dit déjà) · il retire
+ * l'excuse la plus fréquente · « je n'ai pas de brief prêt ».
+ */
+export interface Relance {
+  /** L'étape relancée · sert de clé de rendu et de test. */
+  cle: string;
+  titre: string;
+  corps: string;
+}
+
+/** On laisse ce nombre de jours avant de relancer · en dessous, rien. */
+export const RELANCE_SEUIL_JOURS = 2;
+
+export function relance(j: Journey, ctx: { joursDepuisMarque: number | null }): Relance | null {
+  // Un seul palier relancé pour l'instant · la première créa. On généralisera
+  // le jour où un autre décrochage se mesure.
+  if (j.next?.key !== 'generate') return null;
+  const d = ctx.joursDepuisMarque;
+  if (d == null || d < RELANCE_SEUIL_JOURS) return null;
+  return {
+    cle: 'generate',
+    titre: 'Ta marque est prête · il ne manque que ta première pub',
+    corps:
+      'Deux minutes suffisent · pas besoin d’un brief parfait, l’assistant part de ta marque et te propose des angles. Tu ajustes ensuite.',
+  };
+}
+
+/**
  * Ce qui manque pour que la prochaine étape devienne faisable.
  *
  * Sert à répondre « pourquoi je ne peux pas encore connecter Meta ? » sans
