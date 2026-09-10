@@ -97,7 +97,7 @@ describe('le fil d’Ariane dit où l’on est', () => {
   it('un enfant hors marque montre son parent', () => {
     // Le tagging vit sous la veille · dire « Trouver › Veille › Tagging »
     // apprend quelque chose, là où « Espace › Membres » n'apprend rien.
-    expect(breadcrumb('/tags').map((x) => x.label)).toEqual(['Observatoire', 'Veille', 'Tagging']);
+    expect(breadcrumb('/tags').map((x) => x.label)).toEqual(['Accueil', 'Observatoire', 'Veille', 'Tagging']);
   });
 
   it('rien à dire sur une racine de section hors marque', () => {
@@ -114,14 +114,15 @@ describe('le fil d’Ariane dit où l’on est', () => {
     expect(breadcrumb('/adsmap/jarvis')).toEqual([]);
   });
 
-  it('ouvre par la section', () => {
+  it('ouvre par l’accueil puis la section', () => {
     const c = breadcrumb('/adsmap/suites');
-    expect(c[0]).toEqual({ label: 'Laboratoire', href: null });
+    expect(c[0], 'un retour à l’accueil en tête du fil').toEqual({ label: 'Accueil', href: '/dashboard' });
+    expect(c[1]).toEqual({ label: 'Laboratoire', href: null });
   });
 
   it('donne le chemin complet, pas une flèche vers le parent', () => {
     const c = breadcrumb('/adsmap/suites').map((x) => x.label);
-    expect(c).toEqual(['Laboratoire', 'Adsmap', 'Suites']);
+    expect(c).toEqual(['Accueil', 'Laboratoire', 'Adsmap', 'Suites']);
   });
 
   it('le dernier maillon n’est jamais un lien', () => {
@@ -131,33 +132,33 @@ describe('le fil d’Ariane dit où l’on est', () => {
 
   it('les maillons intermédiaires sont cliquables', () => {
     const c = breadcrumb('/adsmap/lots');
-    expect(c[1]).toEqual({ label: 'Adsmap', href: '/adsmap' });
+    expect(c[2]).toEqual({ label: 'Adsmap', href: '/adsmap' });
   });
 
   it('la marque s’insère après la section quand l’écran en dépend', () => {
     const c = breadcrumb('/adsmap/radar', { brandScoped: true, brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Laboratoire', 'TrueFords', 'Adsmap', 'Radar de veille']);
+    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Laboratoire', 'TrueFords', 'Adsmap', 'Radar de veille']);
   });
 
   it('une racine par marque mérite un fil · le contexte manquerait sinon', () => {
     const c = breadcrumb('/jarvis', { brandScoped: true, brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Atelier', 'TrueFords', 'Jarvis']);
+    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Atelier', 'TrueFords', 'Jarvis']);
   });
 
   it('sans nom de marque, on n’invente pas de maillon', () => {
     const c = breadcrumb('/adsmap/lots', { brandScoped: true, brandName: null });
-    expect(c.map((x) => x.label)).toEqual(['Laboratoire', 'Adsmap', 'Lots de test']);
+    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Laboratoire', 'Adsmap', 'Lots de test']);
   });
 
   it('un segment dynamique prend le nom de la marque', () => {
     const c = breadcrumb('/brands/abc-123', { brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Espace', 'Marques', 'TrueFords']);
+    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Espace', 'Marques', 'TrueFords']);
   });
 
   it('un concurrent tire son nom de l’URL, décodé', () => {
     const c = breadcrumb('/brands/abc/competitors/Nike%20France', { brandName: 'TrueFords' });
     expect(c[c.length - 1]!.label).toBe('Nike France');
-    expect(c[2]).toEqual({ label: 'TrueFords', href: '/brands/abc' });
+    expect(c[3]).toEqual({ label: 'TrueFords', href: '/brands/abc' });
   });
 
   it('les liens intermédiaires portent le vrai identifiant, pas le motif', () => {

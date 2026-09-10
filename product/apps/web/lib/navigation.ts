@@ -209,7 +209,12 @@ export function breadcrumb(pathname: string, opts: CrumbOptions = {}): Crumb[] {
   if (chaine.length === 1 && !opts.brandScoped) return [];
 
   const parts = segments(pathname);
-  const crumbs: Crumb[] = [{ label: route.section, href: null }];
+  // Une porte de retour explicite en tête du fil · on descend quelque part, on
+  // veut pouvoir remonter à l'accueil d'un clic sans chercher « Dashboard » dans
+  // le rail. N'apparaît que sur les pages DESCENDUES · une racine de section ne
+  // rend aucun fil (voir plus haut), donc jamais d'« Accueil » qui pointerait
+  // sur la page qu'on regarde.
+  const crumbs: Crumb[] = [{ label: 'Accueil', href: '/dashboard' }, { label: route.section, href: null }];
 
   if (opts.brandScoped && opts.brandName) {
     // La marque vient juste après la section · c'est le contexte dans lequel
