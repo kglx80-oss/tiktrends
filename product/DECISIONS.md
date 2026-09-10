@@ -72,6 +72,20 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
     mutation. `DriveConnect` laissé tel quel · fragment de statut en ligne, pas
     un écran vide.
 
+### Studios · Texte et le picker d'assets (mandat 2)
+- **Texte ne reçoit PAS de wizard · décision assumée.** Son brief est un seul
+  champ requis (le produit) + cinq facultatifs · un assistant « une décision à la
+  fois » sur un formulaire aussi simple serait du cargo-cult du patron de Pubs
+  IA, pas une amélioration. Le vrai manque de Texte est la persistance des
+  sorties (elles disparaissent à la navigation) · chantier serveur, à valider par
+  le proprio. On ne force pas un flux inadapté pour cocher une case.
+- **Picker d'assets · miniature partagée.** Le sélecteur d'Assets du studio Pubs
+  rendait un `<img>` nu sans repli · un lien cassé y montrait l'image cassée du
+  navigateur, à rebours de la bibliothèque. Il passe par `MiniatureAsset` (repli
+  sur icône de type via `onError`), qui gagne un `cadreStyle` pour tenir dans un
+  sélecteur de taille fixe. Une seule miniature d'asset dans tout le produit.
+  Gardes `picker-miniature` (rendu du `cadreStyle` + adoption) validés par mutation.
+
 ### Connectiques · le catalogue est une feuille de route
 - **Les ~50 connecteurs à venir cessent d'être des boutons cassés.** Chacun
   portait un « + Connecter » désactivé · lu comme une panne, pas comme une
