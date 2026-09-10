@@ -6,6 +6,14 @@ pop-ups, petites fonctionnalités anti-churn, et une gestion des assets solide.
 Travailler seul, sans questions, s'arrêter quand l'outil est solide ou à ~95 %
 du forfait. Ce fichier consigne les décisions prises sans le consulter.
 
+**Mandat 2 (2026-09-10)** : porter Image IA, Vidéo IA et Texte IA au même niveau
+de profondeur que Pubs IA ; moderniser l'UI/UX en tranchant librement le design ;
+et solidifier les assets (voir le VRAI asset, jamais une icône inutile · assets
+plus présents dans la logique). La profondeur de Pubs IA se décompose en trois :
+(a) un assistant guidé sur un moteur d'étapes PUR en `core`, (b) un catalogue de
+directions du domaine en `core`, (c) une boucle relecture → débrief → itération
+contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
+
 ## Cadre respecté
 
 - Chaque changement = une PR créée ET mergée (squash), garde validé en le faisant
@@ -31,6 +39,15 @@ du forfait. Ce fichier consigne les décisions prises sans le consulter.
   de la doctrine #305. Garde `confirm-suppression` étendu aux assets.
 - **Miniatures increvables** · un asset dont l'URL ne charge plus bascule sur son
   icône de type au lieu de l'image cassée du navigateur (`apercuAsset`, pur).
+- **On montre le VRAI asset, pas une icône de type** (mandat 2). L'ancienne règle
+  ne rendait une vidéo que si elle était téléversée · tout ce qui arrivait par
+  lien/Drive (la majorité des vidéos) tombait sur 🎬. Désormais on tente le vrai
+  flux dès qu'un `kind` est visuel · l'icône n'est plus qu'un repli sur échec
+  réel (`onError`), pas le défaut. Le paramètre `source` d'`apercuAsset` disparaît.
+- **Lien Drive · l'`externalId` est posé à l'import manuel.** Sans lui, un lien
+  Drive était servi en « direct » vers une URL Google qui renvoie du HTML, pas le
+  fichier · la miniature cassait. Avec l'id, il passe par le proxy `/api/asset`
+  (comme la synchro auto) qui télécharge le vrai fichier. Cause racine B éliminée.
 
 ### Rail · aération
 - **Le rail respire** · plus d'espace entre sections et items, lignes plus

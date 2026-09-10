@@ -13,15 +13,14 @@ const media: React.CSSProperties = { width: '100%', height: '100%', objectFit: '
  * navigateur. `onError` fait basculer sur l'icône de type · propre, jamais
  * cassé. La décision d'affichage vit dans `apercuAsset` (pure) · ici on la rend.
  */
-export function MiniatureAsset({ kind, url, name, source, icon }: {
+export function MiniatureAsset({ kind, url, name, icon }: {
   kind: string;
   url: string;
   name: string;
-  source?: string;
   icon: string;
 }) {
   const [cassee, setCassee] = useState(false);
-  const quoi = apercuAsset(kind, source, cassee);
+  const quoi = apercuAsset(kind, cassee);
   return (
     <div style={cadre}>
       {quoi === 'image' && <img src={url} alt={name} loading="lazy" decoding="async" onError={() => setCassee(true)} style={media} />}
