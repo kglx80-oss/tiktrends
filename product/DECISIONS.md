@@ -173,9 +173,16 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
   rouvrable, récap, ce qui manque sous le bouton. Même intégration additive
   qu'Image (bouton « Assistant guidé », zéro restructuration), galerie d'images
   de départ définie une fois et servie aux deux. Render-gardé
-  (`assistant-video-rendu`). Vidéo est à parité de flux · le catalogue de
-  directions de mouvement viendra en complément. Reste · Texte, puis la boucle
-  de relecture, puis la 2e phase assets.
+  (`assistant-video-rendu`).
+- **Vidéo · directions de MOUVEMENT.** Ce qu'une image n'a pas · le geste. Un
+  catalogue propre à la vidéo (`video-directions`, 8 directions · caméra +
+  rythme + énergie) plutôt que réutiliser les directions d'image (qui décrivent
+  une scène fixe). Helper pur `promptVideo` · composé dans le prompt FINAL des
+  deux chemins (t2v et i2v), jamais dans la légende. Contrôle « Type de
+  mouvement » dans le composeur et dans l'étape mouvement de l'assistant.
+  Gardes `video-directions` (core) + `video-directions-wiring` (câblage), par
+  mutation. Vidéo a maintenant les trois ingrédients, comme Image. Reste · Texte
+  (persistance), boucle de relecture (contrôles · en dernier), 2e phase assets.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.

@@ -60,6 +60,7 @@ export * from './ad-directions';
 export * from './studio-image';
 export * from './assistant-image';
 export * from './assistant-video';
+export * from './video-directions';
 export * from './universe-previews';
 export * from './ad-layouts';
 export * from './production-mode';

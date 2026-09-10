@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
-import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
+import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -46,6 +46,9 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   // réel qu'on ne pouvait pas régler. Le prix la suit, sinon dix secondes se
   // paieraient au tarif de cinq.
   const [duree, setDuree] = useState<VideoDuration>(5);
+  // La direction de mouvement · même logique que les directions d'image, mais
+  // pour le geste (caméra, rythme, énergie). Vide = mouvement libre.
+  const [direction, setDirection] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [suggesting, startSuggest] = useTransition();
@@ -110,8 +113,8 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
     if (mode === 'i2v' && !imageUrl.trim()) { setError("Ajoute l'URL d'une image de départ."); return; }
     setError(''); setBusy(true);
     const res = mode === 't2v'
-      ? await startVideoAction({ prompt, aspectRatio: ratio, durationS: duree, presetId: sceneId || undefined })
-      : await startImageVideoAction({ prompt, imageUrl, aspectRatio: ratio, durationS: duree, presetId: sceneId || undefined });
+      ? await startVideoAction({ prompt, aspectRatio: ratio, durationS: duree, presetId: sceneId || undefined, directionKey: direction || undefined })
+      : await startImageVideoAction({ prompt, imageUrl, aspectRatio: ratio, durationS: duree, presetId: sceneId || undefined, directionKey: direction || undefined });
     setBusy(false);
     // Un lancement sans identifiant de tâche ET sans erreur ne laissait aucune
     // trace · la vidéo n'apparaissait pas, et rien ne disait pourquoi.
@@ -225,6 +228,11 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
               options: VIDEO_DURATIONS.map((d) => ({ value: String(d), label: `${d} s` })),
               value: String(duree), onChange: (v) => setDuree(Number(v) as VideoDuration),
             },
+            {
+              key: 'mouvement', title: 'Type de mouvement', icon: '🎬',
+              options: [{ value: '', label: 'Libre' }, ...VIDEO_DIRECTIONS.map((d) => ({ value: d.key, label: d.label }))],
+              value: direction, onChange: setDirection,
+            },
           ]}
           extra={
             <button type="button" onClick={suggestMotion} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose un mouvement à partir de ta marque' : 'IA non configurée'} style={{
@@ -312,6 +320,9 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
         slotDepart={departBlock}
         onDescription={(v) => { setPrompt(v); setSceneId(''); }}
         onSuggest={suggestMotion}
+        directions={VIDEO_DIRECTIONS.map((d) => ({ key: d.key, label: d.label, hint: d.hint }))}
+        directionValue={direction}
+        onDirection={setDirection}
         onRatio={(r) => setRatio(r as Ratio)}
         onDuree={(d) => setDuree(d as VideoDuration)}
         ratios={RATIOS}
