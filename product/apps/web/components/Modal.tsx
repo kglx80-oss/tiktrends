@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 /**
  * Fenêtre modale réutilisable (pop-up). Base du système « tout en pop-up » :
@@ -18,13 +18,48 @@ export function Modal({
   maxWidth?: number;
   icon?: string;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    // Qui avait le focus avant l'ouverture · on le lui rend à la fermeture,
+    // sinon le focus retombe en haut de page et le clavier repart de zéro.
+    const rendreA = document.activeElement as HTMLElement | null;
+
+    const focusables = () => Array.from(
+      panelRef.current?.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    ).filter((el) => el.offsetParent !== null);
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      // Piège à focus · le Tab ne doit pas s'échapper derrière la fenêtre.
+      if (e.key === 'Tab') {
+        const els = focusables();
+        if (!els.length) { e.preventDefault(); panelRef.current?.focus(); return; }
+        const premier = els[0]!, dernier = els[els.length - 1]!;
+        const actif = document.activeElement;
+        if (e.shiftKey && (actif === premier || !panelRef.current?.contains(actif))) {
+          e.preventDefault(); dernier.focus();
+        } else if (!e.shiftKey && actif === dernier) {
+          e.preventDefault(); premier.focus();
+        }
+      }
+    };
     window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+    // Porter le focus dans la fenêtre à l'ouverture · premier champ utile, sinon
+    // le panneau lui-même (il est `tabIndex=-1`).
+    const t = setTimeout(() => { (focusables()[0] ?? panelRef.current)?.focus(); }, 20);
+
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+      clearTimeout(t);
+      rendreA?.focus?.();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -38,6 +73,8 @@ export function Modal({
       }}
     >
       <div
+        ref={panelRef}
+        role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18,

@@ -102,11 +102,12 @@ export function CommandPalette({ commands }: { commands: Command[] }) {
 
   return (
     <div onMouseDown={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,4,8,.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh' }}>
-      <div onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(640px, 92vw)', maxHeight: '70vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 16, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)', overflow: 'hidden' }}>
+      <div role="dialog" aria-modal="true" aria-label="Recherche et navigation" onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(640px, 92vw)', maxHeight: '70vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 16, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)', overflow: 'hidden' }}>
         {/* Champ de recherche */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
           <input ref={inputRef} value={q} onChange={(e) => { setQ(e.target.value); setIdx(0); }} onKeyDown={onKeyDown}
+            aria-label="Rechercher une page ou une action"
             placeholder="Rechercher une page, une action…"
             style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', color: 'var(--ink)', fontSize: 15 }} />
           <kbd style={kbd}>esc</kbd>

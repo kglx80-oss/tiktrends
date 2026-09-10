@@ -6,3 +6,26 @@
 /* Polices de la DA TikTrends */
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400..900&family=Geist+Mono:wght@400..600&display=swap');
 html, body { font-family: var(--font-sans); }
+
+/* Focus clavier visible · partout.
+   Des dizaines d'éléments posent `outline: none` en style INLINE pour masquer le
+   halo par défaut au clic · ce faisant, ils l'effacent aussi au clavier, et la
+   navigation au Tab devient invisible. Un `:focus-visible` en `!important` (le
+   seul cas où une feuille de style l'emporte sur l'inline) reprend la main
+   UNIQUEMENT quand le navigateur juge le focus « clavier » · souris et tactile
+   gardent l'apparence inline. Un seul levier, aucun composant à toucher. */
+:focus-visible {
+  outline: 2px solid var(--accent-strong, #ff5c8a) !important;
+  outline-offset: 2px;
+}
+
+/* Respecter « animations réduites » · on coupe l'animation sans casser l'état
+   final (un rendu au repos visible, jamais figé à mi-transition). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
