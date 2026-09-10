@@ -10,7 +10,7 @@ export default function Tags() {
   const matrix = personaHookMatrix(creatives).slice(0, 5);
   const max = (arr: { weightedMetric: number }[]) => Math.max(1, ...arr.map((x) => x.weightedMetric));
   return (
-    <main style={{ minHeight: '100vh', padding: '30px 36px 60px', maxWidth: 1100, margin: '0 auto' }}>
+    <main style={{ minHeight: '100vh', padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1100, margin: '0 auto' }}>
       <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Top Creative Tags</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, margin: '6px 0 22px' }}>
         Analyse par ingrédient créatif (métrique cible : ROAS, pondérée par le spend). La combinaison gagnante persona × hook en un coup d'œil.

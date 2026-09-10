@@ -37,7 +37,7 @@ export default async function Dashboard() {
   const parcours = s && roleAtLeast(s.role, 'member') ? await onboardingState(s.workspaceId, roleAtLeast(s.role, 'admin')) : null;
 
   return (
-    <main style={{ minHeight: '100vh', padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
+    <main style={{ minHeight: '100vh', padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
       <AssistantHome firstName={firstName} credits={credits} brandName={brand?.name ?? null} brandId={brand?.id ?? null} aiReady={anthropicConfigured()} />
 
       {parcours && <JourneyPanel j={parcours} firstName={firstName} />}

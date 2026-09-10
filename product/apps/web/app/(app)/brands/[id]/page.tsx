@@ -74,7 +74,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
   const initials = b.name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 940, margin: '0 auto' }}>
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 940, margin: '0 auto' }}>
       <Link href="/brands" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Marques</Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>

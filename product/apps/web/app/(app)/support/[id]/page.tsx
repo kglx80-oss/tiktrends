@@ -40,7 +40,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
     : (tk.body ? [{ id: 'seed', author: tk.authorName ?? 'Utilisateur', body: tk.body, isStaff: false, at: tk.createdAt as Date }] : []);
 
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 760, margin: '0 auto' }}>
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 760, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '10px 0 4px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
