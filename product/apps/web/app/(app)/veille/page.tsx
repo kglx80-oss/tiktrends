@@ -10,7 +10,7 @@ import { AdCard, compact } from '../../../components/AdCard';
 import { PageInfo } from '../../../components/PageInfo';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
-import { veilleSeedDefaut } from '@tiktrends/core';
+import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -158,25 +158,31 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     // installés (tri « plus anciennes » + actives + 30 j·), amorcés sur la
     // catégorie de la marque active. Le mot-clé et les filtres reprennent la
     // main dès que l'utilisateur cherche.
+    const chercherDefaut = async (seed: string) => {
+      const cle = cleRecherche(['defaut', platform, seed, page, sp.country]);
+      const enCache = sp.refresh ? undefined : lireRecherche(cle);
+      if (enCache) return { ads: enCache.ads, total: enCache.total };
+      const r = await ttSearchAds({ apiKey }, {
+        search: seed, limit: LIMIT, offset: (page - 1) * LIMIT,
+        status: 'active', searchIn: 'ad_copy', sortBy: 'longestRunning',
+        minDaysRunning: 30, country: sp.country || undefined,
+      });
+      ecrireRecherche(cle, { ads: r.ads, total: r.total });
+      return { ads: r.ads, total: r.total };
+    };
     defaut = veilleSeedDefaut({ category: brand?.category });
-    const cle = cleRecherche(['defaut', platform, defaut.seed, page, sp.country]);
-    const enCache = sp.refresh ? undefined : lireRecherche(cle);
-    if (enCache) {
-      ads = enCache.ads;
-      total = enCache.total;
-    } else {
-      try {
-        const r = await ttSearchAds({ apiKey }, {
-          search: defaut.seed, limit: LIMIT, offset: (page - 1) * LIMIT,
-          status: 'active', searchIn: 'ad_copy', sortBy: 'longestRunning',
-          minDaysRunning: 30, country: sp.country || undefined,
-        });
-        ads = r.ads;
-        total = r.total;
-        ecrireRecherche(cle, { ads, total });
-      } catch (e) {
-        error = (e as Error).message;
+    try {
+      let r = await chercherDefaut(defaut.seed);
+      // La catégorie n'a rien donné (libellé trop spécifique) · on se rabat sur
+      // le marché large plutôt que de laisser la Veille vide · elle doit vendre.
+      if (r.ads.length === 0 && defaut.parCategorie) {
+        defaut = { seed: NICHE_DEFAUT, parCategorie: false };
+        r = await chercherDefaut(defaut.seed);
       }
+      ads = r.ads;
+      total = r.total;
+    } catch (e) {
+      error = (e as Error).message;
     }
   }
 
