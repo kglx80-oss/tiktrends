@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
+import { Bandeau } from '../../../components/Bandeau';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getActiveBrand } from '../../../lib/brands';
@@ -245,8 +246,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         ))}
       </div>
 
-      {sample && <div style={banner('rgba(245,166,35,.12)', 'rgba(245,166,35,.4)', '#f5c877')}>Mode démonstration (échantillon réel). La source de données n'est pas encore configurée sur le serveur pour la recherche en direct.</div>}
-      {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur de la source de données : {error}</div>}
+      {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon réel. La source de données n'est pas encore configurée sur le serveur pour la recherche en direct.</Bandeau>}
+      {error && <Bandeau ton="error">Erreur de la source de données : {error}</Bandeau>}
       {!sample && !error && !query && defaut && (
         <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>
           Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>gagnants installés</b>
@@ -298,4 +299,3 @@ const inputBase = { padding: '11px 14px', borderRadius: 12, border: '1px solid v
 const searchBtn = { padding: '11px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' } as const;
 const upgradeBtn = { display: 'inline-block', marginTop: 16, padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' } as const;
 const pageBtn = { padding: '9px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, textDecoration: 'none' } as const;
-const banner = (bg: string, border: string, color: string) => ({ padding: '10px 14px', borderRadius: 12, background: bg, border: `1px solid ${border}`, color, fontSize: 13, marginBottom: 18 } as const);
