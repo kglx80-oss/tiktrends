@@ -11,6 +11,7 @@ import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
+import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Composer } from '../../../../components/Composer';
 import { AssistantPub } from './AssistantPub';
 import { DebriefLotPanel } from './DebriefLotPanel';
@@ -871,9 +872,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   {assets.map((a) => {
                     const on = assetIds.includes(a.id);
                     return (
-                      <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 62, height: 62, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)' }}>
-                        { }
-                        <img src={a.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: on ? 1 : 0.85 }} />
+                      <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 62, height: 62, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)', opacity: on ? 1 : 0.85 }}>
+                        {/* Même miniature que la bibliothèque · un lien cassé tombe
+                            sur l'icône de type, jamais l'image cassée du navigateur. */}
+                        <MiniatureAsset kind="image" url={a.url} name={a.name} icon="🖼️" cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
                         {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
                       </button>
                     );
