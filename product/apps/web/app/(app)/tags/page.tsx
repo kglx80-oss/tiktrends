@@ -15,6 +15,17 @@ export default function Tags() {
         Analyse par ingrédient créatif (métrique cible : ROAS, pondérée par le spend). La combinaison gagnante persona × hook en un coup d'œil.
       </p>
 
+      {/* Toute cette page est calculée sur un échantillon · rien ne le disait, et
+          aucune sortie n'était offerte. On le nomme, et on montre la porte. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid rgba(245,166,35,.3)', borderRadius: 14, background: 'rgba(245,166,35,.08)', padding: '12px 16px', margin: '0 0 22px' }}>
+        <span style={{ fontSize: 18 }}>🧪</span>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>Mode démonstration</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ink-2)', marginLeft: 8 }}>Ces tags portent sur un échantillon. Branche un compte pour analyser tes vraies créas.</span>
+        </div>
+        <a href="/connections" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Brancher un compte ›</a>
+      </div>
+
       <PageInfo title="lire tes tags créatifs">
         Le Tagging décompose tes créas en ingrédients (type de hook, persona, angle, émotion) et mesure leur
         performance moyenne pondérée par la dépense. La matrice <b>persona × hook</b> révèle les combinaisons qui
