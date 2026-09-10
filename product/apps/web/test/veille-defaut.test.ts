@@ -9,8 +9,10 @@ import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
  */
 
 describe('veilleSeedDefaut · le mot-clé d’amorçage', () => {
-  it('prend la catégorie de la marque quand elle existe', () => {
-    expect(veilleSeedDefaut({ category: 'compléments alimentaires' })).toEqual({ seed: 'compléments alimentaires', parCategorie: true });
+  it('extrait un mot-clé cherchable de la catégorie · pas le libellé brut', () => {
+    // Le libellé entier ne se trouve pas dans le copy des pubs · on en garde le
+    // nom produit (le dernier mot significatif).
+    expect(veilleSeedDefaut({ category: 'compléments alimentaires' })).toEqual({ seed: 'alimentaires', parCategorie: true });
   });
 
   it('retombe sur la niche par défaut sans catégorie', () => {
@@ -32,5 +34,11 @@ describe('la page Veille peuple l’écran par défaut', () => {
     expect(bloc, 'le tri gagnant a disparu du browse par défaut').toMatch(/sortBy: 'longestRunning'/);
     expect(bloc, 'le statut actif a disparu du browse par défaut').toMatch(/status: 'active'/);
     expect(bloc, 'l’ancienneté minimale a disparu du browse par défaut').toMatch(/minDaysRunning: 30/);
+  });
+
+  it('si la catégorie ne rend rien, elle se rabat sur le marché large · jamais vide', () => {
+    const bloc = PAGE.slice(PAGE.indexOf('} else if (platform === \'meta\')'), PAGE.indexOf('// État sauvegardé'));
+    expect(bloc, 'pas de détection d’un résultat vide').toMatch(/ads\.length === 0/);
+    expect(bloc, 'pas de repli sur la niche large · la Veille resterait vide').toMatch(/NICHE_DEFAUT/);
   });
 });
