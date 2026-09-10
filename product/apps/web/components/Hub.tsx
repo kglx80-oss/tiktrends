@@ -79,7 +79,7 @@ export function Hub({ intro, next, cards, children }: {
         }}>
           <span style={{
             width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'var(--grad-accent)',
-            color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 19,
+            color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 19,
           }}>→</span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <b style={{ display: 'block', fontSize: 15, color: 'var(--ink)' }}>{next.title}</b>
@@ -111,7 +111,7 @@ function Carte({ href, icon, title, makes, when, state, count, tag }: HubCard) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 11 }}>
         <span style={{
           width: 38, height: 38, borderRadius: 11, flexShrink: 0, background: 'var(--grad-accent)',
-          color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+          color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
         }}>{icon}</span>
         <b style={{ flex: 1, minWidth: 0, fontSize: 15.5, color: 'var(--ink)' }}>{title}</b>
         {tag && (

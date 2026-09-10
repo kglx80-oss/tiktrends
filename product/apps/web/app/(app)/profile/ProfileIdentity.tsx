@@ -78,7 +78,7 @@ export function ProfileIdentity({ init }: {
       </label>
 
       <div>
-        <button type="submit" style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: 'pointer', background: 'var(--grad-accent)', color: '#0d070c' }}>Enregistrer le profil</button>
+        <button type="submit" style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)' }}>Enregistrer le profil</button>
       </div>
     </form>
   );

@@ -267,7 +267,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
           const active = filter === k.key;
           const n = k.key === 'all' ? assets.length : assets.filter((a) => a.kind === k.key).length;
           return (
-            <button key={k.key} type="button" onClick={() => { setFilter(k.key); setPage(0); }} style={{ padding: '7px 13px', borderRadius: 999, border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent', color: active ? '#0d070c' : 'var(--ink-2)', fontWeight: active ? 800 : 600, fontSize: 12.5, cursor: 'pointer' }}>
+            <button key={k.key} type="button" onClick={() => { setFilter(k.key); setPage(0); }} style={{ padding: '7px 13px', borderRadius: 999, border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--ink-2)', fontWeight: active ? 800 : 600, fontSize: 12.5, cursor: 'pointer' }}>
               {k.label} <span style={{ opacity: .7 }}>{n}</span>
             </button>
           );
@@ -331,5 +331,5 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
-const primary = { padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
+const primary = { padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
 const ghost = { padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;

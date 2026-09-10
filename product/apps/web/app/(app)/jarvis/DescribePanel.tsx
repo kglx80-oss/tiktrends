@@ -101,7 +101,7 @@ export function DescribePanel() {
         )}
         <button type="button" onClick={decrire} disabled={busy || restant === 0} style={{
           padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-          color: '#0d070c', fontWeight: 800, fontSize: 12.5,
+          color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5,
           cursor: busy || restant === 0 ? 'default' : 'pointer', opacity: busy || restant === 0 ? 0.5 : 1,
         }}>
           {busy ? 'Analyse…' : restant > 0 ? `Décrire ${c?.nextBatch ?? 0} créa(s)` : 'Tout est décrit'}

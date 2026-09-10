@@ -106,7 +106,7 @@ export function Radar() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => basculer(!state.armed)} disabled={busy || state.followed === 0}
-            style={{ padding: '9px 18px', borderRadius: 999, border: 'none', background: state.armed ? 'var(--line-2)' : 'var(--grad-accent)', color: state.armed ? 'var(--ink)' : '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'wait' : 'pointer' }}
+            style={{ padding: '9px 18px', borderRadius: 999, border: 'none', background: state.armed ? 'var(--line-2)' : 'var(--grad-accent)', color: state.armed ? 'var(--ink)' : 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'wait' : 'pointer' }}
           >
             {state.armed ? 'Éteindre le radar' : 'Armer le radar'}
           </button>
@@ -235,7 +235,7 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={classer} disabled={classe || hypo.trim().length < 10}
-              style={{ padding: '8px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 12.5, cursor: classe ? 'wait' : 'pointer', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : '#0d070c' }}
+              style={{ padding: '8px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 12.5, cursor: classe ? 'wait' : 'pointer', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : 'var(--on-accent)' }}
             >
               {classe ? 'Classement…' : 'Poser sur la carte'}
             </button>

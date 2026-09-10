@@ -48,7 +48,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts }: { brand
         <button type="button" onClick={() => setEditing((v) => !v)} disabled={busy} style={{ padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: 'transparent', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
           {editing ? 'Annuler' : '✎ Éditer'}
         </button>
-        <button type="button" onClick={fetchDA} disabled={busy} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: busy ? .6 : 1, whiteSpace: 'nowrap' }}>
+        <button type="button" onClick={fetchDA} disabled={busy} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1, whiteSpace: 'nowrap' }}>
           {busy ? 'Récupération…' : '✦ Récupérer la DA'}
         </button>
       </div>
@@ -62,7 +62,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts }: { brand
             colors={da.colors} onColors={(v) => setDa((s) => ({ ...s, colors: v }))}
             fonts={da.fonts} onFonts={(v) => setDa((s) => ({ ...s, fonts: v }))}
           />
-          <button type="button" onClick={saveDA} disabled={busy} style={{ marginTop: 14, padding: '10px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: busy ? .6 : 1 }}>
+          <button type="button" onClick={saveDA} disabled={busy} style={{ marginTop: 14, padding: '10px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1 }}>
             {busy ? 'Enregistrement…' : 'Enregistrer la charte'}
           </button>
         </div>

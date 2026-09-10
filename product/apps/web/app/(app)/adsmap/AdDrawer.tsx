@@ -287,7 +287,7 @@ export function AdDrawer({ adId, onClose, onChanged }: { adId: string; onClose: 
                         padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                         border: '1px solid ' + (mode === m ? 'transparent' : 'var(--line-2)'),
                         background: mode === m ? 'var(--grad-accent)' : 'var(--paper)',
-                        color: mode === m ? '#0d070c' : 'var(--ink-2)',
+                        color: mode === m ? 'var(--on-accent)' : 'var(--ink-2)',
                       }}>{MODE_LABEL[m]!.titre}</button>
                     ))}
                   </div>
@@ -356,7 +356,7 @@ const champ: CSSProperties = {
 
 const bouton: CSSProperties = {
   padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-  color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
+  color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
 };
 
 const boutonSecondaire: CSSProperties = {

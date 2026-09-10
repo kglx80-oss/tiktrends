@@ -111,7 +111,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
           </label>
           <button type="button" onClick={creer} disabled={busy} style={{
             padding: '8px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-            color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+            color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
           }}>
             Créer un lien
           </button>

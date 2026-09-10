@@ -22,7 +22,7 @@ const ERR: Record<string, string> = {
   noresult: "Aucune créa trouvée pour ce concurrent dans la bibliothèque.",
 };
 
-const addBtn = { padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
+const addBtn = { padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
 const card = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 12 } as const;
 const sectionH = { margin: '0 0 12px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' } as const;
 

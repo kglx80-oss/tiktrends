@@ -145,7 +145,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
             <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
-              background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? '#0d070c' : 'var(--ink-2)',
+              background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
             }}>{label}</button>
           ))}
         </div>

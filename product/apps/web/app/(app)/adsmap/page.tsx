@@ -41,7 +41,7 @@ export default async function AdsMapPage() {
               : 'Ton rôle ne permet pas d’accéder à Adsmap.'}
           </p>
           {why === 'plan' && (
-            <Link href="/billing" style={{ display: 'inline-block', marginTop: 16, padding: '9px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>
+            <Link href="/billing" style={{ display: 'inline-block', marginTop: 16, padding: '9px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>
               Voir les formules ›
             </Link>
           )}

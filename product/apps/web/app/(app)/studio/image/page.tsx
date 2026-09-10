@@ -46,7 +46,7 @@ export default async function ImageStudioPage() {
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
         <h1 style={h1}>Image IA</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>Moteur d'image</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>Moteur d'image</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
         Génère des visuels pub à partir d'un texte ou de ton image produit. Rattachés à {brand ? <b>{brand.name}</b> : 'ta marque active'}.

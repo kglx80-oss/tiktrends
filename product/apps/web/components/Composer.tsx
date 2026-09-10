@@ -295,7 +295,7 @@ export function Composer(props: ComposerProps) {
           style={{
             padding: '11px 20px', borderRadius: 14, border: 'none',
             background: pret ? 'var(--grad-accent)' : 'var(--line-2)',
-            color: pret ? '#0d070c' : 'var(--muted)',
+            color: pret ? 'var(--on-accent)' : 'var(--muted)',
             fontWeight: 800, fontSize: 14, cursor: pret ? 'pointer' : 'default',
             display: 'inline-flex', alignItems: 'center', gap: 8,
           }}

@@ -224,5 +224,5 @@ function Head({ brandName }: { brandName: string | null }) {
 }
 
 const card = { border: '1px solid var(--line-2)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 18, marginBottom: 16 } as const;
-const primary = { padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
+const primary = { padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
 const ghost = { padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;

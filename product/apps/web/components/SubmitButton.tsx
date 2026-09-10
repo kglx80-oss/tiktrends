@@ -12,7 +12,7 @@ export function SubmitButton({ label, pendingLabel, disabled, style }: {
   return (
     <button type="submit" disabled={off} style={{
       padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5,
-      cursor: off ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: off ? .6 : 1, whiteSpace: 'nowrap',
+      cursor: off ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: off ? .6 : 1, whiteSpace: 'nowrap',
       ...style,
     }}>
       {pending ? (pendingLabel ?? 'En cours…') : label}

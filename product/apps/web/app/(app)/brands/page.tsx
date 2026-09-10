@@ -53,7 +53,7 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
     <main style={{ padding: '30px 36px 60px', maxWidth: 960, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Marques</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
         <span style={{ flex: 1 }} />
         <NewBrandButton aiReady={anthropicConfigured()} draftCost={costFor('brief')} />
       </div>
@@ -85,7 +85,7 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
         {rows.map((b) => (
           <div key={b.id} style={{ border: `1px solid ${active?.id === b.id ? 'var(--line-2)' : 'var(--line)'}`, borderRadius: 16, background: 'var(--surface)', padding: '16px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, flexShrink: 0 }}>{initials(b.name)}</span>
+              <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, flexShrink: 0 }}>{initials(b.name)}</span>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>{b.name}</span>

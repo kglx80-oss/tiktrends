@@ -57,7 +57,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
     padding: '6px 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
     border: '1px solid ' + (tab === key ? 'transparent' : 'var(--line-2)'),
     background: tab === key ? 'var(--grad-accent)' : 'var(--surface)',
-    color: tab === key ? '#0d070c' : 'var(--ink-2)',
+    color: tab === key ? 'var(--on-accent)' : 'var(--ink-2)',
   });
 
   return (
@@ -145,7 +145,7 @@ function FolderPicker({ current, folders, onPick }: { current: string | null; fo
             <div style={{ display: 'flex', gap: 6, padding: '6px 4px 2px', borderTop: folders.length ? '1px solid var(--line)' : 'none', marginTop: folders.length ? 4 : 0 }}>
               <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') create(); }} placeholder="Nouveau board…"
                 style={{ flex: 1, minWidth: 0, padding: '6px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 12, outline: 'none' }} />
-              <button type="button" onClick={create} style={{ padding: '6px 10px', borderRadius: 8, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>+</button>
+              <button type="button" onClick={create} style={{ padding: '6px 10px', borderRadius: 8, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>+</button>
             </div>
           </div>
         </>

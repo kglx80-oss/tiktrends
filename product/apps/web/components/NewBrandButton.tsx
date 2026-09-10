@@ -13,7 +13,7 @@ export function NewBrandButton({ aiReady, draftCost, label = '+ Nouvelle marque'
 }) {
   const [open, setOpen] = useState(false);
   const style = variant === 'primary'
-    ? { padding: '9px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: 'pointer' }
+    ? { padding: '9px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }
     : { padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' };
 
   return (

@@ -24,7 +24,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
     <main style={{ padding: '30px 36px 60px', maxWidth: 860, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 0' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Créer une marque</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 12 }}>
         Cinq étapes pour un profil de marque complet. L'IA peut tout pré-remplir depuis le site&nbsp;: tu vérifies, ajustes, valides.
@@ -39,7 +39,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: 18 }}>🛍️</span>
           <b style={{ fontSize: 15, color: 'var(--ink)' }}>Connecter une boutique Shopify</b>
-          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>LE PLUS RAPIDE</span>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>LE PLUS RAPIDE</span>
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
           Crée la marque et importe automatiquement <b>tous tes produits (avec images et prix)</b> et ta <b>charte (logo, couleurs, polices)</b>. Il suffit du domaine de ta boutique.
@@ -48,7 +48,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input name="domain" required placeholder="ta-boutique.com ou ta-boutique.myshopify.com"
             style={{ flex: '1 1 300px', minWidth: 240, padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' }} />
-          <button type="submit" style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: 'pointer', background: 'var(--grad-accent)', color: '#0d070c', whiteSpace: 'nowrap' }}>🔗 Connecter et créer</button>
+          <button type="submit" style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', whiteSpace: 'nowrap' }}>🔗 Connecter et créer</button>
         </div>
         <p style={{ margin: '10px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>Tu pourras compléter le profil (audience, ton, concurrents) ensuite, ou via le parcours guidé ci-dessous.</p>
       </form>

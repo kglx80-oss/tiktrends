@@ -34,7 +34,7 @@ export function SyncButton({ syncedAt }: { syncedAt: string | null }) {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
       <button type="button" onClick={lancer} disabled={busy} style={{
         padding: '8px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-        color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+        color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
       }}>
         {busy ? 'Mesure en cours…' : 'Mesurer maintenant'}
       </button>

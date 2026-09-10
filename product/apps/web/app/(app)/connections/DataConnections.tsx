@@ -7,7 +7,7 @@ import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
-const primary = { padding: '9px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' } as const;
+const primary = { padding: '9px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' } as const;
 const ghost = { padding: '9px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' } as const;
 const eur = (n: number, c?: string) => `${n.toLocaleString('fr-FR')} ${c || '€'}`;
 

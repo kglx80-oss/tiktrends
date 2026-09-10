@@ -94,4 +94,4 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-const linkBtn = { padding: '10px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, textDecoration: 'none' } as const;
+const linkBtn = { padding: '10px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none' } as const;

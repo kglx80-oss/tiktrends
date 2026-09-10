@@ -139,7 +139,7 @@ const titre: CSSProperties = {
 
 const bouton: CSSProperties = {
   padding: '7px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-  color: '#0d070c', fontWeight: 800, fontSize: 12, cursor: 'pointer',
+  color: 'var(--on-accent)', fontWeight: 800, fontSize: 12, cursor: 'pointer',
 };
 
 const pastille: CSSProperties = {

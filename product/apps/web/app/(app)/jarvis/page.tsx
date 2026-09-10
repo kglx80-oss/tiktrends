@@ -203,7 +203,7 @@ export default async function JarvisPage() {
             de tes propres tests · les chiffres, les accroches qui ont gagné, et la vérification qu’il
             améliore vraiment les résultats.
           </p>
-          <Link href="/billing" style={{ display: 'inline-block', marginTop: 12, padding: '9px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, textDecoration: 'none' }}>
+          <Link href="/billing" style={{ display: 'inline-block', marginTop: 12, padding: '9px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none' }}>
             Voir les formules ›
           </Link>
         </div>

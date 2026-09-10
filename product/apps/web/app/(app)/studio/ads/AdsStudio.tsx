@@ -543,7 +543,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button type="button" disabled={!ready} onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
               padding: '14px 24px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
-              background: 'var(--grad-accent)', color: '#0d070c', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
+              background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
             }}>✨ Créer des pubs</button>
             <button type="button" disabled={!ready} onClick={() => { setMode('clone'); setAvance(true); setError(''); requestAnimationFrame(() => composeur.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} style={{
               padding: '14px 20px', borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: ready ? 'pointer' : 'default',
@@ -594,7 +594,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <button key={k} type="button" disabled={!ready} onClick={() => { setMode(k); setError(''); }} style={{
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
-              background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? '#0d070c' : 'var(--ink-2)',
+              background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
             }}>{label}</button>
           ))}
         </div>
@@ -705,7 +705,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               <button key={i} type="button" onClick={() => { setAngle(a.title); setSceneId(''); }} title={a.rationale} style={{
                 fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', maxWidth: 300,
                 border: `1px solid ${angle === a.title ? 'transparent' : 'var(--line-2)'}`,
-                background: angle === a.title ? 'var(--grad-accent)' : 'transparent', color: angle === a.title ? '#0d070c' : 'var(--ink-2)',
+                background: angle === a.title ? 'var(--grad-accent)' : 'transparent', color: angle === a.title ? 'var(--on-accent)' : 'var(--ink-2)',
               }}>{a.title}</button>
             ))}
           </div>
@@ -779,7 +779,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
                 fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
                 border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
-                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
               }}>{PRODUCTION_LABEL[m]}{conseilModes.mesure && conseilModes.defaut === m ? ' · conseillé' : ''}</button>
             );
           })}
@@ -821,7 +821,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
                 fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
                 border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
-                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
               }}>{e.label}</button>
             );
           })}
@@ -850,7 +850,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
                 fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
                 border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
-                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
               }}>{l.label}</button>
             );
           })}
@@ -874,7 +874,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                       <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 62, height: 62, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)' }}>
                         { }
                         <img src={a.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: on ? 1 : 0.85 }} />
-                        {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: '#0d070c', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
+                        {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
                       </button>
                     );
                   })}
@@ -889,7 +889,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   <button key={t.key} type="button" disabled={!ready} onClick={() => toggle(t.key)} style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, padding: '12px 13px', borderRadius: 14, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
                     border: `1.5px solid ${on ? 'transparent' : 'var(--line-2)'}`,
-                    background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+                    background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
                   }}>
                     <span style={{ fontSize: 22 }}>{t.emoji}</span>
                     <span style={{ fontSize: 12.5, fontWeight: on ? 800 : 600 }}>{t.label}</span>
@@ -981,7 +981,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           {suggestion.variable && suggestion.variable !== essai && (
             <button type="button" disabled={!ready} onClick={() => { setEssai(suggestion.variable!); setMode('brand'); setAssistant(true); setError(''); }} style={{
               padding: '11px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: ready ? 'pointer' : 'default',
-              background: 'var(--grad-accent)', color: '#0d070c', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
+              background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
             }}>Tester {ESSAI_LABEL[suggestion.variable].toLowerCase()} ›</button>
           )}
         </div>
@@ -1072,7 +1072,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 {(['9:16', '4:5', '1:1'] as const).map((r) => (
                   <button key={r} type="button" onClick={() => setRatio(r)} style={{
                     fontSize: 11.5, fontWeight: 800, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', border: 'none',
-                    background: ratio === r ? 'var(--grad-accent)' : 'transparent', color: ratio === r ? '#0d070c' : '#fff',
+                    background: ratio === r ? 'var(--grad-accent)' : 'transparent', color: ratio === r ? 'var(--on-accent)' : '#fff',
                   }}>{r}</button>
                 ))}
               </div>
@@ -1341,7 +1341,7 @@ const lbl = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBotto
 const miniBtn = { fontSize: 12, fontWeight: 800, padding: '7px 12px', borderRadius: 999, cursor: 'pointer', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)' } as const;
 /** Repère de filiation · discret, mais lisible d'un coup d'œil dans la grille. */
 const filiation = { display: 'inline-block', marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--muted)' } as const;
-const toolPrimary = { width: '100%', padding: '11px 14px', borderRadius: 11, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
+const toolPrimary = { width: '100%', padding: '11px 14px', borderRadius: 11, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
 const toolBtn = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 } as const;
 const navArrow = (side: 'left' | 'right'): React.CSSProperties => ({ position: 'absolute', [side]: 12, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 22, cursor: 'pointer', zIndex: 2 });
 

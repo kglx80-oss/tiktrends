@@ -59,7 +59,7 @@ const chip = (on: boolean): CSSProperties => ({
   fontWeight: on ? 800 : 600,
   border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
   background: on ? 'var(--grad-accent)' : 'transparent',
-  color: on ? '#0d070c' : 'var(--ink-2)',
+  color: on ? 'var(--on-accent)' : 'var(--ink-2)',
 });
 
 export function UniversePicker({ value, onChange, disabled = false, compact = false }: {
@@ -124,7 +124,7 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
           </span>
           <button type="button" onClick={fabriquer} disabled={disabled || busy} style={{
             padding: '8px 15px', borderRadius: 999, border: 'none', fontSize: 12, fontWeight: 800,
-            cursor: disabled || busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c',
+            cursor: disabled || busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)',
             opacity: disabled || busy ? .55 : 1, whiteSpace: 'nowrap',
           }}>
             {busy ? 'Fabrication…' : `Fabriquer · ${fabrique.plan.credits} cr.`}

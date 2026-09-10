@@ -224,7 +224,7 @@ export function JarvisChat() {
           style={{
             padding: '0 20px', borderRadius: 11, border: 'none',
             background: enCours || !saisie.trim() ? 'var(--line-2)' : 'var(--grad-accent)',
-            color: enCours || !saisie.trim() ? 'var(--muted)' : '#0d070c',
+            color: enCours || !saisie.trim() ? 'var(--muted)' : 'var(--on-accent)',
             fontWeight: 800, fontSize: 13, cursor: enCours || !saisie.trim() ? 'default' : 'pointer',
           }}
         >

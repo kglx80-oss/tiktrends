@@ -51,7 +51,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
     <main style={{ padding: '30px 36px 60px', maxWidth: 1080, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Plans & Facturation</h1>
-        <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ADMIN+</span>
+        <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 6, marginBottom: 18, maxWidth: 760, lineHeight: 1.6 }}>
         Formule de l'espace <b>{s.workspaceName}</b>. Chaque formule ouvre une allocation mensuelle de crédits :
@@ -105,7 +105,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               padding: '18px 18px 20px',
             }}>
               {highlight && !isCurrent && <span style={badge}>Populaire</span>}
-              {isCurrent && <span style={{ ...badge, background: 'var(--grad-accent)', color: '#0d070c' }}>Ta formule</span>}
+              {isCurrent && <span style={{ ...badge, background: 'var(--grad-accent)', color: 'var(--on-accent)' }}>Ta formule</span>}
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>{PLAN_LABEL[p]}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, minHeight: 32 }}>{HINT[p]}</div>
               <div style={{ margin: '10px 0 4px', display: 'flex', alignItems: 'baseline', gap: 4 }}>
@@ -124,7 +124,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                 const cta = (label: string, action: unknown, name?: string, val?: string, primary = true) => (
                   <form action={action as never} style={{ marginTop: 16 }}>
                     {name && <input type="hidden" name={name} value={val} />}
-                    <button type="submit" style={{ width: '100%', padding: '10px 14px', borderRadius: 999, border: primary ? 'none' : '1px solid var(--line-2)', fontWeight: 800, fontSize: 13, cursor: 'pointer', background: primary ? 'var(--grad-accent)' : 'var(--paper)', color: primary ? '#0d070c' : 'var(--ink)' }}>{label}</button>
+                    <button type="submit" style={{ width: '100%', padding: '10px 14px', borderRadius: 999, border: primary ? 'none' : '1px solid var(--line-2)', fontWeight: 800, fontSize: 13, cursor: 'pointer', background: primary ? 'var(--grad-accent)' : 'var(--paper)', color: primary ? 'var(--on-accent)' : 'var(--ink)' }}>{label}</button>
                   </form>
                 );
                 const disabledBtn = (label: string) => (

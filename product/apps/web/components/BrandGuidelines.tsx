@@ -109,5 +109,5 @@ export function BrandGuidelines({
 
 const miniInput: CSSProperties = { padding: '8px 11px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 12.5, outline: 'none' };
 const addBtn: CSSProperties = { width: 32, height: 32, borderRadius: 10, border: '1px dashed var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 17, cursor: 'pointer', lineHeight: 1 };
-const badge: CSSProperties = { position: 'absolute', bottom: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', whiteSpace: 'nowrap' };
+const badge: CSSProperties = { position: 'absolute', bottom: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', whiteSpace: 'nowrap' };
 const removeBtn: CSSProperties = { position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'var(--line-2)', color: 'var(--ink)', fontSize: 13, cursor: 'pointer', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };

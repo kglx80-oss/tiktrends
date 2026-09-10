@@ -48,10 +48,10 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
                   <Link href="/billing" onClick={() => setOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 11, textDecoration: 'none', background: 'var(--grad-accent)', marginBottom: 10 }}>
                     <span style={{ fontSize: 15 }}>⚡</span>
                     <span style={{ flex: 1 }}>
-                      <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#0d070c' }}>Améliorer mon offre</span>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--on-accent)' }}>Améliorer mon offre</span>
                       <span style={{ display: 'block', fontSize: 11, color: 'rgba(13,7,12,.72)' }}>Plus de crédits chaque mois</span>
                     </span>
-                    <span style={{ color: '#0d070c', fontSize: 13, fontWeight: 800 }}>›</span>
+                    <span style={{ color: 'var(--on-accent)', fontSize: 13, fontWeight: 800 }}>›</span>
                   </Link>
                 )}
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 2px 8px' }}>Recharge ponctuelle</div>
@@ -63,7 +63,7 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
                       <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>crédits</span>
                       <span style={{ flex: 1 }} />
                       <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>{p.eur} €</span>
-                      <button type="submit" style={{ fontSize: 11.5, fontWeight: 800, padding: '5px 12px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', cursor: 'pointer' }}>Acheter</button>
+                      <button type="submit" style={{ fontSize: 11.5, fontWeight: 800, padding: '5px 12px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', cursor: 'pointer' }}>Acheter</button>
                     </form>
                   ))}
                 </div>

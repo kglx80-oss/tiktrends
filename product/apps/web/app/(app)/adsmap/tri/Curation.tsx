@@ -44,7 +44,7 @@ const btn = (ton: 'oui' | 'non' | 'neutre'): CSSProperties => ({
   padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
   border: ton === 'neutre' ? '1px solid var(--line-2)' : 'none',
   background: ton === 'oui' ? 'var(--grad-accent)' : 'transparent',
-  color: ton === 'oui' ? '#0d070c' : ton === 'non' ? '#ff9db0' : 'var(--ink-2)',
+  color: ton === 'oui' ? 'var(--on-accent)' : ton === 'non' ? '#ff9db0' : 'var(--ink-2)',
 });
 
 const ORDRE: NodeKind[] = ['persona', 'desire', 'angle', 'concept'];
