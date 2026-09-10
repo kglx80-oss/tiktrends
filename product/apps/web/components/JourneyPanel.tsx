@@ -147,8 +147,13 @@ function Ligne({ s }: { s: JourneyStep }) {
           {s.label}
         </span>
         {/* Une étape bloquée dit PAR QUOI · griser sans expliquer produit
-            exactement la question qu'on voulait éviter. */}
-        {s.status === 'blocked' && s.blockedBy && (
+            exactement la question qu'on voulait éviter. Le verrou de rôle a sa
+            propre raison · un membre ne « fait pas d'abord » l'étape admin, il
+            ne la fait pas du tout. */}
+        {s.status === 'blocked' && s.lockedByRole && (
+          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}> · réservé à un admin de l’espace</span>
+        )}
+        {s.status === 'blocked' && !s.lockedByRole && s.blockedBy && (
           <span style={{ fontSize: 11.5, color: 'var(--muted)' }}> · après « {s.blockedBy} »</span>
         )}
       </span>
