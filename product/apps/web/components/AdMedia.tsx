@@ -46,8 +46,19 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
       </button>
     );
   }
+  // Il faut une vraie cible pour ouvrir « en grand ». Sans média ni miniature, la
+  // zone montre « Aperçu indisponible » · un `href="#"` en faisait un lien qui,
+  // au clic, faisait sauter la page en haut. Rien à ouvrir = rien à cliquer.
+  const cible = mediaUrl || thumbnailUrl;
+  if (!cible) {
+    return (
+      <div style={{ position: 'relative', aspectRatio: aspect, background: 'var(--paper)' }}>
+        {inner}
+      </div>
+    );
+  }
   return (
-    <a href={mediaUrl || thumbnailUrl || '#'} target="_blank" rel="noreferrer"
+    <a href={cible} target="_blank" rel="noreferrer"
       style={{ position: 'relative', aspectRatio: aspect, display: 'block', background: 'var(--paper)' }}>
       {inner}
     </a>
