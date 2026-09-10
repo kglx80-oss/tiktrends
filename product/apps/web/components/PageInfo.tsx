@@ -1,18 +1,35 @@
 import type { ReactNode } from 'react';
 
-/** Petite note d'aide discrète (natif <details>, sans JS) : un « ⓘ » dans le coin
- *  qui déplie une courte explication de la page. */
-export function PageInfo({ children, title = 'Informations' }: { children: ReactNode; title?: string }) {
+/**
+ * Le mode d'emploi de la page · un « chip » repérable qui déplie une courte
+ * explication (natif `<details>`, sans JS).
+ *
+ * Il existait déjà sur 26 pages, mais si discret (gris muet, minuscule) que le
+ * propriétaire ne l'avait jamais vu. On le rend visible : une pastille bordée,
+ * un « i » en accent, un libellé lisible · sans crier, mais on le trouve.
+ */
+export function PageInfo({ children, title = 'Mode d’emploi' }: { children: ReactNode; title?: string }) {
   return (
     <details style={{ position: 'relative', display: 'inline-block', marginBottom: 14 }}>
-      <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)', userSelect: 'none' }}>
-        <span style={{ display: 'inline-flex', width: 15, height: 15, borderRadius: '50%', border: '1px solid var(--line-2)', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontStyle: 'italic', fontWeight: 800 }}>i</span>
-        {title}
+      <summary style={{
+        listStyle: 'none', cursor: 'pointer', userSelect: 'none',
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        padding: '5px 12px 5px 7px', borderRadius: 999,
+        border: '1px solid var(--line-2)', background: 'var(--surface)',
+        fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)',
+      }}>
+        <span style={{
+          display: 'inline-flex', width: 17, height: 17, borderRadius: '50%',
+          background: 'var(--accent-soft)', color: 'var(--accent-strong)',
+          alignItems: 'center', justifyContent: 'center', fontSize: 11, fontStyle: 'italic', fontWeight: 800,
+        }}>i</span>
+        <span>{title}</span>
+        <span aria-hidden style={{ color: 'var(--muted)', fontSize: 10 }}>▾</span>
       </summary>
       <div style={{
-        position: 'absolute', zIndex: 10, top: 'calc(100% + 6px)', left: 0, width: 340, maxWidth: '80vw',
-        padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)',
-        boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55,
+        position: 'absolute', zIndex: 10, top: 'calc(100% + 6px)', left: 0, width: 360, maxWidth: '80vw',
+        padding: '13px 15px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)',
+        boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6,
       }}>
         {children}
       </div>
