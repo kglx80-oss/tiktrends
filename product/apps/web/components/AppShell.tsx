@@ -272,6 +272,7 @@ function AppShellInner(props: Props) {
   for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });
   // Verbes d'action : lancer une tâche directement depuis ⌘K (pas seulement naviguer).
   commands.push(
+    { id: 'do-home', label: 'Accueil', group: 'Actions', href: '/dashboard', emoji: '🏠', keywords: 'accueil dashboard maison home retour tableau de bord' },
     { id: 'do-ads', label: 'Générer des pubs IA', group: 'Actions', href: '/studio/ads', emoji: '✨', keywords: 'créer pub génération ads publicité' },
     { id: 'do-clone', label: 'Cloner une pub gagnante', group: 'Actions', href: '/studio/ads?mode=clone', emoji: '🧬', keywords: 'cloner copier pub concurrent référence' },
     { id: 'do-image', label: 'Générer une image', group: 'Actions', href: '/studio/image', emoji: '🖼️', keywords: 'image visuel produit scène' },
