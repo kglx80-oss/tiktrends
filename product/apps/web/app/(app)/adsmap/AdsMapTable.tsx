@@ -37,7 +37,7 @@ const VARIABLE_LABEL: Record<string, string> = {
   proof: 'Preuve', audio: 'Audio', angle: 'Angle', desire: 'Désir', none_control: 'Contrôle',
 };
 
-export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: number; status: string; ads: number }> }) {
+export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<{ id: string; number: number; status: string; ads: number }>; peutPartager?: boolean }) {
   const [rows, setRows] = useState<AdRow[] | null>(null);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState<AdFilters>({});
@@ -240,7 +240,7 @@ export function AdsMapTable({ batches }: { batches: Array<{ id: string; number: 
       )}
 
       {ouverte && (
-        <AdDrawer adId={ouverte} onClose={() => setOuverte(null)} onChanged={() => setVersion((v) => v + 1)} />
+        <AdDrawer adId={ouverte} onClose={() => setOuverte(null)} onChanged={() => setVersion((v) => v + 1)} peutPartager={peutPartager} />
       )}
     </div>
   );
