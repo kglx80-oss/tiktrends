@@ -79,15 +79,34 @@ du forfait. Ce fichier consigne les décisions prises sans le consulter.
     consigne. Gardes : `onboarding` (core, la logique) + `relance-onboarding`
     (web, le RENDU dans le panneau), validés par mutation.
 
+### Délivrabilité · proposer le partage au moment où une créa gagne
+- **Le partage marque blanche est rappelé sur le verdict gagnant.** Le bouton
+  « Partager au client » ne vivait qu'en haut de la carte · jamais rappelé au
+  moment qui compte. On pose l'invitation dans le panneau d'arbitrage, quand une
+  créa gagne (`winner`/`baby_winner`/`relative_winner`).
+  - Composant pur `PartageGagnante`, découplé du panneau de partage · il lance
+    un événement (`tt:ouvrir-partage`), le `ShareButton` l'écoute · pas d'import
+    serveur, donc rendable et testable.
+  - **Jamais un bouton muet** · l'invite ne s'affiche qu'à qui peut partager
+    (`peutPartager` = `peutMesurer`, câblé page → drawer via les trois hôtes).
+  - Périmètre du lien inchangé · la carte des gagnantes de la marque, pas une
+    créa isolée (un lien par créa demanderait un champ en base · hors lot).
+  - Gardes `partage-gagnante` · le RENDU (présent/absent, jamais muet) et le
+    nouage des deux bouts, validés par mutation.
+- **L'autre moitié de la délivrabilité reste ouverte** · l'export/téléchargement
+  groupé des médias exige de tirer les fichiers depuis S3/CloudFront · la session
+  n'y a pas accès (proxy), donc impossible à vérifier ici sans rendu · à faire
+  quand le proprio peut valider le rendu, ou côté navigateur client.
+
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
 2. Parcours client / anti-churn : ~~états d'accueil vendeurs~~ (fait) ·
    ~~relance douce au 1ᵉʳ palier~~ (fait) · possible suite · relancer aussi les
    paliers suivants (lot de test, verdict) quand un signal de décrochage se
    mesure.
-3. Connectiques : ~~clarté du catalogue~~ (fait) · reste la **délivrabilité** ·
-   sortir les créas gagnantes (export/téléchargement groupé, lien de partage
-   marque blanche proposé après un verdict « scale »).
+3. Connectiques : ~~clarté du catalogue~~ (fait) · délivrabilité ·
+   ~~partage marque blanche proposé sur le verdict gagnant~~ (fait) · reste
+   l'**export/téléchargement groupé** des médias (angle mort visuel côté session).
 4. ~~Aération du rail (densité)~~ Fait.
 5. **Pop-up de première fois** · écarté pour l'instant · l'orientation initiale
    est déjà portée par le `OnboardingWizard` (inscription), le `JourneyPanel` et
