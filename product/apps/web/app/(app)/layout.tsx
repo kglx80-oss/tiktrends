@@ -6,6 +6,7 @@ import { db, schema } from '@tiktrends/db';
 import { railNav, accountSections, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, RAIL_GROUP_LABEL } from '../../lib/rbac';
 import { listBrands, getActiveBrand } from '../../lib/brands';
 import { AppShell } from '../../components/AppShell';
+import { ToastProvider } from '../../components/Toast';
 import { IndicateurGenerations } from '../../components/IndicateurGenerations';
 import { logoutAction } from '../actions/auth';
 import { isFounder } from '../../lib/founder';
@@ -64,10 +65,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       workspaceName={s.workspaceName}
       logout={logoutAction}
     >
-      {children}
-      {/* « Ça tourne » · visible partout tant qu'un lot génère, même après avoir
-          quitté le studio (le store vit au niveau module). */}
-      <IndicateurGenerations />
+      {/* Canal de retour unique · `useToast()` sous ce fournisseur pose un
+          retour au même endroit partout (cf. components/Toast.tsx). */}
+      {/* Canal de retour unique · `useToast()` sous ce fournisseur pose un
+          retour au même endroit partout (cf. components/Toast.tsx). */}
+      <ToastProvider>
+        {children}
+        {/* « Ça tourne » · visible partout tant qu'un lot génère, même après
+            avoir quitté le studio (le store vit au niveau module). */}
+        <IndicateurGenerations />
+      </ToastProvider>
     </AppShell>
   );
 }

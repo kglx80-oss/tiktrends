@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
+import { useToast } from '../../../components/Toast';
 
  
 declare global { interface Window { gapi?: any; google?: any } }
@@ -26,6 +27,7 @@ function loadPicker(): Promise<any> {
 /** Connexion automatique Google Drive : dossier choisi via le sélecteur natif, synchronisé en continu. */
 export function DriveConnect({ state }: { state: DriveState }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState<'' | 'pick' | 'sync' | 'files'>('');
   const [, startTransition] = useTransition();
@@ -128,6 +130,7 @@ export function DriveConnect({ state }: { state: DriveState }) {
     setBusy('sync'); setMsg('');
     await disconnectDriveAction();
     setBusy('');
+    toast('Google Drive déconnecté.');
     refresh();
   }
 

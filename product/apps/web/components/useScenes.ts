@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { rankScenes, sceneAdvice, type ScenePerf } from '@tiktrends/core';
 import { listPresetsAction, savePresetAction } from '../app/actions/presets';
 import type { ComposerScene } from './Composer';
+import { useToast } from './Toast';
 
 /**
  * Les scènes enregistrées, là où l'on écrit.
@@ -24,6 +25,7 @@ export function useScenes(kind: 'image' | 'video') {
   const [scenes, setScenes] = useState<ComposerScene[]>([]);
   const [perfs, setPerfs] = useState<ScenePerf[]>([]);
   const [erreur, setErreur] = useState('');
+  const { toast } = useToast();
 
   const charger = useCallback(async () => {
     const r = await listPresetsAction();
@@ -60,7 +62,9 @@ export function useScenes(kind: 'image' | 'video') {
     const r = await savePresetAction({ name, prompt, kind });
     if (r.error) { setErreur(r.error); return; }
     await charger();
-  }, [charger, kind]);
+    // La scène rejoignait un menu replié · rien ne disait qu'elle était bien là.
+    toast('Scène enregistrée.');
+  }, [charger, kind, toast]);
 
   /**
    * Ce qu'on dit sur la scène choisie · vide quand on n'a rien de mieux à
