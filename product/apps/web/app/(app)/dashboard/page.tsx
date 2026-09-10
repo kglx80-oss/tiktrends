@@ -8,6 +8,7 @@ import { roleAtLeast } from '../../../lib/rbac';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { AssistantHome } from '../../../components/AssistantHome';
 import { JourneyPanel } from '../../../components/JourneyPanel';
+import { Bandeau } from '../../../components/Bandeau';
 import { onboardingState } from '../../../lib/onboarding-state';
 
 export const dynamic = 'force-dynamic';
@@ -41,13 +42,10 @@ export default async function Dashboard() {
 
       {parcours && <JourneyPanel j={parcours} firstName={firstName} />}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
-        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>données d'exemple</span>
-      </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginBottom: 18 }}>
-        Pipeline réel : normalisation → dédup créas → agrégation → Radar. Branche un compte pour des données live.
-      </p>
+      <h2 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
+      <Bandeau ton="demo" titre="Données d'exemple" sortie={{ href: '/connections', label: 'Brancher un compte' }}>
+        Pipeline réel : normalisation → dédup créas → agrégation → Radar. Ces cartes sont un échantillon tant qu'aucun compte n'est branché.
+      </Bandeau>
 
       <PageInfo title="vue d'ensemble des créas">
         Le Dashboard liste tes créas triées par dépense, avec leur <b>note Radar</b> et leur <b>bucket</b>

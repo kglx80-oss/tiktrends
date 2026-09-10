@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
+import { Bandeau } from '../../../../components/Bandeau';
 import { getActiveBrand } from '../../../../lib/brands';
 import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
 import { classifyAngle, capPerBrand, median } from '@tiktrends/core';
@@ -154,8 +155,8 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
         ))}
       </div>
 
-      {sample && <div style={banner('rgba(245,166,35,.12)', 'rgba(245,166,35,.4)', '#f5c877')}>Mode démonstration (échantillon). La source de données n'est pas configurée sur le serveur.</div>}
-      {error && <div style={banner('rgba(255,77,109,.10)', 'rgba(255,77,109,.4)', '#ff9db0')}>Erreur de la source : {error}{curated.length > 0 && ' · affichage du dernier résultat en cache.'}</div>}
+      {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon. La source de données n'est pas configurée sur le serveur.</Bandeau>}
+      {error && <Bandeau ton="error">Erreur de la source : {error}{curated.length > 0 && ' · affichage du dernier résultat en cache.'}</Bandeau>}
 
       {!sample && curated.length > 0 && (
         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
@@ -181,4 +182,3 @@ const h1 = { margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' } as 
 const inputBase = { padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 const searchBtn = { padding: '11px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' } as const;
 const preset = { padding: '7px 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' } as const;
-const banner = (bg: string, border: string, color: string) => ({ padding: '10px 14px', borderRadius: 12, background: bg, border: `1px solid ${border}`, color, fontSize: 13, marginBottom: 18 } as const);
