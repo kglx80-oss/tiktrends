@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, count, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, max } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { journey, relance, type Journey, type Relance } from '@tiktrends/core';
 
@@ -60,7 +60,7 @@ export async function onboardingState(workspaceId: string, canAdmin: boolean): P
 
   const [produits, generations, ads, lots, verdicts, presets, suivies, stats] = await Promise.all([
     db.select({ n: count() }).from(schema.products).where(inArray(schema.products.brandId, ids)),
-    db.select({ n: count() }).from(schema.generations).where(inArray(schema.generations.brandId, ids)),
+    db.select({ n: count(), last: max(schema.generations.createdAt) }).from(schema.generations).where(inArray(schema.generations.brandId, ids)),
     db.select({ n: count() }).from(schema.ads).where(eq(schema.ads.workspaceId, workspaceId)),
     db.select({ n: count() }).from(schema.batches).where(inArray(schema.batches.brandId, ids)),
     db.select({ n: count() }).from(schema.verdicts)
@@ -91,6 +91,9 @@ export async function onboardingState(workspaceId: string, canAdmin: boolean): P
   // annoncer l'étape faite serait un mensonge visible dès le clic.
   if (n(stats) >= 3 && n(verdicts) > 0) done.add('memory');
 
+  // Depuis quand la dernière génération dort · horloge du palier « tester ».
+  const joursDepuisGeneration = joursDepuis(generations[0]?.last as Date | null | undefined);
+
   const j = journey(done, { canAdmin });
-  return { journey: j, relance: relance(j, { joursDepuisMarque }) };
+  return { journey: j, relance: relance(j, { joursDepuisMarque, joursDepuisGeneration }) };
 }

@@ -187,32 +187,51 @@ describe('la relance douce ne parle qu’au bon moment', () => {
   // Un compte qui a marque + identité mais aucune génération · la prochaine
   // étape bloquante est « generate ».
   const surGenerate = () => journey(fait('brand', 'identity'));
+  const ctx = (o: Partial<Parameters<typeof relance>[1]> = {}) =>
+    ({ joursDepuisMarque: null, joursDepuisGeneration: null, ...o });
 
   it('la prochaine étape visée est bien « generate »', () => {
     expect(surGenerate().next?.key).toBe('generate');
   });
 
   it('rien avant le délai · une relance le jour même agace', () => {
-    expect(relance(surGenerate(), { joursDepuisMarque: 0 })).toBeNull();
-    expect(relance(surGenerate(), { joursDepuisMarque: RELANCE_SEUIL_JOURS - 1 })).toBeNull();
+    expect(relance(surGenerate(), ctx({ joursDepuisMarque: 0 }))).toBeNull();
+    expect(relance(surGenerate(), ctx({ joursDepuisMarque: RELANCE_SEUIL_JOURS - 1 }))).toBeNull();
   });
 
   it('relance au seuil et au-delà, sur le bon palier', () => {
-    const r = relance(surGenerate(), { joursDepuisMarque: RELANCE_SEUIL_JOURS });
+    const r = relance(surGenerate(), ctx({ joursDepuisMarque: RELANCE_SEUIL_JOURS }));
     expect(r).not.toBeNull();
     expect(r!.cle).toBe('generate');
     // Le message retire l'excuse du brief, il ne répète pas « génère ».
     expect(r!.corps.toLowerCase()).toContain('brief');
   });
 
-  it('ne relance pas sur une autre étape · générer n’est pas la marche courante', () => {
-    // brand + identity + generate faits · la prochaine étape n'est plus generate.
-    const apres = journey(fait('brand', 'identity', 'generate', 'map'));
-    expect(apres.next?.key).not.toBe('generate');
-    expect(relance(apres, { joursDepuisMarque: 30 })).toBeNull();
+  it('sans date de marque, pas de relance plutôt qu’une supposition', () => {
+    expect(relance(surGenerate(), ctx({ joursDepuisMarque: null }))).toBeNull();
   });
 
-  it('sans date de marque, pas de relance plutôt qu’une supposition', () => {
-    expect(relance(surGenerate(), { joursDepuisMarque: null })).toBeNull();
+  // Second palier · a généré, mais n'a jamais posé la carte / testé.
+  const surMap = () => journey(fait('brand', 'identity', 'generate'));
+
+  it('la prochaine étape après avoir généré est « map »', () => {
+    expect(surMap().next?.key).toBe('map');
+  });
+
+  it('relance « teste tes créas » quand la génération dort depuis le délai', () => {
+    const r = relance(surMap(), ctx({ joursDepuisGeneration: RELANCE_SEUIL_JOURS }));
+    expect(r).not.toBeNull();
+    expect(r!.cle).toBe('map');
+    expect(r!.corps.toLowerCase()).toContain('test');
+  });
+
+  it('chaque palier a SON horloge · fraîchement généré, on ne pousse pas à tester', () => {
+    // La marque est vieille, mais la génération est récente · on ne relance pas
+    // le test le jour où il vient de générer.
+    expect(relance(surMap(), ctx({ joursDepuisMarque: 90, joursDepuisGeneration: 0 }))).toBeNull();
+  });
+
+  it('sans génération datée, pas de relance « tester » · c’est le palier d’avant', () => {
+    expect(relance(surMap(), ctx({ joursDepuisGeneration: null }))).toBeNull();
   });
 });
