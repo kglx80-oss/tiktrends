@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { scoreRecherche } from '../lib/recherche';
 
 export interface Command {
   id: string;
@@ -17,19 +18,6 @@ export interface Command {
 /** Événement global pour ouvrir la palette depuis n'importe où (ex : bouton du rail). */
 export const CMDK_EVENT = 'tt:cmdk';
 export function openCommandPalette() { window.dispatchEvent(new Event(CMDK_EVENT)); }
-
-/** Score de correspondance simple (sous-séquence + préfixe de mot), 0 = pas de match. */
-function score(query: string, text: string): number {
-  if (!query) return 1;
-  const q = query.toLowerCase(); const t = text.toLowerCase();
-  const at = t.indexOf(q);
-  if (at === 0) return 100;                       // préfixe exact
-  if (at > 0) return t[at - 1] === ' ' ? 80 : 50; // début de mot / contenu
-  // sous-séquence (lettres dans l'ordre)
-  let i = 0;
-  for (const c of t) { if (c === q[i]) i++; if (i === q.length) return 20; }
-  return 0;
-}
 
 export function CommandPalette({ commands }: { commands: Command[] }) {
   const router = useRouter();
@@ -63,7 +51,7 @@ export function CommandPalette({ commands }: { commands: Command[] }) {
 
   const results = useMemo(() => {
     const scored = commands
-      .map((c) => ({ c, s: Math.max(score(q, c.label), score(q, c.keywords || '') * 0.6) }))
+      .map((c) => ({ c, s: Math.max(scoreRecherche(q, c.label), scoreRecherche(q, c.keywords || '') * 0.6) }))
       .filter((x) => x.s > 0)
       .sort((a, b) => b.s - a.s || a.c.label.localeCompare(b.c.label))
       .map((x) => x.c);
