@@ -209,7 +209,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
             <div>
               <label style={lbl}>Produit de la marque</label>
               <select value={productId} onChange={(e) => { setProductId(e.target.value); setUploadedUri(''); setNotice(''); }} disabled={!ready} style={{ ...fld, width: 'auto', minWidth: 200, padding: '9px 10px' }}>
-                <option value="">· Aucun (générique)</option>
+                <option value="">Aucun (générique)</option>
                 {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · 📷' : ''}</option>)}
               </select>
             </div>
