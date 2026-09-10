@@ -55,10 +55,24 @@ du forfait. Ce fichier consigne les décisions prises sans le consulter.
     mutation. `DriveConnect` laissé tel quel · fragment de statut en ligne, pas
     un écran vide.
 
+### Connectiques · le catalogue est une feuille de route
+- **Les ~50 connecteurs à venir cessent d'être des boutons cassés.** Chacun
+  portait un « + Connecter » désactivé · lu comme une panne, pas comme une
+  promesse (personne ne survole pour trouver le `title` « bientôt »). Le bouton
+  mort devient un statut **« Bientôt »** (composant pur `ConnecteurBientot`), la
+  section devient une **feuille de route** avec Meta/TikTok en tête. Les deux
+  vraies sources (Shopify, Meta) gardent leur bloc branchable au-dessus. Garde
+  `connecteur-bientot` · rendu (nom + statut) ET aucun `<button>` dans la carte,
+  validé par mutation.
+
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
 2. Parcours client / anti-churn : ~~états d'accueil vendeurs~~ (fait, queue
-   d'états vides migrée) · reste les relances douces (relances d'onboarding,
-   nudge quand une étape traîne).
-3. Connectiques & délivrabilité : clarté des branchements (Meta, TikTok, Drive).
+   d'états vides migrée) · reste les **relances douces** (relances d'onboarding,
+   nudge quand une étape traîne dans le `JourneyPanel`). Prochain gros item.
+3. Connectiques : ~~clarté du catalogue~~ (fait, feuille de route) · reste la
+   **délivrabilité** · sortir les créas gagnantes (export/téléchargement groupé,
+   lien de partage marque blanche proposé après un verdict « scale »).
 4. ~~Aération du rail (densité)~~ Fait.
+5. **Pop-up de première fois** · coach-marks dismissables sur les 2-3 écrans clés
+   (Studio Pubs IA, Radar, Adsmap), mémorisés en `localStorage`.
