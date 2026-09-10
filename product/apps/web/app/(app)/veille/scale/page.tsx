@@ -13,6 +13,7 @@ import { Empty } from '../../../../components/Empty';
 import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
 import { PageInfo } from '../../../../components/PageInfo';
 import { effectiveAccess } from '../../../../lib/access';
+import { estMonoMarque, hoteRequete, plafondParMarque } from '../../../../lib/scale-requete';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'scale')!;
@@ -60,6 +61,11 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const explicitQ = (sp.q || '').trim();
   const q = explicitQ || DEFAULT_NICHE;        // jamais vide : niche par défaut
+  // Analyse d'une marque unique (URL/domaine) vs niche large · on cherche alors
+  // par domaine et on lève le plafond « 3/marque » (c'est CETTE marque qu'on veut).
+  const mono = !!explicitQ && estMonoMarque(explicitQ);
+  const terme = mono ? hoteRequete(explicitQ) : q;
+  const plafond = plafondParMarque(explicitQ);
   const country = (sp.country || 'FR').toUpperCase();
   const refresh = sp.refresh === '1';
   const apiKey = process.env.TRENDTRACK_API_KEY;
@@ -83,8 +89,8 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
       curated = cache.ads; fetchedAt = cache.fetchedAt; fromCache = true;
     } else {
       try {
-        const r = await ttSearchAds({ apiKey }, { search: q, searchIn: 'ad_copy', status: 'all', sortBy: 'reachDelta30d', country, limit: 100, offset: 0 });
-        curated = capPerBrand(r.ads, (a) => a.advertiserName || a.id, growthOf, 3);
+        const r = await ttSearchAds({ apiKey }, { search: terme, searchIn: mono ? 'domain' : 'ad_copy', status: 'all', sortBy: 'reachDelta30d', country, limit: 100, offset: 0 });
+        curated = capPerBrand(r.ads, (a) => a.advertiserName || a.id, growthOf, plafond);
         fetchedAt = new Date().toISOString();
         await setVeilleCache(country, q, curated);
       } catch (e) {
@@ -133,7 +139,7 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 8, marginBottom: 12, maxWidth: 720 }}>
         Le swipe file des créas qui <b>montent</b> : trié par <b>croissance de reach</b> (pas le reach cumulé),
-        plafonné à <b>3 créas par marque</b>, avec les <b>angles classés automatiquement</b>. Repère la tendance avant qu'elle s'épuise.
+        plafonné à <b>3 créas par marque</b> (sans plafond quand tu analyses une seule marque), avec les <b>angles classés automatiquement</b>. Repère la tendance avant qu'elle s'épuise.
       </p>
       <PageInfo title="pourquoi c'est différent d'un simple export Meta">
         1) On trie par <b>croissance</b> : une pub qui tourne depuis 800 j à 0 % a marché, elle ne marche plus.
@@ -157,6 +163,11 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
 
       {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon. La source de données n'est pas configurée sur le serveur.</Bandeau>}
       {error && <Bandeau ton="error">Erreur de la source : {error}{curated.length > 0 && ' · affichage du dernier résultat en cache.'}</Bandeau>}
+      {mono && !sample && !error && (
+        <Bandeau ton="info" titre="Analyse d'une marque">
+          Toutes les créas de <b>{terme}</b> qui montent, sans plafond. Pour l'inventaire complet (toutes ses pubs, pas seulement celles qui scalent), <a href={`/veille?q=${encodeURIComponent(terme)}`} style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>ouvre-la dans la Veille</a>.
+        </Bandeau>
+      )}
 
       {!sample && curated.length > 0 && (
         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
