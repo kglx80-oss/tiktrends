@@ -42,7 +42,7 @@ const TON: Record<number, { bd: string; fg: string }> = {
   4: { bd: 'var(--line)', fg: 'var(--muted)' },
 };
 
-export function Inbox() {
+export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
   const [data, setData] = useState<InboxData | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -144,7 +144,7 @@ export function Inbox() {
       )}
 
       {ouverte && (
-        <AdDrawer adId={ouverte} onClose={() => setOuverte(null)} onChanged={() => { void recalculer(); }} />
+        <AdDrawer adId={ouverte} onClose={() => setOuverte(null)} onChanged={() => { void recalculer(); }} peutPartager={peutPartager} />
       )}
     </div>
   );

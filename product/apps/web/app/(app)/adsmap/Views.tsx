@@ -42,7 +42,7 @@ export function Views({ batches, canBuild = false }: { batches: Array<{ id: stri
         <button type="button" onClick={() => aller('carte')} style={onglet(vue === 'carte')}>Carte</button>
       </div>
 
-      {vue === 'decider' && <Inbox />}
+      {vue === 'decider' && <Inbox peutPartager={canBuild} />}
 
       {/* La Table reste montée quand on la quitte : y revenir ne doit pas
           recharger mille lignes ni perdre les filtres posés. Elle n'est en
@@ -50,12 +50,12 @@ export function Views({ batches, canBuild = false }: { batches: Array<{ id: stri
           file, et personne n'a à payer le chargement d'une table qu'il n'ouvre pas. */}
       {ouverts.includes('table') && (
         <div style={{ display: vue === 'table' ? 'block' : 'none' }}>
-          <AdsMapTable batches={batches} />
+          <AdsMapTable batches={batches} peutPartager={canBuild} />
         </div>
       )}
       {vue === 'carte' && (
         <>
-          <Canvas />
+          <Canvas peutPartager={canBuild} />
           {/* La construction vit sous la Carte : c'est là qu'on voit les branches
               vides, donc là qu'on a envie de les remplir. */}
           {canBuild && <BuildPanel />}

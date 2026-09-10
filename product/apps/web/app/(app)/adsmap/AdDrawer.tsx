@@ -6,6 +6,7 @@ import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
 } from '../../actions/adsmap-verdict';
+import { PartageGagnante } from './PartageGagnante';
 
 /**
  * Panneau d'arbitrage d'un test.
@@ -43,7 +44,7 @@ const MODE_LABEL: Record<string, { titre: string; aide: string }> = {
 const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)} %`);
 const eur = (v: number | null) => (v === null ? '—' : `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} €`);
 
-export function AdDrawer({ adId, onClose, onChanged }: { adId: string; onClose: () => void; onChanged: () => void }) {
+export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { adId: string; onClose: () => void; onChanged: () => void; peutPartager?: boolean }) {
   const [d, setD] = useState<AdDetail | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -318,6 +319,10 @@ export function AdDrawer({ adId, onClose, onChanged }: { adId: string; onClose: 
                   </p>
                 </>
               )}
+
+              {/* Le bon moment pour partager · la créa a gagné. Ne s'affiche
+                  qu'à qui peut vraiment partager (jamais un bouton muet). */}
+              <PartageGagnante gagnante={!!gagnante} peutPartager={peutPartager} />
             </Section>
           </>
         )}

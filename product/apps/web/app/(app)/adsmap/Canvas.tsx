@@ -174,7 +174,7 @@ function Recadrer({ cle }: { cle: string }) {
 /*  Canvas                                                                    */
 /* -------------------------------------------------------------------------- */
 
-export function Canvas() {
+export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
   const [graph, setGraph] = useState<Graph | null>(null);
   const [error, setError] = useState('');
   const [nodes, setNodes] = useState<Node<DonneesNoeud>[]>([]);
@@ -436,7 +436,7 @@ export function Canvas() {
       </p>
 
       {ouverte && (
-        <AdDrawer adId={ouverte} onClose={() => setOuverte(null)} onChanged={() => setVersion((v) => v + 1)} />
+        <AdDrawer adId={ouverte} onClose={() => setOuverte(null)} onChanged={() => setVersion((v) => v + 1)} peutPartager={peutPartager} />
       )}
     </div>
   );
