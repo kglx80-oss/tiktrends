@@ -28,6 +28,9 @@ interface Props {
   slotDepart: ReactNode;
   onDescription: (v: string) => void;
   onSuggest?: () => void;
+  directions?: { key: string; label: string; hint: string }[];
+  directionValue?: string;
+  onDirection?: (k: string) => void;
   onRatio: (r: string) => void;
   onDuree: (d: number) => void;
   ratios: string[];
@@ -112,6 +115,25 @@ export function AssistantVideo(p: Props) {
                   border: '1px solid var(--line-2)', background: 'transparent', color: p.aiReady ? 'var(--accent-strong)' : 'var(--muted)',
                   cursor: p.aiReady && !p.suggesting ? 'pointer' : 'default',
                 }}>✦ {p.suggesting ? 'Rédaction…' : 'Proposer un mouvement'}</button>
+              )}
+              {p.directions && p.onDirection && (
+                <div style={{ marginTop: 4 }}>
+                  <Label>Type de mouvement <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· caméra, rythme, énergie</span></Label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 8 }}>
+                    {[{ key: '', label: 'Libre', hint: 'Le moteur choisit le mouvement.' }, ...p.directions].map((d) => {
+                      const on = (p.directionValue ?? '') === d.key;
+                      return (
+                        <button key={d.key || 'libre'} type="button" onClick={() => p.onDirection!(d.key)} style={{
+                          display: 'grid', gap: 3, padding: '9px 11px', borderRadius: 12, textAlign: 'left',
+                          border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'rgba(254,44,85,.06)' : 'transparent', cursor: 'pointer',
+                        }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{d.label}</span>
+                          <span style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.35 }}>{d.hint}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           )}

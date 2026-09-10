@@ -6,7 +6,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
 import { suggestVideoBrief } from '@tiktrends/ai';
-import { costFor, safeVideoDuration, videoUnits } from '@tiktrends/core';
+import { costFor, safeVideoDuration, videoUnits, promptVideo } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
@@ -96,7 +96,7 @@ async function recordGeneration(
 }
 
 /** Texte → vidéo (gated + débit crédits). */
-export async function startVideoAction(input: { prompt: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number; presetId?: string }): Promise<VideoStart> {
+export async function startVideoAction(input: { prompt: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number; presetId?: string; directionKey?: string }): Promise<VideoStart> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
   const prompt = input.prompt?.trim();
@@ -122,7 +122,9 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
     // brief, pas être consignée après coup sur une vidéo qui n'en a rien su.
     const brand = await getActiveBrand(s.workspaceId);
     const memo = await avecMemoire(prompt, brand?.id ?? null, s.workspaceId);
-    const briefT2v = avecPreset(memo.brief, await resolvePreset(s.workspaceId, input.presetId));
+    // La direction de mouvement se compose dans le prompt FINAL · la légende
+    // stockée reste la description de la personne.
+    const briefT2v = promptVideo(avecPreset(memo.brief, await resolvePreset(s.workspaceId, input.presetId)), input.directionKey);
     const { jobId } = await sousPlafond('fal_video', { action: 'video:t2v', workspaceId: s.workspaceId, units: videoUnits(duree) }, () => (fal
       ? falSubmitVideo(fal, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
       : hfSubmitVideo(hf!, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })));
@@ -135,7 +137,7 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
 }
 
 /** Image → vidéo (anime une image de départ). */
-export async function startImageVideoAction(input: { prompt: string; imageUrl: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number; presetId?: string }): Promise<VideoStart> {
+export async function startImageVideoAction(input: { prompt: string; imageUrl: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number; presetId?: string; directionKey?: string }): Promise<VideoStart> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
   const prompt = input.prompt?.trim();
@@ -158,7 +160,7 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
   try {
     const brand = await getActiveBrand(s.workspaceId);
     const memo = await avecMemoire(motion, brand?.id ?? null, s.workspaceId);
-    const briefI2v = avecPreset(memo.brief, await resolvePreset(s.workspaceId, input.presetId));
+    const briefI2v = promptVideo(avecPreset(memo.brief, await resolvePreset(s.workspaceId, input.presetId)), input.directionKey);
     const { jobId } = await sousPlafond('fal_video', { action: 'video:i2v', workspaceId: s.workspaceId, units: videoUnits(duree) }, () => (fal
       ? falSubmitVideo(fal, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
       : hfSubmitImageVideo(hf!, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })));
