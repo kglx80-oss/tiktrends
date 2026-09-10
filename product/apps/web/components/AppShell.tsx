@@ -11,6 +11,7 @@ import { ProfileModal } from './ProfileModal';
 import { QuickSettingsModal } from './QuickSettingsModal';
 import { CreditsMenu } from './CreditsMenu';
 import { Breadcrumb } from './Breadcrumb';
+import { LogoHome } from './LogoHome';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
 // Les pages « espace de travail » du client (marques, connexions, membres,
@@ -300,20 +301,20 @@ function AppShellInner(props: Props) {
       <aside style={{ background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: collapsed ? '16px 10px' : '16px 12px', position: 'sticky', top: 0, height: '100vh' }}>
         {/* En-tête : menu d'espace (façon Pletor) + repli de la barre */}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button type="button" onClick={() => collapsed ? toggleCollapsed() : setWsMenuOpen((o) => !o)}
-            title={collapsed ? workspaceName : undefined}
-            style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: collapsed ? 4 : '6px 8px', borderRadius: 10, border: 'none', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--grad-accent)', flexShrink: 0 }} />
-            {!collapsed && (
-              <>
-                <div style={{ lineHeight: 1.1, minWidth: 0, flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)' }}>TikTrends</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</div>
-                </div>
-                <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>⌄</span>
-              </>
-            )}
-          </button>
+          {/* Le logo ramène à l'accueil · la convention universelle qui manquait ·
+              on cliquait le logo et rien ne se passait. En replié, pas la place
+              pour un retour ET un dépli · le logo rouvre alors la barre. */}
+          <LogoHome collapsed={collapsed} onExpand={toggleCollapsed} />
+          {!collapsed && (
+            <button type="button" onClick={() => setWsMenuOpen((o) => !o)}
+              style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 10, border: 'none', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: 'flex-start' }}>
+              <div style={{ lineHeight: 1.1, minWidth: 0, flex: 1, textAlign: 'left' }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)' }}>TikTrends</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</div>
+              </div>
+              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>⌄</span>
+            </button>
+          )}
           {!collapsed && (
             <button type="button" onClick={toggleCollapsed} title="Replier la barre" aria-label="Replier la barre" style={collapseBtn}>
               <CollapseIcon dir="left" />
