@@ -149,7 +149,12 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
   état. Le bloc photo est défini une fois et servi aux deux. Render-gardé
   (`assistant-image-rendu`, comme `assistant-rendu`) · le composant ne tire
   aucune action serveur, donc rendable. Reste à Image · la boucle relecture →
-  débrief. Puis Vidéo (directions de mouvement) et Texte.
+  débrief.
+- **Vidéo · moteur d'étapes pur, branché au bouton.** Comme Image, on commence
+  par le socle vérifiable · `assistant-video` (core · départ → mouvement →
+  format) branché sur le `blocage` du composeur · le refus « ajoute une image de
+  départ » n'apparaît plus seulement au clic. Suit · directions de mouvement,
+  puis assistant guidé. Puis Texte.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.

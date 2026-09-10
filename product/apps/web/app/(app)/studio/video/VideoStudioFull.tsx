@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
-import { VIDEO_DURATIONS, generationOutcome, type VideoDuration } from '@tiktrends/core';
+import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -130,6 +130,13 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
     poll(v.id, v.jobId);
   }
 
+  // Le bouton dit ce qui manque AVANT le clic · même moteur d'étapes pur que
+  // Pubs IA (`assistant-video`). Le refus « ajoute une image » n'apparaissait
+  // qu'au clic, dans le bandeau d'erreur, ailleurs sur la page.
+  const etatVideo: EtatAssistantVideo = { mode, imagePrete: !!imageUrl.trim(), description: prompt, ratio, duree };
+  const premiereManquante = premiereVideoIncomplete(etatVideo);
+  const blocage = premiereManquante ? manqueVideo(premiereManquante, etatVideo) : '';
+
   return (
     <div>
       {/* Générateur */}
@@ -218,6 +225,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           cost={{ credits: 20 * (duree / 5), note: `20 crédits par tranche de 5 secondes · une vidéo de ${duree} s en coûte ${20 * (duree / 5)}. Le rendu prend une à trois minutes.` }}
           onGenerate={generate}
           generateLabel="Générer la vidéo"
+          blocage={ready ? blocage : ''}
         />
         {sceneErreur && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{sceneErreur}</div>}
         {!ready && <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>La vidéo IA s'active dès que le moteur vidéo est branché côté serveur.</p>}
