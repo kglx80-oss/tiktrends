@@ -31,7 +31,7 @@ export default async function AdsMapPage() {
   if (!canAccess(effectiveAccess(s), feature)) {
     const why = denyReason(effectiveAccess(s), feature);
     return (
-      <main style={{ padding: '30px 36px 60px', maxWidth: 700, margin: '0 auto' }}>
+      <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ fontSize: 34 }}>🔒</div>
@@ -53,7 +53,7 @@ export default async function AdsMapPage() {
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) {
     return (
-      <main style={{ padding: '30px 36px 60px', maxWidth: 700, margin: '0 auto' }}>
+      <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
@@ -75,7 +75,7 @@ export default async function AdsMapPage() {
   const peutMesurer = roleAtLeast(s.role, 'admin');
 
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 1320, margin: '0 auto' }}>
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1320, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
