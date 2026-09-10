@@ -96,6 +96,16 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
   (via `resolveAssetImageUrls`). « Assets plus présents dans la logique. »
   Garde `image-asset-picker` (page charge + passe, studio rend + transmet,
   action honore l'explicite avec repli auto).
+- **Contrôles · débrief d'un lot de visuels (le dernier item, vérifiable).** La
+  boucle de relecture de Pubs IA repose sur une relecture AUTOMATIQUE (copie /
+  produit) faite à la génération · l'image n'a pas d'équivalent sans un scoring
+  IA du visuel (appel vision serveur, non vérifiable de mon côté). On pose donc
+  d'abord la moitié vérifiable · agréger le JUGEMENT déjà posé (notes retenu /
+  écarté) en un débrief de lot · `debriefVisuels` (core, pur) · « sur N jugés, X
+  retenus », vert quand tout est retenu, `null` si rien n'est noté (le silence
+  est une réponse). Bande rendue au-dessus de la grille. Gardes `debrief-visuels`
+  (core) + `debrief-visuels-rendu` (rendu + câblage), par mutation. Le scoring
+  automatique du visuel reste un chantier serveur à valider par le proprio.
 
 ### Connectiques · le catalogue est une feuille de route
 - **Les ~50 connecteurs à venir cessent d'être des boutons cassés.** Chacun
