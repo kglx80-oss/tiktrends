@@ -37,16 +37,31 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
   const [brandName, setBrandName] = useState('');
   const [siteUrl, setSiteUrl] = useState('');
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const toggleGoal = (k: string) => setGoals((g) => g.includes(k) ? g.filter((x) => x !== k) : [...g, k]);
-  const canNext = step === 0 ? !!profile : step === 1 ? !!aiLevel : step === 2 ? goals.length > 0 : true;
+  // La dernière étape CRÉE la marque · sans nom, l'action n'en crée aucune et
+  // marquait quand même le compte onboardé · l'utilisateur retombait sur un
+  // tableau de bord vide, après un écran qui promettait « on la crée pour toi ».
+  const peutFinir = !!brandName.trim();
+  const canNext = step === 0 ? !!profile : step === 1 ? !!aiLevel : step === 2 ? goals.length > 0 : peutFinir;
 
   async function finish() {
-    if (busy) return;
+    if (busy || !peutFinir) return;
+    setErr(null);
     setBusy(true);
-    await saveOnboardingAction({ profile, aiLevel, goals, brandName, siteUrl });
-    router.push('/dashboard');
-    router.refresh();
+    // On ne navigue que si le serveur a RÉUSSI · l'ancienne version poussait
+    // vers le dashboard quoi qu'il arrive, et une erreur (ou un throw) laissait
+    // le bouton figé sur « Préparation… », sans un mot.
+    try {
+      const r = await saveOnboardingAction({ profile, aiLevel, goals, brandName, siteUrl });
+      if (r.error) { setErr(r.error); setBusy(false); return; }
+      router.push('/dashboard');
+      router.refresh();
+    } catch {
+      setErr('La préparation a échoué. Réessaie dans un instant.');
+      setBusy(false);
+    }
   }
 
   return (
@@ -99,8 +114,13 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
           {step > 0 && <button type="button" onClick={() => setStep((n) => n - 1)} style={ghostBtn}>Retour</button>}
           {step < TOTAL - 1
             ? <button type="button" onClick={() => canNext && setStep((n) => n + 1)} disabled={!canNext} style={{ ...primaryBtn, opacity: canNext ? 1 : .5 }}>Continuer</button>
-            : <button type="button" onClick={finish} disabled={busy} style={primaryBtn}>{busy ? 'Préparation…' : 'Démarrer 🚀'}</button>}
+            : <button type="button" onClick={finish} disabled={busy || !peutFinir} title={!peutFinir ? 'Donne un nom à ta marque' : undefined} style={{ ...primaryBtn, opacity: busy || !peutFinir ? .5 : 1, cursor: busy || !peutFinir ? 'default' : 'pointer' }}>{busy ? 'Préparation…' : 'Démarrer 🚀'}</button>}
         </div>
+
+        {/* Le refus, dit là où l'on clique · pas de navigation muette sur échec. */}
+        {err && (
+          <p style={{ margin: '14px 0 0', fontSize: 13, color: 'var(--accent-strong)', fontWeight: 600 }}>{err}</p>
+        )}
       </div>
 
       {/* Colonne vitrine (notre identité) */}
