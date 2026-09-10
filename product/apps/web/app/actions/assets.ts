@@ -132,6 +132,11 @@ export async function importAssetAction(input: { name: string; url: string; kind
   await db.insert(schema.assets).values({
     workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
     name, kind, source: drive.isDrive ? 'drive' : 'url', url,
+    // Sans l'id du fichier, un lien Drive était servi en « direct » vers une URL
+    // Google qui renvoie du HTML, pas l'image · la miniature cassait puis tombait
+    // sur l'icône. Avec l'id, il passe par le proxy /api/asset (comme la synchro
+    // auto), qui télécharge le vrai fichier avec le jeton de l'espace.
+    externalId: drive.isDrive ? (drive.fileId ?? null) : null,
   });
   return { ok: true };
 }
