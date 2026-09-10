@@ -20,6 +20,8 @@ const CAS: Array<{ fichier: string; messages: string[] }> = [
   { fichier: 'app/(app)/assets/AssetsLibrary.tsx', messages: ['Élément importé.'] },
   { fichier: 'app/(app)/connections/DataConnections.tsx', messages: ['Shopify déconnecté.', 'Meta déconnecté.'] },
   { fichier: 'app/(app)/assets/DriveConnect.tsx', messages: ['Google Drive déconnecté.'] },
+  { fichier: 'components/SavedBoards.tsx', messages: ['Rangé dans', 'Retiré du board.'] },
+  { fichier: 'app/(app)/adsmap/lots/Lots.tsx', messages: ['Ad ajoutée au lot.', 'Ad retirée du lot.'] },
 ];
 
 describe('chaque action autrefois muette émet désormais un retour', () => {
