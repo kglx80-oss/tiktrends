@@ -14,6 +14,8 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { useIsMobile } from './useIsMobile';
 import { chromeCoquille } from '../lib/chrome-coquille';
+import { routeLabel } from '../lib/navigation';
+import { ajouterRecent, type EcranRecent } from '../lib/recents';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
 // Les pages « espace de travail » du client (marques, connexions, membres,
@@ -233,6 +235,19 @@ function AppShellInner(props: Props) {
   // d'ouvrir.
   useEffect(() => { setDrawer(false); }, [pathname]);
   const chrome = chromeCoquille({ mobile, collapsed, drawerOuvert: drawer });
+  // Écrans récents · pour reprendre une tâche d'un raccourci. Mémorisés par
+  // navigateur · l'écran courant passe en tête à chaque navigation.
+  const [recents, setRecents] = useState<EcranRecent[]>([]);
+  useEffect(() => { try { const raw = localStorage.getItem('tt_recents'); if (raw) setRecents(JSON.parse(raw)); } catch { /* stockage indispo */ } }, []);
+  useEffect(() => {
+    const label = routeLabel(pathname);
+    if (!label) return; // écran caché ou inconnu · on ne le mémorise pas
+    setRecents((cur) => {
+      const next = ajouterRecent(cur, { path: pathname, label });
+      try { localStorage.setItem('tt_recents', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, [pathname]);
   // Mode ADMIN+ (fondateur uniquement) : navigation + DA dédiées sur les routes plateforme.
   const onAdminPath = ADMIN_NAV.some((x) => pathname === x.href || pathname.startsWith(x.href + '/'));
   const inAdmin = isStaff && onAdminPath;
@@ -268,7 +283,13 @@ function AppShellInner(props: Props) {
     image: '🖼️', trend: '📈', store: '🏪', plug: '🔌', users: '👥', card: '💳', help: '🆘', bookmark: '🔖', layers: '🗂️',
     brain: '🧠', gauge: '⏱️', gear: '⚙️', coin: '🪙', check: '✅',
   };
-  const commands: Command[] = [];
+  // En tête de la palette · les derniers écrans visités (jamais celui où l'on
+  // est déjà), pour reprendre là où on s'était arrêté.
+  const recentCommands: Command[] = recents
+    .filter((r) => r.path !== pathname)
+    .slice(0, 5)
+    .map((r) => ({ id: 'recent-' + r.path, label: r.label, group: 'Récents', href: r.path, emoji: '🕘', keywords: 'récent ' + r.label }));
+  const commands: Command[] = [...recentCommands];
   for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });
   // Verbes d'action : lancer une tâche directement depuis ⌘K (pas seulement naviguer).
   commands.push(
