@@ -133,8 +133,15 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
   `promptImage` (core, gardé par mutation) · la direction se compose dans le
   prompt FINAL seulement, jamais dans la légende affichée/stockée. Câblage
   studio + action gardé en source (fichiers non rendables · serveur/gros client).
-- Suite prévue pour Image · l'assistant guidé sur un moteur d'étapes pur, puis
-  la boucle relecture → débrief. Puis Vidéo (directions de mouvement) et Texte.
+- **Image · moteur d'étapes pur, branché au bouton d'abord.** Deuxième
+  ingrédient de profondeur · `assistant-image` (core, sur le modèle
+  d'`assistant-pub`) ordonne les décisions (produit → scène → style → volume) et
+  dit ce qui MANQUE. On le branche d'abord là où ça compte le plus · le bouton
+  du studio dit ce qui manque AVANT le clic (via `blocage` du composeur), fini le
+  refus découvert au clic. Le composant assistant guidé (modal) consommera le
+  même moteur ensuite · le moteur n'est pas du code mort, il vit dès ce PR.
+- Suite pour Image · le modal guidé complet, puis la boucle relecture → débrief.
+  Puis Vidéo (directions de mouvement) et Texte.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.

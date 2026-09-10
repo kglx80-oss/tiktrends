@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useTransition } from 'react';
 import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
 import { archiveCreativeAction } from '../../../actions/creatives';
 import type { FalAspect } from '@tiktrends/integrations';
-import { IMAGE_MODELS, imageModelByKey, generationOutcome, AD_DIRECTIONS } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, generationOutcome, AD_DIRECTIONS, premiereImageIncomplete, manqueImage, type EtatAssistantImage } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -87,7 +87,15 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
 
   const selected = useMemo(() => prods.find((p) => p.id === productId) || null, [prods, productId]);
   // En mode « mise en scène », la source produit = photo uploadée, sinon la photo enregistrée sur le produit.
-  const productPhotoReady = !!uploadedUri || !!selected?.hasImage;
+  const productPhotoReady = !!uploadedUri || !!selected?.hasImage || !!imageUrl.trim();
+
+  // Le bouton dit ce qui manque AVANT le clic · même moteur d'étapes pur que
+  // Pubs IA (`assistant-image`). Fini le refus découvert au clic.
+  const etatAssistant: EtatAssistantImage = {
+    mode, aPhotoProduit: productPhotoReady, description: prompt, direction, ratio, nombre: count, moteur: model,
+  };
+  const premiereManquante = premiereImageIncomplete(etatAssistant);
+  const blocage = premiereManquante ? manqueImage(premiereManquante, etatAssistant) : '';
 
   function suggest() {
     if (suggesting) return;
@@ -338,6 +346,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           }}
           onGenerate={run}
           generateLabel="Générer le visuel"
+          blocage={ready ? blocage : ''}
         />
         {sceneErreur && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{sceneErreur}</div>}
         {notice && <div style={{ marginTop: 12, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(120,220,150,.4)', background: 'rgba(120,220,150,.10)', color: '#9fe6b3' }}>{notice}</div>}
