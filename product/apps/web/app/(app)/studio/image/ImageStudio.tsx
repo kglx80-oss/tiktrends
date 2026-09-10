@@ -4,12 +4,13 @@ import { useMemo, useRef, useState, useTransition } from 'react';
 import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
 import { archiveCreativeAction } from '../../../actions/creatives';
 import type { FalAspect } from '@tiktrends/integrations';
-import { IMAGE_MODELS, imageModelByKey, generationOutcome, AD_DIRECTIONS, premiereImageIncomplete, manqueImage, type EtatAssistantImage } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, generationOutcome, AD_DIRECTIONS, premiereImageIncomplete, manqueImage, debriefVisuels, type EtatAssistantImage } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
+import { DebriefVisuelsStrip } from '../../../../components/DebriefVisuels';
 import { Composer } from '../../../../components/Composer';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
@@ -393,6 +394,9 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Tes visuels {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{images.length}</span>
       </div>
+      {/* Débrief du lot · « sur N jugés, X retenus », dès qu'on a noté des
+          visuels. On COMPTE le jugement, on ne conclut pas. */}
+      {(() => { const d = debriefVisuels(images.map((im) => im.rating ?? null)); return d ? <DebriefVisuelsStrip d={d} /> : null; })()}
       {images.length === 0 ? (
         <Empty
           tone="wait" title="Aucun visuel pour l’instant."
