@@ -8,6 +8,7 @@ import {
   type CurationView, type MergeCandidate, type ProposedNode,
 } from '../../../actions/adsmap-curation';
 import { Empty } from '../../../../components/Empty';
+import { useToast } from '../../../../components/Toast';
 
 /**
  * L'écran de tri.
@@ -273,11 +274,13 @@ function Ligne({ node, onFait }: { node: ProposedNode; onFait: () => Promise<voi
   const [nom, setNom] = useState(node.label);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, agir] = useTransition();
+  const { toast } = useToast();
 
   const valider = () => agir(async () => {
     setMsg(null);
     const r = await validateNodeAction({ id: node.id, kind: node.kind, rename: nom !== node.label ? nom : undefined });
     if (r.error) { setMsg(r.error); return; }
+    toast(`${KIND_LABEL[node.kind] ?? 'Proposition'} validé.`);
     await onFait();
   });
 
@@ -285,6 +288,7 @@ function Ligne({ node, onFait }: { node: ProposedNode; onFait: () => Promise<voi
     setMsg(null);
     const r = await rejectNodeAction({ id: node.id, kind: node.kind });
     if (r.error) { setMsg(r.error); return; }
+    toast('Proposition écartée.');
     await onFait();
   });
 

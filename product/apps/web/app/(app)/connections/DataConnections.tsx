@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, connectMetaAction, syncMetaAction, disconnectMetaAction, selectMetaAccountAction, type ConnectionState } from '../../actions/connections';
 import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
+import { useToast } from '../../../components/Toast';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
@@ -43,6 +44,7 @@ function Wrap({ icon, title, badge, children }: { icon: React.ReactNode; title: 
 const connectedBadge = <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: '#18cc8c', background: 'rgba(24,204,140,.14)' }}>CONNECTÉ</span>;
 
 function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionState | null; setState: (s: ConnectionState) => void; refresh: () => void; oauth?: boolean }) {
+  const { toast } = useToast();
   const sh = state?.shopify;
   const [domain, setDomain] = useState(sh?.domain ?? '');
   const [token, setToken] = useState('');
@@ -64,7 +66,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
     if (r.insights && state) setState({ ...state, shopify: { ...state.shopify, insights: r.insights } });
     setMsg('Données synchronisées.');
   }
-  async function disconnect() { await disconnectShopifyAction(); refresh(); }
+  async function disconnect() { await disconnectShopifyAction(); toast('Shopify déconnecté.'); refresh(); }
 
   const ins = sh?.insights;
   return (
@@ -123,6 +125,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
 }
 
 function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState | null; setState: (s: ConnectionState) => void; refresh: () => void; oauth?: boolean }) {
+  const { toast } = useToast();
   const mt = state?.meta;
   const [acct, setAcct] = useState(mt?.adAccountId ?? '');
   const [token, setToken] = useState('');
@@ -144,7 +147,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
     if (r.insights && state) setState({ ...state, meta: { ...state.meta, insights: r.insights } });
     setMsg('Données synchronisées.');
   }
-  async function disconnect() { await disconnectMetaAction(); refresh(); }
+  async function disconnect() { await disconnectMetaAction(); toast('Meta déconnecté.'); refresh(); }
   async function pickAccount(id: string) {
     if (!id) return;
     setBusy('connect'); setMsg('');

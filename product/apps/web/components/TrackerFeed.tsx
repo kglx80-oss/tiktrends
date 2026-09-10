@@ -7,6 +7,7 @@ import { estGagnantVeille } from '@tiktrends/core';
 import { AdCard } from './AdCard';
 import { scanTrackerAction, markTrackerSeenAction } from '../app/actions/tracker';
 import { Empty } from './Empty';
+import { useToast } from './Toast';
 
 export interface TrackerEvent { ad: InspoAd; advertiserName: string; unseen: boolean }
 
@@ -16,6 +17,7 @@ export interface TrackerEvent { ad: InspoAd; advertiserName: string; unseen: boo
  */
 export function TrackerFeed({ events, followedCount, trackingEnabled }: { events: TrackerEvent[]; followedCount: number; trackingEnabled: boolean }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const unseen = events.filter((e) => e.unseen).length;
@@ -37,7 +39,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
     router.refresh();
   });
 
-  const markSeen = () => start(async () => { await markTrackerSeenAction(); router.refresh(); });
+  const markSeen = () => start(async () => { await markTrackerSeenAction(); toast('Tout marqué comme vu.'); router.refresh(); });
 
   return (
     <section style={{ marginBottom: 30 }}>

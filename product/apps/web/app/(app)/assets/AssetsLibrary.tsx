@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
 import { Pager, PAGE_SIZE } from '../../../components/Pager';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
+import { useToast } from '../../../components/Toast';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -49,6 +50,7 @@ function putWithProgress(url: string, file: File, onProgress: (pct: number) => v
 
 export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial: AssetItem[]; brandName: string | null; storageEnabled: boolean }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [assets, setAssets] = useState(initial);
   const [filter, setFilter] = useState<AssetKind | 'all'>('all');
   const [common, setCommon] = useState(false);
@@ -147,6 +149,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
     setBusy(false);
     if (r.error) { setMsg(r.error); return; }
     setImp({ name: '', url: '', kind: 'video' }); setShowImport(false);
+    toast('Élément importé.');
     refresh();
   }
 
