@@ -12,6 +12,7 @@ import { Empty } from '../../../../components/Empty';
 import { Composer } from '../../../../components/Composer';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
+import { AssistantImage } from './AssistantImage';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -65,6 +66,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   const [model, setModel] = useState('nano');
   const modelSpec = imageModelByKey(model);
   const [count, setCount] = useState(1);
+  const [assistantOuvert, setAssistantOuvert] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -191,6 +193,51 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
     if (!id.startsWith('new-')) await archiveCreativeAction({ id });
   }
 
+  // Le bloc photo produit · défini une fois, servi à la fois dans la barre à
+  // plat et dans l'étape « produit » de l'assistant guidé.
+  const photoBlock = (
+    <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer la photo produit" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
+      <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· on garde ton vrai packaging, on ne change que la scène · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une photo</b></span></label>
+
+      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {/* Aperçu : upload en cours, sinon photo déjà enregistrée sur le produit */}
+        {uploadedUri ? (
+          <img src={uploadedUri} alt="" style={thumb} />
+        ) : selected?.hasImage ? (
+          <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 11, color: 'var(--muted)', padding: 8 }}>📷 Photo<br />enregistrée</div>
+        ) : (
+          <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--muted)' }}>📦</div>
+        )}
+
+        <div style={{ flex: '1 1 260px', minWidth: 220 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onPickFile} disabled={!ready || busy} style={{ display: 'none' }} />
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={!ready || busy} style={{
+              fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
+              border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', opacity: ready ? 1 : .55,
+            }}>⬆ {uploadedUri ? 'Changer la photo' : 'Importer une photo'}</button>
+            {uploadedUri && productId && (
+              <button type="button" onClick={saveForProduct} disabled={saving} style={{
+                fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: saving ? 'default' : 'pointer',
+                border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--accent-strong)',
+              }}>{saving ? 'Enregistrement…' : '💾 Enregistrer pour ce produit'}</button>
+            )}
+          </div>
+          <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+            {selected?.hasImage && !uploadedUri
+              ? `La photo enregistrée de « ${selected.name} » sera utilisée. Importe-en une autre pour la remplacer.`
+              : "Importe le visuel packshot de ton produit (jpg, png, webp). Redimensionné automatiquement."}
+          </p>
+          <details style={{ marginTop: 8 }}>
+            <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien direct vers l'image</summary>
+            <input value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setUploadedUri(''); }} disabled={!ready || busy} placeholder="https://…/produit.jpg" style={{ ...fld, marginTop: 8 }} />
+            <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)' }}>Lien direct vers le fichier image, pas la page produit (clic droit → « Copier l'adresse de l'image »).</p>
+          </details>
+        </div>
+      </div>
+    </DropZone>
+  );
+
   return (
     <div>
       <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
@@ -204,7 +251,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           {([['i2i', 'Mise en scène produit'], ['t2i', 'Texte → Image']] as const).map(([k, label]) => (
             <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
@@ -212,6 +259,13 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
             }}>{label}</button>
           ))}
+          <span style={{ flex: 1 }} />
+          {/* L'entrée guidée · une décision à la fois, sur le même moteur d'étapes
+              que Pubs IA. La barre à plat reste pour qui veut aller vite. */}
+          <button type="button" disabled={!ready} onClick={() => setAssistantOuvert(true)} style={{
+            fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
+            border: '1px solid var(--accent-strong)', background: 'transparent', color: 'var(--accent-strong)',
+          }}>✨ Assistant guidé</button>
         </div>
 
         {/* Contexte marque : produit + DA appliqués automatiquement */}
@@ -236,49 +290,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           )}
         </div>
 
-        {mode === 'i2i' && (
-          <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer la photo produit" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
-            <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· on garde ton vrai packaging, on ne change que la scène · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une photo</b></span></label>
-
-            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              {/* Aperçu : upload en cours, sinon photo déjà enregistrée sur le produit */}
-              {uploadedUri ? (
-                 
-                <img src={uploadedUri} alt="" style={thumb} />
-              ) : selected?.hasImage ? (
-                <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 11, color: 'var(--muted)', padding: 8 }}>📷 Photo<br />enregistrée</div>
-              ) : (
-                <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--muted)' }}>📦</div>
-              )}
-
-              <div style={{ flex: '1 1 260px', minWidth: 220 }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onPickFile} disabled={!ready || busy} style={{ display: 'none' }} />
-                  <button type="button" onClick={() => fileRef.current?.click()} disabled={!ready || busy} style={{
-                    fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
-                    border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', opacity: ready ? 1 : .55,
-                  }}>⬆ {uploadedUri ? 'Changer la photo' : 'Importer une photo'}</button>
-                  {uploadedUri && productId && (
-                    <button type="button" onClick={saveForProduct} disabled={saving} style={{
-                      fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: saving ? 'default' : 'pointer',
-                      border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--accent-strong)',
-                    }}>{saving ? 'Enregistrement…' : '💾 Enregistrer pour ce produit'}</button>
-                  )}
-                </div>
-                <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
-                  {selected?.hasImage && !uploadedUri
-                    ? `La photo enregistrée de « ${selected.name} » sera utilisée. Importe-en une autre pour la remplacer.`
-                    : "Importe le visuel packshot de ton produit (jpg, png, webp). Redimensionné automatiquement."}
-                </p>
-                <details style={{ marginTop: 8 }}>
-                  <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien direct vers l'image</summary>
-                  <input value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setUploadedUri(''); }} disabled={!ready || busy} placeholder="https://…/produit.jpg" style={{ ...fld, marginTop: 8 }} />
-                  <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)' }}>Lien direct vers le fichier image, pas la page produit (clic droit → « Copier l'adresse de l'image »).</p>
-                </details>
-              </div>
-            </div>
-          </DropZone>
-        )}
+        {mode === 'i2i' && photoBlock}
 
         {/* La barre de composition · la description prend toute la place, les
             réglages deviennent des pastilles, le prix est sur le bouton. */}
@@ -390,6 +402,32 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         </div>
         <Pager page={imgPage} total={images.length} onPage={setImgPage} /></>
       )}
+
+      <AssistantImage
+        ouvert={assistantOuvert}
+        onFermer={() => setAssistantOuvert(false)}
+        etat={etatAssistant}
+        produits={prods}
+        productId={productId}
+        aiReady={aiReady}
+        suggesting={suggesting}
+        onMode={setMode}
+        onProduit={(id) => { setProductId(id); setUploadedUri(''); setNotice(''); }}
+        slotPhoto={photoBlock}
+        onDescription={(v) => { setPrompt(v); setSceneId(''); }}
+        onSuggest={suggest}
+        onDirection={setDirection}
+        onRatio={(r) => setRatio(r as FalAspect)}
+        onNombre={setCount}
+        onMoteur={setModel}
+        ratios={RATIOS}
+        moteurs={IMAGE_MODELS.map((m) => ({ key: m.key, label: m.label, recommended: m.recommended }))}
+        directions={AD_DIRECTIONS.map((d) => ({ key: d.key, label: d.label, hint: d.hint }))}
+        coutParVisuel={modelSpec.credits}
+        duree={count <= 3 ? '30 s à 1 min' : '1 à 2 min'}
+        busy={busy}
+        onGenerer={() => { setAssistantOuvert(false); void run(); }}
+      />
 
       {preview && (
         <div onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>

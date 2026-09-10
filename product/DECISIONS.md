@@ -140,8 +140,16 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
   du studio dit ce qui manque AVANT le clic (via `blocage` du composeur), fini le
   refus découvert au clic. Le composant assistant guidé (modal) consommera le
   même moteur ensuite · le moteur n'est pas du code mort, il vit dès ce PR.
-- Suite pour Image · le modal guidé complet, puis la boucle relecture → débrief.
-  Puis Vidéo (directions de mouvement) et Texte.
+- **Image · l'assistant guidé (modal), additif.** Le composant `AssistantImage`
+  consomme le moteur `assistant-image` · une décision à la fois (produit → scène
+  → style → volume), fil d'étapes rouvrable, récap avant de payer, ce qui manque
+  écrit sous le bouton. Choix d'intégration · il s'AJOUTE (bouton « Assistant
+  guidé ») au lieu de remplacer la barre à plat · zéro restructuration d'un
+  studio qui marche, donc zéro risque de régression, et les deux écrivent le même
+  état. Le bloc photo est défini une fois et servi aux deux. Render-gardé
+  (`assistant-image-rendu`, comme `assistant-rendu`) · le composant ne tire
+  aucune action serveur, donc rendable. Reste à Image · la boucle relecture →
+  débrief. Puis Vidéo (directions de mouvement) et Texte.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
