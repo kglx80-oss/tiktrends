@@ -84,4 +84,4 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 const card: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 16, boxShadow: 'var(--sh-card)' };
-const btn: React.CSSProperties = { padding: '10px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#fff', fontWeight: 600, textDecoration: 'none', fontSize: 13 };
+const btn: React.CSSProperties = { padding: '10px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 600, textDecoration: 'none', fontSize: 13 };

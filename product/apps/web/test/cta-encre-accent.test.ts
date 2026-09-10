@@ -41,9 +41,19 @@ function fichiersTsx(dir: string): string[] {
 // Adjacence directe encre-sombre ↔ fond-accent, dans les deux ordres · le motif
 // exact d'un CTA statique fait main. Les ternaires (fond bimodal) ne matchent
 // pas · leur encre suit déjà leur fond.
+//
+// On y ajoute l'encre BLANCHE en dur (`#fff` / `#ffffff`) posée sur le même fond
+// accent · la bonne couleur, mais pas le token. Si `--on-accent` change un jour,
+// ces boutons ne suivraient pas. On tolère un court écart sur la même ligne (le
+// fond et la couleur ne sont pas toujours collés · cf. la zone de dépôt).
+const WHITES = ['#fff', '#ffffff'];
 const MOTIFS = [
   new RegExp(`background:\\s*'var\\(--grad-accent\\)'\\s*,\\s*color:\\s*'${DARK}'`),
   new RegExp(`color:\\s*'${DARK}'\\s*,\\s*background:\\s*'var\\(--grad-accent\\)'`),
+  ...WHITES.flatMap((w) => [
+    new RegExp(`background:\\s*'var\\(--grad-accent\\)'[^\\n]{0,80}?color:\\s*'${w}'`, 'i'),
+    new RegExp(`color:\\s*'${w}'[^\\n]{0,80}?background:\\s*'var\\(--grad-accent\\)'`, 'i'),
+  ]),
 ];
 
 describe('l’encre sur la surface accent est le token blanc, pas le sombre', () => {

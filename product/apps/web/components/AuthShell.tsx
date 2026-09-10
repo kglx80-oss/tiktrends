@@ -7,7 +7,7 @@ export const field: CSSProperties = {
 };
 export const primaryBtn: CSSProperties = {
   marginTop: 4, padding: '12px 18px', borderRadius: 999, border: 'none',
-  background: 'var(--grad-accent)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+  background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
 };
 export function errorBox(msg: string) {
   return (

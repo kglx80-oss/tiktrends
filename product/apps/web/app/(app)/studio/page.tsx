@@ -52,7 +52,7 @@ export default async function StudioPage() {
             {why === 'plan' ? 'La génération de créatives est disponible à partir du plan Core.' : "Ton rôle ne permet pas d'accéder au Studio."}
           </p>
           {why === 'plan' && s.role === 'owner' && (
-            <a href="/settings" style={{ display: 'inline-block', marginTop: 16, padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Gérer l'abonnement →</a>
+            <a href="/settings" style={{ display: 'inline-block', marginTop: 16, padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Gérer l'abonnement →</a>
           )}
         </div>
       </main>

@@ -78,7 +78,7 @@ export function DropZone({ onImages, onError, disabled, multiple = false, maxSid
       {children}
       {over && (
         <div style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,7,12,.55)', backdropFilter: 'blur(1px)', pointerEvents: 'none', zIndex: 5 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: '#fff', padding: '8px 14px', borderRadius: 999, background: 'var(--grad-accent)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: 'var(--on-accent)', padding: '8px 14px', borderRadius: 999, background: 'var(--grad-accent)' }}>
             <span aria-hidden>⬇</span> {hint}
           </span>
         </div>
