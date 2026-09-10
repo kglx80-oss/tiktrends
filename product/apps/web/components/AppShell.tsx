@@ -122,9 +122,12 @@ function NavLink({ it, active, inPath = false, onClick }: {
       display: 'flex', alignItems: 'center', gap: 11, padding: it.isSub ? '7px 10px 7px 30px' : '9px 10px', borderRadius: 10,
       fontSize: it.isSub ? 13 : 14, fontWeight: active || inPath ? 700 : 500,
       color: disabled ? 'var(--muted)' : active || inPath ? 'var(--ink)' : 'var(--ink-2)',
-      // Le fond plein est réservé à la page courante · un parent qui le porte
-      // aussi produit deux « tu es ici » sur le même écran.
-      background: active ? 'var(--accent-soft)' : 'transparent',
+      // « Je suis ici » se dit d'un liséré accent + une teinte légère, pas d'un
+      // pavé plein · on voit où l'on est sans que l'item écrase la liste. Le
+      // liséré est logé dans le rayon (inset) pour épouser le coin arrondi.
+      position: 'relative',
+      background: active ? 'rgba(254,44,85,.10)' : 'transparent',
+      boxShadow: active ? 'inset 3px 0 0 var(--accent-strong)' : undefined,
       opacity: disabled ? 0.55 : 1, cursor: disabled ? 'default' : 'pointer',
     }}>
       {it.isSub ? <span style={{ width: 5, height: 5, borderRadius: '50%', background: active ? 'var(--accent)' : 'var(--line-2)' }} /> : <Icon name={it.icon} />}
