@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { generateAction, type StudioState } from '../../../actions/studio';
+import type { CreativeOutput } from '@tiktrends/ai';
 
 const input: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 };
@@ -28,9 +29,12 @@ function ToAds({ text }: { text: string }) {
   );
 }
 
-export function StudioClient({ hasKey, prefillProduct, prefillInspiration }: { hasKey: boolean; prefillProduct?: string; prefillInspiration?: string }) {
+export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initialOutput }: { hasKey: boolean; prefillProduct?: string; prefillInspiration?: string; initialOutput?: CreativeOutput }) {
   const [state, formAction, pending] = useActionState<StudioState, FormData>(generateAction, {});
-  const out = state.output;
+  // Le dernier résultat enregistré s'affiche au retour · le studio ne repart plus
+  // d'un écran vide alors que la génération d'hier est en base. Une nouvelle
+  // génération le remplace.
+  const out = state.output ?? initialOutput;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 380px) 1fr', gap: 22, alignItems: 'start' }}>

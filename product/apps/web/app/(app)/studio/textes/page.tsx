@@ -1,5 +1,9 @@
 import { redirect } from 'next/navigation';
+import { and, desc, eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
+import type { CreativeOutput } from '@tiktrends/ai';
 import { getSession } from '../../../../lib/auth';
+import { getActiveBrand } from '../../../../lib/brands';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { StudioClient } from './StudioClient';
 import { PageInfo } from '../../../../components/PageInfo';
@@ -42,6 +46,22 @@ export default async function TextesPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const hasKey = !!process.env.ANTHROPIC_API_KEY;
 
+  // Le dernier texte généré, rechargé · sans lui, le studio repartait vide alors
+  // que le résultat était en base (kind 'script'). Un angle trouvé hier était
+  // introuvable aujourd'hui.
+  let initialOutput: CreativeOutput | undefined;
+  const brand = db ? await getActiveBrand(s.workspaceId) : null;
+  if (db && brand) {
+    const [row] = await db.select({ output: schema.generations.output })
+      .from(schema.generations)
+      .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'script')))
+      .orderBy(desc(schema.generations.createdAt))
+      .limit(1);
+    const o = row?.output as CreativeOutput | undefined;
+    // On ne réaffiche que si la forme est celle attendue (angles/hooks/script…).
+    if (o && Array.isArray(o.angles) && Array.isArray(o.hooks)) initialOutput = o;
+  }
+
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -60,7 +80,7 @@ export default async function TextesPage({ searchParams }: { searchParams: Promi
         repérée chez un concurrent.
       </PageInfo>
 
-      <StudioClient hasKey={hasKey} prefillProduct={sp.brand} prefillInspiration={sp.inspo} />
+      <StudioClient hasKey={hasKey} prefillProduct={sp.brand} prefillInspiration={sp.inspo} initialOutput={initialOutput} />
     </main>
   );
 }

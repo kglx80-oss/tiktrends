@@ -76,9 +76,12 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
 - **Texte ne reçoit PAS de wizard · décision assumée.** Son brief est un seul
   champ requis (le produit) + cinq facultatifs · un assistant « une décision à la
   fois » sur un formulaire aussi simple serait du cargo-cult du patron de Pubs
-  IA, pas une amélioration. Le vrai manque de Texte est la persistance des
-  sorties (elles disparaissent à la navigation) · chantier serveur, à valider par
-  le proprio. On ne force pas un flux inadapté pour cocher une case.
+  IA, pas une amélioration. On ne force pas un flux inadapté pour cocher une case.
+- **Texte · le dernier résultat se recharge.** Son vrai manque n'était pas
+  l'écriture (elle existait · `generateAction` consigne déjà un `script`) mais la
+  LECTURE · le studio repartait vide alors que la génération d'hier était en
+  base. La page charge la dernière sortie `script` de la marque et la passe au
+  client, qui l'affiche à défaut d'une nouvelle. Garde `texte-persistance`.
 - **Picker d'assets · miniature partagée.** Le sélecteur d'Assets du studio Pubs
   rendait un `<img>` nu sans repli · un lien cassé y montrait l'image cassée du
   navigateur, à rebours de la bibliothèque. Il passe par `MiniatureAsset` (repli
