@@ -1046,7 +1046,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       )}
 
       {preview && (
-        <div onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+        <div onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
           { }
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
           <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: 38, height: 38, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
@@ -1063,7 +1063,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); setScoreFor(null); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
               { }
-              <img src={detailSrc} alt={detailAd.headline} style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 10, objectFit: 'contain' }} />
+              {/* Clic (ou Entrée/Espace) → zoom plein écran · la lightbox
+                  existait mais rien ne l'ouvrait. Elle passe au-dessus de la
+                  modale (z-index 200 > 110). */}
+              <img src={detailSrc} alt={detailAd.headline}
+                role="button" tabIndex={0} title="Agrandir en plein écran"
+                onClick={() => setPreview(detailSrc)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreview(detailSrc); } }}
+                style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 10, objectFit: 'contain', cursor: 'zoom-in' }} />
               {detailIdx != null && detailIdx < ads.length - 1 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1)); setEditText(false); setScoreFor(null); }} aria-label="Suivant" style={navArrow('right')}>›</button>
               )}
