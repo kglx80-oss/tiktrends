@@ -29,8 +29,10 @@ import type { CSSProperties, ReactNode } from 'react';
  *
  * Un état `todo` sans geste proposé est une impasse · on dit à quelqu'un qu'il
  * manque quelque chose et on le laisse chercher. Le type l'interdit : sur
- * `todo`, `action` est **obligatoire**. Ce n'est pas une convention qu'on
- * rappelle en revue, c'est une erreur de compilation.
+ * `todo`, il faut un GESTE · soit une `action` qui navigue, soit un déclencheur
+ * posé en `children` (formulaire d'ajout, bouton d'upload · le geste est fait
+ * sur place, pas ailleurs). L'un des deux au moins, sinon erreur de
+ * compilation. Ce n'est pas une convention qu'on rappelle en revue.
  */
 
 interface Base {
@@ -50,8 +52,11 @@ interface Base {
 interface Action { label: string; href: string }
 
 export type EmptyProps =
-  // Sur `todo`, l'action est obligatoire · un manque sans issue est une impasse.
+  // Sur `todo`, un geste est obligatoire · un manque sans issue est une impasse.
+  // Le geste est soit une `action` qui navigue, soit un déclencheur inline en
+  // `children` (formulaire, upload). Ni l'un ni l'autre ne compile pas.
   | (Base & { tone: 'todo'; action: Action })
+  | (Base & { tone: 'todo'; children: ReactNode; action?: Action })
   | (Base & { tone: 'wait'; action?: Action })
   | (Base & { tone: 'good'; action?: Action });
 
@@ -102,7 +107,8 @@ export function Empty(props: EmptyProps) {
         </Link>
       )}
 
-      {props.children && <div style={{ marginTop: 14 }}>{props.children}</div>}
+      {/* Le texte est centré · un formulaire posé dessous ne l'est pas · on rend l'alignement à gauche. */}
+      {props.children && <div style={{ marginTop: 16, textAlign: 'left' }}>{props.children}</div>}
     </div>
   );
 }

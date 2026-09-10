@@ -6,6 +6,7 @@ import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAs
 import { Pager, PAGE_SIZE } from '../../../components/Pager';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
+import { Empty } from '../../../components/Empty';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -279,10 +280,24 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
 
       {/* Grille */}
       {shown.length === 0 ? (
-        <div style={{ borderRadius: 16, textAlign: 'center', color: 'var(--muted)' }}>
-          <div style={{ fontSize: 30 }}>🗂️</div>
-          <p style={{ margin: '10px 0 0', fontSize: 13.5 }}>Aucun asset. Téléverse tes images ou importe tes rushs par lien · l'IA s'en servira automatiquement.</p>
-        </div>
+        assets.length === 0 ? (
+          // Rien du tout · premier écran de la bibliothèque · on pose le geste (upload) sur place.
+          <Empty
+            tone="todo"
+            icon="🗂️"
+            title="Aucun asset pour l'instant."
+            why="Téléverse tes images, ou importe tes rushs par lien · l'IA s'en servira automatiquement pour composer tes créas."
+          >
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>
+              {busy ? 'Traitement…' : storageEnabled ? '⬆ Téléverser des fichiers' : '⬆ Téléverser des images'}
+            </button>
+          </Empty>
+        ) : (
+          // Des assets existent, mais le filtre / la recherche ne trouvent rien · pas un manque, une recherche vide.
+          <Empty tone="wait" icon="🔍" title="Aucun asset ne correspond." why="Aucun résultat pour ce filtre ou cette recherche · élargis, ou remets tout à zéro.">
+            <button type="button" onClick={() => { setFilter('all'); setSearch(''); setPage(0); }} style={ghost}>Tout afficher</button>
+          </Empty>
+        )
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
           {shown.map((a) => (

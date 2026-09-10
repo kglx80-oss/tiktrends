@@ -20,6 +20,7 @@ import { SubmitButton } from '../../../../components/SubmitButton';
 import { BrandCreated } from '../../../../components/BrandCreated';
 import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
+import { Empty } from '../../../../components/Empty';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { falConfigured } from '@tiktrends/integrations';
 
@@ -261,21 +262,19 @@ export default async function BrandDetailPage({ params, searchParams }: {
               {p.usp && <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'pre-line' }}>{p.usp}</p>}
             </div>
           ))}
-          {products.length === 0 && <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Aucun produit. Ajoute-en un, ou importe-les depuis le site.</p>}
-
-          <form action={addProductAction} style={{ ...card }}>
-            <input type="hidden" name="brandId" value={id} />
-            <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-              <div style={{ flex: '2 1 220px' }}><label style={lbl}>Nom du produit *</label><input name="name" required style={input} /></div>
-              <div style={{ flex: '2 1 220px' }}><label style={lbl}>URL fiche</label><input name="url" style={input} /></div>
-              <div style={{ flex: '0 1 110px' }}><label style={lbl}>Prix (€)</label><input name="price" inputMode="decimal" style={input} /></div>
-            </div>
-            <div style={{ marginBottom: 10 }}><label style={lbl}>Description</label><textarea name="description" style={area} /></div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 220 }}><label style={lbl}>Bénéfices / USP</label><input name="usp" style={input} /></div>
-              <button style={addBtn}>+ Ajouter le produit</button>
-            </div>
-          </form>
+          {/* Vide = premier écran de la fonction · on ne laisse pas une phrase grise, on pose le geste. */}
+          {products.length === 0 ? (
+            <Empty
+              tone="todo"
+              icon="📦"
+              title="Aucun produit pour l'instant."
+              why="Ajoute ton premier produit ci-dessous, ou importe-les depuis le site · l'IA s'en sert pour générer des créas qui parlent vraiment de ton offre."
+            >
+              <AddProductForm brandId={id} />
+            </Empty>
+          ) : (
+            <AddProductForm brandId={id} />
+          )}
         </div>
       )}
 
@@ -319,13 +318,42 @@ export default async function BrandDetailPage({ params, searchParams }: {
         </form>
       )}
 
-      {/* Comptes pub · rappel */}
+      {/* Comptes pub · rappel · même grammaire d'état vide que le reste (todo → une sortie). */}
       {tab === 'products' && adAccounts.length === 0 && (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 14, color: 'var(--muted)', fontSize: 12.5, marginTop: 6 }}>
-          Aucun compte publicitaire branché. Connecte Meta / TikTok depuis <Link href="/connections" style={{ color: 'var(--accent-strong)' }}>Connexions</Link> pour analyser tes vraies performances.
+        <div style={{ marginTop: 6 }}>
+          <Empty
+            tone="todo"
+            icon="🔌"
+            title="Aucun compte publicitaire branché."
+            why="Connecte Meta ou TikTok pour analyser tes vraies performances et affiner les créas qui marchent."
+            action={{ label: 'Brancher un compte', href: '/connections' }}
+          />
         </div>
       )}
     </main>
+  );
+}
+
+/**
+ * Le formulaire d'ajout d'un produit · extrait pour servir DEUX fois sans se
+ * dupliquer · seul sous la liste, ou en `children` de l'état vide `todo` quand
+ * il n'y a encore rien.
+ */
+function AddProductForm({ brandId }: { brandId: string }) {
+  return (
+    <form action={addProductAction} style={{ ...card, marginBottom: 0 }}>
+      <input type="hidden" name="brandId" value={brandId} />
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+        <div style={{ flex: '2 1 220px' }}><label style={lbl}>Nom du produit *</label><input name="name" required style={input} /></div>
+        <div style={{ flex: '2 1 220px' }}><label style={lbl}>URL fiche</label><input name="url" style={input} /></div>
+        <div style={{ flex: '0 1 110px' }}><label style={lbl}>Prix (€)</label><input name="price" inputMode="decimal" style={input} /></div>
+      </div>
+      <div style={{ marginBottom: 10 }}><label style={lbl}>Description</label><textarea name="description" style={area} /></div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 220 }}><label style={lbl}>Bénéfices / USP</label><input name="usp" style={input} /></div>
+        <button style={addBtn}>+ Ajouter le produit</button>
+      </div>
+    </form>
   );
 }
 
