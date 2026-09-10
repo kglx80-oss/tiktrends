@@ -160,7 +160,7 @@ function Entete({ etape, etat, onAller, onFermer }: {
                 fontSize: 11.5, fontWeight: ici ? 800 : 600, cursor: ouvrable ? 'pointer' : 'default',
                 border: `1px solid ${ici ? 'transparent' : 'var(--line-2)'}`,
                 background: ici ? 'var(--grad-accent)' : 'transparent',
-                color: ici ? '#0d070c' : ouvrable ? 'var(--ink-2)' : 'var(--muted)',
+                color: ici ? 'var(--on-accent)' : ouvrable ? 'var(--ink-2)' : 'var(--muted)',
                 opacity: ouvrable ? 1 : 0.5,
               }}>
               <span style={{ fontWeight: 800 }}>{fait && !ici ? '✓' : i + 1}</span>
@@ -238,7 +238,7 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
         <button type="button" onClick={derniere ? p.onGenerer : onSuivante} disabled={!pret} style={{
           padding: '11px 22px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14,
           background: pret ? 'var(--grad-accent)' : 'var(--line-2)',
-          color: pret ? '#0d070c' : 'var(--muted)', cursor: pret ? 'pointer' : 'default',
+          color: pret ? 'var(--on-accent)' : 'var(--muted)', cursor: pret ? 'pointer' : 'default',
         }}>
           {p.busy ? 'Génération…' : derniere ? `Générer ${p.etat.nombre} pub${p.etat.nombre > 1 ? 's' : ''}` : 'Suivant →'}
         </button>
@@ -493,7 +493,7 @@ const pastille = (on: boolean): React.CSSProperties => ({
   padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: 'pointer',
   fontWeight: on ? 800 : 600,
   border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
-  background: on ? 'var(--grad-accent)' : 'transparent', color: on ? '#0d070c' : 'var(--ink-2)',
+  background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
 });
 
 function Label({ children }: { children: React.ReactNode }) {

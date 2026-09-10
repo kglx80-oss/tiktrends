@@ -82,7 +82,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Règles créatives</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{brandName ? `· ${brandName}` : '· marque active'}</span>
         <span style={{ flex: 1 }} />
-        <button type="button" onClick={generate} disabled={aiBusy} style={{ fontSize: 12.5, fontWeight: 800, padding: '8px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', cursor: aiBusy ? 'default' : 'pointer', opacity: aiBusy ? .6 : 1 }}>
+        <button type="button" onClick={generate} disabled={aiBusy} style={{ fontSize: 12.5, fontWeight: 800, padding: '8px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', cursor: aiBusy ? 'default' : 'pointer', opacity: aiBusy ? .6 : 1 }}>
           {aiBusy ? 'Jarvis réfléchit…' : '✦ Générer par IA (marque + concurrents)'}
         </button>
       </div>
@@ -126,7 +126,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
         <span style={{ flex: 1 }} />
         {msg && <span style={{ fontSize: 12.5, color: ok ? '#9fe6b3' : '#f5b043' }}>{msg}</span>}
-        <button type="button" onClick={save} disabled={busy} style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: busy ? .6 : 1 }}>{busy ? 'Enregistrement…' : 'Enregistrer les règles'}</button>
+        <button type="button" onClick={save} disabled={busy} style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1 }}>{busy ? 'Enregistrement…' : 'Enregistrer les règles'}</button>
       </div>
     </div>
   );

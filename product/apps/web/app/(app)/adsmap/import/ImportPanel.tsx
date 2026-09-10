@@ -115,7 +115,7 @@ export function ImportPanel({ brandName }: { brandName: string }) {
 
           <div>
             <button type="button" onClick={appliquer} disabled={busy}
-              style={{ padding: '11px 22px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'wait' : 'pointer' }}>
+              style={{ padding: '11px 22px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'wait' : 'pointer' }}>
               {busy ? 'Import en cours…' : `Importer ${rep.ads} ad(s) dans ${brandName}`}
             </button>
             <p style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 8 }}>

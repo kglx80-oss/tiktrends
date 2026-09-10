@@ -42,7 +42,7 @@ export function BrandCreated({ brandId, brandName, hasSite, importCost }: {
           </>
         ) : (
           <button type="button" onClick={close} style={{
-            padding: '12px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c',
+            padding: '12px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)',
             fontWeight: 800, fontSize: 14, cursor: 'pointer',
           }}>Voir ma marque →</button>
         )}

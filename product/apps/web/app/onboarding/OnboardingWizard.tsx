@@ -168,5 +168,5 @@ function Card({ active, onClick, emoji, label, hint, check }: { active: boolean;
 
 const field: React.CSSProperties = { width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 15, outline: 'none' };
 const lbl: React.CSSProperties = { display: 'block', fontSize: 13, color: 'var(--ink-2)', marginBottom: 6 };
-const primaryBtn: React.CSSProperties = { padding: '12px 22px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 14, cursor: 'pointer' };
+const primaryBtn: React.CSSProperties = { padding: '12px 22px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 14, cursor: 'pointer' };
 const ghostBtn: React.CSSProperties = { padding: '12px 18px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer' };

@@ -226,7 +226,7 @@ function Seg<T extends string>({ value, set, opts }: { value: T; set: (v: T) => 
       {opts.map(([v, label]) => (
         <button key={v} type="button" onClick={() => set(v)} style={{
           padding: '8px 13px', fontSize: 12.5, fontWeight: value === v ? 800 : 600, cursor: 'pointer', border: 'none',
-          background: value === v ? 'var(--grad-accent)' : 'transparent', color: value === v ? '#0d070c' : 'var(--ink-2)',
+          background: value === v ? 'var(--grad-accent)' : 'transparent', color: value === v ? 'var(--on-accent)' : 'var(--ink-2)',
         }}>{label}</button>
       ))}
     </div>

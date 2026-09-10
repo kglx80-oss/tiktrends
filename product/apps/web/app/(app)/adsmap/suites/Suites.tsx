@@ -176,7 +176,7 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
         <DraftCard view={brouillon}>
           <button
             onClick={() => { setHypo(brouillon.draft.hypothesis); onToggle(); }}
-            style={{ justifySelf: 'start', padding: '7px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
+            style={{ justifySelf: 'start', padding: '7px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
           >
             Créer la suite avec ce concept
           </button>
@@ -213,7 +213,7 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={creer} disabled={envoi || hypo.trim().length < 10}
-              style={{ padding: '8px 16px', borderRadius: 999, border: 'none', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: envoi ? 'wait' : 'pointer' }}
+              style={{ padding: '8px 16px', borderRadius: 999, border: 'none', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: envoi ? 'wait' : 'pointer' }}
             >
               {envoi ? 'Création…' : 'Créer'}
             </button>

@@ -47,7 +47,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
             <img src={ad.advertiserLogo} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
           )}
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ad.advertiserName || 'Annonceur'}</span>
-          {gagnant && <span title="Éprouvée · tient dans le temps ou sa portée progresse" style={{ fontSize: 10, fontWeight: 800, color: '#0d070c', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}>🏆 Gagnant</span>}
+          {gagnant && <span title="Éprouvée · tient dans le temps ou sa portée progresse" style={{ fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}>🏆 Gagnant</span>}
           <FollowButton ad={ad} initialFollowing={following} />
         </div>
         {ad.body && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}
@@ -95,7 +95,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
           style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: gagnant ? 800 : 700, padding: '7px 10px', borderRadius: 10,
             border: gagnant ? 'none' : '1px solid var(--line-2)',
             background: gagnant ? 'var(--grad-accent)' : 'transparent',
-            color: gagnant ? '#0d070c' : 'var(--ink)', textDecoration: 'none' }}>
+            color: gagnant ? 'var(--on-accent)' : 'var(--ink)', textDecoration: 'none' }}>
           {gagnant ? '✨ Clone ce gagnant' : '✨ Génère ta version'}
         </a>
       </div>

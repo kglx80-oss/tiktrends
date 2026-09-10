@@ -73,7 +73,7 @@ export function AssistantHome({ firstName, credits, brandName, brandId, aiReady 
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', fontSize: 13, color: 'var(--ink-2)' }}>
             <span style={{ color: 'var(--accent-strong)', fontWeight: 800 }}>◈</span> {credits.toLocaleString('fr-FR')} crédits
           </span>
-          <Link href="/studio" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Ouvrir le Studio IA</Link>
+          <Link href="/studio" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Ouvrir le Studio IA</Link>
         </div>
       </div>
 
@@ -106,7 +106,7 @@ export function AssistantHome({ firstName, credits, brandName, brandId, aiReady 
             <button key={c.key} type="button" onClick={() => setActive(c.key)} style={{
               display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 12, cursor: 'pointer',
               border: `1px solid ${on ? 'transparent' : 'var(--line)'}`, background: on ? 'var(--grad-accent)' : 'var(--surface)',
-              color: on ? '#0d070c' : 'var(--ink-2)', fontWeight: on ? 800 : 600, fontSize: 13,
+              color: on ? 'var(--on-accent)' : 'var(--ink-2)', fontWeight: on ? 800 : 600, fontSize: 13,
             }}><span>{c.icon}</span>{c.label}</button>
           );
         })}

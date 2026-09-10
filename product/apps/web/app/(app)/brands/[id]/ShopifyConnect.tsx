@@ -37,7 +37,7 @@ export function ShopifyConnect({ brandId, initialDomain }: { brandId: string; in
           style={{ flex: '1 1 280px', minWidth: 220, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' }} />
         <button type="button" onClick={sync} disabled={busy} style={{
           padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13,
-          cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: busy ? .6 : 1,
+          cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1,
         }}>{busy ? 'Synchronisation…' : (initialDomain ? '↻ Synchroniser' : '🔗 Connecter')}</button>
       </div>
       {msg && <div style={{ marginTop: 10, fontSize: 12.5, color: ok ? '#9fe6b3' : '#f5b043' }}>{msg}</div>}

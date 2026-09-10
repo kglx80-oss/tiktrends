@@ -105,7 +105,7 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
                   <a href={`/studio/ads?angle=${encodeURIComponent(consigne)}`} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 8, alignSelf: 'flex-start',
                     padding: '9px 16px', borderRadius: 10, border: 'none', background: 'var(--grad-accent)',
-                    color: '#0d070c', fontWeight: 800, fontSize: 12.5, textDecoration: 'none',
+                    color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none',
                   }}>
                     ✨ Génère une créa · {brief.angles[0].label}{fmt ? ` · en ${fmt}` : ''}
                   </a>

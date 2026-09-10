@@ -74,7 +74,7 @@ export default async function UsagePage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Utilisation des crédits</h1>
         <span style={{ flex: 1 }} />
-        <Link href="/billing" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Abonnement & factures ›</Link>
+        <Link href="/billing" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Abonnement & factures ›</Link>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
         Le détail de ce que ton espace a consommé, action par action. Rien n'est facturé sans apparaître ici.

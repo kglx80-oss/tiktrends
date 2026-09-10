@@ -21,13 +21,13 @@ export function IndicateurGenerations() {
         position: 'fixed', right: 18, bottom: 18, zIndex: 60,
         display: 'inline-flex', alignItems: 'center', gap: 10,
         padding: '10px 16px', borderRadius: 999, textDecoration: 'none',
-        background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13,
+        background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13,
         boxShadow: '0 6px 20px rgba(0,0,0,.35)',
       }}
     >
       <span aria-hidden style={{
         width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(13,7,12,.35)',
-        borderTopColor: '#0d070c', display: 'inline-block', animation: 'ig-spin 0.8s linear infinite',
+        borderTopColor: 'var(--on-accent)', display: 'inline-block', animation: 'ig-spin 0.8s linear infinite',
       }} />
       {visuels} visuel{visuels > 1 ? 's' : ''} en cours…
       <style>{'@keyframes ig-spin{to{transform:rotate(360deg)}}'}</style>

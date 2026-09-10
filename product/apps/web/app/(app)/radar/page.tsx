@@ -124,7 +124,7 @@ export default async function RadarPage() {
             <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>Mode démonstration</span>
             <span style={{ fontSize: 12.5, color: 'var(--ink-2)', marginLeft: 8 }}>Ces créas sont des exemples. Branche Meta Ads pour noter tes vraies créas.</span>
           </div>
-          <a href="/connections" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Brancher un compte ›</a>
+          <a href="/connections" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Brancher un compte ›</a>
         </div>
       )}
 

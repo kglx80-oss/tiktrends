@@ -23,7 +23,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <main style={{ ...ADMIN_THEME, ...pageWrap }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={h1}>Réglages de l'espace</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={sub}>Administration de <b>{s.workspaceName}</b>.</p>
 

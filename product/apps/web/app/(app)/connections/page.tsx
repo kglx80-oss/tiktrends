@@ -97,7 +97,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
     <main style={{ padding: '30px 36px 60px', maxWidth: 1040, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Connexions</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>
         Branche les comptes {brand ? <>de <b>{brand.name}</b></> : <>de tes marques</>} : régies publicitaires, analytics,

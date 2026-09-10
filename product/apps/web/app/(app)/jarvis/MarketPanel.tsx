@@ -71,7 +71,7 @@ export function MarketPanel() {
         </div>
         <button type="button" onClick={apprendre} disabled={busy} style={{
           padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-          color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+          color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
         }}>
           {busy ? 'Analyse…' : 'Apprendre des marques suivies'}
         </button>

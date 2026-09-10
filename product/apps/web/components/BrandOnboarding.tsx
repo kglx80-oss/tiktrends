@@ -58,7 +58,7 @@ export function BrandOnboarding({ steps }: { steps: OnboardStep[] }) {
                   fontSize: 12, fontWeight: 800,
                   background: s.done ? 'var(--grad-accent)' : 'transparent',
                   border: s.done ? 'none' : `1.5px solid ${isNext ? 'var(--accent-strong)' : 'var(--line-2)'}`,
-                  color: s.done ? '#0d070c' : isNext ? 'var(--accent-strong)' : 'var(--muted)',
+                  color: s.done ? 'var(--on-accent)' : isNext ? 'var(--accent-strong)' : 'var(--muted)',
                 }}>{s.done ? '✓' : i + 1}</span>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -71,7 +71,7 @@ export function BrandOnboarding({ steps }: { steps: OnboardStep[] }) {
                     fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap',
                     padding: '7px 13px', borderRadius: 999,
                     background: isNext ? 'var(--grad-accent)' : 'transparent',
-                    color: isNext ? '#0d070c' : 'var(--accent-strong)',
+                    color: isNext ? 'var(--on-accent)' : 'var(--accent-strong)',
                     border: isNext ? 'none' : '1px solid var(--line-2)',
                   }}>{s.cta} ›</span>
                 )}

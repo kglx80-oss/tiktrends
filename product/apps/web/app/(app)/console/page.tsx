@@ -82,7 +82,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
     <main style={{ ...ADMIN_THEME, padding: '30px 36px 60px', maxWidth: 1120, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>ADMIN+</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>CONSOLE</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>CONSOLE</span>
         {founder && <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#fe2c55', background: 'rgba(254,44,85,.12)' }}>FONDATEUR</span>}
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
@@ -184,7 +184,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                 </table>
               </div>
               <div style={{ marginTop: 14 }}>
-                <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Enregistrer les tarifs</button>
+                <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Enregistrer les tarifs</button>
               </div>
             </form>
           </div>
@@ -214,7 +214,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                 <option value="beta">Beta testeur</option><option value="staff">Staff</option><option value="normal">Normal</option>
               </select>
             </div>
-            <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Accorder</button>
+            <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Accorder</button>
           </form>
 
           {/* Table des comptes */}

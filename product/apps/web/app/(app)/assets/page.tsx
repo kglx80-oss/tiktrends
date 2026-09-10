@@ -42,7 +42,7 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
     <main style={{ padding: '30px 36px 60px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Assets</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>BIBLIOTHÈQUE</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>BIBLIOTHÈQUE</span>
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{assets.length} asset(s){imgCount ? ` · ${imgCount} image(s) mobilisable(s) par l'IA` : ''}</span>
       </div>

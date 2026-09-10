@@ -114,7 +114,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
               onClick={() => { const fd = new FormData(); fd.set('name', f.name); fd.set('url', f.url); runDraft(fd); setGate(false); }}
               title={aiReady ? `Analyse le site et déduit le profil · ${draftCost} crédits` : 'IA non configurée sur le serveur'}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: 999, border: 'none',
-                background: ready ? 'var(--grad-accent)' : 'var(--line-2)', color: ready ? '#0d070c' : 'var(--muted)',
+                background: ready ? 'var(--grad-accent)' : 'var(--line-2)', color: ready ? 'var(--on-accent)' : 'var(--muted)',
                 fontWeight: 800, fontSize: 13.5, cursor: ready && !drafting ? 'pointer' : 'default' }}>
               ✦ {drafting ? 'Analyse…' : 'Générer avec Jarvis'}
               <span style={{ fontSize: 11, fontWeight: 700, opacity: .75 }}>· {draftCost} cr.</span>
@@ -146,7 +146,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
                 }}>
                   <span style={{ width: 21, height: 21, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800,
                     background: active ? 'var(--grad-accent)' : done ? 'rgba(126,232,191,.18)' : 'var(--line-2)',
-                    color: active ? '#0d070c' : done ? '#7ee8bf' : 'var(--muted)' }}>{done ? '✓' : i + 1}</span>
+                    color: active ? 'var(--on-accent)' : done ? '#7ee8bf' : 'var(--muted)' }}>{done ? '✓' : i + 1}</span>
                   {label}
                 </button>
               </li>
@@ -317,4 +317,4 @@ const noticeBox = (border: string, bg: string, color: string) => ({
 const hStep = { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: 'var(--ink)' } as const;
 const pStep = { margin: '0 0 18px', fontSize: 13.5, color: 'var(--ink-2)' } as const;
 const emptyHint = { fontSize: 13, color: 'var(--muted)', margin: '0 0 4px' } as const;
-const primaryBtn = { padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
+const primaryBtn = { padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;

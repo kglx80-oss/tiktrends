@@ -44,7 +44,7 @@ export function SupportWidget({ firstName }: { firstName: string }) {
           border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', boxShadow: '0 26px 70px -18px rgba(0,0,0,.8)',
         }}>
           {/* En-tête */}
-          <div style={{ padding: '20px 20px 16px', background: 'var(--grad-accent)', color: '#0d070c' }}>
+          <div style={{ padding: '20px 20px 16px', background: 'var(--grad-accent)', color: 'var(--on-accent)' }}>
             <div style={{ fontSize: 20, fontWeight: 800, opacity: .8 }}>Bonjour {firstName} 👋</div>
             <div style={{ fontSize: 20, fontWeight: 800 }}>Comment peut-on aider ?</div>
           </div>
@@ -72,7 +72,7 @@ export function SupportWidget({ firstName }: { firstName: string }) {
                       <input name="title" required placeholder="Sujet" style={{ ...input, padding: '8px 10px' }} />
                       <textarea name="body" required placeholder="Ton message…" style={{ ...input, padding: '8px 10px', minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }} />
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button type="submit" style={{ padding: '8px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}>Envoyer au support</button>
+                        <button type="submit" style={{ padding: '8px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}>Envoyer au support</button>
                         <button type="button" onClick={() => setAsking(false)} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer' }}>Annuler</button>
                       </div>
                     </form>
@@ -140,7 +140,7 @@ export function SupportWidget({ firstName }: { firstName: string }) {
         aria-label="Aide et support"
         style={{
           position: 'fixed', bottom: 20, right: 20, width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', zIndex: 46,
-          border: 'none', background: 'var(--grad-accent)', color: '#0d070c', boxShadow: '0 14px 34px -8px rgba(254,44,85,.5)',
+          border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', boxShadow: '0 14px 34px -8px rgba(254,44,85,.5)',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}
       >

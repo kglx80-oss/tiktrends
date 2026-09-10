@@ -69,5 +69,5 @@ const onglet = (actif: boolean): CSSProperties => ({
   padding: '7px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
   border: '1px solid ' + (actif ? 'transparent' : 'var(--line-2)'),
   background: actif ? 'var(--grad-accent)' : 'var(--surface)',
-  color: actif ? '#0d070c' : 'var(--ink-2)',
+  color: actif ? 'var(--on-accent)' : 'var(--ink-2)',
 });

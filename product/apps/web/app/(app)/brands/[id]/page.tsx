@@ -38,7 +38,7 @@ const card = { border: '1px solid var(--line)', borderRadius: 14, background: 'v
 const sectionH = { margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' } as const;
 const j = (a?: string[] | null) => (a ?? []).join(', ');
 const delBtn = { padding: '7px 11px', borderRadius: 999, border: '1px solid rgba(255,77,109,.3)', background: 'transparent', color: '#ff9db0', fontWeight: 600, fontSize: 12, cursor: 'pointer' } as const;
-const addBtn = { padding: '9px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' } as const;
+const addBtn = { padding: '9px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' } as const;
 
 export default async function BrandDetailPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
@@ -77,7 +77,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
       <Link href="/brands" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Marques</Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>
-        <span style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>{initials}</span>
+        <span style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>{initials}</span>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>{b.name}</h1>
           <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[b.category || b.industry, b.url].filter(Boolean).join(' · ') || 'Profil à compléter'}</div>

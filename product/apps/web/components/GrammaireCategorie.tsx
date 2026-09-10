@@ -59,7 +59,7 @@ export function GrammaireCategorie() {
         <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>La carte d’identité de ma catégorie</h2>
         <button type="button" onClick={voir} disabled={busy} style={{
           fontSize: 12.5, fontWeight: 800, padding: '7px 14px', borderRadius: 999, cursor: busy ? 'default' : 'pointer',
-          border: 'none', background: 'var(--grad-accent)', color: '#0d070c', opacity: busy ? 0.6 : 1,
+          border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? 0.6 : 1,
         }}>{busy ? 'Lecture…' : '✦ Lire ce qui gagne dans ma catégorie'}</button>
         <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Ce que tes entières vont suivre · appris des concurrents qui tiennent.</span>
       </div>

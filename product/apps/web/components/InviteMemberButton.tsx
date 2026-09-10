@@ -15,7 +15,7 @@ export function InviteMemberButton() {
     <>
       <button type="button" onClick={() => setOpen(true)} style={{
         padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13,
-        cursor: 'pointer', background: 'var(--grad-accent)', color: '#0d070c',
+        cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)',
       }}>＋ Inviter un membre</button>
 
       <Modal open={open} onClose={() => setOpen(false)} icon="👥" title="Inviter un membre"

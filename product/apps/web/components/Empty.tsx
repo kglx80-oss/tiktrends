@@ -94,7 +94,7 @@ export function Empty(props: EmptyProps) {
           href={action.href}
           style={{
             display: 'inline-block', marginTop: 16, padding: '9px 18px', borderRadius: 999,
-            background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 12.5,
+            background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5,
             textDecoration: 'none',
           }}
         >

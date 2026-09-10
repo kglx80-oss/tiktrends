@@ -24,7 +24,7 @@ export function StripeDiagnostic() {
   return (
     <div>
       <button type="button" onClick={lancer} disabled={busy}
-        style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .7 : 1 }}>
+        style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .7 : 1 }}>
         {busy ? 'Vérification…' : res ? 'Relancer la vérification' : 'Lancer la vérification'}
       </button>
 
@@ -35,7 +35,7 @@ export function StripeDiagnostic() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
             <span style={{
               fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '4px 11px', borderRadius: 999,
-              color: '#0d070c', background: res.mode === 'live' ? 'linear-gradient(135deg,#7ee8bf,#4fd1a5)' : 'var(--grad-accent)',
+              color: res.mode === 'live' ? '#0d070c' : 'var(--on-accent)', background: res.mode === 'live' ? 'linear-gradient(135deg,#7ee8bf,#4fd1a5)' : 'var(--grad-accent)',
             }}>
               MODE {res.mode.toUpperCase()}
             </span>

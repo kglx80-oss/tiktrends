@@ -35,7 +35,7 @@ export function QuickSettingsModal({ open, onClose, workspaceName, showAdvanced 
           {showAdvanced
             ? <Link href="/settings" onClick={onClose} style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>Réglages avancés ›</Link>
             : <span />}
-          <button type="submit" disabled={pending} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: pending ? .6 : 1 }}>
+          <button type="submit" disabled={pending} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: pending ? .6 : 1 }}>
             {pending ? 'Enregistrement…' : 'Enregistrer'}
           </button>
         </div>

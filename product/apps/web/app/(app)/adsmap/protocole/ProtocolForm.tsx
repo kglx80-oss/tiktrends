@@ -52,7 +52,7 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" onClick={proposer} disabled={busy}
-          style={{ padding: '9px 17px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
+          style={{ padding: '9px 17px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
           {busy ? 'Analyse…' : 'Proposer des seuils depuis mes 30 derniers jours'}
         </button>
         {fromReal === false && <span style={{ fontSize: 12.5, color: '#ffcf8f' }}>Sans données Meta · valeurs génériques</span>}
@@ -151,7 +151,7 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
       {canEdit ? (
         <div>
           <button type="button" onClick={enregistrer} disabled={busy}
-            style={{ padding: '10px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
+            style={{ padding: '10px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
             {busy ? 'Enregistrement…' : 'Enregistrer'}
           </button>
         </div>

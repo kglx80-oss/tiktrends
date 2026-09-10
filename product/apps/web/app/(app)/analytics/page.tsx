@@ -104,7 +104,7 @@ export default async function AnalyticsPage() {
             <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Branche Meta Ads pour tes vrais KPI</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Dépense, ROAS, CPA, panier moyen, CPC, CPM et tes top créas, avec les variations vs période précédente.</div>
           </div>
-          <Link href="/connections" style={{ padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: '#0d070c', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>Connecter Meta Ads ›</Link>
+          <Link href="/connections" style={{ padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>Connecter Meta Ads ›</Link>
         </div>
       )}
 

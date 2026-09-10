@@ -36,7 +36,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
   return (
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', overflow: 'hidden' }}>
       <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>✦</span>
+        <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>✦</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Assistant TikTrends</div>
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>{ready ? 'Pose ta question, je connais ton espace' : "S'active dès que la clé IA est posée"}</div>
@@ -50,7 +50,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
               <div style={{
                 padding: '10px 13px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.55, whiteSpace: 'pre-wrap',
                 background: m.role === 'user' ? 'var(--grad-accent)' : 'var(--surface-2, rgba(255,255,255,.04))',
-                color: m.role === 'user' ? '#0d070c' : 'var(--ink-2)',
+                color: m.role === 'user' ? 'var(--on-accent)' : 'var(--ink-2)',
                 border: m.role === 'user' ? 'none' : '1px solid var(--line)',
               }}>{m.content}</div>
             </div>
@@ -82,7 +82,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
         />
         <button type="submit" disabled={!ready || pending || !value.trim()} style={{
           padding: '0 18px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14, cursor: ready && value.trim() ? 'pointer' : 'default',
-          background: 'var(--grad-accent)', color: '#0d070c', opacity: ready && value.trim() && !pending ? 1 : .5,
+          background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready && value.trim() && !pending ? 1 : .5,
         }}>Envoyer</button>
       </form>
     </div>

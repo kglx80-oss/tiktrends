@@ -84,7 +84,7 @@ export function ProfileModal({ open, onClose, init }: { open: boolean; onClose: 
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <Link href="/profile" onClick={onClose} style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>Sécurité & options ›</Link>
-          <button type="submit" disabled={pending} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: '#0d070c', opacity: pending ? .6 : 1 }}>
+          <button type="submit" disabled={pending} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: pending ? .6 : 1 }}>
             {pending ? 'Enregistrement…' : 'Enregistrer'}
           </button>
         </div>

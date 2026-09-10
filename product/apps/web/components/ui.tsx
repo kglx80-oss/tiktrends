@@ -7,7 +7,7 @@ export const input: CSSProperties = {
 };
 export const btn: CSSProperties = {
   padding: '10px 16px', borderRadius: 999, border: 'none',
-  background: 'var(--grad-accent)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+  background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13, cursor: 'pointer',
 };
 export const btnGhost: CSSProperties = {
   padding: '7px 12px', borderRadius: 999, border: '1px solid var(--line-2)',

@@ -40,7 +40,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
         <h1 style={h1}>Vidéo IA</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>Moteur vidéo</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>Moteur vidéo</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
         Génère des vidéos verticales prêtes pour TikTok, à partir d'un texte ou d'une image. Les vidéos sont rattachées à {brand ? <b>{brand.name}</b> : 'ta marque active'}.

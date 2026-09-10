@@ -83,7 +83,7 @@ export default async function IntelligencePage() {
     <main style={{ padding: '30px 36px 60px', maxWidth: 1080, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0 4px', flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Intelligence marché</h1>
-        <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ADMIN+</span>
+        <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 6, marginBottom: 22, maxWidth: 760, lineHeight: 1.6 }}>
         Où l'on se situe face aux concurrents directs, et comment notre pile IA maison (Jarvis) fait la différence.
@@ -155,7 +155,7 @@ export default async function IntelligencePage() {
         {AI_STACK.map((l, i) => (
           <div key={l.layer} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '13px 15px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--grad-accent)', color: '#0d070c', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
               <b style={{ fontSize: 13.5, color: 'var(--ink)' }}>{l.layer}</b>
             </div>
             <p style={{ margin: '8px 0 6px', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>{l.role}</p>

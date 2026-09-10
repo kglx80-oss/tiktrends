@@ -62,7 +62,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
     <main style={{ padding: '30px 36px 60px', maxWidth: 980, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Crédits</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>ADMIN+</span>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>
         Chaque action IA (tagging, génération, rapports…) consomme des crédits. Gère ici l'allocation, le solde et les règles.
@@ -116,7 +116,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
       <section style={{ ...panel, borderColor: 'rgba(245,166,35,.3)', background: 'linear-gradient(180deg, rgba(245,166,35,.06), var(--surface))' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h2 style={{ ...h2, fontSize: 18 }}>Économie & marges · règle maison</h2>
-          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>COÛT RÉEL × {markup}</span>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>COÛT RÉEL × {markup}</span>
         </div>
         <p style={{ margin: '8px 0 14px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 760 }}>
           Notre modèle : on facture le client au <b>coût API réel × {markup}</b> (marge cible, réglable via la variable

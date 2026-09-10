@@ -310,7 +310,7 @@ const petitBouton: CSSProperties = {
 
 const bouton: CSSProperties = {
   padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-  color: '#0d070c', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
+  color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
 };
 
 const boutonSecondaire: CSSProperties = {

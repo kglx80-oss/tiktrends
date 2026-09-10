@@ -70,7 +70,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 16 }}>✦</span>
             <b style={{ fontSize: 13.5, color: 'var(--ink)' }}>Tout récupérer depuis mon site</b>
-            <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#0d070c', background: 'var(--grad-accent)' }}>LE PLUS RAPIDE</span>
+            <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>LE PLUS RAPIDE</span>
           </div>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>
             Nom, <b>logo, couleurs, polices</b> et <b>tous tes produits</b> (avec photos et prix) importés automatiquement.
