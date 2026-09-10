@@ -222,7 +222,10 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: 1, minWidth: 240, ...inputBase }} />
           <button type="submit" style={searchBtn}>Rechercher</button>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {/* Grille auto-ajustée · les filtres forment des colonnes égales qui se
+            reflowent tout seuls · une ligne pleine sur large écran, deux ou trois
+            colonnes sur mobile, sans media query (styles inline obligent). */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
           <Select name="p" def={sp.p} opts={PLATFORMS} />
           <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
           {platform === 'meta' && <Select name="sort" def={sp.sort} opts={SORTS.map(([v, l]) => [v, 'Tri : ' + l])} />}
@@ -281,13 +284,15 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
 function Select({ name, def, opts }: { name: string; def?: string; opts: string[][] }) {
   return (
-    <select name={name} defaultValue={def ?? opts[0]?.[0] ?? ''} style={{ ...inputBase, padding: '8px 10px', fontSize: 13, cursor: 'pointer' }}>
+    <select name={name} defaultValue={def ?? opts[0]?.[0] ?? ''} style={{ ...inputBase, width: '100%', padding: '8px 10px', fontSize: 13, cursor: 'pointer' }}>
       {opts.map((o) => <option key={o[0] || 'any'} value={o[0]}>{o[1]}</option>)}
     </select>
   );
 }
 
-const wrap = { padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' } as const;
+// Marge latérale fluide · 36px sur large écran, 16px sur mobile · le contenu ne
+// se colle plus aux bords du téléphone.
+const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' } as const;
 const h1 = { margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' } as const;
 const inputBase = { padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 const searchBtn = { padding: '11px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' } as const;
