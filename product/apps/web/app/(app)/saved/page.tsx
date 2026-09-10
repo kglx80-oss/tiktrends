@@ -11,6 +11,7 @@ import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
 import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed';
 import { DecouverteSection } from '../../../components/DecouverteSection';
 import { GrammaireCategorie } from '../../../components/GrammaireCategorie';
+import { Empty } from '../../../components/Empty';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -73,7 +74,11 @@ export default async function SavedPage() {
       {/* Marques suivies */}
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>
       {brands.length === 0
-        ? <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 30 }}>Aucune marque suivie pour l'instant.</p>
+        ? <div style={{ marginBottom: 30 }}><Empty
+            tone="todo" icon="🔭" title="Aucune marque suivie pour l'instant."
+            why="Suis des concurrents depuis la Veille pour surveiller leurs nouvelles pubs et nourrir Jarvis."
+            action={{ label: 'Ouvrir la veille', href: '/veille' }}
+          /></div>
         : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} />}
 
       {/* Créas sauvegardées · organisées en boards */}

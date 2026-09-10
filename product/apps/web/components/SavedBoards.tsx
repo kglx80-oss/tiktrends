@@ -5,6 +5,7 @@ import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
 import type { InspoAd } from '@tiktrends/integrations';
 import { AdCard } from './AdCard';
 import { setSavedAdFolder } from '../app/actions/inspo';
+import { Empty } from './Empty';
 
 export interface SavedItem { id: string; ad: InspoAd; folder: string | null; externalId: string; platform: string }
 
@@ -50,7 +51,13 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
   };
 
   if (!list.length) {
-    return <p style={{ color: 'var(--muted)', fontSize: 13 }}>Aucune créa sauvegardée. Va dans la Veille et clique ★ sur une annonce.</p>;
+    return (
+      <Empty
+        tone="todo" icon="🔖" title="Aucune créa sauvegardée."
+        why="Dans la Veille, clique ★ sur une annonce pour la ranger ici · c'est ton swipe file, trié par board."
+        action={{ label: 'Ouvrir la veille', href: '/veille' }}
+      />
+    );
   }
 
   const tabBtn = (key: string): CSSProperties => ({
