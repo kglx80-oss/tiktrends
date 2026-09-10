@@ -1,5 +1,6 @@
 export * from './radar';
 export * from './naming';
+export * from './libelle-compte';
 export * from './ingest';
 export * from './tags';
 export * from './diagnostic';

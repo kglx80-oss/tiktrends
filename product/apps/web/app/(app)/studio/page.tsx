@@ -125,10 +125,10 @@ export default async function StudioPage() {
 /* -------------------------------------------------------------------------- */
 
 interface EtatAtelier {
-  ads: { n: number; label: string } | null;
-  images: { n: number; label: string } | null;
-  videos: { n: number; label: string } | null;
-  textes: { n: number; label: string } | null;
+  ads: { n: number; label: string; genre: 'm' | 'f' } | null;
+  images: { n: number; label: string; genre: 'm' | 'f' } | null;
+  videos: { n: number; label: string; genre: 'm' | 'f' } | null;
+  textes: { n: number; label: string; genre: 'm' | 'f' } | null;
   /** Créas passées en test · `null` quand la lecture échoue. */
   jugees: number | null;
   enAttente: number | null;
@@ -171,9 +171,9 @@ async function lireEtat(workspaceId: string, brandId: string | null): Promise<Et
     compter('ad'), compter('image'), compter('video'), compter('script'), juger(),
   ]);
 
-  const c = (n: number | null, label: string) => (n === null ? null : { n, label });
+  const c = (n: number | null, label: string, genre: 'm' | 'f') => (n === null ? null : { n, label, genre });
   return {
-    ads: c(ads, 'pub'), images: c(images, 'visuel'), videos: c(videos, 'vidéo'), textes: c(textes, 'brief'),
+    ads: c(ads, 'pub', 'f'), images: c(images, 'visuel', 'm'), videos: c(videos, 'vidéo', 'f'), textes: c(textes, 'brief', 'm'),
     jugees: verdicts.jugees, enAttente: verdicts.enAttente,
   };
 }

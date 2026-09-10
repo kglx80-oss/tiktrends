@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
+import { phraseCompte, type Genre } from '@tiktrends/core';
 
 /**
  * La page de garde d'une section.
@@ -47,8 +48,9 @@ export interface HubCard {
   /** La question à laquelle cet outil répond. */
   when: string;
   state: HubState;
-  /** Ce qui existe déjà · `null` quand on n'a pas pu compter. */
-  count?: { n: number; label: string } | null;
+  /** Ce qui existe déjà · `null` quand on n'a pas pu compter. Le genre porte
+      l'accord de « aucun / aucune » quand le compte est à zéro. */
+  count?: { n: number; label: string; genre: Genre } | null;
   /** Badge court · moteur, nouveauté. */
   tag?: string;
 }
@@ -134,7 +136,7 @@ function Carte({ href, icon, title, makes, when, state, count, tag }: HubCard) {
         <Etat state={state} />
         {count && (
           <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-            {count.n === 0 ? `Aucune ${count.label} pour l’instant` : `${count.n} ${count.label}${count.n > 1 ? 's' : ''}`}
+            {phraseCompte(count.n, count.label, count.genre)}
           </span>
         )}
         <span style={{ flex: 1 }} />
