@@ -6,6 +6,7 @@ import type { InspoAd } from '@tiktrends/integrations';
 import { AdCard } from './AdCard';
 import { setSavedAdFolder } from '../app/actions/inspo';
 import { Empty } from './Empty';
+import { useToast } from './Toast';
 
 export interface SavedItem { id: string; ad: InspoAd; folder: string | null; externalId: string; platform: string }
 
@@ -17,6 +18,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
   const [list, setList] = useState<SavedItem[]>(items);
   const [tab, setTab] = useState<string>('__all');
   const [, start] = useTransition();
+  const { toast } = useToast();
   const following = useMemo(() => new Set(followKeys), [followKeys]);
 
   const folders = useMemo(() => {
@@ -48,6 +50,9 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
       return next;
     });
     start(async () => { await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value }); });
+    // Le rangement se voit à l'onglet, mais le geste vaut sa confirmation là où on
+    // a cliqué · sans elle, ranger une créa dans un board est une action muette.
+    toast(value ? `Rangé dans « ${value} ».` : 'Retiré du board.');
   };
 
   if (!list.length) {

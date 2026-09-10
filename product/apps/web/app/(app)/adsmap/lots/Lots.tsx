@@ -7,6 +7,7 @@ import {
   type BatchDetail, type CandidateAd, type PrepareResult,
 } from '../../../actions/adsmap-batch';
 import { Empty } from '../../../../components/Empty';
+import { useToast } from '../../../../components/Toast';
 
 /**
  * Préparation d'un lot de test.
@@ -37,6 +38,7 @@ export function Lots({ batches, brandName }: {
   const [prep, setPrep] = useState<PrepareResult | null>(null);
   const [nouveauBut, setNouveauBut] = useState('');
   const [copie, setCopie] = useState('');
+  const { toast } = useToast();
 
   const charger = useCallback(async () => {
     if (!choisi) { setDetail(null); return; }
@@ -64,7 +66,11 @@ export function Lots({ batches, brandName }: {
     setBusy(true); setError(''); setPrep(null);
     const r = await setBatchAdAction({ batchId: choisi, adId, inBatch });
     setBusy(false);
-    if (r.error) { setError(r.error); return; }
+    // Le vivier est en bas à droite, la bannière d'erreur en haut à gauche · le
+    // retour de ce geste vit donc dans le toast, sous le pointeur. Succès compris :
+    // l'ad change de colonne, mais un lot se compose vite et la confirmation compte.
+    if (r.error) { toast(r.error, 'err'); return; }
+    toast(inBatch ? 'Ad ajoutée au lot.' : 'Ad retirée du lot.');
     await charger();
   }
 
