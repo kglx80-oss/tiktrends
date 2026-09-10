@@ -26,12 +26,34 @@ describe("un état « todo » rend une sortie · c'est le contrat", () => {
   });
 });
 
+describe("un « todo » peut poser le geste SUR PLACE · le children est une sortie aussi", () => {
+  // Un formulaire d'ajout ou un bouton d'upload est un geste au même titre qu'un
+  // lien · le type accepte alors `todo` sans `action`, mais JAMAIS sans geste du
+  // tout (voir la mutation dans le commentaire d'en-tête · elle ne compile pas).
+  const html = renderToStaticMarkup(
+    <Empty tone="todo" icon="📦" title="Aucun produit pour l'instant." why="Ajoute-en un ci-dessous.">
+      <button type="submit">+ Ajouter le produit</button>
+    </Empty>,
+  );
+  it('affiche le fait et le déclencheur en children', () => {
+    expect(html).toContain('Aucun produit pour l&#x27;instant.');
+    expect(html).toContain('+ Ajouter le produit');
+    expect(html).toContain('<button');
+  });
+});
+
 describe('les états vides migrés adoptent le composant partagé', () => {
   const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
   const CAS: Array<{ fichier: string; attendus: string[] }> = [
     { fichier: 'components/SavedBoards.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/veille'"] },
     { fichier: 'app/(app)/saved/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/veille'"] },
     { fichier: 'app/(app)/veille/scale/page.tsx', attendus: ['<Empty', 'tone="wait"'] },
+    // Produits d'une marque : l'ancienne phrase grise devient un `todo` dont le
+    // geste est le formulaire d'ajout (children) · et le rappel comptes pub
+    // adopte la même grammaire avec une sortie vers les Connexions.
+    { fichier: 'app/(app)/brands/[id]/page.tsx', attendus: ['<Empty', 'tone="todo"', '<AddProductForm', "href: '/connections'"] },
+    // Bibliothèque d'assets : `todo` avec le bouton d'upload en children.
+    { fichier: 'app/(app)/assets/AssetsLibrary.tsx', attendus: ['<Empty', 'tone="todo"', 'title="Aucun asset pour l\'instant."'] },
   ];
   for (const { fichier, attendus } of CAS) {
     it(`${fichier} adopte Empty`, () => {
