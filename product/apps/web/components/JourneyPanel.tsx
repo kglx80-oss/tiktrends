@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type CSSProperties } from 'react';
-import type { Journey, JourneyStep } from '@tiktrends/core';
+import type { Journey, JourneyStep, Relance } from '@tiktrends/core';
 
 /**
  * Le chemin, affiché.
@@ -40,7 +40,7 @@ const puce: CSSProperties = {
   fontSize: 10, fontWeight: 800,
 };
 
-export function JourneyPanel({ j, firstName }: { j: Journey; firstName: string }) {
+export function JourneyPanel({ j, firstName, relance = null }: { j: Journey; firstName: string; relance?: Relance | null }) {
   const [ouvert, setOuvert] = useState(true);
   useEffect(() => {
     try { setOuvert(localStorage.getItem(OUVERT) !== '0'); } catch { /* stockage indispo */ }
@@ -83,6 +83,22 @@ export function JourneyPanel({ j, firstName }: { j: Journey; firstName: string }
 
       {ouvert && (
         <>
+          {/* Relance douce · quand une étape de valeur traîne (la 1re créa), on
+              encourage sans répéter la consigne · on retire l'excuse, pas plus. */}
+          {relance && (
+            <div style={{
+              marginTop: 16, padding: '14px 16px', borderRadius: 14,
+              border: '1px solid rgba(254,44,85,.35)',
+              background: 'linear-gradient(135deg, rgba(254,44,85,.12), var(--surface) 70%)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span aria-hidden style={{ fontSize: 15 }}>✨</span>
+                <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{relance.titre}</div>
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 5, lineHeight: 1.55 }}>{relance.corps}</div>
+            </div>
+          )}
+
           {/* LA prochaine action · en grand, seule, avec ce qu'elle débloque. */}
           {j.next && (
             <Link

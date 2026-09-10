@@ -40,7 +40,7 @@ export default async function Dashboard() {
     <main style={{ minHeight: '100vh', padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
       <AssistantHome firstName={firstName} credits={credits} brandName={brand?.name ?? null} brandId={brand?.id ?? null} aiReady={anthropicConfigured()} />
 
-      {parcours && <JourneyPanel j={parcours} firstName={firstName} />}
+      {parcours && <JourneyPanel j={parcours.journey} relance={parcours.relance} firstName={firstName} />}
 
       <h2 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
       <Bandeau ton="demo" titre="Données d'exemple" sortie={{ href: '/connections', label: 'Brancher un compte' }}>

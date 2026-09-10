@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { journey, whyBlocked, STEPS } from '../src/onboarding';
+import { journey, whyBlocked, relance, RELANCE_SEUIL_JOURS, STEPS } from '../src/onboarding';
 
 const fait = (...cles: string[]) => new Set(cles);
 
@@ -180,5 +180,39 @@ describe('pourquoi une étape est bloquée', () => {
 
   it('rien à dire sur une clé inconnue plutôt que de deviner', () => {
     expect(whyBlocked('nexistepas', fait())).toEqual([]);
+  });
+});
+
+describe('la relance douce ne parle qu’au bon moment', () => {
+  // Un compte qui a marque + identité mais aucune génération · la prochaine
+  // étape bloquante est « generate ».
+  const surGenerate = () => journey(fait('brand', 'identity'));
+
+  it('la prochaine étape visée est bien « generate »', () => {
+    expect(surGenerate().next?.key).toBe('generate');
+  });
+
+  it('rien avant le délai · une relance le jour même agace', () => {
+    expect(relance(surGenerate(), { joursDepuisMarque: 0 })).toBeNull();
+    expect(relance(surGenerate(), { joursDepuisMarque: RELANCE_SEUIL_JOURS - 1 })).toBeNull();
+  });
+
+  it('relance au seuil et au-delà, sur le bon palier', () => {
+    const r = relance(surGenerate(), { joursDepuisMarque: RELANCE_SEUIL_JOURS });
+    expect(r).not.toBeNull();
+    expect(r!.cle).toBe('generate');
+    // Le message retire l'excuse du brief, il ne répète pas « génère ».
+    expect(r!.corps.toLowerCase()).toContain('brief');
+  });
+
+  it('ne relance pas sur une autre étape · générer n’est pas la marche courante', () => {
+    // brand + identity + generate faits · la prochaine étape n'est plus generate.
+    const apres = journey(fait('brand', 'identity', 'generate', 'map'));
+    expect(apres.next?.key).not.toBe('generate');
+    expect(relance(apres, { joursDepuisMarque: 30 })).toBeNull();
+  });
+
+  it('sans date de marque, pas de relance plutôt qu’une supposition', () => {
+    expect(relance(surGenerate(), { joursDepuisMarque: null })).toBeNull();
   });
 });
