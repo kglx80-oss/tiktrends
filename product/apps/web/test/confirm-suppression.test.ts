@@ -18,6 +18,7 @@ import { join } from 'node:path';
 
 const BRANDS = readFileSync(join(process.cwd(), 'app/(app)/brands/page.tsx'), 'utf8');
 const BRAND = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/page.tsx'), 'utf8');
+const ASSETS = readFileSync(join(process.cwd(), 'app/(app)/assets/AssetsLibrary.tsx'), 'utf8');
 
 describe('les suppressions destructives sont confirmées', () => {
   it('la liste des marques confirme la suppression', () => {
@@ -32,5 +33,12 @@ describe('les suppressions destructives sont confirmées', () => {
       const re = new RegExp(`${action}[\\s\\S]{0,220}?ConfirmButton`);
       expect(BRAND, `${action} ne passe pas par ConfirmButton`).toMatch(re);
     }
+  });
+
+  it('la suppression d’un asset demande confirmation', () => {
+    // Suppression côté client (onClick) · le garde-fou est un window.confirm avant
+    // l'appel destructif.
+    expect(ASSETS, 'supprimer un asset sans confirmation · perte de données sur un clic')
+      .toMatch(/window\.confirm[\s\S]{0,160}?deleteAssetAction/);
   });
 });
