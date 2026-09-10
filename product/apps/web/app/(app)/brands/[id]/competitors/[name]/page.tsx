@@ -48,7 +48,7 @@ export default async function CompetitorPage({ params, searchParams }: {
   const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 980, margin: '0 auto' }}>
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
       <Link href={`/brands/${id}?tab=competitors`} style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ {b.name} · Concurrents</Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>

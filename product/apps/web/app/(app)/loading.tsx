@@ -4,7 +4,7 @@
  */
 export default function Loading() {
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 1100, margin: '0 auto' }}>
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
         <Bar w={190} h={26} />
         <Bar w={90} h={20} />

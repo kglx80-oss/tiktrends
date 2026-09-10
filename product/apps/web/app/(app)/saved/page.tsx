@@ -50,7 +50,7 @@ export default async function SavedPage() {
   const adsmapOpen = !!activeBrand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
 
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 1180, margin: '0 auto' }}>
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
       <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Sauvegardes</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 24 }}>
         Tes créas gardées et les marques que tu suis. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » une marque.

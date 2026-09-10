@@ -70,7 +70,7 @@ export default async function JarvisPage() {
 
   if (!brand) {
     return (
-      <main style={{ padding: '30px 36px 60px', maxWidth: 700, margin: '0 auto' }}>
+      <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--ink)' }}>Jarvis</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
@@ -137,7 +137,7 @@ export default async function JarvisPage() {
   const relecturesErreur = 'error' in copies ? copies.error : undefined;
 
   return (
-    <main style={{ padding: '30px 36px 60px', maxWidth: 1040, margin: '0 auto' }}>
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1040, margin: '0 auto' }}>
       <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--line-2)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(230,0,126,.16), rgba(120,90,255,.10) 60%, var(--surface))', padding: '26px 28px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🧠</div>
