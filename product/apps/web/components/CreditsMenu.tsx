@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, type CSSProperties } from 'react';
 import { CREDIT_PACKS } from '../lib/credit-packs';
 import { createTopupCheckoutAction } from '../app/actions/stripe';
+import { Icon } from './Icon';
 
 /**
  * Puce de crédits (solde réel) façon Pletor + menu au clic :
@@ -46,7 +47,7 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
               <div style={{ padding: 12 }}>
                 {showUpgrade && (
                   <Link href="/billing" onClick={() => setOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 11, textDecoration: 'none', background: 'var(--grad-accent)', marginBottom: 10 }}>
-                    <span style={{ fontSize: 15 }}>⚡</span>
+                    <span style={{ display: 'inline-flex', color: 'var(--on-accent)' }}><Icon name="spark" size={15} /></span>
                     <span style={{ flex: 1 }}>
                       <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--on-accent)' }}>Améliorer mon offre</span>
                       <span style={{ display: 'block', fontSize: 11, color: 'rgba(13,7,12,.72)' }}>Plus de crédits chaque mois</span>
