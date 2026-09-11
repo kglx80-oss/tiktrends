@@ -11,7 +11,7 @@ import { jarvisStats, jarvisMeasuredMemory, jarvisHookView } from '../../../lib/
 import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../lib/jarvis-state';
 import { spendStatus } from '../../../lib/spend-guard';
 import { currentDeployment } from '../../../lib/deployment';
-import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction, bilanCopieAction } from '../../actions/adsmap-attribution';
+import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction, bilanCopieAction, calibrationScoreAction } from '../../actions/adsmap-attribution';
 import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { JarvisRules } from './JarvisRules';
@@ -95,7 +95,7 @@ export default async function JarvisPage() {
 
   // La mémoire n'est chargée que si elle est accessible · inutile de faire
   // travailler la base pour un bloc qu'on n'affichera pas.
-  const [memoire, hooks, attribution, tendance, essais, bilan, copies, stats, depense] = await Promise.all([
+  const [memoire, hooks, attribution, tendance, essais, bilan, copies, calibration, stats, depense] = await Promise.all([
     voitMemoire ? jarvisMeasuredMemory(brand.id, s.workspaceId) : Promise.resolve(''),
     voitMemoire ? jarvisHookView(brand.id, s.workspaceId) : Promise.resolve(null),
     voitMemoire ? attributionViewAction() : Promise.resolve({ view: undefined }),
@@ -103,6 +103,7 @@ export default async function JarvisPage() {
     voitMemoire ? essaisViewAction() : Promise.resolve({ view: undefined }),
     voitMemoire ? bilanNotesAction() : Promise.resolve({ bilan: undefined }),
     voitMemoire ? bilanCopieAction() : Promise.resolve({ bilan: undefined, temoin: undefined }),
+    voitMemoire ? calibrationScoreAction() : Promise.resolve({ calibration: undefined }),
     voitMemoire ? jarvisStats(brand.id, s.workspaceId) : Promise.resolve(null),
     fondateur ? spendStatus() : Promise.resolve(null),
   ]);
@@ -117,6 +118,8 @@ export default async function JarvisPage() {
   const essaisVue = essais.view;
   const essaisErreur = 'error' in essais ? essais.error : undefined;
   const notes = bilan.bilan;
+  // La calibration du score contre le marché · « le pronostic prédit-il ? ».
+  const calib = 'calibration' in calibration ? calibration.calibration : undefined;
   // Le conseil se déduit des deux lectures ci-dessus · aucun modèle n'est
   // appelé, donc rien n'est facturé pour l'afficher.
   const conseil = voitMemoire && essaisVue && notes
@@ -373,6 +376,23 @@ export default async function JarvisPage() {
             Chaque Score Jarvis coûte deux crédits et ne servait qu’une fois. Voici leur somme ·
             d’où viennent tes ratés de fabrication, et ce qui tient le mieux chez toi.
           </p>
+
+          {/* Le pronostic vaut-il ses crédits ? · on confronte le score au verdict
+              du marché. Muet tant qu'on n'a pas assez de créas notées ET mesurées ·
+              le silence est la réponse honnête, pas un « le score marche ». */}
+          {calib && calib.predictif !== null && (
+            <p style={{
+              margin: '10px 0 0', padding: '10px 13px', borderRadius: 10,
+              background: calib.predictif ? 'rgba(126,232,191,.08)' : 'var(--paper)',
+              border: `1px solid ${calib.predictif ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
+              fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: 'var(--ink-2)', maxWidth: 720,
+            }}>
+              <b style={{ color: calib.predictif ? '#7ee8bf' : 'var(--ink)' }}>
+                {calib.predictif ? 'Ton Score Jarvis prédit le marché.' : 'Ton Score Jarvis ne se détache pas encore du hasard.'}
+              </b>{' '}
+              {calib.resume} <span style={{ color: 'var(--muted)' }}>· sur {calib.conclusifs} créa(s) notée(s) et mesurée(s).</span>
+            </p>
+          )}
 
           {notesErreur ? (
             <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{notesErreur}</p>

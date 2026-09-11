@@ -444,8 +444,29 @@ proposées** (par valeur × bornée × 0 budget) :
 - **À valider par le proprio** : le débrief du dernier lot réapparaît bien après
   un rechargement de Pubs IA.
 
-**2e tour bouclé.** Prochain : nouveau tour d'exploration ou consolidation, à
-proposer au proprio.
+**2e tour bouclé.**
+
+## 3e tour · valider les signaux payés (2026-09-11)
+
+### Livré · le Score Jarvis est confronté au marché (GAP5 · 0 $)
+- Le Score Jarvis coûte des crédits · c'est un PRONOSTIC, jamais confronté au
+  verdict réel. `bilanNotes` les garde séparés À DESSEIN (un avis n'est pas un
+  résultat). Mais du coup, personne ne vérifiait si le score PRÉDIT : un client
+  payait un score dont on ignorait la valeur.
+- Règle pure `calibrationScore(paires)` (core adsmap) : coupe à la MÉDIANE des
+  scores (pas de seuil d'instinct · doctrine « mesurer les seuils »), compare le
+  taux de gagnantes moitié haute vs basse, ne déclare « prédit » que si la borne
+  basse de Wilson de la moitié haute dépasse le taux de la moitié basse. Plancher
+  de 5 conclusifs PAR MOITIÉ · muette sinon.
+- `calibrationScoreAction` (à part de `bilanNotes`, qui reste sans verdict) relie
+  score et verdict par le lien forward `input.adsmapAdId`. Affiché dans la page
+  Jarvis, section Score Jarvis · « Ton Score Jarvis prédit le marché » / « ne se
+  détache pas encore du hasard », muet tant qu'on n'a pas assez de paires.
+- **Gardes** : noyau (médiane, plancher, Wilson · mutation éprouvée) + câblage
+  (action relie score/verdict et passe par le noyau ; `bilanNotes` reste sans
+  verdict ; la page rend sous condition · mutation éprouvée).
+- **À valider par le proprio** : l'affichage de calibration apparaît bien sur la
+  page Jarvis dès qu'une marque a assez de créas notées ET mesurées.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.

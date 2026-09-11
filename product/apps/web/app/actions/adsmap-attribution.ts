@@ -5,10 +5,11 @@ import { db, schema } from '@tiktrends/db';
 import {
   attributionStats, attributionByPart, memoryOrigin, creativeTrend, PART_LABEL,
   lireEssais, cumulEssais, bilanNotes, defautsConnus, essaiSuivant, bilanCopie,
-  temoinQualite, type FenetreDefauts, type TemoinQualite,
+  temoinQualite, calibrationScore, type FenetreDefauts, type TemoinQualite,
   type AttributedAd, type AttributionResult, type MemoryUse, type PartResult, type TrendResult,
   type AdEssai, type EssaiLu, type CumulEssais, type VariableEssai,
   type BilanNotes, type NoteLue, type Suggestion, type BilanCopie, type RelectureLue,
+  type Calibration, type VerdictValue,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -366,6 +367,53 @@ export async function bilanNotesAction(): Promise<{ bilan?: BilanNotes; error?: 
     return { bilan: bilanNotes(notes) };
   } catch (e) {
     return { error: logAndTranslate('adsmap:bilan-notes', e, { subject: 'le bilan des notes', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+/**
+ * Le Score Jarvis prédit-il vraiment ? · calibration du pronostic contre le marché.
+ *
+ * `bilanNotes` compte les notes SANS les verdicts, à dessein — un avis n'est pas
+ * un résultat. Cette action-ci fait l'inverse assumé : elle les CONFRONTE, pour
+ * dire si le score (payé en crédits) prédit le verdict. C'est une validation du
+ * signal, pas un cumul · elle vit donc à part, avec sa propre discipline
+ * d'effectif (`calibrationScore`, noyau). Le lien est le même que la carte : la
+ * génération porte le score ET l'`adsmapAdId`, l'ad porte le verdict.
+ */
+export async function calibrationScoreAction(): Promise<{ calibration?: Calibration; error?: string }> {
+  const g = await adsmapGuard();
+  if ('error' in g) return { error: g.error };
+
+  try {
+    const rows = await db!.select({ input: schema.generations.input })
+      .from(schema.generations)
+      .where(and(eq(schema.generations.brandId, g.brand.id), eq(schema.generations.kind, 'ad')))
+      .orderBy(desc(schema.generations.createdAt)).limit(600);
+
+    // adsmapAdId → score du pronostic · seules les créas NOTÉES et suivies comptent.
+    const scoreParAd = new Map<string, number>();
+    for (const r of rows) {
+      const rec = (r.input ?? {}) as { jarvisScore?: { score?: number }; adsmapAdId?: string };
+      if (rec.adsmapAdId && typeof rec.jarvisScore?.score === 'number') scoreParAd.set(rec.adsmapAdId, rec.jarvisScore.score);
+    }
+    const adIds = [...scoreParAd.keys()];
+    if (!adIds.length) return { calibration: calibrationScore([]) };
+
+    const vs = await db!.select({ adId: schema.verdicts.adId, computed: schema.verdicts.computed, validated: schema.verdicts.validated, status: schema.verdicts.status })
+      .from(schema.verdicts)
+      .where(inArray(schema.verdicts.adId, adIds));
+    // Un verdict par ad · l'arbitré prime sur le provisoire.
+    const verdictParAd = new Map<string, VerdictValue | null>();
+    for (const v of vs) {
+      const arbitre = v.status === 'validated';
+      if (verdictParAd.has(v.adId) && !arbitre) continue;
+      verdictParAd.set(v.adId, ((arbitre ? v.validated : v.computed) ?? null) as VerdictValue | null);
+    }
+
+    const paires = [...scoreParAd.entries()].map(([adId, score]) => ({ score, verdict: verdictParAd.get(adId) ?? null }));
+    return { calibration: calibrationScore(paires) };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:calibration-score', e, { subject: 'la calibration du score', workspaceId: g.s.workspaceId }) };
   }
 }
 
