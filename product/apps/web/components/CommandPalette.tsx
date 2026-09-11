@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { scoreRecherche } from '../lib/recherche';
+import { Icon } from './Icon';
 
 export interface Command {
   id: string;
@@ -11,8 +12,25 @@ export interface Command {
   href?: string;
   hint?: string;
   keywords?: string;
-  emoji?: string;
+  /** NOM d'icône du jeu premium (`components/Icon`), jamais un emoji. */
+  icon?: string;
   locked?: boolean;
+}
+
+/**
+ * Le glyphe en tête d'une commande · une icône au trait, jamais un emoji.
+ *
+ * Exporté et pur · c'est le même code que la palette rend, donc un test peut le
+ * rendre seul (la palette, elle, renvoie `null` tant qu'elle n'est pas ouverte)
+ * et prouver qu'on voit un `<svg>`, pas un 🖼️. Sans nom d'icône, un chevron
+ * sobre · aucune commande ne devrait en arriver là.
+ */
+export function CommandGlyph({ icon }: { icon?: string }) {
+  return (
+    <span aria-hidden style={{ width: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+      {icon ? <Icon name={icon} size={16} /> : <span style={{ fontSize: 15 }}>›</span>}
+    </span>
+  );
 }
 
 /** Événement global pour ouvrir la palette depuis n'importe où (ex : bouton du rail). */
@@ -113,10 +131,10 @@ export function CommandPalette({ commands }: { commands: Command[] }) {
                 return (
                   <div key={c.id} data-i={i} onMouseEnter={() => setIdx(i)} onClick={() => run(c)}
                     style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 11px', borderRadius: 10, cursor: c.locked ? 'default' : 'pointer', background: active ? 'var(--accent-soft)' : 'transparent', opacity: c.locked ? 0.5 : 1 }}>
-                    <span style={{ width: 22, textAlign: 'center', fontSize: 15 }}>{c.emoji || '›'}</span>
+                    <CommandGlyph icon={c.icon} />
                     <span style={{ flex: 1, fontSize: 14, fontWeight: active ? 700 : 500, color: 'var(--ink)' }}>{c.label}</span>
                     {c.hint && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{c.hint}</span>}
-                    {c.locked && <span style={{ fontSize: 12 }}>🔒</span>}
+                    {c.locked && <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={13} /></span>}
                     {active && !c.locked && <kbd style={kbd}>↵</kbd>}
                   </div>
                 );

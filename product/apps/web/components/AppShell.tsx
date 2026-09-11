@@ -100,7 +100,7 @@ function NavLink({ it, active, inPath = false, onClick }: {
       {it.isSub ? <span style={{ width: 5, height: 5, borderRadius: '50%', background: active ? 'var(--accent)' : 'var(--line-2)' }} /> : <Icon name={it.icon} />}
       <span style={{ flex: 1 }}>{it.label}</span>
       {it.soon && <span style={pill('#8a6d3b', 'rgba(245,166,35,.15)')}>Bientôt</span>}
-      {!it.soon && it.locked && <span style={pill('var(--muted)', 'rgba(255,255,255,.06)')}>🔒</span>}
+      {!it.soon && it.locked && <span style={{ ...pill('var(--muted)', 'rgba(255,255,255,.06)'), display: 'inline-flex', alignItems: 'center', padding: '3px 6px' }}><Icon name="lock" size={12} /></span>}
     </span>
   );
   return disabled
@@ -248,49 +248,47 @@ function AppShellInner(props: Props) {
   };
 
   // Commandes de la palette ⌘K : navigation (rail + compte) + actions + admin.
-  const emojiFor: Record<string, string> = {
-    grid: '🏠', chart: '📊', radar: '🛰️', tag: '🏷️', bulb: '💡', spark: '✨', film: '🎬',
-    image: '🖼️', trend: '📈', store: '🏪', plug: '🔌', users: '👥', card: '💳', help: '🆘', bookmark: '🔖', layers: '🗂️',
-    brain: '🧠', gauge: '⏱️', gear: '⚙️', coin: '🪙', check: '✅',
-  };
+  // Chaque commande porte un NOM d'icône du jeu premium · jamais un emoji. Les
+  // items de nav/compte en ont déjà un (`it.icon`, celui du rail), les actions et
+  // l'admin le déclarent en clair ci-dessous.
   // En tête de la palette · les derniers écrans visités (jamais celui où l'on
   // est déjà), pour reprendre là où on s'était arrêté.
   const recentCommands: Command[] = recents
     .filter((r) => r.path !== pathname)
     .slice(0, 5)
-    .map((r) => ({ id: 'recent-' + r.path, label: r.label, group: 'Récents', href: r.path, emoji: '🕘', keywords: 'récent ' + r.label }));
+    .map((r) => ({ id: 'recent-' + r.path, label: r.label, group: 'Récents', href: r.path, icon: 'clock', keywords: 'récent ' + r.label }));
   const commands: Command[] = [...recentCommands];
-  for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });
+  for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });
   // Verbes d'action : lancer une tâche directement depuis ⌘K (pas seulement naviguer).
   commands.push(
-    { id: 'do-home', label: 'Accueil', group: 'Actions', href: '/dashboard', emoji: '🏠', keywords: 'accueil dashboard maison home retour tableau de bord' },
-    { id: 'do-ads', label: 'Générer des pubs IA', group: 'Actions', href: '/studio/ads', emoji: '✨', keywords: 'créer pub génération ads publicité' },
-    { id: 'do-clone', label: 'Cloner une pub gagnante', group: 'Actions', href: '/studio/ads?mode=clone', emoji: '🧬', keywords: 'cloner copier pub concurrent référence' },
-    { id: 'do-image', label: 'Générer une image', group: 'Actions', href: '/studio/image', emoji: '🖼️', keywords: 'image visuel produit scène' },
-    { id: 'do-video', label: 'Générer une vidéo', group: 'Actions', href: '/studio/video', emoji: '🎬', keywords: 'vidéo animation clip' },
-    { id: 'do-jarvis', label: 'Ce que Jarvis sait', group: 'Actions', href: '/jarvis', emoji: '🧠', keywords: 'jarvis ia memoire accroches regles couches etat' },
-    { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/veille', emoji: '🔎', keywords: 'veille concurrent recherche pub' },
-    { id: 'do-scale', label: 'Voir ce qui scale', group: 'Actions', href: '/veille/scale', emoji: '📈', keywords: 'scale tendance croissance winner' },
-    { id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', emoji: '➕', keywords: 'créer marque ajouter' },
+    { id: 'do-home', label: 'Accueil', group: 'Actions', href: '/dashboard', icon: 'grid', keywords: 'accueil dashboard maison home retour tableau de bord' },
+    { id: 'do-ads', label: 'Générer des pubs IA', group: 'Actions', href: '/studio/ads', icon: 'sparkles', keywords: 'créer pub génération ads publicité' },
+    { id: 'do-clone', label: 'Cloner une pub gagnante', group: 'Actions', href: '/studio/ads?mode=clone', icon: 'layers', keywords: 'cloner copier pub concurrent référence' },
+    { id: 'do-image', label: 'Générer une image', group: 'Actions', href: '/studio/image', icon: 'image', keywords: 'image visuel produit scène' },
+    { id: 'do-video', label: 'Générer une vidéo', group: 'Actions', href: '/studio/video', icon: 'film', keywords: 'vidéo animation clip' },
+    { id: 'do-jarvis', label: 'Ce que Jarvis sait', group: 'Actions', href: '/jarvis', icon: 'brain', keywords: 'jarvis ia memoire accroches regles couches etat' },
+    { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/veille', icon: 'search', keywords: 'veille concurrent recherche pub' },
+    { id: 'do-scale', label: 'Voir ce qui scale', group: 'Actions', href: '/veille/scale', icon: 'trend', keywords: 'scale tendance croissance winner' },
+    { id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', icon: 'plus', keywords: 'créer marque ajouter' },
   );
   // Sauter à une marque de l'espace.
-  for (const b of brands) commands.push({ id: 'brand-' + b.id, label: b.name, group: 'Marques', href: `/brands/${b.id}`, emoji: '🏷️', keywords: 'marque ' + b.name });
-  commands.push({ id: 'act-profile', label: 'Mon profil', group: 'Compte', href: '/profile', emoji: '👤', keywords: 'profil compte photo' });
-  for (const it of personalItems) commands.push({ id: 'acc-' + it.key, label: it.label, group: 'Compte', href: it.href, emoji: '›', locked: it.locked, keywords: it.label });
-  for (const it of workspaceItems) commands.push({ id: 'ws-' + it.key, label: it.label, group: 'Espace de travail', href: it.href, emoji: emojiFor[it.icon] || '›', locked: it.locked, keywords: it.label });
+  for (const b of brands) commands.push({ id: 'brand-' + b.id, label: b.name, group: 'Marques', href: `/brands/${b.id}`, icon: 'tag', keywords: 'marque ' + b.name });
+  commands.push({ id: 'act-profile', label: 'Mon profil', group: 'Compte', href: '/profile', icon: 'user', keywords: 'profil compte photo' });
+  for (const it of personalItems) commands.push({ id: 'acc-' + it.key, label: it.label, group: 'Compte', href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });
+  for (const it of workspaceItems) commands.push({ id: 'ws-' + it.key, label: it.label, group: 'Espace de travail', href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });
   if (isStaff) {
     commands.push(
-      { id: 'adm-home', label: 'ADMIN+ · Coulisses', group: 'Plateforme', href: '/admin', emoji: '🎛️', keywords: 'admin backstage console' },
-      { id: 'adm-fin', label: 'Finance · MRR & marges', group: 'Plateforme', href: '/admin/finance', emoji: '📈', keywords: 'mrr revenu marge chiffre' },
-      { id: 'adm-signups', label: 'Inscriptions & onboarding', group: 'Plateforme', href: '/admin/signups', emoji: '🧭', keywords: 'inscriptions comptes profils' },
-      { id: 'nav-adsmap', label: 'Adsmap · carte des tests', group: 'Analyse', href: '/adsmap', emoji: '🗺️', keywords: 'adsmap test verdict hypothese iteration batch lot' },
-      { id: 'adm-plans', label: 'Formules & crédits · pilotage', group: 'Plateforme', href: '/admin/plans', emoji: '◈', keywords: 'formule plan crédit offrir ajuster' },
-      { id: 'adm-pay', label: 'Vérifier la chaîne de paiement', group: 'Plateforme', href: '/admin/paiement', emoji: '💳', keywords: 'stripe paiement webhook prix test carte' },
-      { id: 'adm-incid', label: 'Incidents techniques', group: 'Plateforme', href: '/admin/incidents', emoji: '⚠️', keywords: 'erreur panne echec quota fournisseur log' },
-      { id: 'adm-spend', label: 'Dépense IA réelle', group: 'Plateforme', href: '/admin/depenses', emoji: '💸', keywords: 'plafond budget dollars facture anthropic fal cout reel' },
-      { id: 'adm-credits', label: 'Coûts & marges', group: 'Plateforme', href: '/credits', emoji: '％', keywords: 'crédits coût marge rentabilité' },
-      { id: 'adm-intel', label: 'Intelligence marché', group: 'Plateforme', href: '/admin/intelligence', emoji: '🔭', keywords: 'concurrents atria' },
-      { id: 'adm-console', label: 'Console', group: 'Plateforme', href: '/console', emoji: '📟', keywords: 'console système diagnostics' },
+      { id: 'adm-home', label: 'ADMIN+ · Coulisses', group: 'Plateforme', href: '/admin', icon: 'gauge', keywords: 'admin backstage console' },
+      { id: 'adm-fin', label: 'Finance · MRR & marges', group: 'Plateforme', href: '/admin/finance', icon: 'chart', keywords: 'mrr revenu marge chiffre' },
+      { id: 'adm-signups', label: 'Inscriptions & onboarding', group: 'Plateforme', href: '/admin/signups', icon: 'users', keywords: 'inscriptions comptes profils' },
+      { id: 'nav-adsmap', label: 'Adsmap · carte des tests', group: 'Analyse', href: '/adsmap', icon: 'map', keywords: 'adsmap test verdict hypothese iteration batch lot' },
+      { id: 'adm-plans', label: 'Formules & crédits · pilotage', group: 'Plateforme', href: '/admin/plans', icon: 'card', keywords: 'formule plan crédit offrir ajuster' },
+      { id: 'adm-pay', label: 'Vérifier la chaîne de paiement', group: 'Plateforme', href: '/admin/paiement', icon: 'card', keywords: 'stripe paiement webhook prix test carte' },
+      { id: 'adm-incid', label: 'Incidents techniques', group: 'Plateforme', href: '/admin/incidents', icon: 'alert', keywords: 'erreur panne echec quota fournisseur log' },
+      { id: 'adm-spend', label: 'Dépense IA réelle', group: 'Plateforme', href: '/admin/depenses', icon: 'coin', keywords: 'plafond budget dollars facture anthropic fal cout reel' },
+      { id: 'adm-credits', label: 'Coûts & marges', group: 'Plateforme', href: '/credits', icon: 'coin', keywords: 'crédits coût marge rentabilité' },
+      { id: 'adm-intel', label: 'Intelligence marché', group: 'Plateforme', href: '/admin/intelligence', icon: 'radar', keywords: 'concurrents atria' },
+      { id: 'adm-console', label: 'Console', group: 'Plateforme', href: '/console', icon: 'gauge', keywords: 'console système diagnostics' },
     );
   }
 

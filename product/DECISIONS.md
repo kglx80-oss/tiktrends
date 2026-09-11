@@ -87,8 +87,19 @@ répété) d'abord, puis icônes premium, fil conducteur, Jarvis.
   refuse tout nom inconnu ET tout caractère non-ASCII (un emoji qui reviendrait).
 - **À valider par le proprio** : lisibilité des pastilles de réglage et des
   gabarits dans les trois studios.
-- **Reste (emoji épars)** : boutons d'action inline (✦✨⬆✎🔗), palette ⌘K
-  (`AppShell.emojiFor`) · à convertir opportunément. La grammaire est posée.
+- **Reste (emoji épars)** : boutons d'action inline (✦✨⬆✎🔗), pastille 🎛️ du
+  menu compte (AppShell) · à convertir opportunément. La grammaire est posée.
+
+### Palette ⌘K + rail · dernières surfaces de navigation au trait
+- La palette ⌘K et le rail affichaient chaque commande avec un emoji
+  (🏠✨🧬🖼️🎬🧠🔎🗺️…) et le cadenas 🔒. `AppShell.emojiFor` mappait nom d'icône
+  → emoji · supprimé. `Command.emoji` devient `Command.icon` (nom du jeu). Le
+  glyphe de ligne est sorti en composant pur exporté `CommandGlyph`.
+- Icônes ajoutées : `plus`, `alert`, `lock`. Le 🔒 du rail (NavLink) et de la
+  palette passe à `<Icon name="lock">`.
+- **Garde** : la palette renvoie `null` fermée → on rend `CommandGlyph` seul
+  (result, `<svg>`, mutation éprouvée) ; scan du câblage AppShell (plus d'`emoji:`
+  ni d'`emojiFor`, chaque `icon:` littéral connu du jeu, mutation éprouvée).
 
 ### Hub Studio · switchboard du produit phare (piste #2 ∩ #3)
 - Le hub `/studio` oriente vers les quatre studios (dont Pubs IA). Ses cartes
