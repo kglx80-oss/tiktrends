@@ -3,13 +3,14 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveOnboardingAction } from '../actions/onboarding';
+import { Icon } from '../../components/Icon';
 
 const PROFILES = [
-  { key: 'brand', label: 'Marque / E-commerce', hint: 'Créa en interne', emoji: '🏷️' },
-  { key: 'agency', label: 'Agence', hint: 'Travail client, en équipe', emoji: '🏢' },
-  { key: 'freelancer', label: 'Freelance', hint: 'Travail client, en solo', emoji: '🧑‍💻' },
-  { key: 'ai_artist', label: 'AI Artist', hint: 'Art & expérimentations', emoji: '🎨' },
-  { key: 'other', label: 'Autre', hint: 'Je verrai en avançant', emoji: '✨' },
+  { key: 'brand', label: 'Marque / E-commerce', hint: 'Créa en interne', icon: 'tag' },
+  { key: 'agency', label: 'Agence', hint: 'Travail client, en équipe', icon: 'store' },
+  { key: 'freelancer', label: 'Freelance', hint: 'Travail client, en solo', icon: 'user' },
+  { key: 'ai_artist', label: 'AI Artist', hint: 'Art & expérimentations', icon: 'palette' },
+  { key: 'other', label: 'Autre', hint: 'Je verrai en avançant', icon: 'sparkles' },
 ];
 const AI_LEVELS = [
   { key: 'starter', label: 'Je débute', hint: "Jamais utilisé l'IA pour créer" },
@@ -18,12 +19,12 @@ const AI_LEVELS = [
   { key: 'advanced', label: 'Avancé', hint: "J'ai construit des workflows IA" },
 ];
 const GOALS = [
-  { key: 'ads', label: 'Créer des pubs qui vendent', emoji: '🚀' },
-  { key: 'clone', label: 'Cloner des pubs gagnantes', emoji: '🏆' },
-  { key: 'analyze', label: 'Analyser mes performances', emoji: '📊' },
-  { key: 'scale', label: 'Produire à grande échelle', emoji: '⚡' },
-  { key: 'multi', label: 'Gérer plusieurs marques', emoji: '🗂️' },
-  { key: 'video', label: 'Passer à la vidéo IA', emoji: '🎬' },
+  { key: 'ads', label: 'Créer des pubs qui vendent', icon: 'spark' },
+  { key: 'clone', label: 'Cloner des pubs gagnantes', icon: 'star' },
+  { key: 'analyze', label: 'Analyser mes performances', icon: 'chart' },
+  { key: 'scale', label: 'Produire à grande échelle', icon: 'plug' },
+  { key: 'multi', label: 'Gérer plusieurs marques', icon: 'layers' },
+  { key: 'video', label: 'Passer à la vidéo IA', icon: 'film' },
 ];
 
 const TOTAL = 4;
@@ -74,9 +75,9 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
         </div>
 
         {step === 0 && (
-          <Step title={`Bienvenue${firstName ? `, ${firstName}` : ''} 👋`} sub="Pour personnaliser ton espace : qui es-tu ?">
+          <Step title={`Bienvenue${firstName ? `, ${firstName}` : ''}`} sub="Pour personnaliser ton espace : qui es-tu ?">
             <Grid>
-              {PROFILES.map((p) => <Card key={p.key} active={profile === p.key} onClick={() => setProfile(p.key)} emoji={p.emoji} label={p.label} hint={p.hint} />)}
+              {PROFILES.map((p) => <Card key={p.key} active={profile === p.key} onClick={() => setProfile(p.key)} icon={p.icon} label={p.label} hint={p.hint} />)}
             </Grid>
           </Step>
         )}
@@ -90,7 +91,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
         {step === 2 && (
           <Step title="Ton objectif principal ?" sub="Plusieurs choix possibles · on met en avant ce qui compte pour toi.">
             <Grid>
-              {GOALS.map((p) => <Card key={p.key} active={goals.includes(p.key)} onClick={() => toggleGoal(p.key)} emoji={p.emoji} label={p.label} check />)}
+              {GOALS.map((p) => <Card key={p.key} active={goals.includes(p.key)} onClick={() => toggleGoal(p.key)} icon={p.icon} label={p.label} check />)}
             </Grid>
           </Step>
         )}
@@ -114,7 +115,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
           {step > 0 && <button type="button" onClick={() => setStep((n) => n - 1)} style={ghostBtn}>Retour</button>}
           {step < TOTAL - 1
             ? <button type="button" onClick={() => canNext && setStep((n) => n + 1)} disabled={!canNext} style={{ ...primaryBtn, opacity: canNext ? 1 : .5 }}>Continuer</button>
-            : <button type="button" onClick={finish} disabled={busy || !peutFinir} title={!peutFinir ? 'Donne un nom à ta marque' : undefined} style={{ ...primaryBtn, opacity: busy || !peutFinir ? .5 : 1, cursor: busy || !peutFinir ? 'default' : 'pointer' }}>{busy ? 'Préparation…' : 'Démarrer 🚀'}</button>}
+            : <button type="button" onClick={finish} disabled={busy || !peutFinir} title={!peutFinir ? 'Donne un nom à ta marque' : undefined} style={{ ...primaryBtn, opacity: busy || !peutFinir ? .5 : 1, cursor: busy || !peutFinir ? 'default' : 'pointer' }}>{busy ? 'Préparation…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Démarrer <Icon name="spark" size={14} /></span>}</button>}
         </div>
 
         {/* Le refus, dit là où l'on clique · pas de navigation muette sur échec. */}
@@ -152,15 +153,15 @@ function Step({ title, sub, children }: { title: string; sub: string; children: 
 function Grid({ children }: { children: ReactNode }) {
   return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>{children}</div>;
 }
-function Card({ active, onClick, emoji, label, hint, check }: { active: boolean; onClick: () => void; emoji?: string; label: string; hint?: string; check?: boolean }) {
+function Card({ active, onClick, icon, label, hint, check }: { active: boolean; onClick: () => void; icon?: string; label: string; hint?: string; check?: boolean }) {
   return (
     <button type="button" onClick={onClick} style={{
       position: 'relative', textAlign: 'left', padding: '15px 16px', borderRadius: 14, cursor: 'pointer',
       border: `1.5px solid ${active ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: active ? 'var(--accent-soft)' : 'var(--surface)',
     }}>
       {check && <span style={{ position: 'absolute', top: 12, right: 12, width: 20, height: 20, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, background: active ? '#18cc8c' : 'transparent', color: active ? '#04140d' : 'transparent', border: active ? 'none' : '1.5px solid var(--line-2)' }}>✓</span>}
-      {emoji && <div style={{ fontSize: 22 }}>{emoji}</div>}
-      <div style={{ marginTop: emoji ? 8 : 0, fontSize: 14.5, fontWeight: 700, color: 'var(--ink)' }}>{label}</div>
+      {icon && <div style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name={icon} size={22} /></div>}
+      <div style={{ marginTop: icon ? 8 : 0, fontSize: 14.5, fontWeight: 700, color: 'var(--ink)' }}>{label}</div>
       {hint && <div style={{ marginTop: 3, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>{hint}</div>}
     </button>
   );

@@ -16,7 +16,7 @@ export function Modal({
   subtitle?: string;
   children: ReactNode;
   maxWidth?: number;
-  icon?: string;
+  icon?: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 

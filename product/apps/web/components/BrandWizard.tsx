@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from 'react';
 import { input, lbl } from './ui';
 import { BrandGuidelines } from './BrandGuidelines';
+import { Icon } from './Icon';
 import { createBrandAction, generateBrandDraftAction, type BrandDraftState } from '../app/actions/brands';
 
 interface Persona { name: string; description: string; pains: string; desires: string }
@@ -84,12 +85,12 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 260px) minmax(0,1fr)', gap: 0, ...shell(embedded) }}>
         {/* Panneau valeur */}
         <div style={{ background: 'linear-gradient(180deg, rgba(254,44,85,.10), var(--paper))', padding: '26px 22px', borderRight: '1px solid var(--line)' }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 14 }}>✦</div>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', marginBottom: 14 }}><Icon name="sparkles" size={20} /></div>
           <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.35 }}>Jarvis pré-remplit depuis ton site</div>
           <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'grid', gap: 11 }}>
-            {[['🎨', 'Charte de marque'], ['👥', 'Audience & personas'], ['🔭', 'Concurrents']].map(([e, t]) => (
+            {[['palette', 'Charte de marque'], ['users', 'Audience & personas'], ['search', 'Concurrents']].map(([e, t]) => (
               <li key={t} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: 'var(--ink-2)' }}>
-                <span style={{ fontSize: 15 }}>{e}</span>{t}
+                <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name={e!} size={15} /></span>{t}
               </li>
             ))}
           </ul>
@@ -116,7 +117,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: 999, border: 'none',
                 background: ready ? 'var(--grad-accent)' : 'var(--line-2)', color: ready ? 'var(--on-accent)' : 'var(--muted)',
                 fontWeight: 800, fontSize: 13.5, cursor: ready && !drafting ? 'pointer' : 'default' }}>
-              ✦ {drafting ? 'Analyse…' : 'Générer avec Jarvis'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={14} /> {drafting ? 'Analyse…' : 'Générer avec Jarvis'}</span>
               <span style={{ fontSize: 11, fontWeight: 700, opacity: .75 }}>· {draftCost} cr.</span>
             </button>
             <button type="button" onClick={() => setGate(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}>
@@ -173,7 +174,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
           <p style={pStep}>C'est le socle sur lequel Jarvis construit tout le reste. Vérifie et ajuste.</p>
 
           {/* État de la génération IA lancée à l'entrée */}
-          {drafting && <div style={noticeBox('rgba(245,166,35,.4)', 'rgba(245,166,35,.10)', '#f5b043')}>✦ Jarvis analyse ton site et compose le profil…</div>}
+          {drafting && <div style={noticeBox('rgba(245,166,35,.4)', 'rgba(245,166,35,.10)', '#f5b043')}><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="sparkles" size={13} /></span>Jarvis analyse ton site et compose le profil…</div>}
           {draftState.error && <div style={noticeBox('rgba(255,77,109,.4)', 'rgba(255,77,109,.10)', '#ff9db0')}>{draftState.error}</div>}
           {draftState.draft && !drafting && <div style={noticeBox('rgba(24,204,140,.4)', 'rgba(24,204,140,.08)', '#7ee8bf')}>Profil pré-rempli par Jarvis{draftState.cost ? ` · ${draftState.cost} crédits` : ''}. Vérifie et ajuste ci-dessous.</div>}
 

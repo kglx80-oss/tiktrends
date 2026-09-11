@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Icon } from './Icon';
 
 export interface OnboardStep {
   key: string;
@@ -22,7 +23,7 @@ export function BrandOnboarding({ steps }: { steps: OnboardStep[] }) {
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(254,44,85,.06), var(--surface))', padding: '18px 20px', marginBottom: 22 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <span style={{ fontSize: 18 }}>{complete ? '🎉' : '🚀'}</span>
+          <span style={{ display: 'inline-flex', color: complete ? '#7ee8bf' : 'var(--accent-strong)' }}>{complete ? <Icon name="star" size={18} /> : <Icon name="spark" size={18} />}</span>
           <b style={{ fontSize: 16, color: 'var(--ink)' }}>Démarrage</b>
         </div>
         <span style={{ flex: 1 }} />

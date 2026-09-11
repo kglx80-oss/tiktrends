@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal } from './Modal';
+import { Icon } from './Icon';
 import { importProductsAction } from '../app/actions/brand-detail';
 import { SubmitButton } from './SubmitButton';
 
@@ -19,7 +20,7 @@ export function BrandCreated({ brandId, brandName, hasSite, importCost }: {
   const close = () => { setOpen(false); router.replace(`/brands/${brandId}`); };
 
   return (
-    <Modal open={open} onClose={close} icon="🎉" title="Marque créée !" maxWidth={470}
+    <Modal open={open} onClose={close} icon={<Icon name="star" size={22} />} title="Marque créée !" maxWidth={470}
       subtitle={`Jarvis a tout ce qu'il faut pour générer des créas sur la marque ${brandName}, surveiller tes concurrents et parler à la bonne audience.`}>
       <div style={{ display: 'grid', gap: 14 }}>
         <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6 }}>
