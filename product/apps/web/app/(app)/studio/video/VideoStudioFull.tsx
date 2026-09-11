@@ -219,17 +219,17 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           onSaveScene={enregistrer}
           controls={[
             {
-              key: 'ratio', title: 'Format', icon: '⬚',
+              key: 'ratio', title: 'Format', icon: 'frame',
               options: RATIOS.map((r) => ({ value: r, label: r })),
               value: ratio, onChange: (v) => setRatio(v as Ratio),
             },
             {
-              key: 'duree', title: 'Durée de la vidéo', icon: '⏱',
+              key: 'duree', title: 'Durée de la vidéo', icon: 'clock',
               options: VIDEO_DURATIONS.map((d) => ({ value: String(d), label: `${d} s` })),
               value: String(duree), onChange: (v) => setDuree(Number(v) as VideoDuration),
             },
             {
-              key: 'mouvement', title: 'Type de mouvement', icon: '🎬',
+              key: 'mouvement', title: 'Type de mouvement', icon: 'film',
               options: [{ value: '', label: 'Libre' }, ...VIDEO_DIRECTIONS.map((d) => ({ value: d.key, label: d.label }))],
               value: direction, onChange: setDirection,
             },

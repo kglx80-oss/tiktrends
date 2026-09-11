@@ -351,24 +351,24 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           attachedCount={uploadedUri || imageUrl.trim() || selected?.hasImage ? 1 : 0}
           controls={[
             {
-              key: 'ratio', title: 'Format', icon: '⬚',
+              key: 'ratio', title: 'Format', icon: 'frame',
               options: RATIOS.map((r) => ({ value: r, label: r })),
               value: ratio, onChange: (v) => setRatio(v as FalAspect),
             },
             {
-              key: 'count', title: 'Nombre de visuels', icon: '⧉',
+              key: 'count', title: 'Nombre de visuels', icon: 'layers',
               options: [1, 2, 3, 4].map((n) => ({ value: String(n), label: `${n} image${n > 1 ? 's' : ''}` })),
               value: String(count), onChange: (v) => setCount(Number(v)),
             },
             {
-              key: 'modele', title: 'Moteur d’image', icon: '✦',
+              key: 'modele', title: 'Moteur d’image', icon: 'sparkles',
               options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${m.recommended ? ' · recommandé' : ''}` })),
               value: model, onChange: setModel,
             },
             {
               // Même catalogue de directions que Pubs IA · une scène/lumière/finition
               // dictée bat la phrase libre qui rendait « toujours le même résultat ».
-              key: 'direction', title: 'Direction artistique', icon: '◐',
+              key: 'direction', title: 'Direction artistique', icon: 'contrast',
               options: [{ value: '', label: 'Variées' }, ...AD_DIRECTIONS.map((d) => ({ value: d.key, label: d.label }))],
               value: direction, onChange: setDirection,
             },
