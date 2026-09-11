@@ -56,6 +56,7 @@ export const ICON_PATHS: Record<string, string> = {
   frame: 'M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3',
   contrast: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M12 2v20',
   clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M12 7v5l3 2',
+  pen: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z',
 };
 
 /** Icône au trait · `currentColor`, taille réglable (défaut 17, comme le rail). */

@@ -70,28 +70,28 @@ export default async function StudioPage() {
 
   const cards: HubCard[] = [
     {
-      href: '/studio/ads', icon: '✨', title: 'Pubs IA', tag: 'COMPLET',
+      href: '/studio/ads', icon: 'sparkles', title: 'Pubs IA', tag: 'COMPLET',
       makes: 'Une publicité entière, prête à poster : le concept, la scène avec ton produit, l’accroche écrite dessus, le CTA et ton logo, composés ensemble.',
       when: 'C’est le studio par défaut. Tu veux une pub, pas un morceau de pub.',
       state: pret(image && texte, image ? 'clé IA manquante' : 'clé Fal manquante'),
       count: etat.ads,
     },
     {
-      href: '/studio/image', icon: '🖼️', title: 'Image IA',
+      href: '/studio/image', icon: 'image', title: 'Image IA',
       makes: 'Un visuel seul, décrit à la main : mise en scène de ton vrai packaging, ou image partant du texte. Avec texte lisible si tu le demandes.',
       when: 'Tu as une idée d’image précise en tête, ou tu veux un visuel hors format publicitaire.',
       state: pret(image, 'clé Fal manquante'),
       count: etat.images,
     },
     {
-      href: '/studio/video', icon: '🎬', title: 'Vidéo IA',
+      href: '/studio/video', icon: 'film', title: 'Vidéo IA',
       makes: 'Une vidéo verticale de quelques secondes, écrite de zéro ou obtenue en animant une image que tu as déjà.',
       when: 'Une créa statique tient déjà et tu veux savoir si le mouvement la fait gagner davantage.',
       state: pret(video, 'clé vidéo manquante'),
       count: etat.videos,
     },
     {
-      href: '/studio/textes', icon: '✍️', title: 'Textes IA',
+      href: '/studio/textes', icon: 'pen', title: 'Textes IA',
       makes: 'Des angles, des accroches, un script seconde par seconde, des textes d’annonce et des légendes. Rien que du texte, copiable.',
       when: 'Tu cherches encore ce que la créa doit dire. Un angle trouvé ici s’envoie en un clic vers Pubs IA.',
       state: pret(texte, 'clé IA manquante'),

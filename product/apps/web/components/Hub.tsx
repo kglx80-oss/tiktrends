@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import { phraseCompte, type Genre } from '@tiktrends/core';
+import { Icon } from './Icon';
 
 /**
  * La page de garde d'une section.
@@ -41,6 +42,7 @@ export type HubState =
 
 export interface HubCard {
   href: string;
+  /** NOM d'icône du jeu premium (`components/Icon`), jamais un emoji. */
   icon: string;
   title: string;
   /** Ce qui sort · en objets concrets. */
@@ -114,7 +116,7 @@ function Carte({ href, icon, title, makes, when, state, count, tag }: HubCard) {
         <span style={{
           width: 38, height: 38, borderRadius: 11, flexShrink: 0, background: 'var(--grad-accent)',
           color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-        }}>{icon}</span>
+        }}><Icon name={icon} size={20} /></span>
         <b style={{ flex: 1, minWidth: 0, fontSize: 15.5, color: 'var(--ink)' }}>{title}</b>
         {tag && (
           <span style={{
