@@ -11,6 +11,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
 import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
+import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       <main style={wrap}>
         <h1 style={h1}>Veille</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ fontSize: 34 }}>🔒</div>
+          <div style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={30} /></div>
           <h2 style={{ margin: '10px 0 6px', fontSize: 18, color: 'var(--ink)' }}>
             {why === 'plan' ? "Fonctionnalité incluse dès l'abonnement Core" : 'Accès réservé'}
           </h2>
@@ -220,7 +221,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
         (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
         fait remonter les créas diffusées depuis longtemps (souvent des gagnantes). Clique <b>★</b> pour sauvegarder une
-        créa, <b>+ Suivre</b> une marque, et <b>✨ Générer une variante</b> pour l'envoyer au Studio.
+        créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
       </PageInfo>
 
       {/* Filtres */}
