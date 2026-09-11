@@ -12,6 +12,7 @@ import {
   addProductAction, deleteProductAction, importProductsAction, generateFullBrandAction,
 } from '../../../actions/brand-detail';
 import { input, lbl, Msg } from '../../../../components/ui';
+import { Icon } from '../../../../components/Icon';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
 import { BrandOnboarding, type OnboardStep } from '../../../../components/BrandOnboarding';
 import { ShopifyConnect } from './ShopifyConnect';
@@ -162,7 +163,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           <form action={generateFullBrandAction} style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.08), var(--surface))', padding: '16px 18px', margin: '4px 0 22px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <input type="hidden" name="brandId" value={b.id} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>✦ Générer tout le profil depuis le site</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}><Icon name="sparkles" size={15} /> Générer tout le profil depuis le site</div>
               <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>
                 {aiReady ? <>L'IA lit <b>{b.url || 'le site'}</b> et remplit profil, USP, audience, personas, scénarios et concurrents. Ne remplace pas ce que tu as déjà saisi.</> : <>Nécessite la clé IA serveur.</>}
               </div>
@@ -239,7 +240,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <span style={{ flex: 1 }} />
             <form action={importProductsAction}>
               <input type="hidden" name="brandId" value={id} />
-              <button disabled={!aiReady || !b.url} title={!b.url ? 'Renseigne le site' : !aiReady ? 'IA non configurée' : 'Importe les produits depuis le site'} style={{ ...addBtn, opacity: aiReady && b.url ? 1 : .5, cursor: aiReady && b.url ? 'pointer' : 'default' }}>✦ Importer depuis le site</button>
+              <button disabled={!aiReady || !b.url} title={!b.url ? 'Renseigne le site' : !aiReady ? 'IA non configurée' : 'Importe les produits depuis le site'} style={{ ...addBtn, opacity: aiReady && b.url ? 1 : .5, cursor: aiReady && b.url ? 'pointer' : 'default' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Importer depuis le site</span></button>
             </form>
           </div>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>Les produits aident l'IA à générer des créas qui parlent vraiment de ton offre.</p>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { importBrandDAAction, saveBrandDAAction } from '../../../actions/brand-detail';
 import { BrandGuidelines } from '../../../../components/BrandGuidelines';
+import { Icon } from '../../../../components/Icon';
 
 export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts }: { brandId: string; logoUrl: string | null; logos?: string[]; colors: string[]; fonts: string[] }) {
   const router = useRouter();
@@ -42,14 +43,14 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts }: { brand
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', margin: '4px 0 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>🎨 Identité visuelle (DA)</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}><Icon name="palette" size={15} /> Identité visuelle (DA)</div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Logo, couleurs et polices récupérés depuis le site, appliqués automatiquement à tes pubs.</div>
         </div>
         <button type="button" onClick={() => setEditing((v) => !v)} disabled={busy} style={{ padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: 'transparent', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
-          {editing ? 'Annuler' : '✎ Éditer'}
+          {editing ? 'Annuler' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="pen" size={13} /> Éditer</span>}
         </button>
         <button type="button" onClick={fetchDA} disabled={busy} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1, whiteSpace: 'nowrap' }}>
-          {busy ? 'Récupération…' : '✦ Récupérer la DA'}
+          {busy ? 'Récupération…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Récupérer la DA</span>}
         </button>
       </div>
 
