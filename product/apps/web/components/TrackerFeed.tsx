@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { Icon } from './Icon';
 import { useRouter } from 'next/navigation';
 import type { InspoAd } from '@tiktrends/integrations';
 import { estGagnantVeille } from '@tiktrends/core';
@@ -53,7 +54,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
         <button type="button" onClick={scan} disabled={busy || !followedCount} title={!followedCount ? 'Suis d\'abord des marques dans la Veille' : undefined} style={{
           padding: '9px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy || !followedCount ? 'default' : 'pointer',
           background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy || !followedCount ? .6 : 1,
-        }}>{busy ? 'Scan en cours…' : '🛰️ Scanner maintenant'}</button>
+        }}>{busy ? 'Scan en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="radar" size={14} /> Scanner maintenant</span>}</button>
       </div>
 
       {msg && <div style={{ marginBottom: 12, padding: '9px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{msg}</div>}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Icon } from './Icon';
 import {
   configureBucketAction, testStorageAction,
   embeddedImagesStatusAction, migrateEmbeddedImagesAction, type MigrationEtat,
@@ -69,8 +70,8 @@ export function StorageConfigurator({ enabled }: { enabled: boolean }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button type="button" onClick={configure} disabled={!!busy} style={primary}>{busy === 'config' ? 'Configuration…' : '⚙ Configurer le bucket (public + CORS)'}</button>
-        <button type="button" onClick={runTest} disabled={!!busy} style={ghost}>{busy === 'test' ? 'Test…' : '🧪 Tester le stockage'}</button>
+        <button type="button" onClick={configure} disabled={!!busy} style={primary}>{busy === 'config' ? 'Configuration…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="gear" size={14} /> Configurer le bucket (public + CORS)</span>}</button>
+        <button type="button" onClick={runTest} disabled={!!busy} style={ghost}>{busy === 'test' ? 'Test…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={14} /> Tester le stockage</span>}</button>
       </div>
 
       {err && <div style={{ marginTop: 12, fontSize: 13, color: '#ff9db0' }}>{err}</div>}
@@ -79,7 +80,7 @@ export function StorageConfigurator({ enabled }: { enabled: boolean }) {
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
           {steps.map((s, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, border: '1px solid var(--line)', borderRadius: 10, padding: '9px 12px', background: 'var(--surface)' }}>
-              <span style={{ fontSize: 15 }}>{s.ok ? '✅' : '⚠️'}</span>
+              <span style={{ display: 'inline-flex', color: s.ok ? '#18cc8c' : '#f5b043' }}>{s.ok ? <Icon name="check" size={15} /> : <Icon name="alert" size={15} />}</span>
               <span style={{ fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{s.label}</span>
               <span style={{ fontSize: 11.5, color: s.ok ? '#7ee8bf' : '#f5b043', fontFamily: 'var(--font-mono)' }}>{s.detail}</span>
             </div>
@@ -102,7 +103,7 @@ export function StorageConfigurator({ enabled }: { enabled: boolean }) {
             change.
           </p>
           <button type="button" onClick={deplacer} disabled={migre} style={ghost}>
-            {migre ? 'Déplacement…' : '📦 Déplacer 25 images vers le bucket'}
+            {migre ? 'Déplacement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="box" size={14} /> Déplacer 25 images vers le bucket</span>}
           </button>
           {note && <p style={{ margin: '10px 0 0', fontSize: 12, color: '#9fe6b3' }}>{note}</p>}
         </div>
@@ -131,7 +132,7 @@ export function StorageConfigurator({ enabled }: { enabled: boolean }) {
 function Row({ label, ok }: { label: string; ok: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, border: '1px solid var(--line)', borderRadius: 10, padding: '9px 12px', background: 'var(--surface)' }}>
-      <span style={{ fontSize: 15 }}>{ok ? '✅' : '❌'}</span>
+      <span style={{ display: 'inline-flex', color: ok ? '#18cc8c' : '#ff9db0' }}>{ok ? <Icon name="check" size={15} /> : <Icon name="alert" size={15} />}</span>
       <span style={{ fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{label}</span>
       <span style={{ fontSize: 11.5, fontWeight: 800, color: ok ? '#7ee8bf' : '#ff9db0' }}>{ok ? 'OK' : 'KO'}</span>
     </div>
