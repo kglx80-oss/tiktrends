@@ -1,11 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { AssistantChat } from './AssistantChat';
-
-interface Starter { label: string; desc: string; href: string }
-interface Category { key: string; label: string; icon: string; starters: Starter[] }
+import { Icon } from './Icon';
 
 export interface AssistantHomeProps {
   firstName: string;
@@ -15,116 +12,127 @@ export interface AssistantHomeProps {
   aiReady: boolean;
 }
 
-function buildCategories(brandId: string | null): Category[] {
-  const brand = (tab: string) => (brandId ? `/brands/${brandId}?tab=${tab}` : '/brands');
-  return [
-    { key: 'diag', label: 'Diagnostics', icon: '🩺', starters: [
-      { label: 'Repérer les problèmes', desc: "Ce qui plombe la performance en ce moment", href: '/radar' },
-      { label: 'Signaux de fatigue', desc: 'Quelles créas montrent des signes de fatigue', href: '/radar' },
-      { label: 'Kill / scale / hold', desc: 'Quelles créas couper, scaler ou garder', href: '/radar' },
-    ] },
-    { key: 'patterns', label: 'Patterns', icon: '📊', starters: [
-      { label: 'Ce qui marche', desc: 'Les KPI agrégés et les tendances', href: '/analytics' },
-      { label: 'Angles gagnants', desc: 'Le tagging par axe créatif', href: '/tags' },
-    ] },
-    { key: 'audience', label: 'Audience', icon: '👥', starters: [
-      { label: 'Personas & scénarios', desc: "À qui s'adressent tes créas", href: brand('audience') },
-      { label: 'Compléter le profil', desc: 'Enrichir la marque (IA depuis le site)', href: brand('overview') },
-    ] },
-    { key: 'competitors', label: 'Concurrents', icon: '🔭', starters: [
-      { label: 'Analyser un concurrent', desc: 'Hooks, angles, USP à partir de ses créas', href: brand('competitors') },
-      { label: 'Suivre une marque', desc: 'Ajouter des concurrents à surveiller', href: brand('competitors') },
-    ] },
-    { key: 'creative', label: 'Créatif', icon: '🎬', starters: [
-      { label: 'Générer un visuel IA', desc: 'Texte ou produit → image pub', href: '/studio/image' },
-      { label: 'Générer une vidéo IA', desc: 'Texte ou image → vidéo verticale TikTok', href: '/studio/video' },
-      { label: 'Générer des hooks', desc: 'Des accroches prêtes à tourner', href: '/studio/textes' },
-      { label: 'Écrire un script', desc: 'Un script vidéo seconde par seconde', href: '/studio/textes' },
-    ] },
-    { key: 'inspo', label: 'Veille', icon: '💡', starters: [
-      { label: 'Ce qui scale en ce moment', desc: 'Le swipe file trié par croissance de reach', href: '/veille/scale' },
-      { label: 'Explorer les bibliothèques pub', desc: 'Recherche Meta / TikTok / Google', href: '/veille' },
-    ] },
-  ];
+/**
+ * L'accueil · une page de garde simple qui ORIENTE, façon « home » d'un outil.
+ *
+ * ── Ce qu'elle faisait, et pourquoi ça n'allait pas ──────────────────────────
+ *
+ * L'accueil empilait un chat, des « routines », et un explorateur à onglets avec
+ * une icône emoji par catégorie · beaucoup à lire avant de savoir où cliquer.
+ * Le reproche est juste : une home doit dire « voilà ce que tu peux créer », pas
+ * dérouler un catalogue.
+ *
+ * ── Ce qu'elle fait maintenant ───────────────────────────────────────────────
+ *
+ * Un bandeau d'accueil, puis une grille CRÉER — les quatre studios, Pubs IA en
+ * tête (le produit phare) — chacun avec une vraie icône au trait, pas un emoji.
+ * En-dessous, une rangée de raccourcis pour observer et piloter, et le chat en
+ * dernier · il reste, mais il ne barre plus l'entrée.
+ */
+
+interface Carte {
+  href: string;
+  icon: string;
+  titre: string;
+  quoi: string;
+  tag: string;
+  phare?: boolean;
 }
 
-const ROUTINES: Array<{ icon: string; title: string; desc: string; hrefFor: (b: string | null) => string }> = [
-  { icon: '📈', title: 'Analyse hebdo de performance', desc: 'Passe en revue les KPI de la semaine et les actions clés.', hrefFor: () => '/analytics' },
-  { icon: '🔭', title: 'Veille concurrents', desc: 'Suis les mouvements, messages et offres des concurrents.', hrefFor: (b) => (b ? `/brands/${b}?tab=competitors` : '/brands') },
-  { icon: '✨', title: 'Inspirations du marché', desc: 'Trouve des tendances et idées créatives fraîches.', hrefFor: () => '/veille' },
+const CREER: Carte[] = [
+  { href: '/studio/ads', icon: 'sparkles', titre: 'Pubs IA', quoi: 'Des publicités complètes, prêtes à tester · le cœur de l’outil.', tag: 'Pub', phare: true },
+  { href: '/studio/image', icon: 'image', titre: 'Image IA', quoi: 'Un visuel produit ou une scène, en quelques secondes.', tag: 'Image' },
+  { href: '/studio/video', icon: 'film', titre: 'Vidéo IA', quoi: 'Une vidéo verticale prête pour TikTok / Reels.', tag: 'Vidéo' },
+  { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', quoi: 'Des accroches et des scripts prêts à tourner.', tag: 'Texte' },
 ];
 
-export function AssistantHome({ firstName, credits, brandName, brandId, aiReady }: AssistantHomeProps) {
-  const cats = buildCategories(brandId);
-  const [active, setActive] = useState(cats[0]!.key);
-  const current = cats.find((c) => c.key === active) ?? cats[0]!;
+const PILOTER: Array<{ href: string; icon: string; label: string }> = [
+  { href: '/veille/scale', icon: 'trend', label: 'Ce qui scale' },
+  { href: '/radar', icon: 'radar', label: 'Radar produits' },
+  { href: '/analytics', icon: 'chart', label: 'Analytics' },
+  { href: '/adsmap', icon: 'map', label: 'Adsmap · tests' },
+  { href: '/jarvis', icon: 'brain', label: 'Ce que Jarvis sait' },
+  { href: '/assets', icon: 'folder', label: 'Assets' },
+];
 
+export function AssistantHome({ firstName, credits, brandName, aiReady }: AssistantHomeProps) {
   return (
     <div style={{ marginBottom: 32 }}>
-      {/* Salutation + statut */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--ink)' }}>Bonjour {firstName} 👋</h1>
-          <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--ink-2)' }}>
-            {brandName ? <>Marque active : <b>{brandName}</b>. Par où on commence&nbsp;?</> : <>Sélectionne une marque et lance-toi.</>}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', fontSize: 13, color: 'var(--ink-2)' }}>
-            <span style={{ color: 'var(--accent-strong)', fontWeight: 800 }}>◈</span> {credits.toLocaleString('fr-FR')} crédits
-          </span>
-          <Link href="/studio" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Ouvrir le Studio IA</Link>
-        </div>
-      </div>
-
-      {/* Chat assistant */}
-      <div style={{ marginBottom: 26 }}>
-        <AssistantChat ready={aiReady} />
-      </div>
-
-      {/* Routines */}
-      <h2 style={sectionH}>Tes routines</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 26 }}>
-        {ROUTINES.map((r) => (
-          <Link key={r.title} href={r.hrefFor(brandId)} style={{ display: 'block', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', textDecoration: 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <span style={{ fontSize: 18 }}>{r.icon}</span>
-              <span style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{r.title}</span>
+      {/* Bandeau d'accueil · une phrase, une action, le solde. */}
+      <div style={{
+        position: 'relative', overflow: 'hidden', borderRadius: 20, padding: 'clamp(20px, 4vw, 34px)',
+        marginBottom: 24, border: '1px solid var(--line-2)',
+        background: 'linear-gradient(135deg, rgba(230,0,126,.22), rgba(120,40,200,.14) 60%, var(--surface))',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent-strong)', marginBottom: 6 }}>TikTrends</div>
+            <h1 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 32px)', fontWeight: 800, color: 'var(--ink)', lineHeight: 1.12 }}>
+              Bonjour {firstName}
+            </h1>
+            <p style={{ margin: '8px 0 0', fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 560 }}>
+              {brandName
+                ? <>Marque active · <b style={{ color: 'var(--ink)' }}>{brandName}</b>. Crée ta prochaine créative gagnante, teste, et laisse la mesure trancher.</>
+                : <>Choisis une marque et lance-toi · l’outil t’amène de l’idée à la créative testée.</>}
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+              <Link href="/studio/ads" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, textDecoration: 'none' }}>
+                <Icon name="sparkles" size={16} /> Créer des pubs IA
+              </Link>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'rgba(8,5,10,.35)', fontSize: 13, color: 'var(--ink-2)' }}>
+                <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name="coin" size={15} /></span>
+                {credits.toLocaleString('fr-FR')} crédits
+              </span>
             </div>
-            <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{r.desc}</p>
-            <span style={{ display: 'inline-block', marginTop: 12, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)' }}>Lancer ›</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Créer · les quatre studios, Pubs IA en tête. */}
+      <h2 style={sectionH}>Créer</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12, margin: '10px 0 26px' }}>
+        {CREER.map((c) => (
+          <Link key={c.href} href={c.href} style={{
+            display: 'block', padding: '17px 18px', textDecoration: 'none', position: 'relative',
+            border: `1px solid ${c.phare ? 'var(--accent-strong)' : 'var(--line-2)'}`, borderRadius: 18, background: 'var(--surface)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 11 }}>
+              <span style={{
+                width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'var(--grad-accent)',
+                color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              }}><Icon name={c.icon} size={21} /></span>
+              <b style={{ flex: 1, minWidth: 0, fontSize: 15.5, color: 'var(--ink)' }}>{c.titre}</b>
+              <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: c.phare ? '#7ee8bf' : 'var(--muted)', border: `1px solid ${c.phare ? 'rgba(126,232,191,.4)' : 'var(--line-2)'}`, borderRadius: 999, padding: '2px 8px' }}>{c.phare ? 'Phare' : c.tag}</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{c.quoi}</p>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)' }}>
+              Ouvrir <span aria-hidden>›</span>
+            </span>
           </Link>
         ))}
       </div>
 
-      {/* Explorateur */}
-      <h2 style={sectionH}>Explore ce que TikTrends peut faire</h2>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0 14px' }}>
-        {cats.map((c) => {
-          const on = c.key === active;
-          return (
-            <button key={c.key} type="button" onClick={() => setActive(c.key)} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 12, cursor: 'pointer',
-              border: `1px solid ${on ? 'transparent' : 'var(--line)'}`, background: on ? 'var(--grad-accent)' : 'var(--surface)',
-              color: on ? 'var(--on-accent)' : 'var(--ink-2)', fontWeight: on ? 800 : 600, fontSize: 13,
-            }}><span>{c.icon}</span>{c.label}</button>
-          );
-        })}
-      </div>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {current.starters.map((st) => (
-          <Link key={st.label} href={st.href} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '13px 16px', textDecoration: 'none' }}>
-            <span style={{ color: 'var(--accent-strong)', fontSize: 15 }}>✦</span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{st.label}</span>
-              <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13 }}> · {st.desc}</span>
-            </span>
-            <span style={{ color: 'var(--muted)', fontSize: 16 }}>↗</span>
+      {/* Observer & piloter · les raccourcis, en chips discrètes. */}
+      <h2 style={sectionH}>Observer &amp; piloter</h2>
+      <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', margin: '10px 0 26px' }}>
+        {PILOTER.map((p) => (
+          <Link key={p.href} href={p.href} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 12, textDecoration: 'none',
+            border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 13, fontWeight: 600,
+          }}>
+            <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name={p.icon} size={16} /></span>
+            {p.label}
           </Link>
         ))}
+      </div>
+
+      {/* Le chat · il reste, mais il ne barre plus l'entrée. */}
+      <h2 style={sectionH}>Demande à l’assistant</h2>
+      <div style={{ marginTop: 10 }}>
+        <AssistantChat ready={aiReady} />
       </div>
     </div>
   );
 }
 
-const sectionH = { margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' } as const;
+const sectionH = { margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.01em' } as const;
