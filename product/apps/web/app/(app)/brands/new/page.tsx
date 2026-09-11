@@ -5,6 +5,7 @@ import { anthropicConfigured } from '../../../../lib/ai-status';
 import { BrandWizard } from '../../../../components/BrandWizard';
 import { costFor } from '@tiktrends/core';
 import { PageInfo } from '../../../../components/PageInfo';
+import { Icon } from '../../../../components/Icon';
 import { createBrandFromShopifyAction } from '../../../actions/brands';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +38,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
       {/* Raccourci Shopify : crée la marque + importe produits, images et DA en un clic. */}
       <form action={createBrandFromShopifyAction} style={{ marginTop: 18, border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(150,220,170,.06), var(--surface))', padding: '18px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 18 }}>🛍️</span>
+          <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="store" size={18} /></span>
           <b style={{ fontSize: 15, color: 'var(--ink)' }}>Connecter une boutique Shopify</b>
           <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>LE PLUS RAPIDE</span>
         </div>
@@ -48,7 +49,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input name="domain" required placeholder="ta-boutique.com ou ta-boutique.myshopify.com"
             style={{ flex: '1 1 300px', minWidth: 240, padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' }} />
-          <button type="submit" style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', whiteSpace: 'nowrap' }}>🔗 Connecter et créer</button>
+          <button type="submit" style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', whiteSpace: 'nowrap' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="link" size={14} /> Connecter et créer</span></button>
         </div>
         <p style={{ margin: '10px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>Tu pourras compléter le profil (audience, ton, concurrents) ensuite, ou via le parcours guidé ci-dessous.</p>
       </form>
