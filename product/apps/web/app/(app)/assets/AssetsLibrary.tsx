@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
 import { Pager, PAGE_SIZE } from '../../../components/Pager';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
+import { Icon } from '../../../components/Icon';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { MiniatureAsset } from '../../../components/MiniatureAsset';
@@ -192,12 +193,12 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
         <input ref={fileRef} type="file" accept={storageEnabled ? 'image/*,video/*,audio/*' : 'image/*'} multiple onChange={onFiles} style={{ display: 'none' }} />
         <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>
-          {busy ? 'Traitement…' : storageEnabled ? '⬆ Téléverser des fichiers' : '⬆ Téléverser des images'}
+          {busy ? 'Traitement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="upload" size={14} /> {storageEnabled ? 'Téléverser des fichiers' : 'Téléverser des images'}</span>}
         </button>
         <button type="button" onClick={() => { setShowDrive((v) => !v); setShowImport(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
           <GoogleDriveIcon size={15} /> Google Drive
         </button>
-        <button type="button" onClick={() => { setShowImport((v) => !v); setShowDrive(false); }} style={ghost}>🔗 Importer par lien</button>
+        <button type="button" onClick={() => { setShowImport((v) => !v); setShowDrive(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="link" size={14} /> Importer par lien</button>
         {progress && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)' }}>
             <span style={{ width: 90, height: 6, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden' }}>
@@ -260,7 +261,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
           style={{ ...fld, flex: '1 1 260px', maxWidth: 420 }} />
         {untagged > 0 && (
           <button type="button" onClick={tagBulk} disabled={!!tagging} style={{ ...ghost, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)' }}>
-            {tagging === 'bulk' ? 'Analyse…' : `✦ Analyser ${untagged} image(s)`}
+            {tagging === 'bulk' ? 'Analyse…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={13} /> Analyser {untagged} image(s)</span>}
           </button>
         )}
         <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>1 crédit / image</span>
@@ -290,7 +291,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
             why="Téléverse tes images, ou importe tes rushs par lien · l'IA s'en servira automatiquement pour composer tes créas."
           >
             <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>
-              {busy ? 'Traitement…' : storageEnabled ? '⬆ Téléverser des fichiers' : '⬆ Téléverser des images'}
+              {busy ? 'Traitement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="upload" size={14} /> {storageEnabled ? 'Téléverser des fichiers' : 'Téléverser des images'}</span>}
             </button>
           </Empty>
         ) : (
@@ -320,7 +321,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
                   </div>
                 ) : a.kind === 'image' ? (
                   <button type="button" onClick={() => tagOne(a)} disabled={!!tagging} style={{ alignSelf: 'flex-start', fontSize: 10.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'transparent', border: '1px solid var(--line-2)', borderRadius: 999, padding: '3px 9px', cursor: tagging ? 'default' : 'pointer' }}>
-                    {tagging === a.id ? 'Analyse…' : '✦ Analyser (1 cr.)'}
+                    {tagging === a.id ? 'Analyse…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}><Icon name="sparkles" size={12} /> Analyser (1 cr.)</span>}
                   </button>
                 ) : null}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
