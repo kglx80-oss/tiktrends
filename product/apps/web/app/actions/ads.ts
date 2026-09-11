@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -854,6 +854,65 @@ async function preferencesAngles(brandId: string): Promise<string | undefined> {
 }
 
 /**
+ * Le pendant OBJECTIF de `preferencesAngles` · les angles que le MARCHÉ a
+ * tranchés gagnants reviennent en préférence dans la génération.
+ *
+ * Deux signaux distincts et complémentaires : `preferencesAngles` lit le pouce du
+ * client (subjectif), celui-ci lit le verdict ADSMAP sur les vraies métriques
+ * (objectif). Jusqu'ici le second n'existait que dans l'analyse fondateur
+ * (`admin/intelligence`) · il ne revenait jamais là où l'on génère.
+ *
+ * Le lien est le MÊME que celui de la carte : la génération porte l'`adsmapAdId`
+ * de l'ad qu'elle a produite (posé au suivi), et l'ad porte son verdict. On reste
+ * donc borné à CETTE marque par construction (on ne lit que ses générations),
+ * sans la jointure inverse ad → génération, non vérifiée, de l'écran fondateur.
+ * La discipline d'effectif vit dans `perfParAngle` (plancher de conclusifs,
+ * comparaison à la référence) · sous le seuil, la consigne est muette.
+ */
+async function preferencesMarche(brandId: string): Promise<string | undefined> {
+  if (!db) return undefined;
+  const gens = await db.select({ input: schema.generations.input })
+    .from(schema.generations)
+    .where(and(eq(schema.generations.brandId, brandId), eq(schema.generations.kind, 'ad')));
+  // adsmapAdId → angle de la génération qui a produit cette ad.
+  const angleParAd = new Map<string, string | null>();
+  for (const g of gens) {
+    const rec = (g.input ?? {}) as { angle?: string | null; adsmapAdId?: string };
+    if (rec.adsmapAdId) angleParAd.set(rec.adsmapAdId, rec.angle ?? null);
+  }
+  const adIds = [...angleParAd.keys()];
+  if (!adIds.length) return undefined;
+
+  const vs = await db.select({
+    adId: schema.verdicts.adId, computed: schema.verdicts.computed,
+    validated: schema.verdicts.validated, status: schema.verdicts.status,
+    metricsAgg: schema.verdicts.metricsAgg,
+  })
+    .from(schema.verdicts)
+    .where(inArray(schema.verdicts.adId, adIds));
+
+  // Un verdict par ad · l'arbitré (`validated`) l'emporte sur le provisoire.
+  const parAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; agg: { spend?: number; ctr?: number } | null }>();
+  for (const v of vs) {
+    const arbitre = v.status === 'validated';
+    const prev = parAd.get(v.adId);
+    if (prev && !arbitre) continue;
+    parAd.set(v.adId, {
+      verdict: ((arbitre ? v.validated : v.computed) ?? null) as import('@tiktrends/core').VerdictValue | null,
+      agg: (v.metricsAgg ?? null) as { spend?: number; ctr?: number } | null,
+    });
+  }
+
+  const creas: CreaLancee[] = [...parAd.entries()].map(([adId, v]) => ({
+    angle: angleParAd.get(adId) ?? null,
+    verdict: v.verdict,
+    spend: v.agg?.spend ?? null,
+    ctr: v.agg?.ctr ?? null,
+  }));
+  return consigneAnglesMarche(perfParAngle(creas)) ?? undefined;
+}
+
+/**
  * Enveloppe · une exception qui S'ÉCHAPPE au lieu de renvoyer { error } ne doit
  * ni figer le client (le bouton restait sur « Génération… »), ni disparaître
  * dans les logs du conteneur que personne ne lit. On la JOURNALISE — elle
@@ -998,16 +1057,21 @@ async function genererLotInterne(input: {
   // Ordre d'autorité, du plus fort au plus faible : ce que la marque a MESURÉ
   // (verdicts ADSMAP), puis ce qu'elle a distillé de la veille, puis les créas
   // notées au pouce. Le premier bloc n'existe qu'à partir de vrais verdicts.
-  const [memoire, prefs, anglesGagnants, statsPourExpliquer, accroches] = await Promise.all([
+  const [memoire, prefs, anglesGagnants, anglesMarche, statsPourExpliquer, accroches] = await Promise.all([
     jarvisMemoryWithUse(brand.id, s.workspaceId),
     learnedPreferences(brand.id),
     // Le bilan d'hypothèses (#300) PILOTE désormais la génération · les angles
     // mesurés au-dessus de la moyenne reviennent en préférence, comme les 👍/👎.
     preferencesAngles(brand.id),
+    // Le pendant OBJECTIF · les angles que le MARCHÉ a tranchés gagnants (verdict
+    // ADSMAP). Ne parlait qu'à l'écran fondateur · il revient là où l'on génère.
+    preferencesMarche(brand.id),
     jarvisStats(brand.id, s.workspaceId).catch(() => ({ stats: [], globalRate: null, nAds: 0 })),
     jarvisHooks(brand.id, s.workspaceId).catch(() => []),
   ]);
-  const winningPatterns = [memoire.text, da?.jarvisLearnings, prefs, anglesGagnants].filter(Boolean).join('\n\n') || undefined;
+  // L'angle qui a PAYÉ (marché) juste après la mémoire mesurée · c'est le signal
+  // le plus fort après les verdicts agrégés, avant le subjectif (pouce, veille).
+  const winningPatterns = [memoire.text, anglesMarche, da?.jarvisLearnings, prefs, anglesGagnants].filter(Boolean).join('\n\n') || undefined;
   // Le contexte d'explication vient des MÊMES lectures que la mémoire injectée ·
   // expliquer avec d'autres chiffres que ceux qui ont servi serait une fiction.
   const rationaleCtx = {
