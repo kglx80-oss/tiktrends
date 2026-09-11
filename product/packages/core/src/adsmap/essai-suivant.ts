@@ -33,8 +33,8 @@
  * Pur : ni base, ni horloge, ni modèle.
  */
 
-import type { CumulEssais, VariableEssai } from './essai-resultat';
-import { estCumulable } from './essai-resultat';
+import type { CumulEssais, VariableEssai, GagnantMesure } from './essai-resultat';
+import { estCumulable, gagnantsMesures } from './essai-resultat';
 
 export interface EtatPourEssai {
   /** Les cumuls déjà calculés · c'est là que se lit ce qui a tranché. */
@@ -56,6 +56,12 @@ export interface Suggestion {
   pourquoi: string;
   /** Ce qu'il faut faire d'abord, quand un essai serait prématuré. */
   avantTout: string | null;
+  /**
+   * Ce que la mesure a DÉJÀ tranché gagnant, prêt à reprendre · vide tant
+   * qu'aucune dimension n'est conclusive. C'est la réponse au « applique ce qui
+   * a gagné » qui, avant, ne nommait rien.
+   */
+  gagnants: GagnantMesure[];
 }
 
 /** Au-delà, les ratés de fabrication dominent tout le reste. */
@@ -82,6 +88,10 @@ const IMAGES: Record<VariableEssai, number> = { accroche: 1, mise_en_page: 1, un
 const ORDRE: VariableEssai[] = ['mise_en_page', 'accroche', 'univers'];
 
 export function essaiSuivant(etat: EtatPourEssai): Suggestion {
+  // Ce que la mesure a déjà tranché · valable quelle que soit la branche
+  // ci-dessous, et c'est justement ce qui manquait à « applique ce qui a gagné ».
+  const gagnants = gagnantsMesures(etat.cumuls);
+
   // 1 · Les ratés de fabrication passent avant tout.
   //
   // Tant qu'une image sur deux porte du texte inventé ou un produit déformé,
@@ -96,6 +106,7 @@ export function essaiSuivant(etat: EtatPourEssai): Suggestion {
       avantTout: d
         ? `${d.quoi} en produit ${Math.round(d.taux * 100)} % · change-le, ou ajoute une photo produit en référence, avant de lancer un essai.`
         : 'Ajoute une photo produit en référence, ou change de moteur d’image, avant de lancer un essai.',
+      gagnants,
     };
   }
 
@@ -109,7 +120,8 @@ export function essaiSuivant(etat: EtatPourEssai): Suggestion {
       variable: null,
       question: 'Tes trois dimensions ont répondu.',
       pourquoi: 'Chacune a désigné un gagnant au-dessus du hasard · relancer un essai identique paierait pour réentendre une réponse.',
-      avantTout: 'Applique ce qui a gagné, puis reviens quand ta marque ou ton offre aura changé.',
+      avantTout: 'Reprends les valeurs gagnantes ci-dessous, puis reviens quand ta marque ou ton offre aura changé.',
+      gagnants,
     };
   }
 
@@ -125,6 +137,7 @@ export function essaiSuivant(etat: EtatPourEssai): Suggestion {
     question: QUESTION[choisie],
     pourquoi: pourquoiCelle(choisie, dejaTranches, tranchee),
     avantTout: null,
+    gagnants,
   };
 }
 

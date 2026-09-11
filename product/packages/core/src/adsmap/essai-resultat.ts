@@ -33,6 +33,8 @@
 
 import { wilsonInterval, type Interval } from './stats';
 import type { VerdictValue } from './types';
+import { LAYOUT_LABEL } from '../ad-layouts';
+import { directionByKey } from '../ad-directions';
 
 /** Les variables dont les bras se répètent d'un essai à l'autre. */
 export const CUMULABLES = ['mise_en_page', 'univers'] as const;
@@ -226,6 +228,48 @@ export function cumulEssais(essais: readonly EssaiLu[], variable: VariableEssai)
     conclusif: vainqueurs.length > 0,
     resume: resumeCumul(retenus.length, assez, vainqueurs.map((l) => l.valeur)),
   };
+}
+
+/** Une valeur que la mesure a désignée gagnante · prête à être RÉAPPLIQUÉE. */
+export interface GagnantMesure {
+  variable: VariableEssai;
+  /** La valeur gagnante · clé de mise en page ou d'univers (l'écran l'habille). */
+  valeur: string;
+  /** Sur combien d'essais tranchés elle s'est détachée · l'autorité du verdict. */
+  essais: number;
+}
+
+/**
+ * Les valeurs que les essais ont tranchées gagnantes, prêtes à appliquer.
+ *
+ * `essaiSuivant` disait « applique ce qui a gagné » sans jamais NOMMER quoi ·
+ * pourtant les cumuls le savent (`ligne.gagne`). On extrait ici, par dimension
+ * conclusive, la ou les valeurs qui se détachent du hasard · l'écran les nomme
+ * et propose de les reprendre, au lieu de renvoyer l'utilisateur deviner.
+ *
+ * Muet tant qu'aucune dimension n'est conclusive · le silence reste une réponse.
+ */
+export function gagnantsMesures(cumuls: readonly CumulEssais[]): GagnantMesure[] {
+  const out: GagnantMesure[] = [];
+  for (const c of cumuls) {
+    if (!c.conclusif) continue;
+    for (const l of c.lignes) {
+      if (l.gagne) out.push({ variable: c.variable, valeur: l.valeur, essais: c.essais });
+    }
+  }
+  return out;
+}
+
+/**
+ * Le libellé d'écran d'une valeur gagnante · la mesure range une CLÉ (mise en
+ * page, univers), on l'habille avec les mêmes libellés que les sélecteurs, pour
+ * que « appliquer L'affiche » se lise comme dans le composeur. Repli sur la clé
+ * brute si elle n'a pas de libellé connu · mieux qu'un blanc.
+ */
+export function libelleGagnant(g: GagnantMesure): string {
+  if (g.variable === 'mise_en_page') return (LAYOUT_LABEL as Record<string, string>)[g.valeur] ?? g.valeur;
+  if (g.variable === 'univers') return directionByKey(g.valeur)?.label ?? g.valeur;
+  return g.valeur;
 }
 
 function resumeCumul(n: number, assez: boolean, vainqueurs: string[]): string {
