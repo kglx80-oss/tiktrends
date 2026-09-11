@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
 import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
+import { Icon } from '../../../../components/Icon';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -174,7 +175,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
       <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
         {!ready && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
-            <span style={{ fontSize: 20 }}>🔒</span>
+            <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={18} /></span>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
               <b style={{ color: 'var(--ink)' }}>Vidéo IA bientôt disponible.</b> La génération vidéo s'active dès que le
               moteur vidéo est branché côté serveur.
@@ -194,7 +195,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           <button type="button" disabled={!ready} onClick={() => setAssistantOuvert(true)} style={{
             fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
             border: '1px solid var(--accent-strong)', background: 'transparent', color: 'var(--accent-strong)',
-          }}>✨ Assistant guidé</button>
+          }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Assistant guidé</span></button>
         </div>
 
         {mode === 'i2v' && <div style={{ marginBottom: 12 }}>{departBlock}</div>}
@@ -239,7 +240,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
               display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
               cursor: ready && aiReady && !suggesting ? 'pointer' : 'default', whiteSpace: 'nowrap',
               border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
-            }}>✦ {suggesting ? 'Rédaction…' : mode === 't2v' ? 'Proposer une description' : 'Proposer un mouvement'}</button>
+            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {suggesting ? 'Rédaction…' : mode === 't2v' ? 'Proposer une description' : 'Proposer un mouvement'}</span></button>
           }
           cost={{ credits: 20 * (duree / 5), note: `20 crédits par tranche de 5 secondes · une vidéo de ${duree} s en coûte ${20 * (duree / 5)}. Le rendu prend une à trois minutes.` }}
           onGenerate={generate}
@@ -273,7 +274,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                   {v.status === 'completed' && v.videoUrl
                     ? <video src={v.videoUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : v.status === 'failed'
-                      ? <span style={{ fontSize: 26 }}>⚠️</span>
+                      ? <span style={{ display: 'inline-flex', color: '#ffb3c0' }}><Icon name="alert" size={24} /></span>
                       : <span style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-2)', borderTopColor: 'var(--accent-strong)', animation: 'ttspin 1s linear infinite' }} />}
                   <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999, color: st.color, background: 'rgba(0,0,0,.55)' }}>{st.label}</span>
                   <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 999, color: 'var(--ink-2)', background: 'rgba(0,0,0,.5)' }}>{v.mode === 'i2v' ? 'IMG' : 'TXT'}</span>
@@ -289,7 +290,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                           <button type="button" onClick={() => { setPrompt(v.prompt); window.scrollTo({ top: 0, behavior: 'smooth' }); }} title="Repartir de ce brief pour une nouvelle vidéo" style={{
                             marginTop: 6, width: '100%', padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
                             border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)', cursor: 'pointer',
-                          }}>✨ Reprendre ce brief</button>
+                          }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> Reprendre ce brief</span></button>
                         )}
                       </>
                     ) : (
