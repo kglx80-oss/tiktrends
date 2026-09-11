@@ -396,13 +396,9 @@ proposées** (par valeur × bornée × 0 budget) :
 1. **Nommer ET réappliquer la valeur gagnante d'un essai.** *(livré — voir bas)*
    `essaiSuivant` disait « applique ce qui a gagné » sans jamais dire QUOI, alors
    que les cumuls le savent (`ligne.gagne`).
-2. **Rééquilibrer « Varier (3) » vs « Décliner » vers l'attribuable.** Dans le
-   détail, la CTA forte est « ✨ Varier (3) » — que le code lui-même signale comme
-   non-attribuable (« tout change à la fois … n'attribue l'écart à rien ») — placée
-   AVANT « Décliner » (attribuable). Pour itérer vers des gagnantes, le bouton qui
-   crie est celui qui n'apprend rien. *Quoi* : donner la primauté visuelle à
-   l'itération attribuable, « Varier » en secondaire. *Vérifier* : garde de rendu
-   sur l'ordre/emphase des deux CTA.
+2. **Rééquilibrer « Varier (3) » vs « Décliner » vers l'attribuable.** *(livré —
+   voir bas)* La CTA forte était « ✨ Varier (3) » (non-attribuable), placée avant
+   « Décliner » (attribuable).
 3. **Débrief de lot persistant.** `debriefLot` est le meilleur « comment ce lot
    a-t-il tourné » mais il vit en état React · il disparaît au rechargement et
    n'existe qu'en mode entière. *Quoi* : le reconstruire au chargement depuis les
@@ -422,6 +418,17 @@ proposées** (par valeur × bornée × 0 budget) :
   réappliquent · mutation éprouvée).
 - **À valider par le proprio** : lisibilité des puces gagnantes et bon
   pré-remplissage du composeur.
+
+### Livré · 2e tour #2 · l'itération attribuable passe devant (0 $)
+- Dans le détail d'une créa, « Décliner » (une seule chose change, le reste tenu ·
+  écart attribuable, donc ça apprend) passe PREMIER et primaire (en-tête accent +
+  pastille « pour itérer »). « Varier (3) » (tout change à la fois · non
+  attribuable) passe en SECOND, en action secondaire (`toolBtn`, plus `toolPrimary`),
+  avec la mention explicite « l'écart n'est attribuable à rien ». Varier n'est pas
+  supprimé · il garde son usage d'exploration rapide.
+- **Garde** : rendu/câblage · Décliner avant Varier, Varier en secondaire jamais
+  en CTA forte, Décliner en accent primaire (mutation éprouvée).
+- **À valider par le proprio** : la nouvelle hiérarchie se lit bien dans le détail.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
