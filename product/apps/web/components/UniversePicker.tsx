@@ -52,7 +52,7 @@ import { universePreviewsAction, generateUniversePreviewsAction, type UniversePr
 
 // Les directions artistiques · quatorze, contre huit univers d'une phrase.
 // Chacune porte son cadrage, sa lumière, sa typographie et sa disposition.
-const OPTIONS = [{ key: UNIVERSE_AUTO, label: '✦ Varié (auto)', hint: '' }, ...AD_DIRECTIONS];
+const OPTIONS = [{ key: UNIVERSE_AUTO, label: 'Varié (auto)', hint: '' }, ...AD_DIRECTIONS];
 
 const chip = (on: boolean): CSSProperties => ({
   padding: '6px 13px', borderRadius: 999, fontSize: 12, cursor: 'pointer',

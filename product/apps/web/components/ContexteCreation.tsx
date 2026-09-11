@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Icon } from './Icon';
 import { marketCoverageAction } from '../app/actions/market-learn';
 
 /**
@@ -40,7 +41,7 @@ export function ContexteCreation({ brandName, edenCount, isAdmin }: {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18, fontSize: 12.5, color: 'var(--muted)' }}>
-      <span style={{ fontSize: 14 }}>🎯</span>
+      <span style={{ display: "inline-flex" }}><Icon name="target" size={14} /></span>
       {brandName && <><b style={{ color: 'var(--ink-2)', fontWeight: 700 }}>{brandName}</b><Sep /></>}
 
       {/* Ce que la catégorie a appris · lu au montage, en clair et sans bouton. */}
@@ -57,7 +58,7 @@ export function ContexteCreation({ brandName, edenCount, isAdmin }: {
         <>
           <Sep />
           <Link href="/jarvis" style={{ ...lien, color: edenCount ? '#7ee8bf' : 'var(--accent-strong)' }}>
-            🧠 {edenCount ? `${edenCount} règle${edenCount > 1 ? 's' : ''} maison` : 'Jarvis à configurer'} ›
+            <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="brain" size={14} /></span>{edenCount ? `${edenCount} règle${edenCount > 1 ? 's' : ''} maison` : 'Jarvis à configurer'} ›
           </Link>
         </>
       )}

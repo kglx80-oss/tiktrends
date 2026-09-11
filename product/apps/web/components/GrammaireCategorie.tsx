@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { Icon } from './Icon';
 import type { LigneGrammaire } from '@tiktrends/core';
 import { grammaireCategorieAction } from '../app/actions/layout-marche';
 import { grammaireVideoAction } from '../app/actions/video-marche';
@@ -60,7 +61,7 @@ export function GrammaireCategorie() {
         <button type="button" onClick={voir} disabled={busy} style={{
           fontSize: 12.5, fontWeight: 800, padding: '7px 14px', borderRadius: 999, cursor: busy ? 'default' : 'pointer',
           border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? 0.6 : 1,
-        }}>{busy ? 'Lecture…' : '✦ Lire ce qui gagne dans ma catégorie'}</button>
+        }}>{busy ? 'Lecture…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={14} /> Lire ce qui gagne dans ma catégorie</span>}</button>
         <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Ce que tes entières vont suivre · appris des concurrents qui tiennent.</span>
       </div>
 
