@@ -167,5 +167,5 @@ function Etat({ state }: { state: HubState }) {
   if (state.kind === 'setup') {
     return <span style={{ ...puce, color: '#f5b043', background: 'rgba(245,166,35,.12)' }}>◐ {state.why}</span>;
   }
-  return <span style={{ ...puce, color: 'var(--muted)', background: 'rgba(255,255,255,.05)' }}>🔒 {state.why}</span>;
+  return <span style={{ ...puce, display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--muted)', background: 'rgba(255,255,255,.05)' }}><Icon name="lock" size={12} /> {state.why}</span>;
 }

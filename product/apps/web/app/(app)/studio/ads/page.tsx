@@ -10,6 +10,7 @@ import { listBrandAds, listSavedAdRefs } from '../../../actions/ads';
 import { listAssets } from '../../../actions/assets';
 import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { AdsStudio } from './AdsStudio';
+import { Icon } from '../../../../components/Icon';
 import { essaiSuivantAction } from '../../../actions/adsmap-attribution';
 import { ContexteCreation } from '../../../../components/ContexteCreation';
 import { effectiveAccess } from '../../../../lib/access';
@@ -69,7 +70,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
       <main style={wrap}>
         <h1 style={h1}>Pubs IA</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ fontSize: 34 }}>🔒</div>
+          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0' }}>
             {why === 'plan' ? 'Les Pubs IA sont disponibles à partir du plan Core.' : "Ton rôle ne permet pas d'y accéder."}
           </p>
