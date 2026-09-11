@@ -660,9 +660,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             },
             {
               key: 'modele', title: 'Moteur d’image', icon: 'sparkles',
-              // Le moteur mesuré le meilleur chez la marque est marqué comme tel ·
-              // c'est lui qui est retenu par défaut quand la mesure tranche.
-              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${conseilMoteurs.recommande === m.key ? ' · mesuré le meilleur ici' : moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}` })),
+              // Ce que la mesure dit VRAIMENT · le moteur qui tient le mieux la
+              // copie (plus faible taux de réécriture d'accroche), pas « le plus
+              // performant ». « Gagne le marché » se mesure ailleurs (verdict) ·
+              // promettre la performance sur un signal de fidélité serait mentir.
+              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${conseilMoteurs.recommande === m.key ? ' · tient le mieux ta copie ici' : moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}` })),
               value: model, onChange: setModel,
             },
           ]}

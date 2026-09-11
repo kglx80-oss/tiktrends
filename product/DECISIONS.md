@@ -341,12 +341,9 @@ signal gagnant vit en base et meurt dans les analyses ADSMAP/admin.
 2. **Nourrir la génération avec les angles qui ont GAGNÉ, pas seulement les 👍.**
    *(livré — voir plus bas)* `perfParAngle` relie chaque angle à son verdict réel
    (le marché a payé) mais n'était lu que dans `admin/intelligence`.
-3. **Dire la vérité sur « mesuré le meilleur ici ».** Le Studio étiquette le
-   moteur au plus faible taux de réécriture comme « mesuré le meilleur ici »
-   (`AdsStudio` ~428, 664) · un client lit « le plus performant », alors que ça
-   veut dire « tient le mieux la copie », pas « gagne le plus ». *Quoi* :
-   distinguer les deux signaux dans le libellé (fidélité vs performance marché).
-   *Vérifier* : test de câblage sur le libellé.
+3. **Dire la vérité sur « mesuré le meilleur ici ».** *(livré — voir plus bas)*
+   Le Studio étiquetait le moteur au plus faible taux de réécriture « mesuré le
+   meilleur ici » · un client y lit « le plus performant ».
 
 ### Livré · #1 · le verdict marché sur la carte (0 $ · aucune génération)
 - Règle pure `etatVerdictCarte` (`packages/core/src/adsmap/verdict-carte.ts`) :
@@ -378,6 +375,18 @@ signal gagnant vit en base et meurt dans les analyses ADSMAP/admin.
   réelles (déjà signalé à l'écran fondateur). L'effet est ADDITIF et gaté par le
   plancher · au pire, un indice d'angle gagnant légèrement mal attribué, jamais
   destructif, et il se corrige à mesure que les verdicts s'accumulent.
+
+### Livré · #3 · libellé honnête du moteur (0 $ · aucune génération)
+- `conseilMoteur` désigne le moteur au plus faible taux de RÉÉCRITURE d'accroche ·
+  c'est « tient le mieux ta copie » (fidélité), pas « gagne le marché »
+  (performance, mesurée ailleurs par le verdict). Le noyau phrasait déjà juste
+  (`resume`) ; seuls deux libellés d'écran promettaient « · mesuré le meilleur
+  ici » (AssistantPub, AdsStudio).
+- Les deux passent à « · tient le mieux ta copie ici ». Garde source : aucun
+  écran ne réintroduit « le meilleur ici » (mutation éprouvée).
+
+Les 3 améliorations proposées le 2026-09-11 sont désormais LIVRÉES. Prochain
+tour d'exploration du cœur Pubs IA à faire pour en proposer 3 nouvelles.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
