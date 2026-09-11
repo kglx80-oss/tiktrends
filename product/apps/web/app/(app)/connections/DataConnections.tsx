@@ -6,6 +6,7 @@ import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, conne
 import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
+import { Icon } from '../../../components/Icon';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
@@ -99,7 +100,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
                   if (!/\.myshopify\.com/.test(d)) { setMsg('Renseigne d’abord ton domaine .myshopify.com.'); return; }
                   window.location.href = `/api/oauth/shopify?shop=${encodeURIComponent(d)}`;
                 }}
-                style={{ ...primary, textAlign: 'center' }}>⚡ Connexion en un clic (OAuth)</button>
+                style={{ ...primary, textAlign: 'center' }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="plug" size={14} /> Connexion en un clic (OAuth)</span></button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 0' }}>
                 <span style={{ height: 1, flex: 1, background: 'var(--line)' }} /><span style={{ fontSize: 11, color: 'var(--muted)' }}>ou par token</span><span style={{ height: 1, flex: 1, background: 'var(--line)' }} />
               </div>
@@ -178,7 +179,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
         <div style={{ display: 'grid', gap: 10 }}>
           {oauth && (
             <>
-              <a href="/api/oauth/meta" style={{ ...primary, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⚡ Connexion en un clic (OAuth)</a>
+              <a href="/api/oauth/meta" style={{ ...primary, textAlign: 'center', textDecoration: 'none', display: 'block' }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="plug" size={14} /> Connexion en un clic (OAuth)</span></a>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 0' }}>
                 <span style={{ height: 1, flex: 1, background: 'var(--line)' }} /><span style={{ fontSize: 11, color: 'var(--muted)' }}>ou par token</span><span style={{ height: 1, flex: 1, background: 'var(--line)' }} />
               </div>
