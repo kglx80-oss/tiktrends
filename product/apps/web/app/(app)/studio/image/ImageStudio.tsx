@@ -227,7 +227,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         ) : selected?.hasImage ? (
           <div style={{ ...thumb, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, textAlign: 'center', fontSize: 11, color: 'var(--muted)', padding: 8 }}><Icon name="image" size={20} /><span>Photo<br />enregistrée</span></div>
         ) : (
-          <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--muted)' }}>📦</div>
+          <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}><Icon name="box" size={26} /></div>
         )}
 
         <div style={{ flex: '1 1 260px', minWidth: 220 }}>
@@ -241,7 +241,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               <button type="button" onClick={saveForProduct} disabled={saving} style={{
                 fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: saving ? 'default' : 'pointer',
                 border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--accent-strong)',
-              }}>{saving ? 'Enregistrement…' : '💾 Enregistrer pour ce produit'}</button>
+              }}>{saving ? 'Enregistrement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={13} /> Enregistrer pour ce produit</span>}</button>
             )}
           </div>
           <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>

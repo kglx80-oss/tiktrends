@@ -44,13 +44,14 @@ describe('le panneau montre le verdict du lot', () => {
     const d = debriefLot([...relectures({}, 5), ...relectures({ accrocheReecrite: true }, 1)]);
     const out = html(d);
     expect(out).toContain('5 accroches conformes, 1 réécrite');
-    expect(out, 'un défaut éliminatoire est signalé').toContain('⚠');
+    // Le signal d'alerte est l'icône `alert` du jeu · on lit son tracé dans le HTML.
+    expect(out, 'un défaut éliminatoire est signalé').toContain('M10.3 3.9');
   });
 
   it('un texte illisible remonte dans le débrief', () => {
     const d = debriefLot([...relectures({}, 4), ...relectures({ texteLisible: false }, 2)]);
     const out = html(d);
     expect(out, 'la 3e question se lit dans le panneau').toContain('2 au texte illisible');
-    expect(out).toContain('⚠');
+    expect(out).toContain('M10.3 3.9');
   });
 });

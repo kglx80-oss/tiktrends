@@ -65,6 +65,10 @@ export const ICON_PATHS: Record<string, string> = {
   terminal: 'M4 17l6-6-6-6M12 19h8',
   palette: 'M12 2a10 10 0 1 0 0 20 2 2 0 0 0 2-2 2 2 0 0 1 2-2h1a5 5 0 0 0 5-5c0-5.5-4.9-9-11-9zM6.5 12.5h.01M8.5 8.5h.01M12.5 7.5h.01M16.5 9.5h.01',
   info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M12 16v-4M12 8h.01',
+  trophy: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0z',
+  scale: 'M12 3v18M8 21h8M3 7h18M6.5 7 3 14a4 4 0 0 0 7 0zM17.5 7 14 14a4 4 0 0 0 7 0z',
+  download: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3',
+  save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8',
 };
 
 /** Icône au trait · `currentColor`, taille réglable (défaut 17, comme le rail). */
