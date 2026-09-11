@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, moteurRecommande, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, moteurRecommande, libelleGagnant, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -210,6 +210,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const refInput = useRef<HTMLInputElement>(null);
 
   const detailAd = detailIdx != null ? ads[detailIdx] ?? null : null;
+
+  // Reprendre un gagnant · on pré-sélectionne la valeur dans le composeur et on
+  // ouvre l'assistant, au lieu de laisser deviner « applique ce qui a gagné ».
+  const appliquerGagnant = (g: GagnantMesure): void => {
+    if (g.variable === 'mise_en_page') setLayout(g.valeur);
+    else if (g.variable === 'univers') setUniverse(g.valeur);
+    setMode('brand'); setAssistant(true); setError('');
+  };
+
   const [editText, setEditText] = useState(false);
   const [textForm, setTextForm] = useState<AdText | null>(null);
   const [textBusy, setTextBusy] = useState(false);
@@ -984,6 +993,24 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             {suggestion.pourquoi && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{suggestion.pourquoi}</div>}
             {suggestion.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 4, lineHeight: 1.4 }}>{suggestion.avantTout}</div>}
           </div>
+          {/* Ce que la mesure a DÉJÀ tranché gagnant · nommé, et réappliquable d'un
+              clic. Avant, l'outil disait « applique ce qui a gagné » sans jamais
+              dire quoi · le gagnant vivait dans le cumul, l'écran ne le lisait pas. */}
+          {suggestion.gagnants.length > 0 && (
+            <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>GAGNANTS MESURÉS</span>
+              {suggestion.gagnants.map((g) => (
+                <button key={g.variable + g.valeur} type="button" disabled={!ready}
+                  onClick={() => appliquerGagnant(g)}
+                  title={`Reprendre ${ESSAI_LABEL[g.variable].toLowerCase()} · gagnant sur ${g.essais} essais`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999, border: '1px solid rgba(126,232,191,.4)', background: 'rgba(126,232,191,.08)', color: 'var(--ink)', fontSize: 11.5, fontWeight: 600, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .5 }}>
+                  <span style={{ color: 'var(--muted)' }}>{ESSAI_LABEL[g.variable]} ·</span>
+                  <b style={{ color: '#7ee8bf' }}>{libelleGagnant(g)}</b>
+                  <span style={{ color: 'var(--muted)', fontWeight: 700 }}>· appliquer</span>
+                </button>
+              ))}
+            </div>
+          )}
           {suggestion.variable && suggestion.variable !== essai && (
             <button type="button" disabled={!ready} onClick={() => { setEssai(suggestion.variable!); setMode('brand'); setAssistant(true); setError(''); }} style={{
               padding: '11px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: ready ? 'pointer' : 'default',

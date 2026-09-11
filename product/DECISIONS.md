@@ -385,8 +385,43 @@ signal gagnant vit en base et meurt dans les analyses ADSMAP/admin.
 - Les deux passent à « · tient le mieux ta copie ici ». Garde source : aucun
   écran ne réintroduit « le meilleur ici » (mutation éprouvée).
 
-Les 3 améliorations proposées le 2026-09-11 sont désormais LIVRÉES. Prochain
-tour d'exploration du cœur Pubs IA à faire pour en proposer 3 nouvelles.
+Les 3 améliorations proposées le 2026-09-11 sont désormais LIVRÉES.
+
+## 2e tour · boucle d'itération de Pubs IA (2026-09-11)
+
+Nouveau tour d'exploration. La boucle mesure→action a encore des points où le
+signal existe mais ne revient pas à l'utilisateur. **3 nouvelles améliorations
+proposées** (par valeur × bornée × 0 budget) :
+
+1. **Nommer ET réappliquer la valeur gagnante d'un essai.** *(livré — voir bas)*
+   `essaiSuivant` disait « applique ce qui a gagné » sans jamais dire QUOI, alors
+   que les cumuls le savent (`ligne.gagne`).
+2. **Rééquilibrer « Varier (3) » vs « Décliner » vers l'attribuable.** Dans le
+   détail, la CTA forte est « ✨ Varier (3) » — que le code lui-même signale comme
+   non-attribuable (« tout change à la fois … n'attribue l'écart à rien ») — placée
+   AVANT « Décliner » (attribuable). Pour itérer vers des gagnantes, le bouton qui
+   crie est celui qui n'apprend rien. *Quoi* : donner la primauté visuelle à
+   l'itération attribuable, « Varier » en secondaire. *Vérifier* : garde de rendu
+   sur l'ordre/emphase des deux CTA.
+3. **Débrief de lot persistant.** `debriefLot` est le meilleur « comment ce lot
+   a-t-il tourné » mais il vit en état React · il disparaît au rechargement et
+   n'existe qu'en mode entière. *Quoi* : le reconstruire au chargement depuis les
+   relectures déjà en base (règle pure de reconstruction). *Vérifier* : test noyau
+   de reconstruction + garde d'affichage après rechargement.
+
+### Livré · 2e tour #1 · nommer et réappliquer le gagnant d'un essai (0 $)
+- Règle pure `gagnantsMesures(cumuls)` + `libelleGagnant(g)` (core, adsmap) :
+  extrait la valeur gagnante de chaque dimension conclusive et l'habille du
+  libellé du sélecteur (gabarit / direction). `Suggestion.gagnants` porte la liste
+  sur tous les chemins d'`essaiSuivant`.
+- Studio · le panneau d'hypothèse affiche « GAGNANTS MESURÉS · Mise en page ·
+  L'affiche · appliquer » ; un clic pré-sélectionne la valeur dans le composeur
+  (`setLayout`/`setUniverse`) et ouvre l'assistant.
+- **Gardes** : noyau (quelle valeur gagne, comment elle se nomme, muet sinon ·
+  mutation éprouvée) + câblage Studio (les gagnants s'affichent et se
+  réappliquent · mutation éprouvée).
+- **À valider par le proprio** : lisibilité des puces gagnantes et bon
+  pré-remplissage du composeur.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
