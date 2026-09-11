@@ -242,17 +242,16 @@ describe('chaque icône du rail existe · sinon un item rend un glyphe faux, en 
   /**
    * Ce qui a manqué et qu'on ne voyait pas.
    *
-   * `FEATURES[].icon` nomme un glyphe. Le rail (SVG) et la palette ⌘K (emoji)
-   * ont chacun leur table nom → glyphe, avec un repli muet · le SVG retombe sur
-   * `grid`, l'emoji sur `›`. « Tri des propositions » portait `check`, absent des
-   * deux tables · il s'affichait donc avec l'icône du dashboard et une flèche,
-   * sans que rien ne le signale. On lit les deux tables dans la SOURCE et on
-   * vérifie que tout `icon` déclaré y a une entrée · un ajout d'item sans glyphe
-   * casse ici, plus à l'écran.
+   * `FEATURES[].icon` nomme un glyphe. Le rail retombait en silence sur `grid`
+   * quand un nom était absent du jeu · « Tri des propositions » portait `check`,
+   * absent, il s'affichait donc avec l'icône du dashboard sans que rien ne le
+   * signale. On lit le jeu dans la SOURCE et on vérifie que tout `icon` déclaré y
+   * a un tracé · un ajout d'item sans glyphe casse ici, plus à l'écran.
+   *
+   * La palette ⌘K rendait autrefois un emoji (table `emojiFor` dans AppShell) ·
+   * elle rend désormais la MÊME icône au trait que le rail (`<Icon name={it.icon}>`).
+   * Il n'y a donc plus qu'un seul jeu à garder · le tracé SVG couvre les deux.
    */
-  const shell = readFileSync(join(process.cwd(), 'components', 'AppShell.tsx'), 'utf8');
-  // Le jeu SVG a été sorti dans son propre fichier (icônes premium partagées) ·
-  // la palette ⌘K garde sa table d'emojis dans AppShell.
   const iconSrc = readFileSync(join(process.cwd(), 'components', 'Icon.tsx'), 'utf8');
   // Extrait les clés d'une table `const <nom>… = { … }`. Les clés sont les seuls
   // `mot:` immédiatement suivis d'une valeur littérale (chemins SVG et emojis
@@ -267,17 +266,10 @@ describe('chaque icône du rail existe · sinon un item rend un glyphe faux, en 
   };
   const iconesDeclarees = [...new Set(FEATURES.map((f) => f.icon))];
 
-  it('le rail (SVG) a un tracé pour chaque icône déclarée', () => {
+  it('le jeu partagé a un tracé pour chaque icône déclarée · rail ET palette', () => {
     const tracés = clesDeTable(iconSrc, 'ICON_PATHS'); // jeu partagé dans Icon.tsx
     const absentes = iconesDeclarees.filter((i) => !tracés.has(i));
     expect(absentes, `Icône(s) sans tracé SVG · le rail retombe sur « grid » : ${absentes.join(', ')}`)
-      .toEqual([]);
-  });
-
-  it('la palette ⌘K (emoji) a un glyphe pour chaque icône déclarée', () => {
-    const emojis = clesDeTable(shell, 'emojiFor:');
-    const absentes = iconesDeclarees.filter((i) => !emojis.has(i));
-    expect(absentes, `Icône(s) sans emoji · la palette affiche « › » : ${absentes.join(', ')}`)
       .toEqual([]);
   });
 });
