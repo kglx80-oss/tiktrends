@@ -31,10 +31,20 @@ describe('run rend toujours la main', () => {
     expect(STUDIO).toMatch(/finally\s*\{\s*setBusy\(false\);/);
   });
 
-  it('rend l’échec visible quand l’action LÈVE au lieu de renvoyer', () => {
-    // Un catch qui pose un message · sans lui, l'exception disparaît et le
-    // bouton reste figé sans explication.
-    expect(STUDIO).toMatch(/catch \(e\)/);
-    expect(STUDIO).toMatch(/La génération s.est interrompue/);
+  it('capture l’exception, POSE le message ET le câble à l’écran', () => {
+    // Trois maillons, chacun cassable seul · l'ancienne version ne gardait que
+    // le deuxième (« la string existe »), si bien que couper le troisième
+    // (erreur={''}) laissait le garde vert alors que RIEN ne s'affichait.
+    //
+    // 1. le catch POSE le message (setError) avant le finally · il n'avale pas ;
+    //    l'ancrage `catch (e) { … setError(message); … } finally {` tombe si on
+    //    retire le setError du catch.
+    expect(STUDIO).toMatch(/catch \(e\) \{[\s\S]*?setError\(message\);[\s\S]*?\} finally \{/);
+    // 2. le message DIT l'échec, pas un silence.
+    expect(STUDIO).toMatch(/const message = `La génération s['’]est interrompue/);
+    // 3. l'état d'erreur est CÂBLÉ à la fenêtre visible · sans ce fil, le message
+    //    est posé mais jamais rendu. La visibilité d'un `erreur` non vide est
+    //    elle-même prouvée par le rendu HTML d'assistant-rendu.
+    expect(STUDIO).toMatch(/erreur=\{error\}/);
   });
 });
