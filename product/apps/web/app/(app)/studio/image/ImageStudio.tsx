@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useRef, useState, useTransition } from 'react';
-import { generateImageAction, suggestImageBriefAction, setProductImageAction, type BrandImage } from '../../../actions/image';
+import { generateImageAction, suggestImageBriefAction, setProductImageAction, scoreImageAction, type BrandImage } from '../../../actions/image';
+import type { NoteImage } from '@tiktrends/core';
 import { archiveCreativeAction } from '../../../actions/creatives';
 import type { FalAspect } from '@tiktrends/integrations';
 import { IMAGE_MODELS, imageModelByKey, generationOutcome, AD_DIRECTIONS, premiereImageIncomplete, manqueImage, debriefVisuels, type EtatAssistantImage } from '@tiktrends/core';
@@ -64,6 +65,19 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   // bibliothèque de la marque automatiquement. Assets « plus présents ».
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const toggleAsset = (id: string) => setAssetIds((l) => l.includes(id) ? l.filter((x) => x !== id) : [...l, id]);
+  // Relecture IA d'un visuel · le « score Jarvis » regarde l'image et rend une
+  // note plafonnée par les ratés (noteImage, core). Par visuel, à la demande.
+  const [notes, setNotes] = useState<Record<string, NoteImage>>({});
+  const [noting, setNoting] = useState('');
+
+  async function noter(im: BrandImage) {
+    if (!im.url || noting) return;
+    setNoting(im.id); setError('');
+    const r = await scoreImageAction({ url: im.url, prompt: im.prompt });
+    setNoting('');
+    if (r.error) { setError(r.error); return; }
+    if (r.note) setNotes((m) => ({ ...m, [im.id]: r.note! }));
+  }
   const [productId, setProductId] = useState('');
   const [prods, setProds] = useState<Product[]>(products);
   const [enhance, setEnhance] = useState(aiReady);
@@ -417,13 +431,33 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 <div style={{ marginTop: 8 }}>
                   <CreativeActions genId={im.id} rating={im.rating} onOpen={im.url ? () => setPreview(im.url) : undefined} downloadUrl={im.url} onArchive={() => archiveImage(im.id)} />
                 </div>
-                {im.prompt && (
-                  <button type="button" onClick={() => vary(im)} disabled={busy || !ready} title="3 variantes du même brief" style={{
-                    marginTop: 6, width: '100%', padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
-                    border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)',
-                    cursor: busy || !ready ? 'default' : 'pointer', opacity: busy || !ready ? .5 : 1,
-                  }}>✨ Varier (3)</button>
-                )}
+                {/* Relecture IA · note plafonnée par les ratés visibles. */}
+                {notes[im.id] && (() => { const nt = notes[im.id]!; return (
+                  <div style={{ marginTop: 8, padding: '7px 9px', borderRadius: 9, border: `1px solid ${nt.grave ? 'rgba(255,77,109,.4)' : 'var(--line-2)'}`, background: nt.grave ? 'rgba(255,77,109,.07)' : 'var(--paper)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <b style={{ fontSize: 13, color: nt.grave ? '#ff9db0' : nt.note >= 75 ? '#7ee8bf' : 'var(--ink)' }}>{nt.note}/100</b>
+                      {nt.defauts.length > 0 && <span style={{ fontSize: 10.5, color: '#ffcf8f' }}>· {nt.defauts.join(', ')}</span>}
+                    </div>
+                    {nt.verdict && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{nt.verdict}</div>}
+                    {nt.resume && <div style={{ fontSize: 11, color: '#ff9db0', marginTop: 2, lineHeight: 1.4 }}>{nt.resume}</div>}
+                  </div>
+                ); })()}
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  {im.prompt && (
+                    <button type="button" onClick={() => vary(im)} disabled={busy || !ready} title="3 variantes du même brief" style={{
+                      flex: 1, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
+                      border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)',
+                      cursor: busy || !ready ? 'default' : 'pointer', opacity: busy || !ready ? .5 : 1,
+                    }}>✨ Varier (3)</button>
+                  )}
+                  {im.url && aiReady && (
+                    <button type="button" onClick={() => noter(im)} disabled={noting === im.id || !ready} title="Relecture IA · note et ratés du visuel" style={{
+                      flex: 1, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
+                      border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)',
+                      cursor: noting === im.id || !ready ? 'default' : 'pointer', opacity: !ready ? .5 : 1,
+                    }}>{noting === im.id ? 'Relecture…' : '⓵ Noter (IA)'}</button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

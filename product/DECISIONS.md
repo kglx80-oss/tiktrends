@@ -104,8 +104,18 @@ contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
   écarté) en un débrief de lot · `debriefVisuels` (core, pur) · « sur N jugés, X
   retenus », vert quand tout est retenu, `null` si rien n'est noté (le silence
   est une réponse). Bande rendue au-dessus de la grille. Gardes `debrief-visuels`
-  (core) + `debrief-visuels-rendu` (rendu + câblage), par mutation. Le scoring
-  automatique du visuel reste un chantier serveur à valider par le proprio.
+  (core) + `debrief-visuels-rendu` (rendu + câblage), par mutation.
+- **Contrôles · relecture IA d'un visuel (le scoring automatique).** Le studio
+  Image relit un visuel à la demande · on RÉUTILISE le « score Jarvis »
+  (`scoreCreative`, ai · il sait regarder l'image) et on le lit en une note
+  affichable via `noteImage` (core, pur) · la note est PLAFONNÉE par les ratés
+  rédhibitoires (`plafonner` + `verdictDefauts`, déjà éprouvés) · le modèle
+  regarde, le noyau décide, une belle note ne passe pas au-dessus d'un raté
+  visible. Bouton « Noter (IA) » par visuel, badge note/100 + verdict + ratés.
+  Gardes `note-image` (core · plafond, non-vu → null) + `image-scoring` (câblage)
+  par mutation. L'appel vision et le fetch de l'image tournent côté SERVEUR ·
+  à valider par le proprio après déploiement (mon angle mort). Le mandat 2 est
+  alors complet, contrôles compris.
 
 ### Connectiques · le catalogue est une feuille de route
 - **Les ~50 connecteurs à venir cessent d'être des boutons cassés.** Chacun

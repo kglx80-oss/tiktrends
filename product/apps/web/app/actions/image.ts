@@ -5,8 +5,9 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
-import { enhanceImagePrompt, suggestImageBrief } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS, promptImage } from '@tiktrends/core';
+import { enhanceImagePrompt, suggestImageBrief, scoreCreative } from '@tiktrends/ai';
+import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS, promptImage, noteImage, type NoteImage } from '@tiktrends/core';
+import { imageJointe } from '../../lib/image-jointe';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
 import { resolveProductImage, probeProductImage } from '../../lib/product-image';
@@ -292,4 +293,40 @@ export async function listBrandImages(): Promise<BrandImage[]> {
     for (const url of g.assetUrls ?? []) out.push({ id: g.id + ':' + url, prompt: input.prompt || '', url, createdAt: (g.createdAt as Date).toISOString(), rating: input.rating ?? null });
   }
   return out;
+}
+
+/**
+ * Relire un visuel · le « score Jarvis », appliqué au studio Image.
+ *
+ * Le studio Image n'avait aucune relecture automatique · on réutilise le scoring
+ * de créa (qui sait regarder l'image) et on le lit en une note affichable
+ * (`noteImage`, core · plafonnée par les ratés rédhibitoires). Le modèle regarde,
+ * le noyau décide · la note n'invente rien qu'un raté visible contredirait.
+ */
+export async function scoreImageAction(input: { url: string; prompt?: string }): Promise<{ note?: NoteImage; error?: string }> {
+  const s = await getSession();
+  if (!s) return { error: GUARD.session() };
+  const client = guardedAnthropic({ action: 'image:score', workspaceId: s.workspaceId });
+  if (!client) return { error: "La relecture IA n'est pas configurée sur le serveur." };
+  const img = await imageJointe(input.url);
+  if (!img) return { error: 'Visuel illisible · impossible de le relire.' };
+
+  const brand = await getActiveBrand(s.workspaceId);
+  let ctx: { brand?: string; tone?: string; usp?: string } = {};
+  if (db && brand) {
+    const [row] = await db.select({ tone: schema.brands.tone, usp: schema.brands.usp })
+      .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    ctx = { brand: brand.name, tone: row?.tone ?? undefined, usp: row?.usp ?? undefined };
+  }
+  try {
+    const sc = await scoreCreative(client, ctx, {
+      headline: input.prompt?.trim() || 'Visuel',
+      image: { mediaType: img.mediaType as 'image/png' | 'image/jpeg' | 'image/webp', base64: img.base64 },
+    });
+    const note = noteImage(sc);
+    if (!note) return { error: "La relecture n'a rien pu conclure." };
+    return { note };
+  } catch (e) {
+    return { error: logAndTranslate('image:score', e, { subject: 'la relecture du visuel', workspaceId: s.workspaceId }) };
+  }
 }
