@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import { generateAction, type StudioState } from '../../../actions/studio';
 import type { CreativeOutput } from '@tiktrends/ai';
+import { Icon } from '../../../../components/Icon';
 
 const input: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 };
@@ -14,7 +15,7 @@ function Copy({ text }: { text: string }) {
   return (
     <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1200); } catch { /* noop */ } }}
       style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: done ? 'var(--ok)' : 'var(--ink-2)', cursor: 'pointer', flexShrink: 0 }}>
-      {done ? '✓ copié' : 'copier'}
+      {done ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={11} /> copié</span> : 'copier'}
     </button>
   );
 }
@@ -23,8 +24,8 @@ function Copy({ text }: { text: string }) {
 function ToAds({ text }: { text: string }) {
   return (
     <a href={`/studio/ads?angle=${encodeURIComponent(text)}`} title="Créer la pub à partir de cet angle"
-      style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: '1px solid rgba(254,44,85,.35)', background: 'transparent', color: 'var(--accent-strong)', fontWeight: 700, cursor: 'pointer', flexShrink: 0, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-      ✨ Pubs IA
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 999, border: '1px solid rgba(254,44,85,.35)', background: 'transparent', color: 'var(--accent-strong)', fontWeight: 700, cursor: 'pointer', flexShrink: 0, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+      <Icon name="sparkles" size={12} /> Pubs IA
     </a>
   );
 }
@@ -51,7 +52,7 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
         </div>
         <div><label style={lbl}>Inspiration (créa gagnante à réinterpréter)</label><textarea name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
         <button type="submit" disabled={pending || !hasKey} style={{ padding: '12px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending || !hasKey ? .6 : 1 }}>
-          {pending ? 'Génération en cours…' : '✨ Générer la créative'}
+          {pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative</span>}
         </button>
         {!hasKey && <p style={{ margin: 0, fontSize: 12, color: 'var(--warn)' }}>IA non configurée : ajoute <code>ANTHROPIC_API_KEY</code> sur le serveur.</p>}
         {state.error && <p style={{ margin: 0, fontSize: 12, color: '#ff9db0' }}>{state.error}</p>}
@@ -61,10 +62,10 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
       <div style={{ display: 'grid', gap: 16 }}>
         {!out && !pending && (
           <div style={{ ...card, color: 'var(--muted)', fontSize: 14 }}>
-            Remplis le brief à gauche et lance la génération. Astuce : depuis la <b>Veille</b>, le bouton « ✨ Générer » pré-remplit l'inspiration avec une créa gagnante.
+            Remplis le brief à gauche et lance la génération. Astuce : depuis la <b>Veille</b>, le bouton « Générer » pré-remplit l'inspiration avec une créa gagnante.
           </div>
         )}
-        {pending && <div style={{ ...card, color: 'var(--muted)', fontSize: 14 }}>✨ Le Studio compose angles, hooks, script et textes…</div>}
+        {pending && <div style={{ ...card, color: 'var(--muted)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="sparkles" size={15} /> Le Studio compose angles, hooks, script et textes…</div>}
 
         {out && (
           <>
