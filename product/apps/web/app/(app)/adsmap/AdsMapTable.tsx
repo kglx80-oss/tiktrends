@@ -6,6 +6,7 @@ import { listAdsAction, exportAdsCsvAction, type AdRow, type AdFilters } from '.
 import { conceptBriefAction } from '../../actions/adsmap-bridge';
 import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
+import { Icon } from '../../../components/Icon';
 
 /**
  * Vue Table d'ADSMAP.
@@ -175,7 +176,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
                   <tr key={r.id}>
                     <td style={td}>
                       <span style={{ color: 'var(--ink-2)' }}>{STATUS_LABEL[r.status] ?? r.status}</span>
-                      {r.killFlag && <span title="Budget qui brûle" style={{ marginLeft: 6, color: '#ff8095' }}>⚠</span>}
+                      {r.killFlag && <span title="Budget qui brûle" style={{ marginLeft: 6, color: '#ff8095', display: 'inline-flex', verticalAlign: '-2px' }}><Icon name="alert" size={13} /></span>}
                     </td>
                     <td style={{ ...td, color: 'var(--muted)' }}>{r.batchNumber ?? '—'}</td>
                     <td style={{ ...td, color: 'var(--ink)', fontWeight: 600, maxWidth: 220 }}>{r.concept}</td>
@@ -222,7 +223,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
                           <button type="button" onClick={() => iterer(r)} disabled={!!briefBusy}
                             title="Reprendre cet angle dans le Studio pour en générer une variante"
                             style={{ ...rowBtn, color: 'var(--accent-strong)', cursor: briefBusy ? 'default' : 'pointer', opacity: briefBusy === r.id ? 0.5 : 1 }}>
-                            {briefBusy === r.id ? '…' : '✨ Studio'}
+                            {briefBusy === r.id ? '…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="sparkles" size={12} /> Studio</span>}
                           </button>
                         )}
                       </span>
