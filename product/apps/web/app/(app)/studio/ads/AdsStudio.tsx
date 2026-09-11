@@ -567,7 +567,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <button type="button" disabled={!ready} onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
               padding: '14px 24px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
               background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
-            }}>✨ Créer des pubs</button>
+            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}><Icon name="sparkles" size={16} /> Créer des pubs</span></button>
             <button type="button" disabled={!ready} onClick={() => { setMode('clone'); setAvance(true); setError(''); requestAnimationFrame(() => composeur.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} style={{
               padding: '14px 20px', borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: ready ? 'pointer' : 'default',
               border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
@@ -605,7 +605,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <div hidden={!avance} style={{ padding: '0 22px 22px' }}>
         {!ready && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
-            <span style={{ fontSize: 20 }}>🔒</span>
+            <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={18} /></span>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
               <b style={{ color: 'var(--ink)' }}>Pubs IA en attente de la clé Fal.</b> Une fois <code style={{ fontSize: 12 }}>FAL_KEY</code> posée sur le serveur, elle s'active ici.
             </div>
@@ -626,10 +626,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         {prods.some((p) => !p.hasImage) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
             <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>
-              📷 Photos produit : <b>{prods.filter((p) => p.hasImage).length}/{prods.length}</b> · certaines manquent.
+              <span style={{ display: 'inline-flex', verticalAlign: '-3px', marginRight: 5 }}><Icon name="image" size={15} /></span>Photos produit : <b>{prods.filter((p) => p.hasImage).length}/{prods.length}</b> · certaines manquent.
             </span>
             <button type="button" onClick={importAll} disabled={!ready || bulkBusy} style={{ ...miniBtn, opacity: ready && !bulkBusy ? 1 : .6 }}>
-              {bulkBusy ? 'Récupération…' : '🔗 Réessayer depuis le site'}
+              {bulkBusy ? 'Récupération…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="link" size={14} /> Réessayer depuis le site</span>}
             </button>
             {bulkMsg && <span style={{ fontSize: 11.5, color: bulkOk ? '#9fe6b3' : '#f5b043' }}>{bulkMsg}</span>}
           </div>
@@ -659,7 +659,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           controls={[
             ...(prods.length ? [{
               key: 'produit', title: 'Produit mis en scène', icon: 'box',
-              options: [{ value: '', label: 'Aucun produit' }, ...prods.map((p) => ({ value: p.id, label: `${p.name}${p.hasImage ? ' · 📷' : ''}` }))],
+              options: [{ value: '', label: 'Aucun produit' }, ...prods.map((p) => ({ value: p.id, label: `${p.name}${p.hasImage ? ' · photo' : ''}` }))],
               value: productId,
               onChange: (v: string) => { setProductId(v); setProdThumbs([]); setProdMsg(''); },
             }] : []),
@@ -692,7 +692,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <>
               {mode === 'brand' && (
                 <button type="button" onClick={proposeAngles} disabled={!ready || anglesBusy} style={pastilleAction(ready && !anglesBusy)}>
-                  ✦ {anglesBusy ? 'Analyse veille…' : 'Proposer des angles'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> {anglesBusy ? 'Analyse veille…' : 'Proposer des angles'}</span>
                 </button>
               )}
               {templates.includes('offer') && (
@@ -744,7 +744,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
         {!productId && prods.some((p) => p.hasImage) && (
           <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.07)', fontSize: 12.5, color: '#f5b043' }}>
-            ⚠️ Sélectionne ton <b>produit</b> ci-dessus (pas « Aucun ») pour que ton vrai packaging apparaisse dans les pubs.
+            <span style={{ display: 'inline-flex', verticalAlign: '-3px', marginRight: 5, color: '#ffb3c0' }}><Icon name="alert" size={15} /></span>Sélectionne ton <b>produit</b> ci-dessus (pas « Aucun ») pour que ton vrai packaging apparaisse dans les pubs.
           </div>
         )}
 
@@ -769,7 +769,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 ))}
               </div>
             ) : (
-              <div style={{ width: 64, height: 64, borderRadius: 10, border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>{selected?.hasImage ? '📷' : '📥'}</div>
+              <div style={{ width: 64, height: 64, borderRadius: 10, border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', flexShrink: 0 }}><Icon name={selected?.hasImage ? 'image' : 'upload'} size={26} /></div>
             )}
             <div style={{ flex: '1 1 240px', minWidth: 220 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
@@ -867,7 +867,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
         <label style={lbl}>Mise en page <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· la composition de la pub</span></label>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
-          {[{ key: 'auto', label: '✦ Variées (auto)', hint: 'Un lot ne répète jamais la même · c’est le réglage par défaut.' },
+          {[{ key: 'auto', label: 'Variées (auto)', hint: 'Un lot ne répète jamais la même · c’est le réglage par défaut.' },
             ...AD_LAYOUTS.map((k) => ({ key: k, label: LAYOUT_LABEL[k], hint: LAYOUT_HINT[k] }))].map((l) => {
             const on = layout === l.key;
             return (
@@ -900,7 +900,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                         {/* Même miniature que la bibliothèque · un lien cassé tombe
                             sur l'icône de type, jamais l'image cassée du navigateur. */}
                         <MiniatureAsset kind="image" url={a.url} thumbUrl={a.thumbUrl} name={a.name} cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
-                        {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
+                        {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={10} /></span>}
                       </button>
                     );
                   })}
@@ -960,7 +960,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 <button type="button" onClick={() => refInput.current?.click()} disabled={!ready || busy} style={{
                   fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
                   border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', opacity: ready ? 1 : .55,
-                }}>⬆ {refUri ? 'Changer la capture' : 'Importer une capture'}</button>
+                }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="upload" size={14} /> {refUri ? 'Changer la capture' : 'Importer une capture'}</span></button>
                 <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
                   {savedRefs.length ? 'Choisis une pub de ta Veille ci-dessus, ou importe une capture.' : "Capture d'une pub qui marche (concurrent, veille, bibliothèque)."} L'IA en déduit l'angle + le gabarit et produit {count} variation{count > 1 ? 's' : ''} sur ta marque et ton produit.
                 </p>
@@ -995,7 +995,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           border: `1px solid ${suggestion.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
           background: 'linear-gradient(120deg, rgba(255,60,120,.08), var(--surface))',
         }}>
-          <span style={{ fontSize: 17 }}>{suggestion.avantTout ? '⚠️' : '🔁'}</span>
+          <span style={{ display: 'inline-flex', color: suggestion.avantTout ? '#ffb3c0' : 'var(--accent-strong)' }}><Icon name={suggestion.avantTout ? 'alert' : 'swap'} size={17} /></span>
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
             <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: suggestion.avantTout ? '#ffb3c0' : 'var(--accent-strong)' }}>
               {suggestion.avantTout ? 'AVANT DE TESTER' : ads.length > 0 ? 'PROCHAINE HYPOTHÈSE' : 'JARVIS CONSEILLE'}
@@ -1156,7 +1156,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     </div>
                   )}
                   <p style={{ margin: '8px 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>Modifie le texte sans régénérer l'image · <b>gratuit</b>.</p>
-                  <button type="button" onClick={() => applyText(detailAd)} disabled={textBusy || !textForm} style={toolPrimary}>{textBusy ? 'Application…' : '✓ Appliquer'}</button>
+                  <button type="button" onClick={() => applyText(detailAd)} disabled={textBusy || !textForm} style={toolPrimary}>{textBusy ? 'Application…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="check" size={14} /> Appliquer</span>}</button>
                   <button type="button" onClick={() => setEditText(false)} style={{ ...toolBtn, marginTop: 8 }}>Annuler</button>
                 </>
               ) : (
@@ -1228,7 +1228,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                       plus la CTA forte. */}
                   <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginBottom: 12 }}>
                     <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={{ ...toolBtn, textAlign: 'left' }}>
-                      {varyBusy ? 'Génération…' : '✨ Varier (3) · explorer vite'}
+                      {varyBusy ? 'Génération…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={14} /> Varier (3) · explorer vite</span>}
                     </button>
                     <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 nouvelles créas · tout change à la fois, l’écart n’est attribuable à rien ({modelSpec.credits * 3} cr.).</p>
                   </div>
@@ -1238,12 +1238,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     <ScoreCard s={scoreData} copie={copieData} onRedo={() => runScore(detailAd, true)} busy={scoring} />
                   ) : (
                     <button type="button" onClick={() => runScore(detailAd)} disabled={scoring || !aiReady} style={{ ...toolBtn, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)', fontWeight: 800 }}>
-                      {scoring ? 'Analyse Jarvis…' : typeof detailAd.score === 'number' ? `✦ Voir le Score Jarvis (${detailAd.score}/100)` : '✦ Score Jarvis · 2 cr.'}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {scoring ? 'Analyse Jarvis…' : typeof detailAd.score === 'number' ? `Voir le Score Jarvis (${detailAd.score}/100)` : 'Score Jarvis · 2 cr.'}</span>
                     </button>
                   )}
 
-                  <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}>✎ Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></button>
-                  <button type="button" onClick={() => copyLink(detailSrc)} style={toolBtn}>{copied ? '✓ Lien copié' : '🔗 Copier le lien'}</button>
+                  <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="pen" size={14} /> Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></span></button>
+                  <button type="button" onClick={() => copyLink(detailSrc)} style={toolBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name={copied ? 'check' : 'link'} size={14} /> {copied ? 'Lien copié' : 'Copier le lien'}</span></button>
                   <a href={detailSrc} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⬇ Télécharger ({ratio})</a>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 2px 2px', borderTop: '1px solid var(--line)', marginTop: 4 }}>
                     <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>Pertinence · entraîne Jarvis</span>
@@ -1269,7 +1269,7 @@ function ScoreBadge({ score }: { score: number }) {
       position: 'absolute', top: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
       padding: '3px 9px', borderRadius: 999, background: 'rgba(8,5,10,.72)', border: `1px solid ${color}`,
       color, fontSize: 11.5, fontWeight: 800, backdropFilter: 'blur(4px)',
-    }}>✦ {score}</span>
+    }}><Icon name="sparkles" size={12} /> {score}</span>
   );
 }
 
@@ -1297,9 +1297,9 @@ function ControleBadge({ c }: { c: AdItem['controle'] }) {
       display: 'block', marginTop: 4, fontSize: 10.5, lineHeight: 1.35,
       color: rouge ? '#ff9db0' : '#ffca6b',
     }}>
-      {produitKo && <>⚠ produit modifié{c.ecarts.length ? ` · ${c.ecarts[0]}` : ''}<br /></>}
-      {texteKo && <>⚠ texte illisible{c.problemesLisibilite.length ? ` · ${c.problemesLisibilite[0]}` : ''}<br /></>}
-      {c.copieResume && <>✎ {c.copieResume}</>}
+      {produitKo && <><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="alert" size={12} /></span>produit modifié{c.ecarts.length ? ` · ${c.ecarts[0]}` : ''}<br /></>}
+      {texteKo && <><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="alert" size={12} /></span>texte illisible{c.problemesLisibilite.length ? ` · ${c.problemesLisibilite[0]}` : ''}<br /></>}
+      {c.copieResume && <><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="pen" size={12} /></span>{c.copieResume}</>}
     </span>
   );
 }

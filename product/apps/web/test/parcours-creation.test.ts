@@ -32,7 +32,8 @@ describe('un seul chemin de création', () => {
   });
 
   it('le CTA principal ouvre l’assistant, une décision par écran', () => {
-    expect(STUDIO).toMatch(/✨ Créer des pubs/);
+    // Le CTA existe et est passé au trait (plus d'emoji ✨ · retour proprio).
+    expect(STUDIO).toMatch(/<Icon name="sparkles" size=\{16\} \/> Créer des pubs/);
     expect(STUDIO).toMatch(/setAssistant\(true\)/);
   });
 
