@@ -7,6 +7,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
 import { effectiveAccess } from '../../../lib/access';
 import { Hub, type HubCard, type HubNext, type HubState } from '../../../components/Hub';
+import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,7 @@ export default async function StudioPage() {
       <main style={wrap}>
         <h1 style={h1}>Studio IA</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ fontSize: 34 }}>🔒</div>
+          <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <h2 style={{ margin: '10px 0 6px', fontSize: 18, color: 'var(--ink)' }}>{why === 'plan' ? "Inclus dès l'abonnement Core" : 'Accès réservé'}</h2>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '0 auto' }}>
             {why === 'plan' ? 'La génération de créatives est disponible à partir du plan Core.' : "Ton rôle ne permet pas d'accéder au Studio."}
