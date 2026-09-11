@@ -322,7 +322,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 const on = assetIds.includes(a.id);
                 return (
                   <button key={a.id} type="button" disabled={!ready} onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 58, height: 58, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: ready ? 'pointer' : 'default', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)', opacity: on ? 1 : 0.85 }}>
-                    <MiniatureAsset kind="image" url={a.url} thumbUrl={a.thumbUrl} name={a.name} icon="🖼️" cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
+                    <MiniatureAsset kind="image" url={a.url} thumbUrl={a.thumbUrl} name={a.name} cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
                     {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
                   </button>
                 );
