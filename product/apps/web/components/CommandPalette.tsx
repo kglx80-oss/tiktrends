@@ -22,7 +22,7 @@ export interface Command {
  *
  * Exporté et pur · c'est le même code que la palette rend, donc un test peut le
  * rendre seul (la palette, elle, renvoie `null` tant qu'elle n'est pas ouverte)
- * et prouver qu'on voit un `<svg>`, pas un 🖼️. Sans nom d'icône, un chevron
+ * et prouver qu'on voit un `<svg>`, pas un emoji. Sans nom d'icône, un chevron
  * sobre · aucune commande ne devrait en arriver là.
  */
 export function CommandGlyph({ icon }: { icon?: string }) {

@@ -475,7 +475,7 @@ function AppShellInner(props: Props) {
                   {/* ADMIN+ · coulisses plateforme, réservées au fondateur/staff. */}
                   {isStaff && (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '8px 0 2px', borderRadius: 11, textDecoration: 'none', background: 'linear-gradient(135deg, rgba(245,166,35,.16), rgba(255,140,66,.08))', border: '1px solid rgba(245,166,35,.32)' }}>
-                      <span style={{ fontSize: 15 }}>🎛️</span>
+                      <span style={{ display: 'inline-flex' }}><Icon name="gauge" size={15} /></span>
                       <span style={{ flex: 1 }}>
                         <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#ffca6b' }}>ADMIN+ · Coulisses</span>
                         <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>MRR, inscriptions, console, IA maison</span>

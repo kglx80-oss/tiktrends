@@ -5,7 +5,7 @@
  *
  * Le rail de navigation avait déjà de vraies icônes au trait (style Lucide),
  * mais elles étaient prisonnières de `AppShell` · le reste de l'outil retombait
- * sur des emojis (🖼️ 🎬 🎵 📎 …) qui font « kitch » et changent de rendu selon
+ * sur des emojis génériques qui font « kitch » et changent de rendu selon
  * l'OS. On sort donc le jeu ici, partageable, et on le complète pour couvrir les
  * usages courants (assets, actions). Une icône = un `d`, tracé sur une grille
  * 24 · `currentColor` prend la couleur du texte, la taille est réglable.
