@@ -6,6 +6,7 @@ import { isFounder } from '../../../../lib/founder';
 import { COMPETITORS, AI_STACK, CAPABILITIES, GAPS, ADVANTAGES, type Cap } from '../../../../lib/intel';
 import { analyseSurvie, PROVEN_DAYS, bilanHypotheses, perfParAngle, type AnalyseSurvie, type BilanHypotheses, type PerfParAngle, type CreaLancee, type VerdictValue } from '@tiktrends/core';
 import { eq, inArray } from 'drizzle-orm';
+import { Icon } from '../../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export default async function IntelligencePage() {
   }
 
   // La boucle d'itération · relier chaque créa générée à son angle d'origine et
-  // au jugement du client (👍/👎). Le calcul est pur (`bilanHypotheses`) · on lit
+  // au jugement du client (validé/rejeté). Le calcul est pur (`bilanHypotheses`) · on lit
   // les générations de pubs et on regroupe par angle. Vue fondateur, tous
   // espaces.
   let bilan: BilanHypotheses | null = null;
@@ -42,7 +43,7 @@ export default async function IntelligencePage() {
   // Le pendant OBJECTIF · la performance réelle (verdict ADSMAP) par angle. On
   // relie chaque ad lancée à la génération qui l'a produite (lien AD-level, le
   // plus sûr · on écarte les rattachements ambigus plutôt que de les deviner),
-  // puis à l'angle de cette génération (#300). ⚠ Jointure non vérifiée sur
+  // puis à l'angle de cette génération (#300). Attention · jointure non vérifiée sur
   // données réelles · à confirmer côté propriétaire.
   let perf: PerfParAngle | null = null;
   if (db) {
@@ -122,7 +123,7 @@ export default async function IntelligencePage() {
       {/* Où faire mieux + avantages */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
         <div style={{ border: '1px solid rgba(245,176,67,.35)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(245,166,35,.06), var(--surface))', padding: '18px 20px' }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>🎯 Où l'on doit faire mieux</h3>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="target" size={15} /> Où l'on doit faire mieux</h3>
           <div style={{ display: 'grid', gap: 12 }}>
             {GAPS.map((g) => (
               <div key={g.title}>
@@ -137,7 +138,7 @@ export default async function IntelligencePage() {
           </div>
         </div>
         <div style={{ border: '1px solid rgba(126,232,191,.35)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(61,220,151,.06), var(--surface))', padding: '18px 20px' }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>💪 Nos avantages à presser</h3>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="star" size={15} /> Nos avantages à presser</h3>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 9, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
             {ADVANTAGES.map((a, i) => <li key={i}>{a}</li>)}
           </ul>
@@ -180,7 +181,7 @@ export default async function IntelligencePage() {
             <p style={{ margin: '10px 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>{c.positioning}</p>
 
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)', background: 'rgba(255,255,255,.04)', border: '1px solid var(--line)', borderRadius: 10, padding: '7px 11px', marginBottom: 14 }}>
-              <span style={{ fontSize: 13 }}>💶</span><b style={{ color: 'var(--ink)' }}>Tarif estimé :</b> {c.pricing}
+              <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 2 }}><Icon name="coin" size={13} /></span><b style={{ color: 'var(--ink)' }}>Tarif estimé :</b> {c.pricing}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
@@ -251,7 +252,7 @@ export default async function IntelligencePage() {
       {/* La boucle d'itération · l'angle testé → la pertinence jugée */}
       <h2 style={{ margin: '4px 0 6px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Hypothèses d'angle · ce qui convainc</h2>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 0, marginBottom: 14, maxWidth: 760, lineHeight: 1.6 }}>
-        Chaque créa générée porte l'angle qui l'a armée · on la relie au jugement du client (👍/👎). Taux de
+        Chaque créa générée porte l'angle qui l'a armée · on la relie au jugement du client (validé / rejeté). Taux de
         pertinence <b>par angle</b>, comparé au taux général · un angle sous {5} jugements « attend » plutôt que de trancher.
       </p>
       {!bilan || bilan.lignes.length === 0 ? (
@@ -294,7 +295,7 @@ export default async function IntelligencePage() {
         réelles), comparée au taux général. « Le client a aimé » et « le marché a payé » sont deux choses · voici la seconde.
       </p>
       <p style={{ color: '#f5a623', fontSize: 11.5, marginTop: 0, marginBottom: 14 }}>
-        ⚠ Jointure ad → génération → angle <b>non encore vérifiée sur données réelles</b> · lien AD-level seul (les
+        <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4, color: '#f5a623' }}><Icon name="alert" size={13} /></span>Jointure ad → génération → angle <b>non encore vérifiée sur données réelles</b> · lien AD-level seul (les
         rattachements ambigus sont écartés, pas devinés). À confirmer avant tout usage de décision.
       </p>
       {!perf || perf.lignes.length === 0 ? (
