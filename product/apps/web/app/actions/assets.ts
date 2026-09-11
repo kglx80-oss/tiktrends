@@ -13,6 +13,8 @@ import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl, isPrivateDriveUrl } from '../../lib/asset-url';
+import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
+import { decideImportedImage } from '../../lib/import-image';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
@@ -131,17 +133,41 @@ export async function importAssetAction(input: { name: string; url: string; kind
     url = `https://drive.google.com/uc?export=view&id=${drive.fileId}`;
   }
 
+  let source: 'upload' | 'url' | 'drive' = drive.isDrive ? 'drive' : 'url';
+  let externalId: string | null = drive.isDrive ? (drive.fileId ?? null) : null;
+  let mimeType: string | null = null;
+
+  // Image par lien NON-Drive · on en capture une copie DURABLE à l'import.
+  //
+  // Sans ça, l'aperçu dépendait d'une URL externe qui peut mourir (lien expiré,
+  // hotlink, page supprimée) · l'aperçu cassait alors et retombait sur l'icône,
+  // exactement le reproche remonté. On récupère l'image côté serveur (SSRF-safe,
+  // plafonnée en taille), on la stocke en data URI embarqué (servi par nous,
+  // comme un upload), et si ce n'est pas une image accessible on REFUSE plutôt
+  // que de créer un asset qui pointe dans le vide. Drive garde son chemin proxy.
+  if (!drive.isDrive && kind === 'image') {
+    const fetched = await safeFetch(url);
+    const decision = decideImportedImage(fetched);
+    if (!decision.ok) return { error: decision.error };
+    url = decision.dataUri;
+    source = 'url';
+    externalId = null;
+    mimeType = decision.mimeType;
+  }
+
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
   const rawName = (input.name || '').trim();
-  const name = (rawName && rawName.toLowerCase() !== 'folders' ? rawName : (url.split('/').pop()?.split('?')[0] || 'asset')).slice(0, 160);
+  // Le nom ne se dérive plus de l'URL quand elle est devenue un data URI (illisible).
+  const fallbackName = url.startsWith('data:') ? 'image' : (url.split('/').pop()?.split('?')[0] || 'asset');
+  const name = (rawName && rawName.toLowerCase() !== 'folders' ? rawName : fallbackName).slice(0, 160);
   await db.insert(schema.assets).values({
     workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
-    name, kind, source: drive.isDrive ? 'drive' : 'url', url,
     // Sans l'id du fichier, un lien Drive était servi en « direct » vers une URL
     // Google qui renvoie du HTML, pas l'image · la miniature cassait puis tombait
     // sur l'icône. Avec l'id, il passe par le proxy /api/asset (comme la synchro
     // auto), qui télécharge le vrai fichier avec le jeton de l'espace.
-    externalId: drive.isDrive ? (drive.fileId ?? null) : null,
+    name, kind, source, url, externalId, mimeType,
+    sizeBytes: url.startsWith('data:') ? Math.round(url.length * 0.75) : null,
   });
   return { ok: true };
 }
