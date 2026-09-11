@@ -11,13 +11,16 @@ import { Bandeau } from '../components/Bandeau';
  * le défaut d'origine.
  */
 describe('le bandeau d’état dit son ton et n’offre une sortie que s’il y en a une', () => {
-  it('démo avec sortie · signe 🧪, titre, message, et le lien vers le réel', () => {
+  it('démo avec sortie · signe au trait (bulb), titre, message, et le lien vers le réel', () => {
     const html = renderToStaticMarkup(
       <Bandeau ton="demo" titre="Mode démonstration" sortie={{ href: '/connections', label: 'Brancher un compte' }}>
         Ces tags portent sur un échantillon.
       </Bandeau>,
     );
-    expect(html).toContain('🧪');
+    // Le ton porte désormais une icône du jeu (plus d'emoji) · le rendu contient
+    // le tracé de « bulb », pas un pictogramme.
+    expect(html).not.toContain('🧪');
+    expect(html).toContain('M9 18h6');
     expect(html).toContain('Mode démonstration');
     expect(html).toContain('Ces tags portent sur un échantillon.');
     expect(html).toContain('href="/connections"');
@@ -25,9 +28,10 @@ describe('le bandeau d’état dit son ton et n’offre une sortie que s’il y 
     expect(html, 'l’encre sur surface accent doit rester var(--on-accent)').toContain('var(--on-accent)');
   });
 
-  it('erreur sans sortie · signe ⚠️, message, aucun lien', () => {
+  it('erreur sans sortie · signe au trait (alert), message, aucun lien', () => {
     const html = renderToStaticMarkup(<Bandeau ton="error">Erreur de la source de données.</Bandeau>);
-    expect(html).toContain('⚠️');
+    expect(html).not.toContain('⚠');
+    expect(html).toContain('M10.3 3.9'); // tracé de « alert »
     expect(html).toContain('Erreur de la source de données.');
     expect(html, 'un bandeau sans sortie n’invente pas de lien').not.toContain('<a ');
   });

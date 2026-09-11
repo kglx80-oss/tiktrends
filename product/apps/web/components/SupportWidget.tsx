@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createTicketAction } from '../app/actions/support';
 import { fetchMyTickets, type MyTicket } from '../app/actions/support';
 import { input } from './ui';
+import { Icon } from './Icon';
 
 const FAQ: Array<{ q: string; a: string }> = [
   { q: 'Comment créer une marque ?', a: "Menu profil → Marques → « Créer une marque ». Le wizard en 5 étapes te guide ; l'IA peut pré-remplir le profil depuis ton site." },
@@ -17,7 +18,7 @@ const FAQ: Array<{ q: string; a: string }> = [
 const STATUS: Record<string, { label: string; color: string }> = {
   open: { label: 'Ouvert', color: '#f5a623' }, in_progress: { label: 'En cours', color: '#7aa2ff' }, resolved: { label: 'Résolu', color: '#18cc8c' },
 };
-const TYPE_ICON: Record<string, string> = { bug: '🐞', suggestion: '💡', question: '❓' };
+const TYPE_ICON: Record<string, string> = { bug: 'alert', suggestion: 'bulb', question: 'help' };
 
 export function SupportWidget({ firstName }: { firstName: string }) {
   const [open, setOpen] = useState(false);
@@ -45,7 +46,7 @@ export function SupportWidget({ firstName }: { firstName: string }) {
         }}>
           {/* En-tête */}
           <div style={{ padding: '20px 20px 16px', background: 'var(--grad-accent)', color: 'var(--on-accent)' }}>
-            <div style={{ fontSize: 20, fontWeight: 800, opacity: .8 }}>Bonjour {firstName} 👋</div>
+            <div style={{ fontSize: 20, fontWeight: 800, opacity: .8 }}>Bonjour {firstName}</div>
             <div style={{ fontSize: 20, fontWeight: 800 }}>Comment peut-on aider ?</div>
           </div>
 
@@ -65,9 +66,9 @@ export function SupportWidget({ firstName }: { firstName: string }) {
                   ) : (
                     <form action={createTicketAction} style={{ display: 'grid', gap: 10 }}>
                       <select name="type" defaultValue="question" style={{ ...input, padding: '8px 10px' }}>
-                        <option value="question">❓ Question</option>
-                        <option value="bug">🐞 Bug</option>
-                        <option value="suggestion">💡 Suggestion</option>
+                        <option value="question">Question</option>
+                        <option value="bug">Bug</option>
+                        <option value="suggestion">Suggestion</option>
                       </select>
                       <input name="title" required placeholder="Sujet" style={{ ...input, padding: '8px 10px' }} />
                       <textarea name="body" required placeholder="Ton message…" style={{ ...input, padding: '8px 10px', minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }} />
@@ -103,7 +104,7 @@ export function SupportWidget({ firstName }: { firstName: string }) {
                   const st = STATUS[t.status] ?? STATUS.open!;
                   return (
                     <Link key={t.id} href={`/support/${t.id}`} onClick={() => setOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 13px', textDecoration: 'none' }}>
-                      <span>{TYPE_ICON[t.type] ?? '•'}</span>
+                      <span style={{ display: 'inline-flex' }}>{TYPE_ICON[t.type] ? <Icon name={TYPE_ICON[t.type]!} size={14} /> : '•'}</span>
                       <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
                       <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, color: st.color, background: st.color + '22' }}>{st.label}</span>
                     </Link>

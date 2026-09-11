@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Icon } from './Icon';
 
 /**
  * Le bandeau d'état d'une page · une seule grammaire visuelle.
@@ -14,10 +15,10 @@ import type { ReactNode } from 'react';
  */
 export type TonBandeau = 'demo' | 'info' | 'error';
 
-const TONS: Record<TonBandeau, { bg: string; border: string; emoji: string }> = {
-  demo: { bg: 'rgba(245,166,35,.08)', border: 'rgba(245,166,35,.30)', emoji: '🧪' },
-  info: { bg: 'rgba(122,162,255,.08)', border: 'rgba(122,162,255,.30)', emoji: 'ℹ️' },
-  error: { bg: 'rgba(255,77,109,.08)', border: 'rgba(255,77,109,.35)', emoji: '⚠️' },
+const TONS: Record<TonBandeau, { bg: string; border: string; icon: string }> = {
+  demo: { bg: 'rgba(245,166,35,.08)', border: 'rgba(245,166,35,.30)', icon: 'bulb' },
+  info: { bg: 'rgba(122,162,255,.08)', border: 'rgba(122,162,255,.30)', icon: 'info' },
+  error: { bg: 'rgba(255,77,109,.08)', border: 'rgba(255,77,109,.35)', icon: 'alert' },
 };
 
 export function Bandeau({ ton = 'info', titre, sortie, children }: {
@@ -31,7 +32,7 @@ export function Bandeau({ ton = 'info', titre, sortie, children }: {
   const t = TONS[ton];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${t.border}`, borderRadius: 14, background: t.bg, padding: '12px 16px', margin: '0 0 20px' }}>
-      <span style={{ fontSize: 18 }}>{t.emoji}</span>
+      <span style={{ display: 'inline-flex' }}><Icon name={t.icon} size={18} /></span>
       <div style={{ flex: 1, minWidth: 200, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
         {titre && <b style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', marginRight: 8 }}>{titre}</b>}
         {children}

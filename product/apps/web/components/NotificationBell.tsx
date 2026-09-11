@@ -3,8 +3,11 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead, type NotifItem } from '../app/actions/notifications';
+import { Icon } from './Icon';
 
-const ICON: Record<string, string> = { ticket_new: '🎫', ticket_reply: '💬', ticket_status: '✅', system: '★' };
+// Icône du jeu partagé par type de notif · le « system » utilise l'étoile du
+// jeu (icône de catégorie, pas un favori).
+const ICON: Record<string, string> = { ticket_new: 'file', ticket_reply: 'chat', ticket_status: 'check', system: 'star' };
 
 function timeAgo(iso: string): string {
   const d = Date.now() - new Date(iso).getTime();
@@ -110,7 +113,7 @@ export function NotificationBell() {
                 display: 'flex', gap: 11, width: '100%', textAlign: 'left', padding: '12px 15px', cursor: 'pointer',
                 border: 'none', borderBottom: '1px solid var(--line)', background: n.read ? 'transparent' : 'rgba(254,44,85,.06)',
               }}>
-                <span style={{ fontSize: 16, lineHeight: '20px' }}>{ICON[n.type] ?? '•'}</span>
+                <span style={{ display: 'inline-flex', lineHeight: '20px', color: 'var(--ink-2)' }}>{ICON[n.type] ? <Icon name={ICON[n.type]!} size={16} /> : '•'}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13.5, fontWeight: n.read ? 600 : 800, color: 'var(--ink)' }}>{n.title}</span>
                   {n.body && <span style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.body}</span>}
