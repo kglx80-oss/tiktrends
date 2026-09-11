@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { trainJarvisAction, saveJarvisLearningsAction } from '../../actions/jarvis';
+import { Icon } from '../../../components/Icon';
 
 export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: string | null; initial: string; trainedAt: string | null }) {
   const [learnings, setLearnings] = useState(initial);
@@ -35,12 +36,12 @@ export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: s
   return (
     <div style={{ border: '1px solid rgba(120,90,255,.35)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(120,90,255,.08), var(--surface))', padding: 22, marginBottom: 4 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 18 }}>🎓</span>
+        <span style={{ display: 'inline-flex', color: '#7a5aff' }}><Icon name="cap" size={18} /></span>
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Entraînement · intelligence créative</h2>
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>{brandName ? `· ${brandName}` : '· marque active'}</span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={train} disabled={busy} style={{ fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg,#7a5aff,#e6007e)', color: '#fff', cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1 }}>
-          {busy ? 'Jarvis apprend…' : '🎓 Entraîner Jarvis (pubs gagnantes · 20 cr.)'}
+          {busy ? 'Jarvis apprend…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="cap" size={14} /> Entraîner Jarvis (pubs gagnantes · 20 cr.)</span>}
         </button>
       </div>
       <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>

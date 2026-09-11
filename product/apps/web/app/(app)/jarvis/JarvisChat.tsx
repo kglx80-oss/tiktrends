@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { useRouter } from 'next/navigation';
 import { parseAnswer, visibleWhileStreaming, JARVIS_ACTIONS, type JarvisAction } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
+import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
 import { DraftCard } from '../../../components/DraftCard';
 
@@ -162,7 +163,7 @@ export function JarvisChat() {
       <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {vide && !enCours && (
           <div style={{ margin: 'auto', textAlign: 'center', maxWidth: 520 }}>
-            <div style={{ fontSize: 30 }}>🧠</div>
+            <div style={{ color: 'var(--muted)' }}><Icon name="brain" size={30} /></div>
             <p style={{ margin: '10px 0 0', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
               Demande-lui ce que tu veux sur cette marque.
             </p>
