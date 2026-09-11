@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Empty } from '../../../components/Empty';
+import { Icon } from '../../../components/Icon';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT } from '@tiktrends/core';
@@ -84,7 +85,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         const warn = ts.expired || ts.daysLeft <= 3;
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${warn ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`, background: warn ? 'rgba(245,166,35,.08)' : 'var(--surface)', borderRadius: 14, padding: '12px 16px', marginBottom: 16 }}>
-            <span style={{ fontSize: 18 }}>{ts.expired ? '⌛' : '🎟️'}</span>
+            <span style={{ display: 'inline-flex', color: 'var(--muted)' }}>{ts.expired ? <Icon name="clock" size={18} /> : <Icon name="coin" size={18} />}</span>
             <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 700 }}>
               {accountKind === 'staff' ? 'Compte staff' : 'Compte de test / beta'}
               {ts.expired ? ' · période terminée' : ` · ${ts.daysLeft} jour${ts.daysLeft > 1 ? 's' : ''} restant${ts.daysLeft > 1 ? 's' : ''}`}
@@ -246,7 +247,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                   <td style={{ ...tdR, fontWeight: 800, color: p.worstMarginPct >= TARGET_MARGIN ? '#7ee8bf' : p.worstMarginPct >= 40 ? '#f5b043' : '#ff6b6b' }}>{p.worstMarginPct} %</td>
                   <td style={{ ...td, color: 'var(--ink-2)' }}>{p.worstAction}<div style={{ fontSize: 10.5, color: 'var(--muted)' }}>coût max {eur(p.worstRealCostEur)}</div></td>
                   <td style={tdR}>{p.recommendedPriceEur > p.priceEur ? <b style={{ color: 'var(--accent-strong)' }}>{p.recommendedPriceEur} €</b> : <span style={{ color: 'var(--muted)' }}>OK</span>}</td>
-                  <td style={tdR}><span style={{ fontWeight: 800, color: p.healthy ? '#7ee8bf' : '#f5b043' }}>{p.healthy ? '✓' : '⚠'}</span></td>
+                  <td style={tdR}><span style={{ display: 'inline-flex', justifyContent: 'flex-end', fontWeight: 800, color: p.healthy ? '#7ee8bf' : '#f5b043' }}>{p.healthy ? '✓' : <Icon name="alert" size={13} />}</span></td>
                 </tr>
               ))}
             </tbody>
