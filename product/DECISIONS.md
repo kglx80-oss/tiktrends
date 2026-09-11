@@ -61,6 +61,19 @@ répété) d'abord, puis icônes premium, fil conducteur, Jarvis.
 - **À valider par le proprio** : cohérence visuelle des icônes du rail inchangée,
   et le repli d'asset (rare · média cassé/audio) au trait.
 
+### États vides premium (piste #2, suite)
+- **Pourquoi eux d'abord** : un état vide est le PREMIER écran qu'un nouveau
+  client voit sur chaque fonction · ils portaient tous un emoji (🗂️🔍📦🔌🏷️🗺️…).
+- **Décision** : le composant `Empty` prend désormais un NOM d'icône du jeu
+  partagé (plus un emoji) et le rend dans une pastille sobre teintée par le ton
+  (todo/wait/good). Les 12 appels convertis vers des noms (`folder`, `search`,
+  `plug`, `box`, `tag`, `map`, `users`, `check`, `radar`, `bookmark`). Trois
+  icônes ajoutées au jeu (`folder`, `box`, `map`).
+- **Garde anti-régression** : un test scanne tous les `<Empty icon="…">` et
+  refuse tout nom absent du jeu (sinon repli muet sur `grid`) · éprouvé par
+  mutation (nom bidon → rouge). Rendu prouvé : `<svg>`, jamais d'emoji.
+- **À valider par le proprio** : lisibilité des pastilles d'états vides.
+
 ## Cadre respecté
 
 - Chaque changement = une PR créée ET mergée (squash), garde validé en le faisant

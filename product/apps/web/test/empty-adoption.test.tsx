@@ -17,12 +17,16 @@ import { Empty, EmptyLine } from '../components/Empty';
 
 describe("un état « todo » rend une sortie · c'est le contrat", () => {
   const html = renderToStaticMarkup(
-    <Empty tone="todo" icon="🔖" title="Aucune créa sauvegardée." action={{ label: 'Ouvrir la veille', href: '/veille' }} />,
+    <Empty tone="todo" icon="bookmark" title="Aucune créa sauvegardée." action={{ label: 'Ouvrir la veille', href: '/veille' }} />,
   );
   it('affiche le fait et une action cliquable', () => {
     expect(html).toContain('Aucune créa sauvegardée.');
     expect(html).toContain('Ouvrir la veille');
     expect(html).toContain('href="/veille"');
+  });
+  it('l’illustration est une icône AU TRAIT (SVG), plus jamais un emoji', () => {
+    expect(html).toContain('<svg');
+    expect(html, 'un état vide premium ne porte pas d’emoji').not.toMatch(/🔖|📦|🗂️|🔍|🔭|🗺️/u);
   });
 });
 
@@ -31,7 +35,7 @@ describe("un « todo » peut poser le geste SUR PLACE · le children est une sor
   // lien · le type accepte alors `todo` sans `action`, mais JAMAIS sans geste du
   // tout (voir la mutation dans le commentaire d'en-tête · elle ne compile pas).
   const html = renderToStaticMarkup(
-    <Empty tone="todo" icon="📦" title="Aucun produit pour l'instant." why="Ajoute-en un ci-dessous.">
+    <Empty tone="todo" icon="box" title="Aucun produit pour l'instant." why="Ajoute-en un ci-dessous.">
       <button type="submit">+ Ajouter le produit</button>
     </Empty>,
   );
@@ -83,6 +87,29 @@ describe('les états vides migrés adoptent le composant partagé', () => {
       for (const a of attendus) expect(src.includes(a), `${fichier} · manque « ${a} »`).toBe(true);
     });
   }
+
+  it('chaque icône passée à Empty existe dans le jeu premium · jamais le repli grid', async () => {
+    const { ICON_PATHS } = await import('../components/Icon');
+    const { readdirSync, statSync } = await import('node:fs');
+    const base = process.cwd();
+    const walk = (dir: string): string[] => readdirSync(dir).flatMap((e) => {
+      const p = join(dir, e);
+      return statSync(p).isDirectory() ? walk(p) : p.endsWith('.tsx') && !p.includes('/test/') ? [p] : [];
+    });
+    const introuvables: string[] = [];
+    for (const racine of ['app', 'components']) {
+      for (const f of walk(join(base, racine))) {
+        const src = readFileSync(f, 'utf8');
+        if (!src.includes('<Empty')) continue;
+        // Les noms d'icône passés en clair à un Empty (chaîne littérale).
+        for (const m of src.matchAll(/icon="([a-z]+)"/g)) {
+          const name = m[1]!;
+          if (!(name in ICON_PATHS)) introuvables.push(`${f.slice(base.length + 1)} · « ${name} »`);
+        }
+      }
+    }
+    expect(introuvables, `Icône(s) Empty absente(s) du jeu · repli muet sur grid : ${introuvables.join(', ')}`).toEqual([]);
+  });
 
   it('les trois onglets Jarvis mènent à Pubs IA · plus de phrase sans issue', () => {
     const src = lit('app/(app)/jarvis/page.tsx');

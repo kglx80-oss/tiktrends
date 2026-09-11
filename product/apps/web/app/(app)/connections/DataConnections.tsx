@@ -26,7 +26,7 @@ export function DataConnections({ initial, brandName, metaOAuth = false, shopify
       <div style={{ marginBottom: 26 }}>
         <Empty
           tone="todo"
-          icon="🔗"
+          icon="plug"
           title="Choisis une marque active pour brancher ses données."
           why="Shopify remonte les ventes, Meta les performances · chaque marque a ses propres comptes. Sélectionne-en une, ou crée-la, pour commencer à connecter."
           action={{ label: 'Choisir une marque', href: '/brands' }}

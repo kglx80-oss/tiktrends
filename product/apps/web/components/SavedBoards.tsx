@@ -58,7 +58,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
   if (!list.length) {
     return (
       <Empty
-        tone="todo" icon="🔖" title="Aucune créa sauvegardée."
+        tone="todo" icon="bookmark" title="Aucune créa sauvegardée."
         why="Dans la Veille, clique ★ sur une annonce pour la ranger ici · c'est ton swipe file, trié par board."
         action={{ label: 'Ouvrir la veille', href: '/veille' }}
       />

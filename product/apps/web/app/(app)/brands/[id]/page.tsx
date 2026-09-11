@@ -266,7 +266,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           {products.length === 0 ? (
             <Empty
               tone="todo"
-              icon="📦"
+              icon="box"
               title="Aucun produit pour l'instant."
               why="Ajoute ton premier produit ci-dessous, ou importe-les depuis le site · l'IA s'en sert pour générer des créas qui parlent vraiment de ton offre."
             >
@@ -323,7 +323,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
         <div style={{ marginTop: 6 }}>
           <Empty
             tone="todo"
-            icon="🔌"
+            icon="plug"
             title="Aucun compte publicitaire branché."
             why="Connecte Meta ou TikTok pour analyser tes vraies performances et affiner les créas qui marchent."
             action={{ label: 'Brancher un compte', href: '/connections' }}

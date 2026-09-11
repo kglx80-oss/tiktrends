@@ -46,6 +46,9 @@ export const ICON_PATHS: Record<string, string> = {
   link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1',
   sparkles: 'M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7zM19 14v4M21 16h-4',
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14M21 21l-4-4',
+  folder: 'M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  box: 'M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v9',
+  map: 'M9 3 3 6v15l6-3 6 3 6-3V3l-6 3zM9 3v15M15 6v15',
 };
 
 /** Icône au trait · `currentColor`, taille réglable (défaut 17, comme le rail). */
