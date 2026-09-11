@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Icon } from './Icon';
 
 /**
  * La barre de composition · une seule pour tous les studios.
@@ -39,6 +40,7 @@ export interface ComposerControl {
   key: string;
   /** Ce que le réglage règle · sert l'infobulle, pas la pastille. */
   title: string;
+  /** NOM d'icône du jeu premium (`components/Icon`), jamais un emoji. */
   icon?: string;
   options: ComposerOption[];
   value: string;
@@ -216,7 +218,7 @@ export function Composer(props: ComposerProps) {
         {scenes.length > 0 && (
           <Menu
             ouvert={menu === 'scenes'} onToggle={() => setMenu(menu === 'scenes' ? null : 'scenes')}
-            libelle="Scènes" icone="✦"
+            libelle="Scènes" icone="sparkles"
           >
             {scenes.map((s) => (
               <button
@@ -379,7 +381,7 @@ function Menu({ ouvert, onToggle, libelle, icone, titre, disabled, children }: {
         type="button" onClick={onToggle} disabled={disabled} title={titre}
         style={{ ...pastille, opacity: disabled ? 0.5 : 1, borderColor: ouvert ? 'var(--accent-strong)' : 'var(--line-2)' }}
       >
-        {icone && <span aria-hidden>{icone}</span>}
+        {icone && <span aria-hidden style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name={icone} size={15} /></span>}
         {libelle}
         <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
       </button>

@@ -74,6 +74,22 @@ répété) d'abord, puis icônes premium, fil conducteur, Jarvis.
   mutation (nom bidon → rouge). Rendu prouvé : `<svg>`, jamais d'emoji.
 - **À valider par le proprio** : lisibilité des pastilles d'états vides.
 
+### Iconographie des studios (piste #2, suite)
+- **Le levier** : la barre `Composer` est partagée par Pubs/Image/Vidéo · une
+  seule conversion touche les trois. Ses pastilles de réglage portaient un emoji
+  (📦👤🎯⧉✦⬚⏱◐), et les gabarits de Pubs IA aussi (⚡🔀⭐✅📱📊🏷️).
+- **Décision** : le champ `icon` d'un `ComposerControl` (et la puce Scènes) est
+  désormais un NOM du jeu partagé, rendu au trait dans la pastille. Les controls
+  des trois studios convertis, plus les 7 gabarits de Pubs IA. Icônes ajoutées :
+  `swap`, `star`, `phone`, `target`, `frame`, `contrast`, `clock`.
+- **Gardes** : Composer se rend en test (il n'importe que React) · on prouve le
+  `<svg>` sans emoji (éprouvé par mutation), et un scan des `icon:` de studio
+  refuse tout nom inconnu ET tout caractère non-ASCII (un emoji qui reviendrait).
+- **À valider par le proprio** : lisibilité des pastilles de réglage et des
+  gabarits dans les trois studios.
+- **Reste (emoji épars)** : boutons d'action inline (✦✨⬆✎🔗), cartes du hub
+  `/studio` (73-94), Jarvis · à convertir opportunément. La grammaire est posée.
+
 ## Cadre respecté
 
 - Chaque changement = une PR créée ET mergée (squash), garde validé en le faisant

@@ -12,6 +12,7 @@ import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
+import { Icon } from '../../../../components/Icon';
 import { Composer } from '../../../../components/Composer';
 import { AssistantPub } from './AssistantPub';
 import { DebriefLotPanel } from './DebriefLotPanel';
@@ -46,14 +47,14 @@ function fileToDataUri(file: File, maxSide = 1100, quality = 0.85): Promise<stri
 // Le nom vient du noyau · le serveur le renvoie dans la réserve de
 // pré-lancement (« Avec « Avant / après » · … »), et deux listes de noms
 // finiraient par ne plus désigner la même chose à l'écran et dans la phrase.
-const TEMPLATES: { key: AdTemplate; label: string; emoji: string }[] = [
-  { key: 'problem_solution', label: TEMPLATE_LABEL.problem_solution, emoji: '⚡' },
-  { key: 'before_after', label: TEMPLATE_LABEL.before_after, emoji: '🔀' },
-  { key: 'testimonial', label: TEMPLATE_LABEL.testimonial, emoji: '⭐' },
-  { key: 'benefits', label: TEMPLATE_LABEL.benefits, emoji: '✅' },
-  { key: 'ugc', label: TEMPLATE_LABEL.ugc, emoji: '📱' },
-  { key: 'stat', label: TEMPLATE_LABEL.stat, emoji: '📊' },
-  { key: 'offer', label: TEMPLATE_LABEL.offer, emoji: '🏷️' },
+const TEMPLATES: { key: AdTemplate; label: string; icon: string }[] = [
+  { key: 'problem_solution', label: TEMPLATE_LABEL.problem_solution, icon: 'spark' },
+  { key: 'before_after', label: TEMPLATE_LABEL.before_after, icon: 'swap' },
+  { key: 'testimonial', label: TEMPLATE_LABEL.testimonial, icon: 'star' },
+  { key: 'benefits', label: TEMPLATE_LABEL.benefits, icon: 'check' },
+  { key: 'ugc', label: TEMPLATE_LABEL.ugc, icon: 'phone' },
+  { key: 'stat', label: TEMPLATE_LABEL.stat, icon: 'chart' },
+  { key: 'offer', label: TEMPLATE_LABEL.offer, icon: 'tag' },
 ];
 const OBJECTIVES = ['Ventes', 'Prospection', 'Retargeting', 'Notoriété', 'Trafic', 'Considération', 'Lancement produit', 'Promo / soldes', 'Collecte d’avis', 'Génération de leads'];
 const TPL_LABEL: Record<AdTemplate, string> = {
@@ -636,28 +637,28 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           preflight={preflight}
           controls={[
             ...(prods.length ? [{
-              key: 'produit', title: 'Produit mis en scène', icon: '📦',
+              key: 'produit', title: 'Produit mis en scène', icon: 'box',
               options: [{ value: '', label: 'Aucun produit' }, ...prods.map((p) => ({ value: p.id, label: `${p.name}${p.hasImage ? ' · 📷' : ''}` }))],
               value: productId,
               onChange: (v: string) => { setProductId(v); setProdThumbs([]); setProdMsg(''); },
             }] : []),
             ...(personas.length ? [{
-              key: 'persona', title: 'À qui on parle', icon: '👤',
+              key: 'persona', title: 'À qui on parle', icon: 'user',
               options: [{ value: '', label: 'Persona · auto' }, ...personas.map((p) => ({ value: p.id, label: p.name }))],
               value: personaId, onChange: setPersonaId,
             }] : []),
             {
-              key: 'objectif', title: 'Objectif de la série', icon: '🎯',
+              key: 'objectif', title: 'Objectif de la série', icon: 'target',
               options: OBJECTIVES.map((o) => ({ value: o, label: o })),
               value: objective, onChange: setObjective,
             },
             {
-              key: 'quantite', title: 'Nombre de variantes', icon: '⧉',
+              key: 'quantite', title: 'Nombre de variantes', icon: 'layers',
               options: [1, 2, 3, 4, 5, 6, 8].map((n) => ({ value: String(n), label: `${n} pub${n > 1 ? 's' : ''}` })),
               value: String(count), onChange: (v: string) => setCount(Number(v)),
             },
             {
-              key: 'modele', title: 'Moteur d’image', icon: '✦',
+              key: 'modele', title: 'Moteur d’image', icon: 'sparkles',
               // Le moteur mesuré le meilleur chez la marque est marqué comme tel ·
               // c'est lui qui est retenu par défaut quand la mesure tranche.
               options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${conseilMoteurs.recommande === m.key ? ' · mesuré le meilleur ici' : moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}` })),
@@ -893,7 +894,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     border: `1.5px solid ${on ? 'transparent' : 'var(--line-2)'}`,
                     background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
                   }}>
-                    <span style={{ fontSize: 22 }}>{t.emoji}</span>
+                    <Icon name={t.icon} size={22} />
                     <span style={{ fontSize: 12.5, fontWeight: on ? 800 : 600 }}>{t.label}</span>
                   </button>
                 );
