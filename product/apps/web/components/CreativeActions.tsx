@@ -3,10 +3,11 @@
 import { useState, useTransition, type CSSProperties } from 'react';
 import { rateCreativeAction, type Rating } from '../app/actions/creatives';
 import { trackGeneratedAdAction } from '../app/actions/adsmap-bridge';
+import { Icon } from './Icon';
 
 /**
  * Barre d'actions d'une créa (Pubs / Image / Vidéo IA) : vrais boutons + raccourcis.
- * Ouvrir ⛶ · Télécharger ↗ · Suivre dans ADSMAP 🗺 · note 👍/👎 · Archiver ✕
+ * Ouvrir · Télécharger · Suivre dans ADSMAP · note pertinence · Archiver
  */
 export function CreativeActions({ genId, rating: initial = null, onOpen, downloadUrl, onArchive, downloadName, archiveLabel = 'Archiver', trackable }: {
   genId: string;
@@ -35,7 +36,7 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {onOpen && (
         <button type="button" onClick={onOpen} style={actBtn} title="Ouvrir en grand" aria-label="Ouvrir">
-          <span aria-hidden style={{ fontSize: 14 }}>⛶</span>
+          <Icon name="frame" size={14} />
         </button>
       )}
       {downloadUrl && (
@@ -53,7 +54,7 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
           style={{ ...actBtn, color: suivi === 'done' ? '#7ee8bf' : 'var(--ink-2)', borderColor: suivi === 'done' ? 'rgba(126,232,191,.4)' : undefined, cursor: suivi === 'done' ? 'default' : 'pointer' }}
           title={suivi === 'done' ? note || 'Suivie dans Adsmap' : suivi === 'err' ? note : 'Suivre dans Adsmap · mesurer cette créa'}
           aria-label="Suivre dans Adsmap">
-          <span aria-hidden style={{ fontSize: 13 }}>{suivi === 'done' ? '✓' : suivi === 'busy' ? '…' : '🗺'}</span>
+          <span aria-hidden style={{ display: 'inline-flex', alignItems: 'center', fontSize: 13 }}>{suivi === 'done' ? '✓' : suivi === 'busy' ? '…' : <Icon name="map" size={13} />}</span>
         </button>
       )}
       {onArchive && (
@@ -65,7 +66,7 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
   );
 }
 
-/** Note de pertinence 👍/👎 · signal d'entraînement Jarvis (réutilisable). */
+/** Note de pertinence (pouce haut / bas) · signal d'entraînement Jarvis (réutilisable). */
 export function RatingControl({ genId, rating: initial = null, label }: { genId: string; rating?: Rating; label?: boolean }) {
   const [rating, setRating] = useState<Rating>(initial);
   const [, start] = useTransition();

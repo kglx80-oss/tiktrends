@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useActionState, useEffect } from 'react';
 import { saveWorkspaceNameAction } from '../app/actions/admin';
 import { Modal } from './Modal';
+import { Icon } from './Icon';
 import { input, lbl } from './ui';
 
 const ERR: Record<string, string> = { forbidden: 'Réservé aux administrateurs.', name: "Indique un nom d'espace.", session: 'Session expirée.' };
@@ -19,7 +20,7 @@ export function QuickSettingsModal({ open, onClose, workspaceName, showAdvanced 
   useEffect(() => { if (state?.ok) { router.refresh(); onClose(); } }, [state, router, onClose]);
 
   return (
-    <Modal open={open} onClose={onClose} icon="⚙️" title="Réglages rapides" subtitle="Nom de l'espace et préférences d'affichage.">
+    <Modal open={open} onClose={onClose} icon={<Icon name="gear" size={18} />} title="Réglages rapides" subtitle="Nom de l'espace et préférences d'affichage.">
       <form action={formAction} style={{ display: 'grid', gap: 16 }}>
         <div>
           <label style={lbl}>Nom de l'espace</label>

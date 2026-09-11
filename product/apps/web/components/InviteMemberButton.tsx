@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createInviteAction } from '../app/actions/invites';
 import { Modal } from './Modal';
 import { SubmitButton } from './SubmitButton';
+import { Icon } from './Icon';
 import { input } from './ui';
 
 /** Ouvre l'invitation d'un membre en pop-up (au lieu d'un panneau permanent sur la page). */
@@ -18,7 +19,7 @@ export function InviteMemberButton() {
         cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)',
       }}>＋ Inviter un membre</button>
 
-      <Modal open={open} onClose={() => setOpen(false)} icon="👥" title="Inviter un membre"
+      <Modal open={open} onClose={() => setOpen(false)} icon={<Icon name="users" size={18} />} title="Inviter un membre"
         subtitle="L'invité reçoit un lien pour définir son mot de passe et rejoindre l'espace avec le rôle choisi.">
         <form action={createInviteAction} style={{ display: 'grid', gap: 14 }}>
           <div>

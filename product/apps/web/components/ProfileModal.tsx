@@ -6,6 +6,7 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { saveProfileAction } from '../app/actions/admin';
 import { avatarToDataUri } from '../lib/avatar';
 import { Modal } from './Modal';
+import { Icon } from './Icon';
 import { input, lbl } from './ui';
 
 interface Init { name: string; email: string; avatarUrl: string; hidePersonalInfo: boolean }
@@ -38,7 +39,7 @@ export function ProfileModal({ open, onClose, init }: { open: boolean; onClose: 
   }
 
   return (
-    <Modal open={open} onClose={onClose} icon="👤" title="Mon profil" subtitle="Ta photo, ton nom et la confidentialité de tes informations.">
+    <Modal open={open} onClose={onClose} icon={<Icon name="user" size={18} />} title="Mon profil" subtitle="Ta photo, ton nom et la confidentialité de tes informations.">
       <form action={formAction} style={{ display: 'grid', gap: 16 }}>
         {/* Photo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
@@ -52,7 +53,7 @@ export function ProfileModal({ open, onClose, init }: { open: boolean; onClose: 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{ display: 'none' }} />
               <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: busy ? 'default' : 'pointer' }}>
-                {busy ? 'Traitement…' : '⬆ Photo'}
+                {busy ? 'Traitement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="upload" size={13} /> Photo</span>}
               </button>
               {avatarUrl.trim() && <button type="button" onClick={() => setAvatarUrl('')} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Retirer</button>}
             </div>

@@ -1,11 +1,11 @@
 'use client';
 
 import { useFormStatus } from 'react-dom';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 /** Bouton de soumission avec état « en cours » (feedback pendant les actions serveur lentes). */
 export function SubmitButton({ label, pendingLabel, disabled, style }: {
-  label: string; pendingLabel?: string; disabled?: boolean; style?: CSSProperties;
+  label: ReactNode; pendingLabel?: ReactNode; disabled?: boolean; style?: CSSProperties;
 }) {
   const { pending } = useFormStatus();
   const off = disabled || pending;

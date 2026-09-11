@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
 import { Modal } from './Modal';
 import { SubmitButton } from './SubmitButton';
+import { Icon } from './Icon';
 
 interface Brand { id: string; name: string; logoUrl?: string | null }
 
@@ -61,14 +62,14 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
       )}
 
       {/* Création rapide en pop-up · le parcours détaillé (5 étapes) reste accessible. */}
-      <Modal open={quick} onClose={() => setQuick(false)} icon="🏷️" title="Nouvelle marque"
+      <Modal open={quick} onClose={() => setQuick(false)} icon={<Icon name="tag" size={18} />} title="Nouvelle marque"
         subtitle="Le plus rapide : on lit ton site et on remplit tout pour toi.">
 
         {/* Voie 1 · tout récupérer depuis le site (boutique + charte + produits) */}
         <form action={createBrandFromShopifyAction} style={{ display: 'grid', gap: 10, border: '1px solid var(--accent-strong)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '14px 15px' }}>
           <input type="hidden" name="back" value="brands" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>✦</span>
+            <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="sparkles" size={16} /></span>
             <b style={{ fontSize: 13.5, color: 'var(--ink)' }}>Tout récupérer depuis mon site</b>
             <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>LE PLUS RAPIDE</span>
           </div>
@@ -76,7 +77,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
             Nom, <b>logo, couleurs, polices</b> et <b>tous tes produits</b> (avec photos et prix) importés automatiquement.
           </p>
           <input name="domain" required placeholder="ta-boutique.com" style={quickField} autoFocus />
-          <SubmitButton label="✦ Créer et tout importer" pendingLabel="Lecture du site…" style={{ width: '100%' }} />
+          <SubmitButton label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={14} /> Créer et tout importer</span>} pendingLabel="Lecture du site…" style={{ width: '100%' }} />
         </form>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>

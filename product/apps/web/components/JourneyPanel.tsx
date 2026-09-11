@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { Journey, JourneyStep, Relance } from '@tiktrends/core';
+import { Icon } from './Icon';
 
 /**
  * Le chemin, affiché.
@@ -92,7 +93,7 @@ export function JourneyPanel({ j, firstName, relance = null }: { j: Journey; fir
               background: 'linear-gradient(135deg, rgba(254,44,85,.12), var(--surface) 70%)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span aria-hidden style={{ fontSize: 15 }}>✨</span>
+                <span aria-hidden style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="sparkles" size={15} /></span>
                 <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{relance.titre}</div>
               </div>
               <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 5, lineHeight: 1.55 }}>{relance.corps}</div>
