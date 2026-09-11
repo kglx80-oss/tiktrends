@@ -53,7 +53,7 @@ export function signupOpen(): boolean {
 }
 
 export async function hashPassword(pw: string): Promise<string> {
-  return bcrypt.hash(pw, 10);
+  return bcrypt.hash(pw, 12);
 }
 export async function verifyPassword(pw: string, hash: string): Promise<boolean> {
   return bcrypt.compare(pw, hash);
@@ -93,7 +93,9 @@ async function readClaims(): Promise<{ uid: string; ep: number } | null> {
   const token = c.get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, secretKey());
+    // On restreint explicitement l'algorithme · ceinture de sécurité contre une
+    // confusion d'algorithme (jose refuse déjà `none`, mais on le fige ici).
+    const { payload } = await jwtVerify(token, secretKey(), { algorithms: ['HS256'] });
     const uid = (payload.uid as string) || null;
     if (!uid) return null;
     return { uid, ep: epochDuJeton(payload) };
