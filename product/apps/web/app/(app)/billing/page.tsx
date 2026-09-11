@@ -7,6 +7,7 @@ import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '..
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
 import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
 import { Msg } from '../../../components/ui';
+import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -151,7 +152,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       {/* Facturation / paiement */}
       <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, padding: '16px 20px', color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.6 }}>
         {stripeOn ? (
-          <><b style={{ color: 'var(--ink)' }}>🔒 Paiement sécurisé par Stripe.</b> Carte bancaire, factures automatiques et TVA gérées par Stripe · aucune donnée de carte ne transite par TikTrends. Le changement de formule et la résiliation se font dans <b>« Gérer mon abonnement »</b>.</>
+          <><b style={{ color: 'var(--ink)' }}><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="lock" size={13} /></span>Paiement sécurisé par Stripe.</b> Carte bancaire, factures automatiques et TVA gérées par Stripe · aucune donnée de carte ne transite par TikTrends. Le changement de formule et la résiliation se font dans <b>« Gérer mon abonnement »</b>.</>
         ) : (
           <><b style={{ color: 'var(--ink)' }}>Paiement en préparation.</b> Le règlement en ligne n'est pas encore activé sur ce serveur · écris-nous depuis le Support pour faire évoluer ta formule en attendant.{canPilotPlan && <> <a href="/admin/plans" style={{ color: 'var(--accent-strong)' }}>Pilotage interne (ADMIN+) ›</a></>}</>
         )}
