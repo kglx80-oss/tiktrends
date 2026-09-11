@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
+import { Icon } from './Icon';
 
 /**
  * Ce qu'on affiche quand il n'y a rien.
@@ -43,7 +44,8 @@ interface Base {
    * « Aucun verdict arbitré » et « aucune donnée » ne se corrigent pas pareil.
    */
   why?: ReactNode;
-  /** Illustration facultative · un emoji suffit, et deux distraient. */
+  /** Illustration facultative · un NOM d'icône du jeu premium (`components/Icon`),
+   *  jamais un emoji · rendu dans une pastille sobre. */
   icon?: string;
   /** Contenu libre sous le texte · un formulaire court, par exemple. */
   children?: ReactNode;
@@ -82,9 +84,16 @@ export function Empty(props: EmptyProps) {
 
   return (
     <div style={bloc(t)}>
-      {props.icon && <div style={{ fontSize: 28, lineHeight: 1 }} aria-hidden>{props.icon}</div>}
+      {props.icon && (
+        <div aria-hidden style={{
+          width: 46, height: 46, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          borderRadius: 13, background: 'var(--paper)', border: `1px solid ${t.bord}`, color: t.fg,
+        }}>
+          <Icon name={props.icon} size={22} />
+        </div>
+      )}
 
-      <p style={{ margin: props.icon ? '12px 0 0' : 0, fontSize: 14, fontWeight: 700, color: t.fg }}>
+      <p style={{ margin: props.icon ? '13px 0 0' : 0, fontSize: 14, fontWeight: 700, color: t.fg }}>
         {props.title}
       </p>
 

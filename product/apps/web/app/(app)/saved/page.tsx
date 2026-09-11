@@ -75,7 +75,7 @@ export default async function SavedPage() {
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>
       {brands.length === 0
         ? <div style={{ marginBottom: 30 }}><Empty
-            tone="todo" icon="🔭" title="Aucune marque suivie pour l'instant."
+            tone="todo" icon="radar" title="Aucune marque suivie pour l'instant."
             why="Suis des concurrents depuis la Veille pour surveiller leurs nouvelles pubs et nourrir Jarvis."
             action={{ label: 'Ouvrir la veille', href: '/veille' }}
           /></div>

@@ -100,7 +100,7 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
 
       {data.items.length === 0 ? (
         <Empty
-          tone="good" icon="✓" title="Rien à décider."
+          tone="good" icon="check" title="Rien à décider."
           why={<>La file se remplit après chaque mesure · lance « Mesurer maintenant », ou attends la synchro
             de la nuit. {data.dismissed > 0 && `${data.dismissed} décision(s) écartée(s) ne reviendront pas.`}</>}
         />

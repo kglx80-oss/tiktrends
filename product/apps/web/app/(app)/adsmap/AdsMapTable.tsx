@@ -154,7 +154,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
 
       {rows.length === 0 ? (
         <Empty
-          tone="todo" icon="🗺️" title="Aucune ad pour l’instant."
+          tone="todo" icon="map" title="Aucune ad pour l’instant."
           why="La carte se lit persona → désir → angle → concept → ad. Chaque ad porte une hypothèse et une seule variable testée · c’est ce qui permet d’attribuer un résultat à une cause."
           action={{ label: 'Importer ton tableau', href: '/adsmap/import' }}
         />

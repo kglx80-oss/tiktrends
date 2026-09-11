@@ -178,7 +178,7 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
 
       {curated.length === 0 && !error && (
         <Empty
-          tone="wait" icon="🔍" title="Aucune créa trouvée pour cette niche."
+          tone="wait" icon="search" title="Aucune créa trouvée pour cette niche."
           why={<>Essaie un autre mot-clé, ou <Link href={`/veille/scale?q=${encodeURIComponent(q)}&country=${country}&refresh=1`} style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>rafraîchis la recherche</Link>.</>}
         />
       )}

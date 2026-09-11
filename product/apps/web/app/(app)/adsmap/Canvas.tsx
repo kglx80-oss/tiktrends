@@ -344,7 +344,7 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
   if (!graph.nodes.length) {
     return (
       <Empty
-        tone="todo" icon="🗺️" title="Aucun avatar sur cette marque."
+        tone="todo" icon="users" title="Aucun avatar sur cette marque."
         why="La carte se lit de gauche à droite : avatar → désir → angle → concept → ad. Tout part d’un avatar · sans lui, il n'y a pas de branche à dessiner."
         action={{ label: 'Importer ton tableau', href: '/adsmap/import' }}
       />

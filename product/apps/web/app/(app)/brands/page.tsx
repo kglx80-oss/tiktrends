@@ -73,7 +73,7 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
 
       {rows.length === 0 && (
         <Empty
-          tone="todo" icon="🏷️" title="Aucune marque pour l’instant."
+          tone="todo" icon="tag" title="Aucune marque pour l’instant."
           why="Tout le produit travaille marque par marque · la carte, la mémoire de Jarvis, les lots, les prompts. C’est le premier objet à créer."
           action={{ label: 'Créer la première', href: '/brands/new' }}
         >

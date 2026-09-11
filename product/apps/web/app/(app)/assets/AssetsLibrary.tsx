@@ -285,7 +285,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
           // Rien du tout · premier écran de la bibliothèque · on pose le geste (upload) sur place.
           <Empty
             tone="todo"
-            icon="🗂️"
+            icon="folder"
             title="Aucun asset pour l'instant."
             why="Téléverse tes images, ou importe tes rushs par lien · l'IA s'en servira automatiquement pour composer tes créas."
           >
@@ -295,7 +295,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
           </Empty>
         ) : (
           // Des assets existent, mais le filtre / la recherche ne trouvent rien · pas un manque, une recherche vide.
-          <Empty tone="wait" icon="🔍" title="Aucun asset ne correspond." why="Aucun résultat pour ce filtre ou cette recherche · élargis, ou remets tout à zéro.">
+          <Empty tone="wait" icon="search" title="Aucun asset ne correspond." why="Aucun résultat pour ce filtre ou cette recherche · élargis, ou remets tout à zéro.">
             <button type="button" onClick={() => { setFilter('all'); setSearch(''); setPage(0); }} style={ghost}>Tout afficher</button>
           </Empty>
         )
