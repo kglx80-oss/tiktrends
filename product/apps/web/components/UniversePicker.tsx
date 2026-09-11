@@ -153,7 +153,6 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
             >
               <div style={{ position: 'relative', height: hauteur, background: UNIVERSE_SWATCH[u.key] ?? 'var(--grad-accent)' }}>
                 {apercu && (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={apercu} alt="" loading="lazy" decoding="async"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
