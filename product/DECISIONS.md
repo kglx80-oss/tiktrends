@@ -339,13 +339,8 @@ signal gagnant vit en base et meurt dans les analyses ADSMAP/admin.
    le RÉSULTAT payé. Or « laquelle a gagné » est la seule question qui décide de
    l'itération.
 2. **Nourrir la génération avec les angles qui ont GAGNÉ, pas seulement les 👍.**
-   `perfParAngle` relie chaque angle à son verdict réel (le marché a payé) mais
-   n'est lu que dans `admin/intelligence` · la génération ne prend que les avis
-   subjectifs (`bilanHypotheses`). Les angles prouvés gagnants sont mesurés puis
-   jetés. *Quoi* : injecter `perfParAngle` dans les défauts de génération, à côté
-   de `preferencesAngles`, avec la même discipline d'effectif. *Vérifier* : test
-   noyau montrant qu'un angle gagnant remonte en tête des défauts au-delà d'un
-   seuil, muet en-deçà.
+   *(livré — voir plus bas)* `perfParAngle` relie chaque angle à son verdict réel
+   (le marché a payé) mais n'était lu que dans `admin/intelligence`.
 3. **Dire la vérité sur « mesuré le meilleur ici ».** Le Studio étiquette le
    moteur au plus faible taux de réécriture comme « mesuré le meilleur ici »
    (`AdsStudio` ~428, 664) · un client lit « le plus performant », alors que ça
@@ -366,6 +361,23 @@ signal gagnant vit en base et meurt dans les analyses ADSMAP/admin.
   non suivie → rien · mutation éprouvée) + rendu `VerdictBadge` (le libellé arrive
   à l'écran, rien quand rien à dire · mutation éprouvée).
 - **À valider par le proprio** : lisibilité du badge sur la grille et le détail.
+
+### Livré · #2 · les angles GAGNANTS pilotent la génération (0 $ · aucune génération)
+- Règle pure `consigneAnglesMarche` (`packages/core/src/adsmap/perf-par-angle.ts`),
+  jumelle objective de `consigneAnglesGagnants` (subjectif) : nomme les angles
+  dont le taux de gagnants (verdict ADSMAP) atteint la référence générale, au-delà
+  du plancher de conclusifs. Muette sinon · le silence est la réponse fréquente.
+- `preferencesMarche(brandId)` (ads.ts) lit le signal **brand-scoped** via le lien
+  forward `input.adsmapAdId` → verdict (le même que la carte), sans la jointure
+  inverse non vérifiée de l'écran fondateur. Injecté dans `winningPatterns` juste
+  après la mémoire mesurée, avant le subjectif (pouce, veille).
+- **Gardes** : règle noyau (un angle gagnant remonte, un sous-moyenne non, muet
+  sous le plancher · mutation éprouvée) + câblage (le signal entre dans les motifs
+  injectés au prompt · mutation éprouvée).
+- **Note de prudence** : la jointure ad → angle reste à confirmer sur données
+  réelles (déjà signalé à l'écran fondateur). L'effet est ADDITIF et gaté par le
+  plancher · au pire, un indice d'angle gagnant légèrement mal attribué, jamais
+  destructif, et il se corrige à mesure que les verdicts s'accumulent.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.

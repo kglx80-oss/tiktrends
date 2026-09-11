@@ -109,3 +109,27 @@ export function perfParAngle(creas: CreaLancee[]): PerfParAngle {
     conclusifsTotal,
   };
 }
+
+/**
+ * Les angles qui ont PAYÉ, rendus actionnables pour la génération.
+ *
+ * Le pendant objectif de `consigneAnglesGagnants` (qui remonte les angles que le
+ * client a JUGÉS pertinents). Ici, on remonte ceux que le MARCHÉ a tranchés
+ * gagnants · deux signaux distincts, la génération mérite les deux.
+ *
+ * Même barre que le versant subjectif · on ne nomme qu'un angle qui a le DROIT
+ * de parler (assez de conclusifs, `!aConfirmer`) ET dont le taux de gagnants
+ * atteint au moins la référence générale. Rien ne qualifie → `null` · on
+ * n'oriente pas la génération sur du bruit, et le silence est la réponse la plus
+ * fréquente tant que peu de créas ont été lancées.
+ */
+export function consigneAnglesMarche(perf: PerfParAngle): string | null {
+  if (perf.tauxGeneral == null) return null;
+  const gagnants = perf.lignes
+    .filter((l) => !l.aConfirmer && l.tauxGagnant != null && l.tauxGagnant >= perf.tauxGeneral!)
+    .sort((a, b) => (b.tauxGagnant ?? 0) - (a.tauxGagnant ?? 0))
+    .slice(0, 5);
+  if (!gagnants.length) return null;
+  const liste = gagnants.map((l) => `« ${l.angle} » (${Math.round(l.tauxGagnant! * 100)} % gagnantes)`).join(', ');
+  return `Angles que le MARCHÉ a tranchés gagnants chez cette marque (verdict ADSMAP sur les vraies métriques · privilégie-les, c'est ce qui a payé) : ${liste}.`;
+}
