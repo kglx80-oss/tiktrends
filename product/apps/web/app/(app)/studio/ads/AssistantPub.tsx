@@ -425,7 +425,7 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
                   {m.label}{recommande === m.key ? ' · recommandé' : ''}
                   {p.conseilMoteurs.recommande === m.key && (
-                    <span style={{ color: '#7ee8bf' }}> · mesuré le meilleur ici</span>
+                    <span style={{ color: '#7ee8bf' }}> · tient le mieux ta copie ici</span>
                   )}
                   <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{' · '}{m.credits} cr. par pub</span>
                 </span>
