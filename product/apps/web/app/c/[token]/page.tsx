@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { clientViewByToken } from '../../../lib/client-view';
+import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +48,7 @@ export default async function ClientCardPage({ params }: { params: Promise<{ tok
     return (
       <main style={wrap}>
         <div style={{ border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', padding: '40px 26px', textAlign: 'center' }}>
-          <div style={{ fontSize: 30 }}>🔒</div>
+          <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={30} /></div>
           <p style={{ margin: '12px 0 0', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>Ce lien n’est plus valable.</p>
           <p style={{ margin: '7px auto 0', fontSize: 13, color: 'var(--muted)', maxWidth: 400, lineHeight: 1.6 }}>
             Demande un lien à jour à la personne qui t’a partagé cette page.
