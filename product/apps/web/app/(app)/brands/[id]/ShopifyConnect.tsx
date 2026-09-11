@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { syncShopifyProductsAction } from '../../../actions/brand-detail';
 import { ShopifyIcon } from '../../../../components/BrandIcons';
+import { Icon } from '../../../../components/Icon';
 
 export function ShopifyConnect({ brandId, initialDomain }: { brandId: string; initialDomain: string | null }) {
   const router = useRouter();
@@ -38,7 +39,7 @@ export function ShopifyConnect({ brandId, initialDomain }: { brandId: string; in
         <button type="button" onClick={sync} disabled={busy} style={{
           padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13,
           cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1,
-        }}>{busy ? 'Synchronisation…' : (initialDomain ? '↻ Synchroniser' : '🔗 Connecter')}</button>
+        }}>{busy ? 'Synchronisation…' : (initialDomain ? '↻ Synchroniser' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="link" size={13} /> Connecter</span>)}</button>
       </div>
       {msg && <div style={{ marginTop: 10, fontSize: 12.5, color: ok ? '#9fe6b3' : '#f5b043' }}>{msg}</div>}
     </div>

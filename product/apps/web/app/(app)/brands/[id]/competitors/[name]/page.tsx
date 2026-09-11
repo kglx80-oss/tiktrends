@@ -6,6 +6,7 @@ import { getSession } from '../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
 import { Msg } from '../../../../../../components/ui';
+import { Icon } from '../../../../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +63,7 @@ export default async function CompetitorPage({ params, searchParams }: {
         <form action={analyzeCompetitorAction}>
           <input type="hidden" name="brandId" value={id} />
           <input type="hidden" name="name" value={name} />
-          <button style={addBtn}>✦ {report ? 'Rafraîchir l’analyse' : 'Analyser ce concurrent'}</button>
+          <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {report ? 'Rafraîchir l’analyse' : 'Analyser ce concurrent'}</span></button>
         </form>
       </div>
 
@@ -76,7 +77,7 @@ export default async function CompetitorPage({ params, searchParams }: {
           <form action={analyzeCompetitorAction}>
             <input type="hidden" name="brandId" value={id} />
             <input type="hidden" name="name" value={name} />
-            <button style={addBtn}>✦ Analyser ce concurrent</button>
+            <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Analyser ce concurrent</span></button>
           </form>
         </div>
       ) : (
