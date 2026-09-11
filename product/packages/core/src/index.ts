@@ -21,6 +21,7 @@ export {
   deriveMetrics, type Interval, type AdMetrics, type DerivedMetrics,
 } from './adsmap/stats';
 export * from './adsmap/verdict';
+export * from './adsmap/verdict-carte';
 export * from './adsmap/ai-budget';
 export * from './adsmap/sheet';
 export * from './adsmap/import-sheet';

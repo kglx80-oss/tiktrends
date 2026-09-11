@@ -322,6 +322,51 @@ répété) d'abord, puis icônes premium, fil conducteur, Jarvis.
   mutation. Vidéo a maintenant les trois ingrédients, comme Image. Reste · Texte
   (persistance), boucle de relecture (contrôles · en dernier), 2e phase assets.
 
+## Retour au cœur · qualité et utilisabilité de Pubs IA (2026-09-11)
+
+Le polish premium (icônes, états vides) est bouclé. Exploration du cœur de
+Pubs IA (génération → relecture → itération → mesure) : la **boucle qualité**
+(conformité de fabrication → réparation auto → défauts qui règlent moteur / mode /
+direction) est fermée et autonome. La **boucle performance** (générer → suivre →
+lancer → verdict → l'angle/valeur gagnant revient en défaut ET sur la carte) est
+bâtie dans ses morceaux mais **ne revient jamais à la surface de création** : le
+signal gagnant vit en base et meurt dans les analyses ADSMAP/admin.
+
+**3 prochaines grosses améliorations proposées au proprio** (par valeur) :
+
+1. **Ramener le verdict marché sur la carte du Studio.** *(livré — voir plus bas)*
+   La carte montrait la prédiction (score Jarvis) et la relecture (copie), jamais
+   le RÉSULTAT payé. Or « laquelle a gagné » est la seule question qui décide de
+   l'itération.
+2. **Nourrir la génération avec les angles qui ont GAGNÉ, pas seulement les 👍.**
+   `perfParAngle` relie chaque angle à son verdict réel (le marché a payé) mais
+   n'est lu que dans `admin/intelligence` · la génération ne prend que les avis
+   subjectifs (`bilanHypotheses`). Les angles prouvés gagnants sont mesurés puis
+   jetés. *Quoi* : injecter `perfParAngle` dans les défauts de génération, à côté
+   de `preferencesAngles`, avec la même discipline d'effectif. *Vérifier* : test
+   noyau montrant qu'un angle gagnant remonte en tête des défauts au-delà d'un
+   seuil, muet en-deçà.
+3. **Dire la vérité sur « mesuré le meilleur ici ».** Le Studio étiquette le
+   moteur au plus faible taux de réécriture comme « mesuré le meilleur ici »
+   (`AdsStudio` ~428, 664) · un client lit « le plus performant », alors que ça
+   veut dire « tient le mieux la copie », pas « gagne le plus ». *Quoi* :
+   distinguer les deux signaux dans le libellé (fidélité vs performance marché).
+   *Vérifier* : test de câblage sur le libellé.
+
+### Livré · #1 · le verdict marché sur la carte (0 $ · aucune génération)
+- Règle pure `etatVerdictCarte` (`packages/core/src/adsmap/verdict-carte.ts`) :
+  (suivie ? verdict arbitré ? lequel) → état nommé + libellé + ton. Un verdict
+  `computed` non arbitré reste « en mesure » · on n'annonce pas une défaite non
+  tranchée (même prudence que l'attribution).
+- `listBrandAds` lit le verdict de tout le lot en une requête (`verdicts` par
+  `adsmapAdId`), ajoute `verdict` à `AdItem`. Composant `VerdictBadge` · badge en
+  surimpression sur la carte (à droite, face au score Jarvis à gauche) et inline
+  en tête du détail.
+- **Gardes** : règle noyau (chaque verdict → état, `computed` → en mesure,
+  non suivie → rien · mutation éprouvée) + rendu `VerdictBadge` (le libellé arrive
+  à l'écran, rien quand rien à dire · mutation éprouvée).
+- **À valider par le proprio** : lisibilité du badge sur la grille et le détail.
+
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
 2. Parcours client / anti-churn : ~~états d'accueil vendeurs~~ (fait) ·

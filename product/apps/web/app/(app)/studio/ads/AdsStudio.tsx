@@ -13,6 +13,7 @@ import { CreativeActions, RatingControl } from '../../../../components/CreativeA
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Icon } from '../../../../components/Icon';
+import { VerdictBadge } from '../../../../components/VerdictBadge';
 import { Composer } from '../../../../components/Composer';
 import { AssistantPub } from './AssistantPub';
 import { DebriefLotPanel } from './DebriefLotPanel';
@@ -1014,6 +1015,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 </button>
                 {/* Score Jarvis · notre signature, visible directement sur la carte */}
                 {typeof a.score === 'number' && <ScoreBadge score={a.score} />}
+                {/* Le verdict du marché · gagné/perdu/en mesure, en surimpression.
+                    La prédiction est à gauche, le RÉSULTAT payé à droite · c'est
+                    lui qui décide de l'itération. */}
+                <VerdictBadge etat={a.verdict} overlay />
               </div>
               <div style={{ padding: '9px 11px' }}>
                 <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
@@ -1116,7 +1121,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 </>
               ) : (
                 <>
-                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[detailAd.template]}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[detailAd.template]}</span>
+                    {/* Le verdict du marché · au sommet du détail, avec le gabarit.
+                        C'est le résultat payé, la seule mesure qui tranche l'itération. */}
+                    <VerdictBadge etat={detailAd.verdict} />
+                  </div>
                   {detailAd.variable && (
                     <p style={{ margin: '5px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
                       <b style={{ color: 'var(--ink-2)' }}>Déclinaison · {STUDIO_LABEL[detailAd.variable].toLowerCase()}</b><br />
