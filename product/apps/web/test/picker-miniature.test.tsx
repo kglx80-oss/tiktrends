@@ -17,7 +17,7 @@ import { MiniatureAsset } from '../components/MiniatureAsset';
 describe('la miniature partagée s’adapte au sélecteur', () => {
   it('cadreStyle s’applique au cadre (taille fixe du picker)', () => {
     const html = renderToStaticMarkup(
-      <MiniatureAsset kind="image" url="https://cdn/x.jpg" name="x" icon="🖼️" cadreStyle={{ aspectRatio: 'auto' }} />,
+      <MiniatureAsset kind="image" url="https://cdn/x.jpg" name="x" cadreStyle={{ aspectRatio: 'auto' }} />,
     );
     expect(html).toContain('<img');
     // cadreStyle écrase le carré par défaut du cadre · preuve qu'il est appliqué.

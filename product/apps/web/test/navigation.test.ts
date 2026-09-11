@@ -251,28 +251,31 @@ describe('chaque icône du rail existe · sinon un item rend un glyphe faux, en 
    * casse ici, plus à l'écran.
    */
   const shell = readFileSync(join(process.cwd(), 'components', 'AppShell.tsx'), 'utf8');
-  // Extrait les clés d'une table `const <nom>: Record<string, string> = { … }`.
-  // Les clés sont les seuls `mot:` immédiatement suivis d'une valeur littérale
-  // (les chemins SVG et emojis sont des chaînes entre quotes, sans `mot:`).
-  const clesDeTable = (nomTable: string): Set<string> => {
-    const debut = shell.indexOf(`const ${nomTable}`);
-    if (debut < 0) throw new Error(`Table ${nomTable} introuvable dans AppShell.tsx`);
-    const ouvre = shell.indexOf('{', debut);
-    const ferme = shell.indexOf('};', ouvre);
-    const bloc = shell.slice(ouvre, ferme);
+  // Le jeu SVG a été sorti dans son propre fichier (icônes premium partagées) ·
+  // la palette ⌘K garde sa table d'emojis dans AppShell.
+  const iconSrc = readFileSync(join(process.cwd(), 'components', 'Icon.tsx'), 'utf8');
+  // Extrait les clés d'une table `const <nom>… = { … }`. Les clés sont les seuls
+  // `mot:` immédiatement suivis d'une valeur littérale (chemins SVG et emojis
+  // sont des chaînes entre quotes, sans `mot:`).
+  const clesDeTable = (src: string, nomTable: string): Set<string> => {
+    const debut = src.indexOf(`const ${nomTable}`);
+    if (debut < 0) throw new Error(`Table ${nomTable} introuvable`);
+    const ouvre = src.indexOf('{', debut);
+    const ferme = src.indexOf('};', ouvre);
+    const bloc = src.slice(ouvre, ferme);
     return new Set([...bloc.matchAll(/(\w+):\s*'/g)].map((m) => m[1]!));
   };
   const iconesDeclarees = [...new Set(FEATURES.map((f) => f.icon))];
 
   it('le rail (SVG) a un tracé pour chaque icône déclarée', () => {
-    const tracés = clesDeTable('p:'); // `const p: Record<string, string>` dans Icon
+    const tracés = clesDeTable(iconSrc, 'ICON_PATHS'); // jeu partagé dans Icon.tsx
     const absentes = iconesDeclarees.filter((i) => !tracés.has(i));
     expect(absentes, `Icône(s) sans tracé SVG · le rail retombe sur « grid » : ${absentes.join(', ')}`)
       .toEqual([]);
   });
 
   it('la palette ⌘K (emoji) a un glyphe pour chaque icône déclarée', () => {
-    const emojis = clesDeTable('emojiFor:');
+    const emojis = clesDeTable(shell, 'emojiFor:');
     const absentes = iconesDeclarees.filter((i) => !emojis.has(i));
     expect(absentes, `Icône(s) sans emoji · la palette affiche « › » : ${absentes.join(', ')}`)
       .toEqual([]);

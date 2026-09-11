@@ -35,8 +35,6 @@ function fileToDataUri(file: File, maxSide = 1400, quality = 0.85): Promise<stri
   });
 }
 
-const kindIcon: Record<string, string> = { image: '🖼️', video: '🎬', audio: '🎵', other: '📎' };
-
 /** PUT direct vers le bucket avec suivi de progression. */
 function putWithProgress(url: string, file: File, onProgress: (pct: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -305,7 +303,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
           {shown.map((a) => (
             <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <MiniatureAsset kind={a.kind} url={a.url} thumbUrl={a.thumbUrl} name={a.name} icon={kindIcon[a.kind] ?? '📎'} />
+              <MiniatureAsset kind={a.kind} url={a.url} thumbUrl={a.thumbUrl} name={a.name} />
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--muted)' }}>

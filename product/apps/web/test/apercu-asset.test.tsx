@@ -21,37 +21,37 @@ describe('la miniature d’un asset choisit son rendu', () => {
 
 describe('le rendu de la miniature', () => {
   it('une image rend une <img>', () => {
-    const html = renderToStaticMarkup(<MiniatureAsset kind="image" url="https://cdn/x.jpg" name="x" icon="🖼️" />);
+    const html = renderToStaticMarkup(<MiniatureAsset kind="image" url="https://cdn/x.jpg" name="x" />);
     expect(html).toContain('<img');
     expect(html).toContain('src="https://cdn/x.jpg"');
   });
 
-  it('une vidéo par lien rend un vrai <video>, pas l’icône 🎬', () => {
-    const html = renderToStaticMarkup(<MiniatureAsset kind="video" url="/api/asset/v1" name="clip" icon="🎬" />);
+  it('une vidéo par lien rend un vrai <video>, pas d’icône', () => {
+    const html = renderToStaticMarkup(<MiniatureAsset kind="video" url="/api/asset/v1" name="clip" />);
     expect(html).toContain('<video');
     expect(html).toContain('src="/api/asset/v1"');
-    expect(html).not.toContain('🎬');
   });
 
-  it('un audio rend l’icône, pas de média cassable', () => {
-    const html = renderToStaticMarkup(<MiniatureAsset kind="audio" url="https://cdn/x.mp3" name="x" icon="🎵" />);
+  it('le repli d’un audio est une icône AU TRAIT (SVG), plus jamais un emoji kitch', () => {
+    const html = renderToStaticMarkup(<MiniatureAsset kind="audio" url="https://cdn/x.mp3" name="x" />);
     expect(html).not.toContain('<img');
     expect(html).not.toContain('<video');
-    expect(html).toContain('🎵');
+    // Premium · un <svg> tracé, pas de 🎵/📎 codés en dur.
+    expect(html).toContain('<svg');
+    expect(html).not.toMatch(/🎵|📎|🎬|🖼️/u);
   });
 
   it('une vraie vignette gagne · une vidéo Drive montre son <img>, pas un <video> lourd ni l’icône', () => {
     // Le reproche répété · une vidéo Drive n'avait que le lien /view (injouable)
     // et retombait sur l'icône. Avec la vignette persistée, on montre le VRAI
     // visuel, une image légère · et surtout pas un <video> qui télécharge tout.
-    const html = renderToStaticMarkup(<MiniatureAsset kind="video" url="/api/asset/v1" thumbUrl="https://bucket/drive-v1-thumb.jpg" name="clip" icon="🎬" />);
+    const html = renderToStaticMarkup(<MiniatureAsset kind="video" url="/api/asset/v1" thumbUrl="https://bucket/drive-v1-thumb.jpg" name="clip" />);
     expect(html).toContain('src="https://bucket/drive-v1-thumb.jpg"');
     expect(html).not.toContain('<video');
-    expect(html).not.toContain('🎬');
   });
 
   it('sans vignette, une vidéo garde son repli <video> · la cascade ne casse pas l’existant', () => {
-    const html = renderToStaticMarkup(<MiniatureAsset kind="video" url="/api/asset/v2" name="clip" icon="🎬" />);
+    const html = renderToStaticMarkup(<MiniatureAsset kind="video" url="/api/asset/v2" name="clip" />);
     expect(html).toContain('<video');
     expect(html).toContain('src="/api/asset/v2"');
   });

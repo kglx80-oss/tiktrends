@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { apercuAsset } from '../lib/apercu-asset';
+import { Icon, iconForAssetKind } from './Icon';
 
 const cadre: React.CSSProperties = { aspectRatio: '1 / 1', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' };
 const media: React.CSSProperties = { width: '100%', height: '100%', objectFit: 'cover' };
@@ -24,13 +25,12 @@ const media: React.CSSProperties = { width: '100%', height: '100%', objectFit: '
  *
  * La décision par type vit dans `apercuAsset` (pure, testée) · ici on la rend.
  */
-export function MiniatureAsset({ kind, url, thumbUrl, name, icon, cadreStyle }: {
+export function MiniatureAsset({ kind, url, thumbUrl, name, cadreStyle }: {
   kind: string;
   url: string;
   /** Vraie vignette Drive (bucket) · essayée en premier, pour images ET vidéos. */
   thumbUrl?: string | null;
   name: string;
-  icon: string;
   /** Ajustement du cadre · sert à réutiliser la miniature dans un sélecteur de
    *  taille fixe (le picker d'Assets) et pas seulement dans la grille. */
   cadreStyle?: React.CSSProperties;
@@ -44,7 +44,7 @@ export function MiniatureAsset({ kind, url, thumbUrl, name, icon, cadreStyle }: 
       {vignette && <img src={thumbUrl!} alt={name} loading="lazy" decoding="async" onError={() => setThumbCassee(true)} style={media} />}
       {!vignette && quoi === 'image' && <img src={url} alt={name} loading="lazy" decoding="async" onError={() => setCassee(true)} style={media} />}
       {!vignette && quoi === 'video' && <video src={url} muted playsInline preload="metadata" onError={() => setCassee(true)} style={media} />}
-      {!vignette && quoi === 'icone' && <span style={{ fontSize: 40 }}>{icon}</span>}
+      {!vignette && quoi === 'icone' && <span style={{ color: 'var(--muted)' }}><Icon name={iconForAssetKind(kind)} size={34} /></span>}
     </div>
   );
 }

@@ -44,6 +44,23 @@ répété) d'abord, puis icônes premium, fil conducteur, Jarvis.
   synchro. Les assets déjà synchronisés n'ont pas de `thumb_url` tant qu'ils ne
   sont pas resynchronisés · leur miniature retombe sur l'ancien comportement.
 
+### Icônes premium · fondation partagée (piste #2)
+- **Le constat** : 593 emojis dans 120 fichiers · impossible (et risqué) de tout
+  convertir d'un coup, surtout sans voir le rendu. Le rail avait déjà de vraies
+  icônes au trait, mais prisonnières de `AppShell`.
+- **Décision** : sortir le jeu dans `components/Icon.tsx` (partageable, `Icon` +
+  `iconForAssetKind` + `ICON_PATHS`), le compléter pour les usages courants
+  (image, film, music, file, upload, link, sparkles, search), et faire pointer
+  `AppShell` dessus (parité, zéro changement visuel du rail · le garde
+  `navigation.test` lit désormais `ICON_PATHS`). Première conversion : le repli
+  des miniatures d'assets · plus jamais 🖼️🎬🎵📎, une icône au trait selon le type
+  (prouvé par rendu · `apercu-asset` + `icon-premium`).
+- **Reste à faire (PR suivantes, un écran à la fois)** : boutons d'action (⬆🔗✦),
+  états vides (`Empty`), en-têtes de section, AdsStudio (49 emojis), studios,
+  Jarvis. La fondation étant posée, chaque conversion est mécanique et sûre.
+- **À valider par le proprio** : cohérence visuelle des icônes du rail inchangée,
+  et le repli d'asset (rare · média cassé/audio) au trait.
+
 ## Cadre respecté
 
 - Chaque changement = une PR créée ET mergée (squash), garde validé en le faisant
