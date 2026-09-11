@@ -8,6 +8,7 @@ import { buildAnalysis, buildLiveAnalysis, BUCKETS, bucketDef, type AnalysisRow 
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
 import { Bandeau } from '../../../components/Bandeau';
+import { Icon } from '../../../components/Icon';
 import { effectiveAccess } from '../../../lib/access';
 
 export const dynamic = 'force-dynamic';
@@ -27,8 +28,8 @@ function Grade({ label, g }: { label: string; g: string }) {
 
 // Action du Studio selon le verdict : on transforme le diagnostic en geste concret.
 const ACTION_CTA: Record<string, string> = {
-  scaler: '✨ Décliner les gagnantes', pousser: '✨ Pousser au Studio', iterer: '✨ Itérer au Studio',
-  rafraichir: '✨ Rafraîchir au Studio', couper: '✨ Remplacer au Studio',
+  scaler: 'Décliner les gagnantes', pousser: 'Pousser au Studio', iterer: 'Itérer au Studio',
+  rafraichir: 'Rafraîchir au Studio', couper: 'Remplacer au Studio',
 };
 
 function Row({ r }: { r: AnalysisRow }) {
@@ -64,7 +65,7 @@ function Row({ r }: { r: AnalysisRow }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-2)' }}>
         {r.diagnosis.map((d, i) => <span key={i} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, padding: '4px 9px' }}>→ {d}</span>)}
-        <a href={studioHref} style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>{ACTION_CTA[r.bucket] ?? '✨ Retravailler au Studio'} ›</a>
+        <a href={studioHref} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Icon name="sparkles" size={12} />{ACTION_CTA[r.bucket] ?? 'Retravailler au Studio'} ›</a>
       </div>
     </div>
   );
@@ -79,7 +80,7 @@ export default async function RadarPage() {
       <main style={wrap}>
         <h1 style={h1}>Radar</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ fontSize: 34 }}>🔒</div>
+          <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, marginTop: 10 }}>{why === 'plan' ? 'Le Radar est inclus à partir du plan Core.' : 'Accès réservé.'}</p>
         </div>
       </main>
