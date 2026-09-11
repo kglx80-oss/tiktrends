@@ -7,6 +7,7 @@ import {
   premiereImageIncomplete, peutGenererImage, recapitulatifImage,
   type EtapeImage, type EtatAssistantImage,
 } from '@tiktrends/core';
+import { Icon } from '../../../../components/Icon';
 
 /**
  * Le studio Image, guidé · une décision à la fois.
@@ -87,7 +88,7 @@ export function AssistantImage(p: Props) {
                     background: ici ? 'var(--grad-accent)' : 'transparent',
                     color: ici ? 'var(--on-accent)' : ouvrable ? 'var(--ink-2)' : 'var(--muted)', opacity: ouvrable ? 1 : 0.5,
                   }}>
-                  <span style={{ fontWeight: 800 }}>{fait && !ici ? '✓' : i + 1}</span>{ETAPE_IMAGE_TITRE[e]}
+                  <span style={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center' }}>{fait && !ici ? <Icon name="check" size={13} /> : i + 1}</span>{ETAPE_IMAGE_TITRE[e]}
                 </button>
               );
             })}
@@ -115,7 +116,7 @@ export function AssistantImage(p: Props) {
                   <Label>Produit de la marque</Label>
                   <select value={p.productId} onChange={(e) => p.onProduit(e.target.value)} style={champ}>
                     <option value="">Aucun (générique)</option>
-                    {p.produits.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}{pr.hasImage ? ' · 📷' : ''}</option>)}
+                    {p.produits.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}{pr.hasImage ? ' · photo' : ''}</option>)}
                   </select>
                 </div>
               )}
@@ -134,7 +135,7 @@ export function AssistantImage(p: Props) {
                   justifySelf: 'start', fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
                   border: '1px solid var(--line-2)', background: 'transparent', color: p.aiReady ? 'var(--accent-strong)' : 'var(--muted)',
                   cursor: p.aiReady && !p.suggesting ? 'pointer' : 'default',
-                }}>✦ {p.suggesting ? 'Rédaction…' : 'Proposer une description'}</button>
+                }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {p.suggesting ? 'Rédaction…' : 'Proposer une description'}</span></button>
               )}
             </div>
           )}

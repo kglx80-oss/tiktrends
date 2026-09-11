@@ -11,6 +11,7 @@ import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
+import { Icon } from '../../../../components/Icon';
 import { DebriefVisuelsStrip } from '../../../../components/DebriefVisuels';
 import { Composer } from '../../../../components/Composer';
 import { usePreflight } from '../../../../components/usePreflight';
@@ -224,7 +225,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         {uploadedUri ? (
           <img src={uploadedUri} alt="" style={thumb} />
         ) : selected?.hasImage ? (
-          <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 11, color: 'var(--muted)', padding: 8 }}>📷 Photo<br />enregistrée</div>
+          <div style={{ ...thumb, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, textAlign: 'center', fontSize: 11, color: 'var(--muted)', padding: 8 }}><Icon name="image" size={20} /><span>Photo<br />enregistrée</span></div>
         ) : (
           <div style={{ ...thumb, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--muted)' }}>📦</div>
         )}
@@ -235,7 +236,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
             <button type="button" onClick={() => fileRef.current?.click()} disabled={!ready || busy} style={{
               fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
               border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', opacity: ready ? 1 : .55,
-            }}>⬆ {uploadedUri ? 'Changer la photo' : 'Importer une photo'}</button>
+            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="upload" size={14} /> {uploadedUri ? 'Changer la photo' : 'Importer une photo'}</span></button>
             {uploadedUri && productId && (
               <button type="button" onClick={saveForProduct} disabled={saving} style={{
                 fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: saving ? 'default' : 'pointer',
@@ -263,7 +264,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
         {!ready && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
-            <span style={{ fontSize: 20 }}>🔒</span>
+            <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={18} /></span>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
               <b style={{ color: 'var(--ink)' }}>Image IA bientôt disponible.</b> Cette fonction s'active dès que le
               moteur d'image est branché côté serveur.
@@ -285,7 +286,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           <button type="button" disabled={!ready} onClick={() => setAssistantOuvert(true)} style={{
             fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
             border: '1px solid var(--accent-strong)', background: 'transparent', color: 'var(--accent-strong)',
-          }}>✨ Assistant guidé</button>
+          }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Assistant guidé</span></button>
         </div>
 
         {/* Contexte marque : produit + DA appliqués automatiquement */}
@@ -295,7 +296,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               <label style={lbl}>Produit de la marque</label>
               <select value={productId} onChange={(e) => { setProductId(e.target.value); setUploadedUri(''); setNotice(''); }} disabled={!ready} style={{ ...fld, width: 'auto', minWidth: 200, padding: '9px 10px' }}>
                 <option value="">Aucun (générique)</option>
-                {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · 📷' : ''}</option>)}
+                {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · photo' : ''}</option>)}
               </select>
             </div>
           )}
@@ -323,7 +324,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 return (
                   <button key={a.id} type="button" disabled={!ready} onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 58, height: 58, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: ready ? 'pointer' : 'default', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)', opacity: on ? 1 : 0.85 }}>
                     <MiniatureAsset kind="image" url={a.url} thumbUrl={a.thumbUrl} name={a.name} cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
-                    {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
+                    {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={10} /></span>}
                   </button>
                 );
               })}
@@ -383,7 +384,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
                 cursor: ready && aiReady && !suggesting ? 'pointer' : 'default', whiteSpace: 'nowrap',
                 border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
-              }}>✦ {suggesting ? 'Rédaction…' : 'Proposer une description'}</button>
+              }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {suggesting ? 'Rédaction…' : 'Proposer une description'}</span></button>
               {withText && (
                 <input value={headline} onChange={(e) => setHeadline(e.target.value)} disabled={!ready}
                   placeholder="Accroche à écrire sur l’image"
@@ -448,7 +449,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                       flex: 1, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
                       border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)',
                       cursor: busy || !ready ? 'default' : 'pointer', opacity: busy || !ready ? .5 : 1,
-                    }}>✨ Varier (3)</button>
+                    }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> Varier (3)</span></button>
                   )}
                   {im.url && aiReady && (
                     <button type="button" onClick={() => noter(im)} disabled={noting === im.id || !ready} title="Relecture IA · note et ratés du visuel" style={{
