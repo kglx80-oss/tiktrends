@@ -45,7 +45,7 @@ const FEED = readFileSync(join(process.cwd(), 'components/TrackerFeed.tsx'), 'ut
 describe('le gagnant est flagué et pousse le clone', () => {
   it('la carte flague le gagnant et met en avant SON clone', () => {
     expect(CARD).toMatch(/estGagnantVeille\(ad\)/);
-    expect(CARD, 'le gagnant porte un badge').toMatch(/🏆 Gagnant/);
+    expect(CARD, 'le gagnant porte un badge').toMatch(/<Icon name="trophy"[^>]*\/> Gagnant/);
     expect(CARD, 'le clone du gagnant est l’action mise en avant').toMatch(/Clone ce gagnant/);
   });
 

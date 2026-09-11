@@ -304,7 +304,7 @@ export function Composer(props: ComposerProps) {
         >
           {busy ? 'Génération…' : generateLabel}
           {!busy && cost?.credits !== undefined && (
-            <span style={{ fontSize: 12.5, opacity: 0.75 }}>✦ {cost.credits}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12.5, opacity: 0.75 }}><Icon name="sparkles" size={12} /> {cost.credits}</span>
           )}
         </button>
       </div>
