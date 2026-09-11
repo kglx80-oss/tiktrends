@@ -23,8 +23,13 @@ Annoncer le prix AVANT le clic, jamais après.
 d'autre tant que ce n'est pas viable ». Le sujet courant est la **qualité et
 l'utilisabilité de Pubs IA**. Ne pas ouvrir de chantier à côté sans son accord.
 
-**Une modification = une PR**, créée ET mergée (squash). Branche de
-développement : `claude/epic-allen-ioomsn`.
+**Une modification = une PR**, créée ET mergée (squash), sur sa propre branche
+partie de `main` · pas d'empilement, pas de PR fourre-tout.
+
+**La méthode de dev est aussi un skill.** `/impeccable`
+(`.claude/skills/impeccable/`) recharge cette discipline dans le terminal · même
+contenu que les doctrines ci-dessous, invocable à la demande ou déclenché dès
+qu'on s'apprête à écrire, corriger ou réorganiser du code sérieux.
 
 **Après chaque livraison**, proposer les 3 prochaines grosses améliorations.
 
