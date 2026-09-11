@@ -92,7 +92,13 @@ describe('intervalle de Wilson sur les taux', () => {
   });
   it('se resserre quand l’échantillon grandit', () => {
     const l = (n: number) => { const i = wilsonInterval(n * 0.3, n, 0.8); return i.hi - i.lo; };
-    expect(l(10000)).toBeLessThan(l(100));
+    // `toBeLessThan` seul ne gardait rien : à proportion égale, une largeur
+    // rendue CONSTANTE laissait l(10000) = l(100) à 1e-16 près, et le `<` strict
+    // gobait l'artefact d'arrondi. On exige donc un resserrement SUBSTANTIEL.
+    // La loi est en 1/√n · pour n ×100, la largeur mesurée tombe à ~0.10 (ratio
+    // relevé, pas posé d'instinct). On vérifie au moins un facteur deux, marge
+    // large sur le vrai 0.10, mais qu'une largeur aveugle à l'effectif ne passe pas.
+    expect(l(10000)).toBeLessThan(l(100) * 0.5);
   });
   it('sans impression, on ne sait rien', () => {
     expect(wilsonInterval(0, 0)).toEqual({ lo: 0, hi: 1 });
