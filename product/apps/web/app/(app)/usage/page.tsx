@@ -7,23 +7,26 @@ import { roleAtLeast, PLAN_CREDITS, PLAN_LABEL, type Plan } from '../../../lib/r
 import { unlimitedCredits } from '../../../lib/credits';
 import { PageInfo } from '../../../components/PageInfo';
 import { Empty } from '../../../components/Empty';
+import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
 /** Regroupe les libellés du grand livre en familles lisibles par le client. */
+// `icon` est un NOM du jeu partagé (components/Icon), plus un emoji · rendu via
+// <Icon> côté affichage.
 function familyOf(reason: string): { label: string; icon: string } {
   const r = reason.toLowerCase();
-  if (r.includes('recharge')) return { label: 'Recharge', icon: '💳' };
-  if (r.includes('abonnement') || r.includes('formule') || r.includes('test')) return { label: 'Abonnement', icon: '◈' };
-  if (r.includes('pubs') || r.includes('clone')) return { label: 'Pubs IA', icon: '✨' };
-  if (r.includes('vidéo')) return { label: 'Vidéo IA', icon: '🎬' };
-  if (r.includes('image') || r.includes('visuel')) return { label: 'Image IA', icon: '🖼️' };
-  if (r.includes('assistant')) return { label: 'Assistant', icon: '💬' };
-  if (r.includes('assets') || r.includes('tagging')) return { label: 'Assets', icon: '🗂️' };
-  if (r.includes('jarvis')) return { label: 'Jarvis', icon: '🧠' };
-  if (r.includes('concurrent')) return { label: 'Veille', icon: '🔭' };
-  if (r.includes('marque') || r.includes('profil') || r.includes('produits')) return { label: 'Marque', icon: '🏷️' };
-  return { label: 'Autre', icon: '·' };
+  if (r.includes('recharge')) return { label: 'Recharge', icon: 'coin' };
+  if (r.includes('abonnement') || r.includes('formule') || r.includes('test')) return { label: 'Abonnement', icon: 'card' };
+  if (r.includes('pubs') || r.includes('clone')) return { label: 'Pubs IA', icon: 'sparkles' };
+  if (r.includes('vidéo')) return { label: 'Vidéo IA', icon: 'film' };
+  if (r.includes('image') || r.includes('visuel')) return { label: 'Image IA', icon: 'image' };
+  if (r.includes('assistant')) return { label: 'Assistant', icon: 'chat' };
+  if (r.includes('assets') || r.includes('tagging')) return { label: 'Assets', icon: 'layers' };
+  if (r.includes('jarvis')) return { label: 'Jarvis', icon: 'brain' };
+  if (r.includes('concurrent')) return { label: 'Veille', icon: 'search' };
+  if (r.includes('marque') || r.includes('profil') || r.includes('produits')) return { label: 'Marque', icon: 'tag' };
+  return { label: 'Autre', icon: 'file' };
 }
 
 export default async function UsagePage() {
@@ -126,7 +129,7 @@ export default async function UsagePage() {
             const positive = r.delta > 0;
             return (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderTop: i === 0 ? 'none' : '1px solid var(--line)', background: 'var(--surface)' }}>
-                <span style={{ fontSize: 15, width: 22, textAlign: 'center' }}>{f.icon}</span>
+                <span style={{ width: 22, display: 'inline-flex', justifyContent: 'center', color: 'var(--muted)' }}><Icon name={f.icon} size={15} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.reason}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{f.label}</div>
