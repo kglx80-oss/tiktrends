@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { Icon } from './Icon';
 import type { InspoAd } from '@tiktrends/integrations';
 import { decouverteMarcheAction } from '../app/actions/decouverte';
 import { AdCard } from './AdCard';
@@ -37,7 +38,7 @@ export function DecouverteSection() {
         <button type="button" onClick={decouvrir} disabled={busy} style={{
           fontSize: 12.5, fontWeight: 800, padding: '7px 14px', borderRadius: 999, cursor: busy ? 'default' : 'pointer',
           border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? 0.6 : 1,
-        }}>{busy ? 'Recherche…' : '✦ Trouver des créas éprouvées'}</button>
+        }}>{busy ? 'Recherche…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={14} /> Trouver des créas éprouvées</span>}</button>
         <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Les pubs qui tiennent dans ta catégorie, hors de ta veille.</span>
       </div>
 

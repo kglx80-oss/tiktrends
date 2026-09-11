@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { Icon } from './Icon';
 import { useRouter } from 'next/navigation';
 import { generateScenarioImageAction } from '../app/actions/brand-detail';
 
@@ -33,7 +34,7 @@ export function ScenarioCard({ brandId, scenarioId, title, context, imageUrl, co
           ? <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : busy
             ? <span style={{ fontSize: 10.5, color: 'var(--muted)', textAlign: 'center', padding: 6 }}>Création…</span>
-            : <span style={{ fontSize: 22, opacity: .35 }}>🎬</span>}
+            : <span style={{ display: 'inline-flex', opacity: .35 }}><Icon name="film" size={22} /></span>}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -47,7 +48,7 @@ export function ScenarioCard({ brandId, scenarioId, title, context, imageUrl, co
             <button type="button" onClick={generate} disabled={busy} style={{
               fontSize: 11.5, fontWeight: 700, padding: '5px 11px', borderRadius: 999, cursor: busy ? 'default' : 'pointer',
               border: '1px solid rgba(254,44,85,.35)', background: 'transparent', color: 'var(--accent-strong)', opacity: busy ? .6 : 1,
-            }}>{busy ? 'Génération…' : url ? `✦ Régénérer · ${cost} cr.` : `✦ Générer le visuel · ${cost} cr.`}</button>
+            }}>{busy ? 'Génération…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {url ? `Régénérer · ${cost} cr.` : `Générer le visuel · ${cost} cr.`}</span>}</button>
           )}
           {err && <span style={{ fontSize: 11.5, color: '#ff9db0' }}>{err}</span>}
         </div>
