@@ -59,6 +59,12 @@ export interface AdItem {
    * verdict n'est arbitré. C'est le seul signal qui répond à « laquelle a gagné ».
    */
   verdict?: EtatVerdictCarte | null;
+  /**
+   * L'identifiant du LOT qui a produit cette créa · commun à toutes les créas
+   * d'un même appel de génération. Absent sur les créas d'avant son introduction.
+   * Sert à regrouper un lot au rechargement pour en reconstruire le débrief.
+   */
+  lot?: string;
 }
 export interface AdsResult {
   error?: string; ads?: AdItem[]; requested?: number;
@@ -713,16 +719,21 @@ async function composeBatch(o: {
   }
 
   const ads: AdItem[] = [];
+  // Un identifiant de LOT, une fois pour toutes les créas de cet appel · c'est ce
+  // qui manquait pour regrouper un lot au rechargement (les essais avaient déjà
+  // leur `groupe`, les lots ordinaires n'avaient rien). Consigné à côté de la
+  // recette, il ne touche ni le rendu ni la clé de cache.
+  const lotId = crypto.randomUUID();
   for (const { c, sceneUrl, recipe } of recettes) {
     try {
       const [row] = await db!.insert(schema.generations).values({
         brandId: o.brandId, kind: 'ad',
         // On consigne l'hypothèse d'angle À CÔTÉ de la recette (sans toucher au
         // type de rendu) · c'est ce qui relie plus tard la créa à son résultat.
-        input: { ...(recipe as unknown as Record<string, unknown>), angle: o.angle ?? null },
+        input: { ...(recipe as unknown as Record<string, unknown>), angle: o.angle ?? null, lot: lotId },
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(),
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(), lot: lotId,
         // La relecture est faite · la poser ICI la rend visible dès la
         // génération, et donne au débrief du lot la matière à additionner.
         // Sans ça, la carte restait muette jusqu'à un rechargement, et le lot
@@ -1463,7 +1474,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
   // `adsmapAdId`, on lit son verdict d'un coup pour tout le lot plutôt qu'une
   // requête par carte. Seul un verdict ARBITRÉ (`validated`) tranche · un calcul
   // provisoire compte comme « en mesure », comme le fait déjà l'attribution.
-  const parGen = gardees.map((r) => ({ id: r.id, createdAt: r.createdAt as Date, rec: (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore; adsmapAdId?: string } }));
+  const parGen = gardees.map((r) => ({ id: r.id, createdAt: r.createdAt as Date, rec: (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore; adsmapAdId?: string; lot?: string } }));
   const adIds = [...new Set(parGen.map((g) => g.rec.adsmapAdId).filter((x): x is string => !!x))];
   const verdictParAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; arbitre: boolean }>();
   if (adIds.length) {
@@ -1491,6 +1502,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       sceneBrief: !!rec.sceneBrief?.trim(),
       controle: controleDepuisRecette(rec),
       verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre }),
+      lot: rec.lot,
     };
   });
 }

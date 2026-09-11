@@ -66,6 +66,47 @@ export interface DebriefLot {
   resume: string;
 }
 
+/**
+ * Le contrôle d'une créa tel que la grille le porte · l'entrée dont on
+ * reconstruit un débrief au rechargement, sans re-relire quoi que ce soit.
+ */
+export interface ControleLu {
+  copieResume: string;
+  copieGrave: boolean;
+  produitFidele: boolean | null;
+  texteLisible?: boolean | null;
+}
+
+/**
+ * Traduit un contrôle de carte en relecture de débrief.
+ *
+ * C'était une logique d'écran (inline dans le Studio) qui DÉCIDAIT du sens de la
+ * mesure — « accroche réécrite = copie grave », « écart mineur = un résumé sans
+ * gravité ». Une règle de mesure n'a rien à faire dans du JSX · on la rapatrie
+ * ici, pure et testée, pour que l'écran et la reconstruction au chargement
+ * comptent EXACTEMENT pareil.
+ */
+export function relectureDepuisControle(c: ControleLu): RelecturePub {
+  return {
+    accrocheReecrite: c.copieGrave,
+    copieMineure: !c.copieGrave && c.copieResume.trim() !== '',
+    produitFidele: c.produitFidele,
+    texteLisible: c.texteLisible ?? null,
+  };
+}
+
+/**
+ * Le débrief d'un lot reconstruit depuis les contrôles déjà en base.
+ *
+ * Le débrief vivait en état d'écran · il s'effaçait au rechargement, alors que
+ * la matière (les contrôles par créa) est persistée. On la relit et on
+ * recompte · `null` quand aucune créa du lot n'a été relue (un lot composé, où
+ * le mode garantit déjà le texte, n'a rien à débriefer · le silence est juste).
+ */
+export function debriefDepuisControles(controles: readonly (ControleLu | null | undefined)[]): DebriefLot | null {
+  return debriefLot(controles.filter((c): c is ControleLu => !!c).map(relectureDepuisControle));
+}
+
 const s = (k: number) => (k > 1 ? 's' : '');
 
 /**

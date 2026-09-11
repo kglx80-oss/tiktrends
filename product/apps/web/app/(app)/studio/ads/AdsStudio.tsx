@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefLot, budgetReprises, moteurRecommande, libelleGagnant, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, libelleGagnant, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -62,6 +62,20 @@ const TPL_LABEL: Record<AdTemplate, string> = {
   problem_solution: 'Problème / solution', before_after: 'Avant / après', testimonial: 'Témoignage', benefits: 'Bénéfices',
   ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
 };
+
+/**
+ * Le débrief du DERNIER lot, reconstruit depuis la grille chargée.
+ *
+ * La liste vient triée du plus récent au plus ancien · le lot le plus récent est
+ * celui de sa créa de tête. On additionne les contrôles des créas qui partagent
+ * cet identifiant de lot · le noyau recompte. `null` quand la tête n'a pas de
+ * lot (créa d'avant l'identifiant) ou qu'aucune de ses créas n'a été relue.
+ */
+function debriefDuDernierLot(list: AdItem[]): DebriefLot | null {
+  const lot = list[0]?.lot;
+  if (!lot) return null;
+  return debriefDepuisControles(list.filter((a) => a.lot === lot).map((a) => a.controle));
+}
 
 export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
@@ -136,7 +150,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // Le débrief du dernier lot entière · additionne les relectures des pubs qui
   // viennent d'arriver. `null` dès qu'aucune n'a été relue (lot composé), et
   // alors rien ne s'affiche.
-  const [debrief, setDebrief] = useState<DebriefLot | null>(null);
+  // Reconstruit AU CHARGEMENT depuis les contrôles déjà en base · le débrief
+  // vivait en état d'écran et s'effaçait au rechargement, alors qu'il ne fait que
+  // recompter une matière persistée. On repart du lot le plus récent (la liste
+  // est triée du plus récent au plus ancien) · `null` si sa créa de tête n'a pas
+  // d'identifiant de lot (créa d'avant son introduction) ou n'a rien de relu.
+  const [debrief, setDebrief] = useState<DebriefLot | null>(() => debriefDuDernierLot(initial));
   const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
@@ -404,19 +423,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     // plus une rotation égale sans rien dire se lit comme un hasard bizarre.
     if (res.appliquee) setApplique(res.appliquee);
     // Le débrief du lot · additionne les relectures des SEULES pubs qui
-    // viennent d'arriver, pas de toute la grille. La règle (compter, ne pas
-    // conclure) vit dans le noyau · ici on ne fait que lui passer la matière et
-    // afficher sa phrase. `debriefLot` rend `null` si aucune n'a été relue, ce
-    // qui efface aussi le débrief du lot précédent.
-    setDebrief(debriefLot((res.ads ?? [])
-      .map((a) => a.controle)
-      .filter((c): c is NonNullable<AdItem['controle']> => !!c)
-      .map((c) => ({
-        accrocheReecrite: c.copieGrave,
-        copieMineure: !c.copieGrave && c.copieResume.trim() !== '',
-        produitFidele: c.produitFidele,
-        texteLisible: c.texteLisible,
-      }))));
+    // viennent d'arriver, pas de toute la grille. La règle (traduire un contrôle
+    // en relecture, puis compter sans conclure) vit dans le noyau · ici on ne
+    // fait que lui passer la matière. `null` si aucune n'a été relue, ce qui
+    // efface aussi le débrief du lot précédent.
+    setDebrief(debriefDepuisControles((res.ads ?? []).map((a) => a.controle)));
     return out;
   }
 

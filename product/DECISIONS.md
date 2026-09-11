@@ -399,11 +399,8 @@ proposées** (par valeur × bornée × 0 budget) :
 2. **Rééquilibrer « Varier (3) » vs « Décliner » vers l'attribuable.** *(livré —
    voir bas)* La CTA forte était « ✨ Varier (3) » (non-attribuable), placée avant
    « Décliner » (attribuable).
-3. **Débrief de lot persistant.** `debriefLot` est le meilleur « comment ce lot
-   a-t-il tourné » mais il vit en état React · il disparaît au rechargement et
-   n'existe qu'en mode entière. *Quoi* : le reconstruire au chargement depuis les
-   relectures déjà en base (règle pure de reconstruction). *Vérifier* : test noyau
-   de reconstruction + garde d'affichage après rechargement.
+3. **Débrief de lot persistant.** *(livré — voir bas)* `debriefLot` vivait en état
+   React · il disparaissait au rechargement, alors que sa matière est persistée.
 
 ### Livré · 2e tour #1 · nommer et réappliquer le gagnant d'un essai (0 $)
 - Règle pure `gagnantsMesures(cumuls)` + `libelleGagnant(g)` (core, adsmap) :
@@ -429,6 +426,26 @@ proposées** (par valeur × bornée × 0 budget) :
 - **Garde** : rendu/câblage · Décliner avant Varier, Varier en secondaire jamais
   en CTA forte, Décliner en accent primaire (mutation éprouvée).
 - **À valider par le proprio** : la nouvelle hiérarchie se lit bien dans le détail.
+
+### Livré · 2e tour #3 · débrief de lot persistant (0 $)
+- Un identifiant de LOT (`crypto.randomUUID`) est consigné une fois par appel de
+  génération sur chaque créa (à côté de la recette · ne touche ni le rendu ni la
+  clé de cache), relu par `listBrandAds` (`AdItem.lot`). Les essais avaient déjà
+  leur `groupe` ; les lots ordinaires n'avaient rien.
+- Règles pures (core, debrief-lot) : `relectureDepuisControle` (la sémantique de
+  mesure, sortie du JSX du Studio) + `debriefDepuisControles` (reconstruit le
+  débrief depuis les contrôles déjà en base). Le Studio les utilise à la
+  génération ET pour initialiser l'état au chargement (`debriefDuDernierLot`).
+- Résultat : le débrief du dernier lot survit au rechargement. En composée (pas de
+  relecture), il reste `null` · le mode garantit déjà le texte, rien à débriefer.
+- **Gardes** : noyau (mapping + reconstruction, comptes, tout-bon · mutation
+  éprouvée) + câblage (lot consigné/relu, état initialisé depuis la grille ·
+  mutation éprouvée).
+- **À valider par le proprio** : le débrief du dernier lot réapparaît bien après
+  un rechargement de Pubs IA.
+
+**2e tour bouclé.** Prochain : nouveau tour d'exploration ou consolidation, à
+proposer au proprio.
 
 ## Reste à faire (backlog priorisé)
 1. ~~Modes d'emploi (`PageInfo`) plus visibles et présents partout.~~ Fait.
