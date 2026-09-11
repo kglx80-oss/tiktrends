@@ -14,6 +14,7 @@ import { currentDeployment } from '../../../lib/deployment';
 import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction, bilanCopieAction, calibrationScoreAction } from '../../actions/adsmap-attribution';
 import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
+import { Icon } from '../../../components/Icon';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
 import { JarvisChat } from './JarvisChat';
@@ -143,7 +144,7 @@ export default async function JarvisPage() {
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1040, margin: '0 auto' }}>
       <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--line-2)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(230,0,126,.16), rgba(120,90,255,.10) 60%, var(--surface))', padding: '26px 28px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🧠</div>
+          <div style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', flexShrink: 0 }}><Icon name="brain" size={26} /></div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Jarvis</h1>
@@ -751,7 +752,7 @@ function Action({ href, title, desc, gate }: { href: string; title: string; desc
   const inner = (
     <>
       <div style={{ fontSize: 13.5, fontWeight: 800, color: gate ? 'var(--ink)' : 'var(--muted)' }}>
-        {title} {!gate && '🔒'}
+        {title} {!gate && <span style={{ display: 'inline-flex', verticalAlign: '-2px' }}><Icon name="lock" size={13} /></span>}
       </div>
       <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 4, lineHeight: 1.5 }}>{desc}</div>
     </>

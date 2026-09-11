@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { saveJarvisRulesAction, proposeJarvisRulesAction } from '../../actions/jarvis';
+import { Icon } from '../../../components/Icon';
 
 const PRESET = `Style visuel : premium, lumineux, épuré. Le produit toujours net, au premier plan, proportions réelles.
 Ton : direct, expert, chaleureux. Pas de superlatifs creux ni de promesses non tenables.
@@ -83,7 +84,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{brandName ? `· ${brandName}` : '· marque active'}</span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={generate} disabled={aiBusy} style={{ fontSize: 12.5, fontWeight: 800, padding: '8px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', cursor: aiBusy ? 'default' : 'pointer', opacity: aiBusy ? .6 : 1 }}>
-          {aiBusy ? 'Jarvis réfléchit…' : '✦ Générer par IA (marque + concurrents)'}
+          {aiBusy ? 'Jarvis réfléchit…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={14} /> Générer par IA (marque + concurrents)</span>}
         </button>
       </div>
       <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
