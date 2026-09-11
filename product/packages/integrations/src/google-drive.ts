@@ -129,3 +129,26 @@ export async function driveDownload(accessToken: string, fileId: string): Promis
   if (!r.ok) throw new Error(`Drive download HTTP ${r.status}`);
   return Buffer.from(await r.arrayBuffer());
 }
+
+/**
+ * L'adresse de la vignette d'un fichier (images ET vidéos). Éphémère (quelques
+ * heures) · à consommer tout de suite. `null` quand Drive n'en fournit pas.
+ */
+export async function driveThumbnailLink(accessToken: string, fileId: string): Promise<string | null> {
+  const j = await driveGet<{ thumbnailLink?: string }>(accessToken, `files/${fileId}`, { fields: 'thumbnailLink', supportsAllDrives: 'true' });
+  return j.thumbnailLink || null;
+}
+
+/**
+ * Télécharge les octets d'une vignette Drive. La `thumbnailLink` d'un fichier
+ * privé exige une requête authentifiée (sinon Google renvoie une page de
+ * connexion) · on porte donc le jeton. `null` sur échec · jamais bloquant.
+ */
+export async function driveThumbBytes(accessToken: string, thumbnailLink: string): Promise<Buffer | null> {
+  try {
+    const r = await fetch(thumbnailLink, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!r.ok) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    return buf.length ? buf : null;
+  } catch { return null; }
+}

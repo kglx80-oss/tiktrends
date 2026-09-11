@@ -330,6 +330,13 @@
       "when": 1788300000005,
       "tag": "0046_followed_brand_domain",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1788300000006,
+      "tag": "0047_asset_thumb_url",
+      "breakpoints": true
     }
   ]
 }

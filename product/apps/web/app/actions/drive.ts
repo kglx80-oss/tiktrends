@@ -2,7 +2,7 @@
 
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, putObject } from '@tiktrends/integrations';
+import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, putObject, storeDriveThumb } from '@tiktrends/integrations';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -114,7 +114,10 @@ export async function syncDriveFilesAction(files: PickedFile[]): Promise<{ ok?: 
         const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
         url = await putObject(storage, `assets/${ws}/drive-${f.id}.${ext}`, bytes, mime);
       }
-      await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, name: (f.name || 'Fichier Drive').slice(0, 160), kind, source: 'drive', url, externalId: f.id, mimeType: mime, sizeBytes: f.sizeBytes });
+      // Vraie vignette (images ET vidéos) · le Picker ne la fournit pas, on la
+      // demande à Drive puis on la range chez nous. Remplace l'icône de repli.
+      const thumbUrl = await storeDriveThumb({ storage, token, fileId: f.id, workspaceId: ws }) ?? undefined;
+      await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, name: (f.name || 'Fichier Drive').slice(0, 160), kind, source: 'drive', url, thumbUrl, externalId: f.id, mimeType: mime, sizeBytes: f.sizeBytes });
       added++;
     }
     await db!.update(schema.brands).set({ driveSyncedAt: new Date() }).where(eq(schema.brands.id, brandId));

@@ -305,7 +305,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
           {shown.map((a) => (
             <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <MiniatureAsset kind={a.kind} url={a.url} name={a.name} icon={kindIcon[a.kind] ?? '📎'} />
+              <MiniatureAsset kind={a.kind} url={a.url} thumbUrl={a.thumbUrl} name={a.name} icon={kindIcon[a.kind] ?? '📎'} />
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--muted)' }}>
