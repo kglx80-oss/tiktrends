@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, type AdDirection } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -53,6 +53,12 @@ export interface AdItem {
    * et le navigateur n'en a rien à faire au-delà de savoir si le bouton s'ouvre.
    */
   sceneBrief?: boolean;
+  /**
+   * Le verdict du marché, ramené sur la carte · `null`/absent quand la créa
+   * n'est pas suivie dans ADSMAP (rien à dire). « En mesure » tant qu'aucun
+   * verdict n'est arbitré. C'est le seul signal qui répond à « laquelle a gagné ».
+   */
+  verdict?: EtatVerdictCarte | null;
 }
 export interface AdsResult {
   error?: string; ads?: AdItem[]; requested?: number;
@@ -1387,20 +1393,42 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
     .from(schema.generations)
     .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'ad')))
     .orderBy(desc(schema.generations.createdAt)).limit(240);
-  return rows
-    .filter((r) => (r.status === 'archived') === wantArchived)
-    .map((r) => {
-      const rec = (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore };
-      return {
-        id: r.id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '',
-        url: adUrl(r.id, rec), createdAt: (r.createdAt as Date).toISOString(),
-        rating: rec.rating ?? null, score: rec.jarvisScore?.score,
-        parentId: rec.parentId ?? null, variable: rec.variable ?? null,
-        essai: rec.essai?.variable ?? null,
-        sceneBrief: !!rec.sceneBrief?.trim(),
-        controle: controleDepuisRecette(rec),
-      };
-    });
+  const gardees = rows.filter((r) => (r.status === 'archived') === wantArchived);
+
+  // Le verdict du marché, ramené sur la carte · la créa suivie porte un
+  // `adsmapAdId`, on lit son verdict d'un coup pour tout le lot plutôt qu'une
+  // requête par carte. Seul un verdict ARBITRÉ (`validated`) tranche · un calcul
+  // provisoire compte comme « en mesure », comme le fait déjà l'attribution.
+  const parGen = gardees.map((r) => ({ id: r.id, createdAt: r.createdAt as Date, rec: (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore; adsmapAdId?: string } }));
+  const adIds = [...new Set(parGen.map((g) => g.rec.adsmapAdId).filter((x): x is string => !!x))];
+  const verdictParAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; arbitre: boolean }>();
+  if (adIds.length) {
+    const vs = await db.select({ adId: schema.verdicts.adId, computed: schema.verdicts.computed, validated: schema.verdicts.validated, status: schema.verdicts.status })
+      .from(schema.verdicts)
+      .where(inArray(schema.verdicts.adId, adIds));
+    for (const v of vs) {
+      const arbitre = v.status === 'validated';
+      const prev = verdictParAd.get(v.adId);
+      // Un arbitré l'emporte toujours sur un provisoire déjà lu pour cet ad.
+      if (prev?.arbitre && !arbitre) continue;
+      verdictParAd.set(v.adId, { verdict: (arbitre ? v.validated : v.computed) ?? null, arbitre });
+    }
+  }
+
+  return parGen.map(({ id, createdAt, rec }) => {
+    const suivie = !!rec.adsmapAdId;
+    const v = rec.adsmapAdId ? verdictParAd.get(rec.adsmapAdId) : undefined;
+    return {
+      id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '',
+      url: adUrl(id, rec), createdAt: createdAt.toISOString(),
+      rating: rec.rating ?? null, score: rec.jarvisScore?.score,
+      parentId: rec.parentId ?? null, variable: rec.variable ?? null,
+      essai: rec.essai?.variable ?? null,
+      sceneBrief: !!rec.sceneBrief?.trim(),
+      controle: controleDepuisRecette(rec),
+      verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre }),
+    };
+  });
 }
 
 /**
