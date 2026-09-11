@@ -8,6 +8,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { MarquesSuivies } from '../../../components/MarquesSuivies';
 import { PageInfo } from '../../../components/PageInfo';
 import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
+import { Icon } from '../../../components/Icon';
 import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed';
 import { DecouverteSection } from '../../../components/DecouverteSection';
 import { GrammaireCategorie } from '../../../components/GrammaireCategorie';
@@ -59,7 +60,7 @@ export default async function SavedPage() {
       <PageInfo title="tes créas & marques gardées">
         Retrouve ici tout ce que tu as sauvegardé depuis la <b>Veille</b>. Range tes créas dans des <b>boards</b>
         (dossiers) pour organiser ta veille par angle, campagne ou concurrent. Clique <b>★</b> pour retirer une créa,
-        <b> voir</b> pour relancer une recherche sur une marque suivie, et <b>✨ Générer une variante</b> pour l'envoyer au Studio.
+        <b> voir</b> pour relancer une recherche sur une marque suivie, et <b><span style={{ display: 'inline-flex', verticalAlign: '-2px' }}><Icon name="sparkles" size={12} /></span> Générer une variante</b> pour l'envoyer au Studio.
       </PageInfo>
 
       {/* Fil des nouveautés concurrents (tracking) */}

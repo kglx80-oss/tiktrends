@@ -3,6 +3,7 @@ import { estGagnantVeille, bibliothequePub, siteMarque } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
+import { Icon } from './Icon';
 
 export const compact = (n?: number) => {
   if (n == null) return 'n/c';
@@ -47,7 +48,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
             <img src={ad.advertiserLogo} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
           )}
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ad.advertiserName || 'Annonceur'}</span>
-          {gagnant && <span title="Éprouvée · tient dans le temps ou sa portée progresse" style={{ fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}>🏆 Gagnant</span>}
+          {gagnant && <span title="Éprouvée · tient dans le temps ou sa portée progresse" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Gagnant</span>}
           <FollowButton ad={ad} initialFollowing={following} />
         </div>
         {ad.body && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}
@@ -96,7 +97,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
             border: gagnant ? 'none' : '1px solid var(--line-2)',
             background: gagnant ? 'var(--grad-accent)' : 'transparent',
             color: gagnant ? 'var(--on-accent)' : 'var(--ink)', textDecoration: 'none' }}>
-          {gagnant ? '✨ Clone ce gagnant' : '✨ Génère ta version'}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {gagnant ? 'Clone ce gagnant' : 'Génère ta version'}</span>
         </a>
       </div>
     </div>

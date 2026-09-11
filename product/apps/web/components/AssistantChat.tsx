@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { askAssistant } from '../app/actions/assistant';
 import type { ChatMessage } from '@tiktrends/ai';
+import { Icon } from './Icon';
 
 const SUGGESTIONS = [
   'Quelles créas devrais-je couper ou scaler ?',
@@ -36,7 +37,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
   return (
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', overflow: 'hidden' }}>
       <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>✦</span>
+        <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}><Icon name="sparkles" size={16} /></span>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Assistant TikTrends</div>
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>{ready ? 'Pose ta question, je connais ton espace' : "S'active dès que la clé IA est posée"}</div>
