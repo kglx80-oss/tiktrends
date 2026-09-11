@@ -953,7 +953,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                  
                 <img src={refUri} alt="" style={{ width: 96, height: 120, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--line-2)', flexShrink: 0 }} />
               ) : (
-                <div style={{ width: 96, height: 120, borderRadius: 10, border: '1px dashed var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--muted)', flexShrink: 0 }}>🏆</div>
+                <div style={{ width: 96, height: 120, borderRadius: 10, border: '1px dashed var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', flexShrink: 0 }}><Icon name="trophy" size={26} /></div>
               )}
               <div style={{ flex: '1 1 240px', minWidth: 220 }}>
                 <input ref={refInput} type="file" accept="image/png,image/jpeg,image/webp" onChange={onRefFile} disabled={!ready || busy} style={{ display: 'none' }} />
@@ -1066,7 +1066,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     de plus dans la grille · on la compare à l'œil au lieu de la
                     lire comme la réponse à une question posée. */}
                 {a.variable && <span style={filiation}>↳ {STUDIO_LABEL[a.variable].toLowerCase()}</span>}
-                {a.essai && <span style={filiation}>⚖ essai · {ESSAI_LABEL[a.essai].toLowerCase()}</span>}
+                {a.essai && <span style={{ ...filiation, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="scale" size={12} /> essai · {ESSAI_LABEL[a.essai].toLowerCase()}</span>}
                 {/* Ce que la relecture a constaté · visible SANS cliquer.
                      Une mesure qui n'apparaît qu'après avoir payé une analyse
                      n'est pas une mesure, c'est une archive. Rien ne s'affiche
@@ -1244,7 +1244,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
                   <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="pen" size={14} /> Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></span></button>
                   <button type="button" onClick={() => copyLink(detailSrc)} style={toolBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name={copied ? 'check' : 'link'} size={14} /> {copied ? 'Lien copié' : 'Copier le lien'}</span></button>
-                  <a href={detailSrc} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}>⬇ Télécharger ({ratio})</a>
+                  <a href={detailSrc} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="download" size={14} /> Télécharger ({ratio})</span></a>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 2px 2px', borderTop: '1px solid var(--line)', marginTop: 4 }}>
                     <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>Pertinence · entraîne Jarvis</span>
                     <RatingControl genId={detailAd.id} rating={detailAd.rating} />

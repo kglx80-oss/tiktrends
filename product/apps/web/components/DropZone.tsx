@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode, type CSSProperties } from 'react';
+import { Icon } from './Icon';
 
 /** Compresse une image navigateur en data URI léger (jpeg), directement exploitable par l'IA. */
 export function imageFileToDataUri(file: File, maxSide = 1400, quality = 0.85): Promise<string> {
@@ -79,7 +80,7 @@ export function DropZone({ onImages, onError, disabled, multiple = false, maxSid
       {over && (
         <div style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,7,12,.55)', backdropFilter: 'blur(1px)', pointerEvents: 'none', zIndex: 5 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800, color: 'var(--on-accent)', padding: '8px 14px', borderRadius: 999, background: 'var(--grad-accent)' }}>
-            <span aria-hidden>⬇</span> {hint}
+            <span aria-hidden style={{ display: 'inline-flex' }}><Icon name="download" size={14} /></span> {hint}
           </span>
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client';
 
 import type { DebriefLot } from '@tiktrends/core';
+import { Icon } from '../../../../components/Icon';
 
 /**
  * Ce que le dernier lot entière vaut, dit d'un coup, au-dessus de la grille.
@@ -36,7 +37,7 @@ export function DebriefLotPanel({ d }: { d: DebriefLot | null }) {
         DERNIER LOT · GÉNÉRÉ ENTIÈREMENT
       </div>
       <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: vert ? '#7ee8bf' : '#f5b043' }}>
-        {vert ? '✓ ' : '⚠ '}{d.resume}
+        {vert ? '✓ ' : <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="alert" size={13} /></span>}{d.resume}
       </div>
     </div>
   );
