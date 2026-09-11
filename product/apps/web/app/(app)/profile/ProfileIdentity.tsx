@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { updateProfileAction } from '../../actions/admin';
 import { input, lbl } from '../../../components/ui';
 import { avatarToDataUri } from '../../../lib/avatar';
+import { Icon } from '../../../components/Icon';
 
 export function ProfileIdentity({ init }: {
   init: { name: string; email: string; avatarUrl: string; hidePersonalInfo: boolean };
@@ -42,7 +43,7 @@ export function ProfileIdentity({ init }: {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{ display: 'none' }} />
             <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: busy ? 'default' : 'pointer' }}>
-              {busy ? 'Traitement…' : '⬆ Téléverser une photo'}
+              {busy ? 'Traitement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="upload" size={14} /> Téléverser une photo</span>}
             </button>
             {avatarUrl.trim() && <button type="button" onClick={() => setAvatarUrl('')} style={{ padding: '9px 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>Retirer</button>}
           </div>
