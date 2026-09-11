@@ -1168,14 +1168,17 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   <Lignee id={detailAd.id} ads={ads} onOuvrir={(i) => setDetailIdx(i)} />
                   <p style={{ margin: '4px 0 14px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{detailAd.headline}</p>
 
-                  <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={toolPrimary}>
-                    {varyBusy ? 'Génération…' : '✨ Varier (3)'}
-                  </button>
-                  <p style={{ margin: '6px 0 14px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 nouvelles créas · tout change à la fois ({modelSpec.credits * 3} cr.).</p>
-
-                  {/* Décliner · une seule chose change, la scène déjà payée reste. */}
-                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginBottom: 12 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-2)', marginBottom: 3 }}>Décliner</div>
+                  {/* Décliner d'ABORD · une seule chose change, le reste tenu · c'est
+                      la seule itération dont l'écart est ATTRIBUABLE, donc la seule qui
+                      apprend. Elle porte la primauté visuelle · « Varier » (tout change
+                      à la fois) suit en second, pour explorer vite sans rien conclure.
+                      L'inverse — Varier en gros, Décliner en petit — poussait le geste
+                      qui n'enseigne rien. */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>Décliner</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#7ee8bf', border: '1px solid rgba(126,232,191,.4)', borderRadius: 999, padding: '1px 7px' }}>pour itérer</span>
+                    </div>
                     <p style={{ margin: '0 0 9px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
                       Une seule chose change, le reste est tenu · c’est ce qui rend l’écart attribuable. La scène est déjà payée, elle reste.
                     </p>
@@ -1206,6 +1209,17 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Varier · l'explorer-vite, en SECOND et en action secondaire · tout
+                      change à la fois, donc l'écart n'est attribuable à rien. Utile pour
+                      ouvrir des pistes, jamais pour conclure · c'est pourquoi il ne porte
+                      plus la CTA forte. */}
+                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginBottom: 12 }}>
+                    <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={{ ...toolBtn, textAlign: 'left' }}>
+                      {varyBusy ? 'Génération…' : '✨ Varier (3) · explorer vite'}
+                    </button>
+                    <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 nouvelles créas · tout change à la fois, l’écart n’est attribuable à rien ({modelSpec.credits * 3} cr.).</p>
                   </div>
 
                   {/* Score Jarvis · notre signature */}
