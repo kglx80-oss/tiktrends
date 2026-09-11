@@ -6,10 +6,12 @@ import { roleAtLeast } from '../../../../lib/rbac';
 import { EmptyLine } from '../../../../components/Empty';
 import { replyTicketAction, setTicketStatusAction } from '../../../actions/support';
 import { input, Msg } from '../../../../components/ui';
+import { Icon } from '../../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
-const TYPE_LABEL: Record<string, string> = { bug: '🐞 Bug', suggestion: '💡 Suggestion', question: '❓ Question' };
+const TYPE_LABEL: Record<string, string> = { bug: 'Bug', suggestion: 'Suggestion', question: 'Question' };
+const TYPE_ICON: Record<string, string> = { bug: 'alert', suggestion: 'bulb', question: 'help' };
 const STATUS: Record<string, { label: string; color: string }> = {
   open: { label: 'Ouvert', color: '#f5a623' }, in_progress: { label: 'En cours', color: '#7aa2ff' }, resolved: { label: 'Résolu', color: '#18cc8c' },
 };
@@ -45,7 +47,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '10px 0 4px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12.5 }}>{TYPE_LABEL[tk.type] ?? tk.type}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>{TYPE_ICON[tk.type] ? <Icon name={TYPE_ICON[tk.type]!} size={13} /> : null}{TYPE_LABEL[tk.type] ?? tk.type}</span>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>{tk.title}</h1>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>Ouvert par {tk.authorName} · {new Date(tk.createdAt as Date).toLocaleDateString('fr-FR')}</div>

@@ -8,11 +8,14 @@ import { EmptyLine } from '../../../components/Empty';
 import { createTicketAction } from '../../actions/support';
 import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
+import { Icon } from '../../../components/Icon';
 
 const OK: Record<string, string> = { '1': 'Message envoyé.', created: 'Ticket ouvert, on te répond vite.' };
 const ERR: Record<string, string> = { title: 'Ajoute un titre.', forbidden: 'Action non autorisée.', notfound: 'Ticket introuvable.' };
 
-const TYPE_LABEL: Record<string, string> = { bug: '🐞 Bug', suggestion: '💡 Suggestion', question: '❓ Question' };
+const TYPE_LABEL: Record<string, string> = { bug: 'Bug', suggestion: 'Suggestion', question: 'Question' };
+// Icône du jeu partagé par type de ticket · plus d'emoji dans les libellés.
+const TYPE_ICON: Record<string, string> = { bug: 'alert', suggestion: 'bulb', question: 'help' };
 const STATUS: Record<string, { label: string; color: string }> = {
   open: { label: 'Ouvert', color: '#f5a623' },
   in_progress: { label: 'En cours', color: '#7aa2ff' },
@@ -42,7 +45,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
       <p style={sub}>{isAdmin ? "Tous les tickets de ton espace : réponds, change le statut, garde le fil." : 'Signale un bug, propose une idée, pose une question. On te répond dans le fil.'}</p>
       <PageInfo title="comment ça marche">
         Chaque message ouvre un <b>fil de discussion</b>. Tu reçois une <b>notification</b> (cloche en haut à droite)
-        dès qu'on te répond ou que le statut change. Types : 🐞 bug, 💡 suggestion, ❓ question.
+        dès qu'on te répond ou que le statut change. Types : bug, suggestion, question.
       </PageInfo>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
@@ -55,9 +58,9 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
             <div style={{ minWidth: 180 }}>
               <label style={lbl}>Type</label>
               <select name="type" defaultValue="question" style={{ ...input, width: 'auto', minWidth: 180 }}>
-                <option value="question">❓ Question</option>
-                <option value="bug">🐞 Bug</option>
-                <option value="suggestion">💡 Suggestion</option>
+                <option value="question">Question</option>
+                <option value="bug">Bug</option>
+                <option value="suggestion">Suggestion</option>
               </select>
             </div>
             <div style={{ flex: 1, minWidth: 220 }}>
@@ -80,7 +83,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
           const st = STATUS[t.status] ?? STATUS.open!;
           return (
             <Link key={t.id} href={`/support/${t.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '13px 16px', textDecoration: 'none', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12.5 }}>{TYPE_LABEL[t.type] ?? t.type}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>{TYPE_ICON[t.type] ? <Icon name={TYPE_ICON[t.type]!} size={13} /> : null}{TYPE_LABEL[t.type] ?? t.type}</span>
               <span style={{ flex: 1, minWidth: 180, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{t.title}</span>
               {isAdmin && t.authorName && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t.authorName}</span>}
               <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, color: st.color, background: st.color + '22' }}>{st.label}</span>
