@@ -44,6 +44,10 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   name: text('name'),
   passwordHash: text('password_hash'),
+  // Époque de session · un cran de plus révoque tous les jetons émis avant
+  // (reset/changement de mot de passe, « déconnecter partout »). Voir
+  // apps/web/lib/session-epoch.ts.
+  sessionEpoch: integer('session_epoch').notNull().default(0),
   avatarUrl: text('avatar_url'),                                  // photo de profil (URL)
   hidePersonalInfo: boolean('hide_personal_info').notNull().default(false), // masquer les infos perso
   locale: text('locale').notNull().default('fr'),                // langue d'affichage

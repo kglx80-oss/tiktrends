@@ -2,9 +2,9 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { getSession, hashPassword, verifyPassword } from '../../lib/auth';
+import { getSession, hashPassword, verifyPassword, createSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { GUARD } from '../../lib/guard-error';
 
@@ -47,7 +47,15 @@ export async function changePasswordAction(formData: FormData): Promise<void> {
   const [u] = await db.select().from(schema.users).where(eq(schema.users.id, s.user.id)).limit(1);
   if (!u || !u.passwordHash || !(await verifyPassword(current, u.passwordHash))) redirect('/profile?e=current');
 
-  await db.update(schema.users).set({ passwordHash: await hashPassword(next) }).where(eq(schema.users.id, s.user.id));
+  // Changer de mot de passe évince les autres sessions ouvertes · un cran
+  // d'époque de plus rend caducs tous les jetons émis avant celui-ci.
+  await db.update(schema.users)
+    .set({ passwordHash: await hashPassword(next), sessionEpoch: sql`${schema.users.sessionEpoch} + 1` })
+    .where(eq(schema.users.id, s.user.id));
+  // L'incrément évince les AUTRES appareils · on re-signe le cookie courant à la
+  // nouvelle époque pour ne pas déconnecter celui qui vient de changer son mot
+  // de passe.
+  await createSession(s.user.id);
   redirect('/profile?ok=pw');
 }
 
