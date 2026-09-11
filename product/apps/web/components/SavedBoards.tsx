@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
 import type { InspoAd } from '@tiktrends/integrations';
 import { AdCard } from './AdCard';
@@ -78,7 +79,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
         <button type="button" onClick={() => setTab('__all')} style={tabBtn('__all')}>Toutes · {countIn('__all')}</button>
         {folders.map((f) => (
-          <button key={f} type="button" onClick={() => setTab(f)} style={tabBtn(f)}>📁 {f} · {countIn(f)}</button>
+          <button key={f} type="button" onClick={() => setTab(f)} style={tabBtn(f)}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="folder" size={13} /> {f} · {countIn(f)}</span></button>
         ))}
         {list.some((i) => !i.folder) && <button type="button" onClick={() => setTab('__none')} style={tabBtn('__none')}>Sans dossier · {countIn('__none')}</button>}
       </div>
@@ -120,7 +121,7 @@ function TrackButton({ state, onClick }: { state: string | undefined; onClick: (
         color: done ? 'var(--accent-strong)' : 'var(--ink-2)',
         cursor: busy || done ? 'default' : 'pointer', fontSize: 12, fontWeight: 600, opacity: busy ? 0.6 : 1,
       }}>
-        <span>🗺</span>
+        <span style={{ display: "inline-flex" }}><Icon name="map" size={15} /></span>
         <span>{done ? 'Dans Adsmap' : busy ? 'Ajout…' : 'Suivre dans Adsmap'}</span>
       </button>
       {err && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--danger, #e5484d)', lineHeight: 1.4 }}>{err}</p>}
@@ -142,7 +143,7 @@ function FolderPicker({ current, folders, onPick }: { current: string | null; fo
         width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 9,
         border: '1px solid var(--line-2)', background: 'var(--paper)', color: current ? 'var(--ink)' : 'var(--muted)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
       }}>
-        <span>📁</span>
+        <span style={{ display: "inline-flex" }}><Icon name="folder" size={15} /></span>
         <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{current || 'Ranger dans un board'}</span>
         <span style={{ color: 'var(--muted)', fontSize: 10 }}>▾</span>
       </button>
@@ -151,7 +152,7 @@ function FolderPicker({ current, folders, onPick }: { current: string | null; fo
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
           <div style={{ position: 'absolute', bottom: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: '0 14px 34px -10px rgba(0,0,0,.5)', overflow: 'hidden', padding: 6 }}>
             {folders.map((f) => (
-              <button key={f} type="button" onClick={() => { onPick(f); setOpen(false); }} style={row(f === current)}>📁 {f}{f === current && <span style={{ marginLeft: 'auto', color: 'var(--accent-strong)' }}>✓</span>}</button>
+              <button key={f} type="button" onClick={() => { onPick(f); setOpen(false); }} style={row(f === current)}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="folder" size={13} /> {f}</span>{f === current && <span style={{ marginLeft: 'auto', color: 'var(--accent-strong)' }}>✓</span>}</button>
             ))}
             {current && <button type="button" onClick={() => { onPick(null); setOpen(false); }} style={row(false)}>✕ Retirer du board</button>}
             <div style={{ display: 'flex', gap: 6, padding: '6px 4px 2px', borderTop: folders.length ? '1px solid var(--line)' : 'none', marginTop: folders.length ? 4 : 0 }}>

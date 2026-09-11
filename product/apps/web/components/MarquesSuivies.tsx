@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { Icon } from './Icon';
 import { bibliothequePub, siteMarque, consigneAngleMarche, formatDominant, type BriefConcurrent } from '@tiktrends/core';
 import { BrandRemoveButton } from './InspoButtons';
 import { briefMarqueAction } from '../app/actions/brief-marque';
@@ -107,7 +108,7 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
                     padding: '9px 16px', borderRadius: 10, border: 'none', background: 'var(--grad-accent)',
                     color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none',
                   }}>
-                    ✨ Génère une créa · {brief.angles[0].label}{fmt ? ` · en ${fmt}` : ''}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Génère une créa</span> · {brief.angles[0].label}{fmt ? ` · en ${fmt}` : ''}
                   </a>
                 ) : null;
               })()}
