@@ -12,6 +12,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { Views } from './Views';
 import { effectiveAccess } from '../../../lib/access';
 import { Empty } from '../../../components/Empty';
+import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export default async function AdsMapPage() {
       <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ fontSize: 34 }}>🔒</div>
+          <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0', lineHeight: 1.6 }}>
             {why === 'plan'
               ? 'Adsmap est disponible à partir de l’offre Plus.'
