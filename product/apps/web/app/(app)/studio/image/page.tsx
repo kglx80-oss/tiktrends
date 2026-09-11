@@ -60,7 +60,7 @@ export default async function ImageStudioPage() {
         prompt de qualité pub soit rédigé pour toi. 4 crédits par image.
       </PageInfo>
 
-      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} assets={assets.map((a) => ({ id: a.id, name: a.name, url: a.url }))} />
+      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} assets={assets.map((a) => ({ id: a.id, name: a.name, url: a.url, thumbUrl: a.thumbUrl }))} />
     </main>
   );
 }

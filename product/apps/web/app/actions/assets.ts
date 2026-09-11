@@ -26,6 +26,8 @@ function kindFromMime(mime: string): AssetKind {
 export type AssetKind = 'image' | 'video' | 'audio' | 'other';
 export interface AssetItem {
   id: string; name: string; kind: AssetKind; source: string; url: string;
+  /** Vraie miniature (bucket) · vignette Drive persistée · null = repli sur `url`/type. */
+  thumbUrl: string | null;
   brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[]; createdAt: string;
 }
 
@@ -33,7 +35,7 @@ const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
 
 function toItem(r: {
   id: string; name: string; kind: string; source: string; url: string; embarquee: boolean;
-  externalId: string | null;
+  externalId: string | null; thumbUrl: string | null;
   brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[] | null; createdAt: Date;
 }): AssetItem {
   return {
@@ -41,6 +43,9 @@ function toItem(r: {
     // La règle vit dans `lib/asset-url` · elle s'y teste, ce qu'un fichier
     // `'use server'` interdit (tout export y devient un point d'entrée réseau).
     url: servedAssetUrl({ id: r.id, kind: r.kind, source: r.source, url: r.url, embedded: r.embarquee, externalId: r.externalId }),
+    // Vignette Drive persistée sur le bucket · adresse publique, donnée telle
+    // quelle. Vide -> la miniature retombe sur `url` puis sur l'icône de type.
+    thumbUrl: r.thumbUrl || null,
     brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes,
     tags: r.tags ?? [], createdAt: r.createdAt.toISOString(),
   };
@@ -72,7 +77,7 @@ export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolea
     source: schema.assets.source, brandId: schema.assets.brandId,
     useForAi: schema.assets.useForAi, sizeBytes: schema.assets.sizeBytes,
     tags: schema.assets.tags, createdAt: schema.assets.createdAt,
-    externalId: schema.assets.externalId,
+    externalId: schema.assets.externalId, thumbUrl: schema.assets.thumbUrl,
     embarquee: sql<boolean>`${schema.assets.url} like 'data:%'`,
     url: sql<string>`case when ${schema.assets.url} like 'data:%' then '' else ${schema.assets.url} end`,
   })

@@ -5,11 +5,36 @@
  */
 import type { StorageConfig } from './storage';
 import { putObject } from './storage';
-import { googleAccessToken, driveListFilesDeep, driveDownload } from './google-drive';
+import { googleAccessToken, driveListFilesDeep, driveDownload, driveThumbnailLink, driveThumbBytes } from './google-drive';
 
 export type DriveAssetKind = 'image' | 'video' | 'audio' | 'other';
 export interface DriveAssetInput {
   name: string; kind: DriveAssetKind; source: 'drive'; url: string; externalId: string; mimeType: string; sizeBytes?: number;
+  /** Vraie miniature persistée sur notre bucket · vignette Drive (images ET vidéos). */
+  thumbUrl?: string;
+}
+
+/**
+ * Persiste la vraie vignette d'un fichier Drive sur notre bucket, et rend son
+ * adresse publique et permanente. `null` sans bucket, sans vignette, ou sur
+ * échec · l'appelant retombe alors sur l'ancien affichage (jamais bloquant).
+ *
+ * La `thumbnailLink` de Google est éphémère et exige un jeton · on la consomme
+ * ici, tout de suite, et on garde une copie à nous. C'est ce qui fait qu'une
+ * vidéo Drive montre enfin une image, sans re-télécharger la vidéo entière.
+ */
+export async function storeDriveThumb(o: {
+  storage: StorageConfig | null; token: string; fileId: string; workspaceId: string; thumbnailLink?: string | null;
+}): Promise<string | null> {
+  if (!o.storage) return null;
+  let link = o.thumbnailLink ?? null;
+  if (!link) { try { link = await driveThumbnailLink(o.token, o.fileId); } catch { link = null; } }
+  if (!link) return null;
+  const bytes = await driveThumbBytes(o.token, link);
+  if (!bytes) return null;
+  try {
+    return await putObject(o.storage, `assets/${o.workspaceId}/drive-${o.fileId}-thumb.jpg`, bytes, 'image/jpeg');
+  } catch { return null; }
 }
 export interface SyncDriveDeps {
   existingDriveIds(): Promise<Set<string>>;
@@ -42,7 +67,10 @@ export async function syncDriveAssets(deps: SyncDriveDeps, o: {
         url = await putObject(o.storage, `assets/${o.workspaceId}/drive-${f.id}.${ext}`, bytes, f.mimeType);
       }
       if (!url) { skipped++; continue; }
-      await deps.insertAsset({ name: f.name.slice(0, 160), kind, source: 'drive', url, externalId: f.id, mimeType: f.mimeType, sizeBytes: f.size });
+      // Vraie vignette (images ET vidéos) · captée maintenant, où la thumbnailLink
+      // est fraîche, puis rangée chez nous. C'est ce qui remplace l'icône de repli.
+      const thumbUrl = await storeDriveThumb({ storage: o.storage, token, fileId: f.id, workspaceId: o.workspaceId, thumbnailLink: f.thumbnailLink }) ?? undefined;
+      await deps.insertAsset({ name: f.name.slice(0, 160), kind, source: 'drive', url, externalId: f.id, mimeType: f.mimeType, sizeBytes: f.size, thumbUrl });
       added++;
     } catch { errors++; }
   }

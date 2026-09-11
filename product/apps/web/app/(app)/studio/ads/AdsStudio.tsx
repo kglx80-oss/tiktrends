@@ -65,7 +65,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
-  assets?: Array<{ id: string; name: string; url: string }>;
+  assets?: Array<{ id: string; name: string; url: string; thumbUrl?: string | null }>;
   initialMode?: 'brand' | 'clone';
   initialAngle?: string;
   /** Pub de veille pré-sélectionnée comme référence de clone · vient de `?ref=`. */
@@ -875,7 +875,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                       <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.name} style={{ position: 'relative', flex: '0 0 auto', width: 62, height: 62, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer', border: `2px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)', opacity: on ? 1 : 0.85 }}>
                         {/* Même miniature que la bibliothèque · un lien cassé tombe
                             sur l'icône de type, jamais l'image cassée du navigateur. */}
-                        <MiniatureAsset kind="image" url={a.url} name={a.name} icon="🖼️" cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
+                        <MiniatureAsset kind="image" url={a.url} thumbUrl={a.thumbUrl} name={a.name} icon="🖼️" cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
                         {on && <span style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
                       </button>
                     );

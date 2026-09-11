@@ -144,6 +144,7 @@ export const assets = pgTable('assets', {
   kind: assetKindEnum('kind').notNull().default('image'),
   source: assetSourceEnum('source').notNull().default('upload'),
   url: text('url').notNull(),                 // data URI (image téléversée) ou URL externe
+  thumbUrl: text('thumb_url'),                // vraie miniature (bucket) · vignette Drive persistée à la synchro
   externalId: text('external_id'),            // id source (ex : fichier Google Drive) pour dédup
   mimeType: text('mime_type'),
   sizeBytes: integer('size_bytes'),

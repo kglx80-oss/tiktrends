@@ -14,6 +14,36 @@ plus présents dans la logique). La profondeur de Pubs IA se décompose en trois
 directions du domaine en `core`, (c) une boucle relecture → débrief → itération
 contrainte. Les trois studios reçoivent ce même socle, un studio à la fois.
 
+**Mandat 3 (2026-09-11)** : élever considérablement l'UI avant l'arrivée des
+premiers clients. Pistes du proprio : (1) les assets montrent des icônes
+immondes au lieu de la VRAIE miniature du Drive · (2) les petites icônes de tout
+l'outil font kitch, viser du premium · (3) mieux organiser, un vrai fil
+conducteur entre les bascules · (4) revoir la présentation de Jarvis et le
+placement des fonctionnalités éparpillées · (5) suite libre. Contrainte forte :
+**0 $ de budget · aucune génération IA, on note les contrôles pour plus tard**,
+on ne teste rien en direct. Priorité que j'ai fixée : #1 (le reproche le plus
+répété) d'abord, puis icônes premium, fil conducteur, Jarvis.
+
+### Vraie miniature Drive (piste #1)
+- **Racine du défaut** : une vidéo Drive (et une image trop lourde pour le
+  bucket) n'a pour adresse que le lien `drive.google.com/…/view`, une page HTML
+  qu'aucune `<img>` ni `<video>` ne sait afficher · d'où l'icône de repli. Le
+  proxy `drive` savait servir les octets, mais pour une vidéo cela veut dire
+  télécharger la vidéo ENTIÈRE pour une vignette.
+- **Décision** : persister la vraie vignette Google (`thumbnailLink`, dispo pour
+  images ET vidéos) sur NOTRE bucket, à la synchro. La `thumbnailLink` est
+  éphémère et exige un jeton · on la consomme tout de suite (où elle est fraîche)
+  et on garde une copie publique et permanente. Colonne `assets.thumb_url`
+  (migration 0047). La miniature l'essaie d'abord (image légère, même pour une
+  vidéo), puis retombe sur l'ancien affichage par type, puis sur l'icône · cascade
+  increvable prouvée par rendu (`apercu-asset.test.tsx`).
+- **Sans bucket** : `storeDriveThumb` rend `null` sans réseau (garde éprouvé,
+  `drive-thumb.test.ts`) · dégradation propre, jamais bloquant.
+- **À valider par le proprio après déploiement** (proxy sortant bloqué ici) : que
+  les vignettes Drive s'affichent bien (image ET vidéo) après une nouvelle
+  synchro. Les assets déjà synchronisés n'ont pas de `thumb_url` tant qu'ils ne
+  sont pas resynchronisés · leur miniature retombe sur l'ancien comportement.
+
 ## Cadre respecté
 
 - Chaque changement = une PR créée ET mergée (squash), garde validé en le faisant

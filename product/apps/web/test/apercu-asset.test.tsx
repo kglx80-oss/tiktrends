@@ -39,4 +39,20 @@ describe('le rendu de la miniature', () => {
     expect(html).not.toContain('<video');
     expect(html).toContain('🎵');
   });
+
+  it('une vraie vignette gagne · une vidéo Drive montre son <img>, pas un <video> lourd ni l’icône', () => {
+    // Le reproche répété · une vidéo Drive n'avait que le lien /view (injouable)
+    // et retombait sur l'icône. Avec la vignette persistée, on montre le VRAI
+    // visuel, une image légère · et surtout pas un <video> qui télécharge tout.
+    const html = renderToStaticMarkup(<MiniatureAsset kind="video" url="/api/asset/v1" thumbUrl="https://bucket/drive-v1-thumb.jpg" name="clip" icon="🎬" />);
+    expect(html).toContain('src="https://bucket/drive-v1-thumb.jpg"');
+    expect(html).not.toContain('<video');
+    expect(html).not.toContain('🎬');
+  });
+
+  it('sans vignette, une vidéo garde son repli <video> · la cascade ne casse pas l’existant', () => {
+    const html = renderToStaticMarkup(<MiniatureAsset kind="video" url="/api/asset/v2" name="clip" icon="🎬" />);
+    expect(html).toContain('<video');
+    expect(html).toContain('src="/api/asset/v2"');
+  });
 });

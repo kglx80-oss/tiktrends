@@ -1,0 +1,18 @@
+-- La vraie miniature d'un asset Drive, persistée sur notre bucket.
+--
+-- La bibliothèque montrait des icônes à la place des fichiers Drive : une vidéo
+-- (et une image trop lourde pour le bucket) n'avait pour adresse que le lien
+-- `drive.google.com/file/d/…/view`, une page HTML qu'aucune balise `<img>` ni
+-- `<video>` ne sait afficher · d'où l'icône de repli. Google fournit pourtant
+-- une vraie vignette (`thumbnailLink`) pour les images ET les vidéos, mais elle
+-- est éphémère et exige une requête authentifiée · inutilisable telle quelle
+-- des heures plus tard dans le navigateur.
+--
+-- On la capte donc à la synchro (où elle est fraîche et valide), on télécharge
+-- ses octets avec le jeton de la marque et on les range sur notre bucket. Cette
+-- colonne garde l'adresse publique et permanente qui en résulte · la miniature
+-- affiche enfin le vrai visuel, léger et mis en cache, sans ré-authentification.
+--
+-- Nullable : les assets déjà synchronisés (et ceux sans bucket) n'ont pas de
+-- vignette · la miniature retombe alors sur l'ancien comportement.
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS thumb_url text;
