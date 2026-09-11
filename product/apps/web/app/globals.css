@@ -7,6 +7,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400..900&family=Geist+Mono:wght@400..600&display=swap');
 html, body { font-family: var(--font-sans); }
 
+/* Barre de défilement · accordée à la DA sombre.
+   La barre blanche du navigateur jurait sur le fond magenté · elle cassait à
+   elle seule la valeur perçue « premium » de tout l'outil. On la rend discrète,
+   fine et arrondie, dans les tons de l'interface. `scrollbar-*` couvre Firefox,
+   les pseudo-éléments `::-webkit-scrollbar` couvrent Chrome/Safari/Edge. Le
+   pouce se pose en `background-clip: padding-box` derrière une bordure
+   transparente · il paraît fin et détaché des bords. */
+html {
+  scrollbar-width: thin;                                   /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;  /* pouce · piste */
+}
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.30); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
 /* Focus clavier visible · partout.
    Des dizaines d'éléments posent `outline: none` en style INLINE pour masquer le
    halo par défaut au clic · ce faisant, ils l'effacent aussi au clavier, et la
