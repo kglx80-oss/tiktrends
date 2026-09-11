@@ -14,6 +14,7 @@ import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
 import { PageInfo } from '../../../../components/PageInfo';
 import { effectiveAccess } from '../../../../lib/access';
 import { estMonoMarque, hoteRequete, plafondParMarque } from '../../../../lib/scale-requete';
+import { Icon } from '../../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'scale')!;
@@ -49,7 +50,7 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
       <main style={wrap}>
         <h1 style={h1}>Ce qui scale</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ fontSize: 34 }}>🔒</div>
+          <div style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={30} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0' }}>
             {why === 'plan' ? 'La Veille « Ce qui scale » est disponible à partir du plan Core.' : "Ton rôle ne permet pas d'y accéder."}
           </p>
