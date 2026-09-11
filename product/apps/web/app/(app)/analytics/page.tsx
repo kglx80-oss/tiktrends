@@ -7,6 +7,7 @@ import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
 import { PageInfo } from '../../../components/PageInfo';
+import { Icon } from '../../../components/Icon';
 import { MetaKeyMetrics } from './MetaKeyMetrics';
 import { CreativeIntel, type CreativeStats } from './CreativeIntel';
 
@@ -99,7 +100,7 @@ export default async function AnalyticsPage() {
         <MetaKeyMetrics insights={metaInsights} syncedAt={syncedAt} />
       ) : (
         <div style={{ border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 22 }}>📊</span>
+          <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="chart" size={22} /></span>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Branche Meta Ads pour tes vrais KPI</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Dépense, ROAS, CPA, panier moyen, CPC, CPM et tes top créas, avec les variations vs période précédente.</div>
