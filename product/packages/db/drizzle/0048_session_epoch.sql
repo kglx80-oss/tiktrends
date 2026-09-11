@@ -1,0 +1,15 @@
+-- Époque de session · le levier de révocation des jetons déjà émis.
+--
+-- Le cookie de session est un JWT valable 30 jours ; sans époque, rien ne
+-- l'invalide avant terme. Un cookie volé restait donc valide un mois APRÈS un
+-- reset ou un changement de mot de passe · le mécanisme censé reprendre le
+-- compte ne coupait pas l'accès de l'attaquant.
+--
+-- On ajoute un entier par compte. Le jeton fige l'époque à sa création,
+-- getSession rejette toute époque différente, et l'incrémenter (reset,
+-- changement de mot de passe, « déconnecter partout ») révoque d'un coup TOUS
+-- les jetons émis avant. Défaut 0 · aucune session existante n'est coupée au
+-- déploiement. Voir apps/web/lib/session-epoch.ts.
+--
+-- IF NOT EXISTS · idempotent, sûr même si la colonne a déjà été posée.
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "session_epoch" integer DEFAULT 0 NOT NULL;

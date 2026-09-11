@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { randomBytes } from 'crypto';
 import { db, schema } from '@tiktrends/db';
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { hashPassword, verifyPassword, createSession, destroySession, signupOpen } from '../../lib/auth';
 import { hit, reset } from '../../lib/rate-limit';
 import { TRIAL_DEFAULT_CREDITS, TRIAL_DEFAULT_DAYS } from '../../lib/trial';
@@ -112,7 +112,11 @@ export async function resetPasswordAction(formData: FormData): Promise<void> {
     .limit(1);
   if (!row) redirect(`/reset/${token}?e=invalid`);
 
-  await db.update(schema.users).set({ passwordHash: await hashPassword(password) }).where(eq(schema.users.id, row.userId));
+  // Le reset invalide TOUTES les sessions ouvertes · sans l'incrément d'époque,
+  // un cookie volé resterait valide malgré le nouveau mot de passe.
+  await db.update(schema.users)
+    .set({ passwordHash: await hashPassword(password), sessionEpoch: sql`${schema.users.sessionEpoch} + 1` })
+    .where(eq(schema.users.id, row.userId));
   await db.update(schema.passwordResets).set({ usedAt: new Date() }).where(eq(schema.passwordResets.id, row.id));
   redirect('/login?reset=1');
 }

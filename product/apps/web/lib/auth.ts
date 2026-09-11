@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import { db, schema } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
 import type { Role, Plan } from './rbac';
+import { epochDuJeton, sessionEpochValide } from './session-epoch';
 
 const COOKIE = 'tt_session';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 jours
@@ -60,7 +61,14 @@ export async function verifyPassword(pw: string, hash: string): Promise<boolean>
 
 /* ------------------------------- Sessions -------------------------------- */
 export async function createSession(userId: string): Promise<void> {
-  const token = await new SignJWT({ uid: userId })
+  // On fige l'époque courante du compte dans le jeton · un incrément ultérieur
+  // (reset/changement de mot de passe) le rendra caduc. Compte sans ligne = 0.
+  let ep = 0;
+  if (db) {
+    const [u] = await db.select({ e: schema.users.sessionEpoch }).from(schema.users).where(eq(schema.users.id, userId)).limit(1);
+    ep = u?.e ?? 0;
+  }
+  const token = await new SignJWT({ uid: userId, ep })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
@@ -80,13 +88,15 @@ export async function destroySession(): Promise<void> {
   c.delete(COOKIE);
 }
 
-async function readUid(): Promise<string | null> {
+async function readClaims(): Promise<{ uid: string; ep: number } | null> {
   const c = await cookies();
   const token = c.get(COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey());
-    return (payload.uid as string) || null;
+    const uid = (payload.uid as string) || null;
+    if (!uid) return null;
+    return { uid, ep: epochDuJeton(payload) };
   } catch {
     return null;
   }
@@ -95,16 +105,20 @@ async function readUid(): Promise<string | null> {
 /** Session courante (identité fraîche + rôle/plan relus en base). null si absente. */
 export async function getSession(): Promise<Session | null> {
   if (!db) return null;
-  const uid = await readUid();
-  if (!uid) return null;
+  const claims = await readClaims();
+  if (!claims) return null;
 
-  const [u] = await db.select().from(schema.users).where(eq(schema.users.id, uid)).limit(1);
+  const [u] = await db.select().from(schema.users).where(eq(schema.users.id, claims.uid)).limit(1);
   if (!u) return null;
+
+  // Jeton d'une époque révolue (mot de passe changé/réinitialisé depuis son
+  // émission) · on refuse, comme s'il n'y avait pas de session.
+  if (!sessionEpochValide(claims.ep, u.sessionEpoch ?? 0)) return null;
 
   const [m] = await db
     .select()
     .from(schema.workspaceMembers)
-    .where(eq(schema.workspaceMembers.userId, uid))
+    .where(eq(schema.workspaceMembers.userId, claims.uid))
     .limit(1);
   if (!m) return null;
 
