@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 /**
  * État OAuth signé (anti-CSRF) · HMAC avec AUTH_SECRET.
@@ -22,8 +22,14 @@ export function verifyState<T = Record<string, unknown>>(state: string | null | 
   if (!state) return null;
   const [data, sig] = state.split('.');
   if (!data || !sig) return null;
-  const expected = createHmac('sha256', secret()).update(data).digest('base64url');
-  if (sig !== expected) return null;
+  // Comparaison à TEMPS CONSTANT · une comparaison de chaînes s'arrête au premier
+  // octet qui diffère, ce qui laisse mesurer la signature octet par octet. On
+  // compare les digests bruts avec `timingSafeEqual` · la garde de longueur évite
+  // qu'il lève (il exige deux buffers de même taille) et ne fuit rien de plus que
+  // « mauvaise longueur », trivial pour qui connaît SHA-256.
+  const expected = createHmac('sha256', secret()).update(data).digest();
+  const provided = Buffer.from(sig, 'base64url');
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return null;
   try {
     const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8')) as { t?: number } & T;
     if (payload.t && Date.now() - payload.t > maxAgeMs) return null;
