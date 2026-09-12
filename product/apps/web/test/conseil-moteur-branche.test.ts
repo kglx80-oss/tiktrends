@@ -25,6 +25,11 @@ import { join } from 'node:path';
 const ASSISTANT = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AssistantPub.tsx'), 'utf8');
 const STUDIO = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
 const PAGE = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/page.tsx'), 'utf8');
+// La grille de cartes du moteur vit désormais dans son propre composant · l'assistant
+// la lui délègue. Les propriétés d'AFFICHAGE (ligne mesurée, bandeau, badge recommandé)
+// sont couvertes par le garde de RENDU `selecteur-moteur-rendu` · ici on garde le
+// câblage : où le conseil arrive, et qu'aucun réglage ne bouge tout seul.
+const SEL = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/SelecteurMoteur.tsx'), 'utf8');
 
 describe('le conseil traverse jusqu’à l’écran', () => {
   it('la page le calcule depuis le bilan', () => {
@@ -41,9 +46,12 @@ describe('le conseil traverse jusqu’à l’écran', () => {
     expect(PAGE).toMatch(/bilanCopieAction\(\).*\.catch\(/);
   });
 
-  it('le studio le transmet, l’assistant l’affiche', () => {
+  it('le studio le transmet, l’assistant le passe au sélecteur, qui l’affiche', () => {
     expect(STUDIO).toMatch(/conseilMoteurs=\{conseilMoteurs\}/);
-    expect(ASSISTANT, 'le conseil arrive sans jamais s’afficher').toMatch(/\{p\.conseilMoteurs\.lignes\[m\.key\]!\.texte\}/);
+    // L'assistant passe le conseil au sélecteur · il ne l'affiche plus en propre.
+    expect(ASSISTANT, 'le conseil n’arrive plus jusqu’au sélecteur').toMatch(/conseil=\{p\.conseilMoteurs\}/);
+    // Le sélecteur rend la ligne mesurée · le garde de rendu le prouve sur le HTML.
+    expect(SEL, 'le conseil arrive sans jamais s’afficher').toMatch(/\{ligne\.texte\}/);
   });
 });
 
@@ -56,29 +64,36 @@ describe('le mesuré devient le défaut, sans se cacher', () => {
     expect(STUDIO).toMatch(/useState\(moteurParDefaut\(fabrication, conseilMoteurs\.recommande\)\)/);
   });
 
-  it('l’adoption est annoncée, jamais silencieuse', () => {
-    // Un défaut qui suit la mesure sans le dire se lit comme un bug · l'écran
-    // du volume dit qu'on a retenu le moteur mesuré, et montre ses chiffres.
-    // La comparaison se fait au recommandé DU MODE, pas au drapeau figé, et le
-    // bandeau ne s'affiche QU'EN ENTIÈRE · en composée la mesure ne pilote pas,
-    // donc prétendre l'avoir retenue serait faux.
-    expect(ASSISTANT).toMatch(/p\.etat\.mode === 'entiere' && contredit\(p\.conseilMoteurs, recommande\)/);
-    expect(ASSISTANT).toMatch(/On a retenu le moteur que ta mesure désigne/);
+  it('l’adoption est annoncée, jamais silencieuse · et seulement en entière', () => {
+    // Un défaut qui suit la mesure sans le dire se lit comme un bug · le sélecteur
+    // dit qu'on a retenu le moteur mesuré, et montre ses chiffres. La comparaison
+    // se fait au recommandé DU MODE, et le bandeau ne s'affiche QU'EN ENTIÈRE · en
+    // composée la mesure ne pilote pas, donc prétendre l'avoir retenue serait faux.
+    // L'assistant garde le scoping « entière » au point de câblage, le sélecteur
+    // consomme ce drapeau.
+    expect(ASSISTANT, 'le scoping entière n’est plus câblé').toMatch(/mesureActive=\{p\.etat\.mode === 'entiere'\}/);
+    expect(SEL).toMatch(/mesureActive && contredit\(conseil, recommande\)/);
+    expect(SEL).toMatch(/On a retenu le moteur que ta mesure désigne/);
   });
 
   it('aucun `onMoteur` réactif · le défaut se pose une fois, le clic seul change ensuite', () => {
     // Le mesuré fixe l'état initial · il ne doit PAS écraser le choix de
-    // l'utilisateur par un setModel réactif. Le seul `onMoteur` admis est le clic.
-    const appels = (ASSISTANT.match(/p\.onMoteur\(/g) ?? []).length;
-    expect(appels, 'le conseil pilote le réglage en continu au lieu de fixer le défaut').toBe(1);
-    expect(ASSISTANT).toMatch(/onClick=\{\(\) => p\.onMoteur\(m\.key\)\}/);
+    // l'utilisateur par un setter réactif. L'assistant ne fait que PASSER le
+    // rappel (référence, sans parenthèse) · il ne l'appelle jamais lui-même.
+    const appelsAssistant = (ASSISTANT.match(/p\.onMoteur\(/g) ?? []).length;
+    expect(appelsAssistant, 'l’assistant appelle onMoteur en dehors d’un clic').toBe(0);
+    expect(ASSISTANT, 'le rappel n’est plus passé au sélecteur').toMatch(/onChoisir=\{p\.onMoteur\}/);
+    // Dans le sélecteur, le seul appel au rappel est le clic · pas d'effet réactif.
+    const appelsSel = (SEL.match(/onChoisir\(/g) ?? []).length;
+    expect(appelsSel, 'le sélecteur appelle le rappel ailleurs qu’au clic').toBe(1);
+    expect(SEL).toMatch(/onClick=\{\(\) => onChoisir\(m\.key\)\}/);
   });
 
   it('le recommandé du mode reste affiché pour la marque neuve', () => {
     // Sans mesure, le recommandé SELON LE MODE reste le repère · l'effacer
-    // priverait une marque neuve de tout point de départ. Le mode-aware remplace
-    // le drapeau figé du catalogue.
-    expect(ASSISTANT).toMatch(/recommande === m\.key \? ' · recommandé' : ''/);
+    // priverait une marque neuve de tout point de départ. Le sélecteur marque la
+    // carte recommandée à partir du `recommande` passé par l'assistant.
+    expect(SEL).toMatch(/recommande === m\.key/);
   });
 });
 

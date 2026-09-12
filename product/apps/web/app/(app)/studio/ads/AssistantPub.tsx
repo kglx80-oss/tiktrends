@@ -5,10 +5,11 @@ import {
   ETAPES, ETAPE_ROLE, ETAPE_TITRE, dureeAttendue, etapeComplete, etapePrecedente,
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
   AD_DIRECTIONS, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves,
-  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, budgetReprises, moteurRecommande, type ProductionMode, type ConseilMoteur,
+  imageModelByKey, imageTimeoutMs, IMAGE_MODELS, budgetReprises, moteurRecommande, type ProductionMode, type ConseilMoteur,
   CIBLE_TACTILE_MIN, type Etape, type EtatAssistant,
 } from '@tiktrends/core';
 import type { AdTemplate } from '@tiktrends/ai';
+import { SelecteurMoteur } from './SelecteurMoteur';
 
 /**
  * L'assistant · une décision par écran.
@@ -406,53 +407,18 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
       </div>
       <div>
         <Label>Moteur d’image</Label>
-        {/* Quand la mesure désigne un autre moteur que le catalogue, on l'a
-             RETENU par défaut et on le DIT · un défaut adossé à une mesure locale
-             qui a tranché suit ce qu'on a prouvé, il ne bouge pas au hasard. On
-             laisse choisir quand même · l'écran ne décide pas à la place. */}
-        {p.etat.mode === 'entiere' && contredit(p.conseilMoteurs, recommande) && (
-          <p style={{ margin: '0 0 8px', padding: '8px 11px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
-            <b style={{ color: '#7ee8bf' }}>On a retenu le moteur que ta mesure désigne, pas notre recommandation par défaut.</b>{' '}
-            {p.conseilMoteurs.resume}
-          </p>
-        )}
-        <div style={{ display: 'grid', gap: 7 }}>
-          {IMAGE_MODELS.map((m) => {
-            const on = p.etat.moteur === m.key;
-            return (
-              <button key={m.key} type="button" onClick={() => p.onMoteur(m.key)} style={{
-                display: 'grid', gap: 2, padding: '9px 12px', borderRadius: 11, textAlign: 'left',
-                border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
-                background: on ? 'rgba(230,0,126,.06)' : 'transparent', cursor: 'pointer',
-              }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                  {m.label}{recommande === m.key ? ' · recommandé' : ''}
-                  {p.conseilMoteurs.recommande === m.key && (
-                    <span style={{ color: '#7ee8bf' }}> · tient le mieux ta copie ici</span>
-                  )}
-                  <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{' · '}{m.credits} cr. par pub</span>
-                </span>
-                <span style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.4 }}>
-                  {m.note} · {dureeAttendue(1, imageTimeoutMs(m))} par image
-                </span>
-                {/* Ce qu'on a mesuré chez CETTE marque · une ligne par moteur
-                     relu, même sans verdict. Savoir qu'un moteur a douze pubs à
-                     8 % est utile en soi ; le cacher jusqu'à ce qu'il se
-                     détache priverait de la seule information disponible la
-                     plupart du temps. */}
-                {p.conseilMoteurs.lignes[m.key] && (
-                  <span style={{
-                    fontSize: 11.5, lineHeight: 1.4,
-                    color: p.conseilMoteurs.lignes[m.key]!.verdict === 'meilleur' ? '#7ee8bf'
-                      : p.conseilMoteurs.lignes[m.key]!.verdict === 'pire' ? '#ff9db0' : 'var(--ink-2)',
-                  }}>
-                    {p.conseilMoteurs.lignes[m.key]!.texte}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {/* Le choix du moteur · une grille de cartes visuelles, chacune montrant
+             par un exemple dessiné ce que le moteur fait de mieux. Le bandeau de
+             mesure, le recommandé (selon le mode) et les lignes mesurées vivent
+             dans le composant · lui les montre, le noyau les décide. */}
+        <SelecteurMoteur
+          models={IMAGE_MODELS}
+          valeur={p.etat.moteur}
+          onChoisir={p.onMoteur}
+          recommande={recommande}
+          conseil={p.conseilMoteurs}
+          mesureActive={p.etat.mode === 'entiere'}
+        />
       </div>
 
       {/* Le récapitulatif · cinq décisions oubliées ne valent pas mieux qu'onze

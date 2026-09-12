@@ -13,21 +13,36 @@ import { join } from 'node:path';
  *
  * On vérifie donc que l'écran ne réintroduit pas la promesse non fondée.
  */
-const FICHIERS = [
+function lire(rel: string) {
+  return { rel, src: readFileSync(join(process.cwd(), rel), 'utf8') };
+}
+
+// Aucun écran qui touche au moteur ne doit réintroduire la promesse non fondée ·
+// l'assistant délègue désormais sa grille à SelecteurMoteur, on le surveille aussi.
+const SURVEILLES = [
   'app/(app)/studio/ads/AssistantPub.tsx',
   'app/(app)/studio/ads/AdsStudio.tsx',
-].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
+  'app/(app)/studio/ads/SelecteurMoteur.tsx',
+].map(lire);
+
+// Là où le libellé mesuré est RÉELLEMENT rendu · la grille de l'assistant
+// (SelecteurMoteur) et le composeur classique (AdsStudio). L'assistant, lui, ne
+// rend plus ce libellé en propre · il le délègue, donc on ne l'exige plus de lui.
+const RENDENT_LE_LIBELLE = [
+  'app/(app)/studio/ads/SelecteurMoteur.tsx',
+  'app/(app)/studio/ads/AdsStudio.tsx',
+].map(lire);
 
 describe('le libellé du moteur reste honnête', () => {
   it('aucun écran ne promet « le meilleur ici » sur un signal de fidélité de copie', () => {
-    for (const { rel, src } of FICHIERS) {
+    for (const { rel, src } of SURVEILLES) {
       expect(src, `${rel} promet encore « le meilleur » sans base de performance`)
         .not.toMatch(/meilleur ici/);
     }
   });
 
-  it('les deux points de libellé disent ce qui est réellement mesuré · « tient le mieux ta copie »', () => {
-    for (const { rel, src } of FICHIERS) {
+  it('les points de libellé disent ce qui est réellement mesuré · « tient le mieux ta copie »', () => {
+    for (const { rel, src } of RENDENT_LE_LIBELLE) {
       expect(src, `${rel} ne porte plus le libellé honnête`).toContain('tient le mieux ta copie');
     }
   });
