@@ -11,8 +11,10 @@ import { PageInfo } from '../../../components/PageInfo';
 import { NewBrandButton } from '../../../components/NewBrandButton';
 import { ConfirmButton } from '../../../components/ConfirmButton';
 import { anthropicConfigured } from '../../../lib/ai-status';
-import { costFor } from '@tiktrends/core';
+import { costFor, domaineConcurrent } from '@tiktrends/core';
 import { Empty } from '../../../components/Empty';
+import { AvatarSite } from '../../../components/AvatarSite';
+import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,9 +25,6 @@ const ERR: Record<string, string> = {
   shopify_notfound: "Impossible de lire cette boutique automatiquement. Vérifie l'adresse, ou crée la marque puis complète le profil.",
 };
 
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
-}
 
 export default async function BrandsPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const s = await getSession();
@@ -85,14 +84,29 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
         {rows.map((b) => (
           <div key={b.id} style={{ border: `1px solid ${active?.id === b.id ? 'var(--line-2)' : 'var(--line)'}`, borderRadius: 16, background: 'var(--surface)', padding: '16px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, flexShrink: 0 }}>{initials(b.name)}</span>
+              <AvatarSite nom={b.name} site={b.url} />
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>{b.name}</span>
                   {active?.id === b.id && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)' }}>● active</span>}
                 </div>
-                <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
-                  {[b.category || b.industry, b.url].filter(Boolean).join(' · ') || 'Profil à compléter'}
+                <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                  {(() => {
+                    const cat = b.category || b.industry;
+                    const dom = domaineConcurrent(b.url ?? '');
+                    if (!cat && !dom && !b.url) return <span>Profil à compléter</span>;
+                    return (
+                      <>
+                        {cat && <span>{cat}</span>}
+                        {cat && (dom || b.url) && <span aria-hidden="true">·</span>}
+                        {dom ? (
+                          <a href={`https://${dom}`} target="_blank" rel="noopener noreferrer nofollow" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--muted)', textDecoration: 'none' }}>
+                            <Icon name="link" size={11} /> {dom}
+                          </a>
+                        ) : (b.url && <span>{b.url}</span>)}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
