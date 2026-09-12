@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, libelleGagnant, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -204,7 +204,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // aveugle au mode proposait Nano partout, dont en entière où un lot de contrôle
   // l'a montré le mauvais choix. Le changement n'est pas silencieux · l'écran du
   // volume dit ce qui est retenu, et lequel.
-  const [model, setModel] = useState(conseilMoteurs.recommande ?? moteurRecommande(fabrication));
+  const [model, setModel] = useState(moteurParDefaut(fabrication, conseilMoteurs.recommande));
   const modelSpec = imageModelByKey(model);
   /**
    * Combien de publicités un essai produira RÉELLEMENT.
@@ -684,7 +684,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               // copie (plus faible taux de réécriture d'accroche), pas « le plus
               // performant ». « Gagne le marché » se mesure ailleurs (verdict) ·
               // promettre la performance sur un signal de fidélité serait mentir.
-              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${conseilMoteurs.recommande === m.key ? ' · tient le mieux ta copie ici' : moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}` })),
+              options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${fabrication === 'entiere' && conseilMoteurs.recommande === m.key ? ' · tient le mieux ta copie ici' : moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}` })),
               value: model, onChange: setModel,
             },
           ]}

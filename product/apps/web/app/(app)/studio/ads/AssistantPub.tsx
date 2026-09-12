@@ -407,7 +407,7 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
              RETENU par défaut et on le DIT · un défaut adossé à une mesure locale
              qui a tranché suit ce qu'on a prouvé, il ne bouge pas au hasard. On
              laisse choisir quand même · l'écran ne décide pas à la place. */}
-        {contredit(p.conseilMoteurs, recommande) && (
+        {p.etat.mode === 'entiere' && contredit(p.conseilMoteurs, recommande) && (
           <p style={{ margin: '0 0 8px', padding: '8px 11px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
             <b style={{ color: '#7ee8bf' }}>On a retenu le moteur que ta mesure désigne, pas notre recommandation par défaut.</b>{' '}
             {p.conseilMoteurs.resume}

@@ -48,18 +48,21 @@ describe('le conseil traverse jusqu’à l’écran', () => {
 });
 
 describe('le mesuré devient le défaut, sans se cacher', () => {
-  it('le défaut du studio est le moteur mesuré quand il tranche, sinon le mode-aware', () => {
-    // C'est le cœur du changement · l'état INITIAL du moteur suit la mesure,
-    // et retombe sur le recommandé SELON LE MODE (mode-aware), plus « nano » en
-    // dur · Nano proposé partout mettait le mauvais moteur par défaut en entière.
-    expect(STUDIO).toMatch(/useState\(conseilMoteurs\.recommande \?\? moteurRecommande\(fabrication\)\)/);
+  it('le défaut du studio est le moteur mesuré quand il tranche EN ENTIÈRE, sinon le mode-aware', () => {
+    // C'est le cœur du changement · l'état INITIAL du moteur suit la mesure via
+    // moteurParDefaut, qui ne laisse la reco par marque piloter le défaut QU'EN
+    // ENTIÈRE (la relecture ne tourne que là) et retombe sinon sur le recommandé
+    // SELON LE MODE. La règle de scoping vit dans le noyau (garde moteur-par-defaut).
+    expect(STUDIO).toMatch(/useState\(moteurParDefaut\(fabrication, conseilMoteurs\.recommande\)\)/);
   });
 
   it('l’adoption est annoncée, jamais silencieuse', () => {
     // Un défaut qui suit la mesure sans le dire se lit comme un bug · l'écran
     // du volume dit qu'on a retenu le moteur mesuré, et montre ses chiffres.
-    // La comparaison se fait au recommandé DU MODE, pas au drapeau figé.
-    expect(ASSISTANT).toMatch(/contredit\(p\.conseilMoteurs, recommande\)/);
+    // La comparaison se fait au recommandé DU MODE, pas au drapeau figé, et le
+    // bandeau ne s'affiche QU'EN ENTIÈRE · en composée la mesure ne pilote pas,
+    // donc prétendre l'avoir retenue serait faux.
+    expect(ASSISTANT).toMatch(/p\.etat\.mode === 'entiere' && contredit\(p\.conseilMoteurs, recommande\)/);
     expect(ASSISTANT).toMatch(/On a retenu le moteur que ta mesure désigne/);
   });
 
