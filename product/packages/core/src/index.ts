@@ -11,6 +11,8 @@ export * from './economics';
 export * from './score-jarvis';
 export * from './brief-cache';
 export * from './proportion';
+export * from './cible-tactile';
+export * from './verrou-action';
 export * from './launch';
 export * from './briefs';
 export * from './angles';
