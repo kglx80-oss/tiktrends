@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { verrouAction } from '@tiktrends/core';
 import { saveSettingsAction, suggestSettingsAction, type SettingsBundle } from '../../../actions/adsmap-protocol';
 
 /**
@@ -16,6 +17,11 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
   const [fromReal, setFromReal] = useState<boolean | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // Un seul geste à la fois · `busy` est un état qui ne bascule qu'au rendu
+  // suivant, donc deux clics du même tick (proposer/enregistrer en rafale) le
+  // voient tous les deux à false et partent en double. Le verrou synchrone
+  // (partagé par les deux boutons) les arrête · voir verrou-action (noyau).
+  const verrou = useRef(verrouAction());
 
   const setP = <K extends keyof SettingsBundle['protocol']>(k: K, v: SettingsBundle['protocol'][K]) =>
     setS((x) => ({ ...x, protocol: { ...x.protocol, [k]: v } }));
@@ -23,20 +29,30 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
     setS((x) => ({ ...x, verdict: { ...x.verdict, [k]: v } }));
 
   async function proposer() {
+    if (!verrou.current.tenter()) return;
     setBusy(true); setMsg(null);
-    const r = await suggestSettingsAction();
-    setBusy(false);
-    if (r.error || !r.suggestion) { setMsg({ kind: 'err', text: r.error ?? 'Proposition impossible.' }); return; }
-    setS((x) => ({ ...x, protocol: r.suggestion!.protocol, verdict: r.suggestion!.verdict }));
-    setNotes(r.suggestion.notes);
-    setFromReal(r.suggestion.fromRealData);
+    try {
+      const r = await suggestSettingsAction();
+      if (r.error || !r.suggestion) { setMsg({ kind: 'err', text: r.error ?? 'Proposition impossible.' }); return; }
+      setS((x) => ({ ...x, protocol: r.suggestion!.protocol, verdict: r.suggestion!.verdict }));
+      setNotes(r.suggestion.notes);
+      setFromReal(r.suggestion.fromRealData);
+    } finally {
+      setBusy(false);
+      verrou.current.relacher();
+    }
   }
 
   async function enregistrer() {
+    if (!verrou.current.tenter()) return;
     setBusy(true); setMsg(null);
-    const r = await saveSettingsAction(s);
-    setBusy(false);
-    setMsg(r.error ? { kind: 'err', text: r.error } : { kind: 'ok', text: 'Réglages enregistrés · ils s’appliquent aux prochains verdicts calculés.' });
+    try {
+      const r = await saveSettingsAction(s);
+      setMsg(r.error ? { kind: 'err', text: r.error } : { kind: 'ok', text: 'Réglages enregistrés · ils s’appliquent aux prochains verdicts calculés.' });
+    } finally {
+      setBusy(false);
+      verrou.current.relacher();
+    }
   }
 
   const cbo = s.protocol.structure === 'cbo_tolerated';
