@@ -136,3 +136,18 @@ export function consigneAngleMarche(o: { angleLabel?: string | null; marque?: st
   const s = `Reprends l'angle qui domine ${qui} · « ${label} » · c'est sa manière la plus fréquente, éprouvée.${clauseFormat} Écris NOTRE version pour notre produit, sans recopier sa marque ni ses mots.`;
   return s.length <= MAX_CONSIGNE_MARCHE ? s : s.slice(0, MAX_CONSIGNE_MARCHE);
 }
+
+/**
+ * Faut-il BLOQUER le lancement d'un brief concurrent sur cette marque ?
+ *
+ * Le brief part sur une action réseau · pendant qu'un est en cours, cliquer une
+ * AUTRE puce en lancerait un second (double-clic, ou impatience). On tient donc
+ * une seule règle, partagée par le garde du gestionnaire et le `disabled` du
+ * bouton, pour qu'ils ne puissent jamais diverger : bloqué dès qu'un brief tourne
+ * ET que la cible n'est pas la puce déjà ouverte (fermer celle-ci reste permis).
+ *
+ * Pur : aucune dépendance.
+ */
+export function briefConcurrentBloque(o: { enCours: boolean; ouvert: string | null; cible: string }): boolean {
+  return o.enCours && o.ouvert !== o.cible;
+}
