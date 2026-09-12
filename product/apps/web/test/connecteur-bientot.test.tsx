@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConnecteurBientot } from '../components/ConnecteurBientot';
+import { BrandTile } from '../components/BrandIcons';
 
 /**
  * Un connecteur pas encore branchable annonce une feuille de route, pas une panne.
@@ -34,6 +35,21 @@ describe('la carte d’un connecteur à venir', () => {
     // comme cassé. Le statut le remplace.
     expect(html, 'un bouton subsiste dans la carte').not.toContain('<button');
     expect(html).not.toContain('+ Connecter');
+  });
+});
+
+describe('la pastille d’un connecteur · logo réel si connu, sinon monogramme teinté', () => {
+  it('un outil connu rend son vrai logo (un <svg>), pas une initiale', () => {
+    const html = renderToStaticMarkup(<BrandTile name="TikTok Ads" color="#010101" glyph="T" />);
+    expect(html, 'un outil connu doit rendre son logo vectoriel').toContain('<svg');
+  });
+
+  it('un outil sans logo rend un monogramme teinté de sa couleur officielle', () => {
+    const html = renderToStaticMarkup(<BrandTile name="Snowflake" color="#29B5E8" glyph="SN" />);
+    expect(html, 'le monogramme doit être rendu').toContain('SN');
+    // La pastille prend la teinte officielle de l'outil · pas un gris générique.
+    expect(html, 'la couleur officielle doit teinter la pastille').toContain('#29B5E8');
+    expect(html).not.toContain('<svg');
   });
 });
 
