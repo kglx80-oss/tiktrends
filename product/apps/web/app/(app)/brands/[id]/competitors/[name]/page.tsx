@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { partDeMax } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
 import { Msg } from '../../../../../../components/ui';
 import { Icon } from '../../../../../../components/Icon';
+import { BarreLabel } from '../../../../../../components/BarreLabel';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,21 +135,18 @@ function Overview({ report }: { report: CompetitorReport }) {
       <h2 style={sectionH}>Media mix</h2>
       <div style={{ ...card }}>
         {Object.entries(a.byMedia).map(([m, n]) => (
-          <div key={m} style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 4 }}><span style={{ textTransform: 'capitalize' }}>{m}</span><span>{Math.round((n / mediaTotal) * 100)}%</span></div>
-            <div style={{ height: 8, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden' }}><div style={{ width: `${(n / mediaTotal) * 100}%`, height: '100%', background: 'var(--grad-accent)' }} /></div>
-          </div>
+          <BarreLabel key={m} label={m} n={n} max={mediaTotal} valeur={`${Math.round(partDeMax(n, mediaTotal) * 100)}%`} hauteur={8} />
         ))}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
         <div style={card}>
           <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>CTA les plus utilisés</h3>
-          {a.topCtas.length === 0 ? <p style={muted}>Non renseigné.</p> : a.topCtas.map((c) => <Bar key={c.label} label={c.label} n={c.n} max={a.topCtas[0]?.n ?? c.n} />)}
+          {a.topCtas.length === 0 ? <p style={muted}>Non renseigné.</p> : a.topCtas.map((c) => <BarreLabel key={c.label} label={c.label} n={c.n} max={a.topCtas[0]?.n ?? c.n} tronque />)}
         </div>
         <div style={card}>
           <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Landing pages</h3>
-          {a.landingDomains.length === 0 ? <p style={muted}>Non renseigné.</p> : a.landingDomains.map((c) => <Bar key={c.label} label={c.label} n={c.n} max={a.landingDomains[0]?.n ?? c.n} />)}
+          {a.landingDomains.length === 0 ? <p style={muted}>Non renseigné.</p> : a.landingDomains.map((c) => <BarreLabel key={c.label} label={c.label} n={c.n} max={a.landingDomains[0]?.n ?? c.n} tronque />)}
         </div>
       </div>
     </div>
@@ -207,15 +206,6 @@ function Stat({ n, label }: { n: number; label: string }) {
     <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
       <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>{n}</div>
       <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{label}</div>
-    </div>
-  );
-}
-
-function Bar({ label, n, max }: { label: string; n: number; max: number }) {
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', marginBottom: 3 }}><span style={{ maxWidth: '75%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span><span>{n}</span></div>
-      <div style={{ height: 6, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden' }}><div style={{ width: `${Math.max(6, (n / max) * 100)}%`, height: '100%', background: 'var(--grad-accent)' }} /></div>
     </div>
   );
 }
