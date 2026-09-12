@@ -6,7 +6,7 @@ import {
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
   AD_DIRECTIONS, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves,
   imageModelByKey, imageTimeoutMs, IMAGE_MODELS, contredit, budgetReprises, moteurRecommande, type ProductionMode, type ConseilMoteur,
-  type Etape, type EtatAssistant,
+  CIBLE_TACTILE_MIN, type Etape, type EtatAssistant,
 } from '@tiktrends/core';
 import type { AdTemplate } from '@tiktrends/ai';
 
@@ -157,6 +157,7 @@ function Entete({ etape, etat, onAller, onFermer }: {
               title={ouvrable ? ETAPE_TITRE[e] : 'Termine les étapes précédentes.'}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999,
+                minHeight: CIBLE_TACTILE_MIN,
                 fontSize: 11.5, fontWeight: ici ? 800 : 600, cursor: ouvrable ? 'pointer' : 'default',
                 border: `1px solid ${ici ? 'transparent' : 'var(--line-2)'}`,
                 background: ici ? 'var(--grad-accent)' : 'transparent',
@@ -170,6 +171,8 @@ function Entete({ etape, etat, onAller, onFermer }: {
         })}
       </div>
       <button type="button" onClick={onFermer} aria-label="Fermer" style={{
+        minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1,
       }}>×</button>
     </div>
