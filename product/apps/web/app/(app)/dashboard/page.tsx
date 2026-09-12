@@ -9,6 +9,8 @@ import { anthropicConfigured } from '../../../lib/ai-status';
 import { AssistantHome } from '../../../components/AssistantHome';
 import { JourneyPanel } from '../../../components/JourneyPanel';
 import { Bandeau } from '../../../components/Bandeau';
+import { BarreValeur } from '../../../components/BarreValeur';
+import { partDeMax } from '@tiktrends/core';
 import { onboardingState } from '../../../lib/onboarding-state';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +20,9 @@ const gcol: Record<string, string> = { A: '#18cc8c', B: '#7aa2ff', C: '#f5a623',
 
 export default async function Dashboard() {
   const rows = buildDashboard();
+  // Le maximum de dépense du lot · sert à proportionner la barre de chaque carte,
+  // pour que le tri « par dépense » se VOIE au lieu de se lire ligne à ligne.
+  const maxDepense = Math.max(0, ...rows.map((r) => r.spend));
   const s = await getSession();
   let credits = 0;
   let brand: { id: string; name: string } | null = null;
@@ -65,6 +70,9 @@ export default async function Dashboard() {
             </div>
             <div style={{ fontWeight: 700, fontSize: 14, margin: '8px 0 10px', color: 'var(--ink)' }}>{r.title}</div>
             <Row k="Dépense" v={eur(r.spend)} />
+            <div style={{ margin: '2px 0 8px' }}>
+              <BarreValeur part={partDeMax(r.spend, maxDepense)} couleur={gcol[r.grade] ?? 'var(--grad-accent)'} hauteur={5} />
+            </div>
             <Row k="Impressions" v={r.impressions.toLocaleString('fr-FR')} />
             <Row k="CTR" v={(r.ctr * 100).toFixed(2) + '%'} />
             <Row k="ROAS" v={r.roas.toFixed(2) + '×'} />
