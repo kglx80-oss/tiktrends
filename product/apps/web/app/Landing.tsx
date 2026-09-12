@@ -257,7 +257,7 @@ export function Landing() {
                 </div>
               </div>
             </div>
-            <a href="#tarifs">Tarifs</a>
+            <Link href="/tarifs">Tarifs</Link>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <Link href="/login" style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink-2)' }}>Connexion</Link>
