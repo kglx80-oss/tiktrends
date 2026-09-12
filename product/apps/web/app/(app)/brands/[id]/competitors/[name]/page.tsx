@@ -62,25 +62,53 @@ export default async function CompetitorPage({ params, searchParams }: {
             {report ? <>Concurrent analysé · {report.aggregates.adCount} créas · maj {new Date(report.analyzedAt).toLocaleDateString('fr-FR')}</> : 'Concurrent non encore analysé'}
           </div>
         </div>
-        <form action={analyzeCompetitorAction}>
-          <input type="hidden" name="brandId" value={id} />
-          <input type="hidden" name="name" value={name} />
-          <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {report ? 'Rafraîchir l’analyse' : 'Analyser ce concurrent'}</span></button>
-        </form>
+        {/* Un seul appel à l'action · le CTA d'entrée vit dans la carte centrale
+            tant que rien n'est analysé (sinon on afficherait deux fois le même
+            bouton). Ici, il n'apparaît qu'une fois l'analyse faite, pour la
+            rafraîchir. */}
+        {report && (
+          <form action={analyzeCompetitorAction}>
+            <input type="hidden" name="brandId" value={id} />
+            <input type="hidden" name="name" value={name} />
+            <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Rafraîchir l’analyse</span></button>
+          </form>
+        )}
       </div>
 
       {e && ERR[e] && <div style={{ marginTop: 14 }}><Msg kind="err">{ERR[e]}</Msg></div>}
       {report?.note && <div style={{ marginTop: 14 }}><Msg kind="ok">{report.note}</Msg></div>}
 
       {!report ? (
-        <div style={{ marginTop: 20, borderRadius: 16, textAlign: 'center' }}>
-          <p style={{ color: 'var(--ink-2)', fontSize: 14, margin: '0 0 6px' }}>Lance l'analyse pour récupérer les créas de <b>{name}</b> depuis la bibliothèque publicitaire et en extraire les patterns (hooks, angles, USP, désirs, émotions, thèmes).</p>
-          <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 16px' }}>L'analyse consomme des crédits ; le résultat est mis en cache (pas de recalcul à chaque visite).</p>
-          <form action={analyzeCompetitorAction}>
+        <div style={{
+          margin: '24px auto 0', maxWidth: 620, textAlign: 'center',
+          border: '1px solid var(--line-2)', borderRadius: 20, background: 'var(--surface)',
+          padding: 'clamp(24px, 5vw, 36px)',
+          backgroundImage: 'radial-gradient(120% 90% at 50% -10%, rgba(254,44,85,.10), transparent 60%)',
+        }}>
+          <div aria-hidden style={{
+            width: 54, height: 54, margin: '0 auto', borderRadius: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--paper)', border: '1px solid var(--line-2)', color: 'var(--accent-strong)',
+          }}>
+            <Icon name="search" size={24} />
+          </div>
+          <h2 style={{ margin: '15px 0 0', fontSize: 19, fontWeight: 800, color: 'var(--ink)' }}>Analyser {name}</h2>
+          <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.6, margin: '9px auto 0', maxWidth: 470 }}>
+            On récupère ses créas depuis la bibliothèque publicitaire et on en extrait ce qui marche · de quoi t'en inspirer sans repartir de zéro.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, justifyContent: 'center', margin: '18px 0 2px' }}>
+            {['Hooks', 'Angles', 'USP', 'Désirs', 'Émotions', 'Thèmes'].map((c) => (
+              <span key={c} style={{
+                fontSize: 12, fontWeight: 700, color: 'var(--ink-2)',
+                padding: '5px 12px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--paper)',
+              }}>{c}</span>
+            ))}
+          </div>
+          <form action={analyzeCompetitorAction} style={{ marginTop: 20 }}>
             <input type="hidden" name="brandId" value={id} />
             <input type="hidden" name="name" value={name} />
             <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Analyser ce concurrent</span></button>
           </form>
+          <p style={{ color: 'var(--muted)', fontSize: 11.5, margin: '13px 0 0' }}>Consomme des crédits · le résultat est mis en cache, pas de recalcul à chaque visite.</p>
         </div>
       ) : (
         <>
