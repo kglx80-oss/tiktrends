@@ -8,6 +8,7 @@ import {
   type EtapeImage, type EtatAssistantImage,
 } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
+import { GrilleMoteurs } from '../../../../components/GrilleMoteurs';
 
 /**
  * Le studio Image, guidé · une décision à la fois.
@@ -177,9 +178,9 @@ export function AssistantImage(p: Props) {
               </div>
               <div>
                 <Label>Moteur d’image</Label>
-                <select value={p.etat.moteur} onChange={(e) => p.onMoteur(e.target.value)} style={champ}>
-                  {p.moteurs.map((m) => <option key={m.key} value={m.key}>{m.label}{m.recommended ? ' · recommandé' : ''}</option>)}
-                </select>
+                {/* Grille de cartes · même présentation des modèles que le studio
+                    Pubs IA, chaque moteur avec l'exemple qui incarne sa force. */}
+                <GrilleMoteurs moteurs={p.moteurs} valeur={p.etat.moteur} onChoisir={p.onMoteur} />
               </div>
               {/* Le récapitulatif · relu avant de payer. */}
               <div style={{ display: 'grid', gap: 5, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--paper)' }}>
