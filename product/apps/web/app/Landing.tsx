@@ -51,18 +51,22 @@ const CSS = `
 .lp *{box-sizing:border-box}
 .lp h1,.lp h2,.lp h3,.lp p{margin:0}
 .lp a{text-decoration:none;color:inherit}
+html{scroll-behavior:smooth}
+.lp-navlinks a{transition:color .18s ease}
 .lp-wrap{max-width:1180px;margin:0 auto;padding:0 clamp(20px,5vw,40px)}
 .lp-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(18,8,16,0.7);border-bottom:1px solid rgba(255,255,255,0.08)}
 .lp-navrow{height:70px;display:flex;align-items:center;justify-content:space-between}
 .lp-navlinks{display:flex;align-items:center;gap:30px;font-size:15px;font-weight:500;color:var(--ink2)}
 .lp-navlinks a:hover{color:var(--ink)}
-.lp-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);font-size:13px;color:var(--ink2);font-weight:500}
+.lp-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);font-size:13px;color:var(--ink2);font-weight:500;transition:border-color .2s ease,background .2s ease}
+.lp-pill:hover{border-color:rgba(255,255,255,0.26);background:rgba(255,255,255,0.07)}
 .lp-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#fe2c55 0%,#ff2d8f 100%);color:#fff;border:0;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -8px rgba(254,44,85,0.6);transition:transform .2s ease,box-shadow .2s ease}
 .lp-btn:hover{transform:translateY(-2px);box-shadow:0 16px 40px -10px rgba(254,44,85,0.8)}
 .lp-btn.sm{padding:11px 20px;font-size:14px}
 .lp-ghost{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:rgba(255,255,255,0.05);color:var(--ink);border:1px solid rgba(255,255,255,0.16);border-radius:999px;padding:15px 26px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s ease,border-color .2s ease}
 .lp-ghost:hover{background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.28)}
-.lp-card{background:#1c121b;border:1px solid rgba(255,255,255,0.10);border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,0.40)}
+.lp-card{background:#1c121b;border:1px solid rgba(255,255,255,0.10);border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,0.40);transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
+.lp-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,0.2);box-shadow:0 20px 44px -20px rgba(0,0,0,0.65)}
 .lp-eyebrow{font-size:13px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#ff5c8a}
 .lp-mono{font-family:'Geist Mono','SFMono-Regular',monospace}
 .lp-muted{color:var(--muted)}.lp-ink2{color:var(--ink2)}
@@ -91,6 +95,8 @@ const CSS = `
 @keyframes lpMarqR{from{transform:translateX(-1296px)}to{transform:translateX(0)}}
 @keyframes lpRise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
 @keyframes lpFloaty{0%,100%{transform:rotate(-6deg) scale(1.3) translateY(0)}50%{transform:rotate(-6deg) scale(1.3) translateY(-16px)}}
+@keyframes lpEnter{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+.lp-reveal{animation:lpEnter .8s cubic-bezier(.2,.7,.2,1) both;animation-timeline:view();animation-range:entry 0% cover 30%}
 @media (max-width:820px){
   .lp-navlinks{display:none}
   .lp-feat{grid-template-columns:1fr}
@@ -98,8 +104,9 @@ const CSS = `
   .lp-g4{grid-template-columns:1fr 1fr}
 }
 @media (prefers-reduced-motion:reduce){
-  .lp-marq,.lp-rise,.lp-wall{animation:none!important}
-  .lp-gcard,.lp-btn,.lp-ghost{transition:none}
+  .lp-marq,.lp-rise,.lp-wall,.lp-reveal{animation:none!important}
+  .lp-gcard,.lp-btn,.lp-ghost,.lp-card,.lp-pill{transition:none}
+  html{scroll-behavior:auto}
 }
 `;
 
@@ -198,7 +205,7 @@ export function Landing() {
       </header>
 
       {/* PROBLÈME */}
-      <section className="lp-wrap" style={{ padding: '64px 40px 24px' }}>
+      <section className="lp-wrap lp-reveal" style={{ padding: '64px 40px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
           <div className="lp-eyebrow" style={{ marginBottom: 14, color: '#f5a623' }}>Le problème</div>
           <h2 className="lp-h2">Créer à l'aveugle coûte cher</h2>
@@ -221,7 +228,7 @@ export function Landing() {
       </section>
 
       {/* MÉTHODE */}
-      <section id="methode" className="lp-wrap" style={{ padding: '64px 40px 24px' }}>
+      <section id="methode" className="lp-wrap lp-reveal" style={{ padding: '64px 40px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
           <div className="lp-eyebrow" style={{ marginBottom: 14 }}>La méthode</div>
           <h2 className="lp-h2">Hypothèse, itération, résultat mesuré</h2>
@@ -247,7 +254,7 @@ export function Landing() {
       </section>
 
       {/* GALERIE */}
-      <section id="galerie">
+      <section id="galerie" className="lp-reveal">
         <div className="lp-wrap" style={{ padding: '56px 40px 14px', textAlign: 'center' }}>
           <div className="lp-eyebrow" style={{ marginBottom: 14 }}>La galerie</div>
           <h2 className="lp-h2">Un flux de gagnantes potentielles, en continu</h2>
@@ -264,7 +271,7 @@ export function Landing() {
       </section>
 
       {/* STUDIO IA */}
-      <section className="lp-wrap" style={{ padding: '60px 40px 20px' }}>
+      <section className="lp-wrap lp-reveal" style={{ padding: '60px 40px 20px' }}>
         <div className="lp-feat">
           <div>
             <div className="lp-eyebrow" style={{ marginBottom: 14 }}>Studio IA</div>
@@ -295,7 +302,7 @@ export function Landing() {
       </section>
 
       {/* OBSERVATOIRE */}
-      <section className="lp-wrap" style={{ padding: '60px 40px 20px' }}>
+      <section className="lp-wrap lp-reveal" style={{ padding: '60px 40px 20px' }}>
         <div className="lp-feat">
           <div className="lp-card" style={{ padding: 22, background: 'linear-gradient(160deg,#141a22,#111318)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -331,7 +338,7 @@ export function Landing() {
       </section>
 
       {/* ADSMAP */}
-      <section id="adsmap" className="lp-wrap" style={{ padding: '60px 40px 30px' }}>
+      <section id="adsmap" className="lp-wrap lp-reveal" style={{ padding: '60px 40px 30px' }}>
         <div className="lp-feat">
           <div>
             <div className="lp-eyebrow" style={{ marginBottom: 14, color: '#7fe3c0' }}>Laboratoire · Adsmap</div>
@@ -367,7 +374,7 @@ export function Landing() {
       </section>
 
       {/* TARIFS */}
-      <section id="tarifs">
+      <section id="tarifs" className="lp-reveal">
         <div className="lp-wrap" style={{ padding: '60px 40px 28px', textAlign: 'center' }}>
           <div className="lp-eyebrow" style={{ marginBottom: 14 }}>Tarifs</div>
           <h2 className="lp-h2">Un tarif par niveau de la boucle</h2>
@@ -392,7 +399,7 @@ export function Landing() {
       </section>
 
       {/* CTA FINAL */}
-      <section style={{ position: 'relative', overflow: 'hidden', marginTop: 20 }}>
+      <section className="lp-reveal" style={{ position: 'relative', overflow: 'hidden', marginTop: 20 }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(700px 340px at 50% 100%,rgba(254,44,85,0.3),transparent 65%)' }} />
         <div className="lp-wrap" style={{ position: 'relative', zIndex: 2, padding: '90px 40px', textAlign: 'center' }}>
           <h2 style={{ fontSize: 'clamp(34px,5vw,52px)', fontWeight: 850, letterSpacing: '-0.03em', maxWidth: 760, margin: '0 auto', textWrap: 'balance' }}>Arrête de deviner. Mesure, et trouve tes gagnantes.</h2>
