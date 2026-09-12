@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { domaineConcurrent, initialesConcurrent, tinteConcurrent } from '@tiktrends/core';
+import { domaineConcurrent } from '@tiktrends/core';
 import { Icon } from './Icon';
+import { AvatarSite } from './AvatarSite';
 
 /**
  * Une carte de concurrent · plus lisible qu'une ligne grise.
@@ -24,30 +25,15 @@ import { Icon } from './Icon';
  */
 export function CarteConcurrent({ nom, brandId }: { nom: string; brandId: string }) {
   const domaine = domaineConcurrent(nom);
-  const tinte = tinteConcurrent(nom);
   const analyser = `/brands/${brandId}/competitors/${encodeURIComponent(nom)}`;
-  const fond = `linear-gradient(135deg, ${tinte.de}, ${tinte.vers})`;
-  const avatarStyle: React.CSSProperties = domaine
-    ? {
-        backgroundImage: `url("https://www.google.com/s2/favicons?domain=${encodeURIComponent(domaine)}&sz=64"), ${fond}`,
-        backgroundSize: '22px 22px, cover',
-        backgroundPosition: 'center, center',
-        backgroundRepeat: 'no-repeat, no-repeat',
-      }
-    : { background: fond };
   return (
     <div style={{
       display: 'grid', gap: 8, border: '1px solid var(--line)', borderRadius: 14,
       background: 'var(--surface)', padding: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Link href={analyser} aria-label={`Analyser ${nom}`} style={{
-          width: 44, height: 44, flexShrink: 0, borderRadius: 11, textDecoration: 'none',
-          border: '1px solid var(--line-2)', color: '#fff',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 800, fontSize: 14, letterSpacing: '.02em', ...avatarStyle,
-        }}>
-          {!domaine && initialesConcurrent(nom)}
+        <Link href={analyser} aria-label={`Analyser ${nom}`} style={{ display: 'inline-flex', flexShrink: 0, borderRadius: 11, textDecoration: 'none' }}>
+          <AvatarSite nom={nom} site={nom} taille={44} rayon={11} />
         </Link>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Link href={analyser} style={{ display: 'block', fontSize: 14, fontWeight: 800, color: 'var(--ink)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</Link>

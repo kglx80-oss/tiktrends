@@ -9,6 +9,7 @@ import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } f
 import { Msg } from '../../../../../../components/ui';
 import { Icon } from '../../../../../../components/Icon';
 import { BarreLabel } from '../../../../../../components/BarreLabel';
+import { AvatarSite } from '../../../../../../components/AvatarSite';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,14 +49,16 @@ export default async function CompetitorPage({ params, searchParams }: {
 
   const report = await getCompetitorReport(id, name);
   const ins = report?.insights;
-  const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
+  // Le site du concurrent · le domaine d'atterrissage mesuré une fois analysé
+  // (sa vraie adresse), sinon le nom saisi (qui peut être un domaine).
+  const site = report?.aggregates.landingDomains?.[0]?.label ?? name;
 
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
       <Link href={`/brands/${id}?tab=competitors`} style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ {b.name} · Concurrents</Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>
-        <span style={{ width: 46, height: 46, borderRadius: 12, background: '#1b1420', border: '1px solid var(--line-2)', color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15 }}>{initials}</span>
+        <AvatarSite nom={name} site={site} taille={46} />
         <div style={{ flex: 1, minWidth: 180 }}>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>{name}</h1>
           <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
