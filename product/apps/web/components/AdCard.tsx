@@ -43,7 +43,11 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
         </div>
       </div>
       <div style={{ padding: '11px 12px', display: 'grid', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* minWidth:0 · la rangée est un enfant de grille et le nom un flex-item ·
+            sans ça (min-width auto par défaut) l'ellipsis voulue sur le nom
+            n'opère pas et un annonceur au nom long pousse le badge et le bouton
+            Suivre hors de la carte. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           {/* Le logo plateforme quand il existe · sinon une identité de repli
               (favicon du site d'atterrissage, ou initiales teintées) plutôt qu'un
               nom nu · même traitement d'identité que le reste de l'outil. */}
@@ -52,7 +56,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
           ) : (
             <AvatarSite nom={ad.advertiserName || 'Annonceur'} site={ad.landingDomain} taille={22} rayon={11} />
           )}
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ad.advertiserName || 'Annonceur'}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
           {gagnant && <span title="Éprouvée · tient dans le temps ou sa portée progresse" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Gagnant</span>}
           <FollowButton ad={ad} initialFollowing={following} />
         </div>

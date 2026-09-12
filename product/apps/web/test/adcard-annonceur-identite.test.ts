@@ -24,4 +24,12 @@ describe('l’annonceur a une identité, avec ou sans logo', () => {
       /<AvatarSite nom=\{ad\.advertiserName \|\| 'Annonceur'\} site=\{ad\.landingDomain\}/,
     );
   });
+
+  it('un nom d’annonceur long ne pousse pas le badge ni le bouton hors carte', () => {
+    // Même classe de bug que les cartes concurrents · la rangée (enfant de
+    // grille) et le nom (flex-item) doivent porter minWidth:0 pour que l'ellipsis
+    // opère au lieu de déborder. AdCard tire des actions serveur → garde source.
+    expect(src, 'la rangée annonceur ne peut pas rétrécir').toMatch(/gap: 8, minWidth: 0 \}\}>/);
+    expect(src, 'le nom ne peut pas s’ellipser').toContain('flex: 1, minWidth: 0');
+  });
 });
