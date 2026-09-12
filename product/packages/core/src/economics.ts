@@ -220,6 +220,22 @@ export function moteurRecommande(mode: ProductionMode): string {
   return mode === 'entiere' ? 'gpt2' : MOTEUR_RECOMMANDE_CATALOGUE;
 }
 
+/**
+ * Le moteur par défaut retenu, mesure de marque comprise · mais seulement là où
+ * la mesure vaut.
+ *
+ * La relecture ne tourne que sur les pubs générées ENTIÈRES · c'est donc la
+ * seule mesure dont on dispose, et elle juge la typographie que le moteur écrit
+ * lui-même. En COMPOSÉE, c'est nous qui écrivons le texte · un moteur qui
+ * réécrit moins souvent l'accroche en entière n'y dit rien, et le bon défaut
+ * reste celui, conscient du mode, que le catalogue mesuré désigne (Nano, pour
+ * la fidélité produit). On ne laisse donc la reco par marque piloter le défaut
+ * QU'EN ENTIÈRE · ailleurs elle se tait, comme partout où la mesure ne porte pas.
+ */
+export function moteurParDefaut(mode: ProductionMode, recommandeMesure: string | null | undefined): string {
+  return mode === 'entiere' && recommandeMesure ? recommandeMesure : moteurRecommande(mode);
+}
+
 export interface CostAnalysis extends CostItem {
   credits: number;         // crédits actuellement facturés (barème)
   resaleEur: number;       // prix de revente actuel (crédits × CREDIT_EUR)
