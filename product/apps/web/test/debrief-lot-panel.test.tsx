@@ -55,3 +55,28 @@ describe('le panneau montre le verdict du lot', () => {
     expect(out).toContain('M10.3 3.9');
   });
 });
+
+describe('le débrief est actionnable · il amène sur les pubs à reprendre', () => {
+  const casse = debriefLot([...relectures({}, 4), ...relectures({ accrocheReecrite: true }, 2)]);
+  const propre = debriefLot(relectures({}, 6));
+
+  function rendu(d: Parameters<typeof DebriefLotPanel>[0]['d'], nCassees: number, onReprendre?: () => void): string {
+    return renderToStaticMarkup(<DebriefLotPanel d={d} nCassees={nCassees} onReprendre={onReprendre} />);
+  }
+
+  it('un lot avec des pubs cassées offre un bouton pour les reprendre', () => {
+    const out = rendu(casse, 2, () => {});
+    expect(out, 'le bouton de reprise doit être rendu').toContain('Reprendre 2 pubs cassées');
+  });
+
+  it('un lot propre n’offre aucun bouton de reprise', () => {
+    // toutBon · rien à reprendre, même si on passait un compteur par erreur.
+    expect(rendu(propre, 0, () => {})).not.toContain('Reprendre');
+    expect(rendu(propre, 3, () => {})).not.toContain('Reprendre');
+  });
+
+  it('sans callback ou sans pub cassée, pas de bouton', () => {
+    expect(rendu(casse, 2, undefined), 'pas de reprise sans callback').not.toContain('Reprendre');
+    expect(rendu(casse, 0, () => {}), 'pas de reprise sans pub cassée').not.toContain('Reprendre');
+  });
+});

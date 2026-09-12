@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { debriefLot, type RelecturePub } from '../src/adsmap/debrief-lot';
+import { debriefLot, controleCasse, type RelecturePub, type ControleLu } from '../src/adsmap/debrief-lot';
 
 /**
  * Le débrief d'un lot entière.
@@ -100,5 +100,27 @@ describe('le produit ne se compte que sur les pubs avec référence', () => {
     expect(d.toutBon).toBe(true);
     expect(d.resume).toContain('aucune photo produit');
     expect(d.resume).toContain('n’a pas pu être vérifiée');
+  });
+});
+
+describe('controleCasse · les trois écarts éliminatoires, et rien d’autre', () => {
+  const base: ControleLu = { copieResume: '', copieGrave: false, produitFidele: true, texteLisible: true };
+
+  it('accroche réécrite (copieGrave), produit modifié ou texte illisible cassent la pub', () => {
+    expect(controleCasse({ ...base, copieGrave: true })).toBe(true);
+    expect(controleCasse({ ...base, produitFidele: false })).toBe(true);
+    expect(controleCasse({ ...base, texteLisible: false })).toBe(true);
+  });
+
+  it('un écart mineur ou une absence de mesure ne cassent pas', () => {
+    // copieResume rempli mais non grave · produit/texte non regardés (null).
+    expect(controleCasse({ ...base, copieResume: 'accents' })).toBe(false);
+    expect(controleCasse({ ...base, produitFidele: null, texteLisible: null })).toBe(false);
+    expect(controleCasse(base)).toBe(false);
+  });
+
+  it('rien à contrôler (null/undefined) n’est pas cassé', () => {
+    expect(controleCasse(null)).toBe(false);
+    expect(controleCasse(undefined)).toBe(false);
   });
 });
