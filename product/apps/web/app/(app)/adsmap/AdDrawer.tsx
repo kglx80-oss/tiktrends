@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { VerdictValue, TestedVariable } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -136,7 +137,8 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
             )}
           </div>
           <button type="button" onClick={onClose} aria-label="Fermer" style={{
-            width: 28, height: 28, borderRadius: 8, border: '1px solid var(--line-2)',
+            width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 8, border: '1px solid var(--line-2)',
             background: 'var(--paper)', color: 'var(--ink-2)', cursor: 'pointer', flexShrink: 0,
           }}>✕</button>
         </div>
