@@ -2,12 +2,14 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { partDeMax } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { unlimitedCredits } from '../../../lib/credits';
 import { PageInfo } from '../../../components/PageInfo';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
+import { BarreValeur } from '../../../components/BarreValeur';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,8 +106,8 @@ export default async function UsagePage() {
             {families.map(([label, { icon, total }]) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 130, fontSize: 12.5, color: 'var(--ink-2)' }}>{icon} {label}</span>
-                <div style={{ flex: 1, height: 10, background: 'var(--paper)', borderRadius: 999, overflow: 'hidden' }}>
-                  <div style={{ width: `${(total / maxFamily) * 100}%`, height: '100%', background: 'var(--grad-accent)', borderRadius: 999 }} />
+                <div style={{ flex: 1 }}>
+                  <BarreValeur part={partDeMax(total, maxFamily)} hauteur={10} piste="var(--paper)" />
                 </div>
                 <span style={{ width: 62, textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{fmt(total)}</span>
               </div>

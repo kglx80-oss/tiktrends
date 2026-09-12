@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
+import { BarreValeur } from '../../../components/BarreValeur';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT } from '@tiktrends/core';
+import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { panel, Msg } from '../../../components/ui';
@@ -102,8 +103,8 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         <div style={card}>
           <div style={cl}>Consommé ce cycle</div>
           <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--ink)' }}>{usedPct}%</div>
-          <div style={{ height: 8, background: 'var(--bg)', borderRadius: 999, overflow: 'hidden', marginTop: 8 }}>
-            <div style={{ width: `${usedPct}%`, height: '100%', background: 'var(--grad-accent)' }} />
+          <div style={{ marginTop: 8 }}>
+            <BarreValeur part={partDeMax(usedPct, 100)} hauteur={8} piste="var(--bg)" />
           </div>
         </div>
       </div>
