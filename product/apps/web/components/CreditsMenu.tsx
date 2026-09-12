@@ -5,6 +5,7 @@ import { useState, type CSSProperties } from 'react';
 import { CREDIT_PACKS } from '../lib/credit-packs';
 import { createTopupCheckoutAction } from '../app/actions/stripe';
 import { Icon } from './Icon';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * Puce de crédits (solde réel) façon Pletor + menu au clic :
@@ -64,7 +65,7 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
                       <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>crédits</span>
                       <span style={{ flex: 1 }} />
                       <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>{p.eur} €</span>
-                      <button type="submit" style={{ fontSize: 11.5, fontWeight: 800, padding: '5px 12px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', cursor: 'pointer' }}>Acheter</button>
+                      <button type="submit" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, fontWeight: 800, padding: '5px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', cursor: 'pointer', flexShrink: 0 }}>Acheter</button>
                     </form>
                   ))}
                 </div>
@@ -82,7 +83,7 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
 
       <button type="button" onClick={() => setOpen((o) => !o)} title={`Crédits : ${unlimited ? 'illimité' : display}`}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: collapsed ? 6 : '8px 11px', borderRadius: 999,
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: collapsed ? 6 : '8px 11px', borderRadius: 999,
           border: '1px solid ' + (unlimited ? 'rgba(245,166,35,.4)' : 'rgba(254,44,85,.28)'),
           background: unlimited ? 'rgba(245,166,35,.12)' : 'rgba(254,44,85,.10)',
           color: unlimited ? '#f5c877' : 'var(--accent-strong)', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start',
