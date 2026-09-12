@@ -37,10 +37,26 @@ export function domaineConcurrent(saisie: string): string | null {
  * Les initiales d'un concurrent · l'initiale des deux premiers mots, ou les deux
  * premières lettres d'un mot unique. Toujours en majuscules, jamais vide sur une
  * saisie non vide.
+ *
+ * ── Le bug que ça répare ─────────────────────────────────────────────────────
+ *
+ * Un nom comme « HVMN (Nootropics) » ou « Feel (compléments France) » donnait
+ * « H( » / « F( » · l'initiale prenait le premier caractère du deuxième « mot »,
+ * qui était une parenthèse. On retire d'abord les groupes entre parenthèses (un
+ * qualificatif, pas le nom), puis toute ponctuation de tête de chaque mot.
  */
 export function initialesConcurrent(nom: string): string {
-  const mots = nom.trim().split(/\s+/).filter(Boolean);
-  if (mots.length === 0) return '?';
+  const mots = nom
+    .replace(/\([^)]*\)/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .map((m) => m.replace(/^[^\p{L}\p{N}]+/u, ''))
+    .filter(Boolean);
+  if (mots.length === 0) {
+    // Que de la ponctuation, ou vide · on récupère les lettres/chiffres restants.
+    const brut = nom.replace(/[^\p{L}\p{N}]/gu, '');
+    return brut ? brut.slice(0, 2).toUpperCase() : '?';
+  }
   if (mots.length === 1) return mots[0]!.slice(0, 2).toUpperCase();
   return (mots[0]![0]! + mots[1]![0]!).toUpperCase();
 }

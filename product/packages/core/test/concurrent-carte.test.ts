@@ -52,9 +52,26 @@ describe('les initiales sont toujours lisibles', () => {
     expect(initialesConcurrent('a')).toBe('A');
   });
 
-  it('une saisie vide ne casse pas · un repli visible', () => {
+  it('un qualificatif entre parenthèses ne pollue jamais les initiales', () => {
+    // Le bug remonté par un vrai lot : « HVMN (Nootropics) » donnait « H( »,
+    // « Feel (compléments France) » donnait « F( ». La parenthèse n'est pas une
+    // initiale · on retire le groupe entre parenthèses d'abord.
+    expect(initialesConcurrent('HVMN (Nootropics)')).toBe('HV');
+    expect(initialesConcurrent('Feel (compléments France)')).toBe('FE');
+    expect(initialesConcurrent('Compléments Nutripure Focus')).toBe('CN');
+    expect(initialesConcurrent('Boissons énergisantes type Celsius')).toBe('BÉ');
+    // Aucune initiale ne doit être une ponctuation.
+    for (const n of ['HVMN (Nootropics)', 'Feel (compléments France)', '(x) marque', '— tiret']) {
+      expect(initialesConcurrent(n), `${n} · initiale non alphanumérique`).toMatch(/^[\p{L}\p{N}]+$/u);
+    }
+  });
+
+  it('une saisie vide ou uniquement ponctuée ne casse pas · un repli visible', () => {
     expect(initialesConcurrent('')).toBe('?');
     expect(initialesConcurrent('   ')).toBe('?');
+    // Que des parenthèses · on récupère les lettres qui restent plutôt que « ( ».
+    expect(initialesConcurrent('(x)')).toBe('X');
+    expect(initialesConcurrent('()')).toBe('?');
   });
 });
 
