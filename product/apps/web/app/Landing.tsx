@@ -199,12 +199,10 @@ export function Landing() {
 
       {/* MÉTHODE */}
       <section id="methode" className="lp-wrap" style={{ padding: '64px 40px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 30 }}>
-          <div>
-            <div className="lp-eyebrow" style={{ marginBottom: 12 }}>La méthode</div>
-            <h2 className="lp-h2" style={{ maxWidth: 560 }}>Hypothèse, itération, résultat mesuré</h2>
-          </div>
-          <p className="lp-muted" style={{ fontSize: 15, maxWidth: 360 }}>Faire et gérer les hypothèses pour affiner les résultats et trouver plus vite de nouvelles gagnantes. C'est tout le cap du produit.</p>
+        <div style={{ textAlign: 'center', marginBottom: 30 }}>
+          <div className="lp-eyebrow" style={{ marginBottom: 14 }}>La méthode</div>
+          <h2 className="lp-h2">Hypothèse, itération, résultat mesuré</h2>
+          <p className="lp-muted" style={{ fontSize: 15, maxWidth: 520, margin: '14px auto 0' }}>Faire et gérer les hypothèses pour affiner les résultats et trouver plus vite de nouvelles gagnantes. C'est tout le cap du produit.</p>
         </div>
         <div className="lp-g3">
           <div className="lp-card" style={{ padding: 28 }}>
@@ -212,7 +210,7 @@ export function Landing() {
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Formule une intuition</h3>
             <p className="lp-muted" style={{ fontSize: 14 }}>« La preuve sociale bat le prix sur ce produit. » Tu pars de la Veille et du Radar produits pour choisir l'angle à tester.</p>
           </div>
-          <div className="lp-card" style={{ padding: 28, borderColor: 'rgba(254,44,85,0.3)' }}>
+          <div className="lp-card" style={{ padding: 28 }}>
             <div className="lp-mono" style={{ fontSize: 13, color: '#ff5c8a', fontWeight: 600, marginBottom: 14 }}>02 / itération</div>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Génère un lot</h3>
             <p className="lp-muted" style={{ fontSize: 14 }}>Le Studio IA produit les variantes, statique et vidéo, avec directions artistiques. Le tri des propositions garde les meilleures.</p>
