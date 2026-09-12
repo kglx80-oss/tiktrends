@@ -12,7 +12,7 @@ import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../lib/jarv
 import { spendStatus } from '../../../lib/spend-guard';
 import { currentDeployment } from '../../../lib/deployment';
 import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction, bilanCopieAction, calibrationScoreAction } from '../../actions/adsmap-attribution';
-import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
+import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, partDeMax, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { Icon } from '../../../components/Icon';
 import { JarvisRules } from './JarvisRules';
@@ -21,6 +21,7 @@ import { JarvisChat } from './JarvisChat';
 import { DescribePanel } from './DescribePanel';
 import { MarketPanel } from './MarketPanel';
 import { Empty } from '../../../components/Empty';
+import { BarreValeur } from '../../../components/BarreValeur';
 
 export const dynamic = 'force-dynamic';
 
@@ -815,10 +816,13 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
                     return (
                       <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ width: 210, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.key}>{r.key}</span>
-                        <div style={{ flex: 1, height: 9, background: 'var(--paper)', borderRadius: 999, overflow: 'hidden', position: 'relative' }}>
-                          <div style={{ width: `${(r.hitRate ?? 0) * 100}%`, height: '100%', borderRadius: 999, background: au_dessus ? 'linear-gradient(90deg,#4fd1a5,#7ee8bf)' : 'var(--grad-accent)' }} />
+                        <div style={{ flex: 1, position: 'relative' }}>
+                          <BarreValeur
+                            part={partDeMax(r.hitRate ?? 0, 1)} hauteur={9} piste="var(--paper)"
+                            couleur={au_dessus ? 'linear-gradient(90deg,#4fd1a5,#7ee8bf)' : 'var(--grad-accent)'}
+                          />
                           {globalRate !== null && (
-                            <div title="Moyenne de la marque" style={{ position: 'absolute', left: `${globalRate * 100}%`, top: -2, width: 1, height: 13, background: 'var(--muted)' }} />
+                            <div title="Moyenne de la marque" style={{ position: 'absolute', left: `${partDeMax(globalRate, 1) * 100}%`, top: -2, width: 1, height: 13, background: 'var(--muted)' }} />
                           )}
                         </div>
                         <span style={{ width: 48, textAlign: 'right', fontSize: 12.5, fontWeight: 800, color: au_dessus ? '#7ee8bf' : 'var(--ink-2)' }}>{pct(r.hitRate!)}</span>
