@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { partDeMax } from '@tiktrends/core';
 import { marketViewAction, learnFromFollowedAction, type MarketView } from '../../actions/market-learn';
+import { BarreValeur } from '../../../components/BarreValeur';
 
 /**
  * Ce que fait le marché, et où nos chiffres le contredisent.
@@ -133,8 +135,8 @@ export function MarketPanel() {
                   {rows.slice(0, 5).map((r) => (
                     <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
                       <span style={{ width: 150, fontSize: 12, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.key}</span>
-                      <div style={{ flex: 1, height: 7, background: 'var(--paper)', borderRadius: 999, overflow: 'hidden' }}>
-                        <div style={{ width: `${r.shareOfProven * 100}%`, height: '100%', borderRadius: 999, background: 'var(--grad-accent)' }} />
+                      <div style={{ flex: 1 }}>
+                        <BarreValeur part={partDeMax(r.shareOfProven, 1)} hauteur={7} piste="var(--paper)" />
                       </div>
                       <span style={{ width: 44, textAlign: 'right', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>{pct(r.shareOfProven)}</span>
                       <span style={{ width: 96, textAlign: 'right', fontSize: 11, color: 'var(--muted)' }}>
