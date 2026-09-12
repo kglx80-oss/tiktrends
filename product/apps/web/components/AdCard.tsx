@@ -4,6 +4,7 @@ import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
 import { Icon } from './Icon';
+import { AvatarSite } from './AvatarSite';
 
 export const compact = (n?: number) => {
   if (n == null) return 'n/c';
@@ -43,9 +44,13 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
       </div>
       <div style={{ padding: '11px 12px', display: 'grid', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {ad.advertiserLogo && (
-             
-            <img src={ad.advertiserLogo} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
+          {/* Le logo plateforme quand il existe · sinon une identité de repli
+              (favicon du site d'atterrissage, ou initiales teintées) plutôt qu'un
+              nom nu · même traitement d'identité que le reste de l'outil. */}
+          {ad.advertiserLogo ? (
+            <img src={ad.advertiserLogo} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+          ) : (
+            <AvatarSite nom={ad.advertiserName || 'Annonceur'} site={ad.landingDomain} taille={22} rayon={11} />
           )}
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ad.advertiserName || 'Annonceur'}</span>
           {gagnant && <span title="Éprouvée · tient dans le temps ou sa portée progresse" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Gagnant</span>}
