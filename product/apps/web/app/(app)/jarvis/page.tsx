@@ -731,7 +731,7 @@ function Layer({ l }: { l: JarvisLayer }) {
   return (
     <div style={{ border: `1px solid ${t.bd}`, borderRadius: 14, background: 'var(--surface)', padding: '13px 15px', display: 'grid', gap: 5 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 17 }}>{l.icon}</span>
+        <span style={{ display: 'inline-flex', color: t.fg }}><Icon name={l.icon} size={17} /></span>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', flex: 1 }}>{l.title}</span>
         <span style={{ fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: t.fg, padding: '2px 7px', borderRadius: 999, border: `1px solid ${t.bd}`, whiteSpace: 'nowrap' }}>
           {STATE_LABEL[l.state]}
