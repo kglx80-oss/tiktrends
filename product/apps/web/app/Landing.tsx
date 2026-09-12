@@ -197,6 +197,29 @@ export function Landing() {
         </div>
       </header>
 
+      {/* PROBLÈME */}
+      <section className="lp-wrap" style={{ padding: '64px 40px 24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 30 }}>
+          <div className="lp-eyebrow" style={{ marginBottom: 14, color: '#f5a623' }}>Le problème</div>
+          <h2 className="lp-h2">Créer à l'aveugle coûte cher</h2>
+          <p className="lp-muted" style={{ fontSize: 15, maxWidth: 520, margin: '14px auto 0' }}>La plupart des créatives partent en média sans qu'on sache lesquelles vont gagner. On dépense, on espère, on recommence.</p>
+        </div>
+        <div className="lp-g3">
+          {[
+            { t: 'Tu devines', d: "Quelle accroche, quel angle, quel format ? Personne ne sait avant d'avoir dépensé.", icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5c37a" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="10" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>) },
+            { t: 'Tu brûles du budget', d: 'Chaque test raté part en dépenses média, sans apprentissage réutilisable.', icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5c37a" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></svg>) },
+            { t: 'Tu repars de zéro', d: 'À chaque campagne, la page blanche · rien ne capitalise sur ce qui a déjà gagné.', icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5c37a" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg>) },
+          ].map((p) => (
+            <div key={p.t} className="lp-card" style={{ padding: 28 }}>
+              <span style={{ width: 40, height: 40, borderRadius: 11, background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>{p.icon}</span>
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{p.t}</h3>
+              <p className="lp-muted" style={{ fontSize: 14 }}>{p.d}</p>
+            </div>
+          ))}
+        </div>
+        <p className="lp-ink2" style={{ textAlign: 'center', fontSize: 16, marginTop: 26 }}>TikTrends ferme la boucle · tu ne scales que ce que la donnée valide.</p>
+      </section>
+
       {/* MÉTHODE */}
       <section id="methode" className="lp-wrap" style={{ padding: '64px 40px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
