@@ -31,7 +31,10 @@ export function CarteConcurrent({ nom, brandId }: { nom: string; brandId: string
       display: 'grid', gap: 8, border: '1px solid var(--line)', borderRadius: 14,
       background: 'var(--surface)', padding: 12,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      {/* minWidth:0 · la rangée est un enfant de grille (min-width auto par
+          défaut) · sans ça, un nom long ne se rétrécit pas, pousse « Analyser ›»
+          hors de la carte et la fait déborder. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
         <Link href={analyser} aria-label={`Analyser ${nom}`} style={{ display: 'inline-flex', flexShrink: 0, borderRadius: 11, textDecoration: 'none' }}>
           <AvatarSite nom={nom} site={nom} taille={44} rayon={11} />
         </Link>

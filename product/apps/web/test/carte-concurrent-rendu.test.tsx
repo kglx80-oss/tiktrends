@@ -50,4 +50,18 @@ describe('la carte de concurrent se voit', () => {
     expect(h).toContain('s2/favicons?domain=nike.com');
     expect(h).toContain('href="https://nike.com"');
   });
+
+  it('un nom long ne déborde pas · la rangée se rétrécit, le nom s’ellipse', () => {
+    // Bug remonté : « Compléments Nutripure Focus » poussait « Analyser ›» hors
+    // de la carte. La rangée est un enfant de grille (min-width auto) · sans
+    // min-width:0 elle refuse de rétrécir. On lit ces styles dans le HTML rendu.
+    const h = html('Compléments Nutripure Focus');
+    // La rangée porte min-width:0 (style propre à la rangée flex).
+    expect(h, 'la rangée ne peut pas rétrécir').toContain('align-items:center;gap:12px;min-width:0');
+    // Le nom s'ellipse plutôt que de pousser le CTA dehors.
+    expect(h).toContain('text-overflow:ellipsis');
+    expect(h).toContain('white-space:nowrap');
+    // Le CTA reste présent.
+    expect(h).toContain('Analyser ›');
+  });
 });
