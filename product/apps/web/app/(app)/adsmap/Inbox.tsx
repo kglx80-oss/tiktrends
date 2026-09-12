@@ -5,6 +5,7 @@ import {
   listDecisionsAction, refreshDecisionsAction, resolveDecisionAction,
   type Inbox as InboxData, type InboxItem,
 } from '../../actions/adsmap-decisions';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
 
@@ -89,6 +90,7 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
           {data.summary}
         </span>
         <button type="button" onClick={recalculer} disabled={busy} style={{
+          minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center',
           padding: '7px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent',
           color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
         }}>
@@ -151,6 +153,7 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
 }
 
 const petit: CSSProperties = {
-  padding: '4px 11px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)',
+  minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center',
+  padding: '4px 13px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)',
   color: 'var(--ink-2)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
 };
