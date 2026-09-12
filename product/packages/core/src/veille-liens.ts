@@ -47,6 +47,49 @@ export function bibliothequePub(o: { platform?: string | null; name?: string | n
   return { url: 'https://www.facebook.com/ads/library/?' + q.toString(), label: 'Bibliothèque Meta' };
 }
 
+/**
+ * Nettoie un nom de marque pour une recherche dans la bibliothèque publicitaire.
+ *
+ * ── Pourquoi ─────────────────────────────────────────────────────────────────
+ *
+ * On saisit un concurrent avec une note de désambiguïsation · « Feel (compléments
+ * France) », « Nova — DE », « Bloom™ ». La source cherche la chaîne LITTÉRALE :
+ * le qualificatif entre parenthèses ne correspond à aucune page, et la recherche
+ * revient vide. L'utilisateur en conclut que « l'analyse ne marche pas », alors
+ * que c'est le terme qui ne matche pas.
+ *
+ * On retire donc ce qui est une annotation, pas un nom : parenthèses/crochets et
+ * leur contenu, symboles de marque, séparateurs de queue. On ne touche PAS au
+ * cœur du nom · sur-nettoyer transformerait « Dr. Martens » en « Dr », ce qui
+ * matcherait pire, pas mieux.
+ */
+export function nettoieNomConcurrent(name: string): string {
+  return (name || '')
+    .replace(/[([{][^)\]}]*[)\]}]/g, ' ')   // (compléments France), [FR], {test}
+    .replace(/[™®©]/g, ' ')                  // Bloom™ → Bloom
+    .replace(/\s*[·—–-]\s*[A-Za-zÀ-ÿ]{2,3}\s*$/u, ' ') // « Nova — DE » en queue
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Les termes à essayer dans l'ordre pour retrouver un concurrent · le nom
+ * nettoyé d'abord (le plus susceptible de matcher), puis le nom brut si le
+ * nettoyage l'a changé. Vides écartés, doublons fusionnés.
+ *
+ * Le nom brut reste un repli légitime · une marque peut S'APPELER « X (Paris) »
+ * sur sa page. On tente le probable, puis l'exact.
+ */
+export function variantesRechercheConcurrent(name: string): string[] {
+  const brut = (name || '').trim();
+  const propre = nettoieNomConcurrent(name);
+  const out: string[] = [];
+  for (const t of [propre, brut]) {
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
 /** Le site de la marque · à partir du domaine d'atterrissage, sinon de l'URL. */
 export function siteMarque(o: { landingDomain?: string | null; landingUrl?: string | null }): string | null {
   const dom = o.landingDomain?.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').trim();

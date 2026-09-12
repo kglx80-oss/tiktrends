@@ -20,7 +20,7 @@ const TABS: Array<{ key: Tab; label: string }> = [
 const ERR: Record<string, string> = {
   nolibrary: "La bibliothèque publicitaire n'est pas configurée sur le serveur.",
   fetch: 'Échec de la récupération des créas, réessaie.',
-  noresult: "Aucune créa trouvée pour ce concurrent dans la bibliothèque.",
+  noresult: "Aucune créa trouvée pour ce concurrent. Vérifie l'orthographe exacte de sa page Meta (sans note entre parenthèses) · certaines marques locales ont peu de créas indexées.",
 };
 
 const addBtn = { padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;

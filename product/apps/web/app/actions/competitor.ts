@@ -7,7 +7,7 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
 import { analyzeCompetitor, type CompetitorInsights } from '@tiktrends/ai';
-import { costFor } from '@tiktrends/core';
+import { costFor, variantesRechercheConcurrent } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { guardedAnthropic } from '../../lib/spend-guard';
 
@@ -74,15 +74,28 @@ export async function analyzeCompetitorAction(formData: FormData): Promise<void>
   const apiKey = process.env.TRENDTRACK_API_KEY;
   if (!apiKey) redirect(`${back}?e=nolibrary`);
 
-  // 1) Récupération des créas du concurrent (recherche par marque, Meta = couverture max).
+  // 1) Récupération des créas du concurrent · on nettoie le nom (« Feel
+  //    (compléments France) » → « Feel ») et on essaie plusieurs pistes avant de
+  //    conclure à l'absence : nom propre puis brut en recherche de MARQUE, et en
+  //    dernier repli le nom propre en recherche de COPIE (couverture plus large).
+  //    Un `redirect` ne doit jamais tomber dans un try/catch (il lève par
+  //    conception) · on ne capture donc QUE l'appel réseau.
+  const variantes = variantesRechercheConcurrent(name);
+  const pistes: Array<{ search: string; searchIn: 'brand' | 'ad_copy' }> = [
+    ...variantes.map((search) => ({ search, searchIn: 'brand' as const })),
+    ...(variantes[0] ? [{ search: variantes[0], searchIn: 'ad_copy' as const }] : []),
+  ];
   let ads: InspoAd[] = [];
-  try {
-    const r = await ttSearchAds({ apiKey }, { search: name, searchIn: 'brand', status: 'all', sortBy: 'newest', limit: 40, offset: 0 });
-    ads = r.ads;
-  } catch {
-    redirect(`${back}?e=fetch`);
+  let echec = false;
+  for (const piste of pistes) {
+    try {
+      const r = await ttSearchAds({ apiKey }, { search: piste.search, searchIn: piste.searchIn, status: 'all', sortBy: 'newest', limit: 40, offset: 0 });
+      if (r.ads.length) { ads = r.ads; break; }
+    } catch {
+      echec = true;
+    }
   }
-  if (ads.length === 0) redirect(`${back}?e=noresult`);
+  if (ads.length === 0) redirect(`${back}?e=${echec ? 'fetch' : 'noresult'}`);
 
   const aggregates = aggregate(ads);
 
