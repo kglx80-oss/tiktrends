@@ -133,7 +133,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   const identite = [brand?.logoUrl, brand?.description, brand?.usp].filter((x) => !vide(String(x ?? ''))).length
     + ((brand?.colors?.length || brand?.palette) ? 1 : 0);
   layers.push({
-    key: 'brand', icon: '🎯', title: 'Ancrage marque',
+    key: 'brand', icon: 'target', title: 'Ancrage marque',
     what: 'Direction artistique, produit réel et promesse injectés dans chaque prompt.',
     state: identite >= 3 && nProduits > 0 ? 'on' : identite > 0 ? 'partial' : 'off',
     detail: nProduits > 0
@@ -143,7 +143,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   });
 
   layers.push({
-    key: 'rules', icon: '📜', title: 'Tes règles',
+    key: 'rules', icon: 'file', title: 'Tes règles',
     what: 'Tes consignes maison, imposées avant tout le reste.',
     state: vide(brand?.creativeRules ?? '') ? 'off' : 'on',
     detail: vide(brand?.creativeRules ?? '')
@@ -155,7 +155,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   /* --- Ce que la mesure a produit ------------------------------------------- */
 
   layers.push({
-    key: 'measured', icon: '📊', title: 'Mémoire mesurée',
+    key: 'measured', icon: 'chart', title: 'Mémoire mesurée',
     what: 'Ce qui a gagné chez toi, avec ses chiffres · prime sur tout le reste.',
     state: nSignaux >= 3 ? 'on' : nSignaux > 0 ? 'partial' : 'off',
     detail: nSignaux > 0
@@ -167,7 +167,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   });
 
   layers.push({
-    key: 'hooks', icon: '✍️', title: 'Bibliothèque d’accroches',
+    key: 'hooks', icon: 'pen', title: 'Bibliothèque d’accroches',
     what: 'Les phrases exactes qui ont gagné ou perdu · pas des catégories, des mots.',
     state: nHooks >= 3 ? 'on' : nHooks > 0 ? 'partial' : 'off',
     detail: nHooks > 0
@@ -181,7 +181,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   /* --- Ce qui vient du dehors ----------------------------------------------- */
 
   layers.push({
-    key: 'market', icon: '🔎', title: 'Intelligence concurrentielle',
+    key: 'market', icon: 'search', title: 'Intelligence concurrentielle',
     what: 'La mécanique des créas concurrentes qui tiennent · jamais leurs mots.',
     state: nMarche >= 6 ? 'on' : nMarche > 0 ? 'partial' : 'off',
     detail: nMarche > 0
@@ -197,7 +197,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   });
 
   layers.push({
-    key: 'radar', icon: '🛰️', title: 'Radar de veille',
+    key: 'radar', icon: 'radar', title: 'Radar de veille',
     what: 'Chaque nuit, ce que tes concurrents continuent de payer.',
     state: brand?.radarArmed ? 'on' : 'off',
     detail: brand?.radarArmed
@@ -207,7 +207,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   });
 
   layers.push({
-    key: 'described', icon: '🧩', title: 'Description de tes créas',
+    key: 'described', icon: 'layers', title: 'Description de tes créas',
     what: 'Chaque asset décrit dans la même taxonomie que le marché · c’est ce qui rend les deux comparables.',
     state: nDecrites >= 6 ? 'on' : nDecrites > 0 ? 'partial' : 'off',
     detail: nDecrites > 0 ? `${nDecrites} créa(s) décrite(s)` : 'Aucune créa décrite',
@@ -215,7 +215,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   });
 
   layers.push({
-    key: 'training', icon: '🎓', title: 'Entraînement sur la veille',
+    key: 'training', icon: 'cap', title: 'Entraînement sur la veille',
     what: 'Les schémas gagnants distillés à partir des pubs que tu as sauvegardées.',
     state: vide(brand?.jarvisLearnings ?? '') ? 'off' : 'on',
     detail: vide(brand?.jarvisLearnings ?? '') ? 'Jamais entraîné' : 'Schémas distillés',
@@ -227,12 +227,12 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
   // On ne leur invente pas de compteur · elles font partie du prompt de base et
   // seraient vertes sur un compte vide. Un tableau où tout est vert n'est plus lu.
   layers.push({
-    key: 'copy', icon: '⚡', title: 'Copywriting direct-response',
+    key: 'copy', icon: 'spark', title: 'Copywriting direct-response',
     what: 'Spécificité, déclencheurs, anti-slogans plats.',
     state: 'always', detail: 'Toujours actif · fait partie du prompt de base',
   });
   layers.push({
-    key: 'render', icon: '📐', title: 'Contraintes de rendu',
+    key: 'render', icon: 'frame', title: 'Contraintes de rendu',
     what: 'Réalisme, proportions, packaging fidèle, aucun texte parasite.',
     state: 'always', detail: 'Toujours actif · fait partie du prompt de base',
   });
