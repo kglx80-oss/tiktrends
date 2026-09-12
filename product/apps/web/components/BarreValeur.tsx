@@ -7,8 +7,11 @@
  */
 export function BarreValeur({ part, couleur = 'var(--grad-accent)', hauteur = 6, piste = 'var(--line-2)' }: {
   part: number;
+  /** Fond du remplissage · une CONSTANTE de thème (token, dégradé du code), jamais
+   *  une valeur d'origine utilisateur · posée telle quelle en CSS. */
   couleur?: string;
   hauteur?: number;
+  /** Fond de la piste · même contrat que `couleur` · constante de thème uniquement. */
   piste?: string;
 }) {
   const borne = Math.max(0, Math.min(1, part));
