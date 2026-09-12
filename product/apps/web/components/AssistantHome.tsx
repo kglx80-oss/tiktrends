@@ -37,13 +37,18 @@ interface Carte {
   quoi: string;
   tag: string;
   phare?: boolean;
+  /** La couleur d'identité du studio · une pastille par studio, pas la même pour tous. */
+  teinte: string;
 }
 
+// Chaque studio a sa couleur · quatre pastilles roses identiques ne distinguaient
+// rien. Pubs IA (phare) garde l'accent de la marque ; les autres prennent une
+// teinte propre, lisible avec l'icône blanche.
 const CREER: Carte[] = [
-  { href: '/studio/ads', icon: 'sparkles', titre: 'Pubs IA', quoi: 'Des publicités complètes, prêtes à tester · le cœur de l’outil.', tag: 'Pub', phare: true },
-  { href: '/studio/image', icon: 'image', titre: 'Image IA', quoi: 'Un visuel produit ou une scène, en quelques secondes.', tag: 'Image' },
-  { href: '/studio/video', icon: 'film', titre: 'Vidéo IA', quoi: 'Une vidéo verticale prête pour TikTok / Reels.', tag: 'Vidéo' },
-  { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', quoi: 'Des accroches et des scripts prêts à tourner.', tag: 'Texte' },
+  { href: '/studio/ads', icon: 'sparkles', titre: 'Pubs IA', quoi: 'Des publicités complètes, prêtes à tester · le cœur de l’outil.', tag: 'Pub', phare: true, teinte: 'var(--grad-accent)' },
+  { href: '/studio/image', icon: 'image', titre: 'Image IA', quoi: 'Un visuel produit ou une scène, en quelques secondes.', tag: 'Image', teinte: 'linear-gradient(135deg, #0e6a5e, #1f9e8f)' },
+  { href: '/studio/video', icon: 'film', titre: 'Vidéo IA', quoi: 'Une vidéo verticale prête pour TikTok / Reels.', tag: 'Vidéo', teinte: 'linear-gradient(135deg, #4c2a9e, #8b5cf6)' },
+  { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', quoi: 'Des accroches et des scripts prêts à tourner.', tag: 'Texte', teinte: 'linear-gradient(135deg, #8a5a12, #d69a3a)' },
 ];
 
 const PILOTER: Array<{ href: string; icon: string; label: string }> = [
@@ -98,8 +103,8 @@ export function AssistantHome({ firstName, credits, brandName, aiReady }: Assist
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 11 }}>
               <span style={{
-                width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'var(--grad-accent)',
-                color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: c.teinte,
+                color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}><Icon name={c.icon} size={21} /></span>
               <b style={{ flex: 1, minWidth: 0, fontSize: 15.5, color: 'var(--ink)' }}>{c.titre}</b>
               <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: c.phare ? '#7ee8bf' : 'var(--muted)', border: `1px solid ${c.phare ? 'rgba(126,232,191,.4)' : 'var(--line-2)'}`, borderRadius: 999, padding: '2px 8px' }}>{c.phare ? 'Phare' : c.tag}</span>
