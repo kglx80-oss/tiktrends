@@ -9,6 +9,7 @@ export * from './spend-guard';
 export * from './spend-refund';
 export * from './economics';
 export * from './moteur-vignette';
+export * from './concurrent-carte';
 export * from './score-jarvis';
 export * from './brief-cache';
 export * from './proportion';
