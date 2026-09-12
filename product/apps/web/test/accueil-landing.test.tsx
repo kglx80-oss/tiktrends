@@ -41,6 +41,12 @@ describe('accueil · règles d’interface du dépôt', () => {
     expect(html, 'aucun bloc JSON-LD').toContain('application/ld+json');
     expect(html, 'le type SoftwareApplication est absent').toContain('SoftwareApplication');
   });
+
+  it('la navigation offre le menu déroulant « Ressources »', () => {
+    expect(html, 'le déclencheur « Ressources » a disparu').toContain('Ressources');
+    expect(html, 'le panneau du méga-menu a disparu').toContain('lp-dd-panel');
+    expect(html, 'les liens légaux du menu ont disparu').toContain('/legal/mentions-legales');
+  });
 });
 
 describe('accueil · le hero et son contenu tiennent', () => {

@@ -58,6 +58,20 @@ html{scroll-behavior:smooth}
 .lp-navrow{height:70px;display:flex;align-items:center;justify-content:space-between}
 .lp-navlinks{display:flex;align-items:center;gap:30px;font-size:15px;font-weight:500;color:var(--ink2)}
 .lp-navlinks a:hover{color:var(--ink)}
+.lp-dd-wrap{position:relative;display:flex;align-items:center}
+.lp-dd-trigger{display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:var(--ink2);font-size:15px;font-weight:500;background:none;border:0;padding:0;font-family:inherit;transition:color .18s ease}
+.lp-dd-wrap:hover .lp-dd-trigger,.lp-dd-wrap:focus-within .lp-dd-trigger{color:var(--ink)}
+.lp-dd-trigger svg{transition:transform .2s ease}
+.lp-dd-wrap:hover .lp-dd-trigger svg,.lp-dd-wrap:focus-within .lp-dd-trigger svg{transform:rotate(180deg)}
+.lp-dd{position:absolute;top:100%;left:50%;transform:translate(-50%,10px);padding-top:14px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease;z-index:40}
+.lp-dd-wrap:hover .lp-dd,.lp-dd-wrap:focus-within .lp-dd{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
+.lp-dd-panel{width:520px;display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:16px;background:#1c121b;border:1px solid rgba(255,255,255,0.12);border-radius:16px;box-shadow:0 26px 64px -22px rgba(0,0,0,0.85)}
+.lp-dd-head{font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:4px 10px 8px}
+.lp-dd-item{display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:11px;transition:background .15s ease}
+.lp-dd-item:hover{background:rgba(255,255,255,0.05)}
+.lp-dd-ic{width:32px;height:32px;border-radius:9px;background:rgba(254,44,85,0.12);border:1px solid rgba(254,44,85,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lp-dd-t{display:block;font-size:14px;font-weight:600;color:var(--ink)}
+.lp-dd-d{display:block;font-size:12px;color:var(--muted);margin-top:1px}
 .lp-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);font-size:13px;color:var(--ink2);font-weight:500;transition:border-color .2s ease,background .2s ease}
 .lp-pill:hover{border-color:rgba(255,255,255,0.26);background:rgba(255,255,255,0.07)}
 .lp-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#fe2c55 0%,#ff2d8f 100%);color:#fff;border:0;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -8px rgba(254,44,85,0.6);transition:transform .2s ease,box-shadow .2s ease}
@@ -207,7 +221,42 @@ export function Landing() {
           <div className="lp-navlinks">
             <a href="#galerie">Créatives</a>
             <a href="#methode">Méthode</a>
-            <a href="#adsmap">Adsmap</a>
+            <div className="lp-dd-wrap">
+              <button type="button" className="lp-dd-trigger" aria-haspopup="true">
+                Ressources
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+              <div className="lp-dd" role="menu">
+                <div className="lp-dd-panel">
+                  <div>
+                    <div className="lp-dd-head">Le produit</div>
+                    {[
+                      { t: 'Créatives winneuses', d: 'La galerie de rendus', href: '#galerie', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /></svg>) },
+                      { t: 'La méthode', d: 'Hypothèse → itération → résultat', href: '#methode', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 3h6M10 3v6.5L5 19a1 1 0 0 0 .9 1.5h12.2A1 1 0 0 0 19 19l-5-9.5V3" /></svg>) },
+                      { t: 'Adsmap', d: 'Le laboratoire de test', href: '#adsmap', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 3v18h18" /><path d="M7 15l4-5 3 3 5-7" /></svg>) },
+                    ].map((it) => (
+                      <a key={it.t} href={it.href} className="lp-dd-item" role="menuitem">
+                        <span className="lp-dd-ic">{it.icon}</span>
+                        <span><span className="lp-dd-t">{it.t}</span><span className="lp-dd-d">{it.d}</span></span>
+                      </a>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="lp-dd-head">L'entreprise</div>
+                    {[
+                      { t: 'Mentions légales', d: 'Éditeur & hébergeur', href: '/legal/mentions-legales' },
+                      { t: 'CGV', d: 'Conditions de vente', href: '/legal/cgv' },
+                      { t: 'Confidentialité', d: 'Vos données', href: '/legal/confidentialite' },
+                    ].map((it) => (
+                      <Link key={it.t} href={it.href} className="lp-dd-item" role="menuitem">
+                        <span className="lp-dd-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg></span>
+                        <span><span className="lp-dd-t">{it.t}</span><span className="lp-dd-d">{it.d}</span></span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
             <a href="#tarifs">Tarifs</a>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
