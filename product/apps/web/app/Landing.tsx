@@ -67,7 +67,7 @@ const CSS = `
 .lp-mono{font-family:'Geist Mono','SFMono-Regular',monospace}
 .lp-muted{color:var(--muted)}.lp-ink2{color:var(--ink2)}
 .lp-grad{background:linear-gradient(135deg,#fe2c55,#ff2d8f);-webkit-background-clip:text;background-clip:text;color:transparent}
-.lp-h1{font-size:clamp(40px,6.6vw,70px);line-height:1.02;font-weight:850;letter-spacing:-0.035em;max-width:900px;margin:0 auto;text-wrap:balance;text-shadow:0 4px 40px rgba(0,0,0,0.6)}
+.lp-h1{font-size:clamp(40px,6.6vw,70px);line-height:1.02;font-weight:850;letter-spacing:-0.035em;text-shadow:0 4px 40px rgba(0,0,0,0.6)}
 .lp-h2{font-size:clamp(30px,4.2vw,44px);font-weight:800;letter-spacing:-0.025em}
 .lp-feat{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,4vw,50px);align-items:center}
 .lp-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
@@ -75,7 +75,7 @@ const CSS = `
 .lp-adlabel{position:absolute;left:10px;right:10px;bottom:10px;z-index:3}
 .lp-t{font-size:12px;font-weight:800;color:#fff;line-height:1.15}
 .lp-s{font-size:9px;font-weight:800;margin-top:2px}
-.lp-wall{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);gap:14px;padding:20px;opacity:0.9;transform:rotate(-6deg) scale(1.3);transform-origin:center;animation:lpFloaty 11s ease-in-out infinite}
+.lp-wall{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);gap:14px;padding:20px;opacity:1;transform:rotate(-6deg) scale(1.3);transform-origin:center;animation:lpFloaty 11s ease-in-out infinite}
 .lp-wallcard{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.09);position:relative;aspect-ratio:9/16}
 .lp-marqmask{overflow:hidden;padding:14px 0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
 .lp-marq{display:flex;gap:16px;width:max-content;animation:lpMarqL 44s linear infinite}
@@ -178,8 +178,8 @@ export function Landing() {
             </div>
           ))}
         </div>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(900px 520px at 50% 42%,rgba(18,8,16,0.86),rgba(18,8,16,0.94) 70%,#120810 100%)' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,transparent 0%,transparent 55%,#120810 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(1100px 600px at 50% 40%,rgba(18,8,16,0.55),rgba(18,8,16,0.82) 72%,#120810 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,transparent 0%,transparent 58%,#120810 100%)' }} />
         <div className="lp-wrap" style={{ position: 'relative', zIndex: 5, padding: '104px 40px 124px', textAlign: 'center' }}>
           <div className="lp-pill lp-rise lp-d1" style={{ marginBottom: 26 }}>
             <span style={{ width: 7, height: 7, borderRadius: 999, background: '#fe2c55' }} />
