@@ -54,6 +54,25 @@ describe('le panneau montre le verdict du lot', () => {
     expect(out, 'la 3e question se lit dans le panneau').toContain('2 au texte illisible');
     expect(out).toContain('M10.3 3.9');
   });
+
+  it('un lot SANS photo produit n’est pas peint en vert · fidélité non vérifiée', () => {
+    // toutBon reste vrai « côté copie » (aucune accroche réécrite), mais le
+    // produit n'a jamais été regardé · un ✓ vert ferait croire qu'il est validé.
+    // On veut un ton neutre (icône info), pas la coche verte, pas l'alerte.
+    const d = debriefLot(relectures({ produitFidele: null }, 6));
+    const out = html(d);
+    expect(out, 'le fait est dit').toContain('n’a pas pu être vérifiée');
+    expect(out, 'pas de coche verte quand le produit n’a pas été vu').not.toContain('✓');
+    expect(out, 'ton neutre · icône info').toContain('M12 16v-4');
+    expect(out, 'ce n’est pas une alerte').not.toContain('M10.3 3.9');
+  });
+
+  it('un lot propre AVEC photo garde bien son ✓ vert', () => {
+    // Garde-fou du cas nominal · le neutre ne doit pas avaler le vert légitime.
+    const out = html(debriefLot(relectures({}, 6)));
+    expect(out).toContain('✓');
+    expect(out, 'le vert légitime n’affiche pas l’icône info').not.toContain('M12 16v-4');
+  });
 });
 
 describe('le débrief est actionnable · il amène sur les pubs à reprendre', () => {
