@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { Icon } from './Icon';
-import { bibliothequePub, siteMarque, consigneAngleMarche, formatDominant, type BriefConcurrent } from '@tiktrends/core';
+import { bibliothequePub, siteMarque, consigneAngleMarche, formatDominant, briefConcurrentBloque, type BriefConcurrent } from '@tiktrends/core';
 import { BrandRemoveButton } from './InspoButtons';
 import { briefMarqueAction } from '../app/actions/brief-marque';
 
@@ -19,13 +19,28 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
   const [brief, setBrief] = useState<BriefConcurrent | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, start] = useTransition();
+  // Verrou SYNCHRONE · `enCours` (isPending) ne bascule qu'au prochain rendu, donc
+  // plusieurs appels dispatché·s dans la même tâche le liraient encore à false et
+  // lanceraient plusieurs briefs. Le ref, lui, est posé tout de suite · une seule
+  // analyse part, quoi qu'il arrive. Le garde `briefConcurrentBloque` (partagé avec
+  // le `disabled`) reste pour l'état visuel.
+  const verrou = useRef(false);
 
   function analyser(b: MarqueLite) {
     if (ouvert === b.id) { setOuvert(null); return; }
+    // Une analyse est déjà en cours sur une AUTRE marque · ne pas en lancer une
+    // seconde (double-clic, ou clic rapide d'une autre puce). On attend qu'elle
+    // finisse · fermer la puce ouverte reste possible (branche ci-dessus).
+    if (verrou.current || briefConcurrentBloque({ enCours, ouvert, cible: b.id })) return;
+    verrou.current = true;
     setOuvert(b.id); setBrief(null); setErreur(null);
     start(async () => {
-      const r = await briefMarqueAction({ platform: b.platform, name: b.name });
-      if (r.error) setErreur(r.error); else setBrief(r.brief ?? null);
+      try {
+        const r = await briefMarqueAction({ platform: b.platform, name: b.name });
+        if (r.error) setErreur(r.error); else setBrief(r.brief ?? null);
+      } finally {
+        verrou.current = false;
+      }
     });
   }
 
@@ -45,9 +60,14 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
                 : <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--paper)' }} />}
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{b.name}</span>
               <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)' }}>{b.platform}</span>
-              <button type="button" onClick={() => analyser(b)} style={{ fontSize: 11, fontWeight: 700, color: ouvert === b.id ? 'var(--accent-strong)' : 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                {ouvert === b.id ? '× fermer' : 'analyser'}
-              </button>
+              {(() => {
+                const bloque = briefConcurrentBloque({ enCours, ouvert, cible: b.id });
+                return (
+                  <button type="button" onClick={() => analyser(b)} disabled={bloque} style={{ fontSize: 11, fontWeight: 700, color: ouvert === b.id ? 'var(--accent-strong)' : 'var(--ink-2)', background: 'none', border: 'none', cursor: bloque ? 'default' : 'pointer', opacity: bloque ? .5 : 1, padding: 0 }}>
+                    {ouvert === b.id ? (enCours ? 'analyse…' : '× fermer') : 'analyser'}
+                  </button>
+                );
+              })()}
               <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
               {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>bibliothèque ↗</a>}
               {site && <a href={site} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>site ↗</a>}
