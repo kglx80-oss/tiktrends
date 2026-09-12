@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { saveJarvisRulesAction, proposeJarvisRulesAction } from '../../actions/jarvis';
+import { niveauScore } from '@tiktrends/core';
 import { Icon } from '../../../components/Icon';
 
 const PRESET = `Style visuel : premium, lumineux, épuré. Le produit toujours net, au premier plan, proportions réelles.
@@ -94,7 +95,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
       {/* Score de force du règlement */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-          <span style={{ position: 'relative', width: 30, height: 30, borderRadius: '50%', background: `conic-gradient(${score >= 80 ? '#3ddc97' : 'var(--accent-strong)'} ${score * 3.6}deg, var(--line-2) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ position: 'relative', width: 30, height: 30, borderRadius: '50%', background: `conic-gradient(${niveauScore(score) === 'fort' ? '#3ddc97' : 'var(--accent-strong)'} ${score * 3.6}deg, var(--line-2) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: 'var(--ink)' }}>{score}</span>
           </span>
           <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>Force du règlement</span>

@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -1263,7 +1263,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
 /** Pastille de Score Jarvis affichée sur la vignette d'une créa (0-100). */
 function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 75 ? '#18cc8c' : score >= 55 ? '#f5a623' : '#ff4d6d';
+  const color = COULEUR_NIVEAU[niveauScore(score)];
   return (
     <span title={`Score Jarvis · ${score}/100`} style={{
       position: 'absolute', top: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -1305,7 +1305,7 @@ function ControleBadge({ c }: { c: AdItem['controle'] }) {
 }
 
 function ScoreCard({ s, copie, onRedo, busy }: { s: CreativeScore; copie?: VerdictCopie | null; onRedo: () => void; busy: boolean }) {
-  const col = s.score >= 80 ? '#18cc8c' : s.score >= 60 ? '#7ee8bf' : s.score >= 45 ? '#f5b043' : '#ff9db0';
+  const col = COULEUR_NIVEAU[niveauScore(s.score)];
   const r = 22, c = 2 * Math.PI * r, off = c - (s.score / 100) * c;
   const defauts = verdictDefauts(s.defauts);
   const Bar = ({ k, v }: { k: string; v: number }) => (
