@@ -24,9 +24,18 @@ import { Icon } from '../../../../components/Icon';
  *
  * Pur affichage · aucune règle, aucun appel serveur. Rendu et lu en test.
  */
-export function DebriefLotPanel({ d }: { d: DebriefLot | null }) {
+export function DebriefLotPanel({ d, nCassees = 0, onReprendre }: {
+  d: DebriefLot | null;
+  /** Combien de pubs du lot portent un écart éliminatoire · pilote le bouton de reprise. */
+  nCassees?: number;
+  /** Ouvre la première pub cassée pour la reprendre · absent = pas de bouton. */
+  onReprendre?: () => void;
+}) {
   if (!d) return null;
   const vert = d.toutBon;
+  // Le débrief COMPTE les défauts · le rendre actionnable, c'est amener d'un clic
+  // sur la première pub à reprendre, au lieu de la chercher à l'œil dans la grille.
+  const reprenable = !vert && nCassees > 0 && !!onReprendre;
   return (
     <div style={{
       margin: '0 0 14px', padding: '11px 14px', borderRadius: 12,
@@ -39,6 +48,16 @@ export function DebriefLotPanel({ d }: { d: DebriefLot | null }) {
       <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: vert ? '#7ee8bf' : '#f5b043' }}>
         {vert ? '✓ ' : <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="alert" size={13} /></span>}{d.resume}
       </div>
+      {reprenable && (
+        <button type="button" onClick={onReprendre} style={{
+          marginTop: 9, display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
+          border: '1px solid rgba(245,166,35,.5)', background: 'transparent',
+          color: '#f5b043', fontSize: 11.5, fontWeight: 800,
+        }}>
+          <Icon name="swap" size={13} /> Reprendre {nCassees} pub{nCassees > 1 ? 's' : ''} cassée{nCassees > 1 ? 's' : ''} ›
+        </button>
+      )}
     </div>
   );
 }

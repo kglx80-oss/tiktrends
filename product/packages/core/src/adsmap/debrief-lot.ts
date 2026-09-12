@@ -107,6 +107,19 @@ export function debriefDepuisControles(controles: readonly (ControleLu | null | 
   return debriefLot(controles.filter((c): c is ControleLu => !!c).map(relectureDepuisControle));
 }
 
+/**
+ * Une créa du lot est-elle CASSÉE · c.-à-d. porte-t-elle un écart éliminatoire.
+ *
+ * Ce sont exactement les trois écarts qui empêchent `toutBon` : accroche
+ * réécrite, produit modifié, texte illisible. Un accent perdu ou une photo
+ * produit absente ne cassent pas la pub · ils ne comptent pas ici, comme ils ne
+ * comptent pas dans `toutBon`. On tient la règle une seule fois pour que « le
+ * lot est bon » et « voici les pubs à reprendre » ne puissent pas diverger.
+ */
+export function controleCasse(c: ControleLu | null | undefined): boolean {
+  return !!c && (c.copieGrave || c.produitFidele === false || c.texteLisible === false);
+}
+
 const s = (k: number) => (k > 1 ? 's' : '');
 
 /**

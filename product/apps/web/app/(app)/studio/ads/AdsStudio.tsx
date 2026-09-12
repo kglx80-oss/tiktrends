@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -229,6 +229,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const refInput = useRef<HTMLInputElement>(null);
 
   const detailAd = detailIdx != null ? ads[detailIdx] ?? null : null;
+
+  // Les pubs cassées du dernier lot · même lot que le débrief (ads[0].lot), même
+  // règle d'écart éliminatoire (controleCasse, tenue dans le noyau). On garde
+  // leurs INDEX dans `ads` pour ouvrir la première d'un clic depuis le débrief.
+  const dernierLot = ads[0]?.lot;
+  const indicesCasses = dernierLot == null ? [] : ads
+    .map((a, i) => ({ a, i }))
+    .filter(({ a }) => a.lot === dernierLot && controleCasse(a.controle))
+    .map(({ i }) => i);
 
   // Reprendre un gagnant · on pré-sélectionne la valeur dans le composeur et on
   // ouvre l'assistant, au lieu de laisser deviner « applique ce qui a gagné ».
@@ -1038,7 +1047,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       {/* Le lot entière, lu d'un coup · les trois questions qui décident si le
           mode est viable, additionnées sur les pubs qui viennent d'arriver.
           Rien tant qu'aucune n'a été relue. */}
-      <DebriefLotPanel d={debrief} />
+      <DebriefLotPanel d={debrief} nCassees={indicesCasses.length} onReprendre={indicesCasses.length ? () => setDetailIdx(indicesCasses[0]!) : undefined} />
       {ads.length === 0 ? (
         <Empty
           tone="wait" title="Aucune pub pour l’instant."
