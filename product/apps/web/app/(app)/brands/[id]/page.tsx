@@ -22,6 +22,7 @@ import { BrandCreated } from '../../../../components/BrandCreated';
 import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
+import { CarteConcurrent } from '../../../../components/CarteConcurrent';
 import { costFor, imageModelByKey } from '@tiktrends/core';
 import { falConfigured } from '@tiktrends/integrations';
 
@@ -303,13 +304,11 @@ export default async function BrandDetailPage({ params, searchParams }: {
           <h2 style={sectionH}>Concurrents <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{competitors.length}</span></h2>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>On surveille ces marques pour que tu saches toujours où tu te situes. Tu pourras les suivre en direct depuis la Veille une fois les bibliothèques branchées.</p>
           {competitors.length > 0 && (
-            <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
+            // Une grille de cartes · favicon+domaine quand la saisie en porte un,
+            // avatar teinté sinon · plus lisible qu'un mur de lignes grises.
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10, marginBottom: 16 }}>
               {competitors.map((c, i) => (
-                <Link key={i} href={`/brands/${id}/competitors/${encodeURIComponent(c)}`} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 14px', textDecoration: 'none' }}>
-                  <span style={{ width: 30, height: 30, borderRadius: 8, background: '#1b1420', border: '1px solid var(--line-2)', color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>{c.trim().slice(0, 2).toUpperCase()}</span>
-                  <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{c}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)' }}>Analyser ›</span>
-                </Link>
+                <CarteConcurrent key={i} nom={c} brandId={id} />
               ))}
             </div>
           )}
