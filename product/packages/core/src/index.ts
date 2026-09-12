@@ -8,6 +8,7 @@ export * from './credits';
 export * from './spend-guard';
 export * from './spend-refund';
 export * from './economics';
+export * from './score-jarvis';
 export * from './launch';
 export * from './briefs';
 export * from './angles';

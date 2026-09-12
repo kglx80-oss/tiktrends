@@ -1,3 +1,5 @@
+import { niveauScore, LABEL_NIVEAU, COULEUR_NIVEAU } from '@tiktrends/core';
+
 export interface CreativeStats {
   score: number;
   total: number;
@@ -6,9 +8,8 @@ export interface CreativeStats {
 }
 
 function level(score: number): { label: string; color: string } {
-  if (score >= 75) return { label: 'Élevée', color: '#7ee8bf' };
-  if (score >= 45) return { label: 'Modérée', color: '#f5a623' };
-  return { label: 'Faible', color: '#ff6b6b' };
+  const niveau = niveauScore(score);
+  return { label: LABEL_NIVEAU[niveau], color: COULEUR_NIVEAU[niveau] };
 }
 
 export function CreativeIntel({ stats }: { stats: CreativeStats }) {
