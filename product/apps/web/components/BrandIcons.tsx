@@ -220,8 +220,22 @@ export function BrandTile({ name, color, glyph, tile = 34 }: { name: string; col
     );
   }
   const g = glyph ?? name.slice(0, 2);
+  // On borne la couleur à un hex #RRGGBB avant de l'interpoler dans le style ·
+  // défense en profondeur (aucun appelant ne passe de couleur non constante
+  // aujourd'hui) et garantie que le suffixe alpha `${base}cc` reste valide.
+  const base = /^#[0-9a-fA-F]{6}$/.test(color ?? '') ? color! : '#3a2e3a';
+  // Sur jaune vif (Snapchat, Amplitude clair), le texte noir reste lisible.
   const dark = ['#FFFC00', '#FFE01B'].includes(color || '');
   return (
-    <span style={{ width: tile, height: tile, borderRadius: 9, background: color || 'var(--line-2)', color: dark ? '#111' : '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: g.length > 1 ? tile * 0.35 : tile * 0.44, flexShrink: 0 }}>{g}</span>
+    <span style={{
+      width: tile, height: tile, borderRadius: 9, flexShrink: 0,
+      // Dégradé depuis la couleur officielle · la pastille prend du relief au
+      // lieu d'un aplat, et reste reconnaissable à la teinte de l'outil.
+      background: `linear-gradient(150deg, ${base} 0%, ${base}cc 55%, ${base}99 100%)`,
+      boxShadow: `inset 0 1px 0 rgba(255,255,255,.18), 0 1px 3px rgba(0,0,0,.28)`,
+      color: dark ? '#111' : '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      fontWeight: 800, fontSize: g.length > 1 ? tile * 0.35 : tile * 0.44,
+      letterSpacing: g.length > 1 ? '-.02em' : 0,
+    }}>{g}</span>
   );
 }
