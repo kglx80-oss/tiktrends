@@ -11,6 +11,12 @@ export const metadata: Metadata = {
   applicationName: 'TikTrends',
   robots: { index: true, follow: true },
   formatDetection: { telephone: false },
+  // Marque blanche · aucune requête vers un tiers ne doit trahir l'hôte réel.
+  // Les favicons de sites (avatars de marques/concurrents) partent vers Google ·
+  // sans politique, le navigateur y joint `Referer: app.tiktrends.co/…`. En
+  // `same-origin`, les navigations INTERNES gardent leur référent (attribution,
+  // retours d'écran), mais rien ne fuit vers un tiers cross-origin.
+  referrer: 'same-origin',
 };
 
 // Sans ça, un mobile rend la page à ~980px de large puis dézoome · rien ne
