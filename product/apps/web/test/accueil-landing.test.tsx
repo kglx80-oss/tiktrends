@@ -36,6 +36,11 @@ describe('accueil · règles d’interface du dépôt', () => {
     expect(html, 'Adsmap absent de la page').toContain('Adsmap');
     expect(html, 'ADSMAP en capitales à l’écran').not.toContain('ADSMAP');
   });
+
+  it('les données structurées JSON-LD sont présentes pour le référencement', () => {
+    expect(html, 'aucun bloc JSON-LD').toContain('application/ld+json');
+    expect(html, 'le type SoftwareApplication est absent').toContain('SoftwareApplication');
+  });
 });
 
 describe('accueil · le hero et son contenu tiennent', () => {

@@ -10,19 +10,31 @@ const DESCRIPTION =
   'Génère des publicités statiques et vidéo, teste par lots et laisse la donnée trancher. La création publicitaire en boucle fermée · tu ne scales que les gagnantes.';
 
 export const metadata: Metadata = {
-  title: TITLE,
+  title: { absolute: TITLE },
   description: DESCRIPTION,
-  alternates: { canonical: 'https://app.tiktrends.co/' },
+  keywords: [
+    'créatives publicitaires',
+    'publicité IA',
+    'création vidéo IA',
+    'test créatives',
+    'A/B testing créatives',
+    'veille publicitaire',
+    'Adsmap',
+    'UGC',
+    'TikTok Ads',
+    'Meta Ads',
+  ],
+  alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     locale: 'fr_FR',
     siteName: 'TikTrends',
-    url: 'https://app.tiktrends.co/',
+    url: '/',
     title: TITLE,
     description: DESCRIPTION,
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: TITLE,
     description: DESCRIPTION,
   },

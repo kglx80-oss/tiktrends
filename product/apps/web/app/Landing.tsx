@@ -171,11 +171,30 @@ function Thumb({ grad, glow, style }: { grad: string; glow: string; style?: Reac
   );
 }
 
+const JSONLD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'Organization', '@id': 'https://app.tiktrends.co/#org', name: 'TikTrends', url: 'https://app.tiktrends.co/' },
+    { '@type': 'WebSite', '@id': 'https://app.tiktrends.co/#site', url: 'https://app.tiktrends.co/', name: 'TikTrends', inLanguage: 'fr-FR', publisher: { '@id': 'https://app.tiktrends.co/#org' } },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'TikTrends',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web',
+      inLanguage: 'fr-FR',
+      description: 'Génère des publicités statiques et vidéo, teste par lots et laisse la donnée trancher. La création publicitaire en boucle fermée.',
+      url: 'https://app.tiktrends.co/',
+      offers: { '@type': 'AggregateOffer', priceCurrency: 'EUR', lowPrice: '0', highPrice: '990', offerCount: '4' },
+    },
+  ],
+};
+
 export function Landing() {
   const feature = { display: 'flex', gap: 13, alignItems: 'flex-start' as const };
   const featIcon = { width: 26, height: 26, borderRadius: 8, background: 'rgba(254,44,85,0.16)', border: '1px solid rgba(254,44,85,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as const;
   return (
     <div className="lp">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSONLD) }} />
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
       {/* NAV */}
