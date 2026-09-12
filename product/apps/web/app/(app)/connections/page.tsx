@@ -24,7 +24,7 @@ const CATS: Array<{ cat: string; items: ConnecteurAVenir[] }> = [
     { name: 'Search Console', color: '#458CF5', glyph: 'SC' },
     { name: 'Google BigQuery', color: '#669DF6', glyph: 'BQ' },
     { name: 'Amplitude', color: '#1F6FFF', glyph: 'A' },
-    { name: 'Snowflake', color: '#29B5E8', glyph: '❄' },
+    { name: 'Snowflake', color: '#29B5E8', glyph: 'SN' },
   ] },
   { cat: 'E-commerce & Paiement', items: [
     { name: 'Shopify', color: '#95BF47', glyph: 'S' },
