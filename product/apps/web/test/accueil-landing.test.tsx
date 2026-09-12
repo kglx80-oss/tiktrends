@@ -78,3 +78,21 @@ describe('accueil · transitions et animations', () => {
     expect(html, 'aucun garde prefers-reduced-motion').toContain('prefers-reduced-motion');
   });
 });
+
+describe('accueil · les panneaux illustratifs sont vivants et cohérents', () => {
+  it('le studio montre ses directions et sa sélection', () => {
+    expect(html, 'la direction sélectionnée a disparu').toContain('Studio lumière douce');
+    expect(html, 'les mini-tuiles créatives ont disparu').toContain('lp-thumb');
+  });
+
+  it('l’observatoire est marqué en direct et montre les tendances', () => {
+    expect(html, 'le point « live » a disparu').toContain('lp-live');
+    expect(html, 'le bilan « Ce qui scale » a disparu').toContain('Ce qui scale');
+  });
+
+  it('les barres du bilan Adsmap se remplissent et affichent le gagnant', () => {
+    expect(html, 'les barres animées ont disparu').toContain('lp-barfill');
+    expect(html, 'l’animation de remplissage n’est pas définie').toContain('@keyframes lpGrow');
+    expect(html, 'le score du moteur gagnant a disparu').toContain('81%');
+  });
+});

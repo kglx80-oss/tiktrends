@@ -97,6 +97,16 @@ html{scroll-behavior:smooth}
 @keyframes lpFloaty{0%,100%{transform:rotate(-6deg) scale(1.3) translateY(0)}50%{transform:rotate(-6deg) scale(1.3) translateY(-16px)}}
 @keyframes lpEnter{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
 .lp-reveal{animation:lpEnter .8s cubic-bezier(.2,.7,.2,1) both;animation-timeline:view();animation-range:entry 0% cover 30%}
+.lp-thumb{position:relative;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.08)}
+.lp-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04)}
+.lp-live{width:8px;height:8px;border-radius:999px;background:#18cc8c;box-shadow:0 0 0 0 rgba(24,204,140,.5);animation:lpPing 2.4s ease-out infinite}
+@keyframes lpPing{0%{box-shadow:0 0 0 0 rgba(24,204,140,.5)}70%,100%{box-shadow:0 0 0 9px rgba(24,204,140,0)}}
+.lp-pickcard{position:relative;transition:transform .2s ease,border-color .2s ease}
+.lp-pickcard:hover{transform:translateY(-3px)}
+.lp-check{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:999px;background:linear-gradient(135deg,#fe2c55,#ff2d8f);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px rgba(254,44,85,0.6)}
+.lp-bar{position:relative;height:11px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden}
+.lp-barfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;transform-origin:left;animation:lpGrow 1s cubic-bezier(.2,.7,.2,1) both;animation-timeline:view();animation-range:cover 6% cover 42%}
+@keyframes lpGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @media (max-width:820px){
   .lp-navlinks{display:none}
   .lp-feat{grid-template-columns:1fr}
@@ -104,8 +114,8 @@ html{scroll-behavior:smooth}
   .lp-g4{grid-template-columns:1fr 1fr}
 }
 @media (prefers-reduced-motion:reduce){
-  .lp-marq,.lp-rise,.lp-wall,.lp-reveal{animation:none!important}
-  .lp-gcard,.lp-btn,.lp-ghost,.lp-card,.lp-pill{transition:none}
+  .lp-marq,.lp-rise,.lp-wall,.lp-reveal,.lp-barfill,.lp-live{animation:none!important}
+  .lp-gcard,.lp-btn,.lp-ghost,.lp-card,.lp-pill,.lp-pickcard{transition:none}
   html{scroll-behavior:auto}
 }
 `;
@@ -145,6 +155,18 @@ function AdCard({ c }: { c: Ad }) {
         <div className="lp-t">{c.t}</div>
         <div className="lp-s" style={{ color: c.sc }}>{c.s}</div>
       </div>
+    </div>
+  );
+}
+
+function Thumb({ grad, glow, style }: { grad: string; glow: string; style?: React.CSSProperties }) {
+  return (
+    <div className="lp-thumb" style={{ background: grad, ...style }}>
+      <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(72% 62% at 50% 42%, ${glow}, transparent 72%)` }} />
+      <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style={{ position: 'absolute', inset: 0 }} aria-hidden>
+        <rect x="40" y="24" width="20" height="46" rx="6" fill="#f6eef4" opacity="0.9" />
+        <rect x="45" y="36" width="10" height="5" rx="2.5" fill="#ffffff" opacity="0.45" />
+      </svg>
     </div>
   );
 }
@@ -284,18 +306,33 @@ export function Landing() {
             </div>
           </div>
           <div className="lp-card" style={{ padding: 24, background: 'linear-gradient(160deg,#221320,#16101a)' }}>
-            <div style={{ display: 'flex', gap: 7, marginBottom: 18 }}>
-              {[0, 1, 2].map((i) => <span key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: '#fe2c55' }} />)}
+            <div style={{ display: 'flex', gap: 7, marginBottom: 16 }}>
+              {[0, 1, 2].map((i) => <span key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: 'linear-gradient(90deg,#fe2c55,#ff5c8a)' }} />)}
               {[3, 4].map((i) => <span key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.14)' }} />)}
             </div>
-            <div className="lp-muted lp-mono" style={{ fontSize: 12, marginBottom: 14 }}>étape 3 · Direction artistique</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div className="lp-muted lp-mono" style={{ fontSize: 12 }}>étape 3 · Direction artistique</div>
+              <span className="lp-chip" style={{ color: 'var(--ink2)' }}>3 / 5</span>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-              <div style={{ border: '1px solid rgba(254,44,85,0.5)', borderRadius: 12, padding: 12, background: 'rgba(254,44,85,0.08)' }}><div style={{ height: 44, borderRadius: 8, background: 'linear-gradient(160deg,#3a1f2e,#20131d)', marginBottom: 8 }} /><div style={{ fontSize: 11, fontWeight: 700 }}>Studio lumière douce</div></div>
-              <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 12 }}><div style={{ height: 44, borderRadius: 8, background: 'linear-gradient(160deg,#1e2b33,#12181f)', marginBottom: 8 }} /><div className="lp-ink2" style={{ fontSize: 11, fontWeight: 700 }}>Dark cinématique</div></div>
-              <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 12 }}><div style={{ height: 44, borderRadius: 8, background: 'linear-gradient(160deg,#1f3329,#131f18)', marginBottom: 8 }} /><div className="lp-ink2" style={{ fontSize: 11, fontWeight: 700 }}>Naturel clair</div></div>
+              {[
+                { t: 'Studio lumière douce', grad: 'linear-gradient(160deg,#3a1f2e,#20131d)', glow: 'rgba(255,92,138,0.55)', sel: true },
+                { t: 'Dark cinématique', grad: 'linear-gradient(160deg,#1e2b33,#12181f)', glow: 'rgba(59,130,246,0.5)', sel: false },
+                { t: 'Naturel clair', grad: 'linear-gradient(160deg,#1f3329,#131f18)', glow: 'rgba(24,204,140,0.5)', sel: false },
+              ].map((d) => (
+                <div key={d.t} className="lp-pickcard" style={{ border: d.sel ? '1px solid rgba(254,44,85,0.6)' : '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 10, background: d.sel ? 'rgba(254,44,85,0.08)' : 'transparent' }}>
+                  <Thumb grad={d.grad} glow={d.glow} style={{ height: 46, marginBottom: 9 }} />
+                  {d.sel && (
+                    <span className="lp-check">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6L9 17l-5-5" /></svg>
+                    </span>
+                  )}
+                  <div className={d.sel ? '' : 'lp-ink2'} style={{ fontSize: 11, fontWeight: 700 }}>{d.t}</div>
+                </div>
+              ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-              <span style={{ display: 'inline-flex', padding: '9px 18px', fontSize: 13, fontWeight: 600, borderRadius: 999, background: 'linear-gradient(135deg,#fe2c55,#ff2d8f)', color: '#fff' }}>Continuer</span>
+              <span className="lp-btn sm">Continuer</span>
             </div>
           </div>
         </div>
@@ -306,22 +343,28 @@ export function Landing() {
         <div className="lp-feat">
           <div className="lp-card" style={{ padding: 22, background: 'linear-gradient(160deg,#141a22,#111318)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>Ce qui scale · cette semaine</div>
-              <span className="lp-pill" style={{ padding: '5px 11px', fontSize: 11 }}>Beauté</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span className="lp-live" />
+                <div style={{ fontSize: 13, fontWeight: 700 }}>Ce qui scale · cette semaine</div>
+              </div>
+              <span className="lp-chip" style={{ color: 'var(--ink2)' }}>Beauté</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { g: 'linear-gradient(160deg,#3a1f2e,#20131d)', t: 'Pub concurrente · sérum', m: 'en hausse · 6 variantes actives', tag: '↑ scale', tc: '#18cc8c' },
-                { g: 'linear-gradient(160deg,#1e2b33,#12181f)', t: 'Pub concurrente · crème', m: 'stable · 3 variantes', tag: '→ stable', tc: 'var(--muted)' },
-                { g: 'linear-gradient(160deg,#33291a,#1f1811)', t: 'Produit qui monte · roll-on', m: 'radar produits', tag: 'nouveau', tc: '#f5a623' },
+                { g: 'linear-gradient(160deg,#3a1f2e,#20131d)', glow: 'rgba(255,92,138,0.5)', t: 'Pub concurrente · sérum', m: 'en hausse · 6 variantes actives', tag: '↑ scale', tc: '#18cc8c', spark: '0,13 13,11 26,10 39,5 52,2' },
+                { g: 'linear-gradient(160deg,#1e2b33,#12181f)', glow: 'rgba(59,130,246,0.45)', t: 'Pub concurrente · crème', m: 'stable · 3 variantes', tag: '→ stable', tc: '#9a8a98', spark: '0,8 13,7 26,9 39,7 52,8' },
+                { g: 'linear-gradient(160deg,#33291a,#1f1811)', glow: 'rgba(245,166,35,0.45)', t: 'Produit qui monte · roll-on', m: 'radar produits', tag: 'nouveau', tc: '#f5a623', spark: '0,14 13,12 26,9 39,7 52,4' },
               ].map((r, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 11, borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <div style={{ width: 40, height: 52, borderRadius: 8, background: r.g, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
+                  <Thumb grad={r.g} glow={r.glow} style={{ width: 40, height: 52, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{r.t}</div>
                     <div className="lp-muted" style={{ fontSize: 11 }}>{r.m}</div>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: r.tc }}>{r.tag}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <svg width="52" height="16" viewBox="0 0 52 16" fill="none" aria-hidden><polyline points={r.spark} stroke={r.tc} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: r.tc }}>{r.tag}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -351,20 +394,23 @@ export function Landing() {
           <div className="lp-card" style={{ padding: 24, background: 'linear-gradient(160deg,#131f1a,#111614)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700 }}>Bilan de relecture · lot #17</div>
-              <span style={{ fontSize: 11, color: '#7fe3c0', fontWeight: 700 }}>effectif atteint</span>
+              <span className="lp-chip" style={{ color: '#7fe3c0', borderColor: 'rgba(24,204,140,0.35)', background: 'rgba(24,204,140,0.1)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7fe3c0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6L9 17l-5-5" /></svg>
+                effectif atteint
+              </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { n: 'Moteur A', w: '81%', bar: 'linear-gradient(90deg,#18cc8c,#7fe3c0)', vc: '#7fe3c0' },
-                { n: 'Moteur B', w: '52%', bar: 'rgba(255,255,255,0.28)', vc: 'var(--muted)' },
-                { n: 'Référence', w: '48%', bar: 'rgba(255,255,255,0.18)', vc: 'var(--muted)' },
+                { n: 'Moteur A', w: '81%', bar: 'linear-gradient(90deg,#18cc8c,#7fe3c0)', vc: '#7fe3c0', win: true },
+                { n: 'Moteur B', w: '52%', bar: 'rgba(255,255,255,0.28)', vc: '#9a8a98', win: false },
+                { n: 'Référence', w: '48%', bar: 'rgba(255,255,255,0.18)', vc: '#9a8a98', win: false },
               ].map((r) => (
                 <div key={r.n} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span className="lp-ink2" style={{ width: 70, fontSize: 12 }}>{r.n}</span>
-                  <span style={{ flex: 1, height: 11, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                    <span style={{ display: 'block', width: r.w, height: '100%', background: r.bar }} />
+                  <span className="lp-bar" style={{ flex: 1 }}>
+                    <span className="lp-barfill" style={{ width: r.w, background: r.bar, boxShadow: r.win ? '0 0 16px rgba(24,204,140,0.55)' : 'none' }} />
                   </span>
-                  <span style={{ fontSize: 12, color: r.vc, fontWeight: 800 }}>{r.w}</span>
+                  <span style={{ fontSize: 12, color: r.vc, fontWeight: 800, width: 38, textAlign: 'right' }}>{r.w}</span>
                 </div>
               ))}
             </div>
