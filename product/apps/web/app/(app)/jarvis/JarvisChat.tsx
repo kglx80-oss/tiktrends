@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { parseAnswer, visibleWhileStreaming, JARVIS_ACTIONS, type JarvisAction } from '@tiktrends/core';
+import { parseAnswer, visibleWhileStreaming, verrouAction, JARVIS_ACTIONS, type JarvisAction } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
@@ -59,6 +59,11 @@ export function JarvisChat() {
   const [enCours, setEnCours] = useState(false);
   const [partiel, setPartiel] = useState('');
   const filRef = useRef<HTMLDivElement>(null);
+  // Verrou pris de façon SYNCHRONE · `enCours` est un état qui ne bascule qu'au
+  // rendu suivant, donc deux clics du même tick (une amorce cliquée deux fois,
+  // Entrée pressée en rafale) le voient tous les deux à false et partent en
+  // double · un double appel modèle, donc une double dépense.
+  const verrou = useRef(verrouAction());
 
   const charger = useCallback(async () => {
     const r = await chatThreadAction();
@@ -75,7 +80,10 @@ export function JarvisChat() {
 
   async function envoyer(texte: string) {
     const q = texte.trim();
-    if (!q || enCours) return;
+    if (!q) return;
+    // `enCours` couvre les rendus suivants (bouton disabled) · le verrou couvre
+    // le MÊME tick, que ni l'état ni le disabled n'attrapent.
+    if (!verrou.current.tenter()) return;
     setSaisie('');
     setEnCours(true);
     setPartiel('');
@@ -115,6 +123,7 @@ export function JarvisChat() {
       setErreur('La connexion s’est interrompue. Ta question est enregistrée, réessaie.');
     } finally {
       setEnCours(false);
+      verrou.current.relacher();
     }
   }
 
@@ -220,6 +229,7 @@ export function JarvisChat() {
           }}
         />
         <button
+          aria-label="Envoyer le message à Jarvis"
           onClick={() => void envoyer(saisie)}
           disabled={enCours || !saisie.trim()}
           style={{
