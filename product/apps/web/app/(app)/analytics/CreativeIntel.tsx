@@ -1,4 +1,5 @@
-import { niveauScore, LABEL_NIVEAU, COULEUR_NIVEAU } from '@tiktrends/core';
+import { niveauScore, LABEL_NIVEAU, COULEUR_NIVEAU, partDeMax } from '@tiktrends/core';
+import { BarreValeur } from '../../../components/BarreValeur';
 
 export interface CreativeStats {
   score: number;
@@ -39,7 +40,7 @@ export function CreativeIntel({ stats }: { stats: CreativeStats }) {
               {stats.templates.map((t) => (
                 <div key={t.key}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}><span style={{ color: 'var(--ink-2)' }}>{t.label}</span><span style={{ color: 'var(--muted)' }}>{t.n}</span></div>
-                  <div style={{ height: 8, background: 'var(--bg)', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: `${(t.n / maxTpl) * 100}%`, height: '100%', background: 'var(--grad-accent)', borderRadius: 999 }} /></div>
+                  <BarreValeur part={partDeMax(t.n, maxTpl)} hauteur={8} piste="var(--bg)" />
                 </div>
               ))}
             </div>
@@ -54,7 +55,7 @@ export function CreativeIntel({ stats }: { stats: CreativeStats }) {
               {stats.tags.map((t) => (
                 <div key={t.tag}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}><span style={{ color: 'var(--ink-2)', textTransform: 'capitalize' }}>{t.tag}</span><span style={{ color: 'var(--muted)' }}>{t.n}</span></div>
-                  <div style={{ height: 8, background: 'var(--bg)', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: `${(t.n / maxTag) * 100}%`, height: '100%', background: 'linear-gradient(90deg,#7a5aff,#e6007e)', borderRadius: 999 }} /></div>
+                  <BarreValeur part={partDeMax(t.n, maxTag)} couleur="linear-gradient(90deg,#7a5aff,#e6007e)" hauteur={8} piste="var(--bg)" />
                 </div>
               ))}
             </div>

@@ -1,5 +1,7 @@
 import type { MetaAdsInsights, MetaKpiSet, MetaBreakdownRow } from '@tiktrends/integrations';
+import { partDeMax } from '@tiktrends/core';
 import { MetaIcon } from '../../../components/BrandIcons';
+import { BarreValeur } from '../../../components/BarreValeur';
 
 function BreakdownCard({ title, rows, cur }: { title: string; rows: MetaBreakdownRow[]; cur: string }) {
   const max = Math.max(1, ...rows.map((r) => r.spend));
@@ -13,9 +15,7 @@ function BreakdownCard({ title, rows, cur }: { title: string; rows: MetaBreakdow
               <span style={{ color: 'var(--ink-2)', textTransform: 'capitalize' }}>{r.key}</span>
               <span style={{ color: 'var(--muted)' }}>{Math.round(r.spend).toLocaleString('fr-FR')} {cur}{r.roas ? ` · ${r.roas}×` : ''}</span>
             </div>
-            <div style={{ height: 8, background: 'var(--bg)', borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ width: `${(r.spend / max) * 100}%`, height: '100%', background: 'var(--grad-accent)', borderRadius: 999 }} />
-            </div>
+            <BarreValeur part={partDeMax(r.spend, max)} hauteur={8} piste="var(--bg)" />
           </div>
         ))}
       </div>
