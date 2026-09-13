@@ -135,7 +135,16 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                 if (isCurrent) return disabledBtn('Formule actuelle');
                 // Paiement Stripe branché : abonnement (Checkout) ou gestion (Portail).
                 if (stripeOn) {
-                  if (hasSub) return cta('Gérer mon abonnement', createPortalAction, undefined, undefined, false); // upgrade/downgrade via le portail
+                  // Déjà abonné · le changement de formule passe par le portail.
+                  // Chaque carte NOMME son action (« Passer à Plus », « Revenir
+                  // à Starter ») au lieu de répéter « Gérer mon abonnement » sur
+                  // chacune · quatre boutons identiques vers la même destination,
+                  // et le bouton d'une formule supérieure mentait sur son intention.
+                  // Le foyer unique de gestion reste le bandeau vert au-dessus.
+                  if (hasSub) {
+                    const monte = PLANS.indexOf(p) > PLANS.indexOf(current);
+                    return cta(monte ? `Passer à ${PLAN_LABEL[p]}` : `Revenir à ${PLAN_LABEL[p]}`, createPortalAction, undefined, undefined, false);
+                  }
                   if (p === 'starter') return disabledBtn('Formule gratuite');
                   if (planPurchasable(p)) return cta(`S'abonner · ${PLAN_PRICE[p]} €/mois`, createCheckoutAction, 'plan', p);
                   return disabledBtn('Bientôt');
