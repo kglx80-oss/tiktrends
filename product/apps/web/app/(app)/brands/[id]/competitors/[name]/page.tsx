@@ -135,15 +135,15 @@ export default async function CompetitorPage({ params, searchParams }: {
               IA · c'est le pont analyser→créer, sans quoi la fiche est un
               cul-de-sac. Personas et descripteurs (émotions, thèmes) ne sont pas
               des angles à tester tels quels. */}
-          {tab === 'hooks' && <InsightList title="Hooks récurrents" items={ins?.hooks} testable empty="Analyse IA requise." />}
-          {tab === 'adcopy' && <InsightList title="Angles de copy" items={ins?.adCopyAngles} testable empty="Analyse IA requise." />}
-          {tab === 'headlines' && <InsightList title="Headlines" items={ins?.headlines} testable empty="Analyse IA requise." />}
-          {tab === 'angles' && <InsightList title="Angles marketing" items={ins?.adAngles} testable empty="Analyse IA requise." />}
-          {tab === 'usps' && <InsightList title="Propositions de valeur" items={ins?.usps} testable empty="Analyse IA requise." />}
-          {tab === 'desires' && <InsightList title="Désirs adressés" items={ins?.desires} testable empty="Analyse IA requise." />}
-          {tab === 'emotions' && <InsightList title="Émotions activées" items={ins?.emotions} chips empty="Analyse IA requise." />}
-          {tab === 'themes' && <InsightList title="Thèmes / univers" items={ins?.themes} chips empty="Analyse IA requise." />}
-          {tab === 'personas' && <InsightList title="Personas déduits" items={ins?.personas} empty="Analyse IA requise." />}
+          {tab === 'hooks' && <InsightList title="Hooks récurrents" items={ins?.hooks} testable />}
+          {tab === 'adcopy' && <InsightList title="Angles de copy" items={ins?.adCopyAngles} testable />}
+          {tab === 'headlines' && <InsightList title="Headlines" items={ins?.headlines} testable />}
+          {tab === 'angles' && <InsightList title="Angles marketing" items={ins?.adAngles} testable />}
+          {tab === 'usps' && <InsightList title="Propositions de valeur" items={ins?.usps} testable />}
+          {tab === 'desires' && <InsightList title="Désirs adressés" items={ins?.desires} testable />}
+          {tab === 'emotions' && <InsightList title="Émotions activées" items={ins?.emotions} chips />}
+          {tab === 'themes' && <InsightList title="Thèmes / univers" items={ins?.themes} chips />}
+          {tab === 'personas' && <InsightList title="Personas déduits" items={ins?.personas} />}
         </>
       )}
     </main>
@@ -214,8 +214,16 @@ function Creatives({ report }: { report: CompetitorReport }) {
   );
 }
 
-function InsightList({ title, items, chips, testable, empty }: { title: string; items?: string[]; chips?: boolean; testable?: boolean; empty: string }) {
-  if (!items || items.length === 0) return <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 20, color: 'var(--muted)', fontSize: 13 }}>{empty}</div>;
+function InsightList({ title, items, chips, testable }: { title: string; items?: string[]; chips?: boolean; testable?: boolean }) {
+  // Message HONNÊTE quand la dimension est vide · le rapport existe (on est sur
+  // sa fiche), donc l'ancien libellé qui réclamait de lancer l'analyse mentait ·
+  // c'est cette dimension-là qui n'a rien retenu. Le geste est déjà en haut de
+  // page (« Rafraîchir l'analyse ») · on le nomme au lieu d'une impasse muette.
+  if (!items || items.length === 0) return (
+    <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 20, color: 'var(--muted)', fontSize: 13, lineHeight: 1.55 }}>
+      Rien de notable sur cette dimension. Relance <b style={{ color: 'var(--ink-2)' }}>« Rafraîchir l’analyse »</b> en haut de page pour (re)générer les insights.
+    </div>
+  );
   return (
     <div>
       <h2 style={sectionH}>{title} <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{items.length}</span></h2>
