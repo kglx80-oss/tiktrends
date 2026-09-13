@@ -48,9 +48,11 @@ function fileToDataUri(file: File, maxSide = 1280, quality = 0.85): Promise<stri
   });
 }
 
-export function ImageStudio({ ready, aiReady, brandName, initial, products, brandColors, assets = [] }: {
+export function ImageStudio({ ready, aiReady, brandName, initial, products, brandColors, assets = [], adsmap = false }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: BrandImage[];
   products: Product[]; brandColors: string[]; assets?: Array<{ id: string; name: string; url: string; thumbUrl?: string | null }>;
+  /** L'utilisateur a l'atelier de test · affiche « Suivre dans Adsmap » sur chaque visuel. */
+  adsmap?: boolean;
 }) {
   const [mode, setMode] = useState<'t2i' | 'i2i'>('i2i');
   const [prompt, setPrompt] = useState('');
@@ -430,7 +432,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               <div style={{ padding: '9px 11px' }}>
                 <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{im.prompt}</p>
                 <div style={{ marginTop: 8 }}>
-                  <CreativeActions genId={im.id} rating={im.rating} onOpen={im.url ? () => setPreview(im.url) : undefined} downloadUrl={im.url} onArchive={() => archiveImage(im.id)} />
+                  <CreativeActions genId={im.id} rating={im.rating} onOpen={im.url ? () => setPreview(im.url) : undefined} downloadUrl={im.url} onArchive={() => archiveImage(im.id)} trackable={adsmap} />
                 </div>
                 {/* Relecture IA · note plafonnée par les ratés visibles. */}
                 {notes[im.id] && (() => { const nt = notes[im.id]!; return (
