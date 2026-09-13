@@ -111,9 +111,28 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     expect(introuvables, `Icône(s) Empty absente(s) du jeu · repli muet sur grid : ${introuvables.join(', ')}`).toEqual([]);
   });
 
-  it('les trois onglets Jarvis mènent à Pubs IA · plus de phrase sans issue', () => {
+  it('les trois états vides Jarvis guident vers Pubs IA en toutes lettres · sans empiler de CTA', () => {
+    // Ces trois sections d'analyse se remplissent quand on travaille AILLEURS ·
+    // ce sont des `wait`. Elles portaient chacune le même bouton « Ouvrir Pubs
+    // IA » · trois CTA identiques empilés dès qu'une marque Plus n'avait encore
+    // rien fait. Un `wait` ne doit rien qui appelle le clic (doctrine Empty,
+    // tenue par le type). L'issue n'a pas disparu pour autant · le `why` de
+    // chaque section nomme toujours Pubs IA, en toutes lettres · pas d'impasse,
+    // pas de doublon.
     const src = lit('app/(app)/jarvis/page.tsx');
-    const n = src.split("href: '/studio/ads'").length - 1;
-    expect(n, 'attendu au moins 3 sorties « Ouvrir Pubs IA »').toBeGreaterThanOrEqual(3);
+
+    const cta = src.split("href: '/studio/ads'").length - 1;
+    expect(cta, 'CTA « Ouvrir Pubs IA » empilé dans un état wait · doublon de parcours').toBe(0);
+
+    // Les trois `why`, mot pour mot · chacun renvoie à Pubs IA sans bouton.
+    for (const phrase of [
+      'choisis ce que le lot teste',
+      'Le Score Jarvis s’ouvre depuis le panneau',
+      'La relecture tourne toute seule',
+    ]) {
+      expect(src, `l’état vide « ${phrase} » a disparu`).toContain(phrase);
+    }
+    const guide = src.split('Pubs IA').length - 1;
+    expect(guide, 'les états vides Jarvis ne nomment plus assez Pubs IA').toBeGreaterThanOrEqual(3);
   });
 });

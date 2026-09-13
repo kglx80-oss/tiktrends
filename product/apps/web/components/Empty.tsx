@@ -59,7 +59,11 @@ export type EmptyProps =
   // `children` (formulaire, upload). Ni l'un ni l'autre ne compile pas.
   | (Base & { tone: 'todo'; action: Action })
   | (Base & { tone: 'todo'; children: ReactNode; action?: Action })
-  | (Base & { tone: 'wait'; action?: Action })
+  // Un `wait` ne PEUT PAS porter d'`action` · rien à faire, donc rien qui
+  // appelle le clic (cf. TON.wait). La règle vivait en commentaire · trois
+  // écrans Jarvis empilaient malgré tout le même « Ouvrir Pubs IA ». Le type
+  // l'interdit maintenant · un CTA sur un `wait` ne compile plus.
+  | (Base & { tone: 'wait' })
   | (Base & { tone: 'good'; action?: Action });
 
 const TON: Record<EmptyProps['tone'], { bord: string; fg: string; trait: string }> = {
