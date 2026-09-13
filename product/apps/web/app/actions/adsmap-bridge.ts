@@ -2,7 +2,7 @@
 
 import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { mechanismForTemplate } from '@tiktrends/core';
+import { mechanismForTemplate, formatAdPourGeneration } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory, briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
@@ -36,20 +36,28 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
   if ('error' in g) return { error: g.error };
 
   try {
-    const [gen] = await db!.select({ id: schema.generations.id, input: schema.generations.input, assetUrls: schema.generations.assetUrls, brandId: schema.generations.brandId })
+    const [gen] = await db!.select({ id: schema.generations.id, input: schema.generations.input, assetUrls: schema.generations.assetUrls, brandId: schema.generations.brandId, kind: schema.generations.kind })
       .from(schema.generations)
-      .where(and(eq(schema.generations.id, generationId), eq(schema.generations.brandId, g.brand.id), eq(schema.generations.kind, 'ad')))
+      .where(and(eq(schema.generations.id, generationId), eq(schema.generations.brandId, g.brand.id)))
       .limit(1);
     if (!gen) return { error: 'Créa introuvable dans cette marque.' };
 
+    // Le format d'ad se déduit du TYPE de génération (règle du noyau) · pub et
+    // image → static, vidéo → video_ugc. Un script ou une copie n'est pas une
+    // créative à arbitrer · on refuse plutôt que d'inventer une ad de texte.
+    const format = formatAdPourGeneration(gen.kind);
+    if (!format) return { error: 'Ce type de créa ne se teste pas dans Adsmap.' };
+
     const r = (gen.input ?? {}) as {
       template?: string; headline?: string; kicker?: string; subhead?: string; cta?: string;
-      personaId?: string; objective?: string; adsmapAdId?: string;
+      personaId?: string; objective?: string; adsmapAdId?: string; prompt?: string;
     };
     // Déjà suivie : on renvoie vers l'existant plutôt que de créer un doublon.
     if (r.adsmapAdId) return { ok: true, adId: r.adsmapAdId, error: undefined };
 
-    const titre = (r.headline || 'Créa Studio').slice(0, 160);
+    // La vidéo et l'image décrivent leur créa par un `prompt`, pas un `headline` ·
+    // on l'utilise comme titre plutôt qu'un « Créa Studio » anonyme.
+    const titre = (r.headline || r.prompt || 'Créa Studio').slice(0, 160);
     const angleLabel = (r.kicker || r.objective || titre).slice(0, 160);
     // Le repli est ici, et il est assumé · la table du noyau rend `null` plutôt
     // que d'en cacher un. C'est ce défaut caché qui rangeait « Bénéfices
@@ -82,7 +90,7 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
     const [ad] = await db!.insert(schema.ads).values({
       workspaceId: g.s.workspaceId, conceptId,
       variantCode: await nextVariant(conceptId),
-      format: 'static', adType: 'ideation', status: 'draft',
+      format, adType: 'ideation', status: 'draft',
       assetUrl: (gen.assetUrls && gen.assetUrls[0]) || `/api/ad/${gen.id}`,
       sourceRef: { generationId: gen.id },
     }).returning({ id: schema.ads.id });
@@ -97,7 +105,7 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
     // L'avis complet plutôt que le seul score : c'est l'accroche qui porte le
     // signal le plus fort, et elle est ici sous la main.
     const avis = await briefConceptBeforeLaunch(g.brand.id, g.s.workspaceId, {
-      mechanism, format: 'static', candidateHook: r.headline ?? null,
+      mechanism, format, candidateHook: r.headline ?? null,
     });
     return { ok: true, adId: ad.id, conceptId, prelaunch: avis.summary };
   } catch (e) {

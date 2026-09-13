@@ -63,6 +63,7 @@ export * from './adsmap/milestones';
 export * from './adsmap/curation';
 export * from './adsmap/preflight';
 export * from './adsmap/studio-templates';
+export * from './adsmap/format-generation';
 export * from './generation-outcome';
 export * from './visual-universes';
 export * from './ad-directions';
