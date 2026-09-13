@@ -282,7 +282,6 @@ export default async function JarvisPage() {
             <Empty
               tone="wait" title="Aucun lot d’essai poussé dans la carte."
               why="Dans Pubs IA, choisis ce que le lot teste avant de générer · un essai d’accroches ou de mises en page ne produit qu’une image, il coûte donc moins cher qu’un lot libre."
-              action={{ label: 'Ouvrir Pubs IA', href: '/studio/ads' }}
             />
           ) : (
             <>
@@ -402,7 +401,6 @@ export default async function JarvisPage() {
             <Empty
               tone="wait" title="Aucune créa notée pour l’instant."
               why="Le Score Jarvis s’ouvre depuis le panneau d’une pub, dans Pubs IA."
-              action={{ label: 'Ouvrir Pubs IA', href: '/studio/ads' }}
             />
           ) : (
             <>
@@ -495,7 +493,6 @@ export default async function JarvisPage() {
             <Empty
               tone="wait" title="Aucune publicité relue pour l’instant."
               why="La relecture tourne toute seule sur les pubs produites en mode « Générée entièrement », dans Pubs IA."
-              action={{ label: 'Ouvrir Pubs IA', href: '/studio/ads' }}
             />
           ) : (
             <>
