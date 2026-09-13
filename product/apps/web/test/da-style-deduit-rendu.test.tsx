@@ -67,6 +67,15 @@ describe('Le style déduit du site se voit et se corrige', () => {
     expect(fn, 'la correction ne doit pas appeler l’IA').not.toContain('guardedAnthropic(');
   });
 
+  it('une DA malformée (aEviter en chaîne) ne fait PAS tomber le rendu', () => {
+    // C'est la forme qui crashait la page marque côté client après l'analyse ·
+    // renderToStaticMarkup lève si le composant lève. On rend, on ne casse pas.
+    const casse = { style: 'net et lumineux', aEviter: 'surcharge, stock' } as unknown as typeof da;
+    let out = '';
+    expect(() => { out = html({ daVisuelle: casse }); }, 'le rendu a levé sur une DA malformée').not.toThrow();
+    expect(out, 'le style tient malgré la DA malformée').toContain('net et lumineux');
+  });
+
   it('l’écran de marque passe la DA visuelle au composant', () => {
     const page = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/page.tsx'), 'utf8');
     expect(page, 'brandKit n’est pas transmis à BrandDA').toMatch(/<BrandDA[^>]*daVisuelle=\{[^}]*brandKit/);

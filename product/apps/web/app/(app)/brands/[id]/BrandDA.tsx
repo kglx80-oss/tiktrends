@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { importBrandDAAction, saveBrandDAAction, extractBrandVisualDaAction, saveBrandVisualDaAction } from '../../../actions/brand-detail';
 import { BrandGuidelines } from '../../../../components/BrandGuidelines';
 import { Icon } from '../../../../components/Icon';
-import { costFor, daVisuelleUtile, type DaVisuelleMarque } from '@tiktrends/core';
+import { costFor, daVisuelleUtile, normaliserDaVisuelle, type DaVisuelleMarque } from '@tiktrends/core';
 
 export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuelle = null }: { brandId: string; logoUrl: string | null; logos?: string[]; colors: string[]; fonts: string[]; daVisuelle?: DaVisuelleMarque | null }) {
   const router = useRouter();
@@ -44,15 +44,17 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
 
   // Le STYLE déduit par l'agent · rendu EN MOTS pour que le style compris soit
   // visible (et corrigeable) avant de générer, jamais une boîte noire.
-  const dv = daVisuelle;
-  const styleShown = daVisuelleUtile(dv);
+  // Normalisée une fois · tolère une DA malformée (aEviter en chaîne, champ en
+  // nombre) sans faire tomber le rendu · c'était la cause du crash côté client.
+  const dv = normaliserDaVisuelle(daVisuelle);
+  const styleShown = daVisuelleUtile(daVisuelle);
   const styleRows: Array<[string, string]> = [
-    ['Style', dv?.style ?? ''],
-    ['Photo', dv?.photo ?? ''],
-    ['Ambiance', dv?.ambiance ?? ''],
-    ['Lumière', dv?.lumiere ?? ''],
-    ['Couleurs', dv?.couleurs ?? ''],
-    ['À éviter', (dv?.aEviter ?? []).join(', ')],
+    ['Style', dv.style],
+    ['Photo', dv.photo],
+    ['Ambiance', dv.ambiance],
+    ['Lumière', dv.lumiere],
+    ['Couleurs', dv.couleurs],
+    ['À éviter', dv.aEviter.join(', ')],
   ];
 
   return (
@@ -108,12 +110,12 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
           <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', marginBottom: 3 }}>Corriger le style déduit</div>
           <div style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 12 }}>Ta version prime sur celle de l'agent · aucun crédit.</div>
           {([
-            ['style', 'Style', dv?.style ?? '', 'éditorial minimaliste, beaucoup de blanc, cadrages nets'],
-            ['photo', 'Photo', dv?.photo ?? '', 'macro produit sur fond texturé, lifestyle lumineux…'],
-            ['ambiance', 'Ambiance', dv?.ambiance ?? '', 'premium et rassurant, énergique et pop…'],
-            ['lumiere', 'Lumière', dv?.lumiere ?? '', 'lumière naturelle douce, ombres tenues'],
-            ['couleurs', 'Couleurs', dv?.couleurs ?? '', 'tons crème et vert sauge, contrastes doux'],
-            ['aEviter', 'À éviter', (dv?.aEviter ?? []).join(', '), 'rendu stock, dégradés criards, surcharge'],
+            ['style', 'Style', dv.style, 'éditorial minimaliste, beaucoup de blanc, cadrages nets'],
+            ['photo', 'Photo', dv.photo, 'macro produit sur fond texturé, lifestyle lumineux…'],
+            ['ambiance', 'Ambiance', dv.ambiance, 'premium et rassurant, énergique et pop…'],
+            ['lumiere', 'Lumière', dv.lumiere, 'lumière naturelle douce, ombres tenues'],
+            ['couleurs', 'Couleurs', dv.couleurs, 'tons crème et vert sauge, contrastes doux'],
+            ['aEviter', 'À éviter', dv.aEviter.join(', '), 'rendu stock, dégradés criards, surcharge'],
           ] as Array<[string, string, string, string]>).map(([name, label, value, ph]) => (
             <label key={name} style={{ display: 'block', marginBottom: 10 }}>
               <span style={{ ...daLbl, display: 'block' }}>{label}</span>

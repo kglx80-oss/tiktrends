@@ -71,7 +71,30 @@ export async function extractVisualDa(
     tool_choice: { type: 'tool', name: 'return_visual_da' },
     messages: [{ role: 'user', content: buildVisualDaUserPrompt(i) }],
   });
-  const tool = res.content.find((c) => c.type === 'tool_use') as { input?: VisualDaDraft } | undefined;
+  const tool = res.content.find((c) => c.type === 'tool_use') as { input?: unknown } | undefined;
   if (!tool?.input) throw new Error('DA visuelle vide (aucune sortie structurée).');
-  return tool.input;
+  return normaliserDraft(tool.input);
+}
+
+/**
+ * Le modèle respecte le schéma la plupart du temps · pas toujours. `aEviter`
+ * revient parfois en chaîne, un champ parfois absent. On range la DA propre
+ * (chaînes sûres, `aEviter` tableau de chaînes) AVANT de la stocker · une DA
+ * malformée dans brandKit faisait tomber le rendu de la marque et la génération.
+ */
+function normaliserDraft(input: unknown): VisualDaDraft {
+  const o = (input && typeof input === 'object') ? (input as Record<string, unknown>) : {};
+  const txt = (v: unknown): string | undefined => {
+    const s = typeof v === 'string' ? v.trim() : '';
+    return s || undefined;
+  };
+  const eviter = Array.isArray(o.aEviter)
+    ? o.aEviter
+    : (typeof o.aEviter === 'string' ? o.aEviter.split(/[\n,]/) : []);
+  const aEviter = eviter.map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean);
+  return {
+    style: txt(o.style), photo: txt(o.photo), ambiance: txt(o.ambiance),
+    lumiere: txt(o.lumiere), couleurs: txt(o.couleurs),
+    ...(aEviter.length ? { aEviter } : {}),
+  };
 }

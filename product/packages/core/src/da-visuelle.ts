@@ -34,10 +34,31 @@ export interface DaVisuelleMarque {
   aEviter?: string[];
 }
 
+/** Une chaîne propre, ou '' · tolère tout (nombre, null, objet). */
+function txt(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+/**
+ * La DA nettoyée · chaque champ est une chaîne sûre, `aEviter` un tableau de
+ * chaînes. Existe parce que la DA vient d'un modèle et d'un jsonb : `aEviter`
+ * arrive parfois en chaîne, un champ parfois en nombre. Sans ce filtre, un
+ * `.map`/`.trim` sur la mauvaise forme faisait tomber le rendu de la marque ET
+ * la génération (les deux lisent cette DA). On normalise ici, une fois.
+ */
+export function normaliserDaVisuelle(da?: DaVisuelleMarque | null): Required<Pick<DaVisuelleMarque, 'style' | 'ambiance' | 'lumiere' | 'photo' | 'couleurs'>> & { aEviter: string[] } {
+  const o = (da && typeof da === 'object') ? (da as Record<string, unknown>) : {};
+  return {
+    style: txt(o.style), ambiance: txt(o.ambiance), lumiere: txt(o.lumiere),
+    photo: txt(o.photo), couleurs: txt(o.couleurs),
+    aEviter: (Array.isArray(o.aEviter) ? o.aEviter : []).map(txt).filter(Boolean),
+  };
+}
+
 /** Vrai si la DA porte au moins une consigne exploitable. */
 export function daVisuelleUtile(da?: DaVisuelleMarque | null): boolean {
-  if (!da) return false;
-  return !!(da.style?.trim() || da.ambiance?.trim() || da.lumiere?.trim() || da.photo?.trim() || da.couleurs?.trim() || (da.aEviter ?? []).some((x) => x.trim()));
+  const n = normaliserDaVisuelle(da);
+  return !!(n.style || n.ambiance || n.lumiere || n.photo || n.couleurs || n.aEviter.length);
 }
 
 /**
@@ -47,15 +68,14 @@ export function daVisuelleUtile(da?: DaVisuelleMarque | null): boolean {
  * le prompt reste léger.
  */
 export function contrainteDaPourPrompt(da?: DaVisuelleMarque | null): string {
-  if (!daVisuelleUtile(da)) return '';
-  const d = da!;
+  const d = normaliserDaVisuelle(da);
   const bouts: string[] = [];
-  if (d.style?.trim()) bouts.push(`overall style: ${d.style.trim()}`);
-  if (d.photo?.trim()) bouts.push(`photography: ${d.photo.trim()}`);
-  if (d.ambiance?.trim()) bouts.push(`mood: ${d.ambiance.trim()}`);
-  if (d.lumiere?.trim()) bouts.push(`lighting: ${d.lumiere.trim()}`);
-  if (d.couleurs?.trim()) bouts.push(`colour feel: ${d.couleurs.trim()}`);
-  const eviter = (d.aEviter ?? []).map((x) => x.trim()).filter(Boolean);
+  if (d.style) bouts.push(`overall style: ${d.style}`);
+  if (d.photo) bouts.push(`photography: ${d.photo}`);
+  if (d.ambiance) bouts.push(`mood: ${d.ambiance}`);
+  if (d.lumiere) bouts.push(`lighting: ${d.lumiere}`);
+  if (d.couleurs) bouts.push(`colour feel: ${d.couleurs}`);
+  if (!bouts.length && !d.aEviter.length) return '';
   const base = `Brand visual identity · apply this house style to EVERY creative while keeping each scene distinct (this constrains the look, not the subject): ${bouts.join('; ')}.`;
-  return eviter.length ? `${base} Avoid: ${eviter.join(', ')}.` : base;
+  return d.aEviter.length ? `${base} Avoid: ${d.aEviter.join(', ')}.` : base;
 }
