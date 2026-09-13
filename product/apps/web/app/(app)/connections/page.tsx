@@ -10,8 +10,10 @@ import { ConnecteurBientot, type ConnecteurAVenir } from '../../../components/Co
 export const dynamic = 'force-dynamic';
 
 const CATS: Array<{ cat: string; items: ConnecteurAVenir[] }> = [
+  // Meta Ads ne figure PAS ici · il est déjà branchable en direct (DataConnections
+  // ci-dessus). Un connecteur ne peut pas être « disponible » et « à venir » sur
+  // la même page.
   { cat: 'Publicité', items: [
-    { name: 'Meta Ads', color: '#0668E1', glyph: 'M', priority: true },
     { name: 'TikTok Ads', color: '#010101', glyph: 'T', priority: true },
     { name: 'Google Ads', color: '#4285F4', glyph: 'G' },
     { name: 'Snapchat Ads', color: '#FFFC00', glyph: 'S' },
@@ -27,7 +29,7 @@ const CATS: Array<{ cat: string; items: ConnecteurAVenir[] }> = [
     { name: 'Snowflake', color: '#29B5E8', glyph: 'SN' },
   ] },
   { cat: 'E-commerce & Paiement', items: [
-    { name: 'Shopify', color: '#95BF47', glyph: 'S' },
+    // Shopify est déjà branchable en direct (DataConnections) · pas « à venir ».
     { name: 'Stripe', color: '#635BFF', glyph: 'S' },
     { name: 'Triple Whale', color: '#0EA5E9', glyph: 'TW' },
   ] },
@@ -116,7 +118,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           comme une cinquantaine de boutons désactivés qui se lisent comme cassés. */}
       <h2 style={{ ...h2, marginTop: 26 }}>Feuille de route <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· {TOTAL} intégrations en préparation</span></h2>
       <p style={{ margin: '2px 0 12px', fontSize: 12.5, color: 'var(--muted)' }}>
-        Ces connecteurs arrivent · Meta Ads et TikTok Ads en tête. Un besoin urgent ? Dis-le au support, on priorise selon la demande.
+        Ces connecteurs arrivent · TikTok Ads et Google Ads en tête. Un besoin urgent ? Dis-le au support, on priorise selon la demande.
       </p>
       {CATS.map(({ cat, items }) => (
         <details key={cat} open style={{ marginBottom: 14 }}>
