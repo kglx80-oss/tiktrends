@@ -23,7 +23,7 @@ import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
 import { CarteConcurrent } from '../../../../components/CarteConcurrent';
-import { costFor, imageModelByKey } from '@tiktrends/core';
+import { costFor, imageModelByKey, type DaVisuelleMarque } from '@tiktrends/core';
 import { falConfigured } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,7 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: 'overview', label: 'Aperçu' }, { key: 'audience', label: 'Audience' },
   { key: 'products', label: 'Produits' }, { key: 'competitors', label: 'Concurrents' },
 ];
-const OK: Record<string, string> = { saved: 'Profil mis à jour.', created: 'Marque créée.', shopify: 'Boutique Shopify connectée : produits, images et DA importés.', generated: 'Profil généré depuis le site (profil, audience, concurrents).', da: 'Style du site analysé · il guide désormais chaque créa générée.', persona: 'Persona ajouté.', scenario: 'Scénario ajouté.', product: 'Produit ajouté.', imported: 'Produits importés.' };
+const OK: Record<string, string> = { saved: 'Profil mis à jour.', created: 'Marque créée.', shopify: 'Boutique Shopify connectée : produits, images et DA importés.', generated: 'Profil généré depuis le site (profil, audience, concurrents).', da: 'Style du site analysé · il guide désormais chaque créa générée.', 'da-edit': 'Style corrigé · la génération applique ta version.', persona: 'Persona ajouté.', scenario: 'Scénario ajouté.', product: 'Produit ajouté.', imported: 'Produits importés.' };
 const ERR: Record<string, string> = { nourl: 'Renseigne le site de la marque pour importer.', ai: "IA non configurée sur le serveur.", credits: 'Crédits insuffisants.', import: "L'import a échoué, réessaie.", generate: "La génération a échoué, réessaie." };
 
 const area = { ...input, minHeight: 74, resize: 'vertical' as const, lineHeight: 1.5, fontFamily: 'inherit' };
@@ -172,7 +172,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} />
           </form>
 
-          <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} />
+          <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} daVisuelle={(b.brandKit ?? null) as DaVisuelleMarque | null} />
 
         <BrandOverviewForm init={{
           id: b.id, name: b.name, url: b.url ?? '', description: b.description ?? '', usp: b.usp ?? '',

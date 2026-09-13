@@ -8,7 +8,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { generateProducts, generateBrandProfile, extractVisualDa } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
 import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
-import { costFor, imageModelByKey } from '@tiktrends/core';
+import { costFor, imageModelByKey, type DaVisuelleMarque } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
@@ -134,6 +134,28 @@ export async function extractBrandVisualDaAction(formData: FormData): Promise<vo
 
   if (errMsg) redirect(`/brands/${brandId}?tab=overview&e=generate&m=${encodeURIComponent(errMsg.slice(0, 160))}`);
   redirect(`/brands/${brandId}?tab=overview&ok=da`);
+}
+
+/**
+ * Corrige à la main le STYLE déduit du site (brandKit) · pas de dépense, simple
+ * écriture. Transparence + levier : si l'agent a mal lu la marque, on rectifie
+ * sans re-payer un scan. Bornée à la marque (guardBrand).
+ */
+export async function saveBrandVisualDaAction(formData: FormData): Promise<void> {
+  const brandId = norm(formData.get('brandId'));
+  const g = await guardBrand(brandId);
+  if (!g || !db) redirect('/brands');
+
+  const da: DaVisuelleMarque = {
+    style: norm(formData.get('style')) || undefined,
+    photo: norm(formData.get('photo')) || undefined,
+    ambiance: norm(formData.get('ambiance')) || undefined,
+    lumiere: norm(formData.get('lumiere')) || undefined,
+    couleurs: norm(formData.get('couleurs')) || undefined,
+    aEviter: asArr(formData.get('aEviter')),
+  };
+  await db.update(schema.brands).set({ brandKit: da }).where(eq(schema.brands.id, brandId));
+  redirect(`/brands/${brandId}?tab=overview&ok=da-edit`);
 }
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
