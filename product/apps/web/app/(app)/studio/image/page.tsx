@@ -35,6 +35,10 @@ export default async function ImageStudioPage() {
   }
 
   const [brand, images, assets] = await Promise.all([getActiveBrand(s.workspaceId), listBrandImages(), listAssets({ kind: 'image', limit: 24 })]);
+  // Même accès que les pubs · un visuel peut désormais être poussé en test dans
+  // Adsmap (le pont accepte l'image en format static). Bouton « Suivre » exposé
+  // seulement à qui a l'atelier de test.
+  const adsmapOpen = !!brand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
   let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
   let colors: string[] = [];
   if (db && brand) {
@@ -61,7 +65,7 @@ export default async function ImageStudioPage() {
         prompt de qualité pub soit rédigé pour toi. 4 crédits par image.
       </PageInfo>
 
-      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} assets={assets.map((a) => ({ id: a.id, name: a.name, url: a.url, thumbUrl: a.thumbUrl }))} />
+      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} assets={assets.map((a) => ({ id: a.id, name: a.name, url: a.url, thumbUrl: a.thumbUrl }))} adsmap={adsmapOpen} />
     </main>
   );
 }
