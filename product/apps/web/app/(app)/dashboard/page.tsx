@@ -57,10 +57,11 @@ export default async function Dashboard() {
         (winner, à itérer, à couper…). C'est ta porte d'entrée : de là, ouvre le <b>Radar</b> pour le détail
         par axe ou l'<b>Analytics</b> pour les KPI agrégés.
       </PageInfo>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
-        <a href="/api/oauth/tiktok" style={btn}>Connecter TikTok Ads</a>
-        <a href="/api/oauth/meta" style={{ ...btn, background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--ink)' }}>Connecter Meta Ads</a>
-      </div>
+      {/* Un SEUL chemin pour brancher un compte · le bandeau ci-dessus mène à
+          /connections, foyer unique de la connexion (cartes, gardes OAuth, TikTok
+          annoncé honnêtement « à venir »). Les deux boutons directs qui vivaient
+          ici doublonnaient ce chemin, et « Connecter TikTok » lançait un flux
+          incomplet · retirés pour un fil clair. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 16 }}>
         {rows.map((r) => (
           <div key={r.platform + r.fingerprint} style={card}>
@@ -92,4 +93,3 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 const card: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 16, boxShadow: 'var(--sh-card)' };
-const btn: React.CSSProperties = { padding: '10px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 600, textDecoration: 'none', fontSize: 13 };
