@@ -252,6 +252,9 @@ export function Lots({ batches, brandName }: {
             {candidats.length === 0 ? (
               <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
                 Aucune ad libre. Crée une itération depuis une gagnante, ou pousse une créa du Studio dans la carte.
+                {/* Le geste concret « pousser une créa du Studio » était nommé
+                    sans lien · on le rend cliquable, sortie vers Pubs IA. */}
+                {' '}<a href="/studio/ads" style={{ fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Ouvrir Pubs IA ›</a>
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 420, overflowY: 'auto' }}>
