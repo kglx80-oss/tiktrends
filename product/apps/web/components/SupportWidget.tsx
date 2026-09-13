@@ -10,7 +10,7 @@ import { Icon } from './Icon';
 const FAQ: Array<{ q: string; a: string }> = [
   { q: 'Comment créer une marque ?', a: "Menu profil → Marques → « Créer une marque ». Le wizard en 5 étapes te guide ; l'IA peut pré-remplir le profil depuis ton site." },
   { q: 'Comment connecter un compte publicitaire ?', a: 'Profil → Connexions. Choisis Meta ou TikTok, la connexion se fait en OAuth sécurisé, marque par marque.' },
-  { q: 'Comment fonctionnent les crédits ?', a: 'Chaque action IA (script, brief, analyse concurrent…) consomme des crédits selon un barème. Ton solde et l’historique sont dans Crédits (console admin).' },
+  { q: 'Comment fonctionnent les crédits ?', a: 'Chaque action IA (script, brief, analyse concurrent…) consomme des crédits selon un barème. Ton solde s’affiche dans le menu crédits en haut ; le détail de la consommation est dans « Utilisation des crédits ».' },
   { q: 'Comment analyser un concurrent ?', a: "Ouvre une marque → onglet Concurrents → clique un concurrent → « Analyser ». On récupère ses créas et on extrait hooks, angles, USP, etc." },
   { q: 'Comment inviter un membre ?', a: 'Profil → Membres. Envoie une invitation par e-mail avec le rôle voulu (membre, admin, client lecture).' },
 ];
