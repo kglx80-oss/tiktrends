@@ -8,6 +8,7 @@ export * from './ads';
 export * from './critique';
 export * from './controle-pub';
 export * from './brand';
+export * from './da-visuelle';
 export * from './chat';
 export * from './adsmap-asset';
 export * from './adsmap-agents';
