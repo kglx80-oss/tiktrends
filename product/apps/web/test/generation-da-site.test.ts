@@ -25,7 +25,8 @@ describe('Génération · la DA du site atteint les prompts d’image', () => {
   });
 
   it('la scène composée reçoit la contrainte de DA', () => {
-    const passes = src.split(/o\.cadragePolyvalent, palette, daVisuelle\)/).length - 1;
+    // La signature peut porter d'autres paramètres après daVisuelle (ex : ancrage).
+    const passes = src.split(/o\.cadragePolyvalent, palette, daVisuelle[,)]/).length - 1;
     expect(passes, 'les deux branches composées ne passent pas la DA').toBe(2);
   });
 

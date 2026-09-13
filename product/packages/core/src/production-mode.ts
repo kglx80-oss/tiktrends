@@ -175,6 +175,9 @@ export function promptPubEntiere(o: {
   /** La DA visuelle dérivée du site (déjà tournée en contrainte de prompt) ·
       style maison appliqué à chaque créa, superposé à la direction. */
   daVisuelle?: string | null;
+  /** L'ancrage produit (déjà tourné en consigne · `ancrageProduit`) · interdit
+      qu'un accessoire ou une surface sorte du monde du produit. */
+  ancrage?: string | null;
   /** Direction artistique · scène, lumière, typographie, disposition, finition. */
   direction?: AdDirection | null;
   /** Prompt maison · remplace la direction quand il est choisi. */
@@ -219,6 +222,10 @@ export function promptPubEntiere(o: {
   const palette = palettePourPrompt(o.palette);
   // Le style maison du site · contrainte de DA, superposée à la direction.
   const daSite = (o.daVisuelle ?? '').trim();
+  // L'ancrage produit · placé JUSTE APRÈS la direction · il post-qualifie ses
+  // cases ouvertes (« un accessoire », « des objets ») pour qu'elles se
+  // remplissent sur-sujet, sans figer le décor.
+  const ancrage = (o.ancrage ?? '').trim();
 
   // Les renforts vivent JUSTE APRÈS la règle de copie et AVANT les textes · un
   // renfort noyé en fin de prompt se lit comme une note, placé sur l'exigence
@@ -236,6 +243,7 @@ export function promptPubEntiere(o: {
     produit,
     `Scene: ${o.sceneBrief.slice(0, 600)}`,
     uni,
+    ancrage,
     daSite,
     palette,
     marche,
