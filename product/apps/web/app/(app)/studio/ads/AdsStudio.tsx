@@ -982,10 +982,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
         {/* Hors du repli · un message rangé dans un panneau fermé est un message
             absent, et c'est précisément ce qui donnait « il ne se passe rien ». */}
-        {(busy || notice || error) && (
+        {/* `busy` et `error` restent près du composeur · c'est là qu'on est
+            quand la génération tourne ou échoue (un échec ne défile pas). Le
+            `notice` d'un lot ARRIVÉ (partiel, essai rompu), lui, décrit les
+            créas qui viennent d'atterrir dans la grille · après génération, le
+            regard défile vers la grille, donc le notice descend avec, sinon il
+            reste hors du champ de vision. Il est rendu près de la grille. */}
+        {(busy || error) && (
           <div style={{ padding: '0 22px 18px' }}>
             {busy && <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, déclinaison en variations et composition… (~20-40 s)' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
-            {notice && <div style={{ marginTop: 10, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}
             {error && <div style={{ marginTop: 10, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
           </div>
         )}
@@ -1044,6 +1049,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Tes pubs {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{ads.length}</span>
       </div>
+      {/* La nuance du dernier lot (partiel, essai rompu) · rendue ICI, au point
+          d'atterrissage du défilement post-génération, pour ne pas rester hors
+          champ en haut de page. */}
+      {notice && <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}
       {/* Le lot entière, lu d'un coup · les trois questions qui décident si le
           mode est viable, additionnées sur les pubs qui viennent d'arriver.
           Rien tant qu'aucune n'a été relue. */}
