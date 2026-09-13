@@ -130,12 +130,17 @@ export default async function CompetitorPage({ params, searchParams }: {
 
           {tab === 'overview' && <Overview report={report} />}
           {tab === 'creatives' && <Creatives report={report} />}
-          {tab === 'hooks' && <InsightList title="Hooks récurrents" items={ins?.hooks} empty="Analyse IA requise." />}
-          {tab === 'adcopy' && <InsightList title="Angles de copy" items={ins?.adCopyAngles} empty="Analyse IA requise." />}
-          {tab === 'headlines' && <InsightList title="Headlines" items={ins?.headlines} empty="Analyse IA requise." />}
-          {tab === 'angles' && <InsightList title="Angles marketing" items={ins?.adAngles} empty="Analyse IA requise." />}
-          {tab === 'usps' && <InsightList title="Propositions de valeur" items={ins?.usps} empty="Analyse IA requise." />}
-          {tab === 'desires' && <InsightList title="Désirs adressés" items={ins?.desires} empty="Analyse IA requise." />}
+          {/* `testable` · les insights qui sont des amorces d'accroche (hook,
+              copy, headline, angle, USP, désir) portent un lien direct vers Pubs
+              IA · c'est le pont analyser→créer, sans quoi la fiche est un
+              cul-de-sac. Personas et descripteurs (émotions, thèmes) ne sont pas
+              des angles à tester tels quels. */}
+          {tab === 'hooks' && <InsightList title="Hooks récurrents" items={ins?.hooks} testable empty="Analyse IA requise." />}
+          {tab === 'adcopy' && <InsightList title="Angles de copy" items={ins?.adCopyAngles} testable empty="Analyse IA requise." />}
+          {tab === 'headlines' && <InsightList title="Headlines" items={ins?.headlines} testable empty="Analyse IA requise." />}
+          {tab === 'angles' && <InsightList title="Angles marketing" items={ins?.adAngles} testable empty="Analyse IA requise." />}
+          {tab === 'usps' && <InsightList title="Propositions de valeur" items={ins?.usps} testable empty="Analyse IA requise." />}
+          {tab === 'desires' && <InsightList title="Désirs adressés" items={ins?.desires} testable empty="Analyse IA requise." />}
           {tab === 'emotions' && <InsightList title="Émotions activées" items={ins?.emotions} chips empty="Analyse IA requise." />}
           {tab === 'themes' && <InsightList title="Thèmes / univers" items={ins?.themes} chips empty="Analyse IA requise." />}
           {tab === 'personas' && <InsightList title="Personas déduits" items={ins?.personas} empty="Analyse IA requise." />}
@@ -209,7 +214,7 @@ function Creatives({ report }: { report: CompetitorReport }) {
   );
 }
 
-function InsightList({ title, items, chips, empty }: { title: string; items?: string[]; chips?: boolean; empty: string }) {
+function InsightList({ title, items, chips, testable, empty }: { title: string; items?: string[]; chips?: boolean; testable?: boolean; empty: string }) {
   if (!items || items.length === 0) return <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 20, color: 'var(--muted)', fontSize: 13 }}>{empty}</div>;
   return (
     <div>
@@ -221,9 +226,15 @@ function InsightList({ title, items, chips, empty }: { title: string; items?: st
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {items.map((it, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '12px 14px' }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', minWidth: 20 }}>{String(i + 1).padStart(2, '0')}</span>
-              <span style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{it}</span>
+            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '12px 14px' }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', minWidth: 20, alignSelf: 'flex-start' }}>{String(i + 1).padStart(2, '0')}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{it}</span>
+              {/* Le pont analyser→créer · cet insight devient l'amorce d'une pub. */}
+              {testable && (
+                <Link href={`/studio/ads?angle=${encodeURIComponent(it)}`} title="Tester cet angle dans Pubs IA" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                  <Icon name="sparkles" size={13} />Tester ›
+                </Link>
+              )}
             </div>
           ))}
         </div>
