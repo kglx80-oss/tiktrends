@@ -63,19 +63,6 @@ const TPL_LABEL: Record<AdTemplate, string> = {
   ugc: 'UGC natif', stat: 'Chiffre-clé', offer: 'Offre / promo',
 };
 
-/**
- * Le débrief du DERNIER lot, reconstruit depuis la grille chargée.
- *
- * La liste vient triée du plus récent au plus ancien · le lot le plus récent est
- * celui de sa créa de tête. On additionne les contrôles des créas qui partagent
- * cet identifiant de lot · le noyau recompte. `null` quand la tête n'a pas de
- * lot (créa d'avant l'identifiant) ou qu'aucune de ses créas n'a été relue.
- */
-function debriefDuDernierLot(list: AdItem[]): DebriefLot | null {
-  const lot = list[0]?.lot;
-  if (!lot) return null;
-  return debriefDepuisControles(list.filter((a) => a.lot === lot).map((a) => a.controle));
-}
 
 export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
@@ -150,12 +137,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // Le débrief du dernier lot entière · additionne les relectures des pubs qui
   // viennent d'arriver. `null` dès qu'aucune n'a été relue (lot composé), et
   // alors rien ne s'affiche.
-  // Reconstruit AU CHARGEMENT depuis les contrôles déjà en base · le débrief
-  // vivait en état d'écran et s'effaçait au rechargement, alors qu'il ne fait que
-  // recompter une matière persistée. On repart du lot le plus récent (la liste
-  // est triée du plus récent au plus ancien) · `null` si sa créa de tête n'a pas
-  // d'identifiant de lot (créa d'avant son introduction) ou n'a rien de relu.
-  const [debrief, setDebrief] = useState<DebriefLot | null>(() => debriefDuDernierLot(initial));
+  //
+  // Il n'apparaît qu'APRÈS une génération de la session · pas reconstruit au
+  // chargement. Reconstruit, il réapparaissait à chaque visite du studio, des
+  // jours après le lot, en se lisant comme une alerte fraîche (« Reprendre 1 pub
+  // cassée ») · le propriétaire l'a signalé, il ne comprenait pas pourquoi ce
+  // message restait. Un débrief est le retour d'un geste qu'on vient de faire,
+  // pas un bandeau permanent.
+  const [debrief, setDebrief] = useState<DebriefLot | null>(null);
   const [count, setCount] = useState(4);
   const [angles, setAngles] = useState<AdAngle[]>([]);
   const [anglesBusy, startAngles] = useTransition();
