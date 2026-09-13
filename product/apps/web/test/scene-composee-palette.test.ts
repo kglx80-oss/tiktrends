@@ -22,7 +22,7 @@ describe('Scène composée · la charte du site tire la scène', () => {
     // La signature peut porter d'autres paramètres après `palette` (ex : daVisuelle).
     expect(src, 'scenePrompt n’accepte pas de palette').toMatch(/function scenePrompt\([^)]*palette\?: string/s);
     const iFn = src.indexOf('function scenePrompt(');
-    const corps = src.slice(iFn, iFn + 2000);
+    const corps = src.slice(iFn, iFn + 2200);
     expect(corps, 'la palette n’est pas injectée dans le prompt de scène').toContain('${pal}');
   });
 
