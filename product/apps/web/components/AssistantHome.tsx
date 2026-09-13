@@ -80,10 +80,11 @@ export function AssistantHome({ firstName, credits, brandName, aiReady }: Assist
                 ? <>Marque active · <b style={{ color: 'var(--ink)' }}>{brandName}</b>. Crée ta prochaine créative gagnante, teste, et laisse la mesure trancher.</>
                 : <>Choisis une marque et lance-toi · l’outil t’amène de l’idée à la créative testée.</>}
             </p>
+            {/* Un seul CTA « créer des pubs » sur cet écran · la carte « Pubs IA »
+                (phare) de la grille ci-dessous le porte. Le bouton héros qui vivait
+                ici pointait au même endroit, côte à côte · retiré pour un fil clair.
+                L'accueil garde son solde de crédits, information et non action. */}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-              <Link href="/studio/ads" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, textDecoration: 'none' }}>
-                <Icon name="sparkles" size={16} /> Créer des pubs IA
-              </Link>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'rgba(8,5,10,.35)', fontSize: 13, color: 'var(--ink-2)' }}>
                 <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name="coin" size={15} /></span>
                 {credits.toLocaleString('fr-FR')} crédits
