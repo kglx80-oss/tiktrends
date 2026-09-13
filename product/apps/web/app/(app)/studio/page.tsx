@@ -6,7 +6,8 @@ import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
 import { effectiveAccess } from '../../../lib/access';
-import { Hub, type HubCard, type HubNext, type HubState } from '../../../components/Hub';
+import { prochainGesteStudio } from '@tiktrends/core';
+import { Hub, type HubCard, type HubState } from '../../../components/Hub';
 import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -109,7 +110,7 @@ export default async function StudioPage() {
             ? `Quatre outils pour fabriquer des créas pour ${brand.name}. Ils ne se remplacent pas : chacun répond à une question différente, et la réponse est dans le « Quand ? » de chaque carte.`
             : 'Quatre outils pour fabriquer des créas. Ils ne se remplacent pas : chacun répond à une question différente, et la réponse est dans le « Quand ? » de chaque carte.'
         }
-        next={prochainGeste(etat, brand?.name ?? null)}
+        next={prochainGesteStudio({ jugees: etat.jugees, enAttente: etat.enAttente })}
         cards={cards}
       >
         <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, maxWidth: 720 }}>
@@ -177,46 +178,6 @@ async function lireEtat(workspaceId: string, brandId: string | null): Promise<Et
     ads: c(ads, 'pub', 'f'), images: c(images, 'visuel', 'm'), videos: c(videos, 'vidéo', 'f'), textes: c(textes, 'brief', 'm'),
     jugees: verdicts.jugees, enAttente: verdicts.enAttente,
   };
-}
-
-/**
- * Le geste conseillé maintenant.
- *
- * Trois cas, dans cet ordre · et le deuxième est le seul qui compte vraiment :
- * quand il y a des créas et aucun verdict, conseiller d'en générer une de plus
- * serait vendre du volume à quelqu'un qui manque de mesure.
- */
-function prochainGeste(e: EtatAtelier, marque: string | null): HubNext | null {
-  const produites = (e.ads?.n ?? 0) + (e.images?.n ?? 0) + (e.videos?.n ?? 0);
-
-  if (produites === 0) {
-    return {
-      title: 'Commence par une pub complète',
-      why: marque
-        ? `Rien n’a encore été produit pour ${marque}. Pubs IA est le seul studio qui rend une publicité entière · les autres produisent des morceaux qu’il faudra assembler.`
-        : 'Rien n’a encore été produit. Pubs IA est le seul studio qui rend une publicité entière.',
-      href: '/studio/ads', cta: 'Ouvrir Pubs IA',
-    };
-  }
-
-  // Le cas qui justifie cette bannière · on le dit avant le clic, pas après.
-  if (e.jugees === 0 && (e.enAttente ?? 0) > 0) {
-    return {
-      title: 'Fais trancher ce que tu as déjà',
-      why: `${e.enAttente} créa(s) attendent un verdict. Tant qu’aucune n’est jugée, Jarvis n’a rien appris de cette marque · et la suivante sera aussi aveugle que la première.`,
-      href: '/adsmap/lots', cta: 'Ouvrir les lots',
-    };
-  }
-
-  if (e.jugees !== null && e.jugees > 0) {
-    return {
-      title: 'Itère sur ce qui a gagné',
-      why: `${e.jugees} verdict(s) posé(s). Jarvis peut maintenant proposer la variante suivante en ne changeant qu’une seule chose · c’est ce qui rend un résultat attribuable.`,
-      href: '/adsmap/suites', cta: 'Ouvrir les suites',
-    };
-  }
-
-  return null;
 }
 
 const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' } as const;
