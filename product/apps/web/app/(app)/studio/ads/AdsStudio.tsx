@@ -1045,7 +1045,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       {/* Le lot entière, lu d'un coup · les trois questions qui décident si le
           mode est viable, additionnées sur les pubs qui viennent d'arriver.
           Rien tant qu'aucune n'a été relue. */}
-      <DebriefLotPanel d={debrief} nCassees={indicesCasses.length} onReprendre={indicesCasses.length ? () => setDetailIdx(indicesCasses[0]!) : undefined} />
+      <DebriefLotPanel d={debrief} nCassees={indicesCasses.length} onReprendre={indicesCasses.length ? () => setDetailIdx(indicesCasses[0]!) : undefined} onClose={() => setDebrief(null)} />
       {ads.length === 0 ? (
         <Empty
           tone="wait" title="Aucune pub pour l’instant."
