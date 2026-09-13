@@ -273,10 +273,22 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
               )}
 
               {!gagnante ? (
-                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
-                  On n’itère que sur une gagnante · repartir d’une perdante reproduit ce qui n’a pas marché, en plus cher.
-                  Reprends l’angle dans le Studio pour ouvrir une piste neuve.
-                </p>
+                <>
+                  <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+                    On n’itère que sur une gagnante · repartir d’une perdante reproduit ce qui n’a pas marché, en plus cher.
+                    Reprends l’angle dans le Studio pour ouvrir une piste neuve.
+                  </p>
+                  {/* Le verdict le plus fréquent d'un test n'est PAS une gagnante ·
+                      la phrase disait « reprends l'angle au Studio » sans y mener.
+                      La boucle analyser→créer s'arrêtait là. On la referme d'un
+                      vrai lien, l'angle du test passé en amorce. */}
+                  <a
+                    href={`/studio/ads?angle=${encodeURIComponent(d.angle ?? d.concept ?? '')}`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}
+                  >
+                    Reprendre l’angle au Studio ›
+                  </a>
+                </>
               ) : !ouvrirIteration ? (
                 <button type="button" onClick={() => setOuvrirIteration(true)} style={boutonSecondaire}>
                   Créer l’itération
