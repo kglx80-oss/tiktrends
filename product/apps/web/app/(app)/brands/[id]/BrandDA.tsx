@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { importBrandDAAction, saveBrandDAAction } from '../../../actions/brand-detail';
+import { importBrandDAAction, saveBrandDAAction, extractBrandVisualDaAction } from '../../../actions/brand-detail';
 import { BrandGuidelines } from '../../../../components/BrandGuidelines';
 import { Icon } from '../../../../components/Icon';
+import { costFor } from '@tiktrends/core';
 
 export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts }: { brandId: string; logoUrl: string | null; logos?: string[]; colors: string[]; fonts: string[] }) {
   const router = useRouter();
@@ -52,6 +53,16 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts }: { brand
         <button type="button" onClick={fetchDA} disabled={busy} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1, whiteSpace: 'nowrap' }}>
           {busy ? 'Récupération…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Récupérer la DA</span>}
         </button>
+        {/* L'analyse du STYLE (LLM) · elle DÉPENSE · action secondaire (contour),
+            prix écrit sur le bouton, jamais après le clic. Elle range la DA
+            visuelle dans brandKit · la génération la lit et la tient sur chaque
+            créa. */}
+        <form action={extractBrandVisualDaAction} style={{ margin: 0 }}>
+          <input type="hidden" name="brandId" value={brandId} />
+          <button type="submit" disabled={busy} title="Analyse le style du site et l'applique à chaque créa générée" style={{ padding: '10px 16px', borderRadius: 999, border: '1px solid var(--accent-strong)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'transparent', color: 'var(--accent-strong)', whiteSpace: 'nowrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="brain" size={13} /> Analyser le style · {costFor('brief')} cr.</span>
+          </button>
+        </form>
       </div>
 
       {/* Édition manuelle : mêmes contrôles que la création de marque. */}
