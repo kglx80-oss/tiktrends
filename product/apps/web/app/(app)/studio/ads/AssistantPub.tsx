@@ -326,7 +326,11 @@ function EtapeMessage({ p }: { p: AssistantProps }) {
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
-        <Label>Type de pub <Facultatif>· au moins un</Facultatif></Label>
+        {/* Seul champ REQUIS de l'étape · il portait le marqueur `Facultatif`
+            (estompé), comme l'Angle et l'Offre juste en dessous · il se lisait
+            donc comme optionnel alors que l'assistant bloque sans lui. Marqueur
+            `Requis` distinct (accent), pas le gris des facultatifs. */}
+        <Label>Type de pub <Requis>· requis, au moins un</Requis></Label>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {p.gabaritsDispo.map((t) => {
             const on = p.etat.gabarits.includes(t);
@@ -477,6 +481,11 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 function Facultatif({ children }: { children: React.ReactNode }) {
   return <span style={{ fontWeight: 400, color: 'var(--muted)' }}>{children}</span>;
+}
+// Marqueur d'un champ REQUIS · accent, pas le gris des facultatifs, pour qu'on
+// ne confonde pas « il faut au moins un » avec « tu peux en ajouter ».
+function Requis({ children }: { children: React.ReactNode }) {
+  return <span style={{ fontWeight: 700, color: 'var(--accent-strong)' }}>{children}</span>;
 }
 function Note({ children }: { children: React.ReactNode }) {
   return (
