@@ -122,9 +122,15 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
           <span style={{ fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5, flex: '1 1 240px' }}>
             {fabrique.plan.summary} Fabriqués une fois sur ton produit · un aperçu déjà fait n’est jamais refait.
           </span>
+          {/* Action de PRÉPARATION optionnelle qui DÉPENSE · elle ne doit pas
+              porter le dégradé primaire, sinon elle rivalise avec « Suivant → »
+              (aussi en dégradé) sur la même étape · deux CTA de même poids, l'un
+              payant, l'autre non · on clique la dépense en croyant avancer. Style
+              secondaire (contour accent) · le prix reste sur le bouton. */}
           <button type="button" onClick={fabriquer} disabled={disabled || busy} style={{
-            padding: '8px 15px', borderRadius: 999, border: 'none', fontSize: 12, fontWeight: 800,
-            cursor: disabled || busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)',
+            padding: '8px 15px', borderRadius: 999, fontSize: 12, fontWeight: 800,
+            cursor: disabled || busy ? 'default' : 'pointer',
+            border: '1px solid var(--accent-strong)', background: 'transparent', color: 'var(--accent-strong)',
             opacity: disabled || busy ? .55 : 1, whiteSpace: 'nowrap',
           }}>
             {busy ? 'Fabrication…' : `Fabriquer · ${fabrique.plan.credits} cr.`}
