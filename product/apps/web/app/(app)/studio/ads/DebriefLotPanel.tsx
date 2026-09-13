@@ -38,12 +38,14 @@ import { Icon } from '../../../../components/Icon';
  *
  * Pur affichage · aucune règle métier, aucun appel serveur. Rendu et lu en test.
  */
-export function DebriefLotPanel({ d, nCassees = 0, onReprendre }: {
+export function DebriefLotPanel({ d, nCassees = 0, onReprendre, onClose }: {
   d: DebriefLot | null;
   /** Combien de pubs du lot portent un écart éliminatoire · pilote le bouton de reprise. */
   nCassees?: number;
   /** Ouvre la première pub cassée pour la reprendre · absent = pas de bouton. */
   onReprendre?: () => void;
+  /** Ferme le débrief · donne à l'utilisateur le moyen de l'enlever sans recharger. */
+  onClose?: () => void;
 }) {
   if (!d) return null;
   // Le produit n'est « bon » que s'il a pu être REGARDÉ · sans photo de
@@ -66,8 +68,18 @@ export function DebriefLotPanel({ d, nCassees = 0, onReprendre }: {
       border: `1px solid ${ton.bord}`,
       background: ton.fond,
     }}>
-      <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)', marginBottom: 4 }}>
-        DERNIER LOT · GÉNÉRÉ ENTIÈREMENT
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <div style={{ flex: 1, fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
+          DERNIER LOT · GÉNÉRÉ ENTIÈREMENT
+        </div>
+        {onClose && (
+          <button type="button" onClick={onClose} aria-label="Fermer le débrief" title="Fermer" style={{
+            flexShrink: 0, width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            border: 'none', borderRadius: 999, cursor: 'pointer', background: 'transparent', color: 'var(--muted)', padding: 0,
+          }}>
+            <Icon name="x" size={13} />
+          </button>
+        )}
       </div>
       <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: ton.fg }}>
         {vert
