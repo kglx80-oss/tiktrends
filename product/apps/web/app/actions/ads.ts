@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, palettePourPrompt, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -335,6 +335,9 @@ async function composeBatch(o: {
   const universeFor = (i: number) => o.preset
     ? o.preset.prompt
     : directionScenePrompt(directionPour(i));
+  // La charte du site · même consigne douce qu'en entière, réutilisée pour la
+  // scène composée. Muette sans couleur · le prompt reste léger.
+  const palette = palettePourPrompt(o.colors);
   // Les exclusions ferment la consigne · un moteur qui les ignore n'est pas gêné,
   // un moteur qui les lit les retient mieux en fin de prompt.
   const exclusions = o.preset?.negative?.trim() ? `\n\nAvoid: ${o.preset.negative.trim()}` : '';
@@ -356,7 +359,7 @@ async function composeBatch(o: {
       edit = true;
     } else if (o.editMode) {
       imageUrls = [...(o.productImageUrls ?? []), ...assetRefs].slice(0, 8);
-      prompt = scenePrompt(c, true, universeFor(i), coquille(c, i), o.cadragePolyvalent) + assetNote + exclusions;
+      prompt = scenePrompt(c, true, universeFor(i), coquille(c, i), o.cadragePolyvalent, palette) + assetNote + exclusions;
       edit = true;
     } else if (hasAssetRef) {
       // Pas de photo produit mais la bibliothèque est remplie -> l'IA s'en sert comme références marque.
@@ -365,7 +368,7 @@ async function composeBatch(o: {
       edit = true;
     } else {
       imageUrls = undefined;
-      prompt = scenePrompt(c, false, universeFor(i), coquille(c, i), o.cadragePolyvalent) + exclusions;
+      prompt = scenePrompt(c, false, universeFor(i), coquille(c, i), o.cadragePolyvalent, palette) + exclusions;
       edit = false;
     }
 
@@ -809,7 +812,7 @@ function scenePromptClone(c: AdConcept, hasProduct: boolean): string {
   return `${product} Scene notes: ${base}. Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
 }
 
-function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, layout?: AdLayout, polyvalent?: boolean): string {
+function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, layout?: AdLayout, polyvalent?: boolean, palette?: string): string {
   const base = c.sceneBrief.slice(0, 700);
   // Le cadrage dépend de la coquille où l'image atterrit · il était écrit en dur
   // pour l'immersive, et donc faux pour les trois autres : on payait une image
@@ -817,11 +820,14 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, l
   const framing = cadrageDe(layout, polyvalent);
   const realism = 'Ultra realistic, photorealistic, true-to-life scale and proportions. The product must be at a believable real-world size (a supplement bottle is roughly 12 cm tall): never gigantic, never tiny, never floating. Hands, fingers and faces must be anatomically correct. Correct perspective and grounding (real contact shadow), no distortion, no warping, no stretching, no duplicated or extra objects, accurate label and cap proportions, physically plausible lighting, shadows and reflections.';
   const uni = universePrompt ? `Art direction / visual universe: ${universePrompt}` : '';
+  // La charte du site · teinte la scène et les fonds vers l'identité de la
+  // marque, sans toucher aux couleurs d'un vrai produit (garanti par la palette).
+  const pal = palette ? ` ${palette}` : '';
   const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI added to the image.';
   if (editMode) {
-    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions · do not resize, stretch or reshape it). New scene: ${base}. ${uni} ${realism} Premium advertising photography. ${framing} ${noText}`;
+    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions · do not resize, stretch or reshape it). New scene: ${base}. ${uni}${pal} ${realism} Premium advertising photography. ${framing} ${noText}`;
   }
-  return `${base}. ${uni} ${realism} Premium advertising photography. ${framing} ${noText}`;
+  return `${base}. ${uni}${pal} ${realism} Premium advertising photography. ${framing} ${noText}`;
 }
 
 /**
