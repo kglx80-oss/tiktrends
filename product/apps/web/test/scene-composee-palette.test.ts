@@ -19,14 +19,15 @@ describe('Scène composée · la charte du site tire la scène', () => {
   });
 
   it('scenePrompt reçoit la palette et l’injecte dans le prompt', () => {
-    expect(src, 'scenePrompt n’accepte pas de palette').toMatch(/function scenePrompt\([^)]*palette\?: string\)/s);
+    // La signature peut porter d'autres paramètres après `palette` (ex : daVisuelle).
+    expect(src, 'scenePrompt n’accepte pas de palette').toMatch(/function scenePrompt\([^)]*palette\?: string/s);
     const iFn = src.indexOf('function scenePrompt(');
     const corps = src.slice(iFn, iFn + 2000);
     expect(corps, 'la palette n’est pas injectée dans le prompt de scène').toContain('${pal}');
   });
 
   it('les deux branches composées passent la palette à scenePrompt', () => {
-    const passes = src.split(/scenePrompt\(c, (?:true|false), universeFor\(i\), coquille\(c, i\), o\.cadragePolyvalent, palette\)/).length - 1;
+    const passes = src.split(/o\.cadragePolyvalent, palette[,)]/).length - 1;
     expect(passes, 'une branche composée ne passe pas la palette').toBe(2);
   });
 });

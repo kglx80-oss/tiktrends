@@ -42,4 +42,14 @@ describe('promptPubEntiere · la palette entre dans le prompt d’image', () => 
     const p = promptPubEntiere({ ...base });
     expect(p, 'une directive de palette apparaît sans couleur').not.toContain('Brand colour palette');
   });
+
+  it('la DA visuelle du site (contrainte) entre dans le prompt entière', () => {
+    const p = promptPubEntiere({ ...base, daVisuelle: 'Brand visual identity · editorial minimalist' });
+    expect(p, 'le style maison du site n’atteint pas le prompt entière').toContain('editorial minimalist');
+  });
+
+  it('sans DA visuelle, rien ne s’ajoute', () => {
+    const p = promptPubEntiere({ ...base });
+    expect(p).not.toContain('Brand visual identity');
+  });
 });
