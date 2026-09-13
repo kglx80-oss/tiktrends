@@ -405,20 +405,34 @@ function AppShellInner(props: Props) {
                 const ici = isNavActive(b.head.href, false);
                 const dedans = isNavInPath(b.head.href) || b.subs.some((su) => isNavActive(su.href, true));
                 const sousEcran = dedans ? b.subs.find((su) => isNavActive(su.href, true)) : undefined;
-                return (
-                <Link key={b.head.key} href={b.head.locked || b.head.soon ? '#' : b.head.href}
-                  // Le repli masque les libellés · l'infobulle doit alors dire
-                  // l'écran exact, pas seulement le module qui le contient.
-                  title={sousEcran ? `${b.head.label} · ${sousEcran.label}` : b.head.label}
-                  style={{
+                // Un item verrouillé (plan) ou « bientôt » ne mène nulle part ·
+                // en déplié il est rendu inerte (un <div>, pas de lien). Le repli
+                // doit tenir la MÊME promesse : cliquer une icône grisée ne peut
+                // pas partir sur « # » (un saut en haut de page qui se lit comme
+                // un bug). On rend alors un <div> inerte, pas un <Link>.
+                const bloque = b.head.locked || b.head.soon;
+                const railStyle = {
                   ...railIconBtn,
                   color: ici || dedans ? 'var(--ink)' : 'var(--ink-2)',
                   background: ici ? 'var(--accent-soft)' : 'transparent',
                   // « Je suis dans cette branche » sans y être exactement · un
                   // liseré, pas un fond, la même distinction qu'en déplié.
                   boxShadow: !ici && dedans ? 'inset 2px 0 0 var(--accent-strong)' : 'none',
-                  opacity: (b.head.locked || b.head.soon) ? .5 : 1,
-                }}>
+                  opacity: bloque ? .5 : 1,
+                  cursor: bloque ? 'default' : 'pointer',
+                };
+                // Le repli masque les libellés · l'infobulle dit l'écran exact.
+                // Bloqué, elle dit AUSSI pourquoi (comme en déplié), sans quoi
+                // l'icône grisée reste inexpliquée.
+                const titre = bloque
+                  ? `${b.head.label} · ${b.head.locked ? 'Nécessite un abonnement supérieur' : 'Bientôt disponible'}`
+                  : sousEcran ? `${b.head.label} · ${sousEcran.label}` : b.head.label;
+                return bloque ? (
+                  <div key={b.head.key} title={titre} style={railStyle}>
+                    <Icon name={b.head.icon} />
+                  </div>
+                ) : (
+                <Link key={b.head.key} href={b.head.href} title={titre} style={railStyle}>
                   <Icon name={b.head.icon} />
                 </Link>
                 );
