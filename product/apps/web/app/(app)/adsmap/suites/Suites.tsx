@@ -224,6 +224,12 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
               Annuler
             </button>
             {msg && <span style={{ fontSize: 12, color: msg.startsWith('Créée') ? '#7ee8bf' : '#ff8095' }}>{msg}</span>}
+            {/* Créé, l'ad « attend son brief » · sans lien, il fallait deviner
+                d'aller le produire. On aiguille vers la carte, où le brouillon
+                apparaît avec son bouton Studio. */}
+            {msg?.startsWith('Créée') && (
+              <a href="/adsmap" style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Produire depuis la carte ›</a>
+            )}
           </div>
         </div>
       )}

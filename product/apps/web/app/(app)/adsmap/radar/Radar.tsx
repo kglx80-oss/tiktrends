@@ -269,6 +269,11 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
       )}
 
       {note && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink)', lineHeight: 1.55 }}>{note}</p>}
+      {/* Concept posé, l'ad « attend son brief » · on aiguille vers la carte
+          plutôt que de laisser deviner où le produire. */}
+      {note?.startsWith('Concept posé') && (
+        <a href="/adsmap" style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Produire depuis la carte ›</a>
+      )}
     </div>
   );
 }
