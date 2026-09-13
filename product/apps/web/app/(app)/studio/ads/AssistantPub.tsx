@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ETAPES, ETAPE_ROLE, ETAPE_TITRE, dureeAttendue, etapeComplete, etapePrecedente,
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
@@ -99,6 +99,13 @@ export interface AssistantProps {
 
 export function AssistantPub(p: AssistantProps) {
   const [etape, setEtape] = useState<Etape>('produit');
+  // Le composant reste monté (il rend `null` fermé) · sans reset, `etape` survit
+  // à la fermeture et l'assistant rouvre à la DERNIÈRE étape (souvent l'étape 5,
+  // juste après une génération). Le point d'entrée du fil doit être
+  // déterministe · à chaque ouverture on repart de l'étape 1. Les choix (produit,
+  // message…) vivent dans le parent et restent conservés · seule la POSITION
+  // dans le fil est remise à zéro.
+  useEffect(() => { if (p.ouvert) setEtape('produit'); }, [p.ouvert]);
   if (!p.ouvert) return null;
 
   const bloquant = manque(etape, p.etat);
