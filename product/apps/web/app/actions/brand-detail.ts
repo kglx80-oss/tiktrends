@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
-import { generateProducts, generateBrandProfile } from '@tiktrends/ai';
+import { generateProducts, generateBrandProfile, extractVisualDa } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
 import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
 import { costFor, imageModelByKey } from '@tiktrends/core';
@@ -89,6 +89,51 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
   if (errMsg) redirect(`/brands/${brandId}?tab=overview&e=generate&m=${encodeURIComponent(errMsg.slice(0, 160))}`);
   console.log('[generateFullBrand] succès, redirection');
   redirect(`/brands/${brandId}?tab=overview&ok=generated`);
+}
+
+/**
+ * Analyse le STYLE du site (LLM) et le range dans brandKit · la génération le lit
+ * et le tourne en contrainte de DA sur chaque créa. Dépense IA · même barrière
+ * que le profil (guardedAnthropic + reserveCredits), prix annoncé côté bouton.
+ */
+export async function extractBrandVisualDaAction(formData: FormData): Promise<void> {
+  const brandId = norm(formData.get('brandId'));
+  const g = await guardBrand(brandId);
+  if (!g || !db) redirect('/brands');
+
+  const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
+  if (!b) redirect('/brands');
+
+  // Barrière de dépense · aucune sortie IA si le plafond est atteint.
+  const client = guardedAnthropic({ action: 'brand-detail' });
+  if (!client) redirect(`/brands/${brandId}?tab=overview&e=ai`);
+
+  const unlimited = unlimitedCredits(g.email);
+  const cost = costFor('brief');
+  // Débit atomique AVANT l'appel IA · remboursé si l'analyse échoue.
+  if (!unlimited && !(await reserveCredits(g.workspaceId, cost, 'Marque · analyse du style du site'))) {
+    redirect(`/brands/${brandId}?tab=overview&e=credits`);
+  }
+
+  let siteText: string | undefined;
+  if (b.url) { try { siteText = await fetchSiteText(b.url); } catch { /* on continue sans le contenu */ } }
+
+  // redirect() lève une exception Next · il reste HORS du try/catch.
+  let errMsg = '';
+  try {
+    const da = await extractVisualDa(client, {
+      name: b.name, url: b.url || undefined, siteText,
+      colors: Array.isArray(b.colors) ? b.colors : undefined,
+    });
+    // Rangée dans brandKit (jsonb) · la génération la lit déjà (#485).
+    await db.update(schema.brands).set({ brandKit: da }).where(eq(schema.brands.id, brandId));
+  } catch (e) {
+    errMsg = (e as Error)?.message || 'inconnue';
+    if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · analyse du style');
+  }
+
+  if (errMsg) redirect(`/brands/${brandId}?tab=overview&e=generate&m=${encodeURIComponent(errMsg.slice(0, 160))}`);
+  redirect(`/brands/${brandId}?tab=overview&ok=da`);
 }
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
