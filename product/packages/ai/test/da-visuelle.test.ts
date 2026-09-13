@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildVisualDaSystem, buildVisualDaUserPrompt } from '../src/da-visuelle';
+import type Anthropic from '@anthropic-ai/sdk';
+import { buildVisualDaSystem, buildVisualDaUserPrompt, extractVisualDa } from '../src/da-visuelle';
+
+// Un client qui rend une sortie d'outil arbitraire · pour éprouver ce qu'on
+// STOCKE, sans appeler le modèle.
+const clientQuiRend = (input: unknown): Anthropic =>
+  ({ messages: { create: async () => ({ content: [{ type: 'tool_use', input }] }) } } as unknown as Anthropic);
 
 /**
  * L'extraction de DA visuelle doit être GROUNDÉE sur les vrais signaux du site
@@ -28,5 +34,22 @@ describe('extraction DA · le prompt est grounder sur le site, et cadré sur le 
     const s = buildVisualDaSystem();
     expect(s, 'le cadrage « style, pas scène » a disparu').toContain('jamais une scène');
     expect(s).toContain('return_visual_da');
+  });
+
+  // Le modèle enfreint parfois le schéma (aEviter en chaîne). On le RANGE propre
+  // AVANT de stocker · sinon une DA malformée dans brandKit casse le rendu et la
+  // génération. On éprouve ce qui ressort d'extractVisualDa.
+  it('range une sortie malformée · aEviter toujours en tableau de chaînes', async () => {
+    const da = await extractVisualDa(clientQuiRend({ style: '  net ', aEviter: 'surcharge, stock' }), { name: 'X' });
+    expect(da.style, 'le style doit être rogné').toBe('net');
+    expect(Array.isArray(da.aEviter), 'aEviter doit ressortir en tableau').toBe(true);
+    expect(da.aEviter).toEqual(['surcharge', 'stock']);
+  });
+
+  it('range un champ non-chaîne · écarté, pas propagé', async () => {
+    const da = await extractVisualDa(clientQuiRend({ style: 42, photo: 'lifestyle', aEviter: ['ok', 7, null] }), { name: 'X' });
+    expect(da.style, 'un nombre n’est pas un style').toBeUndefined();
+    expect(da.photo).toBe('lifestyle');
+    expect(da.aEviter).toEqual(['ok']);
   });
 });
