@@ -70,7 +70,7 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
       )}
 
       <div style={{ marginTop: 16 }}>
-        <AssetsLibrary initial={assets} brandName={brand?.name ?? null} storageEnabled={storageConfigured()} />
+        <AssetsLibrary initial={assets} brandName={brand?.name ?? null} storageEnabled={storageConfigured()} isAdmin={isAdmin} />
       </div>
     </main>
   );

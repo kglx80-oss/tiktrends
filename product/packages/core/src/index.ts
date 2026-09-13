@@ -78,6 +78,7 @@ export * from './ad-layouts';
 export * from './production-mode';
 export * from './da-visuelle';
 export * from './ancrage-produit';
+export * from './templates-crea';
 export * from './studio-geste';
 export * from './appliquer-essais';
 export * from './scene-framing';

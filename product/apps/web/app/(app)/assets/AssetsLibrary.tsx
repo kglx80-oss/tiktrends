@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
+import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, basculerTemplateAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
 import { Pager, PAGE_SIZE } from '../../../components/Pager';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { Icon } from '../../../components/Icon';
@@ -49,7 +49,7 @@ function putWithProgress(url: string, file: File, onProgress: (pct: number) => v
   });
 }
 
-export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial: AssetItem[]; brandName: string | null; storageEnabled: boolean }) {
+export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = false }: { initial: AssetItem[]; brandName: string | null; storageEnabled: boolean; isAdmin?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [assets, setAssets] = useState(initial);
@@ -180,6 +180,15 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
     setAssets((s) => s.map((x) => x.id === a.id ? { ...x, useForAi: !x.useForAi } : x));
     await toggleAssetAiAction({ id: a.id, useForAi: !a.useForAi });
   }
+  // Coulisses · l'agence range un asset dans les templates (ou l'en retire).
+  // Le statut est un booléen dérivé côté serveur · le marqueur ne transite pas.
+  async function toggleTemplate(a: AssetItem) {
+    const on = !a.isTemplate;
+    setAssets((s) => s.map((x) => x.id === a.id ? { ...x, isTemplate: on } : x));
+    const r = await basculerTemplateAction({ id: a.id, on });
+    if (r.error) { toast(r.error); setAssets((s) => s.map((x) => x.id === a.id ? { ...x, isTemplate: a.isTemplate } : x)); return; }
+    if (typeof r.isTemplate === 'boolean') setAssets((s) => s.map((x) => x.id === a.id ? { ...x, isTemplate: r.isTemplate! } : x));
+  }
   async function remove(a: AssetItem) {
     // Suppression destructive · on confirme avant, comme partout (doctrine #305).
     if (!window.confirm(`Supprimer « ${a.name} » ? L'asset ne sera plus disponible pour l'IA.`)) return;
@@ -307,13 +316,16 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
               <MiniatureAsset kind={a.kind} url={a.url} thumbUrl={a.thumbUrl} name={a.name} />
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--muted)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--muted)', flexWrap: 'wrap' }}>
                   <span style={{ textTransform: 'uppercase', letterSpacing: '.04em' }}>{a.kind}</span>
                   {a.brandId ? <span>· marque</span> : <span>· commun</span>}
                   {a.source !== 'upload' && <span>· lien</span>}
+                  {a.isTemplate && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)', border: '1px solid var(--accent-strong)', borderRadius: 999, padding: '1px 7px' }}><Icon name="star" size={10} /> Template</span>
+                  )}
                 </div>
-                {/* Tags IA */}
-                {a.tags && a.tags.length > 0 ? (
+                {/* Tags IA · le serveur a déjà retiré le marqueur de template. */}
+                {a.tags.length > 0 ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {a.tags.slice(0, 4).map((t) => (
                       <span key={t} style={{ fontSize: 10, color: 'var(--ink-2)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' }}>{t}</span>
@@ -329,6 +341,13 @@ export function AssetsLibrary({ initial, brandName, storageEnabled }: { initial:
                     <input type="checkbox" checked={a.useForAi} onChange={() => toggleAi(a)} style={{ accentColor: '#7ee8bf' }} />
                     IA
                   </label>
+                  {/* Coulisses · réservé à l'agence (admin+). Images seulement · un
+                      template est visuel. Le client voit le badge, jamais ce bouton. */}
+                  {isAdmin && a.kind === 'image' && (
+                    <button type="button" onClick={() => toggleTemplate(a)} title={a.isTemplate ? 'Retirer des templates' : 'En faire un template (visible du client)'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: a.isTemplate ? 'var(--accent-strong)' : 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      <Icon name="star" size={12} /> {a.isTemplate ? 'Template ✓' : 'Template'}
+                    </button>
+                  )}
                   {a.source !== 'upload' && <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--muted)', textDecoration: 'none' }}>ouvrir ↗</a>}
                   <button type="button" onClick={() => remove(a)} style={{ fontSize: 11, color: '#ff9db0', background: 'transparent', border: 'none', cursor: 'pointer' }}>Suppr.</button>
                 </div>

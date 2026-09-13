@@ -5,8 +5,9 @@ import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { driveRefreshTokenFor } from '../../lib/drive-token';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor } from '@tiktrends/core';
+import { costFor, avecTemplate, estTemplateAsset, tagsVisibles } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
+import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
@@ -31,6 +32,9 @@ export interface AssetItem {
   /** Vraie miniature (bucket) · vignette Drive persistée · null = repli sur `url`/type. */
   thumbUrl: string | null;
   brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[]; createdAt: string;
+  /** Rangé dans les templates (coulisses) · booléen dérivé côté serveur · le
+      marqueur technique ne traverse jamais le réseau. */
+  isTemplate: boolean;
 }
 
 const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
@@ -49,7 +53,10 @@ function toItem(r: {
     // quelle. Vide -> la miniature retombe sur `url` puis sur l'icône de type.
     thumbUrl: r.thumbUrl || null,
     brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes,
-    tags: r.tags ?? [], createdAt: r.createdAt.toISOString(),
+    // Le marqueur de template ne sort pas en tant que tag · le statut passe par
+    // le booléen dérivé, la plomberie interne ne traverse pas le réseau.
+    tags: tagsVisibles(r.tags), isTemplate: estTemplateAsset(r.tags),
+    createdAt: r.createdAt.toISOString(),
   };
 }
 
@@ -180,13 +187,31 @@ export async function toggleAssetAiAction(input: { id: string; useForAi: boolean
   return { ok: true };
 }
 
+/**
+ * Range (ou retire) un asset dans les templates · les COULISSES · réservé à
+ * l'agence (admin+). Le marqueur vit dans les tags (0 migration). Le client voit
+ * et choisit les templates, mais ne peut jamais en poser · d'où la garde de rôle
+ * AVANT toute écriture, en plus du cloisonnement d'espace.
+ */
+export async function basculerTemplateAction(input: { id: string; on: boolean }): Promise<{ ok?: true; isTemplate?: boolean; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: GUARD.session() };
+  if (!roleAtLeast(s.role, 'admin')) return { error: 'Seule l’agence (admin) gère les templates.' };
+  const [a] = await db.select({ tags: schema.assets.tags }).from(schema.assets)
+    .where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
+  if (!a) return { error: 'Asset introuvable.' };
+  const tags = avecTemplate(a.tags, input.on);
+  await db.update(schema.assets).set({ tags }).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
+  return { ok: true, isTemplate: input.on };
+}
+
 /** Tague une image par l'IA (vision) · débite 1 crédit (tag_image). Rend les tags. */
 export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true; tags?: string[]; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'assets' });
   if (!client) return { error: GUARD.aiOff() };
-  const [a] = await db.select({ id: schema.assets.id, kind: schema.assets.kind, url: schema.assets.url })
+  const [a] = await db.select({ id: schema.assets.id, kind: schema.assets.kind, url: schema.assets.url, tags: schema.assets.tags })
     .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   if (!a) return { error: 'Asset introuvable.' };
   if (a.kind !== 'image') return { error: 'Le tagging IA ne concerne que les images pour l’instant.' };
@@ -209,8 +234,12 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
     return { error: "Aucun tag n'a pu être déduit." };
   }
 
-  await db.update(schema.assets).set({ tags }).where(eq(schema.assets.id, a.id));
-  return { ok: true, tags };
+  // Le tagging IA réécrit TOUS les tags · il doit assainir la sortie du modèle
+  // (jamais poser le marqueur de template · réservé aux coulisses) ET préserver
+  // le statut template existant (jamais le retirer par un chemin non gardé).
+  const finaux = avecTemplate(tagsVisibles(tags), estTemplateAsset(a.tags));
+  await db.update(schema.assets).set({ tags: finaux }).where(eq(schema.assets.id, a.id));
+  return { ok: true, tags: tagsVisibles(tags) };
 }
 
 /** Tague en lot les images non taguées (max 20 par appel), débit par image. */
@@ -241,8 +270,11 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
     let ok = false;
     try {
       const { tags } = await describeAssetImage(client, a.url);
-      if (tags.length) {
-        await db.update(schema.assets).set({ tags }).where(eq(schema.assets.id, a.id));
+      // Assainir la sortie du modèle · elle ne doit jamais poser le marqueur de
+      // template (réservé admin). Ces images n'en ont pas (filtre « sans tags »).
+      const propres = tagsVisibles(tags);
+      if (propres.length) {
+        await db.update(schema.assets).set({ tags: propres }).where(eq(schema.assets.id, a.id));
         tagged++;
         ok = true;
       }
