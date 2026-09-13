@@ -82,7 +82,7 @@ export const AD_DIRECTIONS: AdDirection[] = [
   {
     key: 'editorial', label: 'Éditorial magazine',
     hint: 'Grande typographie à empattements, beaucoup de blanc.',
-    scene: 'The product treated as a still-life object on a plain paper-toned surface, a single sculptural prop, considerable empty space.',
+    scene: 'The product treated as a still-life object on a plain paper-toned surface, at most one restrained prop that plainly belongs to the product\'s own world (never a random or purely decorative object), considerable empty space.',
     lumiere: 'One hard directional source raking from the side, long clean shadows, deep falloff.',
     typo: 'Large high-contrast serif display face for the headline, small widely-tracked uppercase sans for the supporting lines · a fashion magazine cover.',
     disposition: 'Headline set very large across the top, running over two or three lines, the product small and low in the frame.',
@@ -118,7 +118,7 @@ export const AD_DIRECTIONS: AdDirection[] = [
   {
     key: 'flatlay', label: 'Vue du dessus',
     hint: 'À plat, objets rangés, typographie en grille.',
-    scene: 'Perfect top-down view of the product surrounded by a few complementary objects arranged on a styled surface with visible order.',
+    scene: 'Perfect top-down view of the product surrounded by a few objects that genuinely accompany it in real use (drawn from the product\'s own world, never random props), arranged on a styled surface with visible order.',
     lumiere: 'Even diffuse daylight from above, shadows short and soft, no hotspots.',
     typo: 'Medium-weight sans-serif on a strict grid, labels and short lines rather than sentences.',
     disposition: 'Copy occupying one clean quadrant of the frame, the arrangement respecting its space.',
