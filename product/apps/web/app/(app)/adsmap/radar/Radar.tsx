@@ -126,6 +126,9 @@ export function Radar() {
         {state.followed === 0 && (
           <p style={{ margin: 0, fontSize: 12.5, color: '#ffcf8f', lineHeight: 1.6 }}>
             Aucun concurrent suivi · le radar n’aurait rien à surveiller. Ajoute des marques depuis la veille avant de l’armer.
+            {/* Le geste était nommé sans être cliquable · on mène à la veille,
+                là où l'on suit une marque. */}
+            {' '}<a href="/veille" style={{ fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Ouvrir la veille ›</a>
           </p>
         )}
 
