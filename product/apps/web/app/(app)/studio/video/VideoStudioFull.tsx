@@ -23,8 +23,10 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
 
 const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
-export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, initialPrompt, assets }: {
+export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, initialPrompt, assets, adsmap = false }: {
   ready: boolean; aiReady?: boolean; brandName: string | null; initialVideos: BrandVideo[]; initialPrompt?: string; assets: AnimatableAsset[];
+  /** L'utilisateur a l'atelier de test · affiche « Suivre dans Adsmap » sur chaque vidéo. */
+  adsmap?: boolean;
 }) {
   const [mode, setMode] = useState<'t2v' | 'i2v'>(assets.length ? 'i2v' : 't2v');
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
@@ -285,7 +287,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                   <div style={{ marginTop: 8 }}>
                     {v.status === 'completed' && v.videoUrl ? (
                       <>
-                        <CreativeActions genId={v.id} rating={v.rating} downloadUrl={v.videoUrl} onArchive={() => removeVideo(v.id)} archiveLabel="Supprimer" />
+                        <CreativeActions genId={v.id} rating={v.rating} downloadUrl={v.videoUrl} onArchive={() => removeVideo(v.id)} archiveLabel="Supprimer" trackable={adsmap} />
                         {v.prompt && (
                           <button type="button" onClick={() => { setPrompt(v.prompt); window.scrollTo({ top: 0, behavior: 'smooth' }); }} title="Repartir de ce brief pour une nouvelle vidéo" style={{
                             marginTop: 6, width: '100%', padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
