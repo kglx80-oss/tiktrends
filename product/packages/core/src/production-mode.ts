@@ -172,6 +172,9 @@ export function promptPubEntiere(o: {
   avecProduit: boolean;
   /** La charte couleur de la marque · consigne douce de direction artistique. */
   palette?: string[] | null;
+  /** La DA visuelle dérivée du site (déjà tournée en contrainte de prompt) ·
+      style maison appliqué à chaque créa, superposé à la direction. */
+  daVisuelle?: string | null;
   /** Direction artistique · scène, lumière, typographie, disposition, finition. */
   direction?: AdDirection | null;
   /** Prompt maison · remplace la direction quand il est choisi. */
@@ -214,6 +217,8 @@ export function promptPubEntiere(o: {
   // La charte du site · une orientation de couleur, placée avec la direction
   // artistique, jamais sur le produit réel.
   const palette = palettePourPrompt(o.palette);
+  // Le style maison du site · contrainte de DA, superposée à la direction.
+  const daSite = (o.daVisuelle ?? '').trim();
 
   // Les renforts vivent JUSTE APRÈS la règle de copie et AVANT les textes · un
   // renfort noyé en fin de prompt se lit comme une note, placé sur l'exigence
@@ -231,6 +236,7 @@ export function promptPubEntiere(o: {
     produit,
     `Scene: ${o.sceneBrief.slice(0, 600)}`,
     uni,
+    daSite,
     palette,
     marche,
     'Render the advertising typography DIRECTLY INSIDE the image, integrated into the design.',

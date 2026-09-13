@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, palettePourPrompt, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, palettePourPrompt, contrainteDaPourPrompt, type DaVisuelleMarque, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -183,6 +183,8 @@ function controleDepuisRecette(rec: Partial<AdRecipe>): AdItem['controle'] {
 /** Compose une série : scènes (univers variés) + enregistrement + débit. Mutualisé par génération et clone. */
 async function composeBatch(o: {
   cfg: FalConfig; brandId: string; brandName: string; colors?: string[] | null; logoUrl?: string | null;
+  /** DA visuelle du site, déjà tournée en contrainte de prompt · '' si non extraite. */
+  daVisuelle?: string | null;
   /** Ce dont la génération a bénéficié · consigné pour mesurer si la mémoire aide (§attribution). */
   memoryUse?: { measured: boolean; market: boolean; hooks: number };
   productImageUrls: string[] | null; editMode: boolean; concepts: AdConcept[]; universe?: string;
@@ -338,6 +340,8 @@ async function composeBatch(o: {
   // La charte du site · même consigne douce qu'en entière, réutilisée pour la
   // scène composée. Muette sans couleur · le prompt reste léger.
   const palette = palettePourPrompt(o.colors);
+  // Le style maison du site (déjà en contrainte) · superposé à la scène.
+  const daVisuelle = o.daVisuelle ?? '';
   // Les exclusions ferment la consigne · un moteur qui les ignore n'est pas gêné,
   // un moteur qui les lit les retient mieux en fin de prompt.
   const exclusions = o.preset?.negative?.trim() ? `\n\nAvoid: ${o.preset.negative.trim()}` : '';
@@ -359,7 +363,7 @@ async function composeBatch(o: {
       edit = true;
     } else if (o.editMode) {
       imageUrls = [...(o.productImageUrls ?? []), ...assetRefs].slice(0, 8);
-      prompt = scenePrompt(c, true, universeFor(i), coquille(c, i), o.cadragePolyvalent, palette) + assetNote + exclusions;
+      prompt = scenePrompt(c, true, universeFor(i), coquille(c, i), o.cadragePolyvalent, palette, daVisuelle) + assetNote + exclusions;
       edit = true;
     } else if (hasAssetRef) {
       // Pas de photo produit mais la bibliothèque est remplie -> l'IA s'en sert comme références marque.
@@ -368,7 +372,7 @@ async function composeBatch(o: {
       edit = true;
     } else {
       imageUrls = undefined;
-      prompt = scenePrompt(c, false, universeFor(i), coquille(c, i), o.cadragePolyvalent, palette) + exclusions;
+      prompt = scenePrompt(c, false, universeFor(i), coquille(c, i), o.cadragePolyvalent, palette, daVisuelle) + exclusions;
       edit = false;
     }
 
@@ -392,6 +396,8 @@ async function composeBatch(o: {
         // La charte couleur de la marque (extraite du site) · elle n'atteignait
         // jamais le modèle d'image · désormais consigne douce de direction.
         palette: o.colors,
+        // Le style maison du site · contrainte de DA superposée à la direction.
+        daVisuelle: o.daVisuelle,
         // La direction ENTIÈRE ici · scène, lumière, typographie, disposition,
         // finition. C'est la typographie et la disposition qui manquaient, et
         // c'est pour ça que la mise en page changeait sans raison d'une image
@@ -812,7 +818,7 @@ function scenePromptClone(c: AdConcept, hasProduct: boolean): string {
   return `${product} Scene notes: ${base}. Ultra realistic, photorealistic, true-to-life proportions, correct perspective, no distortion. Premium advertising photography. Absolutely NO text, NO words, NO captions, NO logos, NO watermark added to the image.`;
 }
 
-function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, layout?: AdLayout, polyvalent?: boolean, palette?: string): string {
+function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, layout?: AdLayout, polyvalent?: boolean, palette?: string, daVisuelle?: string): string {
   const base = c.sceneBrief.slice(0, 700);
   // Le cadrage dépend de la coquille où l'image atterrit · il était écrit en dur
   // pour l'immersive, et donc faux pour les trois autres : on payait une image
@@ -823,11 +829,13 @@ function scenePrompt(c: AdConcept, editMode: boolean, universePrompt?: string, l
   // La charte du site · teinte la scène et les fonds vers l'identité de la
   // marque, sans toucher aux couleurs d'un vrai produit (garanti par la palette).
   const pal = palette ? ` ${palette}` : '';
+  // Le style maison du site · contrainte de DA superposée à la direction.
+  const da = daVisuelle ? ` ${daVisuelle}` : '';
   const noText = 'Absolutely NO text, NO words, NO captions, NO logos, NO watermark, NO UI added to the image.';
   if (editMode) {
-    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions · do not resize, stretch or reshape it). New scene: ${base}. ${uni}${pal} ${realism} Premium advertising photography. ${framing} ${noText}`;
+    return `Place the product from the reference image into a new scene, keeping it EXACTLY identical (same packaging shape, label, logo, text, colors AND real proportions · do not resize, stretch or reshape it). New scene: ${base}. ${uni}${da}${pal} ${realism} Premium advertising photography. ${framing} ${noText}`;
   }
-  return `${base}. ${uni}${pal} ${realism} Premium advertising photography. ${framing} ${noText}`;
+  return `${base}. ${uni}${da}${pal} ${realism} Premium advertising photography. ${framing} ${noText}`;
 }
 
 /**
@@ -1046,7 +1054,12 @@ async function genererLotInterne(input: {
     colors: schema.brands.colors, tone: schema.brands.tone, usp: schema.brands.usp,
     audience: schema.brands.audience, category: schema.brands.category, logoUrl: schema.brands.logoUrl,
     creativeRules: schema.brands.creativeRules, jarvisLearnings: schema.brands.jarvisLearnings,
+    brandKit: schema.brands.brandKit,
   }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+  // La DA visuelle du site (dans brandKit, remplie par l'agent d'extraction) ·
+  // tournée en contrainte de style, superposée à la direction de chaque créa.
+  // '' tant qu'aucune extraction n'a eu lieu · aucun effet alors.
+  const daVisuelle = contrainteDaPourPrompt((da?.brandKit ?? null) as DaVisuelleMarque | null);
 
   let product: { name: string; description: string | null; usp: string | null; imageUrl: string | null; imageUrls: string[] | null } | null = null;
   if (input.productId) {
@@ -1238,6 +1251,7 @@ async function genererLotInterne(input: {
   // inférence à partir de l'objet littéral le laisserait absent du type.
   const options: Parameters<typeof composeBatch>[0] = {
     cfg, brandId: brand.id, brandName: brand.name, colors: da?.colors, logoUrl: da?.logoUrl,
+    daVisuelle,
     productImageUrls, editMode, assetRefUrls, concepts: lot, universe: input.universe,
     mises,
     // Tenir la scène, c'est n'en produire qu'une · toutes les publicités
