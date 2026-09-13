@@ -71,12 +71,16 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '4px 0 12px' }}>Tes marques ({rows.length})</h2>
 
       {rows.length === 0 && (
+        // Un seul geste de création sur l'écran vide · le bouton ouvre le
+        // parcours en pop-up (même chemin qu'en en-tête). L'`action` doublait ce
+        // geste par un lien vers la page pleine `/brands/new` · deux mécanismes,
+        // deux destinations, pour la même intention. Le `todo` reste valide · le
+        // geste est le `children`.
         <Empty
           tone="todo" icon="tag" title="Aucune marque pour l’instant."
           why="Tout le produit travaille marque par marque · la carte, la mémoire de Jarvis, les lots, les prompts. C’est le premier objet à créer."
-          action={{ label: 'Créer la première', href: '/brands/new' }}
         >
-          <NewBrandButton aiReady={anthropicConfigured()} draftCost={costFor('brief')} />
+          <NewBrandButton aiReady={anthropicConfigured()} draftCost={costFor('brief')} label="+ Créer la première marque" />
         </Empty>
       )}
 
