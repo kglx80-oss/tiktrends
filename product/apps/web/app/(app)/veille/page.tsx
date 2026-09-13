@@ -13,6 +13,7 @@ import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
 import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
 import { Icon } from '../../../components/Icon';
+import { Empty } from '../../../components/Empty';
 
 export const dynamic = 'force-dynamic';
 
@@ -274,6 +275,18 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}
       </div>
+
+      {/* Une recherche sans résultat rendait une grille VIDE, sans un mot ·
+          l'écran se lisait comme cassé. On dit ce qui s'est passé et on donne
+          une sortie · repartir des gagnants installés (efface la recherche). */}
+      {!sample && !error && ads.length === 0 && (
+        <Empty
+          tone="todo" icon="search"
+          title={query ? `Aucune annonce pour « ${query} ».` : 'Aucune annonce à afficher pour l’instant.'}
+          why="Élargis le terme, change de plateforme, ou repars des gagnants installés dans ta catégorie."
+          action={{ label: 'Voir les gagnants installés', href: '/veille' }}
+        />
+      )}
 
       {/* Pagination */}
       {!sample && !error && (query || defaut) && ads.length > 0 && (
