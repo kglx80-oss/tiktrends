@@ -36,6 +36,10 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
   const brand = await getActiveBrand(s.workspaceId);
   if (brand) await ensureBrandEnriched(brand.id);
   const [videos, assets] = await Promise.all([listBrandVideos(), listAnimatableAssets()]);
+  // Même accès que les pubs · la vidéo peut désormais être poussée en test dans
+  // Adsmap (le pont accepte le format vidéo). On expose le bouton « Suivre »
+  // seulement à qui a l'atelier de test, comme le studio Pubs IA.
+  const adsmapOpen = !!brand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
 
   return (
     <main style={wrap}>
@@ -53,7 +57,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
         20 crédits par vidéo.
       </PageInfo>
 
-      <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} />
+      <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} adsmap={adsmapOpen} />
     </main>
   );
 }
