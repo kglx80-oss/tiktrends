@@ -75,6 +75,7 @@ export * from './video-directions';
 export * from './universe-previews';
 export * from './ad-layouts';
 export * from './production-mode';
+export * from './studio-geste';
 export * from './appliquer-essais';
 export * from './scene-framing';
 export * from './scene-light';
