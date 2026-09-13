@@ -44,3 +44,16 @@ export function avecTemplate(tags: readonly string[] | null | undefined, on: boo
 export function tagsVisibles(tags?: readonly string[] | null): string[] {
   return (tags ?? []).filter((t) => t !== TAG_TEMPLATE);
 }
+
+/**
+ * Range les templates de l'agence EN PREMIER, l'ordre relatif conservé (tri
+ * stable). Le client choisit une référence dans l'assistant · les gabarits
+ * curés doivent tomber sous les yeux avant le reste de la bibliothèque, sans
+ * masquer celle-ci. Pur · s'applique à toute liste portant `isTemplate`.
+ */
+export function templatesDabord<T extends { isTemplate?: boolean }>(items: readonly T[]): T[] {
+  const oui: T[] = [];
+  const non: T[] = [];
+  for (const it of items) (it.isTemplate ? oui : non).push(it);
+  return [...oui, ...non];
+}

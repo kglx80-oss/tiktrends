@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TAG_TEMPLATE, estTemplateAsset, avecTemplate, tagsVisibles } from '../src/templates-crea';
+import { TAG_TEMPLATE, estTemplateAsset, avecTemplate, tagsVisibles, templatesDabord } from '../src/templates-crea';
 
 /**
  * Un asset devient template quand il porte le marqueur réservé · sans changer le
@@ -39,5 +39,17 @@ describe('templates de créative · marqueur dans les tags, 0 migration', () => 
     expect(tagsVisibles(['premium', TAG_TEMPLATE, 'sombre'])).toEqual(['premium', 'sombre']);
     expect(tagsVisibles([TAG_TEMPLATE])).toEqual([]);
     expect(tagsVisibles(null)).toEqual([]);
+  });
+
+  it('les templates passent en premier, l’ordre relatif conservé (tri stable)', () => {
+    const l = [
+      { id: 'a', isTemplate: false }, { id: 'b', isTemplate: true },
+      { id: 'c', isTemplate: false }, { id: 'd', isTemplate: true },
+    ];
+    expect(templatesDabord(l).map((x) => x.id), 'les templates ne remontent pas en tête ou l’ordre se casse')
+      .toEqual(['b', 'd', 'a', 'c']);
+    // Sans template, la liste est inchangée.
+    expect(templatesDabord([{ id: 'x', isTemplate: false }, { id: 'y', isTemplate: false }]).map((x) => x.id)).toEqual(['x', 'y']);
+    expect(templatesDabord<{ isTemplate?: boolean }>([])).toEqual([]);
   });
 });
