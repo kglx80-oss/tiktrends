@@ -145,12 +145,33 @@ function ligne(role: string, texte?: string): string | null {
  * que celle qu'on lui dicterait · c'est même la raison d'être de ce mode. On
  * fixe la hiérarchie, pas les coordonnées.
  */
+/**
+ * La charte couleur de la marque, tournée en consigne de direction artistique.
+ *
+ * Les couleurs extraites du site (`schema.brands.colors`) n'atteignaient jamais
+ * le modèle d'image · elles ne servaient qu'à teinter un bouton en overlay. La
+ * scène, elle, était décidée par un catalogue générique · d'où « ça ne colle pas
+ * à la DA du site ». On les réinjecte comme une consigne DOUCE : teinter la
+ * composition et les fonds, jamais recolorer un vrai produit (son packaging
+ * garde ses couleurs, l'exigence produit est ailleurs dans le prompt).
+ *
+ * `''` quand il n'y a pas de couleur · le prompt reste léger. Au plus cinq
+ * couleurs · au-delà, ce n'est plus une charte, c'est du bruit.
+ */
+export function palettePourPrompt(colors?: string[] | null): string {
+  const propres = (colors ?? []).map((c) => c.trim()).filter(Boolean).slice(0, 5);
+  if (!propres.length) return '';
+  return `Brand colour palette · echo these tones in the composition, backgrounds, lighting and text colours so the ad matches the brand's identity: ${propres.join(', ')}. Do not recolour any real product · keep its own packaging colours.`;
+}
+
 export function promptPubEntiere(o: {
   copie: CopiePub;
   /** Le brief de scène écrit par Jarvis. */
   sceneBrief: string;
   /** Une photo du produit est fournie en référence. */
   avecProduit: boolean;
+  /** La charte couleur de la marque · consigne douce de direction artistique. */
+  palette?: string[] | null;
   /** Direction artistique · scène, lumière, typographie, disposition, finition. */
   direction?: AdDirection | null;
   /** Prompt maison · remplace la direction quand il est choisi. */
@@ -190,6 +211,10 @@ export function promptPubEntiere(o: {
     ? `Art direction:\n${directionPrompt(o.direction)}`
     : o.universPrompt ? `Art direction: ${o.universPrompt}` : '';
 
+  // La charte du site · une orientation de couleur, placée avec la direction
+  // artistique, jamais sur le produit réel.
+  const palette = palettePourPrompt(o.palette);
+
   // Les renforts vivent JUSTE APRÈS la règle de copie et AVANT les textes · un
   // renfort noyé en fin de prompt se lit comme une note, placé sur l'exigence
   // qu'il durcit il se lit comme une consigne. Chacun est nommé « CRITICAL » ·
@@ -206,6 +231,7 @@ export function promptPubEntiere(o: {
     produit,
     `Scene: ${o.sceneBrief.slice(0, 600)}`,
     uni,
+    palette,
     marche,
     'Render the advertising typography DIRECTLY INSIDE the image, integrated into the design.',
     'The copy below is FINAL · reproduce each string exactly, character for character, in FRENCH with all accents and apostrophes. Do not translate, rewrite, shorten or invent any wording.',

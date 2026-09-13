@@ -386,6 +386,9 @@ async function composeBatch(o: {
         },
         sceneBrief: c.sceneBrief,
         avecProduit: !!imageUrls?.length,
+        // La charte couleur de la marque (extraite du site) · elle n'atteignait
+        // jamais le modèle d'image · désormais consigne douce de direction.
+        palette: o.colors,
         // La direction ENTIÈRE ici · scène, lumière, typographie, disposition,
         // finition. C'est la typographie et la disposition qui manquaient, et
         // c'est pour ça que la mise en page changeait sans raison d'une image
