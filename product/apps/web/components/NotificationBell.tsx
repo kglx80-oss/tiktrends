@@ -7,7 +7,9 @@ import { Icon } from './Icon';
 
 // Icône du jeu partagé par type de notif · le « system » utilise l'étoile du
 // jeu (icône de catégorie, pas un favori).
-const ICON: Record<string, string> = { ticket_new: 'file', ticket_reply: 'chat', ticket_status: 'check', system: 'star' };
+// Chaque type RÉELLEMENT émis a son icône · le récap quotidien (`digest`,
+// émis par le cron) tombait sur le glyphe de repli « • » faute d'entrée ici.
+const ICON: Record<string, string> = { ticket_new: 'file', ticket_reply: 'chat', ticket_status: 'check', digest: 'chart', system: 'star' };
 
 function timeAgo(iso: string): string {
   const d = Date.now() - new Date(iso).getTime();
