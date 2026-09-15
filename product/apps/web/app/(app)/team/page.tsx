@@ -104,12 +104,12 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       )}
 
       {/* Membres */}
-      <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px', padding: '11px 16px', background: 'var(--surface)', fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>
+      <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflowX: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px', minWidth: 480, padding: '11px 16px', background: 'var(--surface)', fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>
           <span>Membre</span><span>E-mail</span><span>Rôle</span>
         </div>
         {members.map((m) => (
-          <div key={m.email} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px', padding: '13px 16px', borderTop: '1px solid var(--line)', alignItems: 'center' }}>
+          <div key={m.email} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px', minWidth: 480, padding: '13px 16px', borderTop: '1px solid var(--line)', alignItems: 'center' }}>
             <span style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{m.name || '(sans nom)'}</span>
             <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>{m.email}</span>
             <span><span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, color: roleColor[m.role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[m.role]}</span></span>
