@@ -93,7 +93,7 @@ export function Hub({ intro, next, cards, children }: {
         </Link>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 14 }}>
         {cards.map((c) => <Carte key={c.href} {...c} />)}
       </div>
 

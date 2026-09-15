@@ -126,7 +126,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             <span style={{ color: 'var(--muted)', fontSize: 12 }}>▾</span>{cat}
             <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>({items.length})</span>
           </summary>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10, marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 10, marginTop: 12 }}>
             {items.map((c) => <ConnecteurBientot key={c.name} c={c} />)}
           </div>
         </details>

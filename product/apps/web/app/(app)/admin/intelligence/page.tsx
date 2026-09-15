@@ -121,7 +121,7 @@ export default async function IntelligencePage() {
       </div>
 
       {/* Où faire mieux + avantages */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 16, marginBottom: 32 }}>
         <div style={{ border: '1px solid rgba(245,176,67,.35)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(245,166,35,.06), var(--surface))', padding: '18px 20px' }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="target" size={15} /> Où l'on doit faire mieux</h3>
           <div style={{ display: 'grid', gap: 12 }}>

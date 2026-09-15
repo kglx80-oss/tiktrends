@@ -97,7 +97,7 @@ export default async function FinancePage() {
       <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 12px' }}>
         Cible : <b style={{ color: 'var(--ink-2)' }}>{Math.round(TARGET_GROSS * 100)} % de marge brute</b> même si le client consomme 100 % de ses crédits. Deux leviers : réduire l'allocation, ou monter le prix.
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 12 }}>
         {rows.map((r) => (
           <div key={r.plan} style={{ border: `1px solid ${r.overAllocated ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`, borderRadius: 14, background: r.overAllocated ? 'rgba(245,166,35,.06)' : 'var(--surface)', padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
