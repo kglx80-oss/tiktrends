@@ -382,7 +382,7 @@ export function Landing() {
               <div className="lp-muted lp-mono" style={{ fontSize: 12 }}>étape 3 · Direction artistique</div>
               <span className="lp-chip" style={{ color: 'var(--ink2)' }}>3 / 5</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(90px, 100%), 1fr))', gap: 10 }}>
               {[
                 { t: 'Studio lumière douce', grad: 'linear-gradient(160deg,#3a1f2e,#20131d)', glow: 'rgba(255,92,138,0.55)', sel: true },
                 { t: 'Dark cinématique', grad: 'linear-gradient(160deg,#1e2b33,#12181f)', glow: 'rgba(59,130,246,0.5)', sel: false },
