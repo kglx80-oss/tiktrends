@@ -4,6 +4,7 @@ import { useState, useTransition, type CSSProperties } from 'react';
 import { rateCreativeAction, type Rating } from '../app/actions/creatives';
 import { trackGeneratedAdAction } from '../app/actions/adsmap-bridge';
 import { Icon } from './Icon';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * Barre d'actions d'une créa (Pubs / Image / Vidéo IA) : vrais boutons + raccourcis.
@@ -87,7 +88,7 @@ export function RatingControl({ genId, rating: initial = null, label }: { genId:
 }
 
 const actBtn: CSSProperties = {
-  width: 30, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9,
+  width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9,
   border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink-2)',
   cursor: 'pointer', textDecoration: 'none', flexShrink: 0, lineHeight: 1,
 };
@@ -95,7 +96,7 @@ const actBtn: CSSProperties = {
 function ratePill(active: boolean, kind: 'up' | 'down'): CSSProperties {
   const on = kind === 'up' ? { c: '#18cc8c', bg: 'rgba(24,204,140,.16)' } : { c: '#ff6b81', bg: 'rgba(255,77,109,.16)' };
   return {
-    width: 28, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999,
+    minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999,
     border: 'none', background: active ? on.bg : 'transparent', color: active ? on.c : 'var(--muted)', cursor: 'pointer',
   };
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * Fenêtre modale réutilisable (pop-up). Base du système « tout en pop-up » :
@@ -88,7 +89,7 @@ export function Modal({
             {subtitle && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>}
           </div>
           <button type="button" onClick={onClose} aria-label="Fermer" style={{
-            width: 30, height: 30, flexShrink: 0, borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--paper)',
+            width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--paper)',
             color: 'var(--muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
           }}>✕</button>
         </div>

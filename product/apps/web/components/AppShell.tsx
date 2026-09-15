@@ -14,6 +14,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { chromeCoquille } from '../lib/chrome-coquille';
 import { routeLabel } from '../lib/navigation';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
@@ -536,7 +537,7 @@ function AppShellInner(props: Props) {
             l'ouvrir · et le logo garde son retour à l'accueil. */}
         {chrome.hamburger && (
           <div style={{ position: 'sticky', top: 0, zIndex: 70, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--rail)', borderBottom: '1px solid var(--line)' }}>
-            <button type="button" onClick={() => setDrawer(true)} aria-label="Ouvrir le menu" style={{ width: 38, height: 38, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
+            <button type="button" onClick={() => setDrawer(true)} aria-label="Ouvrir le menu" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
             </button>
             <Link href="/dashboard" aria-label="Accueil" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
