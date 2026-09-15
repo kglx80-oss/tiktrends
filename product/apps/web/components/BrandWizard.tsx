@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
+import { useIsMobile } from './useIsMobile';
 import { input, lbl } from './ui';
 import { BrandGuidelines } from './BrandGuidelines';
 import { Icon } from './Icon';
@@ -25,6 +26,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiReady: boolean; draftCost?: number; embedded?: boolean }) {
+  // Écran étroit · la barre d'étapes et le contenu s'empilent (le split figeait
+  // une colonne de 180-260px sur un téléphone).
+  const mobile = useIsMobile();
   const [step, setStep] = useState(0);
   // Écran d'entrée « IA d'abord » : nom + site -> Jarvis pré-remplit tout, on révise ensuite.
   const [gate, setGate] = useState(true);
@@ -82,7 +86,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
   if (gate) {
     const ready = aiReady && f.name.trim().length > 0;
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 260px) minmax(0,1fr)', gap: 0, ...shell(embedded) }}>
+      <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(200px, 260px) minmax(0,1fr)', gap: 0, ...shell(embedded) }}>
         {/* Panneau valeur */}
         <div style={{ background: 'linear-gradient(180deg, rgba(254,44,85,.10), var(--paper))', padding: '26px 22px', borderRight: '1px solid var(--line)' }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', marginBottom: 14 }}><Icon name="sparkles" size={20} /></div>
@@ -131,7 +135,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) minmax(0,1fr)', gap: 0, ...shell(embedded) }}>
+    <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(180px, 220px) minmax(0,1fr)', gap: 0, ...shell(embedded) }}>
       {/* Étapes · barre latérale */}
       <aside style={{ background: 'var(--paper)', borderRight: '1px solid var(--line)', padding: '22px 16px', display: 'flex', flexDirection: 'column' }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginBottom: 16 }}>Créer une marque</div>
