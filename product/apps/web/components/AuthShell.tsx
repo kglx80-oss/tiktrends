@@ -21,7 +21,7 @@ export function errorBox(msg: string) {
 
 export function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <main style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)' }}>
+    <main style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(440px, 100%), 1fr))' }}>
       {/* Panneau de marque */}
       <section style={{
         position: 'relative', overflow: 'hidden', padding: '48px 44px',

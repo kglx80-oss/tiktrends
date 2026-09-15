@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { useIsMobile } from '../../components/useIsMobile';
 import { useRouter } from 'next/navigation';
 import { saveOnboardingAction } from '../actions/onboarding';
 import { Icon } from '../../components/Icon';
@@ -39,6 +40,8 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
   const [siteUrl, setSiteUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Écran étroit · l'illustration et le formulaire s'empilent (le split débordait).
+  const mobile = useIsMobile();
 
   const toggleGoal = (k: string) => setGoals((g) => g.includes(k) ? g.filter((x) => x !== k) : [...g, k]);
   // La dernière étape CRÉE la marque · sans nom, l'action n'en crée aucune et
@@ -66,7 +69,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,520px)', background: 'var(--bg, #0b070d)' }}>
+    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(0,1fr) minmax(0,520px)', background: 'var(--bg, #0b070d)' }}>
       {/* Colonne formulaire */}
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px min(8vw, 90px)', maxWidth: 720 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>

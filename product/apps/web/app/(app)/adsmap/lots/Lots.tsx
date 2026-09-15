@@ -8,6 +8,7 @@ import {
 } from '../../../actions/adsmap-batch';
 import { Empty } from '../../../../components/Empty';
 import { useToast } from '../../../../components/Toast';
+import { useIsMobile } from '../../../../components/useIsMobile';
 
 /**
  * Préparation d'un lot de test.
@@ -29,6 +30,8 @@ export function Lots({ batches, brandName }: {
   batches: Array<{ id: string; number: number; status: string; goal: string | null; ads: number }>;
   brandName: string;
 }) {
+  // Écran étroit · le contenu et le rail latéral (320px) s'empilent.
+  const mobile = useIsMobile();
   const [liste, setListe] = useState(batches);
   const [choisi, setChoisi] = useState<string | null>(batches[0]?.id ?? null);
   const [detail, setDetail] = useState<BatchDetail | null>(null);
@@ -105,7 +108,7 @@ export function Lots({ batches, brandName }: {
   const lancable = !!detail && detail.ads.length > 0 && bloquees === 0 && detail.status !== 'testing' && detail.status !== 'analyzed';
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 320px)', gap: 22, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 320px)', gap: 22, alignItems: 'start' }}>
       <div style={{ minWidth: 0 }}>
         {error && (
           <p style={{ padding: '10px 13px', borderRadius: 10, background: 'rgba(254,44,85,.09)', border: '1px solid rgba(254,44,85,.3)', color: '#ff8095', fontSize: 12.5, lineHeight: 1.5, marginTop: 0 }}>
