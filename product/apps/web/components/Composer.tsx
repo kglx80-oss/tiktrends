@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Icon } from './Icon';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * La barre de composition · une seule pour tous les studios.
@@ -187,7 +188,7 @@ export function Composer(props: ComposerProps) {
           <button
             type="button" onClick={onAttach} title={attachLabel ?? 'Ajouter des références visuelles'}
             style={{
-              flexShrink: 0, width: 34, height: 34, borderRadius: 11, cursor: 'pointer',
+              flexShrink: 0, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, borderRadius: 11, cursor: 'pointer',
               border: `1px solid ${attachedCount > 0 ? 'var(--accent-strong)' : 'var(--line-2)'}`,
               background: 'transparent', color: attachedCount > 0 ? 'var(--accent-strong)' : 'var(--ink-2)',
               fontSize: 17, fontWeight: 600, lineHeight: 1,

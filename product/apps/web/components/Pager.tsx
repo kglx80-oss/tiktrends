@@ -1,5 +1,7 @@
 'use client';
 
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+
 /** Pagination simple · 24 éléments par page pour limiter le chargement (images). */
 export const PAGE_SIZE = 24;
 
@@ -9,7 +11,7 @@ export function Pager({ page, total, onPage }: { page: number; total: number; on
   const from = page * PAGE_SIZE + 1;
   const to = Math.min(total, (page + 1) * PAGE_SIZE);
   const btn = (active: boolean, disabled?: boolean) => ({
-    minWidth: 32, height: 32, padding: '0 10px', borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
+    minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN, padding: '0 10px', borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
     border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent',
     color: active ? 'var(--on-accent)' : disabled ? 'var(--muted)' : 'var(--ink-2)', opacity: disabled ? 0.5 : 1,
   } as const);
