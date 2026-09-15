@@ -90,7 +90,7 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
       <section style={{ marginTop: 40, borderTop: '1px solid var(--line)', paddingTop: 26 }}>
         <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>Bonus · 6 requêtes de veille prêtes à copier</h2>
         <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>À coller dans le Studio ou l'assistant une fois l'IA branchée, pour continuer seul sur cette niche.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 10 }}>
           {prompts.map((p, i) => <PromptCard key={i} n={i + 1} text={p} />)}
         </div>
       </section>
@@ -133,7 +133,7 @@ function Card({ it }: { it: SwipeItem }) {
       </div>
 
       {/* Bande d'analyse · mise en évidence */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', background: 'var(--paper, rgba(255,255,255,.03))', borderBottom: '1px solid var(--line)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', background: 'var(--paper, rgba(255,255,255,.03))', borderBottom: '1px solid var(--line)' }}>
         <Cell v={'▲ ' + compact(g)} label="Croiss. 30j" accent />
         <Cell v={compact(ad.reach ?? 0)} label="Reach" />
         <Cell v={ad.estimatedSpend != null ? compact(ad.estimatedSpend) + '€' : '·'} label="Spend" />
