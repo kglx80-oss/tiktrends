@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import {
   listShareLinksAction, createShareLinkAction, revokeShareLinkAction, type ShareLink,
 } from '../../actions/adsmap-share';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { EmptyLine } from '../../../components/Empty';
 
 /**
@@ -76,7 +77,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 16.5, fontWeight: 800, color: 'var(--ink)', flex: 1 }}>Partager avec le client</h2>
           <button type="button" onClick={onClose} aria-label="Fermer" style={{
-            width: 28, height: 28, borderRadius: 8, border: '1px solid var(--line-2)',
+            width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, borderRadius: 8, border: '1px solid var(--line-2)',
             background: 'var(--paper)', color: 'var(--ink-2)', cursor: 'pointer', flexShrink: 0,
           }}>✕</button>
         </div>
