@@ -290,7 +290,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         </div>
       </section>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 20 }}>
         {/* Barème */}
         <section style={panel}>
           <h2 style={h2}>Barème (coût par action)</h2>

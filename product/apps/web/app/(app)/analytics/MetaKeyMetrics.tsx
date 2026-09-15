@@ -81,7 +81,7 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
 
       {/* Breakdowns (plateforme, âge & genre) */}
       {insights.breakdowns && (insights.breakdowns.platform.length > 0 || insights.breakdowns.ageGender.length > 0) ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 16, marginBottom: 24 }}>
           {insights.breakdowns.platform.length > 0 && <BreakdownCard title="Par plateforme" rows={insights.breakdowns.platform} cur={cur} />}
           {insights.breakdowns.ageGender.length > 0 && <BreakdownCard title="Par âge & genre" rows={insights.breakdowns.ageGender.slice(0, 8)} cur={cur} />}
         </div>
