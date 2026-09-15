@@ -37,7 +37,7 @@ export function DataConnections({ initial, brandName, metaOAuth = false, shopify
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14, marginBottom: 28 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 14, marginBottom: 28 }}>
       <ShopifyCard state={state} setState={setState} refresh={refresh} oauth={shopifyOAuth} />
       <MetaCard state={state} setState={setState} refresh={refresh} oauth={metaOAuth} />
     </div>
@@ -114,7 +114,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
         <div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 10 }}>{sh.domain}</div>
           {ins ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100px, 100%), 1fr))', gap: 8, marginBottom: 10 }}>
               <Kpi label="CA 30 j" value={eur(ins.revenue30d, ins.currency)} />
               <Kpi label="Commandes" value={String(ins.orders30d)} />
               <Kpi label="Panier moyen" value={eur(ins.aov30d, ins.currency)} />
@@ -206,7 +206,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 10 }}>{ins?.accountName || mt.adAccountId}</div>
           )}
           {ins ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100px, 100%), 1fr))', gap: 8, marginBottom: 10 }}>
               <Kpi label="Dépense 30 j" value={eur(ins.spend30d, ins.currency)} />
               <Kpi label="ROAS" value={`${ins.roas30d}×`} />
               <Kpi label="Achats" value={String(ins.purchases30d)} />
