@@ -91,12 +91,12 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
       {insights.topAds?.length ? (
         <>
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Top créas (par ROAS)</h3>
-          <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px', gap: 8, padding: '10px 16px', background: 'var(--surface)', color: 'var(--muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+          <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px', minWidth: 420, gap: 8, padding: '10px 16px', background: 'var(--surface)', color: 'var(--muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }}>
               <span>Créa</span><span style={{ textAlign: 'right' }}>ROAS</span><span style={{ textAlign: 'right' }}>CPA</span><span style={{ textAlign: 'right' }}>Dépense</span>
             </div>
             {insights.topAds.slice(0, 8).map((a, i) => (
-              <div key={a.name + i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px', gap: 8, padding: '11px 16px', borderTop: '1px solid var(--line)', fontSize: 13 }}>
+              <div key={a.name + i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px', minWidth: 420, gap: 8, padding: '11px 16px', borderTop: '1px solid var(--line)', fontSize: 13 }}>
                 <span style={{ fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
                 <span style={{ textAlign: 'right', fontWeight: 800, color: a.roas >= 2 ? '#7ee8bf' : 'var(--ink)' }}>{a.roas}×</span>
                 <span style={{ textAlign: 'right', color: 'var(--ink-2)' }}>{fmt(a.cpa, cur, 'money')}</span>

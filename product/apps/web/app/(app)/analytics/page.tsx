@@ -170,7 +170,7 @@ export default async function AnalyticsPage() {
 
       {/* Top ROAS */}
       <h2 style={{ ...h2, marginTop: 28, marginBottom: 12 }}>Top créas par ROAS</h2>
-      <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden' }}>
+      <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflowX: 'auto' }}>
         <div style={{ ...trow, background: 'var(--surface)', color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>
           <span>Créa</span><span>Plateforme</span><span style={{ textAlign: 'right' }}>Dépense</span><span style={{ textAlign: 'right' }}>CTR</span><span style={{ textAlign: 'right' }}>ROAS</span><span style={{ textAlign: 'center' }}>Reco</span>
         </div>
@@ -198,4 +198,6 @@ const h1 = { margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' } as 
 const h2 = { margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--ink)' } as const;
 const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
 const cardLabel = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 8 } as const;
-const trow = { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', padding: '11px 16px', alignItems: 'center', gap: 8 } as const;
+// minWidth · en dessous, les six colonnes se tassent et débordent · le tableau
+// défile alors à l'horizontale dans son cadre (overflowX) au lieu d'écraser.
+const trow = { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', minWidth: 560, padding: '11px 16px', alignItems: 'center', gap: 8 } as const;
