@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react';
 import { generateAction, type StudioState } from '../../../actions/studio';
 import type { CreativeOutput } from '@tiktrends/ai';
 import { Icon } from '../../../../components/Icon';
+import { useIsMobile } from '../../../../components/useIsMobile';
 
 const input: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 };
@@ -36,11 +37,14 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
   // d'un écran vide alors que la génération d'hier est en base. Une nouvelle
   // génération le remplace.
   const out = state.output ?? initialOutput;
+  // Écran étroit · le brief et les résultats s'empilent (le split 2 colonnes
+  // débordait le téléphone), et le brief cesse de coller (inutile empilé).
+  const mobile = useIsMobile();
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 380px) 1fr', gap: 22, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(300px, 380px) 1fr', gap: 22, alignItems: 'start' }}>
       {/* Brief */}
-      <form action={formAction} style={{ ...card, display: 'grid', gap: 12, position: 'sticky', top: 20 }}>
+      <form action={formAction} style={{ ...card, display: 'grid', gap: 12, minWidth: 0, position: mobile ? 'static' : 'sticky', top: 20 }}>
         <div><label style={lbl}>Produit / marque / offre *</label><input name="product" required defaultValue={prefillProduct} placeholder="Ex : sérum vitamine C bio" style={input} /></div>
         <div><label style={lbl}>Cible</label><input name="audience" placeholder="Ex : femmes 25-40, peau sensible" style={input} /></div>
         <div><label style={lbl}>Angle / promesse</label><input name="angle" placeholder="Ex : résultats visibles en 7 jours" style={input} /></div>
