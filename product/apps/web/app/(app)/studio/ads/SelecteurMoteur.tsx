@@ -49,7 +49,10 @@ export function SelecteurMoteur({ models, valeur, onChoisir, recommande, conseil
           {conseil.resume}
         </p>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
+      {/* Les cartes forment UN choix · sans nom de groupe, l'assistance les
+          annonce une à une, détachées de leur libellé visible « Moteur d'image ».
+          `role=group` + `aria-label` les réunit sous ce libellé. */}
+      <div role="group" aria-label="Moteur d’image" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
         {models.map((m) => {
           const on = valeur === m.key;
           const estRecommande = recommande === m.key;
