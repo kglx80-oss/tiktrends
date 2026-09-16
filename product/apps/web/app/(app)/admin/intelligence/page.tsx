@@ -291,7 +291,7 @@ export default async function IntelligencePage() {
       {/* Le pendant OBJECTIF · la performance réelle par angle */}
       <h2 style={{ margin: '4px 0 6px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Hypothèses d'angle · ce qui a PAYÉ</h2>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 0, marginBottom: 6, maxWidth: 760, lineHeight: 1.6 }}>
-        Le vote objectif · pour chaque angle, la part de créas lancées jugées <b>gagnantes</b> par ADSMAP (sur métriques
+        Le vote objectif · pour chaque angle, la part de créas lancées jugées <b>gagnantes</b> par Adsmap (sur métriques
         réelles), comparée au taux général. « Le client a aimé » et « le marché a payé » sont deux choses · voici la seconde.
       </p>
       <p style={{ color: '#f5a623', fontSize: 11.5, marginTop: 0, marginBottom: 14 }}>
@@ -301,7 +301,7 @@ export default async function IntelligencePage() {
       {!perf || perf.lignes.length === 0 ? (
         <div style={cardSurvie}><p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
           Aucune créa lancée n'est encore rattachable à un angle · ce tableau se remplit quand des créas générées depuis
-          un angle (#300) sont lancées via ADSMAP et reçoivent un verdict.
+          un angle (#300) sont lancées via Adsmap et reçoivent un verdict.
         </p></div>
       ) : (
         <div style={cardSurvie}>
