@@ -88,7 +88,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
     <Wrap icon={<ShopifyIcon size={21} />} title="Shopify · ventes" badge={sh?.connected ? connectedBadge : undefined}>
       {!sh?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
-          <div><label style={lbl}>Domaine de la boutique</label><input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
+          <div><label style={lbl} htmlFor="conn-shopify-domaine">Domaine de la boutique</label><input id="conn-shopify-domaine" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
           {oauth && (
             <>
               {/* Un vrai bouton · l'ancien `<a href={undefined}>` n'était ni
@@ -106,7 +106,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
               </div>
             </>
           )}
-          <div><label style={lbl}>Token Admin API <span style={{ color: 'var(--muted)' }}>· app perso (shpat_…)</span></label><input value={token} onChange={(e) => setToken(e.target.value)} placeholder="shpat_••••••••" style={fld} /></div>
+          <div><label style={lbl} htmlFor="conn-shopify-token">Token Admin API <span style={{ color: 'var(--muted)' }}>· app perso (shpat_…)</span></label><input id="conn-shopify-token" value={token} onChange={(e) => setToken(e.target.value)} placeholder="shpat_••••••••" style={fld} /></div>
           <button type="button" onClick={connect} disabled={!!busy} style={primary}>{busy === 'connect' ? 'Test…' : 'Connecter'}</button>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>Shopify → Paramètres → Applications et canaux de vente → Développer des applications → créer une app, scopes lecture (orders, products), installer, copier le token Admin API.</p>
         </div>
@@ -185,8 +185,8 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
               </div>
             </>
           )}
-          <div><label style={lbl}>ID compte publicitaire</label><input value={acct} onChange={(e) => setAcct(e.target.value)} placeholder="act_1234567890" style={fld} /></div>
-          <div><label style={lbl}>Token d'accès <span style={{ color: 'var(--muted)' }}>· System User (BM)</span></label><input value={token} onChange={(e) => setToken(e.target.value)} placeholder="EAAB••••••••" style={fld} /></div>
+          <div><label style={lbl} htmlFor="conn-meta-acct">ID compte publicitaire</label><input id="conn-meta-acct" value={acct} onChange={(e) => setAcct(e.target.value)} placeholder="act_1234567890" style={fld} /></div>
+          <div><label style={lbl} htmlFor="conn-meta-token">Token d'accès <span style={{ color: 'var(--muted)' }}>· System User (BM)</span></label><input id="conn-meta-token" value={token} onChange={(e) => setToken(e.target.value)} placeholder="EAAB••••••••" style={fld} /></div>
           <button type="button" onClick={connect} disabled={!!busy} style={primary}>{busy === 'connect' ? 'Test…' : 'Connecter'}</button>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>Business Manager → Paramètres → Utilisateurs système → générer un token avec la permission ads_read, sur le compte publicitaire.</p>
         </div>
@@ -195,8 +195,8 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
           {/* Sélecteur de compte publicitaire : une agence en a souvent plusieurs. */}
           {(mt.accounts?.length ?? 0) > 1 ? (
             <div style={{ marginBottom: 12 }}>
-              <label style={lbl}>Compte publicitaire <span style={{ color: 'var(--muted)' }}>· {mt.accounts.length} accessibles</span></label>
-              <select value={mt.adAccountId ?? ''} disabled={!!busy} onChange={(e) => void pickAccount(e.target.value)} style={{ ...fld, width: '100%' }}>
+              <label style={lbl} htmlFor="conn-meta-adaccount">Compte publicitaire <span style={{ color: 'var(--muted)' }}>· {mt.accounts.length} accessibles</span></label>
+              <select id="conn-meta-adaccount" value={mt.adAccountId ?? ''} disabled={!!busy} onChange={(e) => void pickAccount(e.target.value)} style={{ ...fld, width: '100%' }}>
                 <option value="" disabled>Choisis un compte…</option>
                 {mt.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.currency ? ` · ${a.currency}` : ''}</option>)}
               </select>
