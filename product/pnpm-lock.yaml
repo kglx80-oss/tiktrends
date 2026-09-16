@@ -49,7 +49,7 @@ importers:
         version: 2.4.3
       drizzle-orm:
         specifier: ^0.33.0
-        version: 0.33.0(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8)
+        version: 0.33.0(@electric-sql/pglite@0.5.8)(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8)
       elkjs:
         specifier: ^0.12.0
         version: 0.12.0
@@ -75,6 +75,9 @@ importers:
         specifier: ^22.6.0
         version: 22.6.0(@types/node@20.19.43)
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.8
+        version: 0.5.8
       '@eslint/eslintrc':
         specifier: ^3
         version: 3.3.6
@@ -175,7 +178,7 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: ^0.33.0
-        version: 0.33.0(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8)
+        version: 0.33.0(@electric-sql/pglite@0.5.8)(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8)
       postgres:
         specifier: ^3.4.4
         version: 3.4.9
@@ -220,6 +223,9 @@ packages:
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
+
+  '@electric-sql/pglite@0.5.8':
+    resolution: {integrity: sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q==}
 
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
@@ -3360,6 +3366,8 @@ snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
 
+  '@electric-sql/pglite@0.5.8': {}
+
   '@emnapi/core@1.10.0':
     dependencies:
       '@emnapi/wasi-threads': 1.2.1
@@ -4668,8 +4676,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.33.0(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8):
+  drizzle-orm@0.33.0(@electric-sql/pglite@0.5.8)(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8):
     optionalDependencies:
+      '@electric-sql/pglite': 0.5.8
       '@types/react': 19.2.18
       postgres: 3.4.9
       react: 19.2.8
