@@ -392,9 +392,12 @@ export function imageTimeoutMs(spec: Pick<ImageModelSpec, 'timeoutMs'>): number 
 export function conseilDelai(spec: Pick<ImageModelSpec, 'label' | 'timeoutMs' | 'credits'>): string | null {
   if (!spec.timeoutMs || spec.timeoutMs <= DELAI_IMAGE_DEFAUT) return null;
   const minutes = Math.round(spec.timeoutMs / 60_000);
+  // Le MOINS cher parmi les moins chers · c'est lui « qui répond bien plus
+  // vite » (le délai suit le prix). Un tri décroissant désignait le plus cher
+  // des moins chers, à rebours de ce que la phrase annonce.
   const moinsCher = IMAGE_MODELS
     .filter((m) => m.credits < spec.credits)
-    .sort((a, b) => b.credits - a.credits)[0];
+    .sort((a, b) => a.credits - b.credits)[0];
   return `« ${spec.label} » travaille longtemps · jusqu'à ${minutes} minutes par visuel.`
     + (moinsCher ? ` Pour explorer, « ${moinsCher.label} » répond bien plus vite ; garde la qualité maximale pour le visuel final.` : '');
 }
