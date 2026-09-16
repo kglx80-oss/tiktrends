@@ -35,4 +35,16 @@ describe('le bandeau d’état dit son ton et n’offre une sortie que s’il y 
     expect(html).toContain('Erreur de la source de données.');
     expect(html, 'un bandeau sans sortie n’invente pas de lien').not.toContain('<a ');
   });
+
+  it('le ton erreur s’annonce (role=alert), les tons de contexte non', () => {
+    // Une source qui échoue doit prévenir qui ne voit pas l'écran · les tons démo
+    // et info sont du contexte statique, pas une annonce (sinon chaque page
+    // « démo » parlerait au chargement).
+    expect(renderToStaticMarkup(<Bandeau ton="error">Échec.</Bandeau>), 'l’erreur n’est pas annoncée')
+      .toContain('role="alert"');
+    expect(renderToStaticMarkup(<Bandeau ton="demo">Échantillon.</Bandeau>), 'un ton démo ne doit pas être une live-region')
+      .not.toContain('role="alert"');
+    expect(renderToStaticMarkup(<Bandeau ton="info">Contexte.</Bandeau>), 'un ton info ne doit pas être une live-region')
+      .not.toContain('role="alert"');
+  });
 });
