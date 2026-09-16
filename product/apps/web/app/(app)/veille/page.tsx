@@ -82,6 +82,9 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
   const sp = await searchParams;
   const query = (sp.q || '').trim();
+  // Un critère de veille est actif dès qu'un champ restreint la recherche · sert
+  // à proposer « Réinitialiser » (retour à la vue par défaut) · exigence S13.
+  const filtresVeilleActifs = !!(query || sp.media || sp.status || sp.sort || sp.country || sp.lang || sp.minReach || sp.minDays);
   const platform: AdPlatform = sp.p === 'tiktok' || sp.p === 'google' ? sp.p : 'meta';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
   const apiKey = process.env.TRENDTRACK_API_KEY;
@@ -231,6 +234,9 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: 1, minWidth: 240, ...inputBase }} />
           <button type="submit" style={searchBtn}>Rechercher</button>
+          {filtresVeilleActifs && (
+            <a href="/veille" style={{ display: 'inline-flex', alignItems: 'center', padding: '11px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN }}>Réinitialiser</a>
+          )}
         </div>
         {/* Grille auto-ajustée · les filtres forment des colonnes égales qui se
             reflowent tout seuls · une ligne pleine sur large écran, deux ou trois

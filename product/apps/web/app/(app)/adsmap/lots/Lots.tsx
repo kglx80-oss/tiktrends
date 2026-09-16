@@ -7,6 +7,7 @@ import {
   type BatchDetail, type CandidateAd, type PrepareResult,
 } from '../../../actions/adsmap-batch';
 import { Empty } from '../../../../components/Empty';
+import { Bandeau } from '../../../../components/Bandeau';
 import { useToast } from '../../../../components/Toast';
 import { useIsMobile } from '../../../../components/useIsMobile';
 
@@ -110,11 +111,7 @@ export function Lots({ batches, brandName }: {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 320px)', gap: 22, alignItems: 'start' }}>
       <div style={{ minWidth: 0 }}>
-        {error && (
-          <p style={{ padding: '10px 13px', borderRadius: 10, background: 'rgba(254,44,85,.09)', border: '1px solid rgba(254,44,85,.3)', color: '#ff8095', fontSize: 12.5, lineHeight: 1.5, marginTop: 0 }}>
-            {error}
-          </p>
-        )}
+        {error && <Bandeau ton="error">{error}</Bandeau>}
 
         {!detail ? (
           <Empty
