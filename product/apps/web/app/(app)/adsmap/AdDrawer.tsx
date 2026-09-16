@@ -119,14 +119,14 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 60 }} />
-      <aside style={{
+      <aside role="dialog" aria-modal="true" aria-labelledby="addrawer-titre" style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(560px, 100vw)', zIndex: 70,
         background: 'var(--surface)', borderLeft: '1px solid var(--line)', overflowY: 'auto',
         boxShadow: '-20px 0 50px -20px rgba(0,0,0,.6)', padding: '22px 26px 60px',
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.3 }}>
+            <h2 id="addrawer-titre" style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.3 }}>
               {d?.concept ?? 'Chargement…'}
             </h2>
             {d && (
