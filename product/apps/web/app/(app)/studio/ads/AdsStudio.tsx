@@ -714,7 +714,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               )}
               {templates.includes('offer') && (
                 <input value={offer} onChange={(e) => setOffer(e.target.value)} disabled={!ready}
-                  placeholder="Offre · ex : -20 %, code LANCEMENT"
+                  aria-label="Offre" placeholder="Offre · ex : -20 %, code LANCEMENT"
                   style={{ ...fld, width: 'auto', flex: '1 1 190px', minWidth: 150, padding: '7px 12px', fontSize: 12.5, borderRadius: 999 }} />
               )}
             </>
@@ -1007,7 +1007,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         {(busy || error) && (
           <div style={{ padding: '0 22px 18px' }}>
             {busy && <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>{mode === 'clone' ? 'Analyse de la référence, déclinaison en variations et composition… (~20-40 s)' : 'Écriture des concepts, génération des scènes et composition… (~20-40 s)'}</p>}
-            {error && <div style={{ marginTop: 10, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
+            {error && <div role="alert" style={{ marginTop: 10, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{error}</div>}
           </div>
         )}
       </div>
