@@ -1085,7 +1085,13 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               <div style={{ position: 'relative' }}>
                 <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }}>
                   { }
-                  <img src={vignette(a.url)} alt={a.headline} loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '4/5', objectFit: 'cover' }} />
+                  {/* La pub s'affiche à son RATIO RÉEL · pas de cadre forcé à 4:5.
+                       Une composée est en 4:5, mais une entière sort du modèle en
+                       3:4 (GPT Image 2) ou 2:3 (GPT Image 1) · plus haute. Un cadre
+                       4:5 en `cover` rognait le haut et le bas de ces entières,
+                       alors que le plein écran les montre entières. On aligne la
+                       grille sur lui · `height: auto`, jamais de rognage. */}
+                  <img src={vignette(a.url)} alt={a.headline} loading="lazy" decoding="async" style={{ width: '100%', height: 'auto', display: 'block' }} />
                 </button>
                 {/* Score Jarvis · notre signature, visible directement sur la carte */}
                 {typeof a.score === 'number' && <ScoreBadge score={a.score} />}
