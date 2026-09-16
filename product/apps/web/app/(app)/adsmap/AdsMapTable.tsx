@@ -6,6 +6,7 @@ import { listAdsAction, exportAdsCsvAction, type AdRow, type AdFilters } from '.
 import { conceptBriefAction } from '../../actions/adsmap-bridge';
 import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
+import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
 
 /**
@@ -108,6 +109,12 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
 
   if (rows === null) return <p style={{ color: 'var(--muted)', fontSize: 13 }}>Chargement…</p>;
 
+  // Trois états vides DISTINCTS (CDC S13) · une erreur de chargement, un filtre
+  // qui ne rend rien, et l'absence réelle d'ads ne se disent pas de la même façon.
+  // Avant, une erreur affichait aussi « Importer ton tableau » · un conseil faux.
+  const filtresActifs = !!(filters.batchId || filters.status || filters.verdict || filters.comparableOnly);
+  const reinitialiser = () => setFilters({});
+
   return (
     <div>
       {/* Repères de tête · ce qu'on veut savoir en ouvrant la page */}
@@ -144,6 +151,12 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
           <input type="checkbox" checked={!!filters.comparableOnly} onChange={(e) => setFilters((f) => ({ ...f, comparableOnly: e.target.checked || undefined }))} />
           Verdicts comparables seulement
         </label>
+        {filtresActifs && (
+          <button type="button" onClick={reinitialiser}
+            style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>
+            Réinitialiser
+          </button>
+        )}
         <span style={{ flex: 1 }} />
         <button type="button" onClick={exporter} disabled={busy || !rows.length}
           style={{ padding: '8px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: rows.length ? 'pointer' : 'not-allowed', opacity: rows.length ? 1 : .5 }}>
@@ -151,14 +164,26 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
         </button>
       </div>
 
-      {error && <p style={{ color: '#ff8095', fontSize: 13, marginBottom: 12 }}>{error}</p>}
-
-      {rows.length === 0 ? (
-        <Empty
-          tone="todo" icon="map" title="Aucune ad pour l’instant."
-          why="La carte se lit persona → désir → angle → concept → ad. Chaque ad porte une hypothèse et une seule variable testée · c’est ce qui permet d’attribuer un résultat à une cause."
-          action={{ label: 'Importer ton tableau', href: '/adsmap/import' }}
-        />
+      {error ? (
+        // État 1 · erreur de chargement · annoncée, seule · jamais doublée d'un
+        // conseil d'import qui n'a rien à voir.
+        <Bandeau ton="error">{error}</Bandeau>
+      ) : rows.length === 0 ? (
+        filtresActifs ? (
+          // État 2 · des ads existent, mais aucune ne passe ces filtres. Le geste
+          // « Réinitialiser » est dans la barre de filtres juste au-dessus.
+          <Empty
+            tone="wait" icon="map" title="Aucune ad pour ces filtres."
+            why="Des ads existent dans cette marque, mais aucune ne correspond aux critères actifs · réinitialise les filtres au-dessus pour tout revoir."
+          />
+        ) : (
+          // État 3 · la marque n'a réellement aucune ad.
+          <Empty
+            tone="todo" icon="map" title="Aucune ad pour l’instant."
+            why="La carte se lit persona → désir → angle → concept → ad. Chaque ad porte une hypothèse et une seule variable testée · c’est ce qui permet d’attribuer un résultat à une cause."
+            action={{ label: 'Importer ton tableau', href: '/adsmap/import' }}
+          />
+        )
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1270, fontSize: 12.5 }}>
