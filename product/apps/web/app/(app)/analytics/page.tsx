@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { getSession } from '../../../lib/auth';
@@ -55,7 +55,13 @@ export default async function AnalyticsPage() {
     const headScore = total ? Math.min(1, headlines.size / total) : 0;
     const score = Math.round((tplScore * 0.5 + headScore * 0.5) * 100);
 
-    const assetRows = await db.select({ tags: schema.assets.tags }).from(schema.assets).where(eq(schema.assets.workspaceId, s.workspaceId)).limit(400);
+    // Scopé à la marque active OU aux assets communs de l'espace · même règle
+    // que `listAssets`. Sans le filtre marque, le nuage de tags agrégeait les
+    // assets brand-spécifiques de toutes les marques, à côté de générations
+    // pourtant brand-scopées (bug de scope, cf. #514).
+    const assetRows = await db.select({ tags: schema.assets.tags }).from(schema.assets)
+      .where(and(eq(schema.assets.workspaceId, s.workspaceId), or(eq(schema.assets.brandId, brand.id), isNull(schema.assets.brandId))))
+      .limit(400);
     const tagCount = new Map<string, number>();
     for (const a of assetRows) for (const t of (a.tags ?? [])) { const k = t.trim().toLowerCase(); if (k) tagCount.set(k, (tagCount.get(k) ?? 0) + 1); }
     const tags = [...tagCount.entries()].map(([tag, n]) => ({ tag, n })).sort((a, b) => b.n - a.n).slice(0, 14);
