@@ -55,23 +55,23 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
         <h2 style={h2}>Nouveau message</h2>
         <form action={createTicketAction} style={{ display: 'grid', gap: 14, marginTop: 10 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 180 }}>
-              <label style={lbl}>Type</label>
+            <label style={{ display: 'block', minWidth: 180 }}>
+              <span style={{ ...lbl, display: 'block' }}>Type</span>
               <select name="type" defaultValue="question" style={{ ...input, width: 'auto', minWidth: 180 }}>
                 <option value="question">Question</option>
                 <option value="bug">Bug</option>
                 <option value="suggestion">Suggestion</option>
               </select>
-            </div>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <label style={lbl}>Titre</label>
+            </label>
+            <label style={{ display: 'block', flex: 1, minWidth: 220 }}>
+              <span style={{ ...lbl, display: 'block' }}>Titre</span>
               <input name="title" required style={input} placeholder="Ex : l'export PDF ne fonctionne pas" />
-            </div>
+            </label>
           </div>
-          <div>
-            <label style={lbl}>Message</label>
+          <label style={{ display: 'block' }}>
+            <span style={{ ...lbl, display: 'block' }}>Message</span>
             <textarea name="body" required style={{ ...input, minHeight: 90, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} placeholder="Décris le contexte, ce que tu attendais, ce qui s'est passé." />
-          </div>
+          </label>
           <div><button type="submit" style={btn}>Envoyer le ticket</button></div>
         </form>
       </div>
