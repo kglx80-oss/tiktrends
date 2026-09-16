@@ -90,6 +90,41 @@ describe('le contrôle de déclinaison', () => {
     expect(!r.ok && r.probleme).toContain('scène');
   });
 
+  it('refuse une accroche qui change AUSSI le bouton', () => {
+    // Le cas manquant · une accroche qui bouge le CTA en plus a changé deux
+    // choses, l'écart n'est plus attribuable. `tenuConstant('accroche')` liste
+    // « le bouton » · seule l'offre a le droit d'y toucher.
+    const p = parent();
+    const r = verifieDeclinaison(p, { ...p, headline: 'Autre chose', cta: 'Commande maintenant' }, 'accroche');
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.probleme).toContain('bouton');
+  });
+
+  it('seule l’offre peut toucher au bouton · contrat lié à la vérification', () => {
+    // Ce garde relie `tenuConstant` (« le bouton » y figure pour tout sauf
+    // l'offre) à ce que `verifieDeclinaison` fait réellement respecter. Un
+    // invariant listé mais jamais vérifié est pire qu'absent · on lui fait
+    // confiance. Ici, toucher au CTA en plus de la vraie variable doit être
+    // refusé partout, sauf pour l'offre où c'est justement la variable.
+    const legit: Record<StudioVariable, Partial<DeclinaisonSnapshot>> = {
+      accroche: { headline: 'Une toute autre accroche' },
+      offre: { cta: 'Un tout autre bouton' },
+      mise_en_page: { layout: 'affiche' },
+      scene: { sceneUrl: 'https://cdn.test/z.png' },
+      univers: { sceneUrl: 'https://cdn.test/z.png', universe: 'nature' },
+    };
+    for (const v of STUDIO_VARIABLES as readonly StudioVariable[]) {
+      const p = parent();
+      const r = verifieDeclinaison(p, { ...p, ...legit[v], cta: 'CTA modifié' }, v);
+      if (v === 'offre') {
+        expect(r.ok, 'l’offre a le droit de changer le bouton').toBe(true);
+      } else {
+        expect(r.ok, `${v} a laissé le bouton changer sans le refuser`).toBe(false);
+        expect(!r.ok && r.probleme, `${v}`).toContain('bouton');
+      }
+    }
+  });
+
   it('l’offre accepte la pastille comme le bouton', () => {
     const p = parent();
     expect(verifieDeclinaison(p, { ...p, badge: '-40%' }, 'offre').ok).toBe(true);

@@ -210,7 +210,12 @@ export function verifieDeclinaison(
   // lister quatre n'aide personne à comprendre lequel a cassé le contrat.
   const doitTenir: Array<[boolean, string]> = [
     [v !== 'accroche' && !memeTexte(parent.headline, enfant.headline), 'l’accroche'],
-    [!demandeUnTexte(v) && !memeTexte(parent.cta, enfant.cta), 'le bouton'],
+    // Le bouton (CTA) est tenu par TOUT sauf l'offre · c'est elle, et elle
+    // seule, qui a le droit de le changer (`tenuConstant` liste « le bouton »
+    // pour l'accroche comme pour la mise en page, la scène et l'ambiance).
+    // Exempter aussi l'accroche via `demandeUnTexte` laissait une accroche
+    // changer le CTA en douce · deux changements, mesure non attribuable.
+    [v !== 'offre' && !memeTexte(parent.cta, enfant.cta), 'le bouton'],
     [v !== 'mise_en_page' && parent.layout !== enfant.layout, 'la mise en page'],
     [reutiliseScene(v) && parent.sceneUrl !== enfant.sceneUrl, 'la scène'],
     [v !== 'univers' && !memeTexte(parent.universe, enfant.universe), 'l’ambiance'],
