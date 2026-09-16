@@ -30,8 +30,11 @@ export function Bandeau({ ton = 'info', titre, sortie, children }: {
   children: ReactNode;
 }) {
   const t = TONS[ton];
+  // Le ton `error` s'annonce · une source qui échoue doit prévenir qui ne voit
+  // pas l'écran. `demo` et `info` sont du contexte statique, pas une annonce ·
+  // pas de live-region pour eux (sinon chaque page « démo » parlerait au chargement).
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${t.border}`, borderRadius: 14, background: t.bg, padding: '12px 16px', margin: '0 0 20px' }}>
+    <div role={ton === 'error' ? 'alert' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${t.border}`, borderRadius: 14, background: t.bg, padding: '12px 16px', margin: '0 0 20px' }}>
       <span style={{ display: 'inline-flex' }}><Icon name={t.icon} size={18} /></span>
       <div style={{ flex: 1, minWidth: 200, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
         {titre && <b style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', marginRight: 8 }}>{titre}</b>}
