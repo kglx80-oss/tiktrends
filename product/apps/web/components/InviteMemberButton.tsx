@@ -22,18 +22,18 @@ export function InviteMemberButton() {
       <Modal open={open} onClose={() => setOpen(false)} icon={<Icon name="users" size={18} />} title="Inviter un membre"
         subtitle="L'invité reçoit un lien pour définir son mot de passe et rejoindre l'espace avec le rôle choisi.">
         <form action={createInviteAction} style={{ display: 'grid', gap: 14 }}>
-          <div>
-            <label style={lbl}>E-mail</label>
+          <label style={{ display: 'block' }}>
+            <span style={lbl}>E-mail</span>
             <input name="email" type="email" required autoFocus placeholder="collegue@exemple.com" style={input} />
-          </div>
-          <div>
-            <label style={lbl}>Rôle</label>
+          </label>
+          <label style={{ display: 'block' }}>
+            <span style={lbl}>Rôle</span>
             <select name="role" defaultValue="member" style={{ ...input, width: '100%' }}>
               <option value="admin">Admin · marques, connexions, équipe</option>
               <option value="member">Membre · analyse, tagging, studio</option>
               <option value="client_viewer">Client (lecture) · dashboard de sa marque</option>
             </select>
-          </div>
+          </label>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
             <SubmitButton label="Créer l'invitation" pendingLabel="Création…" />
           </div>
