@@ -8,6 +8,7 @@ import {
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
+import { Bandeau } from '../../../components/Bandeau';
 
 /**
  * File de décisions du jour.
@@ -77,7 +78,7 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
     if (r.error) { setError(r.error); await charger(); }
   }
 
-  if (error && !data) return <p style={{ color: '#ff8095', fontSize: 13 }}>{error}</p>;
+  if (error && !data) return <Bandeau ton="error">{error}</Bandeau>;
   if (!data) return <p style={{ color: 'var(--muted)', fontSize: 13 }}>Chargement…</p>;
 
   return (
@@ -98,7 +99,7 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
         </button>
       </div>
 
-      {error && <p style={{ color: '#ff8095', fontSize: 12.5, marginBottom: 12 }}>{error}</p>}
+      {error && <Bandeau ton="error">{error}</Bandeau>}
 
       {data.items.length === 0 ? (
         <Empty
