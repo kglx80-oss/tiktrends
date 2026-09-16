@@ -54,17 +54,17 @@ export function ProfileIdentity({ init }: {
         </div>
       </div>
 
-      {/* Nom complet */}
-      <div>
-        <label style={lbl}>Nom complet</label>
+      {/* Nom complet · le libellé enrobe son champ (association, S24). */}
+      <label style={{ display: 'block' }}>
+        <span style={{ ...lbl, display: 'block' }}>Nom complet</span>
         <input name="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ton nom" style={input} />
-      </div>
+      </label>
 
       {/* E-mail (lecture seule) */}
-      <div>
-        <label style={lbl}>E-mail <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· identifiant de connexion</span></label>
+      <label style={{ display: 'block' }}>
+        <span style={{ ...lbl, display: 'block' }}>E-mail <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· identifiant de connexion</span></span>
         <input value={init.email} disabled style={{ ...input, opacity: .6 }} />
-      </div>
+      </label>
 
       {/* Masquer les informations personnelles */}
       <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>

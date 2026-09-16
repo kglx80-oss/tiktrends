@@ -70,11 +70,12 @@ export function BrandOverviewForm({ init }: { init: BrandInitial }) {
   );
 }
 
+// Le libellé ENROBE son champ · association sans id à gérer (S24).
 function F({ label, hint, flex, children }: { label: string; hint?: string; flex?: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 14, flex: flex ?? '1 1 auto' }}>
-      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {hint}</span>}</label>
+    <label style={{ display: 'block', marginBottom: 14, flex: flex ?? '1 1 auto' }}>
+      <span style={{ ...lbl, display: 'block' }}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {hint}</span>}</span>
       {children}
-    </div>
+    </label>
   );
 }
