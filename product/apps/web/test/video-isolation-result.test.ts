@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 // Ids partagés entre les mocks (hoistés) et le semis.
 const ids = vi.hoisted(() => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
   return { attackerWs: randomUUID(), attackerUser: randomUUID(), victimWs: randomUUID(), victimGen: randomUUID() };
 });

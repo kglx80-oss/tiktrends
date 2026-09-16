@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 const ids = vi.hoisted(() => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
   return { wsId: randomUUID(), aId: randomUUID(), bId: randomUUID() };
 });
