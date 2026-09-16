@@ -30,10 +30,38 @@
  */
 
 import type { DeclinaisonSnapshot } from './studio-iterate';
+import { poseUneCouche, type ProductionMode } from './production-mode';
 
 /** Ce qu'un lot d'essai peut faire varier. */
 export const ESSAI_VARIABLES = ['accroche', 'mise_en_page', 'univers'] as const;
 export type EssaiVariable = typeof ESSAI_VARIABLES[number];
+
+/**
+ * Cet essai a-t-il un sens dans ce mode de fabrication ?
+ *
+ * ── Le faux essai que ça ferme ───────────────────────────────────────────────
+ *
+ * `accroche` et `mise_en_page` se testent en TENANT LA SCÈNE · une seule image,
+ * sur laquelle on POSE des accroches ou des mises en page différentes. Ça ne
+ * marche que là où le texte est une couche · en composée.
+ *
+ * En entière, le modèle CUIT le texte et la disposition DANS l'image
+ * (`poseUneCouche` → false). Tenir la scène rendrait alors N fois la même image,
+ * et les N publicités ne différeraient que par des métadonnées invisibles à
+ * l'écran · un lot annoncé « essai des accroches » où l'on regarde quatre fois
+ * la même. La mesure aval attribuerait un écart à un test qui n'a rien varié.
+ *
+ * Seule `univers` fait varier l'IMAGE elle-même · elle reste un essai réel dans
+ * les deux modes.
+ */
+export function essaiVisibleEnMode(v: EssaiVariable, mode: ProductionMode): boolean {
+  return v === 'univers' || poseUneCouche(mode);
+}
+
+/** Les essais réellement praticables dans un mode · les autres ne varient rien de visible. */
+export function essaisPourMode(mode: ProductionMode): EssaiVariable[] {
+  return ESSAI_VARIABLES.filter((v) => essaiVisibleEnMode(v, mode));
+}
 
 export const ESSAI_LABEL: Record<EssaiVariable, string> = {
   accroche: 'Les accroches',

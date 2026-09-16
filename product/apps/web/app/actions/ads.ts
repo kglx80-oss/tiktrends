@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, prixEssai, verifieEssai, type EssaiVariable, type SceneLight, type CumulEssais, estMode, promptPubEntiere, palettePourPrompt, contrainteDaPourPrompt, type DaVisuelleMarque, ancrageProduit, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, ESSAI_LABEL, prixEssai, verifieEssai, essaiVisibleEnMode, type EssaiVariable, type SceneLight, type CumulEssais, estMode, PRODUCTION_LABEL, promptPubEntiere, palettePourPrompt, contrainteDaPourPrompt, type DaVisuelleMarque, ancrageProduit, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -1023,6 +1023,15 @@ async function genererLotInterne(input: {
   const essaiVariable = (ESSAI_VARIABLES as readonly string[]).includes(input.essai ?? '')
     ? input.essai as EssaiVariable
     : null;
+
+  // Un essai d'accroches ou de mises en page tient la scène · une seule image,
+  // et l'on POSE des textes différents dessus. En entière, le modèle cuit le
+  // texte dans l'image · tenir la scène rendrait N fois la même, et le lot
+  // afficherait quatre fois le même visuel sous une étiquette d'essai. On refuse
+  // AVANT tout débit · l'UI grise déjà ces choix, ceci défend le chemin serveur.
+  if (essaiVariable && !essaiVisibleEnMode(essaiVariable, mode)) {
+    return { error: `L'essai « ${ESSAI_LABEL[essaiVariable]} » ne compare rien en mode « ${PRODUCTION_LABEL[mode]} » · le texte y est cuit dans l'image, tenir la scène rendrait le même visuel plusieurs fois. Teste « ${ESSAI_LABEL.univers} », ou repasse en mode composé.` };
+  }
 
   // Pool de gabarits autorisés + quantité voulue -> liste ordonnée (avec répétitions).
   const pool = (input.templates && input.templates.length ? input.templates : AD_TEMPLATES);
