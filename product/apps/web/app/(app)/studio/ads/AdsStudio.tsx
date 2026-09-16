@@ -295,7 +295,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     setTextBusy(false);
     if (r.error) { setError(r.error); return; }
     // Nouvelle URL versionnée : remplace la carte pour que la vignette suive.
-    if (r.url) setAds((list) => list.map((x) => (x.id === a.id ? { ...x, headline: textForm.headline || x.headline, url: r.url! } : x)));
+    // Si le texte a changé, la mesure a été retirée en base · on l'efface aussi
+    // de la carte pour que la grille repasse « en mesure » sans rechargement.
+    if (r.url) setAds((list) => list.map((x) => (x.id === a.id
+      ? { ...x, headline: textForm.headline || x.headline, url: r.url!, ...(r.mesureReinitialisee ? { score: undefined, controle: null } : {}) }
+      : x)));
     setEditText(false); setScoreFor(null);
   }
 
@@ -1210,7 +1214,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                     </div>
                   )}
                   <p style={{ margin: '8px 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>Modifie le texte sans régénérer l'image · <b>gratuit</b>.</p>
-                  <button type="button" onClick={() => applyText(detailAd)} disabled={textBusy || !textForm} style={toolPrimary}>{textBusy ? 'Application…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="check" size={14} /> Appliquer</span>}</button>
+                  <button type="button" onClick={() => applyText(detailAd)} disabled={textBusy || !textForm} style={toolPrimary}>{textBusy ? 'Application…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="check" size={14} /> Appliquer les textes</span>}</button>
                   <button type="button" onClick={() => setEditText(false)} style={{ ...toolBtn, marginTop: 8 }}>Annuler</button>
                 </>
               ) : (

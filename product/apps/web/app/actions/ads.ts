@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, ESSAI_LABEL, prixEssai, verifieEssai, essaiVisibleEnMode, type EssaiVariable, type SceneLight, type CumulEssais, estMode, PRODUCTION_LABEL, promptPubEntiere, palettePourPrompt, contrainteDaPourPrompt, type DaVisuelleMarque, ancrageProduit, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, ESSAI_LABEL, prixEssai, verifieEssai, essaiVisibleEnMode, type EssaiVariable, type SceneLight, type CumulEssais, estMode, PRODUCTION_LABEL, promptPubEntiere, palettePourPrompt, contrainteDaPourPrompt, type DaVisuelleMarque, ancrageProduit, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection, texteAdModifie, sansMesure } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -1658,7 +1658,7 @@ export async function getAdTextAction(id: string): Promise<{ text?: AdText; erro
  * Met à jour les textes d'une pub SANS régénérer l'image (l'overlay est recomposé à la volée) :
  * aucun crédit débité. Renvoie une version pour rafraîchir l'aperçu (cache-bust).
  */
-export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok?: true; url?: string; error?: string }> {
+export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok?: true; url?: string; mesureReinitialisee?: boolean; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
@@ -1668,7 +1668,7 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
   if (!g) return { error: GUARD.notFound('ce rendu') };
   const r = (g.input ?? {}) as Record<string, unknown>;
   const clean = (v?: string) => (typeof v === 'string' ? v.trim() : undefined);
-  const next = {
+  let next: Record<string, unknown> = {
     ...r,
     kicker: clean(text.kicker) || undefined,
     headline: clean(text.headline) || (r.headline as string) || '',
@@ -1676,10 +1676,16 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
     cta: clean(text.cta) || (r.cta as string) || '',
     badge: clean(text.badge) || undefined,
   };
+  // Une mesure (score, conformité, lisibilité) ne vaut que pour le texte sur
+  // lequel elle a été calculée. Si le texte change, on la retire · la pub
+  // redevient « en mesure » au lieu d'afficher une note calculée sur d'autres
+  // mots (S20). Sans édition réelle, on garde tout · rien n'a bougé.
+  const mesureReinitialisee = texteAdModifie(r, next);
+  if (mesureReinitialisee) next = sansMesure(next);
   await db.update(schema.generations).set({ input: next as Record<string, unknown> }).where(eq(schema.generations.id, id));
   // La version suit le contenu (et non l'horloge) : la grille, l'aperçu et le
   // téléchargement pointent tous sur la même URL fraîche.
-  return { ok: true, url: adUrl(id, next as Partial<AdRecipe>) };
+  return { ok: true, url: adUrl(id, next as Partial<AdRecipe>), mesureReinitialisee };
 }
 
 /**
