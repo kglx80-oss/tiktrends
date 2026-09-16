@@ -5,7 +5,7 @@ import { generateImageAction, suggestImageBriefAction, setProductImageAction, sc
 import type { NoteImage } from '@tiktrends/core';
 import { archiveCreativeAction } from '../../../actions/creatives';
 import type { FalAspect } from '@tiktrends/integrations';
-import { IMAGE_MODELS, imageModelByKey, generationOutcome, AD_DIRECTIONS, premiereImageIncomplete, manqueImage, debriefVisuels, CIBLE_TACTILE_MIN, type EtatAssistantImage } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, generationOutcome, AD_DIRECTIONS, premiereImageIncomplete, manqueImage, debriefVisuels, costFor, CIBLE_TACTILE_MIN, type EtatAssistantImage } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
@@ -386,7 +386,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
                 cursor: ready && aiReady && !suggesting ? 'pointer' : 'default', whiteSpace: 'nowrap',
                 border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
-              }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {suggesting ? 'Rédaction…' : 'Proposer une description'}</span></button>
+              }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {suggesting ? 'Rédaction…' : `Proposer une description · ${costFor('suggest')} cr.`}</span></button>
               {withText && (
                 <input value={headline} onChange={(e) => setHeadline(e.target.value)} disabled={!ready}
                   placeholder="Accroche à écrire sur l’image"
@@ -451,14 +451,14 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                       flex: 1, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
                       border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)',
                       cursor: busy || !ready ? 'default' : 'pointer', opacity: busy || !ready ? .5 : 1,
-                    }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> Varier (3)</span></button>
+                    }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> Varier (3) · {modelSpec.credits * 3} cr.</span></button>
                   )}
                   {im.url && aiReady && (
                     <button type="button" onClick={() => noter(im)} disabled={noting === im.id || !ready} title="Relecture IA · note et ratés du visuel" style={{
                       flex: 1, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
                       border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)',
                       cursor: noting === im.id || !ready ? 'default' : 'pointer', opacity: !ready ? .5 : 1,
-                    }}>{noting === im.id ? 'Relecture…' : '⓵ Noter (IA)'}</button>
+                    }}>{noting === im.id ? 'Relecture…' : `Noter (IA) · ${costFor('score')} cr.`}</button>
                   )}
                 </div>
               </div>
