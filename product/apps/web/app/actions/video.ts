@@ -203,10 +203,19 @@ const STALE_MS = 15 * 60 * 1000;
 async function failAndRefund(generationId: string, workspaceId: string, error: string): Promise<void> {
   if (!db) return;
   try {
-    const [g] = await db.select({ status: schema.generations.status, cost: schema.generations.creditsCost }).from(schema.generations).where(eq(schema.generations.id, generationId)).limit(1);
+    // Appartenance vérifiée · la génération doit être dans l'espace demandeur,
+    // via sa marque (`generations` n'a pas de workspaceId direct). Sans ce
+    // filtre, un generationId d'un AUTRE espace se faisait marquer en échec ET
+    // rembourser sur l'espace de l'appelant · vol de crédits + DoS.
+    const [g] = await db.select({ status: schema.generations.status, cost: schema.generations.creditsCost })
+      .from(schema.generations)
+      .innerJoin(schema.brands, eq(schema.generations.brandId, schema.brands.id))
+      .where(and(eq(schema.generations.id, generationId), eq(schema.brands.workspaceId, workspaceId)))
+      .limit(1);
+    if (!g) return; // n'appartient pas à cet espace · aucun effet
     await db.update(schema.generations).set({ status: 'failed', output: { error } }).where(eq(schema.generations.id, generationId));
     // Remboursement uniquement à la 1re bascule en échec, et si des crédits avaient été débités.
-    if (g && g.status !== 'failed' && g.status !== 'completed' && (g.cost ?? 0) > 0) {
+    if (g.status !== 'failed' && g.status !== 'completed' && (g.cost ?? 0) > 0) {
       await refundCredits(workspaceId, g.cost ?? 0, 'Studio · vidéo échouée (remboursement)');
     }
   } catch { /* best-effort */ }
@@ -247,9 +256,18 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
     }
     if (db && generationId && job.status === 'completed') {
       try {
-        await db.update(schema.generations)
-          .set({ status: 'completed', assetUrls: job.videoUrl ? [job.videoUrl] : [] })
-          .where(eq(schema.generations.id, generationId));
+        // Appartenance vérifiée avant d'écrire l'URL · sinon un generationId
+        // d'un autre espace se faisait injecter une URL vidéo arbitraire.
+        const [own] = await db.select({ id: schema.generations.id })
+          .from(schema.generations)
+          .innerJoin(schema.brands, eq(schema.generations.brandId, schema.brands.id))
+          .where(and(eq(schema.generations.id, generationId), eq(schema.brands.workspaceId, s.workspaceId)))
+          .limit(1);
+        if (own) {
+          await db.update(schema.generations)
+            .set({ status: 'completed', assetUrls: job.videoUrl ? [job.videoUrl] : [] })
+            .where(eq(schema.generations.id, generationId));
+        }
       } catch { /* best-effort */ }
     }
     return { status: job.status, videoUrl: job.videoUrl, error: job.error };
