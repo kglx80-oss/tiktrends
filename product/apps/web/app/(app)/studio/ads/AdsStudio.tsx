@@ -722,7 +722,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <>
               {mode === 'brand' && (
                 <button type="button" onClick={proposeAngles} disabled={!ready || anglesBusy} style={pastilleAction(ready && !anglesBusy)}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> {anglesBusy ? 'Analyse veille…' : 'Proposer des angles'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> {anglesBusy ? 'Analyse veille…' : `Proposer des angles · ${costFor('suggest')} cr.`}</span>
                 </button>
               )}
               {templates.includes('offer') && (

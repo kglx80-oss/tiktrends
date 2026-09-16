@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { generateAction, type StudioState } from '../../../actions/studio';
+import { costFor } from '@tiktrends/core';
 import type { CreativeOutput } from '@tiktrends/ai';
 import { Icon } from '../../../../components/Icon';
 import { useIsMobile } from '../../../../components/useIsMobile';
@@ -56,8 +57,13 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
         </div>
         <div><label style={lbl}>Inspiration (créa gagnante à réinterpréter)</label><textarea name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
         <button type="submit" disabled={pending || !hasKey} style={{ padding: '12px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending || !hasKey ? .6 : 1 }}>
-          {pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative</span>}
+          {pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative · {costFor('script')} crédits</span>}
         </button>
+        {/* Le coût se dit AVANT le clic · aucune génération payante sans prix connu
+             (CDC S21). Ce que ça produit, et la politique d'échec, avec. */}
+        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+          {costFor('script')} crédits · angles, hooks, script et légendes en un lot · non facturé si la génération échoue.
+        </p>
         {!hasKey && <p style={{ margin: 0, fontSize: 12, color: 'var(--warn)' }}>IA non configurée : ajoute <code>ANTHROPIC_API_KEY</code> sur le serveur.</p>}
         {state.error && <p style={{ margin: 0, fontSize: 12, color: '#ff9db0' }}>{state.error}</p>}
       </form>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
-import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
+import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, costFor, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
@@ -242,7 +242,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
               display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
               cursor: ready && aiReady && !suggesting ? 'pointer' : 'default', whiteSpace: 'nowrap',
               border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
-            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {suggesting ? 'Rédaction…' : mode === 't2v' ? 'Proposer une description' : 'Proposer un mouvement'}</span></button>
+            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {suggesting ? 'Rédaction…' : `${mode === 't2v' ? 'Proposer une description' : 'Proposer un mouvement'} · ${costFor('suggest')} cr.`}</span></button>
           }
           cost={{ credits: 20 * (duree / 5), note: `20 crédits par tranche de 5 secondes · une vidéo de ${duree} s en coûte ${20 * (duree / 5)}. Le rendu prend une à trois minutes.` }}
           onGenerate={generate}
