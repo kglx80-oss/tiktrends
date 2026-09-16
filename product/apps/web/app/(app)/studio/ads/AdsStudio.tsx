@@ -1318,12 +1318,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 /** Pastille de Score Jarvis affichée sur la vignette d'une créa (0-100). */
 function ScoreBadge({ score }: { score: number }) {
   const color = COULEUR_NIVEAU[niveauScore(score)];
+  // « Préd. » près du nombre · le Score Jarvis est un PRONOSTIC (hypothèse IA),
+  // pas le résultat mesuré du marché (VerdictBadge, coin opposé). Sans ce mot,
+  // deux chiffres de même allure se lisaient comme deux mesures (CDC S07).
   return (
-    <span title={`Score Jarvis · ${score}/100`} style={{
+    <span title={`Prédiction Jarvis · ${score}/100 · un pronostic, pas un résultat mesuré`} style={{
       position: 'absolute', top: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
       padding: '3px 9px', borderRadius: 999, background: 'rgba(8,5,10,.72)', border: `1px solid ${color}`,
       color, fontSize: 11.5, fontWeight: 800, backdropFilter: 'blur(4px)',
-    }}><Icon name="sparkles" size={12} /> {score}</span>
+    }}><Icon name="sparkles" size={12} /> Préd. {score}</span>
   );
 }
 
@@ -1379,7 +1382,9 @@ function ScoreCard({ s, copie, onRedo, busy }: { s: CreativeScore; copie?: Verdi
           <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>{s.score}</span>
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', color: col }}>SCORE JARVIS</div>
+          {/* « Pronostic » sur l'étiquette · le Score Jarvis est une prédiction,
+               pas le résultat mesuré du marché (CDC S07). */}
+          <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', color: col }}>SCORE JARVIS · PRONOSTIC</div>
           <div style={{ fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.35, marginTop: 2 }}>{s.verdict}</div>
         </div>
       </div>
