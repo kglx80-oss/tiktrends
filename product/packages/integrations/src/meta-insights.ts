@@ -18,7 +18,14 @@ export interface MetaAdPerf {
   roas: number; purchases: number; cpa: number;
   hookRate: number;   // % d'impressions ayant vu ≥ 3 s (vidéo) · 0 si non vidéo
   holdRate: number;   // % des vues 3 s ayant tenu jusqu'à 75 %
-  daysActive: number;
+  /**
+   * Ancienneté réelle de l'annonce, en jours · `undefined` tant qu'on ne l'a
+   * pas. L'agrégat 30 j (level:'ad' sans time_increment) ne porte PAS l'âge ·
+   * le déduire de la fenêtre donnait 30 pour toutes, ce qui désarmait le garde
+   * « ne pas couper avant 7 jours » du Radar. On ne prétend pas connaître ce
+   * qu'on ne mesure pas.
+   */
+  daysActive?: number;
 }
 export interface MetaAdsInsights {
   accountName?: string;
@@ -83,6 +90,32 @@ function kpiFromRow(r: Row | undefined): MetaKpiSet {
 
 function ymd(d: Date): string { return d.toISOString().slice(0, 10); }
 
+/**
+ * Perf par annonce (Radar live) depuis les lignes Meta `level:'ad'`.
+ *
+ * `daysActive` n'est PAS renseigné · l'agrégat 30 j ne porte pas l'âge réel de
+ * l'annonce. Le fabriquer à partir de la fenêtre (30 j pour toutes) faisait
+ * passer chaque pub live pour « active depuis 30 jours » et désarmait le garde
+ * « ne pas couper avant 7 jours » du Radar · une créa de trois jours était
+ * recommandée à la coupe. Tant qu'on ne remonte pas la date de création par
+ * annonce, l'âge reste inconnu, et un âge inconnu ne coupe pas.
+ */
+export function adsFromRows(rows: Row[] | undefined): MetaAdPerf[] {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  return (rows || []).map((r) => {
+    const k = kpiFromRow(r);
+    const v3 = pick(r.video_3_sec_watched_actions, 'video_view') || num(r.video_3_sec_watched_actions?.[0]?.value);
+    const v75 = pick(r.video_p75_watched_actions, 'video_view') || num(r.video_p75_watched_actions?.[0]?.value);
+    return {
+      adId: r.ad_id, name: r.ad_name || '(sans nom)',
+      spend: k.spend, impressions: k.impressions, clicks: k.clicks, ctr: k.ctr,
+      roas: k.roas, purchases: k.purchases, cpa: k.cpa,
+      hookRate: k.impressions && v3 ? r2((v3 / k.impressions) * 100) : 0,
+      holdRate: v3 && v75 ? r2((v75 / v3) * 100) : 0,
+    };
+  }).filter((x) => x.spend > 0 || x.impressions > 0);
+}
+
 /** Synchronise les KPIs pub (30 j + période précédente) + top créas par ROAS. */
 export async function metaAdsSync(adAccountId: string, token: string): Promise<MetaAdsInsights> {
   const acct = normAct(adAccountId);
@@ -115,22 +148,9 @@ export async function metaAdsSync(adAccountId: string, token: string): Promise<M
     return { name: r.ad_name || '(sans nom)', spend: k.spend, roas: k.roas, purchases: k.purchases, cpa: k.cpa };
   }).filter((x) => x.spend > 0).sort((a, b) => b.roas - a.roas).slice(0, 12);
 
-  // Perf par annonce (Radar live) : on ajoute la rétention vidéo quand elle existe.
-  const r2 = (n: number) => Math.round(n * 100) / 100;
-  const days = Math.max(1, Math.round((now.getTime() - d30.getTime()) / 86_400_000));
-  const adPerf: MetaAdPerf[] = (ads.data || []).map((r) => {
-    const k = kpiFromRow(r);
-    const v3 = pick(r.video_3_sec_watched_actions, 'video_view') || num(r.video_3_sec_watched_actions?.[0]?.value);
-    const v75 = pick(r.video_p75_watched_actions, 'video_view') || num(r.video_p75_watched_actions?.[0]?.value);
-    return {
-      adId: r.ad_id, name: r.ad_name || '(sans nom)',
-      spend: k.spend, impressions: k.impressions, clicks: k.clicks, ctr: k.ctr,
-      roas: k.roas, purchases: k.purchases, cpa: k.cpa,
-      hookRate: k.impressions && v3 ? r2((v3 / k.impressions) * 100) : 0,
-      holdRate: v3 && v75 ? r2((v75 / v3) * 100) : 0,
-      daysActive: days,
-    };
-  }).filter((x) => x.spend > 0 || x.impressions > 0);
+  // Perf par annonce (Radar live), rétention vidéo comprise. L'âge n'est pas
+  // fabriqué · cf. `adsFromRows`.
+  const adPerf = adsFromRows(ads.data);
 
   const brk = (rows: BRow[], keyOf: (r: BRow) => string): MetaBreakdownRow[] =>
     (rows || []).map((r) => { const k = kpiFromRow(r); return { key: keyOf(r) || '—', spend: k.spend, roas: k.roas, purchases: k.purchases }; })
