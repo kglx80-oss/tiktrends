@@ -96,8 +96,16 @@ export async function brandFacts(
       })
         .from(schema.verdicts)
         .innerJoin(schema.ads, eq(schema.verdicts.adId, schema.ads.id))
+        // La marque s'atteint par la chaîne concept→angle→désir→persona · `ads`
+        // ne porte pas de brandId. Sans ce join, un espace multi-marques (une
+        // agence) comptait les verdicts de TOUTES ses marques dans la lettre de
+        // chacune · gagnants attribués à la mauvaise marque, chiffres gonflés.
+        .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+        .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+        .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+        .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
         .where(and(
-          eq(schema.ads.workspaceId, workspaceId),
+          eq(schema.personas.brandId, brandId),
           eq(schema.verdicts.status, 'validated'),
           gte(schema.verdicts.computedAt, depuis),
         ))
@@ -115,9 +123,15 @@ export async function brandFacts(
     // Le stock, hors fenêtre · voir plus haut.
     sansCasse(
       base.select({ n: count() }).from(schema.ads)
+        // Scopé à la marque via la même chaîne · le stock d'une marque ne doit
+        // pas inclure les créas en attente des autres marques de l'espace.
+        .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+        .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+        .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+        .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
         .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
         .where(and(
-          eq(schema.ads.workspaceId, workspaceId),
+          eq(schema.personas.brandId, brandId),
           sql`(${schema.verdicts.validated} is null or ${schema.verdicts.status} <> 'validated')`,
         ))
         .then((r) => Number(r[0]?.n ?? 0)),
@@ -132,8 +146,14 @@ export async function brandFacts(
       base.select({ n: count() })
         .from(schema.verdicts)
         .innerJoin(schema.ads, eq(schema.verdicts.adId, schema.ads.id))
+        // Même scope marque · les suites d'itération d'une marque ne se comptent
+        // que sur SES gagnantes.
+        .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+        .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+        .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+        .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
         .where(and(
-          eq(schema.ads.workspaceId, workspaceId),
+          eq(schema.personas.brandId, brandId),
           eq(schema.verdicts.status, 'validated'),
           sql`${schema.verdicts.validated} = any(${GAGNANTS})`,
         ))
