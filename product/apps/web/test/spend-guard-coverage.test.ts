@@ -39,7 +39,7 @@ describe('aucun chemin ne contourne le plafond de dépense', () => {
     expect(coupables, `utilise le client brut au lieu de guardedAnthropic : ${coupables.join(', ')}`).toEqual([]);
   });
 
-  it('chaque appel fal payant passe par l’enveloppeur', () => {
+  it('chaque appel image/vidéo payant passe par l’enveloppeur', () => {
     // La génération d'image et de vidéo se facture au coup · sans garde, un
     // bouton cliqué en boucle passe la facture sans que rien ne l'arrête.
     //
@@ -51,10 +51,17 @@ describe('aucun chemin ne contourne le plafond de dépense', () => {
     //
     // « Penser à rendre la dépense » est une consigne qu'on applique cinq fois
     // sur six · la sixième est celle qui verrouille le produit.
+    //
+    // Higgsfield (hfSubmitVideo / hfSubmitImageVideo) est un fournisseur vidéo
+    // payant au même titre que fal · il sert de repli quand FAL_KEY manque. Il
+    // était absent de ce garde : ses appels SONT enveloppés aujourd'hui, mais un
+    // futur appel Higgsfield ajouté sans `sousPlafond` serait passé au vert. La
+    // barrière de TEST doit couvrir tout ce qui coûte, pas seulement fal.
+    const APPEL_PAYANT = /falGenerateImage\(|falSubmitVideo\(|falSubmitImageVideo\(|hfSubmitVideo\(|hfSubmitImageVideo\(/;
     const coupables = sources
-      .filter((f) => /falGenerateImage\(|falSubmitVideo\(|falSubmitImageVideo\(/.test(f.s) && !/sousPlafond\(/.test(f.s))
+      .filter((f) => APPEL_PAYANT.test(f.s) && !/sousPlafond\(/.test(f.s))
       .map((f) => f.p);
-    expect(coupables, `appelle fal sans sousPlafond : ${coupables.join(', ')}`).toEqual([]);
+    expect(coupables, `appelle un moteur image/vidéo payant sans sousPlafond : ${coupables.join(', ')}`).toEqual([]);
   });
 
   it('personne ne retient une dépense sans pouvoir la rendre', () => {
