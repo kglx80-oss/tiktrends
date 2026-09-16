@@ -5,6 +5,7 @@
  */
 
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
+import { policeTechnique } from '@tiktrends/core';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -80,10 +81,10 @@ function findColors(text: string): string[] {
   return Array.from(new Set([...vivid, ...ranked.filter((h) => isNeutral(h))])).slice(0, 5);
 }
 
-function findFonts(text: string): string[] {
+export function findFonts(text: string): string[] {
   const fonts = new Set<string>();
   const clean = (raw: string) => raw.replace(/["']/g, '').trim();
-  const ok = (f: string) => f && f.length < 40 && !/^(inherit|initial|unset|sans-serif|serif|monospace|system-ui|-apple-system|blinkmacsystemfont|ui-sans-serif|arial|helvetica|roboto)$/i.test(f);
+  const ok = (f: string) => !!f && f.length < 40 && !/^(inherit|initial|unset|sans-serif|serif|monospace|system-ui|-apple-system|blinkmacsystemfont|ui-sans-serif|arial|helvetica|roboto)$/i.test(f) && !policeTechnique(f);
   for (const m of text.matchAll(/fonts\.googleapis\.com\/css2?\?[^"']*family=([^"'&]+)/gi)) { const f = decodeURIComponent(m[1]!).replace(/\+/g, ' ').split(':')[0]!.trim(); if (ok(f)) fonts.add(f); }
   for (const m of text.matchAll(/@font-face[^}]*font-family\s*:\s*([^;}\n]+)/gi)) { const f = clean(m[1]!.split(',')[0]!); if (ok(f)) fonts.add(f); }
   for (const m of text.matchAll(/font-family\s*:\s*([^;{}\n]+)/gi)) { const f = clean(m[1]!.split(',')[0]!); if (ok(f)) fonts.add(f); }
