@@ -29,34 +29,42 @@ export async function scanWorkspaceTracker(workspaceId: string): Promise<{ scann
   let newAds = 0;
 
   for (const fb of brands) {
-    const ads = await fetchCurrentAds(apiKey, fb.platform, fb.name);
-    if (!ads.length) continue;
-    const currentIds = ads.map((a) => a.id).filter((x): x is string => !!x);
-    if (!currentIds.length) continue; // rien d'exploitable : on ne pose pas de base vide
-    // Une base vide serait traitée comme « rien vu » et signalerait tout à chaque passage.
-    const stored = Array.isArray(fb.seenAdIds) ? (fb.seenAdIds as string[]) : null;
-    const seen = stored && stored.length ? stored : null;
+    // Best-effort réel · une écriture qui jette (contrainte, snapshot JSON
+    // invalide, erreur transitoire) ne doit pas interrompre la boucle et priver
+    // les marques suivantes de leur scan · c'est ce que la docstring promet, et
+    // ce que les jobs frères (radar, adsmap-sync) tiennent déjà par marque.
+    try {
+      const ads = await fetchCurrentAds(apiKey, fb.platform, fb.name);
+      if (!ads.length) continue;
+      const currentIds = ads.map((a) => a.id).filter((x): x is string => !!x);
+      if (!currentIds.length) continue; // rien d'exploitable : on ne pose pas de base vide
+      // Une base vide serait traitée comme « rien vu » et signalerait tout à chaque passage.
+      const stored = Array.isArray(fb.seenAdIds) ? (fb.seenAdIds as string[]) : null;
+      const seen = stored && stored.length ? stored : null;
 
-    if (seen === null) {
-      // Baseline : on mémorise sans rien signaler.
-      await db.update(schema.followedBrands).set({ seenAdIds: currentIds.slice(0, SEEN_CAP), lastCheckedAt: new Date() }).where(eq(schema.followedBrands.id, fb.id));
-      continue;
-    }
+      if (seen === null) {
+        // Baseline : on mémorise sans rien signaler.
+        await db.update(schema.followedBrands).set({ seenAdIds: currentIds.slice(0, SEEN_CAP), lastCheckedAt: new Date() }).where(eq(schema.followedBrands.id, fb.id));
+        continue;
+      }
 
-    const seenSet = new Set(seen);
-    const fresh = ads.filter((a) => a.id && !seenSet.has(a.id)).slice(0, CAP_NEW);
-    if (fresh.length) {
-      await db.insert(schema.brandTrackerEvents).values(fresh.map((a) => ({
-        workspaceId, followedBrandId: fb.id, platform: fb.platform, advertiserName: fb.name, kind: 'new' as const, snapshot: a,
-      })));
-      newAds += fresh.length;
+      const seenSet = new Set(seen);
+      const fresh = ads.filter((a) => a.id && !seenSet.has(a.id)).slice(0, CAP_NEW);
+      if (fresh.length) {
+        await db.insert(schema.brandTrackerEvents).values(fresh.map((a) => ({
+          workspaceId, followedBrandId: fb.id, platform: fb.platform, advertiserName: fb.name, kind: 'new' as const, snapshot: a,
+        })));
+        newAds += fresh.length;
+      }
+      // On ne mémorise que les annonces RÉELLEMENT signalées (+ l'historique) : au-delà du
+      // plafond, les nouveautés restantes seront remontées au prochain passage, pas perdues.
+      const reported = fresh.map((a) => a.id).filter((x): x is string => !!x);
+      const merged = [...reported, ...seen];
+      const dedup = Array.from(new Set(merged)).slice(0, SEEN_CAP);
+      await db.update(schema.followedBrands).set({ seenAdIds: dedup, lastCheckedAt: new Date() }).where(eq(schema.followedBrands.id, fb.id));
+    } catch (e) {
+      console.error('[tracker] brand', fb.id, (e as Error).message);
     }
-    // On ne mémorise que les annonces RÉELLEMENT signalées (+ l'historique) : au-delà du
-    // plafond, les nouveautés restantes seront remontées au prochain passage, pas perdues.
-    const reported = fresh.map((a) => a.id).filter((x): x is string => !!x);
-    const merged = [...reported, ...seen];
-    const dedup = Array.from(new Set(merged)).slice(0, SEEN_CAP);
-    await db.update(schema.followedBrands).set({ seenAdIds: dedup, lastCheckedAt: new Date() }).where(eq(schema.followedBrands.id, fb.id));
   }
 
   // Notifie l'équipe (admin+) si des nouveautés.
@@ -83,7 +91,16 @@ export async function scanAllTracker(): Promise<{ workspaces: number; newAds: nu
   if (!db || !process.env.TRENDTRACK_API_KEY) return { workspaces: 0, newAds: 0 };
   const rows = await db.selectDistinct({ ws: schema.followedBrands.workspaceId }).from(schema.followedBrands);
   let newAds = 0;
-  for (const r of rows) { const res = await scanWorkspaceTracker(r.ws); newAds += res.newAds; }
+  for (const r of rows) {
+    // Un espace en échec n'arrête pas les autres · sinon un seul workspace qui
+    // jette ferait rater le scan de tous les suivants et renverrait 500 au cron.
+    try {
+      const res = await scanWorkspaceTracker(r.ws);
+      newAds += res.newAds;
+    } catch (e) {
+      console.error('[tracker] workspace', r.ws, (e as Error).message);
+    }
+  }
   return { workspaces: rows.length, newAds };
 }
 
