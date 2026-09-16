@@ -77,6 +77,7 @@ export * from './universe-previews';
 export * from './ad-layouts';
 export * from './production-mode';
 export * from './da-visuelle';
+export * from './polices';
 export * from './ancrage-produit';
 export * from './templates-crea';
 export * from './studio-geste';
