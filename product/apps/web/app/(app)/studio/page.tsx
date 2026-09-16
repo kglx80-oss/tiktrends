@@ -159,11 +159,23 @@ async function lireEtat(workspaceId: string, brandId: string | null): Promise<Et
 
   const juger = async (): Promise<{ jugees: number | null; enAttente: number | null }> => {
     try {
+      // Scopé à la MARQUE, comme les compteurs de générations ci-dessus · `ads`
+      // ne porte pas de brandId, on l'atteint par la chaîne concept→persona.
+      // Sans ça, « jugées / en attente » agrégeaient toutes les marques de
+      // l'espace, incohérent avec le reste du panneau (bug de scope, cf. #514).
       const [total] = await base.select({ n: count() }).from(schema.ads)
-        .where(eq(schema.ads.workspaceId, workspaceId));
+        .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+        .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+        .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+        .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+        .where(and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId)));
       const [tranches] = await base.select({ n: count() }).from(schema.verdicts)
         .innerJoin(schema.ads, eq(schema.verdicts.adId, schema.ads.id))
-        .where(and(eq(schema.ads.workspaceId, workspaceId), eq(schema.verdicts.status, 'validated')));
+        .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+        .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+        .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+        .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+        .where(and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId), eq(schema.verdicts.status, 'validated')));
       const j = tranches?.n ?? 0;
       return { jugees: j, enAttente: Math.max(0, (total?.n ?? 0) - j) };
     } catch { return { jugees: null, enAttente: null }; }
