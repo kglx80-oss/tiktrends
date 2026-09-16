@@ -631,7 +631,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           {([['brand', 'Depuis la marque'], ['clone', 'Cloner une pub gagnante']] as const).map(([k, label]) => (
-            <button key={k} type="button" disabled={!ready} onClick={() => { setMode(k); setError(''); }} style={{
+            <button key={k} type="button" disabled={!ready} onClick={() => { setMode(k); setError(''); }} aria-pressed={mode === k} style={{
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
               background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
@@ -817,7 +817,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           {PRODUCTION_MODES.map((m) => {
             const on = fabrication === m;
             return (
-              <button key={m} type="button" disabled={!ready} onClick={() => choisirFabrication(m)} style={{
+              <button key={m} type="button" disabled={!ready} onClick={() => choisirFabrication(m)} aria-pressed={on} style={{
                 padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
                 fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
                 border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
@@ -863,7 +863,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             // fabriquer quatre fois le même visuel sous une étiquette d'essai.
             const actif = ready && e.dispo;
             return (
-              <button key={e.key || 'libre'} type="button" disabled={!actif} onClick={() => setEssai(e.key)}
+              <button key={e.key || 'libre'} type="button" disabled={!actif} onClick={() => setEssai(e.key)} aria-pressed={on}
                 title={e.dispo ? undefined : `Indisponible en « ${PRODUCTION_LABEL.entiere} » · le texte est cuit dans l'image, tenir la scène rendrait le même visuel. Repasse en composée pour tester ${e.label.toLowerCase()}.`}
                 style={{
                   padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: actif ? 'pointer' : 'default',
@@ -894,7 +894,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             ...AD_LAYOUTS.map((k) => ({ key: k, label: LAYOUT_LABEL[k], hint: LAYOUT_HINT[k] }))].map((l) => {
             const on = layout === l.key;
             return (
-              <button key={l.key} type="button" disabled={!ready} title={l.hint} onClick={() => setLayout(l.key)} style={{
+              <button key={l.key} type="button" disabled={!ready} title={l.hint} onClick={() => setLayout(l.key)} aria-pressed={on} style={{
                 padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
                 fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
                 border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
@@ -920,7 +920,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   {templatesDabord(assets).map((a) => {
                     const on = assetIds.includes(a.id);
                     return (
-                      <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} title={a.isTemplate ? `${a.name} · template de l’agence` : a.name} style={{ position: 'relative', flex: '0 0 auto', width: 62, height: 62, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer', border: `2px solid ${on ? 'var(--accent-strong)' : (a.isTemplate ? 'var(--accent-strong)' : 'var(--line-2)')}`, background: 'var(--paper)', opacity: on ? 1 : 0.85 }}>
+                      <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} aria-pressed={on} title={a.isTemplate ? `${a.name} · template de l’agence` : a.name} style={{ position: 'relative', flex: '0 0 auto', width: 62, height: 62, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer', border: `2px solid ${on ? 'var(--accent-strong)' : (a.isTemplate ? 'var(--accent-strong)' : 'var(--line-2)')}`, background: 'var(--paper)', opacity: on ? 1 : 0.85 }}>
                         {/* Même miniature que la bibliothèque · un lien cassé tombe
                             sur l'icône de type, jamais l'image cassée du navigateur. */}
                         <MiniatureAsset kind="image" url={a.url} thumbUrl={a.thumbUrl} name={a.name} cadreStyle={{ width: '100%', height: '100%', aspectRatio: 'auto' }} />
