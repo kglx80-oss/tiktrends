@@ -106,6 +106,15 @@ export function AssistantPub(p: AssistantProps) {
   // message…) vivent dans le parent et restent conservés · seule la POSITION
   // dans le fil est remise à zéro.
   useEffect(() => { if (p.ouvert) setEtape('produit'); }, [p.ouvert]);
+  // Échap ferme la fenêtre · une modale sans sortie clavier piège qui n'a pas de
+  // souris. Le clic sur le fond ferme déjà (souris) · voici son pendant clavier.
+  const { ouvert, onFermer } = p;
+  useEffect(() => {
+    if (!ouvert) return;
+    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onFermer(); };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, [ouvert, onFermer]);
   if (!p.ouvert) return null;
 
   const bloquant = manque(etape, p.etat);
@@ -115,11 +124,11 @@ export function AssistantPub(p: AssistantProps) {
 
   return (
     <div style={fond} onClick={p.onFermer}>
-      <div style={boite} onClick={(e) => e.stopPropagation()}>
+      <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-titre">
         <Entete etape={etape} etat={p.etat} onAller={setEtape} onFermer={p.onFermer} />
 
         <div style={{ padding: '18px 22px', overflowY: 'auto', flex: 1 }}>
-          <h3 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--ink)' }}>{ETAPE_TITRE[etape]}</h3>
+          <h3 id="assistant-titre" style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--ink)' }}>{ETAPE_TITRE[etape]}</h3>
           <p style={{ margin: '4px 0 16px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>{ETAPE_ROLE[etape]}</p>
 
           {etape === 'produit' && <EtapeProduit p={p} />}
@@ -162,6 +171,7 @@ function Entete({ etape, etat, onAller, onFermer }: {
           const ouvrable = ETAPES.slice(0, i).every((q) => etapeComplete(q, etat));
           return (
             <button key={e} type="button" disabled={!ouvrable} onClick={() => ouvrable && onAller(e)}
+              aria-current={ici ? 'step' : undefined}
               title={ouvrable ? ETAPE_TITRE[e] : 'Termine les étapes précédentes.'}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999,
@@ -271,7 +281,7 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
            bandeau de la page est derrière elle, donc invisible au moment
            précis où il aurait quelque chose à apprendre. */}
       {p.erreur && !p.busy && (
-        <div style={{
+        <div role="alert" style={{
           padding: '10px 13px', borderRadius: 11, fontSize: 12.5, lineHeight: 1.5,
           border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0',
         }}>
@@ -300,7 +310,7 @@ function EtapeProduit({ p }: { p: AssistantProps }) {
         const on = p.etat.productId === prod.id;
         const photo = prod.imageUrls?.[0] || prod.imageUrl || null;
         return (
-          <button key={prod.id} type="button" onClick={() => p.onProduit(prod.id)} style={{
+          <button key={prod.id} type="button" onClick={() => p.onProduit(prod.id)} aria-pressed={on} style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: 10, borderRadius: 12, textAlign: 'left',
             border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
             background: on ? 'rgba(230,0,126,.06)' : 'transparent', cursor: 'pointer',
@@ -322,7 +332,10 @@ function EtapeProduit({ p }: { p: AssistantProps }) {
   );
 }
 
-function EtapeMessage({ p }: { p: AssistantProps }) {
+// Exporté pour être RENDU en test · l'étape « message » n'est pas atteignable
+// par le rendu statique de la fenêtre (qui s'ouvre sur l'étape 1), et c'est là
+// que vivent les champs dont on prouve le libellé lié et l'anneau de focus.
+export function EtapeMessage({ p }: { p: AssistantProps }) {
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
@@ -335,7 +348,7 @@ function EtapeMessage({ p }: { p: AssistantProps }) {
           {p.gabaritsDispo.map((t) => {
             const on = p.etat.gabarits.includes(t);
             return (
-              <button key={t} type="button" onClick={() => p.onGabarit(t)} style={pastille(on)}>
+              <button key={t} type="button" onClick={() => p.onGabarit(t)} aria-pressed={on} style={pastille(on)}>
                 {p.libelleGabarit(t)}
               </button>
             );
@@ -343,14 +356,14 @@ function EtapeMessage({ p }: { p: AssistantProps }) {
         </div>
       </div>
       <div>
-        <Label>Angle <Facultatif>· facultatif, Jarvis sait écrire sans</Facultatif></Label>
-        <textarea value={p.etat.angle} onChange={(e) => p.onAngle(e.target.value)} rows={2}
+        <Label htmlFor="assistant-angle">Angle <Facultatif>· facultatif, Jarvis sait écrire sans</Facultatif></Label>
+        <textarea id="assistant-angle" value={p.etat.angle} onChange={(e) => p.onAngle(e.target.value)} rows={2}
           placeholder="ex : Focus sans caféine ni crash, pour créateurs en surrégime"
           style={champ} />
       </div>
       <div>
-        <Label>Offre <Facultatif>· facultative</Facultatif></Label>
-        <input value={p.etat.offre} onChange={(e) => p.onOffre(e.target.value)}
+        <Label htmlFor="assistant-offre">Offre <Facultatif>· facultative</Facultatif></Label>
+        <input id="assistant-offre" value={p.etat.offre} onChange={(e) => p.onOffre(e.target.value)}
           placeholder="ex : -20 %, code LANCEMENT, 2+1 offert" style={champ} />
       </div>
     </div>
@@ -384,7 +397,7 @@ function EtapeFabrication({ p }: { p: AssistantProps }) {
       {PRODUCTION_MODES.map((m) => {
         const on = p.etat.mode === m;
         return (
-          <button key={m} type="button" onClick={() => p.onMode(m)} style={{
+          <button key={m} type="button" onClick={() => p.onMode(m)} aria-pressed={on} style={{
             display: 'grid', gap: 4, padding: '12px 14px', borderRadius: 12, textAlign: 'left',
             border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
             background: on ? 'rgba(230,0,126,.06)' : 'transparent', cursor: 'pointer',
@@ -412,7 +425,7 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
         <Label>Combien de visuels</Label>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {[1, 2, 3, 4, 6, 8].map((n) => (
-            <button key={n} type="button" onClick={() => p.onNombre(n)} style={pastille(p.etat.nombre === n)}>{n}</button>
+            <button key={n} type="button" onClick={() => p.onNombre(n)} aria-pressed={p.etat.nombre === n} style={pastille(p.etat.nombre === n)}>{n}</button>
           ))}
         </div>
       </div>
@@ -465,8 +478,11 @@ const boite: React.CSSProperties = {
   border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', overflow: 'hidden',
 };
 const champ: React.CSSProperties = {
+  // Pas d'`outline: none` · un champ atteignable au clavier sans anneau de focus
+  // laisse l'utilisateur au clavier sans savoir où il est. On garde l'anneau
+  // natif du navigateur, vérifié sur tout fond.
   width: '100%', padding: '10px 12px', borderRadius: 11, border: '1px solid var(--line-2)',
-  background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13, outline: 'none',
+  background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13,
   fontFamily: 'inherit', resize: 'vertical',
 };
 const pastille = (on: boolean): React.CSSProperties => ({
@@ -476,8 +492,14 @@ const pastille = (on: boolean): React.CSSProperties => ({
   background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
 });
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', marginBottom: 7 }}>{children}</div>;
+// `htmlFor` lie le libellé à son champ · un lecteur d'écran annonce alors le
+// nom au focus (un placeholder n'est jamais un nom). Sans cible (un libellé de
+// groupe de boutons), on rend un simple `<div>`.
+function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
+  const style = { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', marginBottom: 7, display: 'block' } as const;
+  return htmlFor
+    ? <label htmlFor={htmlFor} style={style}>{children}</label>
+    : <div style={style}>{children}</div>;
 }
 function Facultatif({ children }: { children: React.ReactNode }) {
   return <span style={{ fontWeight: 400, color: 'var(--muted)' }}>{children}</span>;
