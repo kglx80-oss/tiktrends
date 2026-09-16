@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ETAPES_IMAGE, ETAPE_IMAGE_TITRE, ETAPE_IMAGE_ROLE,
   manqueImage, etapeImageComplete, etapeImageSuivante, etapeImagePrecedente,
@@ -52,10 +52,22 @@ interface Props {
 const fond: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 };
 const boite: React.CSSProperties = { width: 'min(680px, 100%)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 90px -30px rgba(0,0,0,.7)' };
 const champ: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none', fontFamily: 'inherit' };
-const Label = ({ children }: { children: ReactNode }) => <label style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 6, fontWeight: 700 }}>{children}</label>;
+// `htmlFor` lie le libellé à son champ · sans lui, un `<label>` non rattaché
+// n'annonce rien au focus. Sans cible (libellé de groupe de boutons), il reste
+// un libellé visuel simple.
+const Label = ({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) => <label htmlFor={htmlFor} style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 6, fontWeight: 700 }}>{children}</label>;
 
 export function AssistantImage(p: Props) {
   const [etape, setEtape] = useState<EtapeImage>('produit');
+  // Échap ferme · pendant clavier du clic sur le fond, sinon la modale piège qui
+  // n'a pas de souris.
+  const { ouvert, onFermer } = p;
+  useEffect(() => {
+    if (!ouvert) return;
+    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onFermer(); };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, [ouvert, onFermer]);
   if (!p.ouvert) return null;
 
   const bloquant = manqueImage(etape, p.etat);
@@ -70,7 +82,7 @@ export function AssistantImage(p: Props) {
 
   return (
     <div style={fond} onClick={p.onFermer}>
-      <div style={boite} onClick={(e) => e.stopPropagation()}>
+      <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-image-titre">
         {/* Le fil · une étape faite se rouvre, une étape dont les précédentes ne
             le sont pas reste fermée (règle du noyau). */}
         <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -81,6 +93,7 @@ export function AssistantImage(p: Props) {
               const ouvrable = ETAPES_IMAGE.slice(0, i).every((q) => etapeImageComplete(q, p.etat));
               return (
                 <button key={e} type="button" disabled={!ouvrable} onClick={() => ouvrable && setEtape(e)}
+                  aria-current={ici ? 'step' : undefined}
                   title={ouvrable ? ETAPE_IMAGE_TITRE[e] : 'Termine les étapes précédentes.'}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999,
@@ -98,14 +111,14 @@ export function AssistantImage(p: Props) {
         </div>
 
         <div style={{ padding: '18px 20px', overflowY: 'auto', flex: 1 }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>{ETAPE_IMAGE_TITRE[etape]}</h3>
+          <h3 id="assistant-image-titre" style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>{ETAPE_IMAGE_TITRE[etape]}</h3>
           <p style={{ margin: '4px 0 16px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>{ETAPE_IMAGE_ROLE[etape]}</p>
 
           {etape === 'produit' && (
             <div style={{ display: 'grid', gap: 14 }}>
               <div style={{ display: 'flex', gap: 8 }}>
                 {([['i2i', 'Mise en scène produit'], ['t2i', 'Texte → Image']] as const).map(([k, label]) => (
-                  <button key={k} type="button" onClick={() => p.onMode(k)} style={{
+                  <button key={k} type="button" onClick={() => p.onMode(k)} aria-pressed={p.etat.mode === k} style={{
                     fontSize: 12.5, fontWeight: p.etat.mode === k ? 800 : 600, padding: '8px 13px', borderRadius: 12, cursor: 'pointer',
                     border: `1px solid ${p.etat.mode === k ? 'transparent' : 'var(--line-2)'}`,
                     background: p.etat.mode === k ? 'var(--grad-accent)' : 'transparent', color: p.etat.mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
@@ -114,8 +127,8 @@ export function AssistantImage(p: Props) {
               </div>
               {p.produits.length > 0 && (
                 <div>
-                  <Label>Produit de la marque</Label>
-                  <select value={p.productId} onChange={(e) => p.onProduit(e.target.value)} style={champ}>
+                  <Label htmlFor="assistant-image-produit">Produit de la marque</Label>
+                  <select id="assistant-image-produit" value={p.productId} onChange={(e) => p.onProduit(e.target.value)} style={champ}>
                     <option value="">Aucun (générique)</option>
                     {p.produits.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}{pr.hasImage ? ' · photo' : ''}</option>)}
                   </select>
@@ -127,8 +140,8 @@ export function AssistantImage(p: Props) {
 
           {etape === 'scene' && (
             <div style={{ display: 'grid', gap: 10 }}>
-              <Label>Décris la scène</Label>
-              <textarea value={p.etat.description} onChange={(e) => p.onDescription(e.target.value)} rows={4}
+              <Label htmlFor="assistant-image-scene">Décris la scène</Label>
+              <textarea id="assistant-image-scene" value={p.etat.description} onChange={(e) => p.onDescription(e.target.value)} rows={4}
                 placeholder="ex : posé sur une table en marbre, lumière douce du matin, feuillage flou en arrière-plan"
                 style={{ ...champ, resize: 'vertical' }} />
               {p.onSuggest && (
@@ -146,7 +159,7 @@ export function AssistantImage(p: Props) {
               {[{ key: '', label: 'Variées', hint: 'Le moteur choisit · pas de direction imposée.' }, ...p.directions].map((d) => {
                 const on = p.etat.direction === d.key;
                 return (
-                  <button key={d.key || 'variees'} type="button" onClick={() => p.onDirection(d.key)} style={{
+                  <button key={d.key || 'variees'} type="button" onClick={() => p.onDirection(d.key)} aria-pressed={on} style={{
                     display: 'grid', gap: 3, padding: '10px 12px', borderRadius: 12, textAlign: 'left',
                     border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'rgba(254,44,85,.06)' : 'transparent', cursor: 'pointer',
                   }}>
@@ -164,7 +177,7 @@ export function AssistantImage(p: Props) {
                 <Label>Format</Label>
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
                   {p.ratios.map((r) => (
-                    <button key={r} type="button" onClick={() => p.onRatio(r)} style={pastille(p.etat.ratio === r)}>{r}</button>
+                    <button key={r} type="button" onClick={() => p.onRatio(r)} aria-pressed={p.etat.ratio === r} style={pastille(p.etat.ratio === r)}>{r}</button>
                   ))}
                 </div>
               </div>
@@ -172,7 +185,7 @@ export function AssistantImage(p: Props) {
                 <Label>Nombre de visuels</Label>
                 <div style={{ display: 'flex', gap: 7 }}>
                   {[1, 2, 3, 4].map((n) => (
-                    <button key={n} type="button" onClick={() => p.onNombre(n)} style={pastille(p.etat.nombre === n)}>{n}</button>
+                    <button key={n} type="button" onClick={() => p.onNombre(n)} aria-pressed={p.etat.nombre === n} style={pastille(p.etat.nombre === n)}>{n}</button>
                   ))}
                 </div>
               </div>
