@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
-import { buildAnalysis, buildLiveAnalysis, BUCKETS, bucketDef, type AnalysisRow } from '../../../lib/analysis';
+import { buildAnalysis, buildLiveAnalysis, BUCKETS, bucketDef, ageActifLabel, type AnalysisRow } from '../../../lib/analysis';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
 import { Bandeau } from '../../../components/Bandeau';
@@ -49,7 +49,7 @@ function Row({ r }: { r: AnalysisRow }) {
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{r.title}</span>
             <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' }}>{r.platform}</span>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{eur(r.spend)} dépensé · {r.impressions.toLocaleString('fr-FR')} impr. · {r.daysActive} j</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{eur(r.spend)} dépensé · {r.impressions.toLocaleString('fr-FR')} impr. · {ageActifLabel(r.daysActive)}</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <Grade label="Hook" g={r.grades.hook} />

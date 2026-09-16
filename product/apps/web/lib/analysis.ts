@@ -12,7 +12,8 @@ export interface AnalysisRow {
   hookRate: number;
   holdRate: number;
   convEff: number;
-  daysActive: number;
+  /** Ancienneté en jours · `undefined` quand elle est inconnue (agrégat Meta live). */
+  daysActive?: number;
   grades: RadarResult['grades'];
   globalScore: number;
   bucket: RadarResult['bucket'];
@@ -37,7 +38,7 @@ export function buildAnalysis(): AnalysisRow[] {
       rows.push({
         platform: p, title: c?.title ?? m.id, fingerprint: m.id, thumbUrl: c?.thumbUrl,
         spend: m.spend, impressions: m.impressions, ctr: m.ctr, hookRate: m.hookRate, holdRate: m.holdRate,
-        convEff: m.convEff, daysActive: m.daysActive ?? 0,
+        convEff: m.convEff, daysActive: m.daysActive,
         grades: r.grades, globalScore: r.globalScore, bucket: r.bucket, eligible: r.eligible,
         diagnosis: r.eligible ? diagnose(r.grades).map((code) => DIAGNOSIS_FR[code]) : ['Volume insuffisant pour évaluer (spend/impressions trop faibles).'],
       });
@@ -70,7 +71,7 @@ export function buildLiveAnalysis(ads: MetaAdPerf[]): AnalysisRow[] {
     return {
       platform: 'meta' as const, title: src.name, fingerprint: m.id,
       spend: m.spend, impressions: m.impressions, ctr: m.ctr, hookRate: m.hookRate, holdRate: m.holdRate,
-      convEff: m.convEff, daysActive: m.daysActive ?? 0,
+      convEff: m.convEff, daysActive: m.daysActive,
       grades: r.grades, globalScore: r.globalScore, bucket: r.bucket, eligible: r.eligible,
       diagnosis: r.eligible ? diagnose(r.grades).map((code) => DIAGNOSIS_FR[code]) : ['Volume insuffisant pour évaluer (dépense/impressions trop faibles).'],
     };
@@ -87,6 +88,16 @@ export const BUCKETS: BucketDef[] = [
   { key: 'insufficient',   label: 'Insuffisant',      action: 'Observer',    color: '#9a8a98' },
 ];
 export const bucketDef = (k: RadarResult['bucket']): BucketDef => BUCKETS.find((b) => b.key === k) ?? BUCKETS[5]!;
+
+/**
+ * Le libellé d'ancienneté d'une créa · « 12 j » quand on la connaît, « âge
+ * inconnu » sinon. L'agrégat Meta live ne porte pas l'âge réel de l'annonce ·
+ * afficher « 0 j » (ou « 30 j ») serait une valeur fabriquée. On dit qu'on ne
+ * sait pas plutôt que d'inventer un chiffre que le reste de l'écran croirait.
+ */
+export function ageActifLabel(daysActive?: number): string {
+  return daysActive != null ? `${daysActive} j` : 'âge inconnu';
+}
 
 export interface Totals { spend: number; impressions: number; avgCtr: number; avgRoas: number; count: number; eligible: number }
 export function analysisTotals(rows: AnalysisRow[]): Totals {
