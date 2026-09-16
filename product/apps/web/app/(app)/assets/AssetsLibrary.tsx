@@ -79,6 +79,10 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
     .filter((a) => filter === 'all' || a.kind === filter)
     .filter((a) => !q || a.name.toLowerCase().includes(q) || (a.tags || []).some((t) => t.toLowerCase().includes(q)));
   const shown = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Un critère est actif dès qu'un filtre de type ou une recherche restreint la
+  // vue · c'est ce qui déclenche « X sur Y » et le bouton Réinitialiser (CDC S13).
+  const critereActif = filter !== 'all' || search.trim().length > 0;
+  const reinitialiser = () => { setFilter('all'); setSearch(''); setPage(0); };
   const untagged = assets.filter((a) => a.kind === 'image' && (!a.tags || a.tags.length === 0)).length;
   const refresh = () => startTransition(() => router.refresh());
 
@@ -289,6 +293,20 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
         })}
       </div>
 
+      {/* Décompte + réinitialisation · « X résultats sur Y », critères actifs et
+          retour à zéro en une action (CDC S13). Muet quand la bibliothèque est
+          vide (l'état vide s'en charge). */}
+      {assets.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '0 0 12px', fontSize: 12, color: 'var(--muted)' }}>
+          <span>
+            {critereActif ? <><b style={{ color: 'var(--ink-2)' }}>{filtered.length}</b> sur {assets.length} assets</> : <><b style={{ color: 'var(--ink-2)' }}>{assets.length}</b> asset(s)</>}
+          </span>
+          {critereActif && (
+            <button type="button" onClick={reinitialiser} style={{ ...ghost, padding: '5px 12px', fontSize: 11.5 }}>Réinitialiser</button>
+          )}
+        </div>
+      )}
+
       {/* Grille */}
       {shown.length === 0 ? (
         assets.length === 0 ? (
@@ -306,7 +324,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
         ) : (
           // Des assets existent, mais le filtre / la recherche ne trouvent rien · pas un manque, une recherche vide.
           <Empty tone="wait" icon="search" title="Aucun asset ne correspond." why="Aucun résultat pour ce filtre ou cette recherche · élargis, ou remets tout à zéro.">
-            <button type="button" onClick={() => { setFilter('all'); setSearch(''); setPage(0); }} style={ghost}>Tout afficher</button>
+            <button type="button" onClick={reinitialiser} style={ghost}>Réinitialiser</button>
           </Empty>
         )
       ) : (
