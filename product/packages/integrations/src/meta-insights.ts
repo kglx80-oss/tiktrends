@@ -116,22 +116,41 @@ export function adsFromRows(rows: Row[] | undefined): MetaAdPerf[] {
   }).filter((x) => x.spend > 0 || x.impressions > 0);
 }
 
+export interface FenetreMeta { since: string; until: string }
+
+/**
+ * Deux fenêtres de comparaison de MÊME durée (30 jours).
+ *
+ * `time_range` de Meta est INCLUSIF de ses deux bornes. L'ancienne paire
+ * [now−30 … now] (soit 31 jours) contre [now−60 … now−31] (30 jours) comparait
+ * une période à une autre plus courte d'un jour · sur une dépense stable à
+ * 100 €/jour, la fenêtre courante pesait ~3100 € contre ~3000 €, et l'écran
+ * affichait une hausse de dépense inventée d'environ 3 %. Idem pour tous les
+ * KPI comparés (revenue, achats…).
+ *
+ * On rend donc deux fenêtres strictement égales · [now−29 … now] et
+ * [now−59 … now−30], 30 jours chacune, adjacentes et sans chevauchement.
+ */
+export function fenetresMeta(now: Date): { courante: FenetreMeta; precedente: FenetreMeta } {
+  const j = (n: number) => ymd(new Date(now.getTime() - n * 86_400_000));
+  return {
+    courante: { since: j(29), until: j(0) },
+    precedente: { since: j(59), until: j(30) },
+  };
+}
+
 /** Synchronise les KPIs pub (30 j + période précédente) + top créas par ROAS. */
 export async function metaAdsSync(adAccountId: string, token: string): Promise<MetaAdsInsights> {
   const acct = normAct(adAccountId);
   const info = await metaAdsTest(acct, token).catch(() => ({ accountName: undefined as string | undefined, currency: undefined as string | undefined }));
   const fields = 'spend,impressions,clicks,inline_link_clicks,cpm,ctr,actions,action_values';
 
-  const now = new Date();
-  const d30 = new Date(now.getTime() - 30 * 86_400_000);
-  const d60 = new Date(now.getTime() - 60 * 86_400_000);
-  const d31 = new Date(now.getTime() - 31 * 86_400_000);
-
-  const tr = JSON.stringify({ since: ymd(d30), until: ymd(now) });
+  const { courante, precedente } = fenetresMeta(new Date());
+  const tr = JSON.stringify(courante);
   type BRow = Row & { publisher_platform?: string; age?: string; gender?: string };
   const [cur, prev, ads, plat, ageG] = await Promise.all([
     graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: tr }),
-    graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: JSON.stringify({ since: ymd(d60), until: ymd(d31) }) }).catch(() => ({ data: [] as Row[] })),
+    graph<{ data: Row[] }>(`${acct}/insights`, token, { level: 'account', fields, time_range: JSON.stringify(precedente) }).catch(() => ({ data: [] as Row[] })),
     graph<{ data: Row[] }>(`${acct}/insights`, token, {
       level: 'ad',
       fields: 'ad_id,ad_name,video_3_sec_watched_actions,video_p75_watched_actions,' + fields,
