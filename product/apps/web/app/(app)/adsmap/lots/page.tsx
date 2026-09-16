@@ -43,7 +43,7 @@ export default async function LotsPage() {
 
       <PageInfo title="préparer un lot">
         L’écran répond à une question : <b>ce lot peut-il partir, et si non pourquoi</b>. Il vérifie
-        l’invariant de test sur chaque ad — hypothèse, variable, offre, page de destination — et
+        l’invariant de test sur chaque ad · hypothèse, variable, offre, page de destination · et
         <b> génère les noms attendus côté régie</b>, ceux que la mesure quotidienne saura relire pour
         rattacher les métriques sans qu’on colle d’identifiant à la main. Le <b>budget</b> est confronté
         au seuil de conclusion de la marque : un lot trop peu financé produit sept jours plus tard une

@@ -572,8 +572,8 @@ export default async function JarvisPage() {
           </div>
           <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
             Les créas générées <b>avec</b> la mémoire, comparées à celles générées <b>sans</b>, sur les
-            tests arbitrés. On ne cherche pas quelle accroche a produit quelle gagnante — c’est
-            indécidable — mais si l’ensemble fait bouger le taux.
+            tests arbitrés. On ne cherche pas quelle accroche a produit quelle gagnante · c’est
+            indécidable · mais si l’ensemble fait bouger le taux.
           </p>
           <p style={{
             margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
