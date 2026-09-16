@@ -86,6 +86,19 @@ export function prixEssai(v: EssaiVariable, n: number, creditsImage: number): nu
   return imagesPourEssai(v, n) * Math.max(0, creditsImage);
 }
 
+/**
+ * Les crédits ANNONCÉS pour un lot, avant le clic · ce que la barre de coût du
+ * studio doit afficher. Pour un essai, le prix suit les IMAGES produites (une
+ * seule pour accroche/mise en page, `prixEssai`) · sinon, une image par
+ * publicité. Même source que le débit serveur pour l'essai · l'écran ne peut
+ * plus sur-annoncer ce qui sera prélevé (la marge de reprise en entière est
+ * annoncée à part, en note, car remboursée si inutilisée).
+ */
+export function creditsAnnoncesLot(v: EssaiVariable | null, n: number, creditsImage: number): number {
+  const credits = Math.max(0, creditsImage);
+  return v ? prixEssai(v, n, credits) : credits * Math.max(1, Math.floor(n));
+}
+
 /** L'hypothèse, écrite · affichée avant de payer, consignée avec le lot. */
 export function hypotheseEssai(v: EssaiVariable, n: number): string {
   const total = Math.max(1, Math.floor(n));
