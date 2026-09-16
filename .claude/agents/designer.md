@@ -97,6 +97,16 @@ accessibilité → mise en page → écriture → typographie → couleurs → p
 
 **Un seul motif racine = un seul correctif**, appliqué à tous ses emplacements.
 
+**Lis la feuille de style GLOBALE avant de conclure à un défaut de focus,
+contraste ou mouvement.** Un style inline qui SEMBLE casser une propriété peut
+être déjà rattrapé par une règle globale · `apps/web/app/globals.css` porte un
+`:focus-visible { outline … !important }` (le `!important` d'une feuille
+l'emporte sur un inline non-important, donc l'anneau clavier tient malgré un
+`outline: none` inline) et un reset `prefers-reduced-motion`. Un `outline: none`
+inline n'est donc PAS un défaut de focus ici · le vérifier a évité un correctif
+inutile, l'ignorer l'a produit. Ne jamais tirer un défaut de focus/contraste/
+mouvement de la seule source d'un composant · confronte-le au global d'abord.
+
 ## Prouver, comme le reste du dépôt
 
 Un correctif non éprouvé ne tient pas. La règle du dépôt vaut ici :
