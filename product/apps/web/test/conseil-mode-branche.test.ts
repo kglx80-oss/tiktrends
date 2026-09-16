@@ -39,8 +39,13 @@ describe('le mesuré devient le défaut de mode, sans se cacher', () => {
   });
 
   it('aucun override réactif · le défaut se pose une fois, le clic seul change ensuite', () => {
-    // Le seul changement de mode admis est le clic (`setFabrication` dans un
-    // onClick) · un effet réactif écraserait le choix de l'utilisateur.
-    expect(STUDIO).toMatch(/onClick=\{\(\) => setFabrication\(m\)\}/);
+    // Le seul changement de mode admis est le clic · le bouton appelle
+    // `choisirFabrication`, un helper qui pose le mode (et réinitialise un essai
+    // devenu invalide dans ce mode) · jamais un effet réactif qui écraserait le
+    // choix de l'utilisateur.
+    expect(STUDIO).toMatch(/onClick=\{\(\) => choisirFabrication\(m\)\}/);
+    expect(STUDIO, 'le helper pose le mode directement, pas via un effet').toMatch(
+      /const choisirFabrication = \(m: ProductionMode\) => \{\s*setFabrication\(m\);/,
+    );
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ESSAI_VARIABLES, ESSAI_LABEL, economieEssai, hypotheseEssai, imagesPourEssai,
-  prixEssai, tenuDansEssai, verifieEssai, type EssaiVariable,
+  prixEssai, tenuDansEssai, verifieEssai, essaiVisibleEnMode, essaisPourMode, type EssaiVariable,
 } from '../src/essai';
 import type { DeclinaisonSnapshot } from '../src/studio-iterate';
 
@@ -121,5 +121,33 @@ describe('le contrôle du lot', () => {
       ];
       expect(verifieEssai(lot, v).ok, v).toBe(false);
     }
+  });
+});
+
+describe('un essai n’a de sens que si sa variable est visible dans le mode', () => {
+  // En composée le texte et la mise en page sont une COUCHE posée sur la scène ·
+  // les trois essais varient quelque chose de visible. En entière, le modèle
+  // cuit texte et disposition DANS l'image · tenir la scène rendrait N fois la
+  // même image, et seul « les ambiances » (qui change l'image) reste un essai.
+  it('en composée, les trois essais sont praticables', () => {
+    for (const v of ESSAI_VARIABLES) {
+      expect(essaiVisibleEnMode(v, 'composee'), v).toBe(true);
+    }
+    expect(essaisPourMode('composee')).toEqual(['accroche', 'mise_en_page', 'univers']);
+  });
+
+  it('en entière, seul l’essai d’ambiances varie quelque chose de visible', () => {
+    // accroche/mise_en_page en entière = quatre fois la même image sous une
+    // étiquette d'essai · le faux essai qu'on ferme.
+    expect(essaiVisibleEnMode('accroche', 'entiere')).toBe(false);
+    expect(essaiVisibleEnMode('mise_en_page', 'entiere')).toBe(false);
+    expect(essaiVisibleEnMode('univers', 'entiere')).toBe(true);
+    expect(essaisPourMode('entiere')).toEqual(['univers']);
+  });
+
+  it('« les ambiances » reste un essai réel dans les deux modes', () => {
+    // Sa variable EST l'image · c'est la seule qui tient dans les deux.
+    expect(essaiVisibleEnMode('univers', 'composee')).toBe(true);
+    expect(essaiVisibleEnMode('univers', 'entiere')).toBe(true);
   });
 });

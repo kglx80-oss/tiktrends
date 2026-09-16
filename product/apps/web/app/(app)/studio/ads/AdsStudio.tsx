@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
@@ -132,6 +132,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // cette marque, sinon entière (le mode que le lot de contrôle a montré viable).
   // Le mesuré fixe l'état INITIAL une fois · le clic reste seul à changer ensuite.
   const [fabrication, setFabrication] = useState<ProductionMode>(conseilModes.defaut);
+  // Changer de mode peut invalider l'essai en cours · « les accroches » et
+  // « les mises en page » ne varient rien de visible en entière (le texte est
+  // cuit dans l'image). On le réinitialise plutôt que de laisser un choix qui,
+  // au clic « Générer », rendrait le même visuel N fois sous une étiquette d'essai.
+  const choisirFabrication = (m: ProductionMode) => {
+    setFabrication(m);
+    setEssai((e) => (e && !essaiVisibleEnMode(e, m) ? '' : e));
+  };
   /** Ce que le dernier lot a appliqué de ce qui avait été mesuré. */
   const [applique, setApplique] = useState('');
   // Le débrief du dernier lot entière · additionne les relectures des pubs qui
@@ -538,7 +546,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         onAngle={setAngle}
         onOffre={setOffer}
         onDirection={(v) => setUniverse(v || 'auto')}
-        onMode={(v) => setFabrication(v as ProductionMode)}
+        onMode={(v) => choisirFabrication(v as ProductionMode)}
         onNombre={setCount}
         onMoteur={setModel}
         busy={busy}
@@ -798,7 +806,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           {PRODUCTION_MODES.map((m) => {
             const on = fabrication === m;
             return (
-              <button key={m} type="button" disabled={!ready} onClick={() => setFabrication(m)} style={{
+              <button key={m} type="button" disabled={!ready} onClick={() => choisirFabrication(m)} style={{
                 padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
                 fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
                 border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
@@ -836,16 +844,22 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         {/* Ce que le lot cherche à savoir · écrit AVANT d'être payé. */}
         <label style={lbl}>Ce lot teste <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· une seule chose varie, le reste est tenu</span></label>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 8 }}>
-          {[{ key: '' as const, label: 'Rien · lot libre' },
-            ...ESSAI_VARIABLES.map((k) => ({ key: k, label: ESSAI_LABEL[k] }))].map((e) => {
+          {[{ key: '' as const, label: 'Rien · lot libre', dispo: true },
+            ...ESSAI_VARIABLES.map((k) => ({ key: k, label: ESSAI_LABEL[k], dispo: essaiVisibleEnMode(k, fabrication) }))].map((e) => {
             const on = essai === e.key;
+            // « Les accroches » / « Les mises en page » ne varient rien de visible
+            // en entière · on les grise et on dit pourquoi, plutôt que de laisser
+            // fabriquer quatre fois le même visuel sous une étiquette d'essai.
+            const actif = ready && e.dispo;
             return (
-              <button key={e.key || 'libre'} type="button" disabled={!ready} onClick={() => setEssai(e.key)} style={{
-                padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: ready ? 'pointer' : 'default',
-                fontWeight: on ? 800 : 600, opacity: ready ? 1 : .55,
-                border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
-                background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
-              }}>{e.label}</button>
+              <button key={e.key || 'libre'} type="button" disabled={!actif} onClick={() => setEssai(e.key)}
+                title={e.dispo ? undefined : `Indisponible en « ${PRODUCTION_LABEL.entiere} » · le texte est cuit dans l'image, tenir la scène rendrait le même visuel. Repasse en composée pour tester ${e.label.toLowerCase()}.`}
+                style={{
+                  padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: actif ? 'pointer' : 'default',
+                  fontWeight: on ? 800 : 600, opacity: actif ? 1 : .5,
+                  border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
+                  background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
+                }}>{e.label}</button>
             );
           })}
         </div>
