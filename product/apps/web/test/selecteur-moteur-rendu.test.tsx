@@ -52,6 +52,12 @@ describe('la grille de moteurs se voit', () => {
     expect(out).toContain('Texte net');
   });
 
+  it('la grille de cartes est un groupe nommé pour l’assistance', () => {
+    const out = html();
+    expect(out, 'les cartes ne forment pas un groupe').toContain('role="group"');
+    expect(out, 'le groupe des moteurs n’a pas de nom accessible').toContain('aria-label="Moteur d’image"');
+  });
+
   it('marque le moteur recommandé, et un seul est sélectionné', () => {
     const out = html({ valeur: 'gpt2', recommande: 'gpt2' });
     expect(out, 'le recommandé porte son badge').toContain('recommandé');
