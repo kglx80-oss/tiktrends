@@ -605,7 +605,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
             <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={18} /></span>
             <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-              <b style={{ color: 'var(--ink)' }}>Pubs IA en attente de la clé Fal.</b> Une fois <code style={{ fontSize: 12 }}>FAL_KEY</code> posée sur le serveur, elle s'active ici.
+              <b style={{ color: 'var(--ink)' }}>Pubs IA en attente du moteur d’image.</b> Elle s’active dès que le moteur est configuré sur le serveur.
             </div>
           </div>
         )}

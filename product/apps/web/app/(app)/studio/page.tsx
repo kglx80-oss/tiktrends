@@ -75,14 +75,14 @@ export default async function StudioPage() {
       href: '/studio/ads', icon: 'sparkles', title: 'Pubs IA', tag: 'COMPLET',
       makes: 'Une publicité entière, prête à poster : le concept, la scène avec ton produit, l’accroche écrite dessus, le CTA et ton logo, composés ensemble.',
       when: 'C’est le studio par défaut. Tu veux une pub, pas un morceau de pub.',
-      state: pret(image && texte, image ? 'clé IA manquante' : 'clé Fal manquante'),
+      state: pret(image && texte, image ? 'clé IA manquante' : 'clé image manquante'),
       count: etat.ads,
     },
     {
       href: '/studio/image', icon: 'image', title: 'Image IA',
       makes: 'Un visuel seul, décrit à la main : mise en scène de ton vrai packaging, ou image partant du texte. Avec texte lisible si tu le demandes.',
       when: 'Tu as une idée d’image précise en tête, ou tu veux un visuel hors format publicitaire.',
-      state: pret(image, 'clé Fal manquante'),
+      state: pret(image, 'clé image manquante'),
       count: etat.images,
     },
     {
