@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ETAPES_VIDEO, ETAPE_VIDEO_TITRE, ETAPE_VIDEO_ROLE,
   manqueVideo, etapeVideoComplete, etapeVideoSuivante, etapeVideoPrecedente,
@@ -44,10 +44,20 @@ interface Props {
 const fond: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 };
 const boite: React.CSSProperties = { width: 'min(680px, 100%)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 90px -30px rgba(0,0,0,.7)' };
 const champ: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none', fontFamily: 'inherit' };
-const Label = ({ children }: { children: ReactNode }) => <label style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 6, fontWeight: 700 }}>{children}</label>;
+// `htmlFor` lie le libellé à son champ · sans cible (libellé de groupe de
+// boutons), il reste un libellé visuel simple.
+const Label = ({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) => <label htmlFor={htmlFor} style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 6, fontWeight: 700 }}>{children}</label>;
 
 export function AssistantVideo(p: Props) {
   const [etape, setEtape] = useState<EtapeVideo>('depart');
+  // Échap ferme · pendant clavier du clic sur le fond.
+  const { ouvert, onFermer } = p;
+  useEffect(() => {
+    if (!ouvert) return;
+    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onFermer(); };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, [ouvert, onFermer]);
   if (!p.ouvert) return null;
 
   const bloquant = manqueVideo(etape, p.etat);
@@ -59,7 +69,7 @@ export function AssistantVideo(p: Props) {
 
   return (
     <div style={fond} onClick={p.onFermer}>
-      <div style={boite} onClick={(e) => e.stopPropagation()}>
+      <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-video-titre">
         <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
             {ETAPES_VIDEO.map((e, i) => {
@@ -68,6 +78,7 @@ export function AssistantVideo(p: Props) {
               const ouvrable = ETAPES_VIDEO.slice(0, i).every((q) => etapeVideoComplete(q, p.etat));
               return (
                 <button key={e} type="button" disabled={!ouvrable} onClick={() => ouvrable && setEtape(e)}
+                  aria-current={ici ? 'step' : undefined}
                   title={ouvrable ? ETAPE_VIDEO_TITRE[e] : 'Termine les étapes précédentes.'}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999,
@@ -85,14 +96,14 @@ export function AssistantVideo(p: Props) {
         </div>
 
         <div style={{ padding: '18px 20px', overflowY: 'auto', flex: 1 }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>{ETAPE_VIDEO_TITRE[etape]}</h3>
+          <h3 id="assistant-video-titre" style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>{ETAPE_VIDEO_TITRE[etape]}</h3>
           <p style={{ margin: '4px 0 16px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>{ETAPE_VIDEO_ROLE[etape]}</p>
 
           {etape === 'depart' && (
             <div style={{ display: 'grid', gap: 14 }}>
               <div style={{ display: 'flex', gap: 8 }}>
                 {([['i2v', 'Image → Vidéo'], ['t2v', 'Texte → Vidéo']] as const).map(([k, label]) => (
-                  <button key={k} type="button" onClick={() => p.onMode(k)} style={{
+                  <button key={k} type="button" onClick={() => p.onMode(k)} aria-pressed={p.etat.mode === k} style={{
                     fontSize: 12.5, fontWeight: p.etat.mode === k ? 800 : 600, padding: '8px 13px', borderRadius: 12, cursor: 'pointer',
                     border: `1px solid ${p.etat.mode === k ? 'transparent' : 'var(--line-2)'}`,
                     background: p.etat.mode === k ? 'var(--grad-accent)' : 'transparent', color: p.etat.mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
@@ -106,8 +117,8 @@ export function AssistantVideo(p: Props) {
 
           {etape === 'mouvement' && (
             <div style={{ display: 'grid', gap: 10 }}>
-              <Label>{p.etat.mode === 'i2v' ? 'Le mouvement' : 'Décris la vidéo'} {p.etat.mode === 'i2v' && <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· facultatif</span>}</Label>
-              <textarea value={p.etat.description} onChange={(e) => p.onDescription(e.target.value)} rows={4}
+              <Label htmlFor="assistant-video-mouvement">{p.etat.mode === 'i2v' ? 'Le mouvement' : 'Décris la vidéo'} {p.etat.mode === 'i2v' && <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· facultatif</span>}</Label>
+              <textarea id="assistant-video-mouvement" value={p.etat.description} onChange={(e) => p.onDescription(e.target.value)} rows={4}
                 placeholder={p.etat.mode === 'i2v' ? 'ex : léger zoom, la vapeur monte, ambiance chaleureuse' : 'ex : gros plan sur une boisson, lumière du matin, léger travelling avant'}
                 style={{ ...champ, resize: 'vertical' }} />
               {p.onSuggest && (
@@ -124,7 +135,7 @@ export function AssistantVideo(p: Props) {
                     {[{ key: '', label: 'Libre', hint: 'Le moteur choisit le mouvement.' }, ...p.directions].map((d) => {
                       const on = (p.directionValue ?? '') === d.key;
                       return (
-                        <button key={d.key || 'libre'} type="button" onClick={() => p.onDirection!(d.key)} style={{
+                        <button key={d.key || 'libre'} type="button" onClick={() => p.onDirection!(d.key)} aria-pressed={on} style={{
                           display: 'grid', gap: 3, padding: '9px 11px', borderRadius: 12, textAlign: 'left',
                           border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'rgba(254,44,85,.06)' : 'transparent', cursor: 'pointer',
                         }}>
@@ -144,13 +155,13 @@ export function AssistantVideo(p: Props) {
               <div>
                 <Label>Format</Label>
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                  {p.ratios.map((r) => (<button key={r} type="button" onClick={() => p.onRatio(r)} style={pastille(p.etat.ratio === r)}>{r}</button>))}
+                  {p.ratios.map((r) => (<button key={r} type="button" onClick={() => p.onRatio(r)} aria-pressed={p.etat.ratio === r} style={pastille(p.etat.ratio === r)}>{r}</button>))}
                 </div>
               </div>
               <div>
                 <Label>Durée <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· elle décide du prix</span></Label>
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                  {p.durees.map((d) => (<button key={d} type="button" onClick={() => p.onDuree(d)} style={pastille(p.etat.duree === d)}>{d} s</button>))}
+                  {p.durees.map((d) => (<button key={d} type="button" onClick={() => p.onDuree(d)} aria-pressed={p.etat.duree === d} style={pastille(p.etat.duree === d)}>{d} s</button>))}
                 </div>
               </div>
               <div style={{ display: 'grid', gap: 5, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--paper)' }}>

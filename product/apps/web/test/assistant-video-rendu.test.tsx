@@ -40,3 +40,20 @@ describe('l’assistant Vidéo guidé se rend', () => {
     expect(rendre()).toContain('Ajoute une image de départ');
   });
 });
+
+describe('l’assistant Vidéo · accessibilité (rendu réel)', () => {
+  it('la fenêtre est une modale nommée', () => {
+    const html = rendre();
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('aria-labelledby="assistant-video-titre"');
+    expect(html).toContain('id="assistant-video-titre"');
+  });
+
+  it('l’étape en cours porte aria-current, le mode sélectionné aria-pressed', () => {
+    const html = rendre();
+    expect(html, 'étape courante non marquée').toContain('aria-current="step"');
+    expect(html, 'mode sélectionné non exposé').toContain('aria-pressed="true"');
+    expect(html, 'mode non sélectionné non exposé').toContain('aria-pressed="false"');
+  });
+});
