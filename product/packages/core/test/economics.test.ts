@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { IMAGE_MODELS, imageModelByKey, CREDIT_EUR, analyzeCosts, VIDEO_DURATIONS, safeVideoDuration, videoUnits, falModelFor } from '../src/economics';
+import { IMAGE_MODELS, imageModelByKey, CREDIT_EUR, analyzeCosts, VIDEO_DURATIONS, safeVideoDuration, videoUnits, falModelFor, conseilDelai, DELAI_IMAGE_DEFAUT } from '../src/economics';
 import { costFor } from '../src/credits';
 
 describe('catalogue de modèles image', () => {
@@ -162,5 +162,37 @@ describe('une adresse de modèle se corrige sans redéployer', () => {
     process.env.FAL_IMAGE_MODEL_GPT2 = 'fal-ai/autre/edit';
     expect(imageModelByKey('nano').falModel).toBe('fal-ai/nano-banana-2/edit');
     nettoie();
+  });
+});
+
+describe('le conseil de dépassement pointe le bon moteur', () => {
+  // Le conseil affiché en cas de timeout dit « pour explorer, X répond bien
+  // plus vite ». X doit être le moteur le MOINS cher parmi les moins chers ·
+  // c'est aussi le plus rapide (le délai suit le prix). Un tri décroissant
+  // désignait le plus cher des moins chers, en le présentant comme le plus
+  // rapide · le texte contredisait le modèle choisi.
+  const moteurConseille = (msg: string): string | null => {
+    // Le message a deux « … » · le premier est le moteur lent, le second le conseil.
+    const noms = [...msg.matchAll(/«\s*([^»]+?)\s*»/g)].map((m) => m[1]!);
+    return noms[1] ?? null;
+  };
+
+  it('conseille le moteur le moins cher, jamais un intermédiaire', () => {
+    let casVerifies = 0;
+    for (const spec of IMAGE_MODELS) {
+      const msg = conseilDelai(spec);
+      const moinsChers = IMAGE_MODELS.filter((m) => m.credits < spec.credits);
+      if (!msg || moinsChers.length === 0) continue;               // pas de conseil chiffré
+      if ((spec.timeoutMs ?? DELAI_IMAGE_DEFAUT) <= DELAI_IMAGE_DEFAUT) continue;
+      const nom = moteurConseille(msg);
+      const conseille = IMAGE_MODELS.find((m) => m.label === nom);
+      expect(conseille, `${spec.key} conseille « ${nom} », introuvable au catalogue`).toBeTruthy();
+      const minCredits = Math.min(...moinsChers.map((m) => m.credits));
+      expect(conseille!.credits, `${spec.key} conseille « ${nom} » (${conseille!.credits} cr.) au lieu du moins cher (${minCredits} cr.)`).toBe(minCredits);
+      casVerifies++;
+    }
+    // Au moins un moteur lent a plusieurs options moins chères · sinon le garde
+    // ne discrimine rien (avec une seule option, tout tri donne le même).
+    expect(casVerifies, 'aucun cas discriminant · le garde ne prouverait rien').toBeGreaterThan(0);
   });
 });
