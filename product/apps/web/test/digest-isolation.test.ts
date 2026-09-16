@@ -48,16 +48,11 @@ beforeAll(async () => {
 describe('digest · brandFacts isole les marques (résultat réel, pglite)', () => {
   const depuis = new Date(Date.now() - 8 * 86_400_000);
 
-  // Note · on n'assertionne pas `iterationsReady` (requête « suites ») · elle
-  // filtre `validated = any(${tableauJS})`, que le driver pglite ne lie pas
-  // (« requires array on right side »). Le driver de prod (postgres.js) lie les
-  // tableaux correctement · c'est une limite du harnais, pas un défaut produit.
-  // Les trois autres faits suffisent à prouver l'isolation par marque de #514.
-
-  it('la marque A ne compte ni les verdicts, ni les gagnants, ni le stock de B', async () => {
+  it('la marque A ne compte ni les verdicts, ni les gagnants, ni le stock, ni les suites de B', async () => {
     const fa = await brandFacts(aId, wsId, 'Marque A', depuis);
     expect(fa.verdictsWeek, 'A ne doit compter aucun verdict de B').toBe(0);
     expect(fa.winnersWeek, 'A ne doit compter aucun gagnant de B').toBe(0);
+    expect(fa.iterationsReady, 'A ne doit compter aucune suite de B').toBe(0);
     expect(fa.pending, 'A ne compte QUE sa propre ad en attente').toBe(1);
   });
 
@@ -65,6 +60,7 @@ describe('digest · brandFacts isole les marques (résultat réel, pglite)', () 
     const fb = await brandFacts(bId, wsId, 'Marque B', depuis);
     expect(fb.verdictsWeek).toBe(1);
     expect(fb.winnersWeek).toBe(1);
+    expect(fb.iterationsReady, 'une suite par gagnante arbitrée de B').toBe(1);
     expect(fb.pending, 'l’ad de B a un verdict arbitré · elle n’est plus en attente').toBe(0);
   });
 });
