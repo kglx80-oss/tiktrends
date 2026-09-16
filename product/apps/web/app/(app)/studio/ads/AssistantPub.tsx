@@ -224,6 +224,7 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
     <div style={{ padding: '14px 22px', borderTop: '1px solid var(--line)', display: 'grid', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <button type="button" onClick={onPrecedente} disabled={!precedente} style={{
+          minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           padding: '10px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'transparent',
           color: precedente ? 'var(--ink-2)' : 'var(--muted)', fontWeight: 700, fontSize: 13,
           cursor: precedente ? 'pointer' : 'default', opacity: precedente ? 1 : 0.4,
@@ -257,6 +258,7 @@ function Pied({ p, etape, bloquant, derniere, precedente, onPrecedente, onSuivan
         )}
 
         <button type="button" onClick={derniere ? p.onGenerer : onSuivante} disabled={!pret} style={{
+          minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           padding: '11px 22px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14,
           background: pret ? 'var(--grad-accent)' : 'var(--line-2)',
           color: pret ? 'var(--on-accent)' : 'var(--muted)', cursor: pret ? 'pointer' : 'default',
@@ -344,7 +346,11 @@ export function EtapeMessage({ p }: { p: AssistantProps }) {
             donc comme optionnel alors que l'assistant bloque sans lui. Marqueur
             `Requis` distinct (accent), pas le gris des facultatifs. */}
         <Label>Type de pub <Requis>· requis, au moins un</Requis></Label>
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+        {/* Les gélules forment UN choix · sans nom de groupe, l'assistance les
+            annonce une à une sans dire à quoi elles répondent ni que « au moins
+            un » est requis. `role=group` + `aria-label` les réunit sous leur
+            libellé visible. */}
+        <div role="group" aria-label="Type de pub · requis, au moins un" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {p.gabaritsDispo.map((t) => {
             const on = p.etat.gabarits.includes(t);
             return (
@@ -413,7 +419,10 @@ function EtapeFabrication({ p }: { p: AssistantProps }) {
   );
 }
 
-function EtapeVolume({ p }: { p: AssistantProps }) {
+// Exporté pour être RENDU en test · l'étape « volume » n'est pas atteignable au
+// rendu statique de la fenêtre (qui s'ouvre sur l'étape 1), et c'est là que
+// vivent les gélules de nombre et le groupe nommé qu'on prouve.
+export function EtapeVolume({ p }: { p: AssistantProps }) {
   const spec = imageModelByKey(p.etat.moteur);
   // Le moteur recommandé dépend du MODE · GPT Image 2 en entière (il écrit le
   // texte), Nano Banana en composée (on l'écrit nous). Le catalogue, aveugle au
@@ -423,7 +432,7 @@ function EtapeVolume({ p }: { p: AssistantProps }) {
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
         <Label>Combien de visuels</Label>
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+        <div role="group" aria-label="Combien de visuels" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {[1, 2, 3, 4, 6, 8].map((n) => (
             <button key={n} type="button" onClick={() => p.onNombre(n)} aria-pressed={p.etat.nombre === n} style={pastille(p.etat.nombre === n)}>{n}</button>
           ))}
@@ -486,6 +495,13 @@ const champ: React.CSSProperties = {
   fontFamily: 'inherit', resize: 'vertical',
 };
 const pastille = (on: boolean): React.CSSProperties => ({
+  // Cible tactile · une gélule de sélection se touche au doigt comme les
+  // pastilles d'étape et la croix, qui portent déjà `CIBLE_TACTILE_MIN`. Sans
+  // ce minimum, un chiffre de nombre (~33 px) ou un type de pub se ratent sur
+  // mobile. Le contenu est centré pour que l'agrandissement ne le colle pas en
+  // haut · même geste que l'en-tête.
+  minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN,
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: 'pointer',
   fontWeight: on ? 800 : 600,
   border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
