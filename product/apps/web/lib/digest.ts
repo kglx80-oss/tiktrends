@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, count, eq, gte, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { buildDigest, worthSending, digestText, type Digest, type DigestFacts } from '@tiktrends/core';
 import { learnedSinceFor, testedKeys } from './milestones';
@@ -84,7 +84,7 @@ export async function brandFacts(
   if (!db) return vide;
   const base = db;
 
-  const GAGNANTS = ['winner', 'baby_winner', 'relative_winner'];
+  const GAGNANTS: Array<'winner' | 'baby_winner' | 'relative_winner'> = ['winner', 'baby_winner', 'relative_winner'];
 
   const [verdicts, creees, attente, radar, suites, appris] = await Promise.all([
     // Verdicts ARBITRÉS de la semaine · un verdict calculé peut encore bouger,
@@ -155,7 +155,7 @@ export async function brandFacts(
         .where(and(
           eq(schema.personas.brandId, brandId),
           eq(schema.verdicts.status, 'validated'),
-          sql`${schema.verdicts.validated} = any(${GAGNANTS})`,
+          inArray(schema.verdicts.validated, GAGNANTS),
         ))
         .then((r) => Number(r[0]?.n ?? 0)),
       0,
