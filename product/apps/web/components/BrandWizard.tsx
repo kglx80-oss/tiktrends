@@ -16,12 +16,14 @@ const area = { ...input, minHeight: 78, resize: 'vertical' as const, lineHeight:
 const cardStyle = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: 14, marginBottom: 12 } as const;
 const chip = { fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer' } as const;
 
+// Le libellé ENROBE son champ · un `<label>` qui contient l'input les associe
+// sans id à gérer (S24) · avant, un libellé voisin n'annonçait rien au focus.
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <label style={lbl}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {hint}</span>}</label>
+    <label style={{ display: 'block', marginBottom: 14 }}>
+      <span style={{ ...lbl, display: 'block' }}>{label}{hint && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {hint}</span>}</span>
       {children}
-    </div>
+    </label>
   );
 }
 
@@ -110,8 +112,8 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
             On part de l'essentiel. Ton site suffit à bâtir le profil complet.
           </p>
           <div style={{ display: 'grid', gap: 14, maxWidth: 420 }}>
-            <div><label style={lbl}>Nom de la marque *</label><input value={f.name} onChange={set('name')} placeholder="Ex : Studio Nova" style={input} autoFocus /></div>
-            <div><label style={lbl}>Site web</label><input value={f.url} onChange={set('url')} placeholder="ta-marque.com" style={input} /></div>
+            <label style={{ display: 'block' }}><span style={{ ...lbl, display: 'block' }}>Nom de la marque *</span><input value={f.name} onChange={set('name')} placeholder="Ex : Studio Nova" style={input} autoFocus /></label>
+            <label style={{ display: 'block' }}><span style={{ ...lbl, display: 'block' }}>Site web</span><input value={f.url} onChange={set('url')} placeholder="ta-marque.com" style={input} /></label>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 18 }}>
@@ -183,8 +185,8 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
           {draftState.draft && !drafting && <div style={noticeBox('rgba(24,204,140,.4)', 'rgba(24,204,140,.08)', '#7ee8bf')}>Profil pré-rempli par Jarvis{draftState.cost ? ` · ${draftState.cost} crédits` : ''}. Vérifie et ajuste ci-dessous.</div>}
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 14 }}>
-            <div style={{ flex: '2 1 220px' }}><label style={lbl}>Nom de la marque *</label><input value={f.name} onChange={set('name')} placeholder="Ex : Studio Nova" style={input} /></div>
-            <div style={{ flex: '2 1 220px' }}><label style={lbl}>Site web</label><input value={f.url} onChange={set('url')} placeholder="ta-marque.com" style={input} /></div>
+            <label style={{ display: 'block', flex: '2 1 220px' }}><span style={{ ...lbl, display: 'block' }}>Nom de la marque *</span><input value={f.name} onChange={set('name')} placeholder="Ex : Studio Nova" style={input} /></label>
+            <label style={{ display: 'block', flex: '2 1 220px' }}><span style={{ ...lbl, display: 'block' }}>Site web</span><input value={f.url} onChange={set('url')} placeholder="ta-marque.com" style={input} /></label>
           </div>
 
           <Field label="Description produit / service"><textarea name="description" value={f.description} onChange={set('description')} placeholder="Ce que vend la marque, en quelques phrases." style={area} /></Field>
