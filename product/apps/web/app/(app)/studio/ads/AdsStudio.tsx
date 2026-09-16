@@ -136,9 +136,18 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // « les mises en page » ne varient rien de visible en entière (le texte est
   // cuit dans l'image). On le réinitialise plutôt que de laisser un choix qui,
   // au clic « Générer », rendrait le même visuel N fois sous une étiquette d'essai.
+  // Le moteur par défaut dépend du MODE · GPT Image 2 en entière (il écrit la
+  // typo), Nano Banana en composée (fidélité produit). Tant que l'utilisateur
+  // n'a pas choisi lui-même, le moteur DOIT suivre le mode · sinon, changer de
+  // mode après l'arrivée laissait le moteur de l'autre mode sélectionné, alors
+  // que la même liste l'annonce « recommandé » ailleurs · on payait la
+  // génération avec le mauvais moteur. Dès qu'il a choisi, son choix tient.
+  const [moteurChoisi, setMoteurChoisi] = useState(false);
+  const choisirMoteur = (k: string) => { setModel(k); setMoteurChoisi(true); };
   const choisirFabrication = (m: ProductionMode) => {
     setFabrication(m);
     setEssai((e) => (e && !essaiVisibleEnMode(e, m) ? '' : e));
+    if (!moteurChoisi) setModel(moteurParDefaut(m, conseilMoteurs.recommande));
   };
   /** Ce que le dernier lot a appliqué de ce qui avait été mesuré. */
   const [applique, setApplique] = useState('');
@@ -548,7 +557,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         onDirection={(v) => setUniverse(v || 'auto')}
         onMode={(v) => choisirFabrication(v as ProductionMode)}
         onNombre={setCount}
-        onMoteur={setModel}
+        onMoteur={choisirMoteur}
         busy={busy}
         erreur={error}
         budget={budget}
@@ -691,7 +700,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               // performant ». « Gagne le marché » se mesure ailleurs (verdict) ·
               // promettre la performance sur un signal de fidélité serait mentir.
               options: IMAGE_MODELS.map((m) => ({ value: m.key, label: `${m.label}${fabrication === 'entiere' && conseilMoteurs.recommande === m.key ? ' · tient le mieux ta copie ici' : moteurRecommande(fabrication) === m.key ? ' · recommandé' : ''}` })),
-              value: model, onChange: setModel,
+              value: model, onChange: choisirMoteur,
             },
           ]}
           extra={
