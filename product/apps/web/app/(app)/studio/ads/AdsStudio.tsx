@@ -21,7 +21,9 @@ import { UniversePicker } from '../../../../components/UniversePicker';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
 
-const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
+// Pas d'`outline: none` · un champ atteint au clavier sans anneau de focus perd
+// l'utilisateur au clavier. On garde l'anneau natif du navigateur.
+const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14 } as const;
 
 /** Redimensionne une image (navigateur) en data URI jpeg · léger pour l'analyse vision. */
 function fileToDataUri(file: File, maxSide = 1100, quality = 0.85): Promise<string> {
@@ -1433,7 +1435,8 @@ function ScoreCard({ s, copie, onRedo, busy }: { s: CreativeScore; copie?: Verdi
 }
 
 function TextField({ label, value, onChange, area }: { label: string; value: string; onChange: (v: string) => void; area?: boolean }) {
-  const st: React.CSSProperties = { width: '100%', padding: '7px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 12.5, outline: 'none', fontFamily: 'inherit' };
+  // Anneau de focus natif conservé · pas d'`outline: none` sur un champ clavier.
+  const st: React.CSSProperties = { width: '100%', padding: '7px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 12.5, fontFamily: 'inherit' };
   return (
     <label style={{ display: 'grid', gap: 3 }}>
       <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>{label}</span>
