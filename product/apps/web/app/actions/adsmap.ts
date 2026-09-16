@@ -74,7 +74,11 @@ export async function listAdsAction(filters: AdFilters = {}): Promise<{ rows?: A
   if ('error' in g) return { error: g.error };
 
   try {
-    const conds = [eq(schema.ads.workspaceId, g.s.workspaceId)];
+    // Scopé à la MARQUE active, pas à l'espace · `ads` ne porte pas de brandId,
+    // on l'atteint par la chaîne concept→angle→désir→persona (jointe plus bas).
+    // Sans ce filtre, la table d'une agence affichait les ads de toutes ses
+    // marques, et l'export CSV « marque A » emportait les données de B.
+    const conds = [eq(schema.ads.workspaceId, g.s.workspaceId), eq(schema.personas.brandId, g.brand.id)];
     if (filters.batchId) conds.push(eq(schema.ads.batchId, filters.batchId));
     if (filters.status) conds.push(eq(schema.ads.status, filters.status as typeof schema.ads.$inferSelect.status));
 
@@ -93,6 +97,7 @@ export async function listAdsAction(filters: AdFilters = {}): Promise<{ rows?: A
       .leftJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
       .leftJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
       .leftJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .leftJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
       .leftJoin(schema.batches, eq(schema.ads.batchId, schema.batches.id))
       .leftJoin(schema.users, eq(schema.batches.authorId, schema.users.id))
       .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
