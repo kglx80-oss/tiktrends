@@ -28,12 +28,15 @@ describe('la page Veille peuple l’écran par défaut', () => {
   it('sans requête, elle amorce un browse gagnants au lieu de rester vide', () => {
     // On amorce depuis la catégorie de la marque active.
     expect(PAGE).toMatch(/veilleSeedDefaut\(\{ category: brand\?\.category \}\)/);
-    // Le browse par défaut trie « plus anciennes » + actives + ancienneté min ·
-    // le filtre gagnant, pas un browse au hasard.
+    // Le browse par défaut montre les gagnants installés par le TRI « plus
+    // anciennes » sur les actives · le seuil dur de jours n'est PAS branché sur
+    // la source (R14) · on ne le prétend donc plus, le tri suffit à faire remonter
+    // les installées.
     const bloc = PAGE.slice(PAGE.indexOf('} else if (platform === \'meta\')'), PAGE.indexOf('// État sauvegardé'));
     expect(bloc, 'le tri gagnant a disparu du browse par défaut').toMatch(/sortBy: 'longestRunning'/);
     expect(bloc, 'le statut actif a disparu du browse par défaut').toMatch(/status: 'active'/);
-    expect(bloc, 'l’ancienneté minimale a disparu du browse par défaut').toMatch(/minDaysRunning: 30/);
+    // On ne passe plus un seuil de jours que la source ignore silencieusement.
+    expect(bloc, 'un seuil de jours non honoré est encore envoyé').not.toMatch(/minDaysRunning: 30/);
   });
 
   it('si la catégorie ne rend rien, elle se rabat sur le marché large · jamais vide', () => {
