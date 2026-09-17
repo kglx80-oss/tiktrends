@@ -34,6 +34,14 @@ describe('Adsmap · le verdict vient d’une source unique', () => {
     expect(t, 'la table n’affiche pas « Non calculable »').toContain('Non calculable');
   });
 
+  it('Suites reçoit la comparabilité · une gagnante non prouvée ne « gagne » pas (N02)', () => {
+    // Le plan d'itération (moteur des Suites) doit consommer `comparable` · sinon
+    // un import non comparable ressort « Elle a gagné ».
+    const action = readFileSync(join(process.cwd(), 'app/actions/adsmap-iterate.ts'), 'utf8');
+    expect(action, 'le plan ne charge pas la comparabilité').toContain('comparable: schema.verdicts.comparable');
+    expect(action, 'le plan ne transmet pas la comparabilité').toContain('comparable: !!r.comparable');
+  });
+
   it('les trois écrans appliquent le verdict EFFECTIF · un gagnant non comparable est prometteuse (N02)', () => {
     // La qualification consomme la comparabilité, partout · un « winner » importé
     // sans protocole ne se compte ni ne s'affiche comme une victoire prouvée.

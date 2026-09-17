@@ -51,11 +51,16 @@ describe('gel · ce qu’une étape franchie rend acquis', () => {
 });
 
 describe('une gagnante se décline sans toucher à ce qui a gagné', () => {
-  const winner: IterationInput = { ...base, verdict: 'winner' };
+  // Une VRAIE gagnante · évaluée au protocole (comparable).
+  const winner: IterationInput = { ...base, verdict: 'winner', comparable: true };
 
   it('propose MORE', () => {
     const [p] = proposeIterations(winner);
     expect(p!.mode).toBe('more');
+  });
+
+  it('une gagnante prouvée dit « Elle a gagné »', () => {
+    expect(proposeIterations(winner)[0]!.rationale).toContain('Elle a gagné');
   });
 
   it('ne change jamais l’accroche ni l’angle', () => {
@@ -79,7 +84,26 @@ describe('une gagnante se décline sans toucher à ce qui a gagné', () => {
   });
 
   it('un gagnant naissant se décline aussi', () => {
-    expect(proposeIterations({ ...base, verdict: 'baby_winner' })[0]!.mode).toBe('more');
+    expect(proposeIterations({ ...base, verdict: 'baby_winner', comparable: true })[0]!.mode).toBe('more');
+  });
+});
+
+describe('CDC v7 · N02 · un gagnant NON prouvé ne « gagne » pas dans Suites', () => {
+  it('un gagnant NON comparable (importé/déclaré) se décline SANS crier victoire', () => {
+    // Le cas Mistakes v4 · un « winner » retenu sans protocole · on le décline
+    // (piste prometteuse), mais on ne dit jamais « Elle a gagné ».
+    const [p] = proposeIterations({ ...base, verdict: 'winner', comparable: false });
+    expect(p!.mode).toBe('more');            // déclinable · c'est une piste
+    expect(p!.edgeLegal).toBe(true);         // filiation légale
+    expect(p!.rationale, 'un import non prouvé ne doit pas crier victoire').not.toContain('Elle a gagné');
+    expect(p!.rationale.toLowerCase()).toContain('prometteuse');
+    expect(p!.rationale.toLowerCase()).toContain('protocole');
+  });
+
+  it('une gagnante relative se décline avec la même prudence', () => {
+    const [p] = proposeIterations({ ...base, verdict: 'relative_winner', comparable: false });
+    expect(p!.rationale).not.toContain('Elle a gagné');
+    expect(p!.rationale.toLowerCase()).toContain('prometteuse');
   });
 });
 
