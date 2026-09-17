@@ -120,6 +120,30 @@ describe('carte créative · N04 · le badge qualité est explicable et consulta
   });
 });
 
+describe('carte créative · N04-suite · vérifier un fait depuis la carte', () => {
+  it('un fait à vérifier propose « Vérifier » quand l’action est branchée', () => {
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, faits: [{ cle: 'temoignage', label: 'Témoignage', etat: 'a_verifier' }] });
+    const h = html({ qualite: q, initial: { qualite: true }, onVerifierFait: () => {} });
+    expect(h, 'aucun moyen de vérifier le fait').toContain('Vérifier');
+  });
+
+  it('un fait vérifié montre sa preuve · source, validateur, version', () => {
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, faits: [{ cle: 'temoignage', label: 'Témoignage', etat: 'verifiee', source: 'https://avis.example/1', validateur: 'Camille', date: '2026-09-17', version: 'v·0a1b2c3d' }] });
+    const h = html({ qualite: q, initial: { qualite: true } });
+    expect(h, 'la source consultable n’est pas là').toContain('href="https://avis.example/1"');
+    expect(h, 'le validateur manque').toContain('Camille');
+    expect(h, 'la version validée manque').toContain('v·0a1b2c3d');
+  });
+
+  it('un fait devenu caduc le dit et propose « Re-vérifier »', () => {
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, faits: [{ cle: 'offre', label: 'Offre / prix', etat: 'invalidee', source: 'ancienne source', validateur: 'Camille', date: '2026-09-01', version: 'v·ffffffff' }] });
+    const h = html({ qualite: q, initial: { qualite: true }, onVerifierFait: () => {} });
+    expect(h).toContain('validation caduque');
+    expect(h, 'la caducité n’explique pas qu’il faut re-vérifier').toContain('Le contenu a changé depuis');
+    expect(h).toContain('Re-vérifier');
+  });
+});
+
 describe('carte créative · états', () => {
   it('erreur · un pavé d’erreur, pas de média', () => {
     const h = html({ erreur: 'Aperçu indisponible pour l’instant.' });

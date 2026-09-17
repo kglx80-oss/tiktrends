@@ -21,6 +21,8 @@ import { delaiDepasse, inutileDeReessayer } from '../../lib/fal-retry';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { imageJointe } from '../../lib/image-jointe';
+import { chargerValidationsActives, faitsAvecEtat } from '../../lib/faits-preuve';
+import type { FaitControle } from '@tiktrends/core';
 
 export interface AdItem {
   id: string; template: AdTemplate; headline: string; url: string; createdAt: string;
@@ -33,6 +35,12 @@ export interface AdItem {
    * d'œil, laquelle de ces publicités dit encore ce qu'on voulait.
    */
   controle?: { copieResume: string; copieGrave: boolean; produitFidele: boolean | null; ecarts: string[]; texteLisible: boolean | null; problemesLisibilite: string[] } | null;
+  /**
+   * Les faits que la pub AFFIRME, chacun avec l'état de sa preuve (N04-suite) ·
+   * vérifié contre une source, à vérifier, ou caduc parce que le contenu a
+   * changé. Calculé côté serveur · la carte ne fait que l'afficher.
+   */
+  faits?: FaitControle[];
   /** Pourquoi Jarvis a proposé ça · une proposition muette se subit ou s'ignore. */
   rationale?: string[] | null;
   /**
@@ -1542,6 +1550,11 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
     }
   }
 
+  // Les preuves factuelles de tout le lot, en une lecture · chaque fait sera
+  // confronté au contenu ACTUEL de sa pub (une preuve qui ne colle plus au
+  // contenu ressort caduque, sans qu'on ait touché à l'enregistrement · N04-suite).
+  const validationsParGen = await chargerValidationsActives(parGen.map((g) => g.id));
+
   return parGen.map(({ id, createdAt, rec }) => {
     const suivie = !!rec.adsmapAdId;
     const v = rec.adsmapAdId ? verdictParAd.get(rec.adsmapAdId) : undefined;
@@ -1553,6 +1566,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       essai: rec.essai?.variable ?? null,
       sceneBrief: !!rec.sceneBrief?.trim(),
       controle: controleDepuisRecette(rec),
+      faits: faitsAvecEtat({ template: rec.template, headline: rec.headline, quote: rec.quote, badge: rec.badge }, validationsParGen.get(id)),
       verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre, comparable: !!v?.comparable }),
       lot: rec.lot,
       mode: rec.mode ?? undefined,

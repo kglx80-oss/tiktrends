@@ -474,6 +474,27 @@ export const generations = pgTable('generations', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * La preuve d'un fait porté par une pub générée · N04-suite.
+ *
+ * Append-only · vérifier ajoute une ligne, ne remplace jamais. La validation
+ * ACTIVE d'un couple (rendu, fait) est la plus récente. Modifier le contenu
+ * (prix, citation, référence) ne touche aucune ligne · la `signature` ne colle
+ * plus au contenu actuel, la validation devient caduque, l'historique approuvé
+ * reste intact. Ré-valider ajoute une nouvelle ligne.
+ */
+export const factValidations = pgTable('ad_fact_validations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  generationId: uuid('generation_id').notNull().references(() => generations.id, { onDelete: 'cascade' }),
+  factCle: text('fact_cle').notNull(),
+  source: text('source').notNull(),
+  signature: text('signature').notNull(),
+  version: text('version').notNull(),
+  validatedBy: uuid('validated_by').references(() => users.id, { onDelete: 'set null' }),
+  validatedAt: timestamp('validated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ latestIdx: index('ad_fact_validations_latest_idx').on(t.generationId, t.factCle, t.validatedAt) }));
+
 /* ======================= AGENT / BILLING / API ======================= */
 export const agentThreads = pgTable('agent_threads', {
   id: uuid('id').primaryKey().defaultRandom(),
