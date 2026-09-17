@@ -3,7 +3,7 @@
 import { and, count, eq, ne } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  planValidation, rejectImpact, needsRename, renameReason, planMerge,
+  planValidation, rejectImpact, needsRename, renameReason, planMerge, correspondAuNom,
   KIND_LABEL, type NodeKind, type NodeRef, type MergePersona, type MergePlan,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
@@ -52,6 +52,11 @@ export interface CurationView {
   nodes: ProposedNode[];
   /** Total par type · pour dire l'ampleur sans tout charger. */
   counts: Record<NodeKind, number>;
+  /** Combien correspondent à la recherche par type (avant la borne d'affichage). */
+  matched: Record<NodeKind, number>;
+  /** La recherche appliquée (vide = aucune) et la borne d'éléments montrés par type. */
+  q: string;
+  limit: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -157,11 +162,18 @@ async function dessous(kind: NodeKind, id: string): Promise<{ descendants: numbe
  * ses ancêtres · trier par le haut évite de valider vingt fois le même persona
  * sans s'en rendre compte.
  */
-export async function curationViewAction(): Promise<{ view?: CurationView; error?: string }> {
+export async function curationViewAction(opts?: { q?: string; limit?: number }): Promise<{ view?: CurationView; error?: string }> {
   const g = await adsmapGuard();
   if ('error' in g) return { error: g.error };
 
   try {
+    // Recherche par nom et borne d'affichage (CDC v6 · R05) · on peut atteindre
+    // le 21e élément et retrouver une variante précise par son titre, sans
+    // devoir traiter les vingt premiers. On filtre AVANT d'étendre chaque nœud
+    // (ancêtres/descendants), le travail lourd ne porte que sur ce qu'on montre.
+    const q = (opts?.q ?? '').trim();
+    const limit = Math.min(200, Math.max(1, Math.floor(opts?.limit ?? 20)));
+
     const bruts = await lireProposes(g.brand.id, g.s.workspaceId);
     const counts: Record<NodeKind, number> = {
       persona: bruts.persona.length, desire: bruts.desire.length,
@@ -170,11 +182,19 @@ export async function curationViewAction(): Promise<{ view?: CurationView; error
 
     const ordre: NodeKind[] = ['persona', 'desire', 'angle', 'concept'];
     const nodes: ProposedNode[] = [];
+    const filtres: Record<NodeKind, typeof bruts.persona> = {
+      persona: bruts.persona.filter((b) => correspondAuNom(b.label, q)),
+      desire: bruts.desire.filter((b) => correspondAuNom(b.label, q)),
+      angle: bruts.angle.filter((b) => correspondAuNom(b.label, q)),
+      concept: bruts.concept.filter((b) => correspondAuNom(b.label, q)),
+    };
+    const matched: Record<NodeKind, number> = {
+      persona: filtres.persona.length, desire: filtres.desire.length,
+      angle: filtres.angle.length, concept: filtres.concept.length,
+    };
 
     for (const kind of ordre) {
-      // Vingt par type · l'écran sert à trier, pas à tout afficher. Le compte
-      // total dit l'ampleur, et on repasse tant qu'il en reste.
-      for (const b of bruts[kind].slice(0, 20)) {
+      for (const b of filtres[kind].slice(0, limit)) {
         const parents = await ancetres(kind, b.parentId);
         const self: NodeRef = { id: b.id, kind, label: b.label, status: 'proposed' };
         const { descendants, tested } = await dessous(kind, b.id);
@@ -187,7 +207,7 @@ export async function curationViewAction(): Promise<{ view?: CurationView; error
       }
     }
 
-    return { view: { nodes, counts } };
+    return { view: { nodes, counts, matched, q, limit } };
   } catch (e) {
     return { error: logAndTranslate('adsmap:curation', e, { subject: 'les propositions à trier', workspaceId: g.s.workspaceId }) };
   }

@@ -148,3 +148,20 @@ export function renameReason(label: string): string | null {
     ? 'Trop court pour désigner quoi que ce soit six mois plus tard.'
     : 'Nom provisoire posé automatiquement · le valider tel quel ferait entrer le provisoire dans la carte définitive.';
 }
+
+/**
+ * Recherche par nom dans la population à trier · accès au 21e élément, et à une
+ * variante précise parmi quarante titres proches (CDC v6 · R05). Insensible à la
+ * casse et aux accents · une requête vide laisse tout passer.
+ *
+ * Pur : ni base, ni réseau.
+ */
+const sansAccent = (s: string): string =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+/** Vrai si `label` contient la requête `q` (casse et accents ignorés). */
+export function correspondAuNom(label: string, q: string): boolean {
+  const besoin = sansAccent(q);
+  if (!besoin) return true;
+  return sansAccent(label).includes(besoin);
+}
