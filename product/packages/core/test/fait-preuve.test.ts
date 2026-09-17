@@ -63,13 +63,27 @@ describe('etatFait · l’état d’un fait face à sa preuve et à son contenu'
 });
 
 describe('faitsPortes · ce qu’un gabarit affirme, avec sa matière', () => {
-  it('un témoignage porte sa CITATION (quote), pas l’accroche générique', () => {
-    const f = faitsPortes({ template: 'testimonial', headline: 'Avis', quote: 'Génial' });
-    expect(f).toEqual([{ cle: 'temoignage', label: 'Témoignage', contenu: 'Génial' }]);
+  it('un témoignage porte sa citation ET son accroche · les deux affirment', () => {
+    const f = faitsPortes({ template: 'testimonial', headline: 'Noté #1 par 10 000 clients', quote: 'Génial' });
+    expect(f[0]).toMatchObject({ cle: 'temoignage', label: 'Témoignage' });
+    expect(f[0]!.contenu).toContain('Génial');
+    expect(f[0]!.contenu).toContain('Noté #1 par 10 000 clients');
   });
-  it('une offre porte sa PASTILLE (badge)', () => {
-    const f = faitsPortes({ template: 'offer', headline: 'Promo', badge: '-20 %' });
-    expect(f[0]).toMatchObject({ cle: 'offre', contenu: '-20 %' });
+  it('une offre porte sa pastille ET son accroche', () => {
+    const f = faitsPortes({ template: 'offer', headline: 'Offre spéciale', badge: '-20 %' });
+    expect(f[0]!.contenu).toContain('-20 %');
+    expect(f[0]!.contenu).toContain('Offre spéciale');
+  });
+  // Le cœur du bug #2 · éditer UN champ porteur invalide, quel qu'il soit.
+  it('éditer l’accroche d’une offre CHANGE la matière signée · l’invalidation ne rate plus', () => {
+    const avant = faitsPortes({ template: 'offer', headline: 'Offre spéciale', badge: '-20 %' })[0]!.contenu;
+    const apres = faitsPortes({ template: 'offer', headline: '-50 % aujourd’hui', badge: '-20 %' })[0]!.contenu;
+    expect(signatureFait(apres)).not.toBe(signatureFait(avant));
+  });
+  it('éditer la citation d’un témoignage change aussi la matière signée', () => {
+    const avant = faitsPortes({ template: 'testimonial', headline: 'Avis', quote: 'Génial' })[0]!.contenu;
+    const apres = faitsPortes({ template: 'testimonial', headline: 'Avis', quote: 'Décevant' })[0]!.contenu;
+    expect(signatureFait(apres)).not.toBe(signatureFait(avant));
   });
   it('un gabarit qui n’affirme rien à prouver ne porte aucun fait', () => {
     expect(faitsPortes({ template: 'benefits', headline: 'Des bienfaits' })).toEqual([]);
@@ -77,5 +91,6 @@ describe('faitsPortes · ce qu’un gabarit affirme, avec sa matière', () => {
   });
   it('sans matière (contenu vide), pas de fait fantôme', () => {
     expect(faitsPortes({ template: 'stat', headline: '  ' })).toEqual([]);
+    expect(faitsPortes({ template: 'offer', headline: '  ', badge: '' })).toEqual([]);
   });
 });
