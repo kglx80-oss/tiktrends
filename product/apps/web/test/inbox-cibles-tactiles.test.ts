@@ -45,7 +45,8 @@ describe('Inbox · les gestes de la file atteignent la cible tactile', () => {
 
 describe('AdDrawer · la croix du tiroir atteint la cible', () => {
   it('adopte le seuil du noyau', () => {
-    expect(drawer).toContain("import { CIBLE_TACTILE_MIN } from '@tiktrends/core'");
+    // CIBLE_TACTILE_MIN vient du noyau · l'import peut porter d'autres symboles.
+    expect(drawer).toMatch(/import \{[^}]*\bCIBLE_TACTILE_MIN\b[^}]*\} from '@tiktrends\/core'/);
   });
 
   it('la croix n’est plus un carré de 28 px en dur', () => {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { VerdictValue, TestedVariable } from '@tiktrends/core';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, GAGNANTES_ABSOLUES } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -22,10 +22,10 @@ import { PartageGagnante } from './PartageGagnante';
  * refuse donc « ok » et demande une phrase réutilisable.
  */
 
-const VERDICT_LABEL: Record<string, string> = {
-  winner: 'Gagnante', baby_winner: 'Gagnante naissante', relative_winner: 'Gagnante (relatif)',
-  loser: 'Perdante', inconclusive: 'Non concluant', insufficient_delivery: 'Sous-diffusée',
-};
+// Libellés tirés de la source UNIQUE du noyau (CDC v6 · R01).
+const VERDICT_LABEL: Record<string, string> = Object.fromEntries(
+  (Object.keys(LIBELLE_VERDICT) as VerdictValue[]).map((k) => [k, LIBELLE_VERDICT[k].court]),
+);
 const STAGE_LABEL: Record<string, string> = { hook: 'Accroche', hold: 'Rétention', click: 'Clic', convert: 'Conversion' };
 const VARIABLE_LABEL: Record<string, string> = {
   hook: 'Hook', opening_visual: 'Visuel d’ouverture', body: 'Corps', length: 'Durée', cta: 'CTA',
@@ -114,7 +114,9 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
 
   const arbitre = d?.verdictStatus === 'validated';
   const ecart = !!d?.computed && value !== d.computed;
-  const gagnante = d && ['winner', 'baby_winner', 'relative_winner'].includes(d.validated ?? d.computed ?? '');
+  // Une relative est prometteuse, pas gagnante (R01) · elle n'active pas le
+  // traitement « gagnante ». On juge sur les verdicts évalués en absolu.
+  const gagnante = GAGNANTES_ABSOLUES.has((d?.validated ?? d?.computed) as VerdictValue);
 
   return (
     <>
