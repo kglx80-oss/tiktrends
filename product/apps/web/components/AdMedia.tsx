@@ -3,9 +3,13 @@
 import { useState } from 'react';
 import { apercuImage } from '@tiktrends/core';
 
-/** Zone média d'une créa : miniature cliquable → lecture vidéo en direct. */
-export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect = '1/1' }: {
-  mediaUrl?: string; thumbnailUrl?: string; isVideo?: boolean; daysRunning?: number; aspect?: string;
+/** Zone média d'une créa : miniature cliquable → lecture vidéo en direct.
+ *
+ *  `fit` · `cover` (défaut · vignette de veille, cadre plein) ou `contain`
+ *  (création interne · on ne rogne JAMAIS une créa qu'on a produite · elle porte
+ *  son texte et son produit, les couper les perd · marges sombres au besoin). */
+export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect = '1/1', fit = 'cover' }: {
+  mediaUrl?: string; thumbnailUrl?: string; isVideo?: boolean; daysRunning?: number; aspect?: string; fit?: 'cover' | 'contain';
 }) {
   const [playing, setPlaying] = useState(false);
   const canPlay = isVideo && !!mediaUrl;
@@ -17,7 +21,7 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
     return (
       <div style={{ position: 'relative', aspectRatio: aspect, background: '#000' }}>
         <video src={mediaUrl} poster={thumbnailUrl} controls autoPlay playsInline
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: fit }} />
       </div>
     );
   }
@@ -26,7 +30,7 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
     <>
       {poster
 
-        ? <img src={poster} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ? <img src={poster} alt="" style={{ width: '100%', height: '100%', objectFit: fit }} />
         : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
       {daysRunning != null && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>{daysRunning} j actifs</span>}
       {canPlay && (

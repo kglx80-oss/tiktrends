@@ -10,7 +10,8 @@ import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { DropZone } from '../../../../components/DropZone';
-import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
+import { RatingControl } from '../../../../components/CreativeActions';
+import { CartePub } from './CartePub';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Icon } from '../../../../components/Icon';
@@ -1097,55 +1098,32 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         />
       ) : (
         <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {pagedAds.map((a, li) => (
-            <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
-              <div style={{ position: 'relative' }}>
-                <button type="button" onClick={() => setDetailIdx(adsPage * PAGE_SIZE + li)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }}>
-                  { }
-                  {/* La pub s'affiche à son RATIO RÉEL · pas de cadre forcé à 4:5.
-                       Une composée est en 4:5, mais une entière sort du modèle en
-                       3:4 (GPT Image 2) ou 2:3 (GPT Image 1) · plus haute. Un cadre
-                       4:5 en `cover` rognait le haut et le bas de ces entières,
-                       alors que le plein écran les montre entières. On aligne la
-                       grille sur lui · `height: auto`, jamais de rognage. */}
-                  <img src={vignette(a.url)} alt={a.headline} loading="lazy" decoding="async" style={{ width: '100%', height: 'auto', display: 'block' }} />
-                </button>
-                {/* Score Jarvis · notre signature, visible directement sur la carte */}
-                {typeof a.score === 'number' && <ScoreBadge score={a.score} />}
-                {/* Le verdict du marché · gagné/perdu/en mesure, en surimpression.
-                    La prédiction est à gauche, le RÉSULTAT payé à droite · c'est
-                    lui qui décide de l'itération. */}
-                <VerdictBadge etat={a.verdict} overlay />
-              </div>
-              <div style={{ padding: '9px 11px' }}>
-                <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[a.template]}</span>
-                {/* Une déclinaison qui ne se présente pas comme telle est une créa
-                    de plus dans la grille · on la compare à l'œil au lieu de la
-                    lire comme la réponse à une question posée. */}
+          {pagedAds.map((a, li) => {
+            const idx = adsPage * PAGE_SIZE + li;
+            // Filiation et essai · une déclinaison qui ne se présente pas comme
+            // telle est une créa de plus dans la grille · on la lit alors à l'œil
+            // au lieu de la lire comme la réponse à une question posée.
+            const meta = (a.variable || a.essai) ? (
+              <>
                 {a.variable && <span style={filiation}>↳ {STUDIO_LABEL[a.variable].toLowerCase()}</span>}
                 {a.essai && <span style={{ ...filiation, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="scale" size={12} /> essai · {ESSAI_LABEL[a.essai].toLowerCase()}</span>}
-                {/* Ce que la relecture a constaté · visible SANS cliquer.
-                     Une mesure qui n'apparaît qu'après avoir payé une analyse
-                     n'est pas une mesure, c'est une archive. Rien ne s'affiche
-                     quand tout est conforme · le silence est une réponse. */}
-                <ControleBadge c={a.controle} />
-                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.headline}</p>
-                {/* Pourquoi Jarvis a proposé ça · calculé depuis la mémoire, pas
-                    rédigé par le modèle. Une proposition muette se subit ou
-                    s'ignore ; une proposition qui s'explique se conteste. */}
-                {a.rationale && a.rationale.length > 0 && (
-                  <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid var(--line)', display: 'grid', gap: 3 }}>
-                    {a.rationale.map((r, i) => (
-                      <p key={i} style={{ margin: 0, fontSize: 10.5, color: 'var(--muted)', lineHeight: 1.45 }}>{r}</p>
-                    ))}
-                  </div>
-                )}
-                <div style={{ marginTop: 8 }}>
-                  <CreativeActions genId={a.id} rating={a.rating} onOpen={() => setDetailIdx(adsPage * PAGE_SIZE + li)} downloadUrl={a.url} onArchive={() => archive(a.id)} trackable={adsmap} />
-                </div>
+              </>
+            ) : undefined;
+            // Pourquoi Jarvis l'a proposée · calculé depuis la mémoire, pas rédigé
+            // par le modèle · une proposition qui s'explique se conteste.
+            const note = a.rationale && a.rationale.length > 0 ? (
+              <div style={{ display: 'grid', gap: 3 }}>
+                {a.rationale.map((r, i) => (
+                  <p key={i} style={{ margin: 0, fontSize: 10.5, color: 'var(--muted)', lineHeight: 1.45 }}>{r}</p>
+                ))}
               </div>
-            </div>
-          ))}
+            ) : undefined;
+            return (
+              <CartePub key={a.id} ad={a} format={TPL_LABEL[a.template]} meta={meta} note={note}
+                vignetteUrl={vignette(a.url)} fullUrl={a.url}
+                onOpen={() => setDetailIdx(idx)} onArchive={() => archive(a.id)} trackable={adsmap} />
+            );
+          })}
         </div>
         <Pager page={adsPage} total={ads.length} onPage={setAdsPage} /></>
       )}
@@ -1316,52 +1294,6 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         </div>
       )}
     </div>
-  );
-}
-
-/** Pastille de Score Jarvis affichée sur la vignette d'une créa (0-100). */
-function ScoreBadge({ score }: { score: number }) {
-  const color = COULEUR_NIVEAU[niveauScore(score)];
-  // « Préd. » près du nombre · le Score Jarvis est un PRONOSTIC (hypothèse IA),
-  // pas le résultat mesuré du marché (VerdictBadge, coin opposé). Sans ce mot,
-  // deux chiffres de même allure se lisaient comme deux mesures (CDC S07).
-  return (
-    <span title={`Prédiction Jarvis · ${score}/100 · un pronostic, pas un résultat mesuré`} style={{
-      position: 'absolute', top: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
-      padding: '3px 9px', borderRadius: 999, background: 'rgba(8,5,10,.72)', border: `1px solid ${color}`,
-      color, fontSize: 11.5, fontWeight: 800, backdropFilter: 'blur(4px)',
-    }}><Icon name="sparkles" size={12} /> Préd. {score}</span>
-  );
-}
-
-/**
- * Ce que la relecture automatique a constaté, sur la carte.
- *
- * Deux constats seulement, et ils ne se valent pas · le produit d'abord, parce
- * qu'une publicité au packaging inventé est inutilisable quelle que soit sa
- * beauté ; la copie ensuite, parce qu'une accroche réécrite fait de la publicité
- * une autre publicité.
- *
- * Rien ne s'affiche quand tout va bien. Un bandeau permanent apprend à ne plus
- * lire les bandeaux, et c'est ainsi qu'un vrai raté finit par passer inaperçu.
- */
-function ControleBadge({ c }: { c: AdItem['controle'] }) {
-  if (!c) return null;
-  const produitKo = c.produitFidele === false;
-  const texteKo = c.texteLisible === false;
-  if (!produitKo && !texteKo && !c.copieResume) return null;
-  // Rouge pour l'éliminatoire · accroche réécrite, produit inventé, texte
-  // illisible. Ambre pour un écart mineur de copie qui se corrige.
-  const rouge = produitKo || texteKo || c.copieGrave;
-  return (
-    <span style={{
-      display: 'block', marginTop: 4, fontSize: 10.5, lineHeight: 1.35,
-      color: rouge ? '#ff9db0' : '#ffca6b',
-    }}>
-      {produitKo && <><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="alert" size={12} /></span>produit modifié{c.ecarts.length ? ` · ${c.ecarts[0]}` : ''}<br /></>}
-      {texteKo && <><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="alert" size={12} /></span>texte illisible{c.problemesLisibilite.length ? ` · ${c.problemesLisibilite[0]}` : ''}<br /></>}
-      {c.copieResume && <><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="pen" size={12} /></span>{c.copieResume}</>}
-    </span>
   );
 }
 

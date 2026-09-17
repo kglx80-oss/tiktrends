@@ -12,11 +12,14 @@ import { join } from 'node:path';
  * que l'utilisateur lit à côté du nombre.
  */
 const src = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
+// La pastille de prédiction vit désormais dans la carte commune, où la grille
+// Pubs IA la branche via CartePub · le libellé reste ce que l'utilisateur lit.
+const carte = readFileSync(join(process.cwd(), 'components/CarteCreative.tsx'), 'utf8');
 
 describe('AdsStudio · le Score Jarvis se dit comme un pronostic (S07)', () => {
-  it('la pastille de la vignette nomme la prédiction près du nombre', () => {
-    expect(src, 'la pastille de score n’annonce pas la prédiction').toContain('Préd. {score}');
-    expect(src, 'le survol doit rappeler que ce n’est pas une mesure').toContain('un pronostic, pas un résultat mesuré');
+  it('la pastille de l’aperçu nomme la prédiction près du nombre', () => {
+    expect(carte, 'la pastille de score n’annonce pas la prédiction').toContain('Préd. {performance.prediction}');
+    expect(carte, 'le survol doit rappeler que ce n’est pas une mesure').toContain('un pronostic, pas un résultat mesuré');
   });
 
   it('la carte détaillée étiquette le score comme un pronostic', () => {
