@@ -5,14 +5,17 @@ import { useRouter } from 'next/navigation';
 import { importBrandDAAction, saveBrandDAAction, extractBrandVisualDaAction, saveBrandVisualDaAction } from '../../../actions/brand-detail';
 import { BrandGuidelines } from '../../../../components/BrandGuidelines';
 import { Icon } from '../../../../components/Icon';
-import { costFor, daVisuelleUtile, normaliserDaVisuelle, type DaVisuelleMarque } from '@tiktrends/core';
+import { costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
 
 export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuelle = null }: { brandId: string; logoUrl: string | null; logos?: string[]; colors: string[]; fonts: string[]; daVisuelle?: DaVisuelleMarque | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [ok, setOk] = useState(true);
-  const [da, setDa] = useState<{ logoUrl: string | null; colors: string[]; fonts: string[] }>({ logoUrl, colors, fonts });
+  // Les polices déjà stockées AVANT le filtre d'icônes (S04/N09) sont nettoyées
+  // à l'affichage · une marque enrichie autrefois ne montre plus « JudgemeStar »
+  // comme police, même sans re-enrichissement.
+  const [da, setDa] = useState<{ logoUrl: string | null; colors: string[]; fonts: string[] }>({ logoUrl, colors, fonts: fonts.filter((f) => !policeTechnique(f)) });
   // Édition manuelle de la charte (mêmes contrôles que la création de marque).
   const [editing, setEditing] = useState(false);
   // Correction à la main du STYLE déduit du site (pas de dépense).

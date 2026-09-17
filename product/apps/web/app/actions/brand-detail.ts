@@ -8,7 +8,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { generateProducts, generateBrandProfile, extractVisualDa } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
 import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
-import { costFor, imageModelByKey, type DaVisuelleMarque } from '@tiktrends/core';
+import { costFor, imageModelByKey, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
@@ -287,11 +287,13 @@ export async function saveBrandDAAction(input: {
   const g = await guardBrand(input.brandId);
   if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
   const clean = (a: string[]) => (Array.isArray(a) ? a.map((x) => String(x).trim()).filter(Boolean).slice(0, 20) : []);
+  // Une fonte d'icônes n'est jamais une police de marque · on l'écarte même
+  // saisie à la main (CDC v7 · N09), pas seulement à l'extraction du site.
   await db.update(schema.brands).set({
     logoUrl: input.logoUrl.trim() || null,
     logos: clean(input.logos),
     colors: clean(input.colors),
-    fonts: clean(input.fonts),
+    fonts: clean(input.fonts).filter((f) => !policeTechnique(f)),
   }).where(eq(schema.brands.id, input.brandId));
   return { ok: true };
 }

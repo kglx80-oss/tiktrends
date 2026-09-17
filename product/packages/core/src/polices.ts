@@ -20,10 +20,13 @@
 
 /**
  * Familles de fontes techniques reconnues à leur nom. On couvre les librairies
- * d'icônes courantes et les marqueurs génériques (icon, glyph, webfont).
+ * d'icônes courantes, les marqueurs génériques (icon, glyph, webfont) ET les
+ * fontes d'icônes de widgets/plugins fréquentes sur les sites e-commerce, dont
+ * certaines ne portent PAS « icon » dans leur nom · « JudgemeStar » (étoiles
+ * d'avis Judge.me) remontait ainsi comme police de marque (CDC v7 · N09).
  */
 const POLICE_TECHNIQUE =
-  /(icon|glyph|font.?awesome|material.?(icons|symbols)|icomoon|fontello|ionicons|themify|dashicons|bootstrap.?icons|feather|-?webfont)/i;
+  /(icon|glyph|font.?awesome|material.?(icons|symbols)|icomoon|fontello|ionicons|themify|dashicons|bootstrap.?icons|feather|-?webfont|judgeme|swiper|slick|select2|elementor|eicons)/i;
 
 /**
  * Vrai si `nom` désigne une fonte d'icônes/glyphes, à écarter des polices de
