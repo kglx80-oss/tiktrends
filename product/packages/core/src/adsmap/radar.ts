@@ -284,6 +284,19 @@ export function radarDigest(findings: RadarFinding[], deferred = 0): string {
   return `${socle} ${tete.headline}${reste}`;
 }
 
+/**
+ * Le message quand la récolte ne rend AUCUNE créa · « rien de neuf » et
+ * « collecte échouée » ne sont pas la même chose (CDC v7 · N10). Si des lectures
+ * ont été TENTÉES et qu'AUCUNE n'a abouti, la source n'a pas répondu · on ne
+ * conclut pas à l'absence de nouveauté sur un échec technique.
+ */
+export function messageCollecteVide(o: { tentees: number; reussites: number }): string {
+  if (o.tentees > 0 && o.reussites === 0) {
+    return 'Collecte incomplète cette nuit · la source n’a pas répondu · rien n’a pu être regardé (ce n’est pas « rien de neuf »).';
+  }
+  return 'Aucune créa concurrente lisible cette nuit.';
+}
+
 /** Titre d'une trouvaille · dit le fait, pas l'étiquette. */
 export function findingHeadline(f: Omit<RadarFinding, 'headline'>): string {
   const qui = f.advertiser ?? 'Un concurrent';

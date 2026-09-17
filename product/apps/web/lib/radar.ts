@@ -5,7 +5,7 @@ import { testedKeys } from './milestones';
 import { analyzeAdAsset } from '@tiktrends/ai';
 import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, type InspoAd } from '@tiktrends/integrations';
 import {
-  selectForAnalysis, radarDigest, findingHeadline, estimateCost,
+  selectForAnalysis, radarDigest, messageCollecteVide, findingHeadline, estimateCost,
   normalizeAnalysis, majSurvie,
   type RadarCandidate, type RadarFinding, type RadarSignal,
 } from '@tiktrends/core';
@@ -86,8 +86,11 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
     return { ...vide, digest: 'Aucun concurrent suivi · le radar n’a rien à surveiller.' };
   }
 
-  // 1 · Récolte · gratuite.
+  // 1 · Récolte · gratuite. On compte les lectures TENTÉES et RÉUSSIES · sans ça,
+  // « toutes les lectures ont échoué » se confondait avec « rien de neuf » (N10).
   const ads: InspoAd[] = [];
+  let tentees = 0;
+  let reussites = 0;
   for (const s of suivies) {
     // Meta ET TikTok · le produit est TikTok-first, le radar ne peut pas rester
     // borgne. La sélection (`survivalSignal`) ne retient QUE ce qui porte un
@@ -95,6 +98,7 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
     // est donc ignorée GRATIS, jamais analysée à perte. Le budget est protégé par
     // la même barrière qu'avant, quelle que soit la plateforme.
     if (s.platform !== 'meta' && s.platform !== 'tiktok') continue;
+    tentees++;
     try {
       const r = s.platform === 'tiktok'
         ? await ttSearchTikTok({ apiKey }, { search: s.name, type: 'ad', sortBy: 'longestRunning', limit: PER_BRAND })
@@ -102,10 +106,13 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
             search: s.name, searchIn: 'brand', status: 'active',
             sortBy: 'longestRunning', order: 'desc', limit: PER_BRAND, offset: 0,
           });
+      reussites++;
       ads.push(...r.ads);
     } catch { /* un concurrent en échec n'arrête pas les autres */ }
   }
-  if (!ads.length) return { ...vide, digest: 'Aucune créa concurrente lisible cette nuit.' };
+  // « Rien vu » vs « rien n'a répondu » · un échec total de collecte n'est pas
+  // une absence de nouveauté (N10).
+  if (!ads.length) return { ...vide, digest: messageCollecteVide({ tentees, reussites }) };
 
   // 2 · Ce qu'on sait déjà · évite de repayer une description.
   const ids = ads.map((a) => a.id).filter(Boolean);
