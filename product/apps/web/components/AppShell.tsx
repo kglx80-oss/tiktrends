@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
@@ -106,7 +106,9 @@ function NavLink({ it, active, inPath = false, onClick }: {
   );
   return disabled
     ? <div title={it.locked ? 'Nécessite un abonnement supérieur' : 'Bientôt disponible'}>{inner}</div>
-    : <Link href={it.href} onClick={onClick} style={{ textDecoration: 'none' }}>{inner}</Link>;
+    // Le lien actif s'annonce · un lecteur d'écran doit savoir « je suis ici »
+    // autrement que par la teinte (CDC v7 · N08).
+    : <Link href={it.href} onClick={onClick} aria-current={active ? 'page' : undefined} style={{ textDecoration: 'none' }}>{inner}</Link>;
 }
 
 interface Branch { head: NavItem; subs: NavItem[] }
@@ -156,7 +158,7 @@ function NavBranch({ b, isActive, inPath, open, onToggle, onOpen }: {
         <div style={{ flex: 1, minWidth: 0 }}>
           <NavLink it={b.head} active={headActive} inPath={headInPath} onClick={onOpen} />
         </div>
-        <button type="button" onClick={onToggle} aria-label={open ? 'Replier' : 'Déplier'} aria-expanded={open} style={{
+        <button type="button" onClick={onToggle} aria-label={`${open ? 'Replier' : 'Déplier'} ${b.head.label}`} aria-expanded={open} style={{
           width: 26, height: 26, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           border: 'none', background: 'transparent', color: headInPath || headActive ? 'var(--ink-2)' : 'var(--muted)', cursor: 'pointer', borderRadius: 8,
         }}>
@@ -202,9 +204,24 @@ function AppShellInner(props: Props) {
   // Sur écran étroit, le rail sort du flux en tiroir · un hamburger l'ouvre.
   const mobile = useIsMobile();
   const [drawer, setDrawer] = useState(false);
+  // Le contrat de navigation mobile (CDC v7 · N08) · le déclencheur et le tiroir
+  // se répondent · Escape ferme, le focus entre dans le tiroir à l'ouverture et
+  // revient au déclencheur à la fermeture.
+  const burgerRef = useRef<HTMLButtonElement | null>(null);
+  const railRef = useRef<HTMLElement | null>(null);
+  const fermerTiroir = () => { setDrawer(false); burgerRef.current?.focus(); };
   // On referme le tiroir dès qu'on navigue · sinon il masque la page qu'on vient
   // d'ouvrir.
   useEffect(() => { setDrawer(false); }, [pathname]);
+  // Tiroir ouvert · Escape ferme (et rend le focus au déclencheur), et le focus
+  // entre dans le panneau · au clavier seul, on n'est jamais coincé au bouton.
+  useEffect(() => {
+    if (!drawer) return;
+    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') fermerTiroir(); };
+    document.addEventListener('keydown', surTouche);
+    railRef.current?.querySelector<HTMLElement>('a,button')?.focus();
+    return () => document.removeEventListener('keydown', surTouche);
+  }, [drawer]);
   const chrome = chromeCoquille({ mobile, collapsed, drawerOuvert: drawer });
   // Écrans récents · pour reprendre une tâche d'un raccourci. Mémorisés par
   // navigateur · l'écran courant passe en tête à chaque navigation.
@@ -298,7 +315,11 @@ function AppShellInner(props: Props) {
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
-      <aside style={{
+      <aside ref={railRef} id="nav-rail"
+        // En tiroir (mobile), le rail est une fenêtre modale nommée · le lecteur
+        // d'écran l'annonce comme telle et sait qu'elle recouvre la page.
+        {...(chrome.railTiroir ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': 'Navigation' } : {})}
+        style={{
         background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column',
         padding: collapsed ? '16px 10px' : '16px 12px', top: 0, height: '100vh',
         // Desktop : rail collé, inchangé. Mobile : tiroir hors-flux, glissé hors
@@ -529,7 +550,7 @@ function AppShellInner(props: Props) {
 
       {/* Voile du tiroir mobile · referme le rail quand on clique à côté. */}
       {chrome.voile && (
-        <div onClick={() => setDrawer(false)} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(0,0,0,.5)' }} />
+        <div onClick={fermerTiroir} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(0,0,0,.5)' }} />
       )}
 
       <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
@@ -537,7 +558,7 @@ function AppShellInner(props: Props) {
             l'ouvrir · et le logo garde son retour à l'accueil. */}
         {chrome.hamburger && (
           <div style={{ position: 'sticky', top: 0, zIndex: 70, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--rail)', borderBottom: '1px solid var(--line)' }}>
-            <button type="button" onClick={() => setDrawer(true)} aria-label="Ouvrir le menu" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
+            <button ref={burgerRef} type="button" onClick={() => setDrawer((o) => !o)} aria-label={drawer ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={drawer} aria-controls="nav-rail" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
             </button>
             <Link href="/dashboard" aria-label="Accueil" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>

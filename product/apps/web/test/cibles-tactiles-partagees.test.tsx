@@ -46,9 +46,11 @@ describe('Cibles tactiles · composants partagés', () => {
 
   it('le bouton du menu mobile (hamburger) atteint la cible', () => {
     const shell = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
-    const i = shell.indexOf('aria-label="Ouvrir le menu"');
+    // Le hamburger se repère à sa cible de panneau · son libellé varie désormais
+    // avec l'état ouvert/fermé (CDC v7 · N08).
+    const i = shell.indexOf('aria-controls="nav-rail"');
     expect(i, 'le hamburger est introuvable').toBeGreaterThan(-1);
-    const style = shell.slice(i, i + 200);
+    const style = shell.slice(i, i + 220);
     expect(style, 'le bouton d’ouverture du menu mobile est sous la cible')
       .toContain('width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN');
   });
