@@ -136,7 +136,10 @@ export function Lots({ batches, brandName }: {
               <Ligne label="Campagne" valeur={detail.brief.campaignName} onCopy={() => copier(detail.brief.campaignName, 'camp')} copie={copie === 'camp'} />
               <Ligne label="Structure" valeur={detail.brief.structure} />
               <Ligne label="Audience" valeur={detail.brief.audienceRule} />
-              <Ligne label="Budget" valeur={`${detail.brief.dailyBudgetPerAd} €/jour/ad · ${detail.brief.durationDays} jours · ${detail.brief.totalBudget} € engagés au total`} />
+              {/* Budget PRÉVU, pas engagé · ce lot est un brief à recopier dans
+                  Meta, il ne dépense rien (CDC v6 · R04 · une dépense future
+                  n'est pas une dépense engagée). */}
+              <Ligne label="Budget" valeur={`${detail.brief.dailyBudgetPerAd} €/jour/ad · ${detail.brief.durationDays} jours · ${detail.brief.totalBudget} € prévus au total`} />
               <p style={{
                 margin: '10px 0 0', fontSize: 12, lineHeight: 1.55,
                 color: detail.brief.conclusiveness.startsWith('Attention') ? '#ffcf8f' : 'var(--muted)',

@@ -77,7 +77,8 @@ export interface BatchDetail {
     dailyBudgetPerAd: number;
     durationDays: number;
     audienceRule: string;
-    /** Budget total engagé si le lot part tel quel · le chiffre qui fait réfléchir. */
+    /** Budget total PRÉVU si le lot part tel quel · rien n'est dépensé tant que
+     *  le lot n'est pas lancé dans Meta · le chiffre qui fait réfléchir. */
     totalBudget: number;
     /** Ce que le lot pourra conclure, compte tenu des seuils de la marque. */
     conclusiveness: string;
