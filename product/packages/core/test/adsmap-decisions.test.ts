@@ -134,7 +134,14 @@ describe('summarizeDecisions', () => {
     expect(summarizeDecisions(d)).toContain('200 €');
   });
 
-  it('dit clairement quand il n’y a rien à faire', () => {
+  it('dit clairement quand il n’y a rien à faire (mesures présentes ou inconnues)', () => {
     expect(summarizeDecisions([])).toContain('Rien à décider');
+    expect(summarizeDecisions([], { aDesMesures: true })).toContain('Rien à décider');
+  });
+
+  it('une file vide SANS aucune mesure ne garantit pas l’absence de risque (R03)', () => {
+    const s = summarizeDecisions([], { aDesMesures: false });
+    expect(s).toContain('Aucune décision dans les données disponibles');
+    expect(s, 'ne doit pas prétendre que rien ne brûle sans mesure').not.toContain('rien ne brûle');
   });
 });
