@@ -6,12 +6,13 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type EtatVerdictCarte, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { DropZone } from '../../../../components/DropZone';
 import { RatingControl } from '../../../../components/CreativeActions';
 import { CartePub } from './CartePub';
+import { BarreFiltresGalerie } from '../../../../components/BarreFiltresGalerie';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Icon } from '../../../../components/Icon';
@@ -180,6 +181,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [notice, setNotice] = useState('');
   const [ads, setAds] = useState<AdItem[]>(initial);
   const [adsPage, setAdsPage] = useState(0);
+  // Les critères de la barre de filtres locale · N06 (tranche 2). Un changement
+  // ramène à la première page · sinon on tombe sur une page vide du sous-ensemble.
+  const [criteres, setCriteres] = useState<CriteresGalerie>(CRITERES_DEFAUT);
   // La grille est en bas de page · on y amène le regard quand un lot arrive.
   const grille = useRef<HTMLDivElement>(null);
   const composeur = useRef<HTMLDivElement>(null);
@@ -203,7 +207,23 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * chemin rapide punit celui qui savait déjà.
    */
   const [assistant, setAssistant] = useState(false);
-  const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
+  // La galerie filtrée · on réduit chaque pub à ses axes discrets (le noyau ne
+  // connaît pas `AdItem`), on filtre/trie, puis on rétablit les cartes dans
+  // l'ordre. Le détail, lui, s'ouvre PAR ID sur la liste complète · filtrer la
+  // vue ne casse pas la navigation précédent/suivant.
+  const bucketPerf = (v?: EtatVerdictCarte | null): 'gagnante' | 'en_mesure' | 'inconnue' | 'autre' =>
+    v == null ? 'inconnue' : v === 'en_mesure' ? 'en_mesure' : (v === 'gagnante' || v === 'petite_gagnante') ? 'gagnante' : 'autre';
+  const bucketQualite = (a: AdItem) => {
+    const q = qualiteCarte({ ...(a.controle ?? {}), faits: a.faits ?? [] });
+    return !q.verifie ? 'non_verifiee' as const : q.pretADiffuser ? 'prete' as const : q.niveau === 'bloquant' ? 'a_revoir' as const : 'a_verifier' as const;
+  };
+  const parId = new Map(ads.map((a) => [a.id, a]));
+  const adsFiltrees = filtrerTriGalerie(
+    ads.map((a) => ({ id: a.id, titre: a.headline, format: a.template, date: a.createdAt, qualite: bucketQualite(a), performance: bucketPerf(a.verdict) })),
+    criteres,
+  ).map((it) => parId.get(it.id)!);
+  const formatsPresents = [...new Set(ads.map((a) => a.template))];
+  const pagedAds = adsFiltrees.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -1110,9 +1130,26 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         // à cheval sur deux pages (CDC v7 · N06).
         const homonymes = idsHomonymes(ads.map((a) => ({ id: a.id, titre: a.headline })));
         return (
-        <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {pagedAds.map((a, li) => {
-            const idx = adsPage * PAGE_SIZE + li;
+        <>
+          <BarreFiltresGalerie
+            criteres={criteres}
+            onChange={(c) => { setCriteres(c); setAdsPage(0); }}
+            formats={formatsPresents}
+            formatLabel={(f) => TPL_LABEL[f as keyof typeof TPL_LABEL] ?? f}
+            nGarde={adsFiltrees.length}
+            nTotal={ads.length}
+          />
+          {adsFiltrees.length === 0 ? (
+            <Empty
+              tone="wait" title="Aucune pub ne correspond à ces filtres."
+              why="Élargis la recherche ou efface les filtres pour retrouver tes pubs."
+            />
+          ) : (
+          <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          {pagedAds.map((a) => {
+            // Le détail s'ouvre par ID sur la liste COMPLÈTE · filtrer la vue ne
+            // déplace pas la navigation précédent/suivant.
+            const idx = ads.findIndex((x) => x.id === a.id);
             // Un distingueur seulement quand le titre se confond · date + heure,
             // toujours différentes d'une génération à l'autre.
             const sousTitre = homonymes.has(a.id)
@@ -1142,8 +1179,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 onOpen={() => setDetailIdx(idx)} onArchive={() => archive(a.id)} trackable={adsmap} />
             );
           })}
-        </div>
-        <Pager page={adsPage} total={ads.length} onPage={setAdsPage} /></>
+          </div>
+          <Pager page={adsPage} total={adsFiltrees.length} onPage={setAdsPage} /></>
+          )}
+        </>
         );
         })()
       )}
