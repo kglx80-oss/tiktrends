@@ -140,4 +140,40 @@ describe('qualiteCarte · N04 · validation factuelle et approbation, distinctes
     expect(q.pretADiffuser).toBe(true);
     expect(q.factuel.faits).toHaveLength(0);
   });
+
+  // Le badge VERT « Prête à diffuser » doit suivre `pretADiffuser`, pas le seul
+  // « rien en réserve ». Sinon un fait vérifié (ou une approbation) SANS relecture
+  // technique repeignait la carte en vert, contredit par le studio · régression N04.
+  it('un fait vérifié SANS relecture technique n\'est PAS « Prête à diffuser » (le vert suit pretADiffuser)', () => {
+    const q = qualiteCarte({ faits: [{ cle: 'temoignage', label: 'Témoignage', etat: 'verifiee', source: 'avis client' }] });
+    expect(q.technique.fait, 'aucune relecture technique n\'a eu lieu').toBe(false);
+    expect(q.pretADiffuser).toBe(false);
+    expect(q.reserves).toHaveLength(0);
+    // Le libellé et le ton ne mentent pas · on annonce le contrôle qui manque.
+    expect(q.libelle).toBe('Contrôle technique à faire');
+    expect(q.ton).not.toBe('bon');
+  });
+
+  it('une approbation humaine seule ne suffit pas au vert « Prête à diffuser »', () => {
+    const q = qualiteCarte({ approbation: { par: 'Camille' } });
+    expect(q.verifie).toBe(true);
+    expect(q.pretADiffuser).toBe(false);
+    expect(q.libelle).toBe('Contrôle technique à faire');
+    expect(q.ton).not.toBe('bon');
+  });
+
+  it('le VERT et pretADiffuser ne divergent jamais · le seul « bon » est « prête »', () => {
+    const cas: ControleCarte[] = [
+      { faits: [{ cle: 'x', label: 'Témoignage', etat: 'verifiee', source: 's' }] },
+      { approbation: { par: 'Alex' } },
+      { produitFidele: true, texteLisible: true },
+      { produitFidele: true, texteLisible: true, faits: [{ cle: 'x', label: 'Offre', etat: 'a_verifier' }] },
+      { produitFidele: false },
+    ];
+    for (const c of cas) {
+      const q = qualiteCarte(c);
+      expect(q.ton === 'bon', JSON.stringify(c)).toBe(q.pretADiffuser);
+      expect(q.libelle === 'Prête à diffuser', JSON.stringify(c)).toBe(q.pretADiffuser);
+    }
+  });
 });

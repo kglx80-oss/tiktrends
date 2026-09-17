@@ -216,17 +216,29 @@ export function qualiteCarte(controle?: ControleCarte | null): QualiteCarte {
   const bloquant = techBloquant || invalides > 0;
   const niveau: NiveauQualite = bloquant ? 'bloquant' : reserves.length ? 'suspicion' : 'ok';
 
+  // Prête = la relecture technique a eu lieu et ne relève rien, ET aucun fait
+  // n'est ouvert (à vérifier ou caduc). Un fait non vérifié suffit à retenir.
+  const pretADiffuser = techniqueFait && niveauTech === 'ok' && aVerifier === 0 && invalides === 0;
+
   const n = reserves.length;
   const pluriel = n > 1 ? 's' : '';
+  // Le VERT « Prête à diffuser » suit EXACTEMENT `pretADiffuser`, jamais le seul
+  // fait « rien en réserve ». Sans cette égalité, un fait vérifié seul (ou une
+  // approbation humaine) sans relecture technique affichait un vert mensonger,
+  // contredit par le studio qui, lui, lit `pretADiffuser` · c'est la régression
+  // N04 ressortie. Quand rien n'est en réserve mais que la relecture technique
+  // n'a pas eu lieu, on le DIT au lieu de conclure.
   const libelle = !verifie
     ? 'Qualité non vérifiée'
     : bloquant
       ? `À revoir · ${n} point${pluriel}`
       : n
         ? `${n} point${pluriel} à vérifier`
-        : 'Prête à diffuser';
+        : pretADiffuser
+          ? 'Prête à diffuser'
+          : 'Contrôle technique à faire';
 
-  const ton: TonQualite = !verifie ? 'inconnu' : bloquant ? 'bloquant' : n ? 'attention' : 'bon';
+  const ton: TonQualite = !verifie ? 'inconnu' : bloquant ? 'bloquant' : n ? 'attention' : pretADiffuser ? 'bon' : 'attention';
 
   return {
     verifie,
@@ -234,9 +246,7 @@ export function qualiteCarte(controle?: ControleCarte | null): QualiteCarte {
     points: pointsTech,
     libelle,
     ton,
-    // Prête = la relecture technique a eu lieu et ne relève rien, ET aucun fait
-    // n'est ouvert (à vérifier ou caduc). Un fait non vérifié suffit à retenir.
-    pretADiffuser: techniqueFait && niveauTech === 'ok' && aVerifier === 0 && invalides === 0,
+    pretADiffuser,
     // Les suspicions techniques sortent d'une relecture automatique.
     automatique: pointsTech.length > 0,
     technique,
