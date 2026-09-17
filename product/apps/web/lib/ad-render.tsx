@@ -159,7 +159,7 @@ export interface AdRecipe {
  * Un test relie ce numéro au contenu réel du fichier : le modifier sans
  * l'incrémenter fait échouer la suite.
  */
-export const RENDER_VERSION = 8;
+export const RENDER_VERSION = 9;
 
 const LARGEUR_MAQUETTE = 1080;
 let ECHELLE = 1;
@@ -762,13 +762,26 @@ function element(r: AdRecipe) {
 /**
  * Une publicité produite entière · on ne fait que la poser dans le cadre.
  *
- * Le `cover` reste nécessaire : le modèle rend le rapport demandé, mais on
- * publie aussi en 1:1 et en 9:16, et une pub déformée se voit tout de suite.
+ * ── Pourquoi on la CONTIENT, sans jamais la rogner ───────────────────────────
+ *
+ * Une entière porte ses mots, son CTA et son produit DANS ses pixels · sa vraie
+ * proportion (3:4, 2:3) vit dans l'image, pas dans la recette (aucune dimension
+ * n'y est consignée). La caler en `cover` sur un cadre qui n'est pas le sien —
+ * un aperçu 9:16, une vignette 4:5 — remplit le cadre en COUPANT le haut et le
+ * bas · l'accroche, le CTA ou le produit disparaissent, et la découpe se
+ * présente à tort comme une adaptation réussie. C'est le défaut reproduit.
+ *
+ * On la CONTIENT donc · quel que soit le cadre, l'image reste entière à son
+ * ratio, des marges sombres comblent l'écart. Consulter une entière montre
+ * toujours toute la création, jamais un recadrage implicite · l'aperçu et le
+ * fichier exporté sortent du même rendu, donc identiques. Les marges sont le
+ * prix d'une consultation fidèle · une VRAIE recomposition d'une entière
+ * demanderait de régénérer par le modèle (chemin payant, non déclenché ici).
  */
 function PubEntiere({ r }: { r: AdRecipe }) {
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', background: DARK, overflow: 'hidden' }}>
-      <Bg url={r.sceneUrl} />
+    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: DARK, overflow: 'hidden' }}>
+      <img src={r.sceneUrl} alt="" width={1080} height={1350} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', display: 'flex' }} />
     </div>
   );
 }
