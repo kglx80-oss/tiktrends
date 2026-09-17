@@ -36,11 +36,17 @@ export interface ActionCarte {
   disabled?: boolean;
   /** Infobulle · et, pour un bouton-icône, complète le nom accessible. */
   hint?: string;
+  /** L'accent visuel de l'action principale · « neutre » pour « Ouvrir », qui ne
+   *  doit plus rivaliser avec le visuel (CDC v7 · N06). Défaut · accentué. */
+  variant?: 'accent' | 'neutre';
 }
 
 export interface CarteCreativeProps {
   media: { url?: string | null; thumbUrl?: string | null; isVideo?: boolean; aspect?: string; fit?: 'cover' | 'contain' };
   titre: string;
+  /** Un distingueur sous le titre · date ou variante, quand un titre est partagé
+   *  par une autre carte (CDC v7 · N06). Absent quand le titre est unique. */
+  sousTitre?: string;
   /** Le petit cartouche du haut · gabarit, type, format. */
   format?: string;
   /** Infos secondaires en chips · filiation, essai. Reviennent à la ligne. */
@@ -83,7 +89,7 @@ const carte: CSSProperties = {
 const labelZone: CSSProperties = { fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' };
 
 export function CarteCreative(props: CarteCreativeProps) {
-  const { media, titre, format, meta, note, onApercu, pertinence, qualite, performance, onVerifierFait, verifEnCours, erreurVerif, actionPrincipale, actionsSecondaires = [], chargement, erreur, initial } = props;
+  const { media, titre, sousTitre, format, meta, note, onApercu, pertinence, qualite, performance, onVerifierFait, verifEnCours, erreurVerif, actionPrincipale, actionsSecondaires = [], chargement, erreur, initial } = props;
 
   if (chargement) return <SqueletteCarte aspect={media.aspect} />;
 
@@ -121,6 +127,9 @@ export function CarteCreative(props: CarteCreativeProps) {
           </div>
         )}
         <h3 title={titre} style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minWidth: 0, wordBreak: 'break-word' }}>{titre}</h3>
+        {/* Le distingueur des homonymes · deux titres identiques ne se confondent
+            plus (CDC v7 · N06). */}
+        {sousTitre && <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', marginTop: -2 }}>{sousTitre}</span>}
         {note && <div style={{ minWidth: 0 }}>{note}</div>}
 
         {/* Trois signaux DISTINCTS · un vote ne vaut pas une qualité, une qualité
@@ -324,12 +333,17 @@ function ZonePerformance({ verdict }: { verdict?: EtatVerdictCarte | null }) {
 }
 
 function ActionPrincipale({ a }: { a: ActionCarte }) {
+  // « Ouvrir » se pose en NEUTRE · un cadre sobre qui ne rivalise pas avec le
+  // visuel · l'accent reste pour l'action de création (CDC v7 · N06).
+  const neutre = a.variant === 'neutre';
   const style: CSSProperties = {
     flex: 1, minWidth: 0, minHeight: CIBLE_TACTILE_MIN,
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-    padding: '8px 12px', borderRadius: 10, border: 'none', cursor: a.disabled ? 'default' : 'pointer',
-    background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 12.5, fontWeight: 800,
-    textDecoration: 'none', opacity: a.disabled ? 0.55 : 1,
+    padding: '8px 12px', borderRadius: 10, cursor: a.disabled ? 'default' : 'pointer',
+    fontSize: 12.5, fontWeight: neutre ? 700 : 800, textDecoration: 'none', opacity: a.disabled ? 0.55 : 1,
+    ...(neutre
+      ? { border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink-2)' }
+      : { border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)' }),
   };
   const inner = (
     <>

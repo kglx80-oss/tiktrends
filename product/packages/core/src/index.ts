@@ -31,6 +31,7 @@ export * from './adsmap/verdict';
 export * from './adsmap/verdict-carte';
 export * from './adsmap/verdict-libelle';
 export * from './adsmap/fait-preuve';
+export * from './carte-homonymes';
 export * from './adsmap/calibration-score';
 export * from './adsmap/ai-budget';
 export * from './adsmap/sheet';

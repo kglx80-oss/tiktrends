@@ -18,9 +18,11 @@ import type { AdItem } from '../../../actions/ads';
  * qualité (relecture automatique · `qualiteCarte`), performance (verdict marché).
  * L'aperçu ne rogne jamais une créa qu'on a produite (`fit="contain"`).
  */
-export function CartePub({ ad, format, meta, note, vignetteUrl, fullUrl, onOpen, onArchive, trackable }: {
+export function CartePub({ ad, format, sousTitre, meta, note, vignetteUrl, fullUrl, onOpen, onArchive, trackable }: {
   ad: AdItem;
   format: string;
+  /** Distingueur des titres homonymes (variante/date) · calculé sur tout le lot. */
+  sousTitre?: string;
   meta?: ReactNode;
   note?: ReactNode;
   vignetteUrl: string;
@@ -78,6 +80,7 @@ export function CartePub({ ad, format, meta, note, vignetteUrl, fullUrl, onOpen,
     <CarteCreative
       media={{ url: vignetteUrl, aspect: '4 / 5', fit: 'contain' }}
       titre={ad.headline}
+      sousTitre={sousTitre}
       format={format}
       meta={meta}
       note={note}
@@ -88,7 +91,7 @@ export function CartePub({ ad, format, meta, note, vignetteUrl, fullUrl, onOpen,
       onVerifierFait={verifier}
       verifEnCours={enVerif}
       erreurVerif={erreurVerif}
-      actionPrincipale={{ cle: 'ouvrir', label: 'Ouvrir', icon: 'frame', onClick: onOpen }}
+      actionPrincipale={{ cle: 'ouvrir', label: 'Ouvrir', icon: 'frame', onClick: onOpen, variant: 'neutre' }}
       actionsSecondaires={secondaires}
     />
   );

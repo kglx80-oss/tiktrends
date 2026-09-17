@@ -144,6 +144,27 @@ describe('carte créative · N04-suite · vérifier un fait depuis la carte', ()
   });
 });
 
+describe('carte créative · N06 · Ouvrir neutre + titres homonymes distingués', () => {
+  it('« Ouvrir » en variante neutre ne porte pas l’accent (ne rivalise pas avec le visuel)', () => {
+    const neutre = html({ actionPrincipale: { cle: 'ouvrir', label: 'Ouvrir', icon: 'frame', onClick: () => {}, variant: 'neutre' } });
+    expect(neutre, 'l’action « Ouvrir » garde un fond accentué').not.toContain('var(--grad-accent)');
+    expect(neutre, 'l’action neutre n’a pas de cadre sobre').toContain('var(--line-2)');
+    // Par défaut (sans variante), l’action principale reste accentuée.
+    const accent = html({ actionPrincipale: { cle: 'creer', label: 'Créer', onClick: () => {} } });
+    expect(accent).toContain('var(--grad-accent)');
+  });
+
+  it('un sous-titre distingue deux titres homonymes', () => {
+    const h = html({ titre: 'Ma piscine', sousTitre: '17/09 · 14:32' });
+    expect(h, 'le distingueur des homonymes n’apparaît pas').toContain('17/09 · 14:32');
+  });
+
+  it('sans homonyme, aucun sous-titre n’est ajouté', () => {
+    const h = html({ titre: 'Ma piscine' });
+    expect(h).not.toContain('17/09');
+  });
+});
+
 describe('carte créative · états', () => {
   it('erreur · un pavé d’erreur, pas de média', () => {
     const h = html({ erreur: 'Aperçu indisponible pour l’instant.' });
