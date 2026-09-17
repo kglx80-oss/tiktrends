@@ -26,9 +26,9 @@ export interface DefOnglet {
  * gardées est l'usage principal · la découverte et l'analyse passent après.
  */
 export const ONGLETS_SAUVEGARDES: readonly DefOnglet[] = [
-  { cle: 'creations', label: 'Créations', description: 'Les créas que tu as gardées · retrouve, filtre et range tes inspirations.', icone: 'bookmark' },
-  { cle: 'marques', label: 'Marques suivies', description: 'Les concurrents que tu surveilles.', icone: 'radar' },
-  { cle: 'nouveautes', label: 'Nouveautés', description: 'Les nouvelles pubs repérées chez tes marques suivies.', icone: 'spark' },
+  { cle: 'creations', label: 'Créations sauvegardées', description: 'Les créas que tu as gardées · retrouve-les, filtre-les, range-les en collections.', icone: 'bookmark' },
+  { cle: 'marques', label: 'Concurrents suivis', description: 'Les concurrents que tu surveilles · une collection de sources choisies, pas une recherche.', icone: 'radar' },
+  { cle: 'nouveautes', label: 'Nouveautés', description: 'Ton espace de suivi · les nouvelles pubs repérées chez tes concurrents suivis.', icone: 'spark' },
 ] as const;
 
 /** L'onglet qui s'ouvre par défaut · l'usage principal, pas la découverte. */

@@ -17,7 +17,7 @@ describe('la barre d’onglets de Sauvegardes', () => {
 
   it('nomme les trois espaces et porte leurs compteurs', () => {
     const h = html('creations');
-    for (const label of ['Créations', 'Marques suivies', 'Nouveautés']) expect(h).toContain(label);
+    for (const label of ['Créations sauvegardées', 'Concurrents suivis', 'Nouveautés']) expect(h).toContain(label);
     expect(h).toContain('>12<'); // compteur créations
     expect(h).toContain('>3<');
     expect(h).toContain('>2<');
