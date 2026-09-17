@@ -9,7 +9,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { BRAND_COOKIE } from '../../lib/brands';
 import { generateBrandProfile, type BrandProfileDraft } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
-import { costFor } from '@tiktrends/core';
+import { costFor, policeTechnique } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { discoverShopify } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
@@ -95,7 +95,7 @@ export async function createBrandAction(formData: FormData): Promise<void> {
     tone: norm(formData.get('tone')) || null,
     industryTags: commas(formData.get('industryTags')),
     colors: commas(formData.get('colors')),
-    fonts: commas(formData.get('fonts')),
+    fonts: commas(formData.get('fonts')).filter((f) => !policeTechnique(f)),
     preferredWords: commas(formData.get('preferredWords')),
     avoidWords: commas(formData.get('avoidWords')),
     competitors: lines(formData.get('competitors')),
@@ -191,7 +191,7 @@ export async function updateBrandAction(formData: FormData): Promise<void> {
     tone: norm(formData.get('tone')) || null,
     industryTags: commas(formData.get('industryTags')),
     colors: commas(formData.get('colors')),
-    fonts: commas(formData.get('fonts')),
+    fonts: commas(formData.get('fonts')).filter((f) => !policeTechnique(f)),
     preferredWords: commas(formData.get('preferredWords')),
     avoidWords: commas(formData.get('avoidWords')),
     competitors: lines(formData.get('competitors')),

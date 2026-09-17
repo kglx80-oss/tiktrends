@@ -18,6 +18,14 @@ describe('S04 · policeTechnique · reconnaître une fonte d’icônes', () => {
     }
   });
 
+  it('reconnaît les fontes d’icônes de widgets/plugins e-commerce (CDC v7 · N09)', () => {
+    // « JudgemeStar » (étoiles d'avis) et « swiper-icons » remontaient comme
+    // polices de marque · elles ne portent pas toujours « icon » dans leur nom.
+    for (const nom of ['JudgemeStar', 'swiper-icons', 'slick', 'select2', 'elementor-icons', 'eicons']) {
+      expect(policeTechnique(nom), `${nom} devrait être technique`).toBe(true);
+    }
+  });
+
   it('laisse passer les vraies polices de texte', () => {
     for (const nom of ['Inter', 'Poppins', 'Montserrat', 'Playfair Display', 'Georgia', 'Times New Roman', 'DM Sans']) {
       expect(policeTechnique(nom), `${nom} ne devrait pas être technique`).toBe(false);
