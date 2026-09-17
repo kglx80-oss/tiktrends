@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
 import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, type AngleKey } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
+import { Empty } from '../../../../components/Empty';
 
 export interface SwipeItem { ad: InspoAd; angle: AngleKey; saved: boolean; following: boolean }
 export interface SwipeStats { total: number; videos: number; advertisers: number; spendCumul: string; medianDuration: number; medianGrowth: number }
@@ -46,6 +47,11 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
     return list;
   }, [items, type, adv, angle, sort, qText]);
 
+  // Filtres qui RÉDUISENT la population (le tri ne réduit rien) · pour dire
+  // « X sur Y », offrir « Réinitialiser », et distinguer les états vides (R15).
+  const filtresActifs = type !== 'all' || adv !== 'all' || angle !== 'all' || qText.trim() !== '';
+  const reinitialiser = () => { setType('all'); setAdv('all'); setAngle('all'); setQText(''); };
+
   const prompts = buildPrompts(niche, country);
 
   return (
@@ -78,13 +84,28 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
           <option value="spend">Tri : spend estimé</option>
         </select>
         <input value={qText} onChange={(e) => setQText(e.target.value)} placeholder="Chercher dans le copy…" style={{ ...sel, flex: '1 1 180px', cursor: 'text' }} />
-        <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 'auto' }}>{shown.length} créa(s)</span>
+        <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          {/* « X sur Y » quand un filtre réduit · sinon le total seul (R15). */}
+          {shown.length}{filtresActifs ? ` sur ${items.length}` : ''} créa(s)
+          {filtresActifs && (
+            <button type="button" onClick={reinitialiser} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Réinitialiser</button>
+          )}
+        </span>
       </div>
 
-      {/* Grille */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-        {shown.map((it) => <Card key={it.ad.platform + it.ad.id} it={it} />)}
-      </div>
+      {/* Grille · ou un état vide DISTINCT (filtre trop restrictif vs échantillon
+          vide) plutôt qu'une grille blanche sans explication (R15 · S13). */}
+      {shown.length > 0 ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+          {shown.map((it) => <Card key={it.ad.platform + it.ad.id} it={it} />)}
+        </div>
+      ) : items.length === 0 ? (
+        <Empty tone="wait" title="Aucune créa dans cet échantillon." why="La source n'a rien remonté pour cette niche · reviens quand la collecte aura tourné." />
+      ) : (
+        <Empty tone="todo" title="Aucune créa pour ces filtres." why="Tes filtres excluent tout l'échantillon · élargis-les ou repars de zéro.">
+          <button type="button" onClick={reinitialiser} style={{ fontSize: 13, fontWeight: 700, color: 'var(--on-accent)', background: 'var(--grad-accent)', border: 'none', borderRadius: 999, cursor: 'pointer', padding: '9px 16px' }}>Réinitialiser les filtres</button>
+        </Empty>
+      )}
 
       {/* Bonus : requêtes prêtes à copier */}
       <section style={{ marginTop: 40, borderTop: '1px solid var(--line)', paddingTop: 26 }}>
