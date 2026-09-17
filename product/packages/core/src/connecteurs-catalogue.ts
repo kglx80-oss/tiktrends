@@ -71,3 +71,22 @@ export function etatConnecteur(o: { connecte: boolean; compteRequisManquant?: bo
   if (o.compteRequisManquant) return 'compte_a_choisir';
   return o.donnees ? 'operationnel' : 'connecte_sans_donnees';
 }
+
+const pluriel = (n: number) => (n > 1 ? 's' : '');
+
+/**
+ * Le résumé d'une synchro de dossier connecté · trouvés / importés / ignorés /
+ * en erreur (CDC v7 · N09). Un dossier VIDE se dit comme tel, pas par le silence.
+ * Les erreurs se déduisent · un fichier trouvé qui n'a été ni importé ni reconnu
+ * déjà présent a échoué.
+ */
+export function resumeImportDrive(o: { found: number; added: number; skipped: number }): string {
+  if (o.found <= 0) {
+    return 'Dossier connecté vide · aucun fichier média trouvé, rien à importer. Google (scope drive.file) ne renvoie que ce que tu as sélectionné · re-sélectionne le dossier, ou choisis un sous-dossier qui contient directement des images/vidéos.';
+  }
+  const erreurs = Math.max(0, o.found - o.added - o.skipped);
+  const bouts = [`${o.found} trouvé${pluriel(o.found)}`, `${o.added} importé${pluriel(o.added)}`];
+  if (o.skipped > 0) bouts.push(`${o.skipped} déjà présent${pluriel(o.skipped)}`);
+  if (erreurs > 0) bouts.push(`${erreurs} en erreur`);
+  return `${bouts.join(' · ')}.`;
+}
