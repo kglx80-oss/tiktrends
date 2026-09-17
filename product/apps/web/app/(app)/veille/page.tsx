@@ -31,13 +31,15 @@ const SORTS: Array<[AdSort, string]> = [
   ['mostDuplicates', 'Plus dupliquées'],
 ];
 const COUNTRIES = ['FR', 'BE', 'CH', 'DE', 'ES', 'IT', 'GB', 'NL', 'PT', 'US', 'CA'];
-const LANGS = [['fr', 'Français'], ['en', 'Anglais'], ['de', 'Allemand'], ['es', 'Espagnol'], ['it', 'Italien'], ['nl', 'Néerlandais']];
-const REACHES = [['100000', '100 k+'], ['500000', '500 k+'], ['1000000', '1 M+']];
-const DAYS = [['7', '7 j+'], ['30', '30 j+'], ['90', '90 j+']];
+// Langue, reach mini et ancienneté mini ne sont PAS branchés sur la source
+// (le connecteur ne les envoie pas à `/v1/ads/query`, capacités non vérifiées
+// ici · CDC v6 · R14). On ne propose pas un filtre qui serait silencieusement
+// ignoré · ces contrôles reviendront quand leur prise en charge sera confirmée
+// et testée côté fournisseur.
 
 type SP = {
   q?: string; p?: string; searchIn?: string; media?: string; sort?: string; status?: string;
-  country?: string; lang?: string; minReach?: string; minDays?: string; page?: string;
+  country?: string; page?: string;
   /** `?refresh=1` court-circuite le cache mémoire · un appel frais à Trendtrack. */
   refresh?: string;
 };
@@ -84,7 +86,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   const query = (sp.q || '').trim();
   // Un critère de veille est actif dès qu'un champ restreint la recherche · sert
   // à proposer « Réinitialiser » (retour à la vue par défaut) · exigence S13.
-  const filtresVeilleActifs = !!(query || sp.media || sp.status || sp.sort || sp.country || sp.lang || sp.minReach || sp.minDays);
+  const filtresVeilleActifs = !!(query || sp.media || sp.status || sp.sort || sp.country);
   const platform: AdPlatform = sp.p === 'tiktok' || sp.p === 'google' ? sp.p : 'meta';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
   const apiKey = process.env.TRENDTRACK_API_KEY;
@@ -123,7 +125,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     // Une même recherche ne repaie pas Trendtrack pendant quelques minutes ·
     // paginer, ou rebasculer un filtre puis l'annuler, tape le cache mémoire.
     // `?refresh=1` force un appel frais (et réécrit le cache).
-    const cle = cleRecherche([platform, autoDomain ? 'dom' : 'q', effSearch, effSearchIn, page, media, sp.status, sp.sort, sp.country, sp.lang, sp.minReach, sp.minDays]);
+    const cle = cleRecherche([platform, autoDomain ? 'dom' : 'q', effSearch, effSearchIn, page, media, sp.status, sp.sort, sp.country]);
     const enCache = sp.refresh ? undefined : lireRecherche(cle);
     if (enCache) {
       ads = enCache.ads;
@@ -147,9 +149,6 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             searchIn: effSearchIn,
             sortBy: (sp.sort as AdSort) || 'newest',
             country: sp.country || undefined,
-            adLanguage: sp.lang || undefined,
-            minReach: sp.minReach ? Number(sp.minReach) : undefined,
-            minDaysRunning: sp.minDays ? Number(sp.minDays) : undefined,
           });
         }
         ads = r.ads;
@@ -161,9 +160,10 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
     }
   } else if (platform === 'meta') {
     // Aucune requête · on ne laisse pas l'écran vide. On montre les gagnants
-    // installés (tri « plus anciennes » + actives + 30 j·), amorcés sur la
-    // catégorie de la marque active. Le mot-clé et les filtres reprennent la
-    // main dès que l'utilisateur cherche.
+    // installés par le TRI « plus anciennes » sur les actives (le seuil dur de
+    // jours n'est pas branché sur la source · on ne le prétend donc pas),
+    // amorcés sur la catégorie de la marque active. Le mot-clé et les filtres
+    // reprennent la main dès que l'utilisateur cherche.
     const chercherDefaut = async (seed: string) => {
       const cle = cleRecherche(['defaut', platform, seed, page, sp.country]);
       const enCache = sp.refresh ? undefined : lireRecherche(cle);
@@ -171,7 +171,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       const r = await ttSearchAds({ apiKey }, {
         search: seed, limit: LIMIT, offset: (page - 1) * LIMIT,
         status: 'active', searchIn: 'ad_copy', sortBy: 'longestRunning',
-        minDaysRunning: 30, country: sp.country || undefined,
+        country: sp.country || undefined,
       });
       ecrireRecherche(cle, { ads: r.ads, total: r.total });
       return { ads: r.ads, total: r.total };
@@ -248,10 +248,13 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
           <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
           <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
-          <Select name="lang" def={sp.lang} opts={[['', 'Langue : toutes'], ...LANGS]} />
-          <Select name="minReach" def={sp.minReach} opts={[['', 'Reach : min'], ...REACHES]} />
-          <Select name="minDays" def={sp.minDays} opts={[['', 'Ancienneté : min'], ...DAYS]} />
         </div>
+        {/* Honnêteté des filtres (R14) · on n'affiche que ce que la source
+            honore réellement. Langue, reach mini et ancienneté mini ne sont pas
+            branchés · on ne les propose pas plutôt que de les ignorer en silence. */}
+        <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+          Filtres langue, reach minimum et ancienneté minimum · non disponibles depuis la source pour l'instant. Ils reviendront une fois pris en charge côté fournisseur.
+        </p>
       </form>
 
       {/* Chips thématiques (réinitialisent la recherche en gardant les filtres) */}

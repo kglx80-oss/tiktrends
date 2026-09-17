@@ -72,10 +72,14 @@ export interface SearchAdsInput {
   mediaType?: 'video' | 'image';
   status?: 'active' | 'all';
   searchIn?: 'ad_copy' | 'brand' | 'domain';
-  country?: string;             // ISO alpha-2 (FR, DE, US…)
-  adLanguage?: string;          // fr, en, de…
-  minReach?: number;
-  minDaysRunning?: number;
+  country?: string;             // ISO alpha-2 (FR, DE, US…) · transmis à l'API
+  // ⚠️ NON transmis à `/v1/ads/query` tant que le contrat officiel n'est pas
+  // vérifié (noms de paramètres non confirmés). Ne PAS supposer qu'ils filtrent
+  // côté fournisseur · tout filtrage doit se faire côté noyau, avec un périmètre
+  // explicite (cf. decouverte qui re-vérifie `daysRunning`). Voir CDC v6 · R14.
+  adLanguage?: string;          // fr, en, de… · non transmis (à vérifier)
+  minReach?: number;            // non transmis (à vérifier)
+  minDaysRunning?: number;      // non transmis (à vérifier)
   sortBy?: AdSort;
   order?: 'asc' | 'desc';
 }
