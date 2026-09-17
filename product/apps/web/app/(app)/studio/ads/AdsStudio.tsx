@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { DropZone } from '../../../../components/DropZone';
@@ -1104,9 +1104,20 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           why="Lance ta première série ci-dessus · les pubs générées s’empilent ici, avec leur concept et leur accroche."
         />
       ) : (
+        (() => {
+        // Les titres partagés par une autre pub du lot · calculés sur TOUT le lot
+        // (pas seulement la page), pour distinguer deux accroches identiques même
+        // à cheval sur deux pages (CDC v7 · N06).
+        const homonymes = idsHomonymes(ads.map((a) => ({ id: a.id, titre: a.headline })));
+        return (
         <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
           {pagedAds.map((a, li) => {
             const idx = adsPage * PAGE_SIZE + li;
+            // Un distingueur seulement quand le titre se confond · date + heure,
+            // toujours différentes d'une génération à l'autre.
+            const sousTitre = homonymes.has(a.id)
+              ? new Date(a.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+              : undefined;
             // Filiation et essai · une déclinaison qui ne se présente pas comme
             // telle est une créa de plus dans la grille · on la lit alors à l'œil
             // au lieu de la lire comme la réponse à une question posée.
@@ -1126,13 +1137,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               </div>
             ) : undefined;
             return (
-              <CartePub key={a.id} ad={a} format={TPL_LABEL[a.template]} meta={meta} note={note}
+              <CartePub key={a.id} ad={a} format={TPL_LABEL[a.template]} sousTitre={sousTitre} meta={meta} note={note}
                 vignetteUrl={vignette(a.url)} fullUrl={a.url}
                 onOpen={() => setDetailIdx(idx)} onArchive={() => archive(a.id)} trackable={adsmap} />
             );
           })}
         </div>
         <Pager page={adsPage} total={ads.length} onPage={setAdsPage} /></>
+        );
+        })()
       )}
 
       {preview && (
