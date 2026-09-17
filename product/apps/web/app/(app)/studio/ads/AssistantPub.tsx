@@ -10,6 +10,7 @@ import {
 } from '@tiktrends/core';
 import type { AdTemplate } from '@tiktrends/ai';
 import { SelecteurMoteur } from './SelecteurMoteur';
+import { Icon } from '../../../../components/Icon';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 
 /**
@@ -36,7 +37,7 @@ export interface AssistantProps {
   onFermer: () => void;
   etat: EtatAssistant;
   /** Les produits de la marque · pour l'étape 1. */
-  produits: Array<{ id: string; name: string; imageUrl?: string | null; imageUrls?: string[] | null }>;
+  produits: Array<{ id: string; name: string; hasImage: boolean; photoUrl?: string | null }>;
   gabaritsDispo: readonly AdTemplate[];
   /** Le libellé d'un gabarit · l'assistant ne détient pas ce vocabulaire. */
   libelleGabarit: (t: AdTemplate) => string;
@@ -309,21 +310,27 @@ function EtapeProduit({ p }: { p: AssistantProps }) {
     <div style={{ display: 'grid', gap: 8 }}>
       {p.produits.map((prod) => {
         const on = p.etat.productId === prod.id;
-        const photo = prod.imageUrls?.[0] || prod.imageUrl || null;
+        // `hasImage` est l'ÉTAT (le moteur a une référence), `photoUrl` est cette
+        // référence. Les deux viennent du même endroit que le mode avancé et le
+        // moteur · l'assistant ne dit plus « Sans photo » sur un produit qui en a
+        // une (CDC v7 · N01). Une vignette cassée = référence indisponible, distincte
+        // d'une absence de référence.
+        const aPhoto = prod.hasImage;
+        const photo = prod.photoUrl || null;
         return (
           <button key={prod.id} type="button" onClick={() => p.onProduit(prod.id)} aria-pressed={on} style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: 10, borderRadius: 12, textAlign: 'left',
             border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
             background: on ? 'rgba(230,0,126,.06)' : 'transparent', cursor: 'pointer',
           }}>
-            <div style={{ width: 44, height: 44, borderRadius: 9, background: 'var(--paper)', flexShrink: 0, overflow: 'hidden' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 9, background: 'var(--paper)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
               { }
-              {photo && <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              {photo ? <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : aPhoto ? <Icon name="image" size={18} /> : null}
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{prod.name}</div>
-              <div style={{ fontSize: 11.5, color: photo ? '#7ee8bf' : '#ffca6b' }}>
-                {photo ? 'Photo présente · ton emballage sera reproduit' : 'Sans photo · le modèle inventera l’emballage'}
+              <div style={{ fontSize: 11.5, color: aPhoto ? '#7ee8bf' : '#ffca6b' }}>
+                {aPhoto ? 'Photo présente · ton emballage sera reproduit' : 'Sans photo · le modèle inventera l’emballage'}
               </div>
             </div>
           </button>

@@ -70,7 +70,7 @@ const TPL_LABEL: Record<AdTemplate, string> = {
 
 export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
-  products: Array<{ id: string; name: string; hasImage: boolean }>; personas: Array<{ id: string; name: string }>;
+  products: Array<{ id: string; name: string; hasImage: boolean; photoUrl?: string | null }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
   assets?: Array<{ id: string; name: string; url: string; thumbUrl?: string | null; isTemplate?: boolean }>;
   initialMode?: 'brand' | 'clone';
@@ -386,8 +386,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
     });
   }
 
-  function markHasImage() {
-    setProds((list) => list.map((p) => (p.id === productId ? { ...p, hasImage: true } : p)));
+  function markHasImage(photoUrl?: string | null) {
+    // On met à jour la MÊME référence que l'assistant et le moteur liront ·
+    // vignette et « photo présente » restent cohérentes après un ajout (N01).
+    setProds((list) => list.map((p) => (p.id === productId ? { ...p, hasImage: true, ...(photoUrl ? { photoUrl } : {}) } : p)));
   }
 
   async function addProductFiles(files: File[]) {
@@ -399,7 +401,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       const uris = await Promise.all(imgs.map((f) => fileToDataUri(f, 1280)));
       const r = await setProductImagesAction({ productId, dataUris: uris, append: true });
       if (r.error) setError(r.error);
-      else { setProdThumbs(r.imageUrls ?? uris); markHasImage(); setProdMsg(`${(r.imageUrls ?? uris).length} photo(s) produit enregistrée(s). Elles serviront de référence.`); }
+      else { const th = r.imageUrls ?? uris; setProdThumbs(th); markHasImage(th[0] ?? null); setProdMsg(`${th.length} photo(s) produit enregistrée(s). Elles serviront de référence.`); }
     } catch (err) { setError((err as Error).message); }
     setProdBusy(false);
   }

@@ -84,16 +84,21 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   if (brand) await ensureBrandEnriched(brand.id);
   const [ads, savedRefs, allAssets] = await Promise.all([listBrandAds(), listSavedAdRefs(), listAssets({ kind: 'image', limit: 24 })]);
   const assetChoices = allAssets.map((a) => ({ id: a.id, name: a.name, url: a.url, thumbUrl: a.thumbUrl, isTemplate: a.isTemplate }));
-  let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
+  // `photoUrl` est la référence EXACTE que le moteur utilise (products.imageUrl,
+  // sinon la première de imageUrls) · l'assistant et le mode avancé la lisent au
+  // même endroit, et affichent la vignette de ce que le modèle recevra (CDC v7 · N01).
+  let products: Array<{ id: string; name: string; hasImage: boolean; photoUrl: string | null }> = [];
   let personas: Array<{ id: string; name: string }> = [];
   let edenRules = '';
   if (db && brand) {
     const [prows, perows, brow] = await Promise.all([
-      db.select({ id: schema.products.id, name: schema.products.name, imageUrl: schema.products.imageUrl }).from(schema.products).where(eq(schema.products.brandId, brand.id)),
+      db.select({ id: schema.products.id, name: schema.products.name, imageUrl: schema.products.imageUrl, imageUrls: schema.products.imageUrls }).from(schema.products).where(eq(schema.products.brandId, brand.id)),
       db.select({ id: schema.personas.id, name: schema.personas.name }).from(schema.personas).where(eq(schema.personas.brandId, brand.id)),
       db.select({ r: schema.brands.creativeRules }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1),
     ]);
-    products = prows.map((p) => ({ id: p.id, name: p.name, hasImage: !!p.imageUrl }));
+    // La référence EFFECTIVE du moteur · imageUrl, sinon la première de imageUrls ·
+    // c'est elle qui décide de « photo présente » ET c'est elle qu'on montre.
+    products = prows.map((p) => { const photoUrl = p.imageUrl || p.imageUrls?.[0] || null; return { id: p.id, name: p.name, hasImage: !!photoUrl, photoUrl }; });
     personas = perows;
     edenRules = (brow[0]?.r ?? '').trim();
   }
