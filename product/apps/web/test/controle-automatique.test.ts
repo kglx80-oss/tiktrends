@@ -95,7 +95,11 @@ describe('elle reste bon marché', () => {
 describe('le constat se voit sans cliquer', () => {
   it('la grille reçoit le verdict de chaque pub', () => {
     expect(ACTIONS).toMatch(/copieResume: rec\.copieConforme\?\.resume/);
-    expect(STUDIO, 'la carte reçoit le constat sans jamais l’afficher').toMatch(/<ControleBadge c=\{a\.controle\} \/>/);
+    // Le constat de relecture devient une synthèse qualité SUR la carte commune ·
+    // la grille Pubs IA la branche via CartePub, sans clic.
+    const cartePub = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/CartePub.tsx'), 'utf8');
+    expect(cartePub, 'la carte ne traduit pas le contrôle en synthèse qualité').toMatch(/qualite=\{qualiteCarte\(ad\.controle\)\}/);
+    expect(STUDIO, 'la grille n’utilise pas la carte commune').toContain('<CartePub');
   });
 
   it('un produit modifié écarte la pub des vignettes d’exemple', () => {
