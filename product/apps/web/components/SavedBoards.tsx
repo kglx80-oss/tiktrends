@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { correspondSauvegarde } from '@tiktrends/core';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
 import type { InspoAd } from '@tiktrends/integrations';
@@ -28,8 +29,15 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
   }, [list]);
 
+  const [q, setQ] = useState('');
   const countIn = (f: string) => f === '__all' ? list.length : f === '__none' ? list.filter((i) => !i.folder).length : list.filter((i) => i.folder === f).length;
-  const shown = list.filter((it) => tab === '__all' ? true : tab === '__none' ? !it.folder : it.folder === tab);
+  const dansBoard = list.filter((it) => tab === '__all' ? true : tab === '__none' ? !it.folder : it.folder === tab);
+  // La recherche s'applique APRÈS le board · on cherche dans ce qu'on regarde.
+  const shown = dansBoard.filter((it) => correspondSauvegarde(
+    { advertiserName: it.ad.advertiserName, body: it.ad.body, callToAction: it.ad.callToAction, landingDomain: it.ad.landingDomain, folder: it.folder },
+    q,
+  ));
+  const filtre = q.trim().length > 0;
 
   // Veille → ADSMAP : une pub concurrente devient un concept « imitation ».
   const [suivi, setSuivi] = useState<Record<string, 'busy' | 'done' | string>>({});
@@ -75,6 +83,14 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
 
   return (
     <>
+      {/* Recherche · cohérente avec les autres bibliothèques · marque, texte, board. */}
+      <div style={{ position: 'relative', marginBottom: 12, maxWidth: 420 }}>
+        <span aria-hidden style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', display: 'inline-flex' }}><Icon name="search" size={15} /></span>
+        <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher dans les créas gardées" placeholder="Rechercher · marque, texte, board…"
+          style={{ width: '100%', padding: '9px 32px 9px 34px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13, outline: 'none' }} />
+        {filtre && <button type="button" onClick={() => setQ('')} aria-label="Effacer la recherche" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>✕</button>}
+      </div>
+
       {/* Onglets des boards */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
         <button type="button" onClick={() => setTab('__all')} style={tabBtn('__all')}>Toutes · {countIn('__all')}</button>
@@ -84,7 +100,15 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
         {list.some((i) => !i.folder) && <button type="button" onClick={() => setTab('__none')} style={tabBtn('__none')}>Sans dossier · {countIn('__none')}</button>}
       </div>
 
-      {/* Grille */}
+      {shown.length === 0 ? (
+        <Empty
+          tone="todo" icon="search" title="Aucune créa pour cette recherche."
+          why={`Rien ne correspond à « ${q.trim()} » dans cet espace · élargis ta recherche ou remets tout.`}
+        >
+          <button type="button" onClick={() => setQ('')} style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Réinitialiser la recherche</button>
+        </Empty>
+      ) : (
+      /* Grille */
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
         {shown.map((it) => (
           <div key={it.platform + it.externalId} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -97,6 +121,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
           </div>
         ))}
       </div>
+      )}
     </>
   );
 }

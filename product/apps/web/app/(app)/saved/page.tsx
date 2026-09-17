@@ -6,18 +6,19 @@ import { canAccess, FEATURES, roleAtLeast } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
 import { getActiveBrand } from '../../../lib/brands';
 import { MarquesSuivies } from '../../../components/MarquesSuivies';
-import { PageInfo } from '../../../components/PageInfo';
 import { SavedBoards, type SavedItem } from '../../../components/SavedBoards';
-import { Icon } from '../../../components/Icon';
 import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed';
 import { DecouverteSection } from '../../../components/DecouverteSection';
 import { GrammaireCategorie } from '../../../components/GrammaireCategorie';
+import { SavedTabs } from '../../../components/SavedTabs';
 import { Empty } from '../../../components/Empty';
+import { ongletValide } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SavedPage() {
+export default async function SavedPage({ searchParams }: { searchParams: Promise<{ onglet?: string }> }) {
+  const sp = await searchParams;
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
@@ -49,42 +50,29 @@ export default async function SavedPage() {
   // cet espace ET qu'une marque est active · sinon l'action n'aurait nulle part
   // où écrire, et on proposerait un geste qui échoue.
   const adsmapOpen = !!activeBrand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
+  const nonVus = trackerEvents.filter((e) => e.unseen).length;
 
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
       <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Sauvegardes</h1>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 24 }}>
-        Tes créas gardées et les marques que tu suis. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » une marque.
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
+        Tes créas gardées, les marques que tu suis et ce qu'elles sortent de neuf. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » une marque.
       </p>
 
-      <PageInfo title="tes créas & marques gardées">
-        Retrouve ici tout ce que tu as sauvegardé depuis la <b>Veille</b>. Range tes créas dans des <b>boards</b>
-        (dossiers) pour organiser ta veille par angle, campagne ou concurrent. Clique <b>★</b> pour retirer une créa,
-        <b> voir</b> pour relancer une recherche sur une marque suivie, et <b><span style={{ display: 'inline-flex', verticalAlign: '-2px' }}><Icon name="sparkles" size={12} /></span> Générer une variante</b> pour l'envoyer au Studio.
-      </PageInfo>
-
-      {/* Fil des nouveautés concurrents (tracking) */}
-      <TrackerFeed events={trackerEvents} followedCount={brands.length} trackingEnabled={trackingEnabled} />
-
-      {/* La veille qui vient à toi · les gagnantes de ta catégorie, hors watchlist. */}
-      {trackingEnabled && <DecouverteSection />}
-
-      {/* Ce que le poumon a appris de ta catégorie · rendu visible. */}
-      {trackingEnabled && <GrammaireCategorie />}
-
-      {/* Marques suivies */}
-      <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Marques suivies ({brands.length})</h2>
-      {brands.length === 0
-        ? <div style={{ marginBottom: 30 }}><Empty
-            tone="todo" icon="radar" title="Aucune marque suivie pour l'instant."
-            why="Suis des concurrents depuis la Veille pour surveiller leurs nouvelles pubs et nourrir Jarvis."
-            action={{ label: 'Ouvrir la veille', href: '/veille' }}
-          /></div>
-        : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} />}
-
-      {/* Créas sauvegardées · organisées en boards */}
-      <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>Créas sauvegardées ({items.length})</h2>
-      <SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} />
+      <SavedTabs
+        initial={ongletValide(sp.onglet)}
+        compteurs={{ creations: items.length, marques: brands.length, nouveautes: nonVus }}
+        creations={<SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} />}
+        marques={brands.length === 0
+          ? <Empty
+              tone="todo" icon="radar" title="Aucune marque suivie pour l'instant."
+              why="Suis des concurrents depuis la Veille pour surveiller leurs nouvelles pubs et nourrir Jarvis."
+              action={{ label: 'Explorer la veille', href: '/veille' }}
+            />
+          : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} />}
+        nouveautes={<TrackerFeed events={trackerEvents} followedCount={brands.length} trackingEnabled={trackingEnabled} />}
+        explorer={trackingEnabled ? <><DecouverteSection /><GrammaireCategorie /></> : null}
+      />
     </main>
   );
 }

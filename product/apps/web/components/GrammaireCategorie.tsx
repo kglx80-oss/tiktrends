@@ -11,8 +11,8 @@ import { grammaireVideoAction } from '../app/actions/video-marche';
  *
  * Le poumon apprend la grammaire gagnante de la catégorie (mise en page, typo,
  * palette) et l'injecte dans la génération d'entière · en silence. Cette carte
- * la MONTRE · ce que les pubs concurrentes qui tiennent ont en commun, et donc
- * ce que tes entières vont suivre. À la demande · la lecture agrège les analyses
+ * la MONTRE · ce que les pubs concurrentes installées ont en commun, et donc les
+ * repères que la génération réutilise. À la demande · la lecture agrège les analyses
  * déjà décrites, pas de dépense · muette tant que la catégorie n'a pas été
  * décrite (le lot market-learn la remplit).
  */
@@ -62,7 +62,7 @@ export function GrammaireCategorie() {
           fontSize: 12.5, fontWeight: 800, padding: '7px 14px', borderRadius: 999, cursor: busy ? 'default' : 'pointer',
           border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? 0.6 : 1,
         }}>{busy ? 'Lecture…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={14} /> Lire ce qui gagne dans ma catégorie</span>}</button>
-        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Ce que tes entières vont suivre · appris des concurrents qui tiennent.</span>
+        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Les repères visuels qui reviennent chez les concurrents installés · à réutiliser dans tes créas.</span>
       </div>
 
       {lignes && lignes.length > 0 && (
