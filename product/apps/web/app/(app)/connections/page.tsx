@@ -6,8 +6,17 @@ import { getConnectionState } from '../../actions/connections';
 import { DataConnections } from './DataConnections';
 import { PageInfo } from '../../../components/PageInfo';
 import { ConnecteurBientot, type ConnecteurAVenir } from '../../../components/ConnecteurBientot';
+import { etatCatalogue, dejaDisponible } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Les connecteurs VRAIMENT branchables aujourd'hui · Shopify et Meta Ads sur
+ * cette page, Google Drive dans Assets. C'est la seule liste qui a le droit de
+ * se dire « disponible » · la feuille de route ci-dessous en est exclue, et un
+ * connecteur déjà disponible n'y reparaît jamais (CDC v7 · N09).
+ */
+const DISPONIBLES = ['Shopify', 'Meta Ads', 'Google Drive'] as const;
 
 const CATS: Array<{ cat: string; items: ConnecteurAVenir[] }> = [
   // Meta Ads ne figure PAS ici · il est déjà branchable en direct (DataConnections
@@ -75,7 +84,13 @@ const CATS: Array<{ cat: string; items: ConnecteurAVenir[] }> = [
   ] },
 ];
 
-const TOTAL = CATS.reduce((n, c) => n + c.items.length, 0);
+// La feuille de route affichée EXCLUT ce qui est déjà disponible · Google Drive
+// (branché dans Assets) ne se lit plus « à venir ». Une seule vérité.
+const ROADMAP_CATS = CATS
+  .map((c) => ({ ...c, items: c.items.filter((it) => !dejaDisponible(it.name, DISPONIBLES)) }))
+  .filter((c) => c.items.length > 0);
+const CATALOGUE = etatCatalogue(DISPONIBLES, CATS.flatMap((c) => c.items.map((it) => it.name)));
+const EN_PREPARATION = CATALOGUE.enPreparation;
 
 const OAUTH_OK: Record<string, string> = { meta: 'Meta Ads connecté. Lance une synchro pour remonter les performances.', meta_pick: 'Meta connecté · plusieurs comptes publicitaires trouvés : choisis celui de cette marque ci-dessous.', meta_noacct: 'Meta connecté, mais aucun compte publicitaire trouvé · renseigne l’ID manuellement.', shopify: 'Boutique Shopify connectée. Lance une synchro pour remonter les ventes.' };
 const OAUTH_ERR: Record<string, string> = { meta_config: 'OAuth Meta non configuré côté serveur (META_APP_ID/SECRET).', meta_state: 'Session OAuth expirée, réessaie.', meta_session: 'Session invalide, reconnecte-toi.', meta_token: 'Échange du token Meta impossible.', meta_exchange: 'Erreur lors de la connexion Meta.', nobrand: 'Sélectionne une marque active.', shopify_config: 'OAuth Shopify non configuré (SHOPIFY_API_KEY/SECRET).', shopify_shop: 'Domaine .myshopify.com attendu.', shopify_state: 'Session OAuth expirée, réessaie.', shopify_hmac: 'Vérification Shopify échouée.', shopify_token: 'Échange du token Shopify impossible.', shopify_exchange: 'Erreur lors de la connexion Shopify.', shopify_session: 'Session invalide, reconnecte-toi.' };
@@ -98,7 +113,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>
         Branche les comptes {brand ? <>de <b>{brand.name}</b></> : <>de tes marques</>} : régies publicitaires, analytics,
-        e-commerce, CRM et outils. {TOTAL} intégrations disponibles.
+        e-commerce, CRM et outils. <b>{CATALOGUE.disponibles}</b> intégration{CATALOGUE.disponibles > 1 ? 's' : ''} branchable{CATALOGUE.disponibles > 1 ? 's' : ''} aujourd'hui · <b>{EN_PREPARATION}</b> en préparation.
       </p>
       <PageInfo title="brancher tes comptes">
         Chaque connecteur relie un compte externe (Meta, TikTok, Shopify…) à la <b>marque active</b> pour faire
@@ -116,11 +131,11 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       {/* Feuille de route · le reste du catalogue n'est pas encore branchable.
           On l'assume comme une feuille de route (statut « Bientôt ») plutôt que
           comme une cinquantaine de boutons désactivés qui se lisent comme cassés. */}
-      <h2 style={{ ...h2, marginTop: 26 }}>Feuille de route <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· {TOTAL} intégrations en préparation</span></h2>
+      <h2 style={{ ...h2, marginTop: 26 }}>Feuille de route <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· {EN_PREPARATION} intégrations en préparation</span></h2>
       <p style={{ margin: '2px 0 12px', fontSize: 12.5, color: 'var(--muted)' }}>
         Ces connecteurs arrivent · TikTok Ads et Google Ads en tête. Un besoin urgent ? Dis-le au support, on priorise selon la demande.
       </p>
-      {CATS.map(({ cat, items }) => (
+      {ROADMAP_CATS.map(({ cat, items }) => (
         <details key={cat} open style={{ marginBottom: 14 }}>
           <summary style={{ listStyle: 'none', cursor: 'pointer', ...h2, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ color: 'var(--muted)', fontSize: 12 }}>▾</span>{cat}

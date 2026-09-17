@@ -34,6 +34,7 @@ export * from './adsmap/fait-preuve';
 export * from './carte-homonymes';
 export * from './galerie-filtres';
 export * from './credits-affichage';
+export * from './connecteurs-catalogue';
 export * from './adsmap/calibration-score';
 export * from './adsmap/ai-budget';
 export * from './adsmap/sheet';
