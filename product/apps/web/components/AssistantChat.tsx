@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useId, useRef, useState, useTransition } from 'react';
 import { askAssistant } from '../app/actions/assistant';
 import type { ChatMessage } from '@tiktrends/ai';
 import { Icon } from './Icon';
@@ -18,6 +18,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
   const [error, setError] = useState('');
   const [pending, start] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const champId = useId();
 
   function send(q: string) {
     const question = q.trim();
@@ -74,12 +75,18 @@ export function AssistantChat({ ready }: { ready: boolean }) {
       {error && <div style={{ padding: '0 16px 10px', fontSize: 12.5, color: '#ff9db0' }}>{error}</div>}
 
       <form onSubmit={(e) => { e.preventDefault(); send(value); }} style={{ display: 'flex', gap: 8, padding: 14, borderTop: '1px solid var(--line)' }}>
+        {/* Un libellé PERSISTANT, associé au champ · le placeholder disparaît dès
+            qu'on tape, un lecteur d'écran ne doit pas rester sans nom (CDC v7 · N08). */}
+        <label htmlFor={champId} style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>
+          Ta question à l’assistant
+        </label>
         <input
+          id={champId}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           disabled={!ready || pending}
           placeholder={ready ? 'Pose ta question…' : 'Assistant en veille (clé IA requise)'}
-          style={{ flex: 1, padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' }}
+          style={{ flex: 1, padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14 }}
         />
         <button type="submit" disabled={!ready || pending || !value.trim()} style={{
           padding: '0 18px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14, cursor: ready && value.trim() ? 'pointer' : 'default',
