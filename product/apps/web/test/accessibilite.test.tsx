@@ -47,14 +47,18 @@ describe('le focus clavier est visible partout', () => {
 });
 
 describe('le piège à focus et la restitution existent', () => {
-  const modal = readFileSync(join(process.cwd(), 'components/Modal.tsx'), 'utf8');
+  // Le piège vit désormais dans un hook partagé (`usePiegeFocus`), éprouvé au
+  // COMPORTEMENT dans `piege-focus.test.tsx` (jsdom · focus entrant, Tab piégé,
+  // Échap, retour au déclencheur). Ici on garde la présence de sa logique dans
+  // ce hook · son adoption par les dialogues est gardée par `piege-focus-adoption`.
+  const hook = readFileSync(join(process.cwd(), 'components/use-piege-focus.ts'), 'utf8');
 
   it('le Tab ne s’échappe pas derrière la fenêtre', () => {
-    expect(modal).toMatch(/e\.key === 'Tab'/);
+    expect(hook).toMatch(/e\.key === 'Tab'/);
   });
 
   it('le focus est rendu à l’élément d’origine à la fermeture', () => {
-    expect(modal).toMatch(/rendreA\?\.focus/);
+    expect(hook).toMatch(/rendreA\?\.focus/);
   });
 });
 

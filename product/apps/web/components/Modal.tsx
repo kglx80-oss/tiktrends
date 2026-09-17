@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { usePiegeFocus } from './use-piege-focus';
 
 /**
  * Fenêtre modale réutilisable (pop-up). Base du système « tout en pop-up » :
@@ -20,48 +21,9 @@ export function Modal({
   icon?: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    // Qui avait le focus avant l'ouverture · on le lui rend à la fermeture,
-    // sinon le focus retombe en haut de page et le clavier repart de zéro.
-    const rendreA = document.activeElement as HTMLElement | null;
-
-    const focusables = () => Array.from(
-      panelRef.current?.querySelectorAll<HTMLElement>(
-        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
-      ) ?? [],
-    ).filter((el) => el.offsetParent !== null);
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return; }
-      // Piège à focus · le Tab ne doit pas s'échapper derrière la fenêtre.
-      if (e.key === 'Tab') {
-        const els = focusables();
-        if (!els.length) { e.preventDefault(); panelRef.current?.focus(); return; }
-        const premier = els[0]!, dernier = els[els.length - 1]!;
-        const actif = document.activeElement;
-        if (e.shiftKey && (actif === premier || !panelRef.current?.contains(actif))) {
-          e.preventDefault(); dernier.focus();
-        } else if (!e.shiftKey && actif === dernier) {
-          e.preventDefault(); premier.focus();
-        }
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    // Porter le focus dans la fenêtre à l'ouverture · premier champ utile, sinon
-    // le panneau lui-même (il est `tabIndex=-1`).
-    const t = setTimeout(() => { (focusables()[0] ?? panelRef.current)?.focus(); }, 20);
-
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-      clearTimeout(t);
-      rendreA?.focus?.();
-    };
-  }, [open, onClose]);
+  // Le piège à focus partagé · même comportement (focus entrant, Tab piégé,
+  // Échap, verrou du défilement, retour au déclencheur), éprouvé une seule fois.
+  usePiegeFocus(panelRef, { actif: open, onFermer: onClose });
 
   if (!open) return null;
 
