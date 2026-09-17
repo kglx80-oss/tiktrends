@@ -32,15 +32,24 @@ describe('etatVerdictCarte · le verdict marché ramené sur la carte', () => {
     }
   });
 
-  it('tout état a un libellé et un ton · les gagnantes en ton win, la perdante en lose', () => {
+  it('tout état a un libellé et un ton · les gagnantes MESURÉES en ton win, la perdante en lose', () => {
     const etats: EtatVerdictCarte[] = ['gagnante', 'petite_gagnante', 'gagnante_relative', 'perdante', 'non_concluant', 'diffusion_faible', 'en_mesure'];
     for (const e of etats) {
       expect(VERDICT_CARTE[e]?.court, `libellé de ${e}`).toBeTruthy();
     }
     expect(VERDICT_CARTE.gagnante.ton).toBe('win');
     expect(VERDICT_CARTE.petite_gagnante.ton).toBe('win');
-    expect(VERDICT_CARTE.gagnante_relative.ton).toBe('win');
     expect(VERDICT_CARTE.perdante.ton).toBe('lose');
     expect(VERDICT_CARTE.en_mesure.ton).toBe('attente');
+  });
+
+  it('la gagnante RELATIVE ne gonfle pas la certitude · prometteuse, pas gagnée (CDC v6 · R01)', () => {
+    const v = VERDICT_CARTE.gagnante_relative;
+    // Ni « gagné » ni ton win · une comparaison relative n'est pas une victoire prouvée.
+    expect(v.ton, 'une gagnante relative ne doit pas s’afficher en ton win (vert)').not.toBe('win');
+    expect(v.court.toLowerCase(), 'le libellé doit dire « prometteuse », pas « gagne »').toContain('prometteuse');
+    expect(v.court.toLowerCase()).not.toContain('gagne');
+    // La limite est dite en clair, pas seulement suggérée par la couleur.
+    expect(v.note, 'la limite de la comparaison relative doit être explicite').toMatch(/relative|seuil/);
   });
 });

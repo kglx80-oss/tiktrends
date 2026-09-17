@@ -29,7 +29,7 @@ export function VerdictBadge({ etat, overlay = false }: { etat?: EtatVerdictCart
   } as const;
   return (
     <span
-      title={`Verdict marché · ${def.court}`}
+      title={`Verdict marché · ${def.court}${def.note ? ` · ${def.note}` : ''}`}
       style={overlay
         ? { ...base, position: 'absolute', top: 8, right: 8, background: 'rgba(8,5,10,.72)', backdropFilter: 'blur(4px)' }
         : { ...base, background: 'transparent' }}
