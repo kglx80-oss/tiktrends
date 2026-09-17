@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { CIBLE_TACTILE_MIN, type QualiteCarte, type EtatVerdictCarte } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, type QualiteCarte, type EtatVerdictCarte, type FaitControle } from '@tiktrends/core';
 import { AdMedia } from './AdMedia';
 import { VerdictBadge } from './VerdictBadge';
 import { Icon } from './Icon';
@@ -54,6 +54,12 @@ export interface CarteCreativeProps {
   qualite?: QualiteCarte | null;
   /** La performance mesurée · verdict marché, et la prédiction (pronostic). */
   performance?: { verdict?: EtatVerdictCarte | null; prediction?: number | null };
+  /** Vérifier un fait · enregistre une preuve à partir d'une source (N04-suite). */
+  onVerifierFait?: (cle: string, source: string) => void;
+  /** Une vérification est en cours · fige le formulaire. */
+  verifEnCours?: boolean;
+  /** L'échec de la dernière vérification · affiché sous le fait. */
+  erreurVerif?: string;
   actionPrincipale: ActionCarte;
   actionsSecondaires?: ActionCarte[];
   /** États de chargement / erreur · la grille les rend sans média. */
@@ -77,7 +83,7 @@ const carte: CSSProperties = {
 const labelZone: CSSProperties = { fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' };
 
 export function CarteCreative(props: CarteCreativeProps) {
-  const { media, titre, format, meta, note, onApercu, pertinence, qualite, performance, actionPrincipale, actionsSecondaires = [], chargement, erreur, initial } = props;
+  const { media, titre, format, meta, note, onApercu, pertinence, qualite, performance, onVerifierFait, verifEnCours, erreurVerif, actionPrincipale, actionsSecondaires = [], chargement, erreur, initial } = props;
 
   if (chargement) return <SqueletteCarte aspect={media.aspect} />;
 
@@ -120,7 +126,7 @@ export function CarteCreative(props: CarteCreativeProps) {
         {/* Trois signaux DISTINCTS · un vote ne vaut pas une qualité, une qualité
             ne vaut pas une performance. */}
         <div style={{ display: 'grid', gap: 7, paddingTop: 2, borderTop: '1px solid var(--line)', marginTop: 1 }}>
-          {qualite && <ZoneQualite q={qualite} initialOuvert={initial?.qualite} />}
+          {qualite && <ZoneQualite q={qualite} initialOuvert={initial?.qualite} onVerifierFait={onVerifierFait} verifEnCours={verifEnCours} erreurVerif={erreurVerif} />}
           <ZonePerformance verdict={performance?.verdict ?? null} />
           {pertinence && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
@@ -140,7 +146,7 @@ export function CarteCreative(props: CarteCreativeProps) {
   );
 }
 
-function ZoneQualite({ q, initialOuvert }: { q: QualiteCarte; initialOuvert?: boolean }) {
+function ZoneQualite({ q, initialOuvert, onVerifierFait, verifEnCours, erreurVerif }: { q: QualiteCarte; initialOuvert?: boolean; onVerifierFait?: (cle: string, source: string) => void; verifEnCours?: boolean; erreurVerif?: string }) {
   const [ouvert, setOuvert] = useState(!!initialOuvert);
   const t = TON_QUALITE[q.ton] ?? TON_QUALITE.inconnu!;
   const panneauId = useId();
@@ -159,7 +165,7 @@ function ZoneQualite({ q, initialOuvert }: { q: QualiteCarte; initialOuvert?: bo
           <span aria-hidden style={{ flexShrink: 0, transform: ouvert ? 'rotate(180deg)' : 'none', display: 'inline-flex' }}><Chevron /></span>
         </button>
       </div>
-      {ouvert && <PanneauQualite q={q} t={t} id={panneauId} />}
+      {ouvert && <PanneauQualite q={q} t={t} id={panneauId} onVerifierFait={onVerifierFait} verifEnCours={verifEnCours} erreurVerif={erreurVerif} />}
     </div>
   );
 }
@@ -169,7 +175,7 @@ function ZoneQualite({ q, initialOuvert }: { q: QualiteCarte; initialOuvert?: bo
  * contrôle technique, validation factuelle, approbation humaine · plus la
  * provenance. On lit ce qui est approuvé ET ce qui reste en réserve.
  */
-function PanneauQualite({ q, t, id }: { q: QualiteCarte; t: { fg: string; bord: string }; id: string }) {
+function PanneauQualite({ q, t, id, onVerifierFait, verifEnCours, erreurVerif }: { q: QualiteCarte; t: { fg: string; bord: string }; id: string; onVerifierFait?: (cle: string, source: string) => void; verifEnCours?: boolean; erreurVerif?: string }) {
   const bon = TON_QUALITE.bon!;
   return (
     <div id={id} style={{ display: 'grid', gap: 8, padding: '8px 2px 2px' }}>
@@ -187,18 +193,14 @@ function PanneauQualite({ q, t, id }: { q: QualiteCarte; t: { fg: string; bord: 
         )}
       </NatureBloc>
 
-      {/* Nature 2 · validation factuelle. */}
+      {/* Nature 2 · validation factuelle · chaque fait montre sa preuve, ou de
+          quoi la fournir. Une case cochée ne suffit pas · il faut une source. */}
       <NatureBloc titre="Validation factuelle">
         {q.factuel.faits.length === 0 ? (
           <LigneReserve texte="Aucun fait à valider sur cette création." ton="var(--muted)" icone="check" />
         ) : (
           <>
-            {q.factuel.faits.map((f) => (
-              <LigneReserve key={f.cle}
-                texte={f.etat === 'verifiee' ? `${f.label} · vérifié${f.source ? ` · ${f.source}` : ''}` : f.etat === 'invalidee' ? `${f.label} · validation caduque` : `${f.label} · à vérifier`}
-                ton={f.etat === 'verifiee' ? bon.fg : f.etat === 'invalidee' ? TON_QUALITE.bloquant!.fg : TON_QUALITE.attention!.fg}
-                icone={f.etat === 'verifiee' ? 'check' : 'alert'} />
-            ))}
+            {q.factuel.faits.map((f) => <FaitLigne key={f.cle} f={f} bonFg={bon.fg} onVerifier={onVerifierFait} enCours={verifEnCours} erreur={erreurVerif} />)}
             <span style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.35 }}>Une absence de défaut détecté n’équivaut pas à la vérification d’une preuve.</span>
           </>
         )}
@@ -215,6 +217,78 @@ function PanneauQualite({ q, t, id }: { q: QualiteCarte; t: { fg: string; bord: 
         <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4, borderTop: '1px solid var(--line)', paddingTop: 6 }}>
           {[q.provenance.auteur && `Par ${q.provenance.auteur}`, q.provenance.date, q.provenance.version && `Version ${q.provenance.version}`].filter(Boolean).join(' · ')}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Un fait et l'état de sa preuve · vérifié (avec source, validateur, date,
+ * version), caduc (le contenu a changé depuis la validation · l'approbation
+ * reste dans l'historique), ou à vérifier. Quand on peut vérifier, un petit
+ * champ de SOURCE s'ouvre · une case cochée seule ne suffit pas.
+ */
+function FaitLigne({ f, bonFg, onVerifier, enCours, erreur }: {
+  f: FaitControle;
+  bonFg: string;
+  onVerifier?: (cle: string, source: string) => void;
+  enCours?: boolean;
+  erreur?: string;
+}) {
+  const [ouvertForm, setOuvertForm] = useState(false);
+  const [source, setSource] = useState('');
+  const attention = TON_QUALITE.attention!.fg;
+  const bloquant = TON_QUALITE.bloquant!.fg;
+  const ton = f.etat === 'verifiee' ? bonFg : f.etat === 'invalidee' ? bloquant : attention;
+  const texte = f.etat === 'verifiee' ? `${f.label} · vérifié` : f.etat === 'invalidee' ? `${f.label} · validation caduque` : `${f.label} · à vérifier`;
+  const verifiable = f.etat !== 'verifiee' && !!onVerifier;
+  const estLien = !!f.source && /^https?:\/\//i.test(f.source);
+
+  return (
+    <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+      <LigneReserve texte={texte} ton={ton} icone={f.etat === 'verifiee' ? 'check' : 'alert'} />
+
+      {/* La provenance de la preuve · consultable. Sur un fait caduc, on garde
+          l'approbation d'origine (qui/quand) · elle ne vaut juste plus pour le
+          contenu actuel. */}
+      {(f.etat === 'verifiee' || f.etat === 'invalidee') && (f.source || f.validateur) && (
+        <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4, paddingLeft: 17, display: 'grid', gap: 1, minWidth: 0 }}>
+          {f.source && (estLien
+            ? <a href={f.source} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-strong)', textDecoration: 'none', wordBreak: 'break-all' }}>Source ↗</a>
+            : <span style={{ wordBreak: 'break-word' }}>Source · {f.source}</span>)}
+          {(f.validateur || f.date || f.version) && (
+            <span>{[f.validateur && `Par ${f.validateur}`, f.date && f.date.slice(0, 10), f.version].filter(Boolean).join(' · ')}</span>
+          )}
+          {f.etat === 'invalidee' && <span style={{ color: bloquant }}>Le contenu a changé depuis · à re-vérifier.</span>}
+        </div>
+      )}
+
+      {/* Vérifier · un champ de source obligatoire, puis on enregistre la preuve. */}
+      {verifiable && (
+        ouvertForm ? (
+          <div style={{ display: 'grid', gap: 4, paddingLeft: 17 }}>
+            <input value={source} onChange={(e) => setSource(e.target.value)} disabled={enCours}
+              placeholder="Source consultable · lien ou référence"
+              aria-label={`Source de la preuve · ${f.label}`}
+              style={{ width: '100%', minWidth: 0, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 11 }} />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button type="button" disabled={enCours || !source.trim()} onClick={() => onVerifier!(f.cle, source.trim())}
+                style={{ minHeight: 30, padding: '5px 10px', borderRadius: 8, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 800, cursor: enCours || !source.trim() ? 'default' : 'pointer', opacity: enCours || !source.trim() ? 0.55 : 1 }}>
+                {enCours ? 'Enregistrement…' : 'Enregistrer la preuve'}
+              </button>
+              <button type="button" disabled={enCours} onClick={() => { setOuvertForm(false); setSource(''); }}
+                style={{ minHeight: 30, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                Annuler
+              </button>
+            </div>
+            {erreur && <span role="alert" style={{ fontSize: 10, color: bloquant, lineHeight: 1.35 }}>{erreur}</span>}
+          </div>
+        ) : (
+          <button type="button" onClick={() => setOuvertForm(true)}
+            style={{ justifySelf: 'start', marginLeft: 17, padding: '3px 9px', borderRadius: 999, border: `1px solid ${attention}`, background: 'transparent', color: attention, fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+            {f.etat === 'invalidee' ? 'Re-vérifier' : 'Vérifier'}
+          </button>
+        )
       )}
     </div>
   );

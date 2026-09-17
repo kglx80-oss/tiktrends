@@ -99,9 +99,9 @@ describe('le constat se voit sans cliquer', () => {
     // la grille Pubs IA la branche via CartePub, sans clic.
     const cartePub = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/CartePub.tsx'), 'utf8');
     // La carte traduit le contrôle EN synthèse qualité · elle route toujours
-    // `ad.controle` dans `qualiteCarte`, et lui ajoute les faits portés par la
-    // pub (CDC v7 · N04) sans lâcher le constat technique.
-    expect(cartePub, 'la carte ne traduit pas le contrôle en synthèse qualité').toMatch(/qualiteCarte\(\{ \.\.\.\(ad\.controle \?\? \{\}\), faits: faitsDeLaPub\(ad\)/);
+    // `ad.controle` dans `qualiteCarte`, et lui joint les faits calculés au
+    // serveur (état de leur preuve · N04-suite) sans lâcher le constat technique.
+    expect(cartePub, 'la carte ne traduit pas le contrôle en synthèse qualité').toMatch(/qualiteCarte\(\{ \.\.\.\(ad\.controle \?\? \{\}\), faits: ad\.faits/);
     expect(STUDIO, 'la grille n’utilise pas la carte commune').toContain('<CartePub');
   });
 

@@ -48,6 +48,12 @@ export interface FaitControle {
   etat: EtatFait;
   /** Sur quoi s'appuie la validation · vide quand rien ne l'atteste. */
   source?: string | null;
+  /** Qui a validé · nom lisible. Rempli sur un fait vérifié ou caduc. */
+  validateur?: string | null;
+  /** Quand · date lisible. */
+  date?: string | null;
+  /** La version du contenu qui a été validée · change dès que le contenu change. */
+  version?: string | null;
 }
 
 /** La provenance d'une création · qui, quand, quelle version. */
