@@ -28,7 +28,9 @@ export default async function AnalyticsPage() {
   let syncedAt: string | null = null;
   const brand = await getActiveBrand(s.workspaceId);
   if (db && brand) {
-    const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.insightsSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    // La date de synchro MÉTA · pas la valeur partagée qu'une synchro Shopify
+    // écrasait, faisant passer des KPI Meta anciens pour « à l'instant » (N09).
+    const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.metaSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     if (b?.ads && (b.ads as MetaAdsInsights).window) metaInsights = b.ads as MetaAdsInsights;
     syncedAt = b?.syncedAt ? b.syncedAt.toISOString() : null;
   }

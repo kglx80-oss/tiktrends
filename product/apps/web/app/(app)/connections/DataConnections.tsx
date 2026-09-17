@@ -145,6 +145,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
               ))}
             </div>
           ) : null}
+          <Fraicheur iso={sh.syncedAt} />
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" onClick={sync} disabled={!!busy} style={primary}>{busy === 'sync' ? 'Synchro…' : '↻ Synchroniser'}</button>
             <button type="button" onClick={disconnect} style={ghost}>Déconnecter</button>
@@ -241,6 +242,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
               ))}
             </div>
           ) : null}
+          <Fraicheur iso={mt.syncedAt} />
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" onClick={sync} disabled={!!busy} style={primary}>{busy === 'sync' ? 'Synchro…' : '↻ Synchroniser'}</button>
             <button type="button" onClick={disconnect} style={ghost}>Déconnecter</button>
@@ -249,6 +251,22 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
       )}
       {msg && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-2)' }}>{msg}</div>}
     </Wrap>
+  );
+}
+
+/**
+ * La date de dernière synchro RÉUSSIE d'un connecteur (N09) · elle dit la
+ * fraîcheur des chiffres affichés. Rien tant qu'aucune synchro n'a abouti · on
+ * n'affiche pas « jamais » à côté de KPI qui, eux, existent d'un autre flux.
+ */
+export function Fraicheur({ iso }: { iso: string | null }) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return (
+    <p style={{ margin: '2px 0 9px', fontSize: 11, color: 'var(--muted)' }}>
+      Synchronisé le {d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+    </p>
   );
 }
 

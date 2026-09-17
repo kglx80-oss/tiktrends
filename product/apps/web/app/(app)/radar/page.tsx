@@ -93,7 +93,9 @@ export default async function RadarPage() {
   if (db) {
     const brand = await getActiveBrand(s.workspaceId);
     if (brand) {
-      const [b] = await db.select({ ads: schema.brands.adsInsights, at: schema.brands.insightsSyncedAt })
+      // Date de synchro MÉTA · pas l'horodatage partagé qu'une synchro Shopify
+      // écrasait (N09) · ici on data des créas Meta, la date doit être la leur.
+      const [b] = await db.select({ ads: schema.brands.adsInsights, at: schema.brands.metaSyncedAt })
         .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
       const ins = (b?.ads ?? null) as MetaAdsInsights | null;
       if (ins?.ads?.length) { live = buildLiveAnalysis(ins.ads); syncedAt = (b?.at as Date) ?? null; }
