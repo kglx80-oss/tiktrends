@@ -77,6 +77,7 @@ export async function iterationPlanAction(): Promise<{ view?: IterationPlanView;
       testedVariable: schema.ads.testedVariable,
       conceptTitle: schema.concepts.title,
       validated: schema.verdicts.validated,
+      comparable: schema.verdicts.comparable,
       failedStage: schema.verdicts.failedStage,
       killFlag: schema.verdicts.killFlag,
       metricsAgg: schema.verdicts.metricsAgg,
@@ -128,6 +129,9 @@ export async function iterationPlanAction(): Promise<{ view?: IterationPlanView;
         adId: r.adId,
         label: `${r.conceptTitle} · ${r.variantCode}`,
         verdict,
+        // La comparabilité décide si c'est une victoire prouvée ou une piste
+        // prometteuse · un import non comparable ne « gagne » pas dans Suites (N02).
+        comparable: !!r.comparable,
         failedStage: (r.failedStage ?? null) as FunnelStage | null,
         killFlag: (r.killFlag ?? null) as IterationInput['killFlag'],
         testedVariable: (r.testedVariable ?? null) as TestedVariable | null,

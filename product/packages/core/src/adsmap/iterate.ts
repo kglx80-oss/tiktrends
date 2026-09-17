@@ -35,7 +35,7 @@
  * Pur : ni base, ni horloge, ni modèle.
  */
 
-import type { FunnelStage, TestedVariable, VerdictValue } from './types';
+import { verdictEffectif, type FunnelStage, type TestedVariable, type VerdictValue } from './types';
 
 /* -------------------------------------------------------------------------- */
 /*  Le tunnel, et qui gouverne quoi                                           */
@@ -122,6 +122,13 @@ export interface IterationInput {
   adId: string;
   label: string;
   verdict: VerdictValue;
+  /**
+   * Le verdict a-t-il été évalué au PROTOCOLE (comparable) ? Un gagnant non
+   * comparable (importé/déclaré) n'a rien PROUVÉ · on le décline avec prudence,
+   * sans lui attribuer une victoire (CDC v7 · N02 · « Elle a gagné » dans Suites).
+   * Absent = non comparable · on ne suppose jamais le protocole.
+   */
+  comparable?: boolean;
   /** L'étape où le tunnel a lâché · `null` si l'ad a tout franchi. */
   failedStage: FunnelStage | null;
   /** Règle de coupe déclenchée · `cost` désigne l'offre, pas la créa. */
@@ -227,11 +234,17 @@ const DECLINAISON: TestedVariable[] = ['opening_visual', 'format', 'length', 'av
 export function proposeIterations(input: IterationInput): IterationProposal[] {
   const deja = input.lineageChanged ?? [];
   const profondeur = input.lineageDepth ?? 0;
-  const gagnant = GAGNANTS.has(input.verdict);
+  // Le verdict EFFECTIF · un gagnant non comparable redevient prometteuse relative.
+  const eff = verdictEffectif(input.verdict, !!input.comparable) ?? input.verdict;
+  // Itérable = gagnante OU prometteuse · la filiation reste légale sur les deux.
+  const iterable = GAGNANTS.has(eff);
+  // Mais seule une gagnante ÉVALUÉE au protocole « a gagné » · une prometteuse
+  // (relative, ou un import non comparable) se décline avec prudence, sans victoire.
+  const gagnanteValidee = eff === 'winner' || eff === 'baby_winner';
   const out: IterationProposal[] = [];
 
   // La lignée s'est épuisée : plus rien à corriger, il faut changer de terrain.
-  if (!gagnant && profondeur >= MAX_PROFONDEUR) {
+  if (!iterable && profondeur >= MAX_PROFONDEUR) {
     return [{
       mode: 'new',
       changedVariable: 'angle',
@@ -252,21 +265,25 @@ export function proposeIterations(input: IterationInput): IterationProposal[] {
       freeze: frozenBy('convert'),
       rationale: 'Le tunnel passe et le coût ne suit pas · c\'est l\'économie de l\'offre qui bloque, pas la créa. Refaire la vidéo ne changera pas le prix de l\'acquisition.',
       priority: 0,
-      edgeLegal: gagnant,
+      edgeLegal: iterable,
     });
   }
 
   // ── Une gagnante · on décline ce qui a gagné ──────────────────────────────
-  if (gagnant && !input.failedStage) {
+  if (iterable && !input.failedStage) {
     const v = DECLINAISON.find((x) => deja.filter((y) => y === x).length < MAX_ESSAIS_MEME_VARIABLE)
       ?? DECLINAISON[0]!;
     out.push({
       mode: 'more',
       changedVariable: v,
       stageTargeted: VARIABLE_STAGE[v] ?? null,
-      // Sur une gagnante, ce qui a gagné se gèle en entier.
+      // Sur une gagnante (ou une prometteuse), ce qui porte se gèle en entier.
       freeze: ['hook', 'angle', 'offer'],
-      rationale: `Elle a gagné · décline-la en changeant ${VARIABLE_LABEL[v]} et rien d'autre. Garde l'accroche, l'angle et l'offre intacts : c'est eux qui ont gagné, pas le reste.`,
+      // « Elle a gagné » seulement si c'est PROUVÉ au protocole · une prometteuse
+      // (relative, ou un import non comparable) se décline sans crier victoire (N02).
+      rationale: gagnanteValidee
+        ? `Elle a gagné · décline-la en changeant ${VARIABLE_LABEL[v]} et rien d'autre. Garde l'accroche, l'angle et l'offre intacts : c'est eux qui ont gagné, pas le reste.`
+        : `Piste prometteuse (comparaison relative · rien n'est encore prouvé au protocole) · tu peux la décliner en changeant ${VARIABLE_LABEL[v]}, mais confirme-la d'abord avant d'en tirer une conclusion. Garde l'accroche, l'angle et l'offre.`,
       priority: 1,
       edgeLegal: true,
     });
@@ -307,7 +324,7 @@ export function proposeIterations(input: IterationInput): IterationProposal[] {
         ? `Elle a lâché sur ${STAGE_LABEL[stage]} · change ${VARIABLE_LABEL[v]}, seulement. ${acquis}`
         : `Elle a lâché dès ${STAGE_LABEL[stage]} · change ${VARIABLE_LABEL[v]}. Rien n'a encore été prouvé sur cette ad, il n'y a donc rien à préserver.`,
       priority: cher ? 0 : 2,
-      edgeLegal: gagnant,
+      edgeLegal: iterable,
     });
 
     // Un repli, et un seul · la deuxième variable de la même étape.
@@ -322,7 +339,7 @@ export function proposeIterations(input: IterationInput): IterationProposal[] {
         freeze: gel,
         rationale: `Si ${VARIABLE_LABEL[v]} ne suffit pas : ${VARIABLE_LABEL[repli]}, sur la même étape. Une seule des deux à la fois.`,
         priority: 3,
-        edgeLegal: gagnant,
+        edgeLegal: iterable,
       });
     }
     return out;
