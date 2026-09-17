@@ -153,7 +153,7 @@ export interface IterationProposal {
    */
   freeze: TestedVariable[];
   rationale: string;
-  /** 0 en premier · classe l'ordre dans lequel dépenser le prochain euro. */
+  /** 0 en premier · classe l'ordre de revue · la piste au plus fort potentiel restant d'abord. */
   priority: number;
   /**
    * `false` quand le parent n'est pas gagnant : la proposition tient toujours,
@@ -282,7 +282,7 @@ export function proposeIterations(input: IterationInput): IterationProposal[] {
       // « Elle a gagné » seulement si c'est PROUVÉ au protocole · une prometteuse
       // (relative, ou un import non comparable) se décline sans crier victoire (N02).
       rationale: gagnanteValidee
-        ? `Elle a gagné · décline-la en changeant ${VARIABLE_LABEL[v]} et rien d'autre. Garde l'accroche, l'angle et l'offre intacts : c'est eux qui ont gagné, pas le reste.`
+        ? `Résultat conforme au protocole · décline-la en changeant ${VARIABLE_LABEL[v]} et rien d'autre. Garde l'accroche, l'angle et l'offre intacts · l'hypothèse est que ce sont eux qui portent, isoler une variable la teste.`
         : `Piste prometteuse (comparaison relative · rien n'est encore prouvé au protocole) · tu peux la décliner en changeant ${VARIABLE_LABEL[v]}, mais confirme-la d'abord avant d'en tirer une conclusion. Garde l'accroche, l'angle et l'offre.`,
       priority: 1,
       edgeLegal: true,
@@ -369,7 +369,7 @@ export interface IterationTask extends IterationProposal {
 }
 
 /**
- * Le plan d'itération du compte, classé par ce que le prochain euro rapportera.
+ * Le plan d'itération du compte, classé par priorité de revue · la piste au plus fort potentiel restant d'abord.
  *
  * À priorité égale, la dépense engagée départage : une ad qui a coûté 400 € et
  * dont l'offre bloque mérite d'être corrigée avant une ad à 30 €. Ce n'est pas

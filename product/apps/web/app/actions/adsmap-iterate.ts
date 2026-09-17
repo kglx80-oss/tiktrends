@@ -188,7 +188,7 @@ function remonte(
 function resume(n: number, examinees: number): string {
   if (!examinees) return 'Aucun test arbitré pour l’instant · le plan se remplira au premier verdict validé.';
   if (!n) return `${examinees} test(s) arbitré(s), et rien à itérer : tout ce qui pouvait l’être l’a déjà été.`;
-  return `${n} suite(s) proposée(s) sur ${examinees} test(s) arbitré(s) · classées par ce que le prochain euro rapportera.`;
+  return `${n} suite(s) proposée(s) sur ${examinees} test(s) arbitré(s) · classées par priorité de revue · d'abord les pistes au plus fort potentiel restant.`;
 }
 
 /* -------------------------------------------------------------------------- */
