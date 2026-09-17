@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  survivalSignal, selectForAnalysis, estimateCost, radarDigest, findingHeadline,
+  survivalSignal, selectForAnalysis, estimateCost, radarDigest, messageCollecteVide, findingHeadline,
   MAX_PER_ADVERTISER, COST_PER_ANALYSIS_USD,
   type RadarCandidate, type RadarKnowledge, type RadarFinding,
 } from '../src/adsmap/radar';
@@ -151,6 +151,20 @@ describe('largeur avant profondeur · trois créas d’un annonceur suffisent', 
     const cands = Array.from({ length: 6 }, (_, i) =>
       cand({ externalId: `n${i}`, advertiser: null, daysRunning: 30 }));
     expect(selectForAnalysis(cands, vierge, 6).picked).toHaveLength(MAX_PER_ADVERTISER);
+  });
+});
+
+describe('CDC v7 · N10 · « rien de neuf » ≠ « collecte échouée »', () => {
+  it('des lectures tentées mais toutes en échec → collecte incomplète, pas « rien de neuf »', () => {
+    const m = messageCollecteVide({ tentees: 3, reussites: 0 });
+    expect(m).toMatch(/collecte incomplète/i);
+    expect(m).toMatch(/pas « rien de neuf »/i);
+  });
+  it('des lectures réussies mais sans créa lisible → absence réelle', () => {
+    expect(messageCollecteVide({ tentees: 3, reussites: 3 })).toMatch(/aucune créa concurrente lisible/i);
+  });
+  it('aucune lecture tentée (rien à interroger) → message d’absence, pas d’échec', () => {
+    expect(messageCollecteVide({ tentees: 0, reussites: 0 })).toMatch(/aucune créa concurrente lisible/i);
   });
 });
 
