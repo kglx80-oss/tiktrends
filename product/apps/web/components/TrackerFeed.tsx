@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { Icon } from './Icon';
 import { useRouter } from 'next/navigation';
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille } from '@tiktrends/core';
+import { estGagnantVeille, evenementsConcurrent, EVENEMENT_LABEL, EVENEMENT_RAISON, type EvenementConcurrent } from '@tiktrends/core';
 import { AdCard } from './AdCard';
 import { scanTrackerAction, markTrackerSeenAction } from '../app/actions/tracker';
 import { Empty } from './Empty';
@@ -80,12 +80,19 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
         )
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
-          {ordered.map((e, i) => (
-            <div key={e.ad.platform + e.ad.id + i} style={{ position: 'relative' }}>
-              {e.unseen && <span style={{ position: 'absolute', top: 8, left: 8, zIndex: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 8px' }}>NOUVEAU</span>}
-              <AdCard ad={e.ad} />
-            </div>
-          ))}
+          {ordered.map((e, i) => {
+            const evenements = evenementsConcurrent(e.ad, { nouveau: e.unseen });
+            return (
+              <div key={e.ad.platform + e.ad.id + i} style={{ position: 'relative' }}>
+                {evenements.length > 0 && (
+                  <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                    {evenements.map((ev) => <BadgeEvenement key={ev} evenement={ev} />)}
+                  </div>
+                )}
+                <AdCard ad={e.ad} />
+              </div>
+            );
+          })}
         </div>
       )}
     </section>
@@ -93,3 +100,29 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
 }
 
 const ghostBtn = { padding: '8px 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' } as const;
+
+/**
+ * Le badge d'un événement de veille · sa couleur dit sa nature. La diffusion
+ * durable et la croissance signalent un gagnant à cloner (accentué) · la
+ * nouveauté reste neutre · elle dit « pas encore vue », pas « prouvée ».
+ */
+export function BadgeEvenement({ evenement }: { evenement: EvenementConcurrent }) {
+  const fond: Record<EvenementConcurrent, string> = {
+    diffusion_durable: 'var(--grad-accent)',
+    croissance: 'linear-gradient(135deg, #1f9d63, #16794c)',
+    nouveaute: 'var(--ink-2)',
+  };
+  const teinte: Record<EvenementConcurrent, string> = {
+    diffusion_durable: 'var(--on-accent)',
+    croissance: '#fff',
+    nouveaute: 'var(--paper)',
+  };
+  return (
+    <span
+      title={EVENEMENT_RAISON[evenement]}
+      style={{ fontSize: 10, fontWeight: 800, color: teinte[evenement], background: fond[evenement], borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}
+    >
+      {EVENEMENT_LABEL[evenement]}
+    </span>
+  );
+}
