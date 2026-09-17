@@ -13,6 +13,8 @@ import { grantTestPackAction, revokeTrialAction } from '../../actions/beta';
 import { trialStatus, TRIAL_DEFAULT_CREDITS, TRIAL_DEFAULT_DAYS } from '../../../lib/trial';
 import { input, Msg } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
+import { DiagnosticDeploiement } from '../../../components/DiagnosticDeploiement';
+import { currentDeployment } from '../../../lib/deployment';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +34,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
   const { ok, e } = await searchParams;
 
   const founder = isFounder(s.user.email);
+  const deploiement = await currentDeployment();
   const planCfg = await getPlanConfig();
   const PLAN_PRICE = planCfg.prices;
   const metrics = founder ? await computePlatformMetrics(planCfg.prices) : null;
@@ -98,6 +101,11 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
       {ok === 'testpack' && <Msg kind="ok">Crédits de test accordés.</Msg>}
       {ok === 'revoked' && <Msg kind="ok">Période de test terminée.</Msg>}
       {e === 'forbidden' && <Msg kind="err">Action réservée au fondateur.</Msg>}
+
+      {/* Réconcilier code et production · quelle version tourne vraiment (CDC v7 · lot 0). */}
+      <section style={{ marginBottom: 34 }}>
+        <DiagnosticDeploiement etat={deploiement} builtAt={process.env.BUILD_TIME ?? null} />
+      </section>
 
       {/* ============ VUE PLATEFORME (fondateur) ============ */}
       {founder && metrics && (
