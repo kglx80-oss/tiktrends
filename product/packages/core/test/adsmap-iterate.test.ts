@@ -59,8 +59,14 @@ describe('une gagnante se décline sans toucher à ce qui a gagné', () => {
     expect(p!.mode).toBe('more');
   });
 
-  it('une gagnante prouvée dit « Elle a gagné »', () => {
-    expect(proposeIterations(winner)[0]!.rationale).toContain('Elle a gagné');
+  it('une gagnante prouvée dit « résultat conforme au protocole », sans clamer la causalité', () => {
+    // CDC v7 · N07 · langage · un résultat au protocole se nomme comme tel · on
+    // ne clame plus « c'est eux qui ont gagné » (une variation isolée ne prouve
+    // pas seule une causalité) · l'attribution reste une hypothèse à tester.
+    const r = proposeIterations(winner)[0]!.rationale;
+    expect(r).toContain('Résultat conforme au protocole');
+    expect(r, 'la causalité est présentée comme acquise').toContain('hypothèse');
+    expect(r, 'le langage clame encore une victoire des éléments').not.toContain('c’est eux qui ont gagné');
   });
 
   it('ne change jamais l’accroche ni l’angle', () => {
@@ -195,7 +201,7 @@ describe('une lignée s’épuise, et on le dit', () => {
   });
 });
 
-describe('le plan classe par ce que le prochain euro rapporte', () => {
+describe('le plan classe par priorité de revue (potentiel restant, pas promesse de revenu)', () => {
   it('les chutes au CONVERT passent devant les chutes au HOOK', () => {
     const plan = iterationPlan([
       { ...base, adId: 'hook', label: 'H', failedStage: 'hook', spend: 900 },

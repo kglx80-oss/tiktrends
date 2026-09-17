@@ -57,7 +57,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
             <AvatarSite nom={ad.advertiserName || 'Annonceur'} site={ad.landingDomain} taille={22} rayon={11} />
           )}
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
-          {gagnant && <span title="Éprouvée · tient dans le temps ou sa portée progresse" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Gagnant</span>}
+          {gagnant && <span title="Source observée · tient dans le temps ou sa portée progresse · un proxy public de traction, pas une preuve de rentabilité" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Piste forte</span>}
           <FollowButton ad={ad} initialFollowing={following} />
         </div>
         {ad.body && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}
@@ -99,14 +99,14 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
              copy concurrente mot pour mot · un clic sans suite, ou une créa qui
              recopie. Ici on distille l'ANGLE éprouvé et on arme les Pubs IA · la
              règle « reprends l'angle, pas les mots » vit dans le noyau. */}
-        {/* Le clone d'un gagnant est mis en avant · fond plein, l'action évidente.
-             Une pub non éprouvée garde le geste discret · rien n'y presse. */}
+        {/* La piste qui tient est mise en avant · fond plein, l'action évidente.
+             Une pub sans signal garde le geste discret · rien n'y presse. */}
         <a href={studioDepuisVeille(ad, { ref: cloneRef })}
           style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: gagnant ? 800 : 700, padding: '7px 10px', borderRadius: 10,
             border: gagnant ? 'none' : '1px solid var(--line-2)',
             background: gagnant ? 'var(--grad-accent)' : 'transparent',
             color: gagnant ? 'var(--on-accent)' : 'var(--ink)', textDecoration: 'none' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {gagnant ? 'Clone ce gagnant' : 'Génère ta version'}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {gagnant ? 'Décline cette piste' : 'Génère ta version'}</span>
         </a>
       </div>
     </div>

@@ -45,8 +45,12 @@ const FEED = readFileSync(join(process.cwd(), 'components/TrackerFeed.tsx'), 'ut
 describe('le gagnant est flagué et pousse le clone', () => {
   it('la carte flague le gagnant et met en avant SON clone', () => {
     expect(CARD).toMatch(/estGagnantVeille\(ad\)/);
-    expect(CARD, 'le gagnant porte un badge').toMatch(/<Icon name="trophy"[^>]*\/> Gagnant/);
-    expect(CARD, 'le clone du gagnant est l’action mise en avant').toMatch(/Clone ce gagnant/);
+    // CDC v7 · N07 · langage · une source observée n'est pas un « gagnant » ·
+    // le badge dit « Piste forte », l'action « Décline cette piste ». Un proxy
+    // public (longévité/portée) n'est pas une preuve de rentabilité.
+    expect(CARD, 'la source observée porte un badge de piste').toMatch(/<Icon name="trophy"[^>]*\/> Piste forte/);
+    expect(CARD, 'l’action mise en avant décline la piste, ne « clone un gagnant »').toMatch(/Décline cette piste/);
+    expect(CARD, 'le langage promet encore une victoire').not.toMatch(/Clone ce gagnant/);
   });
 
   it('le fil auto remonte les gagnants en tête', () => {
