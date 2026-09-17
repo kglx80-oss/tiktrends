@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { etatCatalogue, dejaDisponible, etatConnecteur, PHASE_CONNECTEUR_LABEL } from '../src/connecteurs-catalogue';
+import { etatCatalogue, dejaDisponible, etatConnecteur, PHASE_CONNECTEUR_LABEL, resumeImportDrive } from '../src/connecteurs-catalogue';
 
 /**
  * CDC v7 · N09 · « disponible » et « en préparation » ne comptent jamais la
@@ -25,6 +25,23 @@ describe('etatCatalogue', () => {
     const e = etatCatalogue(['google drive'], ['  Google  Drive ', 'Notion']);
     expect(e.conflits.length).toBe(1);
     expect(e.enPreparation).toBe(1);
+  });
+});
+
+describe('resumeImportDrive · un dossier connecté explique son import (N09)', () => {
+  it('un dossier VIDE se dit vide, pas par le silence', () => {
+    expect(resumeImportDrive({ found: 0, added: 0, skipped: 0 })).toMatch(/dossier connecté vide/i);
+  });
+  it('détaille trouvés / importés / ignorés', () => {
+    const m = resumeImportDrive({ found: 5, added: 3, skipped: 2 });
+    expect(m).toContain('5 trouvés');
+    expect(m).toContain('3 importés');
+    expect(m).toContain('2 déjà présents');
+    expect(m, 'aucune erreur à signaler ici').not.toMatch(/erreur/);
+  });
+  it('déduit les erreurs · trouvé mais ni importé ni déjà présent = échec', () => {
+    const m = resumeImportDrive({ found: 5, added: 3, skipped: 1 });
+    expect(m).toContain('1 en erreur');
   });
 });
 

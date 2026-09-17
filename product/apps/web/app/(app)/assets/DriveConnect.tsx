@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
+import { resumeImportDrive } from '@tiktrends/core';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 
@@ -109,7 +110,8 @@ export function DriveConnect({ state }: { state: DriveState }) {
     const r = await syncDriveFilesAction(files);
     setBusy('');
     if (r.error) { setMsg(r.error); return; }
-    setMsg(`${r.added ?? 0} fichier(s) importé(s)${r.skipped ? ` · ${r.skipped} déjà présent(s)` : ''}.`);
+    // Même résumé honnête que la synchro de dossier · trouvés/importés/ignorés/erreurs.
+    setMsg(resumeImportDrive({ found: files.length, added: r.added ?? 0, skipped: r.skipped ?? 0 }));
     refresh();
   }
 
@@ -118,12 +120,10 @@ export function DriveConnect({ state }: { state: DriveState }) {
     const r = await syncDriveNowAction();
     setBusy('');
     if (r.error) { setMsg(r.error); return; }
-    if ((r.found ?? 0) === 0) {
-      setMsg('0 fichier média trouvé dans ce dossier. Google (scope drive.file) ne renvoie que les fichiers/dossiers que TU as sélectionnés dans le sélecteur. Clique « Changer de dossier » et re-sélectionne le dossier (ou choisis un sous-dossier qui contient directement des images/vidéos).');
-      return;
-    }
-    setMsg(`${r.found} fichier(s) trouvé(s) · ${r.added ?? 0} ajouté(s)${r.skipped ? ` · ${r.skipped} déjà présent(s)` : ''}.`);
-    refresh();
+    // Un résumé unique · trouvés/importés/ignorés/erreurs, et le dossier vide
+    // s'explique au lieu de se taire (CDC v7 · N09).
+    setMsg(resumeImportDrive({ found: r.found ?? 0, added: r.added ?? 0, skipped: r.skipped ?? 0 }));
+    if ((r.found ?? 0) > 0) refresh();
   }
 
   async function disconnect() {
