@@ -16,7 +16,7 @@ const src = readFileSync(join(process.cwd(), 'components/CreditsMenu.tsx'), 'utf
 
 describe('Menu Crédits · les gestes sensibles atteignent la cible tactile', () => {
   it('adopte le seuil du noyau', () => {
-    expect(src).toMatch(/import \{ CIBLE_TACTILE_MIN \} from '@tiktrends\/core'/);
+    expect(src).toMatch(/import \{ CIBLE_TACTILE_MIN[^}]*\} from '@tiktrends\/core'/);
   });
 
   it('le bouton Acheter (paiement) porte la hauteur de cible', () => {

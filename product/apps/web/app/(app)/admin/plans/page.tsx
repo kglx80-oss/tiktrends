@@ -5,6 +5,8 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, PLAN_CREDITS, PLAN_PRICE, type Plan } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
+import { unlimitedCredits } from '../../../../lib/credits';
+import { afficherCredits, texteCredits } from '@tiktrends/core';
 import { changePlanAction } from '../../../actions/billing';
 import { grantCreditsAction, rechargeAllocationAction } from '../../../actions/credits';
 import { input, btn, btnGhost, panel, lbl, Msg } from '../../../../components/ui';
@@ -44,6 +46,9 @@ export default async function AdminPlansPage({ searchParams }: { searchParams: P
   const plan = s.plan as Plan;
   const alloc = PLAN_CREDITS[plan] ?? 0;
   const fmt = (n: number) => n.toLocaleString('fr-FR');
+  // Le solde AFFICHÉ passe par la décision commune · un compte illimité montre
+  // « Illimité », comme la puce du rail · plus de « 0 » contradictoire (N09).
+  const soldeAffiche = texteCredits(afficherCredits({ balance, unlimited: unlimitedCredits(s.user.email) }), fmt);
 
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
@@ -63,7 +68,7 @@ export default async function AdminPlansPage({ searchParams }: { searchParams: P
       {/* État courant */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 22 }}>
         <Stat label="Formule" value={PLAN_LABEL[plan]} sub={`${PLAN_PRICE[plan]} € / mois`} />
-        <Stat label="Solde crédits" value={fmt(balance)} sub={`allocation ${fmt(alloc)} / mois`} strong />
+        <Stat label="Solde crédits" value={soldeAffiche} sub={`allocation ${fmt(alloc)} / mois`} strong />
         <Stat label="Abonnement Stripe" value={subStatus ?? 'aucun'} sub={subStatus ? 'géré par Stripe' : 'pilotage manuel'} />
       </div>
 
