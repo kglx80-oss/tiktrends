@@ -20,7 +20,7 @@ const ETAT_BASE = {
 
 type Etat = typeof ETAT_BASE;
 
-function props(o: { etat?: Partial<Etat>; erreur?: string; produits?: Array<{ id: string; name: string }> }) {
+function props(o: { etat?: Partial<Etat>; erreur?: string; produits?: Array<{ id: string; name: string; hasImage: boolean; photoUrl?: string | null }> }) {
   return {
     ouvert: true as const,
     onFermer: () => {},
@@ -59,7 +59,7 @@ describe('assistant · la fenêtre s’annonce comme une modale nommée', () => 
   });
 
   it('le produit sélectionné est exposé par aria-pressed, pas par la seule couleur', () => {
-    const produits = [{ id: 'a', name: 'Café' }, { id: 'b', name: 'Thé' }];
+    const produits = [{ id: 'a', name: 'Café', hasImage: true, photoUrl: 'data:x' }, { id: 'b', name: 'Thé', hasImage: false, photoUrl: null }];
     const html = renderToStaticMarkup(<AssistantPub {...props({ produits, etat: { productId: 'a' } })} />);
     expect(html, 'l’état sélectionné n’est pas exposé').toContain('aria-pressed="true"');
     expect(html, 'les non-sélectionnés ne sont pas exposés').toContain('aria-pressed="false"');

@@ -34,7 +34,7 @@ function props() {
     ouvert: true as const,
     onFermer: () => {},
     etat: ETAT,
-    produits: [] as Array<{ id: string; name: string }>,
+    produits: [] as Array<{ id: string; name: string; hasImage: boolean; photoUrl?: string | null }>,
     libelleGabarit: () => 'Bénéfices',
     selecteurStyle: <div>sélecteur de style</div>,
     conseilMoteurs: { recommande: null, deconseilles: [], lignes: {}, resume: '' },

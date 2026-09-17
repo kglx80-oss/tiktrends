@@ -34,7 +34,7 @@ function rendu(): string {
       ouvert
       onFermer={() => {}}
       etat={ETAT}
-      produits={[{ id: 'p1', name: 'Crème hydratante' }]}
+      produits={[{ id: 'p1', name: 'Crème hydratante', hasImage: false, photoUrl: null }]}
       libelleGabarit={() => 'Bénéfices'}
       selecteurStyle={<div>sélecteur de style</div>}
       conseilMoteurs={{ recommande: null, deconseilles: [], lignes: {}, resume: '' }}
