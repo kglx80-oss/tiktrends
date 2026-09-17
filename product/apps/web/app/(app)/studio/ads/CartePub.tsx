@@ -1,11 +1,30 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { qualiteCarte, type EtatVerdictCarte } from '@tiktrends/core';
+import { qualiteCarte, type EtatVerdictCarte, type FaitControle } from '@tiktrends/core';
 import { CarteCreative, type ActionCarte } from '../../../../components/CarteCreative';
 import { RatingControl } from '../../../../components/CreativeActions';
 import { trackGeneratedAdAction } from '../../../actions/adsmap-bridge';
 import type { AdItem } from '../../../actions/ads';
+
+/**
+ * Les faits qu'un gabarit PORTE et qu'une relecture technique ne vérifie pas ·
+ * un témoignage a une source, une offre un prix, une stat un chiffre, un
+ * avant/après une preuve. Par défaut « à vérifier » · la relecture automatique
+ * n'atteste pas leur véracité, et son silence n'est pas une validation
+ * (CDC v7 · N04). Tant qu'un fait reste ouvert, la pub n'est pas « prête ».
+ */
+const FAIT_PAR_GABARIT: Partial<Record<AdItem['template'], { cle: string; label: string }>> = {
+  testimonial: { cle: 'temoignage', label: 'Témoignage' },
+  offer: { cle: 'offre', label: 'Offre / prix' },
+  stat: { cle: 'stat', label: 'Chiffre avancé' },
+  before_after: { cle: 'avant_apres', label: 'Avant / après' },
+};
+
+function faitsDeLaPub(ad: AdItem): FaitControle[] {
+  const f = FAIT_PAR_GABARIT[ad.template];
+  return f ? [{ cle: f.cle, label: f.label, etat: 'a_verifier' }] : [];
+}
 
 /**
  * La carte d'une pub GÉNÉRÉE, dans la grille Pubs IA · l'adaptateur qui branche
@@ -69,7 +88,7 @@ export function CartePub({ ad, format, meta, note, vignetteUrl, fullUrl, onOpen,
       note={note}
       onApercu={onOpen}
       pertinence={<RatingControl genId={ad.id} rating={ad.rating} />}
-      qualite={qualiteCarte(ad.controle)}
+      qualite={qualiteCarte({ ...(ad.controle ?? {}), faits: faitsDeLaPub(ad), provenance: { date: (ad.createdAt ?? '').slice(0, 10) || null } })}
       performance={{ verdict, prediction: typeof ad.score === 'number' ? ad.score : null }}
       actionPrincipale={{ cle: 'ouvrir', label: 'Ouvrir', icon: 'frame', onClick: onOpen }}
       actionsSecondaires={secondaires}

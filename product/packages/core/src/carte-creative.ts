@@ -12,15 +12,50 @@
  * dire prête à diffuser » — est une DÉCISION · elle vit donc dans un module pur,
  * éprouvable sans rendu.
  *
- * ── Trois principes ──────────────────────────────────────────────────────────
+ * ── Trois natures de contrôle, jamais confondues (CDC v7 · N04) ───────────────
  *
- * 1. Une relecture automatique produit des SUSPICIONS, pas des verdicts · on les
- *    présente comme telles (`automatique`).
- * 2. Un défaut BLOQUANT confirmé (produit modifié, texte illisible, accroche
- *    réécrite grave) reste visible et interdit « Prête à diffuser ».
- * 3. Le silence est une réponse · une création sans relecture n'est pas « prête »,
- *    elle est « non vérifiée » · ne pas la déclarer prête à tort.
+ * Le badge disait « Prête à diffuser » dès qu'une relecture AUTOMATIQUE ne
+ * relevait rien · y compris sur un témoignage (« Ma piscine n'a jamais été
+ * aussi nette ») dont personne n'avait vérifié la source. L'absence d'un défaut
+ * DÉTECTÉ n'est pas la vérification d'une preuve ABSENTE · le silence de la
+ * relecture sur un fait n'est pas une validation de ce fait.
+ *
+ * On sépare donc trois natures, et on les rend consultables :
+ *
+ * 1. Le contrôle TECHNIQUE · la relecture automatique (produit fidèle, texte
+ *    lisible, copie conforme). Elle produit des SUSPICIONS, pas des verdicts.
+ * 2. La validation FACTUELLE · un fait porté par la pub (citation/témoignage,
+ *    offre/prix, référence produit) est-il vérifié CONTRE une source. Par
+ *    défaut, un fait présent est « à vérifier » · pas « conforme parce que rien
+ *    n'a sonné ». Changer le prix, la citation ou la composition rend caduque la
+ *    validation concernée (`invalidee`).
+ * 3. L'approbation HUMAINE · une personne a-t-elle approuvé, et laquelle.
+ *
+ * « Prête à diffuser » exige les contrôles BLOQUANTS : la relecture technique
+ * passe ET aucun fait n'est à vérifier ou caduc. « Performance inconnue » reste
+ * indépendant · une pub prête techniquement n'a pas pour autant fait ses preuves
+ * sur le marché.
  */
+
+/** L'état d'un fait porté par la pub · face à une SOURCE, jamais « rien détecté ». */
+export type EtatFait = 'verifiee' | 'a_verifier' | 'invalidee';
+
+/** Un fait à valider · une citation, une offre, une référence, un prix. */
+export interface FaitControle {
+  cle: string;
+  /** Ce que le fait affirme, nommé · « Témoignage », « Offre · -20 % ». */
+  label: string;
+  etat: EtatFait;
+  /** Sur quoi s'appuie la validation · vide quand rien ne l'atteste. */
+  source?: string | null;
+}
+
+/** La provenance d'une création · qui, quand, quelle version. */
+export interface ProvenanceCarte {
+  auteur?: string | null;
+  date?: string | null;
+  version?: string | null;
+}
 
 /** Ce qu'une relecture a consigné sur une création · forme déjà résumée. */
 export interface ControleCarte {
@@ -36,25 +71,63 @@ export interface ControleCarte {
   texteLisible?: boolean | null;
   /** Ce qui gêne la lecture · le premier sert de détail. */
   problemesLisibilite?: string[] | null;
+  /** Les faits à valider contre une source · citation, offre, prix, référence. */
+  faits?: FaitControle[] | null;
+  /** L'approbation humaine explicite · `null` quand personne n'a tranché. */
+  approbation?: { par: string; le?: string | null } | null;
+  /** Qui a fabriqué la création, quand, quelle version. */
+  provenance?: ProvenanceCarte | null;
 }
 
 export type NiveauQualite = 'ok' | 'suspicion' | 'bloquant';
 export type TonQualite = 'bon' | 'attention' | 'bloquant' | 'inconnu';
 
+/** Le contrôle technique · la relecture automatique et son constat. */
+export interface NatureTechnique {
+  /** La relecture a-t-elle eu lieu · sans elle, on ne conclut rien. */
+  fait: boolean;
+  niveau: NiveauQualite;
+  /** Les suspicions relevées, nommées · détectées automatiquement. */
+  points: string[];
+}
+
+/** La validation factuelle · l'état des faits portés par la pub. */
+export interface NatureFactuelle {
+  faits: FaitControle[];
+  verifies: number;
+  aVerifier: number;
+  invalides: number;
+}
+
+/** L'approbation humaine · présente ou absente, et par qui. */
+export interface NatureHumaine {
+  approuve: boolean;
+  par?: string | null;
+  le?: string | null;
+}
+
 export interface QualiteCarte {
-  /** La création a-t-elle été relue · sans relecture, on ne conclut pas. */
+  /** La création a-t-elle été jugée · sans aucun contrôle, on ne conclut pas. */
   verifie: boolean;
   niveau: NiveauQualite;
-  /** Les points à vérifier, nommés · pour le détail dépliable. Vide si rien. */
+  /** Les suspicions techniques, nommées · pour le détail (compat). Vide si rien. */
   points: string[];
   /** La synthèse affichée sur la carte · « 2 points à vérifier », etc. */
   libelle: string;
   ton: TonQualite;
-  /** Un défaut bloquant confirmé interdit ce statut · et une création non relue
-   *  ou porteuse d'une suspicion n'est pas déclarée prête. */
+  /** Contrôles bloquants passés · relecture technique OK et aucun fait ouvert. */
   pretADiffuser: boolean;
-  /** Les constats viennent d'une relecture automatique · à présenter comme suspicion. */
+  /** Les suspicions techniques viennent d'une relecture automatique. */
   automatique: boolean;
+  /** Les trois natures, distinctes et consultables. */
+  technique: NatureTechnique;
+  factuel: NatureFactuelle;
+  humain: NatureHumaine;
+  provenance: ProvenanceCarte | null;
+  /** Ce qui est approuvé · pour le détail dépliable. */
+  pointsApprouves: string[];
+  /** Ce qui reste en réserve · suspicions techniques et faits ouverts. */
+  reserves: string[];
 }
 
 function txt(v: unknown): string {
@@ -64,37 +137,80 @@ function premier(v: unknown): string {
   return Array.isArray(v) ? txt(v[0]) : '';
 }
 
-/** Une création est « relue » dès qu'un contrôle porte un jugement. */
-function estRelue(c: ControleCarte): boolean {
+/** La relecture technique a-t-elle porté un jugement ? */
+function relueTechnique(c: ControleCarte): boolean {
   return c.produitFidele != null || c.texteLisible != null || !!txt(c.copieResume);
 }
 
 /**
- * La synthèse qualité d'une création, à partir de ce qu'une relecture a constaté.
+ * La synthèse qualité d'une création, à partir de ce qu'une relecture a
+ * constaté ET des faits qu'elle porte.
  *
- * Ordre des points · le produit d'abord (une pub au packaging inventé est
- * inutilisable), puis la lisibilité, puis la copie · le même ordre de gravité
- * que le bandeau détaillé, pour qu'une lecture rapide et une lecture fine
- * racontent la même chose.
+ * Ordre des réserves · le produit d'abord (une pub au packaging inventé est
+ * inutilisable), puis la lisibilité, puis la copie, puis les faits à vérifier ·
+ * du plus éliminatoire au plus « à confirmer », pour qu'une lecture rapide et le
+ * détail racontent la même chose.
  */
 export function qualiteCarte(controle?: ControleCarte | null): QualiteCarte {
   const c = controle ?? {};
-  const verifie = estRelue(c);
 
+  // ── Nature 1 · le contrôle technique (relecture automatique). ──────────────
+  const techniqueFait = relueTechnique(c);
   const produitKo = c.produitFidele === false;
   const texteKo = c.texteLisible === false;
   const copie = txt(c.copieResume);
   const copieGrave = !!c.copieGrave && !!copie;
 
-  const points: string[] = [];
-  if (produitKo) { const e = premier(c.ecarts); points.push(e ? `Produit modifié · ${e}` : 'Produit modifié'); }
-  if (texteKo) { const p = premier(c.problemesLisibilite); points.push(p ? `Texte peu lisible · ${p}` : 'Texte peu lisible'); }
-  if (copie) points.push(copieGrave ? `Accroche réécrite · ${copie}` : `Copie retouchée · ${copie}`);
+  const pointsTech: string[] = [];
+  if (produitKo) { const e = premier(c.ecarts); pointsTech.push(e ? `Produit modifié · ${e}` : 'Produit modifié'); }
+  if (texteKo) { const p = premier(c.problemesLisibilite); pointsTech.push(p ? `Texte peu lisible · ${p}` : 'Texte peu lisible'); }
+  if (copie) pointsTech.push(copieGrave ? `Accroche réécrite · ${copie}` : `Copie retouchée · ${copie}`);
 
-  const bloquant = produitKo || texteKo || copieGrave;
-  const niveau: NiveauQualite = bloquant ? 'bloquant' : points.length ? 'suspicion' : 'ok';
+  const techBloquant = produitKo || texteKo || copieGrave;
+  const niveauTech: NiveauQualite = techBloquant ? 'bloquant' : pointsTech.length ? 'suspicion' : 'ok';
+  const technique: NatureTechnique = { fait: techniqueFait, niveau: niveauTech, points: pointsTech };
 
-  const n = points.length;
+  // ── Nature 2 · la validation factuelle. ────────────────────────────────────
+  const faits = (c.faits ?? []).filter((f): f is FaitControle => !!f && !!txt(f.label));
+  const aVerifier = faits.filter((f) => f.etat === 'a_verifier').length;
+  const invalides = faits.filter((f) => f.etat === 'invalidee').length;
+  const verifies = faits.filter((f) => f.etat === 'verifiee').length;
+  const factuel: NatureFactuelle = { faits, verifies, aVerifier, invalides };
+
+  // ── Nature 3 · l'approbation humaine. ──────────────────────────────────────
+  const par = txt(c.approbation?.par);
+  const humain: NatureHumaine = { approuve: !!par, par: par || null, le: txt(c.approbation?.le) || null };
+
+  // ── Provenance. ────────────────────────────────────────────────────────────
+  const prov = c.provenance ?? null;
+  const provenance: ProvenanceCarte | null =
+    prov && (txt(prov.auteur) || txt(prov.date) || txt(prov.version))
+      ? { auteur: txt(prov.auteur) || null, date: txt(prov.date) || null, version: txt(prov.version) || null }
+      : null;
+
+  // ── Réserves et points approuvés · pour la consultation. ───────────────────
+  const reserves = [
+    ...pointsTech,
+    ...faits.filter((f) => f.etat === 'invalidee').map((f) => `${f.label} · validation caduque`),
+    ...faits.filter((f) => f.etat === 'a_verifier').map((f) => `${f.label} · à vérifier`),
+  ];
+  const pointsApprouves = [
+    ...(c.produitFidele === true ? ['Produit fidèle'] : []),
+    ...(c.texteLisible === true ? ['Texte lisible'] : []),
+    ...faits.filter((f) => f.etat === 'verifiee').map((f) => `${f.label} · vérifié${txt(f.source) ? ` · ${txt(f.source)}` : ''}`),
+    ...(humain.approuve ? [`Approuvée par ${humain.par}${humain.le ? ` · ${humain.le}` : ''}`] : []),
+  ];
+
+  // ── Synthèse. ──────────────────────────────────────────────────────────────
+  // « Vérifiée » = un contrôle, quel qu'il soit, a porté sur elle · relecture
+  // technique, fait déclaré, ou approbation. Sans aucun, on ne conclut pas.
+  const verifie = techniqueFait || faits.length > 0 || humain.approuve;
+  // Un fait caduc est aussi éliminatoire qu'un défaut technique · la validation
+  // ne tient plus. Un fait à vérifier est une réserve, pas un défaut.
+  const bloquant = techBloquant || invalides > 0;
+  const niveau: NiveauQualite = bloquant ? 'bloquant' : reserves.length ? 'suspicion' : 'ok';
+
+  const n = reserves.length;
   const pluriel = n > 1 ? 's' : '';
   const libelle = !verifie
     ? 'Qualité non vérifiée'
@@ -109,13 +225,19 @@ export function qualiteCarte(controle?: ControleCarte | null): QualiteCarte {
   return {
     verifie,
     niveau,
-    points,
+    points: pointsTech,
     libelle,
     ton,
-    // Une création non relue n'est pas prête · et une suspicion, même non bloquante,
-    // demande une vérification avant de la dire prête.
-    pretADiffuser: verifie && n === 0,
-    // Les points sortent d'une relecture automatique · ce sont des suspicions.
-    automatique: n > 0,
+    // Prête = la relecture technique a eu lieu et ne relève rien, ET aucun fait
+    // n'est ouvert (à vérifier ou caduc). Un fait non vérifié suffit à retenir.
+    pretADiffuser: techniqueFait && niveauTech === 'ok' && aVerifier === 0 && invalides === 0,
+    // Les suspicions techniques sortent d'une relecture automatique.
+    automatique: pointsTech.length > 0,
+    technique,
+    factuel,
+    humain,
+    provenance,
+    pointsApprouves,
+    reserves,
   };
 }

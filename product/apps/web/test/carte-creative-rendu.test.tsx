@@ -88,6 +88,38 @@ describe('carte créative · pertinence, qualité et performance distinctes', ()
   });
 });
 
+describe('carte créative · N04 · le badge qualité est explicable et consultable', () => {
+  it('le badge est activable MÊME « Prête à diffuser » · pas de bouton inerte', () => {
+    // Le constat · un badge désactivé n'ouvre pas sa justification au clavier.
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true });
+    const h = html({ qualite: q });
+    expect(q.libelle).toBe('Prête à diffuser');
+    expect(h, 'le badge qualité n’est pas consultable').toContain('aria-expanded');
+    expect(h, 'le badge qualité est rendu inerte').not.toContain('disabled=""');
+  });
+
+  it('ouvert, il expose les TROIS natures et l’avertissement de preuve', () => {
+    const q = qualiteCarte({
+      produitFidele: true, texteLisible: true,
+      faits: [{ cle: 'temoignage', label: 'Témoignage', etat: 'a_verifier' }],
+      provenance: { date: '2026-09-16' },
+    });
+    const h = html({ qualite: q, initial: { qualite: true } });
+    expect(h).toContain('Contrôle technique');
+    expect(h).toContain('Validation factuelle');
+    expect(h).toContain('Approbation humaine');
+    expect(h, 'le témoignage à vérifier n’apparaît pas').toContain('Témoignage · à vérifier');
+    expect(h, 'l’avertissement de preuve est absent').toContain('Une absence de défaut détecté n’équivaut pas à la vérification d’une preuve.');
+  });
+
+  it('une pub qui porte un témoignage non vérifié n’est pas « Prête à diffuser »', () => {
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, faits: [{ cle: 't', label: 'Témoignage', etat: 'a_verifier' }] });
+    const h = html({ qualite: q });
+    expect(h, 'le badge annonce « prête » sur un fait non vérifié').not.toContain('Prête à diffuser');
+    expect(h).toContain('1 point à vérifier');
+  });
+});
+
 describe('carte créative · états', () => {
   it('erreur · un pavé d’erreur, pas de média', () => {
     const h = html({ erreur: 'Aperçu indisponible pour l’instant.' });
