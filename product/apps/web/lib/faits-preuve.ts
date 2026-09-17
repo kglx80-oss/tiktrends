@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { faitsPortes, etatFait, versionFait, signatureFait, type ValidationFait, type FaitControle } from '@tiktrends/core';
+import { faitsPortes, etatFait, versionFait, signatureFait, preuvePlusRecente, type ValidationFait, type FaitControle } from '@tiktrends/core';
 
 /**
  * La preuve factuelle d'une pub, côté serveur · N04-suite.
@@ -22,6 +22,7 @@ export async function chargerValidationsActives(
   if (!db || !generationIds.length) return parGen;
   const rows = await db
     .select({
+      id: schema.factValidations.id,
       generationId: schema.factValidations.generationId,
       factCle: schema.factValidations.factCle,
       source: schema.factValidations.source,
@@ -34,22 +35,36 @@ export async function chargerValidationsActives(
     .from(schema.factValidations)
     .leftJoin(schema.users, eq(schema.factValidations.validatedBy, schema.users.id))
     .where(inArray(schema.factValidations.generationId, generationIds))
-    .orderBy(desc(schema.factValidations.validatedAt));
-  // Trié du plus récent au plus ancien · la première vue pour un (rendu, fait)
-  // est l'active · les suivantes sont l'historique, qu'on ne survend pas.
+    // Défense · l'ordre SQL sur les ex æquo de date est indéfini · on tranche en
+    // JS avec `preuvePlusRecente`, mais on aide déjà la base à ne pas les brasser.
+    .orderBy(desc(schema.factValidations.validatedAt), desc(schema.factValidations.id));
+
+  // On désigne l'active par la RÈGLE pure (date, puis id) plutôt que de faire
+  // confiance à l'ordre que la base rend sur une égalité de date · deux preuves
+  // du même fait au même instant donnaient sinon une active indéterminée.
+  const actives = new Map<string, Map<string, { id: string; poseeA: number; r: (typeof rows)[number] }>>();
   for (const r of rows) {
-    let m = parGen.get(r.generationId);
-    if (!m) { m = new Map(); parGen.set(r.generationId, m); }
-    if (m.has(r.factCle)) continue;
-    m.set(r.factCle, {
-      source: r.source,
-      // Le validateur reste identifié même si le compte a été retiré · on ne
-      // laisse pas une preuve devenir anonyme et retomber « à vérifier ».
-      validateur: (r.nom ?? r.email ?? 'validateur retiré').trim() || 'validateur retiré',
-      date: (r.validatedAt as Date).toISOString(),
-      version: r.version,
-      signature: r.signature,
-    });
+    let m = actives.get(r.generationId);
+    if (!m) { m = new Map(); actives.set(r.generationId, m); }
+    const cand = { id: r.id, poseeA: (r.validatedAt as Date).getTime(), r };
+    const cur = m.get(r.factCle);
+    m.set(r.factCle, cur ? preuvePlusRecente(cur, cand) : cand);
+  }
+
+  for (const [genId, m] of actives) {
+    const dst = new Map<string, ValidationFait>();
+    for (const [cle, { r }] of m) {
+      dst.set(cle, {
+        source: r.source,
+        // Le validateur reste identifié même si le compte a été retiré · on ne
+        // laisse pas une preuve devenir anonyme et retomber « à vérifier ».
+        validateur: (r.nom ?? r.email ?? 'validateur retiré').trim() || 'validateur retiré',
+        date: (r.validatedAt as Date).toISOString(),
+        version: r.version,
+        signature: r.signature,
+      });
+    }
+    parGen.set(genId, dst);
   }
   return parGen;
 }

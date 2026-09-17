@@ -108,6 +108,26 @@ export function faitsPortes(pub: { template?: string | null; headline?: string |
   }
 }
 
+/** Une preuve datée · ce qu'il faut pour désigner l'ACTIVE de façon stable. */
+export interface PreuveDatee {
+  /** Identifiant unique · départage une égalité de date. */
+  id: string;
+  /** Quand la preuve a été posée · en millisecondes. */
+  poseeA: number;
+}
+
+/**
+ * La plus récente de deux preuves du même fait · la DATE tranche d'abord, et sur
+ * égalité (deux validations au même instant) l'`id` départage. Sans ce second
+ * critère, l'active — donc l'état vérifié/caduque — dépendrait de l'ordre que la
+ * base rend sur les ex æquo, indéfini · elle pouvait basculer d'un chargement à
+ * l'autre. Pur, donc éprouvable sans base et sur un ordre d'entrée adverse.
+ */
+export function preuvePlusRecente<T extends PreuveDatee>(a: T, b: T): T {
+  if (a.poseeA !== b.poseeA) return a.poseeA > b.poseeA ? a : b;
+  return a.id > b.id ? a : b;
+}
+
 /** Une preuve est COMPLÈTE · source ET validateur ET date. Sinon elle ne vaut rien. */
 export function preuveComplete(v: ValidationFait | null | undefined): v is ValidationFait {
   return !!v && !!v.source.trim() && !!v.validateur.trim() && !!v.date.trim();
