@@ -5,7 +5,7 @@ import { useState, type CSSProperties } from 'react';
 import { CREDIT_PACKS } from '../lib/credit-packs';
 import { createTopupCheckoutAction } from '../app/actions/stripe';
 import { Icon } from './Icon';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, afficherCredits, texteCredits } from '@tiktrends/core';
 
 /**
  * Puce de crédits (solde réel) façon Pletor + menu au clic :
@@ -19,7 +19,9 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
   collapsed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const display = unlimited ? 'Illimité' : balance.toLocaleString('fr-FR');
+  // La même décision que les autres écrans · une seule vérité sur le solde (N09).
+  const etat = afficherCredits({ balance, unlimited });
+  const display = texteCredits(etat, (n) => n.toLocaleString('fr-FR'));
 
   return (
     <div style={{ position: 'relative' }}>
