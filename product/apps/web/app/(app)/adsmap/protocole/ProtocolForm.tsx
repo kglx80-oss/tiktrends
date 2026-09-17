@@ -135,9 +135,10 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
             <input type="number" min={1} step={1} value={s.verdict.targetCpa} disabled={!canEdit}
               onChange={(e) => setV('targetCpa', Number(e.target.value))} style={input} />
           </Champ>
-          <Champ label="Tolérance « naissante »" aide="0,3 : une ad jusqu’à 30 % au-dessus de la cible reste prometteuse, à itérer avant de scaler.">
-            <input type="number" min={0} max={1} step={0.05} value={s.verdict.babyTolerance} disabled={!canEdit}
-              onChange={(e) => setV('babyTolerance', Number(e.target.value))} style={input} />
+          <Champ label="Tolérance « naissante » (%)" aide="30 % : une ad jusqu’à 30 % au-dessus de la cible reste prometteuse, à itérer avant de scaler.">
+            {/* Saisi en % (R06 · sans conversion mentale) · stocké en fraction. */}
+            <input type="number" min={0} max={100} step={5} value={Math.round(s.verdict.babyTolerance * 100)} disabled={!canEdit}
+              onChange={(e) => setV('babyTolerance', Number(e.target.value) / 100)} style={input} />
           </Champ>
           <Champ label="Limite « perdante »" aide="1,5 : au-delà d’une fois et demie la cible, l’ad est perdante.">
             <input type="number" min={1} step={0.1} value={s.verdict.loserMultiple} disabled={!canEdit}
@@ -151,9 +152,10 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
             <input type="number" min={1} step={1} value={s.verdict.minPurchasesWinner} disabled={!canEdit}
               onChange={(e) => setV('minPurchasesWinner', Number(e.target.value))} style={input} />
           </Champ>
-          <Champ label="Niveau de confiance" aide="0,80 · unilatéral. Le monter rend le moteur plus prudent, donc plus lent à conclure : ajuste plutôt la tolérance ci-dessus.">
-            <input type="number" min={0.5} max={0.99} step={0.05} value={s.verdict.ciLevelOneSided} disabled={!canEdit}
-              onChange={(e) => setV('ciLevelOneSided', Number(e.target.value))} style={input} />
+          <Champ label="Niveau de confiance (%)" aide="80 % · unilatéral. Le monter rend le moteur plus prudent, donc plus lent à conclure : ajuste plutôt la tolérance ci-dessus.">
+            {/* Saisi en % (R06) · stocké en fraction. */}
+            <input type="number" min={50} max={99} step={1} value={Math.round(s.verdict.ciLevelOneSided * 100)} disabled={!canEdit}
+              onChange={(e) => setV('ciLevelOneSided', Number(e.target.value) / 100)} style={input} />
           </Champ>
         </div>
       </section>
@@ -179,10 +181,14 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
 }
 
 function Champ({ label, aide, children }: { label: string; aide: string; children: ReactNode }) {
+  // Le champ est ENROBÉ dans son libellé (association, R06/S24) · un input
+  // voisin d'un `<label>` sans lien n'a pas de nom accessible.
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 5 }}>{label}</label>
-      {children}
+      <label style={{ display: 'block' }}>
+        <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 5 }}>{label}</span>
+        {children}
+      </label>
       <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>{aide}</div>
     </div>
   );
