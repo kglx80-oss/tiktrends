@@ -47,6 +47,12 @@ export interface AdItem {
   /** Ce que le lot déclarait tester · lu par la grille pour le montrer. */
   essai?: EssaiVariable | null;
   /**
+   * Comment la pub a été fabriquée · composée (on écrit le texte) ou entière
+   * (le modèle le cuit dans l'image). Décide si un changement de format est une
+   * vraie adaptation ou une simple consultation à marges · absent = composée.
+   */
+  mode?: ProductionMode;
+  /**
    * La scène a-t-elle son brief · ce qui décide si elle peut être redéclinée.
    *
    * On envoie un booléen, pas le brief · c'est une consigne interne au modèle,
@@ -753,7 +759,7 @@ async function composeBatch(o: {
         input: { ...(recipe as unknown as Record<string, unknown>), angle: o.angle ?? null, lot: lotId },
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(), lot: lotId,
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(), lot: lotId, mode: recipe.mode ?? undefined,
         // La relecture est faite · la poser ICI la rend visible dès la
         // génération, et donne au débrief du lot la matière à additionner.
         // Sans ça, la carte restait muette jusqu'à un rechargement, et le lot
@@ -1548,6 +1554,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       controle: controleDepuisRecette(rec),
       verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre }),
       lot: rec.lot,
+      mode: rec.mode ?? undefined,
     };
   });
 }

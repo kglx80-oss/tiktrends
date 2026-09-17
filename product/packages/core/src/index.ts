@@ -107,6 +107,7 @@ export * from './essai';
 export * from './brief-iteration';
 export * from './carte-creative';
 export * from './sauvegardes-onglets';
+export * from './apercu-format';
 export * from './copy-budget';
 export * from './deployment';
 export * from './url-param';

@@ -24,10 +24,11 @@ describe('AdsStudio · sélectionner un format est gratuit', () => {
   });
 
   it('l’aperçu et le téléchargement sortent de la même adresse d’image', () => {
-    // `withParam(url, 'r', ratio)` est une URL d'image (un GET), pas un appel
-    // payant · et l'aperçu comme le téléchargement la partagent, donc le fichier
-    // exporté est identique à ce qui est affiché.
-    expect(src, 'l’adresse d’aperçu n’est pas un simple paramètre d’URL').toMatch(/const detailSrc = detailAd \? withParam\(detailAd\.url, 'r', ratio\) : ''/);
+    // L'adresse d'aperçu est une URL d'IMAGE (un GET), pas un appel payant · un
+    // cadre pour une composée (`withParam`), l'origine pour une entière. L'aperçu
+    // ET le téléchargement la partagent, donc le fichier exporté est identique à
+    // ce qui est affiché, quel que soit le mode.
+    expect(src, 'l’adresse d’aperçu n’est pas un simple paramètre d’URL').toMatch(/const detailSrc = detailAd \? \(fmtApercu\.choixCadre \? withParam\(detailAd\.url, 'r', ratio\) : detailAd\.url\) : ''/);
     expect(src, 'le téléchargement ne pointe pas sur l’adresse d’aperçu').toContain('href={detailSrc}');
   });
 });

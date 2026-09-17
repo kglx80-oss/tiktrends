@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { DropZone } from '../../../../components/DropZone';
@@ -270,9 +270,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [textForm, setTextForm] = useState<AdText | null>(null);
   const [textBusy, setTextBusy] = useState(false);
   const [ratio, setRatio] = useState<'4:5' | '1:1' | '9:16'>('4:5');
+  // Une entière porte son texte dans l'image · elle n'a qu'un format (l'origine),
+  // consulté ET exporté à l'identique · une composée s'adapte vraiment au cadre.
+  const fmtApercu = formatApercu(detailAd?.mode, ratio);
   // a.url porte déjà une version (?v=) qui suit les textes : la grille, l'aperçu et
-  // le téléchargement se rafraîchissent ensemble après une édition.
-  const detailSrc = detailAd ? withParam(detailAd.url, 'r', ratio) : '';
+  // le téléchargement se rafraîchissent ensemble après une édition. Pour une
+  // entière on ne force aucun cadre · l'aperçu montre l'origine, donc l'aperçu et
+  // le fichier exporté sont identiques.
+  const detailSrc = detailAd ? (fmtApercu.choixCadre ? withParam(detailAd.url, 'r', ratio) : detailAd.url) : '';
   // La grille demande des vignettes · elle affiche des cartes de 240 px, et la
   // maquette est proportionnelle depuis qu'un test mesure les pixels rendus.
   // On AJOUTE un paramètre, on ne concatène pas · l'adresse d'une pub porte
@@ -1157,16 +1162,22 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               {detailIdx != null && detailIdx < ads.length - 1 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1)); setEditText(false); setScoreFor(null); }} aria-label="Suivant" style={navArrow('right')}>›</button>
               )}
-              {/* Sélecteur de ratio (façon Atria) */}
-              <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, background: 'rgba(0,0,0,.5)', padding: 5, borderRadius: 999 }}>
-                {(['9:16', '4:5', '1:1'] as const).map((r) => (
-                  <button key={r} type="button" onClick={() => setRatio(r)} style={{
-                    minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center',
-                    fontSize: 11.5, fontWeight: 800, padding: '5px 13px', borderRadius: 999, cursor: 'pointer', border: 'none',
-                    background: ratio === r ? 'var(--grad-accent)' : 'transparent', color: ratio === r ? 'var(--on-accent)' : '#fff',
-                  }}>{r}</button>
-                ))}
-              </div>
+              {/* Sélecteur de ratio · seulement quand le cadre est un vrai choix
+                  (composée). Une entière n'a qu'un format · on le dit plutôt que
+                  d'offrir des cadres qui ne recomposent rien. */}
+              {fmtApercu.choixCadre ? (
+                <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, background: 'rgba(0,0,0,.5)', padding: 5, borderRadius: 999 }}>
+                  {(['9:16', '4:5', '1:1'] as const).map((r) => (
+                    <button key={r} type="button" onClick={() => setRatio(r)} style={{
+                      minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center',
+                      fontSize: 11.5, fontWeight: 800, padding: '5px 13px', borderRadius: 999, cursor: 'pointer', border: 'none',
+                      background: ratio === r ? 'var(--grad-accent)' : 'transparent', color: ratio === r ? 'var(--on-accent)' : '#fff',
+                    }}>{r}</button>
+                  ))}
+                </div>
+              ) : (
+                <span style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 11.5, fontWeight: 800, padding: '5px 13px', borderRadius: 999, background: 'rgba(0,0,0,.5)', color: '#fff' }}>Format d’origine</span>
+              )}
               <span style={{ position: 'absolute', top: 12, left: 16, fontSize: 11.5, color: 'var(--muted)', background: 'rgba(0,0,0,.45)', padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
             </div>
 
@@ -1280,7 +1291,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
                   <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="pen" size={14} /> Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></span></button>
                   <button type="button" onClick={() => copyLink(detailSrc)} style={toolBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name={copied ? 'check' : 'link'} size={14} /> {copied ? 'Lien copié' : 'Copier le lien'}</span></button>
-                  <a href={detailSrc} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="download" size={14} /> Télécharger ({ratio})</span></a>
+                  <a href={detailSrc} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="download" size={14} /> {fmtApercu.libelleTelechargement}</span></a>
+                  {/* La limite dite en clair · une entière ne se recadre pas sans
+                      régénérer · on ne présente pas un recadrage comme une adaptation. */}
+                  {fmtApercu.note && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>{fmtApercu.note}</p>}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 2px 2px', borderTop: '1px solid var(--line)', marginTop: 4 }}>
                     <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>Pertinence · entraîne Jarvis</span>
                     <RatingControl genId={detailAd.id} rating={detailAd.rating} />
