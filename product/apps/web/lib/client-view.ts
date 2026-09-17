@@ -1,6 +1,7 @@
 import 'server-only';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { tauxReussite, type VerdictValue } from '@tiktrends/core';
 
 /**
  * ADSMAP · lecture publique d'une carte, par jeton de partage (§12).
@@ -33,14 +34,21 @@ export interface ClientView {
   brandName: string;
   /** Ads arbitrées, les plus récentes d'abord. */
   ads: ClientAd[];
-  counts: { tested: number; winners: number };
-  /** Taux de réussite sur les tests concluants · le seul chiffre qui sort. */
+  /**
+   * `winners` = gagnantes ÉVALUÉES au protocole absolu · `promising` = les
+   * prometteuses (comparaison relative), comptées à part, jamais parmi les
+   * gagnantes ni dans le taux (CDC v6 · R01).
+   */
+  counts: { tested: number; winners: number; promising: number };
+  /**
+   * Taux de réussite sur les seuls tests ÉVALUABLES en absolu · `null` quand
+   * aucun n'est évaluable (« Non calculable », jamais 0 %). `evaluables` en donne
+   * le dénominateur, pour l'afficher sans zone d'ombre.
+   */
   hitRate: number | null;
+  evaluables: number;
   updatedAt: string | null;
 }
-
-const GAGNANTS = new Set(['winner', 'baby_winner', 'relative_winner']);
-const NON_CONCLUANTS = new Set(['inconclusive', 'insufficient_delivery']);
 
 /**
  * Résout un jeton et compose la vue.
@@ -101,14 +109,17 @@ export async function clientViewByToken(token: string): Promise<ClientView | nul
       launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null,
     }));
 
-  const concluantes = ads.filter((a) => !NON_CONCLUANTS.has(a.verdict));
-  const gagnantes = concluantes.filter((a) => GAGNANTS.has(a.verdict));
+  // Taux honnête (R01) · numérateur = gagnantes évaluées en absolu, dénominateur
+  // = tests évaluables ; la relative va aux prometteuses, jamais au taux. `null`
+  // = Non calculable, pas 0 %.
+  const tr = tauxReussite(ads.map((a) => a.verdict as VerdictValue));
 
   return {
     brandName: lien.brandName,
     ads,
-    counts: { tested: ads.length, winners: gagnantes.length },
-    hitRate: concluantes.length ? gagnantes.length / concluantes.length : null,
+    counts: { tested: ads.length, winners: tr.succes, promising: tr.prometteuses },
+    hitRate: tr.taux,
+    evaluables: tr.evaluables,
     updatedAt: lien.syncedAt ? (lien.syncedAt as Date).toISOString() : null,
   };
 }

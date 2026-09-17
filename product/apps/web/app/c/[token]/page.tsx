@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { clientViewByToken } from '../../../lib/client-view';
 import { Icon } from '../../../components/Icon';
+import { LIBELLE_VERDICT, GAGNANTES_ABSOLUES, type VerdictValue } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,14 +24,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Libellés tirés de la source UNIQUE du noyau (CDC v6 · R01) · la relative est
+// « Prometteuse · relatif », jamais « Gagnante ». On garde « Écartée » (plus doux
+// qu'une « Perdante » sur une page vue par le client).
 const VERDICT_LABEL: Record<string, string> = {
-  winner: 'Gagnante', baby_winner: 'Gagnante naissante', relative_winner: 'Gagnante',
-  loser: 'Écartée', inconclusive: 'Non concluant', insufficient_delivery: 'Non concluant',
+  ...Object.fromEntries((Object.keys(LIBELLE_VERDICT) as VerdictValue[]).map((k) => [k, LIBELLE_VERDICT[k].court])),
+  loser: 'Écartée', insufficient_delivery: 'Non concluant',
 };
 const VERDICT_TON: Record<string, { bg: string; fg: string; bd: string }> = {
   winner: { bg: 'rgba(126,232,191,.12)', fg: '#7ee8bf', bd: 'rgba(126,232,191,.4)' },
   baby_winner: { bg: 'rgba(245,166,35,.12)', fg: '#ffcf8f', bd: 'rgba(245,166,35,.4)' },
-  relative_winner: { bg: 'rgba(126,232,191,.08)', fg: '#a5dcc4', bd: 'rgba(126,232,191,.28)' },
+  // Prometteuse, pas gagnée · ton neutre, jamais le vert de la victoire (R01) ·
+  // « le partage ne renforce pas le statut ».
+  relative_winner: { bg: 'transparent', fg: 'var(--ink-2)', bd: 'var(--line-2)' },
   loser: { bg: 'transparent', fg: 'var(--muted)', bd: 'var(--line-2)' },
   inconclusive: { bg: 'transparent', fg: 'var(--muted)', bd: 'var(--line-2)' },
   insufficient_delivery: { bg: 'transparent', fg: 'var(--muted)', bd: 'var(--line-2)' },
@@ -59,8 +65,12 @@ export default async function ClientCardPage({ params }: { params: Promise<{ tok
   }
 
   const pct = (x: number) => `${Math.round(x * 100)} %`;
-  const gagnantes = vue.ads.filter((a) => ['winner', 'baby_winner', 'relative_winner'].includes(a.verdict));
-  const autres = vue.ads.filter((a) => !['winner', 'baby_winner', 'relative_winner'].includes(a.verdict));
+  // Trois groupes distincts (R01) · ce qui a gagné (évalué en absolu), les
+  // prometteuses (comparaison relative · à part, jamais mêlées aux gagnantes),
+  // et le reste. Le partage ne renforce pas le statut.
+  const gagnantes = vue.ads.filter((a) => GAGNANTES_ABSOLUES.has(a.verdict as VerdictValue));
+  const prometteuses = vue.ads.filter((a) => a.verdict === 'relative_winner');
+  const autres = vue.ads.filter((a) => !GAGNANTES_ABSOLUES.has(a.verdict as VerdictValue) && a.verdict !== 'relative_winner');
 
   return (
     <main style={wrap}>
@@ -72,8 +82,8 @@ export default async function ClientCardPage({ params }: { params: Promise<{ tok
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 24 }}>
         <Stat label="Créas testées" value={String(vue.counts.tested)} />
-        <Stat label="Gagnantes" value={String(vue.counts.winners)} strong />
-        <Stat label="Taux de réussite" value={vue.hitRate === null ? '—' : pct(vue.hitRate)} sub="sur les tests conclus" />
+        <Stat label="Gagnantes" value={String(vue.counts.winners)} sub={vue.counts.promising ? `+ ${vue.counts.promising} prometteuses` : undefined} strong />
+        <Stat label="Taux de réussite" value={vue.hitRate === null ? 'Non calculable' : pct(vue.hitRate)} sub={vue.evaluables ? `${vue.counts.winners}/${vue.evaluables} évaluées` : 'aucun test évaluable'} />
       </div>
 
       {vue.ads.length === 0 ? (
@@ -86,6 +96,7 @@ export default async function ClientCardPage({ params }: { params: Promise<{ tok
       ) : (
         <>
           {gagnantes.length > 0 && <Groupe titre="Ce qui a gagné" ads={gagnantes} />}
+          {prometteuses.length > 0 && <Groupe titre="Prometteuses · comparaison relative" ads={prometteuses} />}
           {autres.length > 0 && <Groupe titre="Les autres tests" ads={autres} />}
         </>
       )}
