@@ -29,6 +29,7 @@ export {
 } from './adsmap/stats';
 export * from './adsmap/verdict';
 export * from './adsmap/verdict-carte';
+export * from './adsmap/verdict-libelle';
 export * from './adsmap/calibration-score';
 export * from './adsmap/ai-budget';
 export * from './adsmap/sheet';

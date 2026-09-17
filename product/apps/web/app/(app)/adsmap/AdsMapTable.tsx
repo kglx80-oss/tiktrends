@@ -8,6 +8,7 @@ import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
 import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
+import { LIBELLE_VERDICT, tauxReussite, type VerdictValue } from '@tiktrends/core';
 
 /**
  * Vue Table d'ADSMAP.
@@ -17,14 +18,16 @@ import { Icon } from '../../../components/Icon';
  * porte la compatibilité descendante avec le tableur que l'équipe utilise.
  */
 
-const VERDICT_LABEL: Record<string, string> = {
-  winner: 'Gagnante', baby_winner: 'Gagnante naissante', relative_winner: 'Gagnante (relatif)',
-  loser: 'Perdante', inconclusive: 'Non concluant', insufficient_delivery: 'Sous-diffusée',
-};
+// Libellés tirés de la source UNIQUE du noyau (CDC v6 · R01) · un seul
+// qualificatif par verdict, la relative en « Prometteuse · relatif ».
+const VERDICT_LABEL: Record<string, string> = Object.fromEntries(
+  (Object.keys(LIBELLE_VERDICT) as VerdictValue[]).map((k) => [k, LIBELLE_VERDICT[k].court]),
+);
 const VERDICT_TON: Record<string, { bg: string; fg: string; bd: string }> = {
   winner: { bg: 'rgba(126,232,191,.12)', fg: '#7ee8bf', bd: 'rgba(126,232,191,.4)' },
   baby_winner: { bg: 'rgba(245,166,35,.12)', fg: '#ffcf8f', bd: 'rgba(245,166,35,.4)' },
-  relative_winner: { bg: 'rgba(245,166,35,.08)', fg: '#e0b980', bd: 'rgba(245,166,35,.28)' },
+  // Prometteuse, pas gagnée · ton neutre, jamais l'ambre/vert d'une victoire (R01).
+  relative_winner: { bg: 'transparent', fg: 'var(--ink-2)', bd: 'var(--line-2)' },
   loser: { bg: 'rgba(254,44,85,.10)', fg: '#ff8095', bd: 'rgba(254,44,85,.35)' },
   inconclusive: { bg: 'transparent', fg: 'var(--muted)', bd: 'var(--line-2)' },
   insufficient_delivery: { bg: 'transparent', fg: 'var(--muted)', bd: 'var(--line-2)' },
@@ -93,12 +96,17 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
 
   const stats = useMemo(() => {
     const l = rows ?? [];
-    const conclusifs = l.filter((r) => r.verdict && !['inconclusive', 'insufficient_delivery'].includes(r.verdict));
-    const gagnantes = conclusifs.filter((r) => ['winner', 'baby_winner', 'relative_winner'].includes(r.verdict!));
+    // Taux de réussite honnête (CDC v6 · R01) · numérateur = gagnantes évaluées
+    // au protocole absolu, dénominateur = tests évaluables ; la relative est
+    // « prometteuse », jamais un succès. `null` = Non calculable, jamais 0 %.
+    const tr = tauxReussite(l.map((r) => r.verdict as VerdictValue | null));
     const comparables = l.filter((r) => r.comparable !== null);
     return {
       total: l.length,
-      hitRate: conclusifs.length ? Math.round((gagnantes.length / conclusifs.length) * 100) : null,
+      hitRate: tr.taux === null ? null : Math.round(tr.taux * 100),
+      succes: tr.succes,
+      evaluables: tr.evaluables,
+      prometteuses: tr.prometteuses,
       comparablePct: comparables.length ? Math.round((comparables.filter((r) => r.comparable).length / comparables.length) * 100) : null,
       sansHypothese: l.filter((r) => ['ready', 'live'].includes(r.status) && !r.hypothesis).length,
       aCouper: l.filter((r) => r.killFlag).length,
@@ -120,7 +128,11 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
       {/* Repères de tête · ce qu'on veut savoir en ouvrant la page */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 18 }}>
         <Stat label="Ads" value={String(stats.total)} />
-        <Stat label="Hit rate" value={stats.hitRate === null ? '—' : `${stats.hitRate} %`} sub="gagnantes / concluantes" strong />
+        <Stat
+          label="Hit rate"
+          value={stats.hitRate === null ? 'Non calculable' : `${stats.hitRate} %`}
+          sub={stats.evaluables ? `${stats.succes}/${stats.evaluables} évaluées${stats.prometteuses ? ` · ${stats.prometteuses} prometteuses` : ''}` : 'aucun test évaluable'}
+          strong />
         <Stat label="Verdicts comparables" value={stats.comparablePct === null ? '—' : `${stats.comparablePct} %`} sub="protocole respecté" />
         <Stat label="À couper" value={String(stats.aCouper)} sub="budget qui brûle" alerte={stats.aCouper > 0} />
         <Stat label="À arbitrer" value={String(stats.aArbitrer)} sub="verdicts sans apprentissage" strong={stats.aArbitrer > 0} />

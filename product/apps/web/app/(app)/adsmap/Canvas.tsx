@@ -7,7 +7,7 @@ import {
 } from '@xyflow/react';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import '@xyflow/react/dist/style.css';
-import { findGaps, iterationParentSet, countGraph, summarizeGaps, type Gap } from '@tiktrends/core';
+import { findGaps, iterationParentSet, countGraph, summarizeGaps, LIBELLE_VERDICT, GAGNANTES_ABSOLUES, type Gap, type VerdictValue } from '@tiktrends/core';
 import { graphAction, type Graph, type GraphNode } from '../../actions/adsmap-graph';
 import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
@@ -68,18 +68,21 @@ const KIND_LABEL: Record<GraphNode['kind'], string> = {
 const VERDICT_TON: Record<string, { bd: string; fg: string; bg: string }> = {
   winner: { bd: 'rgba(126,232,191,.55)', fg: '#7ee8bf', bg: 'rgba(126,232,191,.10)' },
   baby_winner: { bd: 'rgba(245,166,35,.5)', fg: '#ffcf8f', bg: 'rgba(245,166,35,.09)' },
-  relative_winner: { bd: 'rgba(245,166,35,.35)', fg: '#e0b980', bg: 'rgba(245,166,35,.05)' },
+  // Prometteuse, pas gagnée · ton neutre, jamais l'ambre d'une victoire (R01).
+  relative_winner: { bd: 'var(--line-2)', fg: 'var(--ink-2)', bg: 'transparent' },
   loser: { bd: 'rgba(254,44,85,.45)', fg: '#ff8095', bg: 'rgba(254,44,85,.07)' },
   inconclusive: { bd: 'var(--line-2)', fg: 'var(--muted)', bg: 'transparent' },
   insufficient_delivery: { bd: 'var(--line-2)', fg: 'var(--muted)', bg: 'transparent' },
 };
 
-const VERDICT_LABEL: Record<string, string> = {
-  winner: 'Gagnante', baby_winner: 'Gagnante naissante', relative_winner: 'Gagnante (relatif)',
-  loser: 'Perdante', inconclusive: 'Non concluant', insufficient_delivery: 'Sous-diffusée',
-};
+// Libellés tirés de la source UNIQUE du noyau (CDC v6 · R01).
+const VERDICT_LABEL: Record<string, string> = Object.fromEntries(
+  (Object.keys(LIBELLE_VERDICT) as VerdictValue[]).map((k) => [k, LIBELLE_VERDICT[k].court]),
+);
 
-const GAGNANTS = new Set(['winner', 'baby_winner', 'relative_winner']);
+// Ce qui compte comme gagnante : les verdicts ÉVALUÉS en absolu · la relative
+// en est exclue (elle est prometteuse, pas prouvée).
+const GAGNANTS = GAGNANTES_ABSOLUES;
 
 /* -------------------------------------------------------------------------- */
 /*  Nœud                                                                      */
@@ -254,7 +257,7 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
       replis.set(n.id, {
         concepts: cs.length,
         ads: ads.length,
-        winners: ads.filter((a) => a.verdict && GAGNANTS.has(a.verdict)).length,
+        winners: ads.filter((a) => a.verdict && GAGNANTS.has(a.verdict as VerdictValue)).length,
       });
     }
 
