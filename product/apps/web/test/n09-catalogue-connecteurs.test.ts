@@ -28,3 +28,15 @@ describe('N09 · le catalogue dit une seule vérité', () => {
     expect(page).toMatch(/DISPONIBLES = \[[^\]]*'Google Drive'/);
   });
 });
+
+describe('N09 · le badge d’un connecteur dit sa PHASE, pas juste « connecté »', () => {
+  const dc = readFileSync(join(process.cwd(), 'app/(app)/connections/DataConnections.tsx'), 'utf8');
+  it('chaque carte calcule sa phase via etatConnecteur', () => {
+    expect(dc).toMatch(/etatConnecteur\(\{ connecte: !!sh\?\.connected/);
+    expect(dc).toMatch(/etatConnecteur\(\{ connecte: !!mt\?\.connected/);
+    expect(dc, 'le badge binaire « CONNECTÉ » subsiste').not.toContain('>CONNECTÉ</span>');
+  });
+  it('Meta distingue « compte à choisir » quand plusieurs comptes et aucun choisi', () => {
+    expect(dc).toMatch(/compteRequisManquant = !!mt\?\.connected && \(mt\.accounts\?\.length \?\? 0\) > 1 && !mt\.adAccountId/);
+  });
+});
