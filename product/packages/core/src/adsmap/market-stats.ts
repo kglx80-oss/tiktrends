@@ -110,6 +110,16 @@ const DIMS: Array<{ dim: MarketDimension; get: (a: MarketAd) => string | null | 
   { dim: 'format', get: (a) => a.format },
 ];
 
+/**
+ * Normalise une valeur de proposition pour le REGROUPEMENT · « <10s » et
+ * « < 10s », « Curiosity » et « curiosity » désignent la même chose. Sans ça,
+ * une même proposition remontait deux fois dans « Ce que fait le marché »
+ * (CDC v7 · N03) · la description libre de l'IA varie sur la casse et l'espace.
+ */
+function cleNormalisee(s: string): string {
+  return s.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
   const eprouvees = ads.filter(isProven);
   if (!eprouvees.length) return [];
@@ -120,17 +130,34 @@ export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
     const eprouveesAvecValeur = eprouvees.filter((a) => !!get(a));
     if (!eprouveesAvecValeur.length) continue;
 
-    const cles = new Set(eprouveesAvecValeur.map((a) => get(a)!));
-    for (const key of cles) {
-      const pourCle = eprouveesAvecValeur.filter((a) => get(a) === key);
-      const total = avecValeur.filter((a) => get(a) === key);
-      const annonceurs = new Set(pourCle.map((a) => a.advertiser).filter(Boolean));
+    // On regroupe par proposition NORMALISÉE · les variantes de casse/espace
+    // fusionnent en UNE ligne, leurs comptes et annonceurs additionnés. Le
+    // libellé affiché est la variante la plus fréquente du groupe.
+    const groupes = new Map<string, { affichages: Map<string, number>; proven: MarketAd[]; total: MarketAd[] }>();
+    const groupe = (k: string) => {
+      let g = groupes.get(k);
+      if (!g) { g = { affichages: new Map(), proven: [], total: [] }; groupes.set(k, g); }
+      return g;
+    };
+    for (const a of eprouveesAvecValeur) {
+      const brut = get(a)!;
+      const g = groupe(cleNormalisee(brut));
+      g.proven.push(a);
+      g.affichages.set(brut, (g.affichages.get(brut) ?? 0) + 1);
+    }
+    for (const a of avecValeur) {
+      const g = groupes.get(cleNormalisee(get(a)!));
+      if (g) g.total.push(a);
+    }
+    for (const g of groupes.values()) {
+      const key = [...g.affichages.entries()].sort((x, y) => y[1] - x[1])[0]![0];
+      const annonceurs = new Set(g.proven.map((a) => a.advertiser).filter(Boolean));
       out.push({
         dimension: dim, key,
-        nProven: pourCle.length,
-        nTotal: total.length,
-        shareOfProven: pourCle.length / eprouveesAvecValeur.length,
-        shareOfAll: avecValeur.length ? total.length / avecValeur.length : 0,
+        nProven: g.proven.length,
+        nTotal: g.total.length,
+        shareOfProven: g.proven.length / eprouveesAvecValeur.length,
+        shareOfAll: avecValeur.length ? g.total.length / avecValeur.length : 0,
         advertisers: annonceurs.size,
       });
     }
