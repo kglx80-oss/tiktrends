@@ -7,7 +7,7 @@ import {
 } from '@xyflow/react';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import '@xyflow/react/dist/style.css';
-import { findGaps, iterationParentSet, countGraph, summarizeGaps, LIBELLE_VERDICT, GAGNANTES_ABSOLUES, type Gap, type VerdictValue } from '@tiktrends/core';
+import { findGaps, iterationParentSet, countGraph, summarizeGaps, LIBELLE_VERDICT, estGagnanteValidee, verdictEffectif, type Gap, type VerdictValue } from '@tiktrends/core';
 import { graphAction, type Graph, type GraphNode } from '../../actions/adsmap-graph';
 import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
@@ -80,10 +80,6 @@ const VERDICT_LABEL: Record<string, string> = Object.fromEntries(
   (Object.keys(LIBELLE_VERDICT) as VerdictValue[]).map((k) => [k, LIBELLE_VERDICT[k].court]),
 );
 
-// Ce qui compte comme gagnante : les verdicts ÉVALUÉS en absolu · la relative
-// en est exclue (elle est prometteuse, pas prouvée).
-const GAGNANTS = GAGNANTES_ABSOLUES;
-
 /* -------------------------------------------------------------------------- */
 /*  Nœud                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -101,12 +97,15 @@ const poignee: CSSProperties = { width: 5, height: 5, background: 'var(--line-2)
 
 function NoeudCarte({ data }: NodeProps<Node<DonneesNoeud>>) {
   const { n, gap, repli } = data;
-  const ton = n.kind === 'ad' && n.verdict ? VERDICT_TON[n.verdict] : null;
+  // Verdict EFFECTIF · un gagnant non comparable se lit « prometteuse relative »,
+  // même sur le graphe · la certitude ne gonfle nulle part (N02).
+  const eff = n.kind === 'ad' ? verdictEffectif(n.verdict as VerdictValue, !!n.comparable) : null;
+  const ton = eff ? VERDICT_TON[eff] : null;
   const t = TAILLE[n.kind];
 
   return (
     <div
-      title={gap ? gap.message : n.kind === 'ad' && n.verdict ? `${VERDICT_LABEL[n.verdict] ?? n.verdict}${n.comparable === false ? ' · comparaison relative' : ''}` : undefined}
+      title={gap ? gap.message : n.kind === 'ad' && n.verdict ? `${VERDICT_LABEL[eff!] ?? n.verdict}${n.comparable === false ? " · comparaison relative" : ""}` : undefined}
       style={{
         width: t.w, minHeight: t.h, boxSizing: 'border-box',
         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2,
@@ -128,7 +127,7 @@ function NoeudCarte({ data }: NodeProps<Node<DonneesNoeud>>) {
       </div>
       {n.kind === 'ad' && n.verdict && (
         <div style={{ fontSize: 9.5, fontWeight: 700, color: ton?.fg ?? 'var(--muted)' }}>
-          {VERDICT_LABEL[n.verdict] ?? n.verdict}{n.comparable === false ? ' *' : ''}
+          {VERDICT_LABEL[eff!] ?? n.verdict}{n.comparable === false ? ' *' : ''}
         </div>
       )}
       {/* Un angle replié dit ce qu'il contient · sinon replier serait cacher. */}
@@ -257,7 +256,7 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
       replis.set(n.id, {
         concepts: cs.length,
         ads: ads.length,
-        winners: ads.filter((a) => a.verdict && GAGNANTS.has(a.verdict as VerdictValue)).length,
+        winners: ads.filter((a) => estGagnanteValidee(a.verdict as VerdictValue, !!a.comparable)).length,
       });
     }
 
@@ -425,7 +424,7 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
               maskColor="rgba(0,0,0,.35)"
               nodeColor={(nd) => {
                 const n = (nd.data as DonneesNoeud).n;
-                return n.kind === 'ad' && n.verdict ? (VERDICT_TON[n.verdict]?.fg ?? '#666') : '#4a4a52';
+                return n.kind === 'ad' && n.verdict ? (VERDICT_TON[verdictEffectif(n.verdict as VerdictValue, !!n.comparable) ?? '']?.fg ?? '#666') : '#4a4a52';
               }}
             />
           </ReactFlow>

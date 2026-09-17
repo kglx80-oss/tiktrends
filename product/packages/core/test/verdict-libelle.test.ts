@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  LIBELLE_VERDICT, GAGNANTES_ABSOLUES, EVALUABLES_ABSOLU, estGagnanteAbsolue, tauxReussite,
+  LIBELLE_VERDICT, GAGNANTES_ABSOLUES, EVALUABLES_ABSOLU, estGagnanteAbsolue, estGagnanteValidee, tauxReussite,
 } from '../src/adsmap/verdict-libelle';
-import type { VerdictValue } from '../src/adsmap/types';
+import { verdictEffectif, type VerdictValue } from '../src/adsmap/types';
+
+/** Raccourci · un verdict évalué au protocole (comparable) pour les cas d'avant. */
+const ok = (value: VerdictValue | null) => ({ value, comparable: true });
 
 /**
  * CDC v6 · R01 · un seul qualificatif par verdict, et la certitude ne gonfle
@@ -43,9 +46,33 @@ describe('LIBELLE_VERDICT · une seule carte', () => {
   });
 });
 
+describe('verdictEffectif · un gagnant non comparable n’est pas prouvé (N02)', () => {
+  it('un gagnant COMPARABLE reste gagnant', () => {
+    expect(verdictEffectif('winner', true)).toBe('winner');
+    expect(verdictEffectif('baby_winner', true)).toBe('baby_winner');
+  });
+
+  it('un gagnant NON comparable (importé/déclaré) redevient prometteuse relative', () => {
+    expect(verdictEffectif('winner', false)).toBe('relative_winner');
+    expect(verdictEffectif('baby_winner', false)).toBe('relative_winner');
+  });
+
+  it('une perdante ou un non-concluant ne sont pas gonflés vers le haut', () => {
+    // On ne rétrograde que les VICTOIRES · une perdante déclarée reste perdante.
+    expect(verdictEffectif('loser', false)).toBe('loser');
+    expect(verdictEffectif('inconclusive', false)).toBe('inconclusive');
+  });
+
+  it('estGagnanteValidee exige la comparabilité, estGagnanteAbsolue non', () => {
+    expect(estGagnanteValidee('winner', true)).toBe(true);
+    expect(estGagnanteValidee('winner', false), 'un gagnant non comparable n’est pas validé').toBe(false);
+    expect(estGagnanteAbsolue('winner')).toBe(true); // brut, ignore la comparabilité (provenance)
+  });
+});
+
 describe('tauxReussite · numérateur, dénominateur et exclusions explicites', () => {
   it('ne compte que les évaluables, la relative va aux prometteuses', () => {
-    const r = tauxReussite(['winner', 'baby_winner', 'loser', 'relative_winner', 'inconclusive', null]);
+    const r = tauxReussite([ok('winner'), ok('baby_winner'), ok('loser'), ok('relative_winner'), ok('inconclusive'), ok(null)]);
     expect(r.succes).toBe(2);        // winner + baby_winner
     expect(r.evaluables).toBe(3);    // + loser
     expect(r.prometteuses).toBe(1);  // relative
@@ -53,17 +80,38 @@ describe('tauxReussite · numérateur, dénominateur et exclusions explicites', 
     expect(r.taux).toBeCloseTo(2 / 3, 6);
   });
 
+  it('un gagnant NON comparable est déclaré, pas validé · il quitte le taux (N02)', () => {
+    // Le cas Mistakes v4 · deux « gagnants » importés sans protocole, 0 comparable ·
+    // le taux devient « Non calculable », jamais un 6 % trompeur.
+    const r = tauxReussite([
+      { value: 'winner', comparable: false },
+      { value: 'winner', comparable: false },
+      { value: 'inconclusive', comparable: false },
+    ]);
+    expect(r.taux, 'sans mesure admissible, aucun taux validé').toBeNull();
+    expect(r.succes).toBe(0);
+    expect(r.evaluables).toBe(0);
+    expect(r.prometteuses).toBe(2); // les deux gagnants déclarés → prometteuses
+  });
+
   it('aucun test évaluable → Non calculable (null), jamais 0 %', () => {
-    const r = tauxReussite(['relative_winner', 'inconclusive', 'insufficient_delivery', null]);
+    const r = tauxReussite([ok('relative_winner'), ok('inconclusive'), ok('insufficient_delivery'), ok(null)]);
     expect(r.taux, 'sans évaluable, le taux est nul (non calculable), pas 0').toBeNull();
     expect(r.evaluables).toBe(0);
     expect(r.prometteuses).toBe(1);
   });
 
-  it('une perdante seule donne 0 %, ce qui est un vrai zéro mesuré', () => {
-    const r = tauxReussite(['loser']);
+  it('une perdante COMPARABLE donne 0 %, ce qui est un vrai zéro mesuré', () => {
+    const r = tauxReussite([ok('loser')]);
     expect(r.taux).toBe(0);
     expect(r.evaluables).toBe(1);
+  });
+
+  it('une perdante NON comparable n’est pas un zéro mesuré · elle quitte le taux', () => {
+    const r = tauxReussite([{ value: 'loser', comparable: false }]);
+    expect(r.taux, 'une perdante déclarée sans protocole ne fait pas un 0 % mesuré').toBeNull();
+    expect(r.evaluables).toBe(0);
+    expect(r.exclus).toBe(1);
   });
 
   it('liste vide → non calculable', () => {

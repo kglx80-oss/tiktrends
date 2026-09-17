@@ -8,7 +8,7 @@ import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
 import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
-import { LIBELLE_VERDICT, tauxReussite, type VerdictValue } from '@tiktrends/core';
+import { LIBELLE_VERDICT, tauxReussite, verdictEffectif, type VerdictValue } from '@tiktrends/core';
 
 /**
  * Vue Table d'ADSMAP.
@@ -99,7 +99,8 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
     // Taux de réussite honnête (CDC v6 · R01) · numérateur = gagnantes évaluées
     // au protocole absolu, dénominateur = tests évaluables ; la relative est
     // « prometteuse », jamais un succès. `null` = Non calculable, jamais 0 %.
-    const tr = tauxReussite(l.map((r) => r.verdict as VerdictValue | null));
+    // La comparabilité décide · un gagnant non comparable est déclaré, pas validé (N02).
+    const tr = tauxReussite(l.map((r) => ({ value: r.verdict as VerdictValue | null, comparable: !!r.comparable })));
     const comparables = l.filter((r) => r.comparable !== null);
     return {
       total: l.length,
@@ -208,7 +209,10 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
             </thead>
             <tbody>
               {rows.map((r) => {
-                const ton = r.verdict ? VERDICT_TON[r.verdict] : null;
+                // Verdict EFFECTIF · un gagnant non comparable se lit « prometteuse
+                // relative », même libellé et même ton que partout ailleurs (N02).
+                const eff = verdictEffectif(r.verdict as VerdictValue, !!r.comparable);
+                const ton = eff ? VERDICT_TON[eff] : null;
                 return (
                   <tr key={r.id}>
                     <td style={td}>
@@ -228,9 +232,9 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
                     </td>
                     <td style={{ ...td, color: 'var(--muted)', fontSize: 11.5 }}>{r.iterationReason ?? '—'}</td>
                     <td style={td}>
-                      {r.verdict && ton ? (
+                      {eff && ton ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, background: ton.bg, color: ton.fg, border: `1px solid ${ton.bd}` }}>
-                          {VERDICT_LABEL[r.verdict]}
+                          {VERDICT_LABEL[eff]}
                           {r.comparable === false && <span title="Protocole non respecté : comparaison relative seulement">*</span>}
                         </span>
                       ) : <span style={{ color: 'var(--muted)' }}>—</span>}

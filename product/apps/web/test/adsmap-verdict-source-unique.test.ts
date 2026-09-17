@@ -28,11 +28,21 @@ describe('Adsmap · le verdict vient d’une source unique', () => {
       expect(s, `${f} inclut encore la relative dans un ensemble de gagnantes`)
         .not.toContain("['winner', 'baby_winner', 'relative_winner']");
     }
-    // Canvas dérive son ensemble gagnant de la source absolue du noyau.
-    expect(read('Canvas.tsx'), 'Canvas ne s’appuie pas sur GAGNANTES_ABSOLUES').toContain('GAGNANTES_ABSOLUES');
     // La table calcule un taux honnête (Non calculable plutôt que 0 %).
     const t = read('AdsMapTable.tsx');
     expect(t, 'la table ne passe pas par le taux honnête du noyau').toContain('tauxReussite(');
     expect(t, 'la table n’affiche pas « Non calculable »').toContain('Non calculable');
+  });
+
+  it('les trois écrans appliquent le verdict EFFECTIF · un gagnant non comparable est prometteuse (N02)', () => {
+    // La qualification consomme la comparabilité, partout · un « winner » importé
+    // sans protocole ne se compte ni ne s'affiche comme une victoire prouvée.
+    for (const f of ECRANS) {
+      expect(read(f), `${f} n’applique pas verdictEffectif`).toContain('verdictEffectif(');
+    }
+    // Le décompte des gagnantes (canvas) et le gate « Cette créa gagne » (tiroir)
+    // exigent la comparabilité · pas le simple ensemble absolu.
+    expect(read('Canvas.tsx'), 'Canvas compte des gagnantes non comparables').toContain('estGagnanteValidee(');
+    expect(read('AdDrawer.tsx'), 'le tiroir active « gagnante » sans exiger la comparabilité').toContain('estGagnanteValidee(');
   });
 });
