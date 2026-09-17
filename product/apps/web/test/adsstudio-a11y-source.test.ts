@@ -29,4 +29,20 @@ describe('AdsStudio · accessibilité du composeur à plat', () => {
     expect(src, 'la bannière d’erreur du composeur n’est pas annoncée')
       .toContain('{error && <div role="alert"');
   });
+
+  it('les deux fenêtres (aperçu, détail) sont piégées au clavier, sans casser la priorité d’Échap', () => {
+    // Comportement du piège prouvé dans piege-focus.test.tsx · ici le CÂBLAGE.
+    // La lightbox prend la main dès qu'elle est ouverte ; la vue détail n'est
+    // piégée QUE si la lightbox est fermée · Échap ferme toujours celle du dessus.
+    expect(src, 'l’aperçu n’est pas piégé')
+      .toContain('usePiegeFocus(previewRef, { actif: preview != null, onFermer: () => setPreview(null) })');
+    expect(src, 'la vue détail n’est pas piégée, ou ne cède pas la priorité à l’aperçu')
+      .toContain('usePiegeFocus(detailRef, { actif: detailIdx != null && preview == null, onFermer: () => setDetailIdx(null) })');
+    // Les panneaux doivent pouvoir recevoir et retenir le focus.
+    expect(src, 'le panneau d’aperçu n’est pas armé (ref + tabIndex)').toContain('ref={previewRef} tabIndex={-1}');
+    expect(src, 'le panneau de détail n’est pas armé (ref + tabIndex)').toContain('ref={detailRef} tabIndex={-1}');
+    // L'ancien écouteur Échap manuel a disparu · pas de double gestion.
+    expect(src, 'un écouteur Échap manuel subsiste (double gestion possible)')
+      .not.toContain("if (e.key !== 'Escape') return;");
+  });
 });

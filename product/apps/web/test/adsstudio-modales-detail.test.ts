@@ -24,10 +24,14 @@ describe('AdsStudio · les fenêtres plein écran sont des modales fermables au 
   });
 
   it('Échap ferme la fenêtre du dessus · lightbox puis détail', () => {
-    const i = src.indexOf("if (e.key !== 'Escape') return;");
-    expect(i, 'aucun handler Échap').toBeGreaterThan(-1);
-    const corps = src.slice(i, i + 120);
-    expect(corps, 'Échap ne ferme pas la lightbox en premier').toContain('if (preview) setPreview(null)');
-    expect(corps, 'Échap ne ferme pas la vue détail ensuite').toContain('else setDetailIdx(null)');
+    // La fermeture par Échap passe désormais par le piège à focus partagé
+    // (`usePiegeFocus`, comportement prouvé dans piege-focus.test.tsx). La
+    // priorité « lightbox d'abord » tient par les gardes `actif` : la lightbox
+    // est piégée dès qu'elle est ouverte ; la vue détail ne l'est QUE si la
+    // lightbox est fermée · une seule fenêtre écoute Échap à la fois.
+    expect(src, 'la lightbox ne ferme pas sur Échap (piège actif dès l’ouverture)')
+      .toContain('usePiegeFocus(previewRef, { actif: preview != null, onFermer: () => setPreview(null) })');
+    expect(src, 'la vue détail ne cède pas la priorité d’Échap à la lightbox')
+      .toContain('usePiegeFocus(detailRef, { actif: detailIdx != null && preview == null, onFermer: () => setDetailIdx(null) })');
   });
 });
