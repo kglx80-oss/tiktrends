@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { signatureFait, versionFait, preuveComplete, etatFait, faitsPortes, type ValidationFait } from '../src/adsmap/fait-preuve';
+import { signatureFait, versionFait, preuveComplete, preuvePlusRecente, etatFait, faitsPortes, type ValidationFait } from '../src/adsmap/fait-preuve';
 
 /**
  * CDC v7 · N04-suite · la règle PURE qui décide l'état d'un fait · vérifié, à
@@ -59,6 +59,22 @@ describe('etatFait · l’état d’un fait face à sa preuve et à son contenu'
   });
   it('preuve complète MAIS contenu changé → « caduque »', () => {
     expect(etatFait('La meilleure piscine du quartier', preuve())).toBe('invalidee');
+  });
+});
+
+describe('preuvePlusRecente · l’active est déterministe, même sur égalité de date', () => {
+  it('la DATE tranche d’abord', () => {
+    const vieille = { id: 'zzzz', poseeA: 100 };
+    const neuve = { id: 'aaaa', poseeA: 200 };
+    expect(preuvePlusRecente(vieille, neuve)).toBe(neuve);
+    expect(preuvePlusRecente(neuve, vieille)).toBe(neuve);
+  });
+  it('sur égalité de date, l’`id` départage · choix STABLE quel que soit l’ordre', () => {
+    const petit = { id: '00000000-0000-4000-8000-000000000001', poseeA: 500 };
+    const grand = { id: 'ffffffff-ffff-4fff-8fff-ffffffffffff', poseeA: 500 };
+    // Le même gagnant dans les deux sens · pas de dépendance à l'ordre d'entrée.
+    expect(preuvePlusRecente(petit, grand).id).toBe(grand.id);
+    expect(preuvePlusRecente(grand, petit).id).toBe(grand.id);
   });
 });
 
