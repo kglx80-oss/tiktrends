@@ -351,6 +351,13 @@
       "when": 1788300000008,
       "tag": "0049_ad_fact_validations",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1788300000009,
+      "tag": "0050_brand_sync_per_connector",
+      "breakpoints": true
     }
   ]
 }

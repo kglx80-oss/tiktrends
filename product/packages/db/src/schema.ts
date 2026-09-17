@@ -75,6 +75,11 @@ export const brands = pgTable('brands', {
   commerceInsights: jsonb('commerce_insights_json'), // KPIs Shopify synchronisés
   adsInsights: jsonb('ads_insights_json'),           // KPIs Meta Ads synchronisés
   insightsSyncedAt: timestamp('insights_synced_at', { withTimezone: true }),
+  // Une date de synchro PAR connecteur · un flux Shopify et un flux Meta se
+  // rafraîchissent séparément, un horodatage partagé mentait sur la fraîcheur de
+  // l'autre (N09). Voir 0050.
+  shopifySyncedAt: timestamp('shopify_synced_at', { withTimezone: true }),
+  metaSyncedAt: timestamp('meta_synced_at', { withTimezone: true }),
   // Dernier enrichissement (DA, produits, photos) · voir 0042. Il tournait à
   // chaque chargement de page, y compris quand il n'y avait plus rien à trouver.
   enrichedAt: timestamp('enriched_at', { withTimezone: true }),

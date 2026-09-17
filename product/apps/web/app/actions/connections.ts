@@ -20,8 +20,9 @@ async function guard() {
 
 export interface MetaAdAccountChoice { id: string; name: string; currency?: string }
 export interface ConnectionState {
-  shopify: { connected: boolean; domain: string | null; insights: ShopifyCommerceInsights | null };
-  meta: { connected: boolean; adAccountId: string | null; insights: MetaAdsInsights | null; accounts: MetaAdAccountChoice[] };
+  shopify: { connected: boolean; domain: string | null; insights: ShopifyCommerceInsights | null; syncedAt: string | null };
+  meta: { connected: boolean; adAccountId: string | null; insights: MetaAdsInsights | null; accounts: MetaAdAccountChoice[]; syncedAt: string | null };
+  /** Dépréciée · la synchro la plus récente, tous connecteurs confondus. Voir les dates par connecteur. */
   syncedAt: string | null;
 }
 
@@ -35,12 +36,14 @@ export async function getConnectionState(): Promise<ConnectionState | null> {
     shopifyDomain: schema.brands.shopifyDomain, shopifyToken: schema.brands.shopifyToken,
     metaToken: schema.brands.metaToken, metaAdAccountId: schema.brands.metaAdAccountId, metaAccounts: schema.brands.metaAdAccounts,
     commerce: schema.brands.commerceInsights, ads: schema.brands.adsInsights, syncedAt: schema.brands.insightsSyncedAt,
+    shopifySyncedAt: schema.brands.shopifySyncedAt, metaSyncedAt: schema.brands.metaSyncedAt,
   }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
   if (!b) return null;
+  const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
   return {
-    shopify: { connected: !!b.shopifyToken, domain: b.shopifyDomain ?? null, insights: (b.commerce as ShopifyCommerceInsights) ?? null },
-    meta: { connected: !!b.metaToken, adAccountId: b.metaAdAccountId ?? null, insights: (b.ads as MetaAdsInsights) ?? null, accounts: (b.metaAccounts as MetaAdAccountChoice[]) ?? [] },
-    syncedAt: b.syncedAt ? b.syncedAt.toISOString() : null,
+    shopify: { connected: !!b.shopifyToken, domain: b.shopifyDomain ?? null, insights: (b.commerce as ShopifyCommerceInsights) ?? null, syncedAt: iso(b.shopifySyncedAt) },
+    meta: { connected: !!b.metaToken, adAccountId: b.metaAdAccountId ?? null, insights: (b.ads as MetaAdsInsights) ?? null, accounts: (b.metaAccounts as MetaAdAccountChoice[]) ?? [], syncedAt: iso(b.metaSyncedAt) },
+    syncedAt: iso(b.syncedAt),
   };
 }
 
@@ -66,7 +69,7 @@ export async function syncShopifyAction(): Promise<{ ok?: true; insights?: Shopi
   if (!b?.domain || !token) return { error: 'Connecte d’abord ta boutique Shopify.' };
   try {
     const insights = await shopifyCommerceSync(b.domain, token);
-    await db!.update(schema.brands).set({ commerceInsights: insights, insightsSyncedAt: new Date() }).where(eq(schema.brands.id, g.brand.id));
+    await db!.update(schema.brands).set({ commerceInsights: insights, shopifySyncedAt: new Date(), insightsSyncedAt: new Date() }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, insights };
   } catch (e) { return { error: logAndTranslate('connections', e, { subject: 'la connexion', workspaceId: g.s.workspaceId }) }; }
 }
@@ -74,7 +77,7 @@ export async function syncShopifyAction(): Promise<{ ok?: true; insights?: Shopi
 export async function disconnectShopifyAction(): Promise<{ ok?: true; error?: string }> {
   const g = await guard();
   if ('error' in g) return { error: g.error };
-  await db!.update(schema.brands).set({ shopifyToken: null, commerceInsights: null }).where(eq(schema.brands.id, g.brand.id));
+  await db!.update(schema.brands).set({ shopifyToken: null, commerceInsights: null, shopifySyncedAt: null }).where(eq(schema.brands.id, g.brand.id));
   return { ok: true };
 }
 
@@ -104,7 +107,7 @@ export async function selectMetaAccountAction(adAccountId: string): Promise<{ ok
   try {
     const { accountName } = await metaAdsTest(id, token);
     // Changement de compte : les anciens KPI ne valent plus rien, on repart propre.
-    await db!.update(schema.brands).set({ metaAdAccountId: id, adsInsights: null, insightsSyncedAt: null }).where(eq(schema.brands.id, g.brand.id));
+    await db!.update(schema.brands).set({ metaAdAccountId: id, adsInsights: null, metaSyncedAt: null, insightsSyncedAt: null }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, accountName };
   } catch (e) { return { error: logAndTranslate('connections', e, { subject: 'la connexion', workspaceId: g.s.workspaceId }) }; }
 }
@@ -117,7 +120,7 @@ export async function syncMetaAction(): Promise<{ ok?: true; insights?: MetaAdsI
   if (!b?.acct || !token) return { error: 'Connecte d’abord ton compte Meta Ads.' };
   try {
     const insights = await metaAdsSync(b.acct, token);
-    await db!.update(schema.brands).set({ adsInsights: insights, insightsSyncedAt: new Date() }).where(eq(schema.brands.id, g.brand.id));
+    await db!.update(schema.brands).set({ adsInsights: insights, metaSyncedAt: new Date(), insightsSyncedAt: new Date() }).where(eq(schema.brands.id, g.brand.id));
     return { ok: true, insights };
   } catch (e) { return { error: logAndTranslate('connections', e, { subject: 'la connexion', workspaceId: g.s.workspaceId }) }; }
 }
@@ -128,7 +131,7 @@ export async function disconnectMetaAction(): Promise<{ ok?: true; error?: strin
   // On efface aussi le compte retenu et la liste : sinon une reconnexion avec un autre
   // utilisateur Meta garderait un compte qui ne lui appartient pas.
   await db!.update(schema.brands)
-    .set({ metaToken: null, adsInsights: null, insightsSyncedAt: null, metaAdAccountId: null, metaAdAccounts: null })
+    .set({ metaToken: null, adsInsights: null, metaSyncedAt: null, insightsSyncedAt: null, metaAdAccountId: null, metaAdAccounts: null })
     .where(eq(schema.brands.id, g.brand.id));
   return { ok: true };
 }

@@ -48,7 +48,7 @@ export async function runDailySync(): Promise<{ shopify: number; meta: number; d
     if (b.shopifyDomain && st) {
       try {
         const ins = await shopifyCommerceSync(b.shopifyDomain, st);
-        await db.update(schema.brands).set({ commerceInsights: ins, insightsSyncedAt: new Date() }).where(eq(schema.brands.id, b.id));
+        await db.update(schema.brands).set({ commerceInsights: ins, shopifySyncedAt: new Date(), insightsSyncedAt: new Date() }).where(eq(schema.brands.id, b.id));
         shopify++;
       } catch (e) { errors++; console.error('[sync] shopify', b.id, (e as Error).message); }
     }
@@ -56,7 +56,7 @@ export async function runDailySync(): Promise<{ shopify: number; meta: number; d
     if (b.metaAdAccountId && mt) {
       try {
         const ins = await metaAdsSync(b.metaAdAccountId, mt);
-        await db.update(schema.brands).set({ adsInsights: ins, insightsSyncedAt: new Date() }).where(eq(schema.brands.id, b.id));
+        await db.update(schema.brands).set({ adsInsights: ins, metaSyncedAt: new Date(), insightsSyncedAt: new Date() }).where(eq(schema.brands.id, b.id));
         meta++;
       } catch (e) { errors++; console.error('[sync] meta', b.id, (e as Error).message); }
     }
