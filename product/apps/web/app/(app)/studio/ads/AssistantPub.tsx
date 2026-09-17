@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ETAPES, ETAPE_ROLE, ETAPE_TITRE, dureeAttendue, etapeComplete, etapePrecedente,
   etapeSuivante, manque, peutGenerer, premiereIncomplete, recapitulatif,
@@ -10,6 +10,7 @@ import {
 } from '@tiktrends/core';
 import type { AdTemplate } from '@tiktrends/ai';
 import { SelecteurMoteur } from './SelecteurMoteur';
+import { usePiegeFocus } from '../../../../components/use-piege-focus';
 
 /**
  * L'assistant · une décision par écran.
@@ -106,15 +107,13 @@ export function AssistantPub(p: AssistantProps) {
   // message…) vivent dans le parent et restent conservés · seule la POSITION
   // dans le fil est remise à zéro.
   useEffect(() => { if (p.ouvert) setEtape('produit'); }, [p.ouvert]);
-  // Échap ferme la fenêtre · une modale sans sortie clavier piège qui n'a pas de
-  // souris. Le clic sur le fond ferme déjà (souris) · voici son pendant clavier.
+  // Fenêtre modale au clavier · le piège à focus partagé porte le focus DANS la
+  // fenêtre à l'ouverture, garde le Tab piégé, ferme sur Échap, verrouille le
+  // défilement du fond et rend le focus au déclencheur à la fermeture. Le clic
+  // sur le fond ferme déjà (souris) · voici tout son pendant clavier.
   const { ouvert, onFermer } = p;
-  useEffect(() => {
-    if (!ouvert) return;
-    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onFermer(); };
-    window.addEventListener('keydown', surTouche);
-    return () => window.removeEventListener('keydown', surTouche);
-  }, [ouvert, onFermer]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  usePiegeFocus(panelRef, { actif: ouvert, onFermer });
   if (!p.ouvert) return null;
 
   const bloquant = manque(etape, p.etat);
@@ -124,7 +123,7 @@ export function AssistantPub(p: AssistantProps) {
 
   return (
     <div style={fond} onClick={p.onFermer}>
-      <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-titre">
+      <div ref={panelRef} tabIndex={-1} style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-titre">
         <Entete etape={etape} etat={p.etat} onAller={setEtape} onFermer={p.onFermer} />
 
         <div style={{ padding: '18px 22px', overflowY: 'auto', flex: 1 }}>
