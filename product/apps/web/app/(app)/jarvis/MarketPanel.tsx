@@ -102,8 +102,15 @@ export function MarketPanel() {
                 const t = TON[c.kind] ?? TON.confirme!;
                 return (
                   <div key={`${c.dimension}:${c.key}`} style={{ border: `1px solid ${t.bd}`, borderRadius: 11, padding: '10px 13px' }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: t.fg }}>
-                      {t.titre}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: t.fg }}>
+                        {t.titre}
+                      </div>
+                      {/* Le nombre de SOURCES · la solidité de l'observation, pas
+                          une répétition de la carte (CDC v7 · N03). */}
+                      <span title="Annonceurs distincts derrière cette observation" style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                        {c.sources} source{c.sources > 1 ? 's' : ''}
+                      </span>
                     </div>
                     <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{c.statement}</p>
                   </div>
