@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  planValidation, rejectImpact, needsRename, renameReason, PARENT_OF,
+  planValidation, rejectImpact, needsRename, renameReason, PARENT_OF, correspondAuNom,
   type NodeRef,
 } from '../src/adsmap/curation';
 
@@ -93,5 +93,22 @@ describe('un nom provisoire ne devient pas définitif par distraction', () => {
     expect(renameReason('À qualifier')).toContain('provisoire');
     expect(renameReason('X')).toContain('Trop court');
     expect(renameReason('Bricoleur du dimanche')).toBeNull();
+  });
+});
+
+describe('correspondAuNom · recherche par nom (R05)', () => {
+  it('trouve sans se soucier de la casse ni des accents', () => {
+    expect(correspondAuNom('Désordre créatif', 'desordre')).toBe(true);
+    expect(correspondAuNom('Désordre créatif', 'CRÉA')).toBe(true);
+    expect(correspondAuNom('Bricoleur du dimanche', 'dimanche')).toBe(true);
+  });
+
+  it('rejette ce qui ne contient pas la requête', () => {
+    expect(correspondAuNom('Bricoleur du dimanche', 'piscine')).toBe(false);
+  });
+
+  it('une requête vide laisse tout passer', () => {
+    expect(correspondAuNom('n’importe quoi', '')).toBe(true);
+    expect(correspondAuNom('n’importe quoi', '   ')).toBe(true);
   });
 });

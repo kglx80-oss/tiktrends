@@ -55,13 +55,25 @@ export function Curation() {
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, agir] = useTransition();
+  // Recherche par nom et borne d'affichage (CDC v6 · R05) · atteindre le 21e
+  // élément, retrouver une variante précise, sans traiter les vingt premiers.
+  // `saisie` est le texte tapé ; `q` la recherche APPLIQUÉE (M6 · une recherche
+  // serveur ne part qu'à la demande, pas à chaque frappe · évite les courses).
+  const [saisie, setSaisie] = useState('');
+  const [q, setQ] = useState('');
+  const [limit, setLimit] = useState(20);
 
   const charger = useCallback(async () => {
-    const r = await curationViewAction();
+    const r = await curationViewAction({ q, limit });
     if (r.error) setErr(r.error); else { setErr(null); setView(r.view ?? null); }
-  }, []);
+  }, [q, limit]);
 
+  // Recharge quand la recherche APPLIQUÉE ou la borne changent · filtrage serveur
+  // sur la population complète.
   useEffect(() => { void charger(); }, [charger]);
+
+  const appliquer = () => { setLimit(20); setQ(saisie.trim()); };
+  const reinitialiser = () => { setSaisie(''); setLimit(20); setQ(''); };
 
   const toutValider = (kind: NodeKind) => agir(async () => {
     setNote(null);
@@ -97,12 +109,35 @@ export function Curation() {
     <div style={{ display: 'grid', gap: 20 }}>
       {note && <p style={{ margin: 0, fontSize: 12.5, color: '#9fe6b3', lineHeight: 1.55 }}>{note}</p>}
 
+      {/* Recherche sur la population COMPLÈTE (serveur) · retrouver un nom précis
+          parmi des dizaines, atteindre le 21e sans traiter les vingt premiers.
+          Appliquée à la demande (Entrée / Rechercher), pas à chaque frappe. */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          value={saisie}
+          onChange={(e) => setSaisie(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); appliquer(); } }}
+          placeholder="Rechercher un nom…"
+          aria-label="Rechercher dans les propositions à trier"
+          style={{ flex: '1 1 240px', minWidth: 200, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13 }}
+        />
+        <button onClick={appliquer} disabled={saisie.trim() === q} style={btn('neutre')}>Rechercher</button>
+        {q && <button onClick={reinitialiser} style={btn('neutre')}>Réinitialiser</button>}
+      </div>
+
       <Fusion onFait={charger} />
+
+      {q && view.nodes.length === 0 && (
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
+          Aucun résultat pour « {q} » · <button onClick={reinitialiser} style={{ ...btn('neutre'), padding: '2px 8px' }}>réinitialiser</button>
+        </p>
+      )}
 
       {ORDRE.map((kind) => {
         const items = view.nodes.filter((n) => n.kind === kind);
         if (!items.length) return null;
-        const reste = view.counts[kind] - items.length;
+        // Combien correspondent encore mais ne sont pas montrés (borne d'affichage).
+        const caches = view.matched[kind] - items.length;
 
         return (
           <section key={kind} style={{ display: 'grid', gap: 10 }}>
@@ -111,7 +146,9 @@ export function Curation() {
                 {KIND_LABEL[kind]}s
               </h2>
               <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-                {view.counts[kind]} proposé(s){reste > 0 ? ` · ${items.length} affichés` : ''}
+                {q
+                  ? `${view.matched[kind]} sur ${view.counts[kind]}${caches > 0 ? ` · ${items.length} affichés` : ''}`
+                  : `${view.counts[kind]} proposé(s)${caches > 0 ? ` · ${items.length} affichés` : ''}`}
               </span>
               <span style={{ flex: 1 }} />
               <button onClick={() => toutValider(kind)} disabled={busy} style={btn('neutre')}>
@@ -120,6 +157,12 @@ export function Curation() {
             </div>
 
             {items.map((n) => <Ligne key={n.id} node={n} onFait={charger} />)}
+
+            {caches > 0 && (
+              <button onClick={() => setLimit((l) => l + 20)} disabled={busy} style={{ ...btn('neutre'), justifySelf: 'start' }}>
+                {busy ? 'En cours…' : `Voir plus (${caches} de plus)`}
+              </button>
+            )}
           </section>
         );
       })}
