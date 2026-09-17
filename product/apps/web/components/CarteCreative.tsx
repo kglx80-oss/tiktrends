@@ -143,32 +143,98 @@ export function CarteCreative(props: CarteCreativeProps) {
 function ZoneQualite({ q, initialOuvert }: { q: QualiteCarte; initialOuvert?: boolean }) {
   const [ouvert, setOuvert] = useState(!!initialOuvert);
   const t = TON_QUALITE[q.ton] ?? TON_QUALITE.inconnu!;
-  const detaillable = q.points.length > 0;
+  const panneauId = useId();
+  // Le badge est TOUJOURS activable · même « Prête à diffuser » ouvre sa
+  // justification (CDC v7 · N04). Un badge inerte ne se consulte pas au clavier.
   return (
     <div style={{ display: 'grid', gap: 5, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
         <span style={labelZone}>Qualité</span>
-        <button type="button" disabled={!detaillable} onClick={() => setOuvert((v) => !v)}
-          aria-expanded={detaillable ? ouvert : undefined}
-          title={detaillable ? 'Voir les points à vérifier' : q.libelle}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%', minWidth: 0, padding: '3px 9px', borderRadius: 999, border: `1px solid ${t.bord}`, background: 'transparent', color: t.fg, fontSize: 11, fontWeight: 800, cursor: detaillable ? 'pointer' : 'default' }}>
+        <button type="button" onClick={() => setOuvert((v) => !v)}
+          aria-expanded={ouvert} aria-controls={ouvert ? panneauId : undefined}
+          title="Consulter le contrôle qualité"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%', minWidth: 0, minHeight: 28, padding: '3px 9px', borderRadius: 999, border: `1px solid ${t.bord}`, background: 'transparent', color: t.fg, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
           <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: t.fg, flexShrink: 0 }} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.libelle}</span>
-          {detaillable && <span aria-hidden style={{ flexShrink: 0, transform: ouvert ? 'rotate(180deg)' : 'none', display: 'inline-flex' }}><Chevron /></span>}
+          <span aria-hidden style={{ flexShrink: 0, transform: ouvert ? 'rotate(180deg)' : 'none', display: 'inline-flex' }}><Chevron /></span>
         </button>
       </div>
-      {detaillable && ouvert && (
-        <div style={{ display: 'grid', gap: 3, padding: '2px 2px 0' }}>
-          {q.automatique && <span style={{ fontSize: 10, color: 'var(--muted)' }}>Détecté automatiquement · à vérifier.</span>}
-          {q.points.map((p, i) => (
-            <span key={i} style={{ display: 'flex', gap: 5, fontSize: 11, color: t.fg, lineHeight: 1.35 }}>
-              <span aria-hidden style={{ flexShrink: 0, marginTop: 1 }}><Icon name="alert" size={12} /></span>
-              <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{p}</span>
-            </span>
-          ))}
+      {ouvert && <PanneauQualite q={q} t={t} id={panneauId} />}
+    </div>
+  );
+}
+
+/**
+ * La justification du badge · trois natures DISTINCTES et consultables ·
+ * contrôle technique, validation factuelle, approbation humaine · plus la
+ * provenance. On lit ce qui est approuvé ET ce qui reste en réserve.
+ */
+function PanneauQualite({ q, t, id }: { q: QualiteCarte; t: { fg: string; bord: string }; id: string }) {
+  const bon = TON_QUALITE.bon!;
+  return (
+    <div id={id} style={{ display: 'grid', gap: 8, padding: '8px 2px 2px' }}>
+      {/* Nature 1 · contrôle technique. */}
+      <NatureBloc titre="Contrôle technique">
+        {!q.technique.fait ? (
+          <LigneReserve texte="Non relue · aucun contrôle technique." ton="var(--muted)" icone="clock" />
+        ) : q.technique.points.length === 0 ? (
+          <LigneReserve texte="Relecture automatique · rien à signaler." ton={bon.fg} icone="check" />
+        ) : (
+          <>
+            {q.automatique && <span style={{ fontSize: 10, color: 'var(--muted)' }}>Détecté automatiquement · à vérifier.</span>}
+            {q.technique.points.map((p, i) => <LigneReserve key={i} texte={p} ton={t.fg} icone="alert" />)}
+          </>
+        )}
+      </NatureBloc>
+
+      {/* Nature 2 · validation factuelle. */}
+      <NatureBloc titre="Validation factuelle">
+        {q.factuel.faits.length === 0 ? (
+          <LigneReserve texte="Aucun fait à valider sur cette création." ton="var(--muted)" icone="check" />
+        ) : (
+          <>
+            {q.factuel.faits.map((f) => (
+              <LigneReserve key={f.cle}
+                texte={f.etat === 'verifiee' ? `${f.label} · vérifié${f.source ? ` · ${f.source}` : ''}` : f.etat === 'invalidee' ? `${f.label} · validation caduque` : `${f.label} · à vérifier`}
+                ton={f.etat === 'verifiee' ? bon.fg : f.etat === 'invalidee' ? TON_QUALITE.bloquant!.fg : TON_QUALITE.attention!.fg}
+                icone={f.etat === 'verifiee' ? 'check' : 'alert'} />
+            ))}
+            <span style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.35 }}>Une absence de défaut détecté n’équivaut pas à la vérification d’une preuve.</span>
+          </>
+        )}
+      </NatureBloc>
+
+      {/* Nature 3 · approbation humaine. */}
+      <NatureBloc titre="Approbation humaine">
+        {q.humain.approuve
+          ? <LigneReserve texte={`Approuvée par ${q.humain.par}${q.humain.le ? ` · ${q.humain.le}` : ''}`} ton={bon.fg} icone="check" />
+          : <LigneReserve texte="Pas encore d’approbation humaine." ton="var(--muted)" icone="clock" />}
+      </NatureBloc>
+
+      {q.provenance && (
+        <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4, borderTop: '1px solid var(--line)', paddingTop: 6 }}>
+          {[q.provenance.auteur && `Par ${q.provenance.auteur}`, q.provenance.date, q.provenance.version && `Version ${q.provenance.version}`].filter(Boolean).join(' · ')}
         </div>
       )}
     </div>
+  );
+}
+
+function NatureBloc({ titre, children }: { titre: string; children: ReactNode }) {
+  return (
+    <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+      <span style={{ ...labelZone, fontSize: 9 }}>{titre}</span>
+      {children}
+    </div>
+  );
+}
+
+function LigneReserve({ texte, ton, icone }: { texte: string; ton: string; icone: string }) {
+  return (
+    <span style={{ display: 'flex', gap: 5, fontSize: 11, color: ton, lineHeight: 1.35, minWidth: 0 }}>
+      <span aria-hidden style={{ flexShrink: 0, marginTop: 1 }}><Icon name={icone} size={12} /></span>
+      <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{texte}</span>
+    </span>
   );
 }
 
