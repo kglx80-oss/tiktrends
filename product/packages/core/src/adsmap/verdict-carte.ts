@@ -74,10 +74,15 @@ export function etatVerdictCarte(s: EtatVerdictSource): EtatVerdictCarte | null 
 /** Le ton d'un état · décide de la couleur sans la nommer ici. */
 export type TonVerdictCarte = 'win' | 'lose' | 'neutre' | 'attente';
 
-export const VERDICT_CARTE: Record<EtatVerdictCarte, { court: string; ton: TonVerdictCarte }> = {
+export const VERDICT_CARTE: Record<EtatVerdictCarte, { court: string; ton: TonVerdictCarte; note?: string }> = {
   gagnante: { court: 'A gagné', ton: 'win' },
   petite_gagnante: { court: 'Gagne · à itérer', ton: 'win' },
-  gagnante_relative: { court: 'Gagne (relatif)', ton: 'win' },
+  // Une gagnante RELATIVE a battu ses voisines, mais sans seuil absolu tranché
+  // (souvent sans CPA) · c'est une piste PROMETTEUSE, pas une victoire prouvée.
+  // L'annoncer « Gagne » en ton win gonfle la certitude au moment où l'on
+  // s'apprête à créer, dépenser ou partager (CDC v6 · R01) · on la donne comme
+  // prometteuse, ton neutre, la limite dite en clair.
+  gagnante_relative: { court: 'Prometteuse · relatif', ton: 'neutre', note: 'comparaison relative seulement, sans seuil absolu' },
   perdante: { court: 'A perdu', ton: 'lose' },
   non_concluant: { court: 'Non concluant', ton: 'neutre' },
   diffusion_faible: { court: 'Diffusion trop faible', ton: 'neutre' },
