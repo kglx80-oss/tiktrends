@@ -104,6 +104,7 @@ export * from './decouverte-marche';
 export * from './exemple-direction';
 export * from './conseil-moteur';
 export * from './essai';
+export * from './brief-iteration';
 export * from './copy-budget';
 export * from './deployment';
 export * from './url-param';
