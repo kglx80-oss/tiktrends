@@ -47,6 +47,23 @@ describe('computeMarketStats', () => {
     const rows = computeMarketStats([ad({ advertiser: 'A' }), ad({ advertiser: 'B' }), ad({ advertiser: 'A' })]);
     expect(rows.find((r) => r.key === 'question')!.advertisers).toBe(2);
   });
+
+  it('CDC v7 · N03 · fusionne les variantes de casse/espace en UNE ligne', () => {
+    // Le `format` est décrit en texte LIBRE par l'IA · « UGC », « ugc » et
+    // «  UGC » sont la même proposition · une seule ligne, comptes et annonceurs
+    // additionnés (pas de doublon dans « Ce que fait le marché »).
+    const rows = computeMarketStats([
+      ad({ advertiser: 'A', format: 'UGC' }),
+      ad({ advertiser: 'B', format: 'ugc' }),
+      ad({ advertiser: 'C', format: ' UGC ' }),
+    ]);
+    const formats = rows.filter((r) => r.dimension === 'format');
+    expect(formats, 'une seule ligne pour la proposition normalisée').toHaveLength(1);
+    expect(formats[0]!.nProven).toBe(3);
+    expect(formats[0]!.advertisers).toBe(3);
+    // Le libellé affiché est la variante la plus fréquente (« UGC »).
+    expect(formats[0]!.key).toBe('UGC');
+  });
 });
 
 describe('significantRows', () => {
