@@ -254,8 +254,17 @@ function capAndSort(items: Decision[]): Decision[] {
  * Elle nomme le montant en jeu quand il y en a un : c'est le seul argument qui
  * fait ouvrir une file de tâches un lundi matin.
  */
-export function summarizeDecisions(items: Decision[]): string {
-  if (!items.length) return 'Rien à décider · tout ce qui a été testé a été arbitré, et rien ne brûle.';
+export function summarizeDecisions(items: Decision[], opts?: { aDesMesures?: boolean }): string {
+  if (!items.length) {
+    // Une file vide ne PROUVE pas l'absence de risque (CDC v6 · R03) · sans
+    // aucune mesure, l'interface ne peut rien garantir. On ne l'affirme que
+    // quand on SAIT qu'il n'y a pas de mesure ; sinon (mesures présentes, ou
+    // inconnu) la file arbitrée est bien vide et rien ne brûle.
+    if (opts?.aDesMesures === false) {
+      return 'Aucune décision dans les données disponibles · rien n’a encore été mesuré ici. Connecte ou vérifie tes données avant de conclure.';
+    }
+    return 'Rien à décider · tout ce qui a été testé a été arbitré, et rien ne brûle.';
+  }
 
   const urgent = items.filter((d) => d.priority === 1);
   const enJeu = items.reduce((s, d) => s + (d.spendAtStake ?? 0), 0);
