@@ -11,6 +11,7 @@ import { TrackerFeed, type TrackerEvent } from '../../../components/TrackerFeed'
 import { DecouverteSection } from '../../../components/DecouverteSection';
 import { GrammaireCategorie } from '../../../components/GrammaireCategorie';
 import { SavedTabs } from '../../../components/SavedTabs';
+import { BibliothequeVide } from '../../../components/BibliothequeVide';
 import { Empty } from '../../../components/Empty';
 import { ongletValide } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
@@ -51,28 +52,36 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
   // où écrire, et on proposerait un geste qui échoue.
   const adsmapOpen = !!activeBrand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
   const nonVus = trackerEvents.filter((e) => e.unseen).length;
+  // Bibliothèque ENTIÈREMENT vide · une seule activation, pas trois « Ouvrir la
+  // veille » répétés par onglet (CDC v7 · N05). Dès qu'un espace se remplit, les
+  // onglets reprennent et la collection s'ouvre immédiatement.
+  const toutVide = items.length === 0 && brands.length === 0 && trackerEvents.length === 0;
 
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
       <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Sauvegardes</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
-        Tes créas gardées, les marques que tu suis et ce qu'elles sortent de neuf. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » une marque.
+        Tes créas gardées, les concurrents que tu suis et ce qu'ils sortent de neuf. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » un concurrent.
       </p>
 
-      <SavedTabs
-        initial={ongletValide(sp.onglet)}
-        compteurs={{ creations: items.length, marques: brands.length, nouveautes: nonVus }}
-        creations={<SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} />}
-        marques={brands.length === 0
-          ? <Empty
-              tone="todo" icon="radar" title="Aucune marque suivie pour l'instant."
-              why="Suis des concurrents depuis la Veille pour surveiller leurs nouvelles pubs et nourrir Jarvis."
-              action={{ label: 'Explorer la veille', href: '/veille' }}
-            />
-          : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} />}
-        nouveautes={<TrackerFeed events={trackerEvents} followedCount={brands.length} trackingEnabled={trackingEnabled} />}
-        explorer={trackingEnabled ? <><DecouverteSection /><GrammaireCategorie /></> : null}
-      />
+      {toutVide ? (
+        <BibliothequeVide />
+      ) : (
+        <SavedTabs
+          initial={ongletValide(sp.onglet)}
+          compteurs={{ creations: items.length, marques: brands.length, nouveautes: nonVus }}
+          creations={<SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} />}
+          marques={brands.length === 0
+            ? <Empty
+                tone="todo" icon="radar" title="Aucun concurrent suivi pour l'instant."
+                why="Suis des concurrents depuis la Veille pour surveiller leurs nouvelles pubs et nourrir Jarvis."
+                action={{ label: 'Ouvrir la veille', href: '/veille' }}
+              />
+            : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} />}
+          nouveautes={<TrackerFeed events={trackerEvents} followedCount={brands.length} trackingEnabled={trackingEnabled} />}
+          explorer={trackingEnabled ? <><DecouverteSection /><GrammaireCategorie /></> : null}
+        />
+      )}
     </main>
   );
 }

@@ -8,8 +8,12 @@ import { ONGLETS_SAUVEGARDES, ONGLET_DEFAUT, ongletValide, defOnglet, correspond
  */
 
 describe('le modèle d’onglets de Sauvegardes', () => {
-  it('trois espaces nommés · Créations, Marques suivies, Nouveautés', () => {
+  it('trois espaces nommés · Créations sauvegardées, Concurrents suivis, Nouveautés (N05)', () => {
     expect(ONGLETS_SAUVEGARDES.map((o) => o.cle)).toEqual(['creations', 'marques', 'nouveautes']);
+    // Le vocabulaire N05 · une collection de sources choisies, pas un « suivi »
+    // vague ni un libellé incompréhensible.
+    expect(defOnglet('creations').label).toBe('Créations sauvegardées');
+    expect(defOnglet('marques').label).toBe('Concurrents suivis');
     for (const o of ONGLETS_SAUVEGARDES) {
       expect(o.label, o.cle).toBeTruthy();
       expect(o.description.length, o.cle).toBeGreaterThan(10);
@@ -31,7 +35,7 @@ describe('le modèle d’onglets de Sauvegardes', () => {
   });
 
   it('chaque clé a sa définition', () => {
-    expect(defOnglet('marques').label).toBe('Marques suivies');
+    expect(defOnglet('marques').label).toBe('Concurrents suivis');
   });
 });
 
