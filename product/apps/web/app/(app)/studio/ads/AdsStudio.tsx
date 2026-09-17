@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, scoreCreativeAction, declineAdAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
 import { demarrerGeneration, terminerGeneration } from '../../../../lib/generation-store';
 import type { CreativeScore } from '@tiktrends/ai';
@@ -8,6 +8,7 @@ import { setProductImagesAction, importAllProductImagesAction } from '../../../a
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
 import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
+import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions, RatingControl } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
@@ -204,19 +205,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const pagedAds = ads.slice(adsPage * PAGE_SIZE, (adsPage + 1) * PAGE_SIZE);
   const [preview, setPreview] = useState<string | null>(null);
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
-  // Échap ferme la fenêtre du dessus · la lightbox d'abord (z-index 200), puis la
-  // vue détail (110). Sans elle, une modale plein écran ne se fermait qu'à la
-  // souris · qui n'en a pas y restait piégé.
-  useEffect(() => {
-    if (!preview && detailIdx == null) return;
-    const surTouche = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (preview) setPreview(null);
-      else setDetailIdx(null);
-    };
-    window.addEventListener('keydown', surTouche);
-    return () => window.removeEventListener('keydown', surTouche);
-  }, [preview, detailIdx]);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  // Le piège à focus partagé sur les deux fenêtres · focus entrant, Tab piégé,
+  // Échap, retour au déclencheur. L'empilement est tenu par les gardes `actif` :
+  // la lightbox (z-index 200) prend la main dès qu'elle est ouverte ; la vue
+  // détail (110) n'est piégée QUE si la lightbox est fermée. Échap ferme donc
+  // toujours la fenêtre du dessus, comme avant · une seule est active à la fois.
+  usePiegeFocus(previewRef, { actif: preview != null, onFermer: () => setPreview(null) });
+  usePiegeFocus(detailRef, { actif: detailIdx != null && preview == null, onFermer: () => setDetailIdx(null) });
   const [varyBusy, setVaryBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   // Le défaut suit ce qu'on a MESURÉ chez la marque quand l'intervalle tranche ·
@@ -1154,7 +1151,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       )}
 
       {preview && (
-        <div role="dialog" aria-modal="true" aria-label="Aperçu plein écran" onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+        <div ref={previewRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Aperçu plein écran" onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
           { }
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
           <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
@@ -1164,7 +1161,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       {/* Vue détail d'une créa (façon Atria) : grand aperçu + outils à droite + navigation */}
       {detailAd && (
         <div onMouseDown={() => setDetailIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(6,4,8,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
+          <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
             {/* Aperçu + navigation */}
             <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
               {detailIdx != null && detailIdx > 0 && (
