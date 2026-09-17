@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DebriefLotPanel } from '../app/(app)/studio/ads/DebriefLotPanel';
-import type { DebriefLot } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, type DebriefLot } from '@tiktrends/core';
 
 /**
  * Le débrief du dernier lot est déjà transitoire (#481 · il ne se reconstruit
@@ -25,6 +25,16 @@ describe('Le débrief du lot se ferme sans recharger', () => {
   it('rend un bouton de fermeture quand onClose est fourni', () => {
     const out = html({ onClose: () => {} });
     expect(out, 'l’affordance de fermeture manque').toContain('aria-label="Fermer le débrief"');
+  });
+
+  it('le bouton de fermeture atteint la cible tactile', () => {
+    const out = html({ onClose: () => {} });
+    // On isole le tag ouvrant du bouton de fermeture et on lit ses dimensions.
+    const i = out.indexOf('aria-label="Fermer le débrief"');
+    const debut = out.lastIndexOf('<button', i);
+    const tag = out.slice(debut, out.indexOf('>', i));
+    expect(tag, 'la croix de fermeture est sous la cible tactile').toContain(`width:${CIBLE_TACTILE_MIN}px`);
+    expect(tag, 'la croix de fermeture est sous la cible tactile').toContain(`height:${CIBLE_TACTILE_MIN}px`);
   });
 
   it('pas de bouton de fermeture sans onClose (rien à câbler)', () => {

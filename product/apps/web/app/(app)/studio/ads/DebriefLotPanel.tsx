@@ -1,6 +1,6 @@
 'use client';
 
-import type { DebriefLot } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, type DebriefLot } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
 
 /**
@@ -72,9 +72,13 @@ export function DebriefLotPanel({ d, nCassees = 0, onReprendre, onClose }: {
         <div style={{ flex: 1, fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
           DERNIER LOT · GÉNÉRÉ ENTIÈREMENT
         </div>
+        {/* Cible tactile · la croix se touche au doigt comme les autres
+            fermetures (Modal, assistant). Le fond est transparent · agrandir la
+            zone à `CIBLE_TACTILE_MIN` n'alourdit rien à l'œil, la croix reste
+            petite et centrée. */}
         {onClose && (
           <button type="button" onClick={onClose} aria-label="Fermer le débrief" title="Fermer" style={{
-            flexShrink: 0, width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             border: 'none', borderRadius: 999, cursor: 'pointer', background: 'transparent', color: 'var(--muted)', padding: 0,
           }}>
             <Icon name="x" size={13} />
