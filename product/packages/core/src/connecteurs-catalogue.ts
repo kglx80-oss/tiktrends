@@ -46,3 +46,28 @@ export function dejaDisponible(nom: string, disponibles: readonly string[]): boo
   const cible = norm(nom);
   return disponibles.some((d) => norm(d) === cible);
 }
+
+/**
+ * La PHASE d'un connecteur branché · « connecté » ne dit pas tout (CDC v7 · N09).
+ * On distingue le compte relié, le compte à choisir (une agence a plusieurs
+ * comptes pub), la connexion sans données remontées, et l'état opérationnel.
+ */
+export type PhaseConnecteur = 'a_brancher' | 'compte_a_choisir' | 'connecte_sans_donnees' | 'operationnel';
+
+export const PHASE_CONNECTEUR_LABEL: Record<PhaseConnecteur, string> = {
+  a_brancher: 'À brancher',
+  compte_a_choisir: 'Compte à choisir',
+  connecte_sans_donnees: 'Connecté · à synchroniser',
+  operationnel: 'Connecté · données à jour',
+};
+
+/**
+ * L'état affiché d'un connecteur, à partir de ses axes réels · relié ?, compte
+ * requis manquant ?, données utilisables ?. Un token présent mais sans compte
+ * choisi n'est pas « opérationnel » · une connexion sans synchro non plus.
+ */
+export function etatConnecteur(o: { connecte: boolean; compteRequisManquant?: boolean; donnees: boolean }): PhaseConnecteur {
+  if (!o.connecte) return 'a_brancher';
+  if (o.compteRequisManquant) return 'compte_a_choisir';
+  return o.donnees ? 'operationnel' : 'connecte_sans_donnees';
+}

@@ -7,6 +7,7 @@ import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
+import { etatConnecteur, PHASE_CONNECTEUR_LABEL, type PhaseConnecteur } from '@tiktrends/core';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
@@ -56,7 +57,22 @@ function Wrap({ icon, title, badge, children }: { icon: React.ReactNode; title: 
     </div>
   );
 }
-const connectedBadge = <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: '#18cc8c', background: 'rgba(24,204,140,.14)' }}>CONNECTÉ</span>;
+/**
+ * Le badge d'état d'un connecteur · il DIT la phase, pas juste « connecté »
+ * (CDC v7 · N09) · vert quand les données remontent, ambre tant qu'il reste un
+ * geste (choisir le compte, lancer une synchro), neutre à brancher.
+ */
+function BadgePhase({ phase }: { phase: PhaseConnecteur }) {
+  if (phase === 'a_brancher') return null;
+  const ton = phase === 'operationnel'
+    ? { fg: '#18cc8c', bg: 'rgba(24,204,140,.14)' }
+    : { fg: '#f5b043', bg: 'rgba(245,166,35,.14)' };
+  return (
+    <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: ton.fg, background: ton.bg, whiteSpace: 'nowrap' }}>
+      {PHASE_CONNECTEUR_LABEL[phase].toUpperCase()}
+    </span>
+  );
+}
 
 function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionState | null; setState: (s: ConnectionState) => void; refresh: () => void; oauth?: boolean }) {
   const { toast } = useToast();
@@ -84,8 +100,9 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
   async function disconnect() { await disconnectShopifyAction(); toast('Shopify déconnecté.'); refresh(); }
 
   const ins = sh?.insights;
+  const phase = etatConnecteur({ connecte: !!sh?.connected, donnees: !!ins });
   return (
-    <Wrap icon={<ShopifyIcon size={21} />} title="Shopify · ventes" badge={sh?.connected ? connectedBadge : undefined}>
+    <Wrap icon={<ShopifyIcon size={21} />} title="Shopify · ventes" badge={<BadgePhase phase={phase} />}>
       {!sh?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           <div><label style={lbl} htmlFor="conn-shopify-domaine">Domaine de la boutique</label><input id="conn-shopify-domaine" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
@@ -173,8 +190,12 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
   }
 
   const ins = mt?.insights;
+  // Meta · un token relié mais plusieurs comptes pub sans choix arrêté n'est pas
+  // « opérationnel » · c'est « compte à choisir » (N09).
+  const compteRequisManquant = !!mt?.connected && (mt.accounts?.length ?? 0) > 1 && !mt.adAccountId;
+  const phase = etatConnecteur({ connecte: !!mt?.connected, compteRequisManquant, donnees: !!ins });
   return (
-    <Wrap icon={<MetaIcon size={22} />} title="Meta Ads · performance" badge={mt?.connected ? connectedBadge : undefined}>
+    <Wrap icon={<MetaIcon size={22} />} title="Meta Ads · performance" badge={<BadgePhase phase={phase} />}>
       {!mt?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           {oauth && (
