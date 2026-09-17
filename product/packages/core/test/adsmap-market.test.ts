@@ -96,6 +96,12 @@ describe('contrastMarketVsBrand', () => {
     expect(inex.statement).toContain('coût d’entrée');
   });
 
+  it('CDC v7 · N03 · porte le NOMBRE DE SOURCES (annonceurs distincts)', () => {
+    // Quatre annonceurs (A, B, C, D) derrière l'observation · sa solidité.
+    const c = contrastMarketVsBrand(marche, [], null).find((x) => x.key === 'question')!;
+    expect(c.sources).toBe(4);
+  });
+
   it('signale une contradiction quand nos chiffres disent l’inverse', () => {
     const brand: BrandRow[] = [{ dimension: 'hook_type', key: 'question', hitRate: 0.1, nConclusive: 8 }];
     const c = contrastMarketVsBrand(marche, brand, 0.4);

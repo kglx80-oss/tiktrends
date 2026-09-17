@@ -185,6 +185,9 @@ export interface Contrast {
   kind: ContrastKind;
   /** Phrase affichable · dit le marché ET la marque dans le même souffle. */
   statement: string;
+  /** Combien d'annonceurs DISTINCTS portent cette observation · sa solidité
+   *  (CDC v7 · N03) · une tendance à deux sources ne vaut pas une à dix. */
+  sources: number;
 }
 
 const LABEL: Record<MarketDimension, string> = {
@@ -222,7 +225,7 @@ export function contrastMarketVsBrand(
 
     if (!b || b.nConclusive < 3) {
       out.push({
-        dimension: m.dimension, key: m.key, kind: 'inexploite',
+        dimension: m.dimension, key: m.key, kind: 'inexploite', sources: m.advertisers,
         statement: `${quoi} · ${marche}, et tu ne l’as jamais assez testée pour conclure. Le coût d’entrée a déjà été payé par d’autres.`,
       });
       continue;
@@ -232,12 +235,12 @@ export function contrastMarketVsBrand(
     const reference = globalHitRate ?? 0;
     if (b.hitRate >= reference) {
       out.push({
-        dimension: m.dimension, key: m.key, kind: 'confirme',
+        dimension: m.dimension, key: m.key, kind: 'confirme', sources: m.advertisers,
         statement: `${quoi} · ${marche}, et chez toi ${pct(b.hitRate)} de réussite sur ${b.nConclusive} tests. Le marché et tes chiffres disent la même chose.`,
       });
     } else {
       out.push({
-        dimension: m.dimension, key: m.key, kind: 'contredit',
+        dimension: m.dimension, key: m.key, kind: 'contredit', sources: m.advertisers,
         statement: `${quoi} · ${marche}, mais chez toi seulement ${pct(b.hitRate)} sur ${b.nConclusive} tests. Ce qui marche ailleurs ne marche pas ici · suis tes chiffres, pas le marché.`,
       });
     }
