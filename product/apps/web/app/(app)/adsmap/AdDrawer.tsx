@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { VerdictValue, TestedVariable } from '@tiktrends/core';
-import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, GAGNANTES_ABSOLUES } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, estGagnanteValidee, verdictEffectif } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -114,9 +114,13 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
 
   const arbitre = d?.verdictStatus === 'validated';
   const ecart = !!d?.computed && value !== d.computed;
-  // Une relative est prometteuse, pas gagnante (R01) · elle n'active pas le
-  // traitement « gagnante ». On juge sur les verdicts évalués en absolu.
-  const gagnante = GAGNANTES_ABSOLUES.has((d?.validated ?? d?.computed) as VerdictValue);
+  // Une relative est prometteuse, pas gagnante (R01) · et un gagnant NON
+  // comparable (importé/déclaré, hors protocole) ne l'est pas davantage (N02) ·
+  // il n'active pas le traitement « gagnante » ni « Cette créa gagne ».
+  const gagnante = estGagnanteValidee((d?.validated ?? d?.computed) as VerdictValue, !!d?.comparable);
+  // Le verdict EFFECTIF pour l'affichage · un gagnant non comparable se lit
+  // « prometteuse relative », partout pareil.
+  const labelVerdict = (v: VerdictValue | null | undefined) => VERDICT_LABEL[verdictEffectif(v, !!d?.comparable) ?? (v ?? '')] ?? v;
 
   return (
     <>
@@ -158,7 +162,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
               {d.computed ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: 14, color: 'var(--ink)' }}>{VERDICT_LABEL[d.computed] ?? d.computed}</strong>
+                    <strong style={{ fontSize: 14, color: 'var(--ink)' }}>{labelVerdict(d.computed)}</strong>
                     {!d.comparable && (
                       <span title="Protocole non respecté : la conclusion ne vaut qu’au sein du lot" style={pastille('#ffcf8f', 'rgba(245,166,35,.3)')}>
                         comparaison relative
@@ -195,7 +199,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
             <Section titre={arbitre ? 'Arbitrage' : 'Arbitrer ce test'}>
               {arbitre ? (
                 <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-                  Verdict retenu : <strong style={{ color: 'var(--ink)' }}>{VERDICT_LABEL[d.validated!] ?? d.validated}</strong>.
+                  Verdict retenu : <strong style={{ color: 'var(--ink)' }}>{labelVerdict(d.validated)}</strong>.
                   {d.validated !== d.computed && ' Différent du calcul · le motif est consigné.'}
                 </p>
               ) : d.computed ? (

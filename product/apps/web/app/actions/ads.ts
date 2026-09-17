@@ -1527,9 +1527,9 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
   // provisoire compte comme « en mesure », comme le fait déjà l'attribution.
   const parGen = gardees.map((r) => ({ id: r.id, createdAt: r.createdAt as Date, rec: (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore; adsmapAdId?: string; lot?: string } }));
   const adIds = [...new Set(parGen.map((g) => g.rec.adsmapAdId).filter((x): x is string => !!x))];
-  const verdictParAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; arbitre: boolean }>();
+  const verdictParAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; arbitre: boolean; comparable: boolean }>();
   if (adIds.length) {
-    const vs = await db.select({ adId: schema.verdicts.adId, computed: schema.verdicts.computed, validated: schema.verdicts.validated, status: schema.verdicts.status })
+    const vs = await db.select({ adId: schema.verdicts.adId, computed: schema.verdicts.computed, validated: schema.verdicts.validated, status: schema.verdicts.status, comparable: schema.verdicts.comparable })
       .from(schema.verdicts)
       .where(inArray(schema.verdicts.adId, adIds));
     for (const v of vs) {
@@ -1537,7 +1537,8 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       const prev = verdictParAd.get(v.adId);
       // Un arbitré l'emporte toujours sur un provisoire déjà lu pour cet ad.
       if (prev?.arbitre && !arbitre) continue;
-      verdictParAd.set(v.adId, { verdict: (arbitre ? v.validated : v.computed) ?? null, arbitre });
+      // La comparabilité décide si un gagnant est prouvé ou seulement déclaré (N02).
+      verdictParAd.set(v.adId, { verdict: (arbitre ? v.validated : v.computed) ?? null, arbitre, comparable: !!v.comparable });
     }
   }
 
@@ -1552,7 +1553,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       essai: rec.essai?.variable ?? null,
       sceneBrief: !!rec.sceneBrief?.trim(),
       controle: controleDepuisRecette(rec),
-      verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre }),
+      verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre, comparable: !!v?.comparable }),
       lot: rec.lot,
       mode: rec.mode ?? undefined,
     };

@@ -22,7 +22,7 @@
  * Pur : ni base, ni horloge, ni modèle.
  */
 
-import type { VerdictValue } from './types';
+import { verdictEffectif, type VerdictValue } from './types';
 import type { TonVerdictCarte } from './verdict-carte';
 
 export interface LibelleVerdict {
@@ -64,6 +64,16 @@ export function estGagnanteAbsolue(v: VerdictValue | null | undefined): boolean 
   return !!v && GAGNANTES_ABSOLUES.has(v);
 }
 
+/**
+ * Vrai si le verdict est un succès VALIDÉ PAR PROTOCOLE · gagnante ou petite
+ * gagnante ET comparable. Un gagnant non comparable (historique déclaré, importé)
+ * n'en est pas · c'est ce gate qu'il faut pour « Cette créa gagne », le partage
+ * et le décompte, jamais `estGagnanteAbsolue` seul (qui ignore la comparabilité).
+ */
+export function estGagnanteValidee(v: VerdictValue | null | undefined, comparable: boolean): boolean {
+  return comparable && !!v && GAGNANTES_ABSOLUES.has(v);
+}
+
 export interface TauxReussite {
   /** Le taux, ou `null` quand aucun test n'est évaluable (« Non calculable »). */
   taux: number | null;
@@ -78,18 +88,25 @@ export interface TauxReussite {
 }
 
 /**
- * Le taux de réussite honnête d'un ensemble de verdicts · numérateur,
- * dénominateur et exclusions explicites. `taux` est `null` (« Non calculable »)
- * quand rien n'est évaluable · jamais 0 %, qui ferait croire à un échec mesuré.
+ * Le taux de réussite honnête · VALIDÉ PAR PROTOCOLE. Numérateur, dénominateur et
+ * exclusions explicites. `taux` est `null` (« Non calculable ») quand rien n'est
+ * évaluable · jamais 0 %, qui ferait croire à un échec mesuré.
+ *
+ * La comparabilité décide · un verdict n'entre au dénominateur que s'il a été
+ * évalué au protocole (`comparable`). Un gagnant NON comparable (historique
+ * déclaré, importé) est RÉTROGRADÉ en prometteuse · il ne compte ni comme succès
+ * ni comme évaluable. C'est ce qui sépare le taux déclaré du taux validé (CDC v7
+ * · N02) · sans mesure admissible, on n'affiche aucun taux de réussite validée.
  * Une valeur `null`/absente compte comme « en mesure » (exclue).
  */
-export function tauxReussite(verdicts: ReadonlyArray<VerdictValue | null | undefined>): TauxReussite {
+export function tauxReussite(verdicts: ReadonlyArray<{ value: VerdictValue | null | undefined; comparable: boolean }>): TauxReussite {
   let succes = 0, evaluables = 0, prometteuses = 0, exclus = 0;
-  for (const v of verdicts) {
-    if (v && EVALUABLES_ABSOLU.has(v)) {
+  for (const { value, comparable } of verdicts) {
+    const eff = verdictEffectif(value, comparable);
+    if (comparable && eff && EVALUABLES_ABSOLU.has(eff)) {
       evaluables++;
-      if (GAGNANTES_ABSOLUES.has(v)) succes++;
-    } else if (v === 'relative_winner') {
+      if (GAGNANTES_ABSOLUES.has(eff)) succes++;
+    } else if (eff === 'relative_winner') {
       prometteuses++;
     } else {
       exclus++;

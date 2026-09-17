@@ -18,7 +18,7 @@ describe('etatVerdictCarte · le verdict marché ramené sur la carte', () => {
     expect(etatVerdictCarte({ suivie: true, verdict: 'winner', arbitre: false })).toBe('en_mesure');
   });
 
-  it('chaque verdict arbitré se traduit en un état nommé', () => {
+  it('chaque verdict arbitré COMPARABLE se traduit en un état nommé', () => {
     const cas: Array<[VerdictValue, EtatVerdictCarte]> = [
       ['winner', 'gagnante'],
       ['baby_winner', 'petite_gagnante'],
@@ -28,8 +28,19 @@ describe('etatVerdictCarte · le verdict marché ramené sur la carte', () => {
       ['inconclusive', 'non_concluant'],
     ];
     for (const [verdict, attendu] of cas) {
-      expect(etatVerdictCarte({ suivie: true, verdict, arbitre: true }), `${verdict} → ${attendu}`).toBe(attendu);
+      expect(etatVerdictCarte({ suivie: true, verdict, arbitre: true, comparable: true }), `${verdict} → ${attendu}`).toBe(attendu);
     }
+  });
+
+  it('un gagnant NON comparable (importé/déclaré) s’affiche prometteuse, pas gagnée (CDC v7 · N02)', () => {
+    // Le cas Mistakes v4 · un « winner » retenu sans protocole ne gonfle pas la
+    // certitude sur la carte · il devient « prometteuse relative ».
+    expect(etatVerdictCarte({ suivie: true, verdict: 'winner', arbitre: true, comparable: false })).toBe('gagnante_relative');
+    expect(etatVerdictCarte({ suivie: true, verdict: 'baby_winner', arbitre: true, comparable: false })).toBe('gagnante_relative');
+    // Sans champ comparable, on ne SUPPOSE jamais le protocole · même prudence.
+    expect(etatVerdictCarte({ suivie: true, verdict: 'winner', arbitre: true })).toBe('gagnante_relative');
+    // Une perdante non comparable n'est pas gonflée vers le haut · elle reste perdante.
+    expect(etatVerdictCarte({ suivie: true, verdict: 'loser', arbitre: true, comparable: false })).toBe('perdante');
   });
 
   it('tout état a un libellé et un ton · les gagnantes MESURÉES en ton win, la perdante en lose', () => {

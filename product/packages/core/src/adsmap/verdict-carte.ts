@@ -32,7 +32,7 @@
  * Pur : ni base, ni horloge, ni modèle.
  */
 
-import type { VerdictValue } from './types';
+import { verdictEffectif, type VerdictValue } from './types';
 
 /** L'état d'affichage du verdict sur une carte · fermé, donc traduisible. */
 export type EtatVerdictCarte =
@@ -51,6 +51,13 @@ export interface EtatVerdictSource {
   verdict: VerdictValue | null;
   /** Ce verdict est-il ARBITRÉ (`validated`) · un `computed` seul ne l'est pas. */
   arbitre: boolean;
+  /**
+   * Le verdict a-t-il été évalué au PROTOCOLE (l'ad a eu une chance comparable) ?
+   * Un gagnant non comparable — importé, ou retenu sans mesure comparable — est un
+   * historique déclaré · il s'affiche « prometteuse relative », pas « gagnée »
+   * (CDC v7 · N02). Absent = non comparable · on ne suppose jamais le protocole.
+   */
+  comparable?: boolean;
 }
 
 /**
@@ -61,7 +68,11 @@ export function etatVerdictCarte(s: EtatVerdictSource): EtatVerdictCarte | null 
   // Suivie mais pas de verdict arbitré · on attend la mesure. Un `computed`
   // provisoire tombe ici aussi : il n'a pas tranché.
   if (!s.arbitre || !s.verdict) return 'en_mesure';
-  switch (s.verdict) {
+  // Un gagnant non comparable redevient prometteuse relative · même règle,
+  // partout (verdictEffectif).
+  const eff = verdictEffectif(s.verdict, !!s.comparable);
+  if (!eff) return 'en_mesure';
+  switch (eff) {
     case 'winner': return 'gagnante';
     case 'baby_winner': return 'petite_gagnante';
     case 'relative_winner': return 'gagnante_relative';

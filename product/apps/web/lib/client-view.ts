@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { tauxReussite, type VerdictValue } from '@tiktrends/core';
+import { tauxReussite, verdictEffectif, type VerdictValue } from '@tiktrends/core';
 
 /**
  * ADSMAP · lecture publique d'une carte, par jeton de partage (§12).
@@ -27,6 +27,8 @@ export interface ClientAd {
   angle: string | null;
   format: string;
   verdict: string;
+  /** Évalué au protocole · un gagnant non comparable est déclaré, pas prouvé (N02). */
+  comparable: boolean;
   launchedAt: string | null;
 }
 
@@ -83,6 +85,7 @@ export async function clientViewByToken(token: string): Promise<ClientView | nul
     concept: schema.concepts.title,
     angle: schema.angles.label,
     verdict: schema.verdicts.validated,
+    comparable: schema.verdicts.comparable,
   })
     .from(schema.ads)
     .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
@@ -105,14 +108,18 @@ export async function clientViewByToken(token: string): Promise<ClientView | nul
       concept: r.concept,
       angle: r.angle,
       format: r.format,
-      verdict: r.verdict!,
+      // Le verdict EFFECTIF · un gagnant non comparable partagé au client
+      // s'affiche « prometteuse », pas « gagnée » (N02). La comparabilité voyage
+      // pour que le taux et le libellé disent la même chose.
+      verdict: (verdictEffectif(r.verdict as VerdictValue, !!r.comparable) ?? r.verdict!) as string,
+      comparable: !!r.comparable,
       launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null,
     }));
 
-  // Taux honnête (R01) · numérateur = gagnantes évaluées en absolu, dénominateur
-  // = tests évaluables ; la relative va aux prometteuses, jamais au taux. `null`
-  // = Non calculable, pas 0 %.
-  const tr = tauxReussite(ads.map((a) => a.verdict as VerdictValue));
+  // Taux honnête VALIDÉ PAR PROTOCOLE (R01/N02) · un gagnant non comparable est
+  // déclaré, pas validé · il va aux prometteuses, jamais au taux. `null` = Non
+  // calculable, pas 0 %.
+  const tr = tauxReussite(ads.map((a) => ({ value: a.verdict as VerdictValue, comparable: a.comparable })));
 
   return {
     brandName: lien.brandName,
