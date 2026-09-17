@@ -78,21 +78,27 @@ export interface FaitPorte {
 /**
  * Ce qu'une pub AFFIRME et qu'une relecture technique ne vérifie pas · déduit
  * du gabarit. Un témoignage porte une citation, une offre un prix, une stat un
- * chiffre, un avant/après une preuve. La matière (`contenu`) vient du texte
- * précis de la pub · la citation pour un témoignage, la pastille pour une offre,
- * l'accroche sinon. C'est elle qui décide « vérifié » vs « caduque ». Un gabarit
- * qui n'affirme rien à prouver ne porte aucun fait.
+ * chiffre, un avant/après une preuve. La matière (`contenu`) vient de TOUS les
+ * champs qui portent l'affirmation · pour un témoignage la citation ET
+ * l'accroche, pour une offre la pastille ET l'accroche. Signer un seul champ
+ * laissait l'édition de l'autre passer sous le radar · une offre validée
+ * « -20 % » en pastille restait « vérifiée » quand l'accroche devenait « -50 % »,
+ * et l'invalidation dépendait, absurdement, de la présence d'un champ sans
+ * rapport. C'est cette matière qui décide « vérifié » vs « caduque » · toute
+ * mutation d'un champ porteur doit la casser. Un gabarit qui n'affirme rien à
+ * prouver ne porte aucun fait.
  */
 export function faitsPortes(pub: { template?: string | null; headline?: string | null; quote?: string | null; badge?: string | null }): FaitPorte[] {
   const headline = (pub.headline ?? '').trim();
   const quote = (pub.quote ?? '').trim();
   const badge = (pub.badge ?? '').trim();
+  const joindre = (...parts: string[]) => parts.filter(Boolean).join(' · ');
   const fait = (cle: string, label: string, contenu: string): FaitPorte[] => contenu ? [{ cle, label, contenu }] : [];
   switch (pub.template) {
     case 'testimonial':
-      return fait('temoignage', 'Témoignage', quote || headline);
+      return fait('temoignage', 'Témoignage', joindre(quote, headline));
     case 'offer':
-      return fait('offre', 'Offre / prix', badge || headline);
+      return fait('offre', 'Offre / prix', joindre(badge, headline));
     case 'stat':
       return fait('stat', 'Chiffre avancé', headline);
     case 'before_after':
