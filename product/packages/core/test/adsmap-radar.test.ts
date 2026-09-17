@@ -107,7 +107,10 @@ describe('largeur avant profondeur · trois créas d’un annonceur suffisent', 
     expect(s.deferred).toBe(8 - MAX_PER_ADVERTISER);
   });
 
-  it('un annonceur déjà couvert laisse la place à un inconnu', () => {
+  it('un inconnu PASSE AVANT un annonceur déjà couvert (fraîcheur), sans l’exclure', () => {
+    // CDC v7 · N10 · une marque déjà décrite n'est pas exclue à vie · elle passe
+    // seulement APRÈS un inconnu. Avec du budget, sa nouvelle créa prouvée est
+    // décrite (ici cap 5 pour deux candidates).
     const s = selectForAnalysis(
       [
         cand({ externalId: 'connu', advertiser: 'Acme', daysRunning: 60 }),
@@ -116,7 +119,32 @@ describe('largeur avant profondeur · trois créas d’un annonceur suffisent', 
       { analyzedIds: new Set(), perAdvertiser: new Map([['Acme', MAX_PER_ADVERTISER]]) },
       5,
     );
+    expect(s.picked.map((p) => p.candidate.externalId)).toEqual(['neuf', 'connu']);
+  });
+
+  it('une nouvelle créa prouvée d’un concurrent déjà décrit REDEVIENT candidate (N10)', () => {
+    // Le cas de réception · même à l'historique au plafond, la nouvelle créa
+    // (non encore décrite) est retenue quand le budget le permet · plus jamais
+    // « exclue durablement ».
+    const s = selectForAnalysis(
+      [cand({ externalId: 'nouvelle-offre', advertiser: 'Acme', daysRunning: 40 })],
+      { analyzedIds: new Set(['ancienne1', 'ancienne2', 'ancienne3']), perAdvertiser: new Map([['Acme', 3]]) },
+      3,
+    );
+    expect(s.picked.map((p) => p.candidate.externalId)).toEqual(['nouvelle-offre']);
+  });
+
+  it('un budget serré DIFFÈRE l’annonceur connu (il repasse demain), il ne l’exclut pas', () => {
+    const s = selectForAnalysis(
+      [
+        cand({ externalId: 'connu', advertiser: 'Acme', daysRunning: 60 }),
+        cand({ externalId: 'neuf', advertiser: 'Nouvelle', daysRunning: 25 }),
+      ],
+      { analyzedIds: new Set(), perAdvertiser: new Map([['Acme', 9]]) },
+      1,
+    );
     expect(s.picked.map((p) => p.candidate.externalId)).toEqual(['neuf']);
+    expect(s.deferred, 'le connu est différé, pas jeté').toBe(1);
   });
 
   it('les annonceurs sans nom partagent un quota, faute de pouvoir les distinguer', () => {

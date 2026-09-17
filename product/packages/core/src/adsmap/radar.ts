@@ -95,11 +95,18 @@ export interface RadarSelection {
 }
 
 /**
- * Au-delà, on étudie une marque, pas un marché.
+ * Combien de créas d'un même annonceur on décrit DANS UN PASSAGE.
  *
- * Trois créas d'un même annonceur suffisent à connaître sa manière. La
- * quatrième coûte le même prix et n'apprend presque rien · le budget est mieux
- * placé sur un annonceur qu'on ne connaît pas encore.
+ * Trois créas d'un même annonceur en une nuit suffisent à couvrir sa manière ·
+ * au-delà, dans le même passage, le budget est mieux placé sur un annonceur
+ * qu'on ne connaît pas encore (largeur avant profondeur).
+ *
+ * Ce plafond s'applique AU PASSAGE, pas à l'historique · une marque déjà décrite
+ * n'est PAS exclue à vie (CDC v7 · N10). Une nouvelle créa prouvée d'un
+ * concurrent connu redevient candidate · l'historique la fait seulement passer
+ * APRÈS un inconnu (fraîcheur/nouveauté), il ne la bloque plus. Le plafond de
+ * budget de la nuit borne la dépense, et `analyzedIds` empêche toute
+ * re-description (pas de double facturation).
  */
 export const MAX_PER_ADVERTISER = 3;
 
@@ -190,33 +197,37 @@ export function selectForAnalysis(
   known: RadarKnowledge,
   cap: number,
 ): RadarSelection {
-  const retenus: RadarPick[] = [];
+  const retenus: Array<RadarPick & { connu: number }> = [];
 
   for (const c of candidates) {
     if (known.analyzedIds.has(c.externalId)) continue;   // jamais deux fois
     if (!c.hasImage && !c.hasText) continue;             // rien à décrire
     const s = survivalSignal(c);
     if (!s) continue;
-    retenus.push({ candidate: c, signal: s, reason: raison(c, s), priority: RANG[s] });
+    // Combien de créas de cet annonceur on a DÉJÀ décrites (historique) · sert à
+    // le faire passer APRÈS un inconnu, pas à l'exclure (N10).
+    const connu = known.perAdvertiser.get(c.advertiser ?? '(inconnu)') ?? 0;
+    retenus.push({ candidate: c, signal: s, reason: raison(c, s), priority: RANG[s], connu });
   }
 
-  // Le plus fort signal d'abord · à signal égal, la créa la plus ancienne, parce
-  // qu'elle a survécu plus longtemps au même test.
-  retenus.sort((a, b) => a.priority - b.priority || b.candidate.daysRunning - a.candidate.daysRunning);
+  // Le plus fort signal d'abord · à signal égal, l'annonceur le MOINS déjà décrit
+  // (fraîcheur/nouveauté), puis la créa la plus ancienne (survécu plus longtemps).
+  retenus.sort((a, b) => a.priority - b.priority || a.connu - b.connu || b.candidate.daysRunning - a.candidate.daysRunning);
 
   // Largeur avant profondeur · le quota par annonceur se consomme au fil du tri,
-  // ce qui laisse mécaniquement de la place aux annonceurs inconnus.
-  const compte = new Map<string, number>(known.perAdvertiser);
+  // DANS CE PASSAGE (compteur neuf), ce qui laisse la place aux inconnus sans
+  // exclure à vie une marque déjà couverte · elle repasse candidate demain.
+  const comptePassage = new Map<string, number>();
   const picked: RadarPick[] = [];
   let differes = 0;
 
   for (const p of retenus) {
     const a = p.candidate.advertiser ?? '(inconnu)';
-    const deja = compte.get(a) ?? 0;
+    const deja = comptePassage.get(a) ?? 0;
     if (deja >= MAX_PER_ADVERTISER) { differes++; continue; }
     if (picked.length >= cap) { differes++; continue; }
-    picked.push(p);
-    compte.set(a, deja + 1);
+    picked.push({ candidate: p.candidate, signal: p.signal, reason: p.reason, priority: p.priority });
+    comptePassage.set(a, deja + 1);
   }
 
   return {
