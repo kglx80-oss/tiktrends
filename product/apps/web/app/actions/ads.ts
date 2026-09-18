@@ -939,19 +939,21 @@ async function preferencesMarche(brandId: string): Promise<string | undefined> {
   const vs = await db.select({
     adId: schema.verdicts.adId, computed: schema.verdicts.computed,
     validated: schema.verdicts.validated, status: schema.verdicts.status,
+    comparable: schema.verdicts.comparable,
     metricsAgg: schema.verdicts.metricsAgg,
   })
     .from(schema.verdicts)
     .where(inArray(schema.verdicts.adId, adIds));
 
   // Un verdict par ad · l'arbitré (`validated`) l'emporte sur le provisoire.
-  const parAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; agg: { spend?: number; ctr?: number } | null }>();
+  const parAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; comparable: boolean; agg: { spend?: number; ctr?: number } | null }>();
   for (const v of vs) {
     const arbitre = v.status === 'validated';
     const prev = parAd.get(v.adId);
     if (prev && !arbitre) continue;
     parAd.set(v.adId, {
       verdict: ((arbitre ? v.validated : v.computed) ?? null) as import('@tiktrends/core').VerdictValue | null,
+      comparable: !!v.comparable,
       agg: (v.metricsAgg ?? null) as { spend?: number; ctr?: number } | null,
     });
   }
@@ -959,6 +961,7 @@ async function preferencesMarche(brandId: string): Promise<string | undefined> {
   const creas: CreaLancee[] = [...parAd.entries()].map(([adId, v]) => ({
     angle: angleParAd.get(adId) ?? null,
     verdict: v.verdict,
+    comparable: v.comparable,
     spend: v.agg?.spend ?? null,
     ctr: v.agg?.ctr ?? null,
   }));

@@ -32,4 +32,11 @@ describe('le signal marché revient dans la génération', () => {
   it('le signal marché est lu en parallèle des autres préférences', () => {
     expect(ADS, 'preferencesMarche n’est pas appelé dans la génération').toMatch(/preferencesMarche\(brand\.id\)/);
   });
+
+  // CDC v8 · N02 · le protocole passe jusqu'à la génération · un verdict non
+  // comparable (import) ne doit pas remonter comme « angle qui a payé ».
+  it('la comparabilité du verdict est lue et transmise à la règle', () => {
+    expect(ADS, 'la comparabilité n’est pas sélectionnée').toContain('comparable: schema.verdicts.comparable');
+    expect(ADS, 'la comparabilité n’est pas transmise à la créa').toContain('comparable: v.comparable');
+  });
 });

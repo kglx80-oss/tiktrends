@@ -26,15 +26,25 @@
  */
 
 import type { VerdictValue } from './types';
+import { GAGNANTES_ABSOLUES, EVALUABLES_ABSOLU } from './verdict-libelle';
 
-/** Taxonomie canonique (identique à `attribution`/`brand-stats`). */
-const GAGNANTS: ReadonlySet<VerdictValue> = new Set(['winner', 'baby_winner', 'relative_winner']);
-const CONCLUSIFS: ReadonlySet<VerdictValue> = new Set(['winner', 'baby_winner', 'relative_winner', 'loser']);
+/**
+ * Un angle « qui a payé » présenté à la génération est une PREUVE · il obéit
+ * donc au protocole, pas à l'usage (CDC v8 · N02). On ne compte gagnant qu'un
+ * verdict ABSOLU (`winner`/`baby_winner`) et COMPARABLE · une gagnante RELATIVE
+ * est prometteuse, pas gagnée (R01), et un verdict IMPORTÉ sans mesure comparable
+ * ne prouve rien. Les deux sont exclus du numérateur ET du dénominateur, comme
+ * pour le taux validé (`tauxReussite`). Une ancienne version comptait la relative
+ * comme gagnante · elle injectait « c'est ce qui a payé » sur du non prouvé.
+ */
 
 /** Une créa lancée, attribuée à un angle · verdict réel + métriques. */
 export interface CreaLancee {
   angle?: string | null;
   verdict?: VerdictValue | null;
+  /** Le verdict est-il comparable au protocole ? Un import non comparable ne
+   *  prouve pas · il ne compte ni comme gagnant ni comme conclusif. */
+  comparable?: boolean | null;
   spend?: number | null;
   ctr?: number | null;
 }
@@ -80,10 +90,12 @@ export function perfParAngle(creas: CreaLancee[]): PerfParAngle {
     e.total += 1;
     e.spend += c.spend ?? 0;
     if (c.ctr != null && Number.isFinite(c.ctr)) e.ctrs.push(c.ctr);
-    if (c.verdict && CONCLUSIFS.has(c.verdict)) {
+    // Évaluable = comparable ET verdict absolu (gagnante/naissante/perdante) ·
+    // la relative et l'import non comparable sont exclus, comme au protocole.
+    if (!!c.comparable && c.verdict && EVALUABLES_ABSOLU.has(c.verdict)) {
       e.conclusifs += 1;
       conclusifsTotal += 1;
-      if (GAGNANTS.has(c.verdict)) { e.gagnants += 1; gagnantsTotal += 1; }
+      if (GAGNANTES_ABSOLUES.has(c.verdict)) { e.gagnants += 1; gagnantsTotal += 1; }
     }
     parAngle.set(angle, e);
   }
