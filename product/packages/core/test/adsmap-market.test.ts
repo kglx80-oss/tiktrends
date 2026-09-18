@@ -35,6 +35,27 @@ describe('computeMarketStats', () => {
     expect(q.shareOfProven).toBeCloseTo(2 / 3, 6);
   });
 
+  it('CDC v8 · N03 · chaque rangée porte la provenance de ses sources et sa pertinence', () => {
+    // « <10s » vu chez un concurrent suivi ET repéré au radar · la rangée le dit
+    // « mixte » et garde le décompte, elle ne masque pas la divergence.
+    const rows = computeMarketStats([
+      ad({ advertiser: 'A', lengthBucket: '<10s', provenance: 'followed' }),
+      ad({ advertiser: 'B', lengthBucket: '<10s', provenance: 'radar' }),
+      ad({ advertiser: 'C', lengthBucket: '10-15s', provenance: 'radar' }),
+    ]);
+    const court = rows.find((r) => r.dimension === 'length_bucket' && r.key === '<10s')!;
+    expect(court.provenances).toEqual({ concurrent: 1, inspiration: 1, propre: 0, nonQualifie: 0 });
+    expect(court.pertinence).toBe('mixte');
+    const moyen = rows.find((r) => r.dimension === 'length_bucket' && r.key === '10-15s')!;
+    expect(moyen.pertinence, 'un seul radar → inspiration adjacente').toBe('inspiration_adjacente');
+  });
+
+  it('CDC v8 · N03 · une source sans provenance connue reste « non qualifiée »', () => {
+    const rows = computeMarketStats([ad({ advertiser: 'A', hookType: 'number', provenance: null })]);
+    const r = rows.find((x) => x.dimension === 'hook_type' && x.key === 'number')!;
+    expect(r.pertinence).toBe('non_qualifiee');
+  });
+
   it('CDC v7 · N03 · un annonceur qui décline la même créa ne gonfle pas sa part', () => {
     // A lance 8 fois « question », B une fois « number » · la part n'est PAS 8/9 ·
     // A ne pèse qu'UNE voix. Sinon la cadence d'un seul écrase le marché.

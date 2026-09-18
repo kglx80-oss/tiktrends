@@ -30,6 +30,10 @@
  */
 
 import type { HookType, OpeningType, Talent } from './asset-taxonomy';
+import {
+  type Provenance, type Pertinence, type CompteProvenance,
+  compterProvenances, pertinenceDeRangee,
+} from './source-pertinence';
 
 /** Une créa concurrente, décrite par l'agent A0 et accompagnée de ses signaux. */
 export interface MarketAd {
@@ -51,6 +55,8 @@ export interface MarketAd {
   reachDelta30d?: number | null;
   /** Nombre de pubs vivantes de cet annonceur · un gros compte n'a pas le même sens. */
   liveAdsCount?: number | null;
+  /** D'où vient cette créa · fait d'ingestion (CDC v8 · N03). `null` = non qualifié. */
+  provenance?: Provenance | null;
 }
 
 /**
@@ -91,6 +97,10 @@ export interface MarketRow {
   shareOfAll: number;
   /** Nombre d'annonceurs distincts · un seul annonceur ne fait pas un marché. */
   advertisers: number;
+  /** Décompte des provenances des créas éprouvées · dit la divergence (CDC v8 · N03). */
+  provenances: CompteProvenance;
+  /** Pertinence pour la marque · lue sur les provenances, jamais figée globalement. */
+  pertinence: Pertinence;
 }
 
 /**
@@ -190,6 +200,7 @@ export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
     for (const g of groupes.values()) {
       const key = [...g.affichages.entries()].sort((x, y) => y[1] - x[1])[0]![0];
       const annonceurs = new Set(g.proven.map((a) => cleNormalisee(a.advertiser ?? '')).filter(Boolean));
+      const provenances = compterProvenances(g.proven);
       out.push({
         dimension: dim, key,
         nProven: g.proven.length,
@@ -197,6 +208,8 @@ export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
         shareOfProven: totalPoids ? poidsAnnonceurs(g.proven) / totalPoids : 0,
         shareOfAll: avecValeur.length ? g.total.length / avecValeur.length : 0,
         advertisers: annonceurs.size,
+        provenances,
+        pertinence: pertinenceDeRangee(provenances),
       });
     }
   }

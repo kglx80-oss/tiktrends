@@ -71,6 +71,19 @@ describe('ligneMarketCreative · une forme, la grammaire complète', () => {
     // La régression qu'on interdit · le radar carie DÉSORMAIS la grammaire.
     expect(row.analysis.headlinePosition).toBe('top');
   });
+
+  // CDC v8 · N03 · la provenance FACTUELLE entre à l'ingestion · un balayage
+  // radar la prouve, une marque suivie la déclare, l'inconnu reste null.
+  it('la provenance suit le chemin d’entrée · radar, suivi, ou rien', () => {
+    const parRadar = ligneMarketCreative(ad(), analyse(), { workspaceId: 'w', brandId: 'b' }, { signal: 'crossed_proven', reason: 'r' }) as { provenance: unknown };
+    expect(parRadar.provenance, 'le radar prouve la provenance').toBe('radar');
+
+    const suivi = ligneMarketCreative(ad(), analyse(), { workspaceId: 'w', brandId: 'b', provenance: 'followed' }) as { provenance: unknown };
+    expect(suivi.provenance, 'une marque suivie est un concurrent assumé').toBe('followed');
+
+    const inconnu = ligneMarketCreative(ad(), analyse(), { workspaceId: 'w', brandId: 'b' }) as { provenance: unknown };
+    expect(inconnu.provenance, 'sans preuve, on n’invente pas · null').toBeNull();
+  });
 });
 
 const LEARN = readFileSync(join(process.cwd(), 'app/actions/market-learn.ts'), 'utf8');
@@ -82,5 +95,11 @@ describe('les deux pipelines passent par la fonction partagée', () => {
     expect(RADAR).toMatch(/ligneMarketCreative\(/);
     // Plus d'insert `.values({ ...` en dur dans les deux · une seule forme.
     expect(RADAR, 'le radar ne construit plus la ligne à la main').not.toMatch(/lengthBucket: bucket\(/);
+  });
+
+  // CDC v8 · N03 · la lecture des marques suivies déclare sa provenance ·
+  // sans ça, un concurrent délibérément suivi entrerait comme « non qualifié ».
+  it('la lecture des marques suivies marque la provenance « followed »', () => {
+    expect(LEARN).toMatch(/provenance: 'followed'/);
   });
 });
