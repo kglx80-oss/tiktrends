@@ -9,7 +9,7 @@ vi.mock('next/link', () => ({ default: ({ href, children }: { href: string; chil
 import { AssistantHome } from '../components/AssistantHome';
 
 const html = () => renderToStaticMarkup(
-  <AssistantHome firstName="Kévin" credits={1200} brandName="Klorea" brandId="b1" aiReady />,
+  <AssistantHome firstName="Kévin" credits={1200} unlimited={false} brandName="Klorea" brandId="b1" aiReady />,
 );
 
 describe('la home est une page de garde CRÉER, au trait, sans emoji', () => {

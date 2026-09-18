@@ -14,7 +14,7 @@ import { AssistantHome } from '../components/AssistantHome';
  * des teintes DIFFÉRENTES, pas la même pour tous.
  */
 const html = () => renderToStaticMarkup(
-  <AssistantHome firstName="Kévin" credits={1200} brandName="Klorea" brandId="b1" aiReady />,
+  <AssistantHome firstName="Kévin" credits={1200} unlimited={false} brandName="Klorea" brandId="b1" aiReady />,
 );
 
 describe('les studios se distinguent à la couleur', () => {

@@ -13,7 +13,7 @@ import { AssistantHome } from '../components/AssistantHome';
  * le même écran. On rend l'accueil et on COMPTE les liens vers /studio/ads.
  */
 const html = () => renderToStaticMarkup(
-  <AssistantHome firstName="Kévin" credits={1200} brandName="Klorea" brandId="b1" aiReady />,
+  <AssistantHome firstName="Kévin" credits={1200} unlimited={false} brandName="Klorea" brandId="b1" aiReady />,
 );
 
 describe('l’accueil ne dédouble pas le CTA « créer des pubs »', () => {
