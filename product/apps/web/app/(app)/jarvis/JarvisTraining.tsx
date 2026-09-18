@@ -21,7 +21,7 @@ export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: s
     if (r.error) { setOk(false); setMsg(r.error); return; }
     if (r.learnings) {
       setLearnings(r.learnings); setTrained(new Date().toISOString()); setOk(true);
-      setMsg(`Jarvis entraîné sur ${r.adsAnalyzed ?? 0} pub(s) performante(s)${r.cost ? ` (${r.cost} crédits)` : ''}. Injecté dès la prochaine génération.`);
+      setMsg(`Jarvis entraîné sur ${r.adsAnalyzed ?? 0} pub(s) analysée(s)${r.cost ? ` (${r.cost} crédits)` : ''}. Injecté dès la prochaine génération.`);
     }
   }
   async function save() {
@@ -41,19 +41,20 @@ export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: s
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>{brandName ? `· ${brandName}` : '· marque active'}</span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={train} disabled={busy} style={{ fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg,#7a5aff,#e6007e)', color: '#fff', cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1 }}>
-          {busy ? 'Jarvis apprend…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="cap" size={14} /> Entraîner Jarvis (pubs gagnantes · 20 cr.)</span>}
+          {busy ? 'Jarvis apprend…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="cap" size={14} /> Entraîner Jarvis (pubs qui tiennent · 20 cr.)</span>}
         </button>
       </div>
       <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-        Jarvis analyse les pubs qui <b>performent</b> (concurrents + ta niche via la veille) et en distille les
-        <b> patterns gagnants</b> (hooks, angles, formats, codes visuels, CTA). Ces apprentissages sont
-        <b> injectés dans chaque génération</b> pour tirer la performance de tes créas vers le haut.
+        Jarvis analyse les pubs qui <b>tiennent dans la durée</b> chez tes concurrents et dans ta niche (un
+        proxy public de traction, pas une preuve de résultat) et en distille des <b>pistes</b> récurrentes
+        (accroches, angles, formats, codes visuels, CTA). Ces apprentissages sont <b>injectés dans chaque
+        génération</b> pour l’orienter · à toi de tester ce qui marche chez toi.
       </p>
 
       <textarea
         value={learnings}
         onChange={(e) => setLearnings(e.target.value)}
-        placeholder="Aucune intelligence pour l'instant. Lance « Entraîner Jarvis » : il ira analyser les pubs qui tournent chez tes concurrents et dans ta niche, et écrira ici ce qui fait la performance."
+        placeholder="Aucune intelligence pour l'instant. Lance « Entraîner Jarvis » : il ira analyser les pubs qui tiennent encore chez tes concurrents et dans ta niche, et écrira ici les récurrences qu'il en tire."
         style={{ width: '100%', minHeight: 180, padding: '13px 15px', borderRadius: 14, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, lineHeight: 1.6, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
       />
 
