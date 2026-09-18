@@ -11,7 +11,7 @@ import {
   type HookSource, type HookEntry, type HookCounts,
   type PrelaunchBrief, type MarketRow, type TauxReussite,
   type StatSourceAd, type StatRow, type PrelaunchInput, type PrelaunchScore,
-  type MarketAd, type BrandRow,
+  type MarketAd, type BrandRow, type ApprentissageRetenu,
 } from '@tiktrends/core';
 
 /**
@@ -31,7 +31,7 @@ import {
 
 /** Durée de vie du cache mémoire · l'agrégation ne bouge qu'au rythme des verdicts. */
 const TTL_MS = 5 * 60_000;
-const cache = new Map<string, { at: number; ads: StatSourceAd[]; learnings: string[] }>();
+const cache = new Map<string, { at: number; ads: StatSourceAd[]; learnings: ApprentissageRetenu[] }>();
 
 /** Tranche de durée · l'IA raisonne mieux par palier que par seconde exacte. */
 function lengthBucket(sec: number | null | undefined): string | null {
@@ -94,7 +94,7 @@ async function layoutsParAd(
  * Lit les ads de la marque et les réduit à ce qui sert à apprendre.
  * Une seule requête pour la hiérarchie, une pour les éléments · pas de N+1.
  */
-async function loadSourceAds(brandId: string, workspaceId: string): Promise<{ ads: StatSourceAd[]; learnings: string[] }> {
+async function loadSourceAds(brandId: string, workspaceId: string): Promise<{ ads: StatSourceAd[]; learnings: ApprentissageRetenu[] }> {
   if (!db) return { ads: [], learnings: [] };
 
   const rows = await db.select({
@@ -163,7 +163,7 @@ async function loadSourceAds(brandId: string, workspaceId: string): Promise<{ ad
     };
   });
 
-  const learnRows = await db.select({ statement: schema.learnings.statement })
+  const learnRows = await db.select({ statement: schema.learnings.statement, confidence: schema.learnings.confidence })
     .from(schema.learnings)
     .where(and(
       eq(schema.learnings.brandId, brandId),
@@ -173,7 +173,7 @@ async function loadSourceAds(brandId: string, workspaceId: string): Promise<{ ad
     .orderBy(desc(schema.learnings.confidence), desc(schema.learnings.createdAt))
     .limit(12);
 
-  return { ads, learnings: learnRows.map((l) => l.statement) };
+  return { ads, learnings: learnRows.map((l) => ({ statement: l.statement, confidence: l.confidence })) };
 }
 
 async function loadCached(brandId: string, workspaceId: string) {

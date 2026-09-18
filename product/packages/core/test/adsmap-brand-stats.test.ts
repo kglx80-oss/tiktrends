@@ -102,14 +102,33 @@ describe('mémoire injectée dans les prompts', () => {
   });
 
   it('les apprentissages sont RETENUS (à confirmer), pas sur-affirmés « validés »', () => {
-    const m = buildJarvisMemory(solide, { learnings: ['Le produit doit apparaître avant 3 s.'] });
+    const m = buildJarvisMemory(solide, { learnings: [{ statement: 'Le produit doit apparaître avant 3 s.', confidence: 4 }] });
     expect(m).toMatch(/APPRENTISSAGES RETENUS/);
     expect(m, '« VALIDÉS » sur-affirmait la conformité au protocole').not.toContain('APPRENTISSAGES VALIDÉS');
     expect(m).toMatch(/avant 3 s/);
   });
 
+  // CDC v8 · N02 · un apprentissage retenu à 2/5 passait pour établi dans le
+  // texte injecté à la génération · il porte désormais sa force de conviction.
+  it('chaque apprentissage porte sa confiance · un 2/5 ne se lit pas comme un 5/5', () => {
+    const m = buildJarvisMemory(solide, {
+      learnings: [
+        { statement: 'Ce format captive', confidence: 2 },
+        { statement: 'Le produit doit apparaître tôt', confidence: 5 },
+      ],
+    });
+    expect(m, 'l’apprentissage faible ne porte pas sa confiance').toContain('Ce format captive (confiance 2/5)');
+    expect(m).toContain('Le produit doit apparaître tôt (confiance 5/5)');
+  });
+
+  it('borne la confiance affichée à l’échelle 1..5', () => {
+    const m = buildJarvisMemory(solide, { learnings: [{ statement: 'A', confidence: 9 }, { statement: 'B', confidence: 0 }] });
+    expect(m).toContain('A (confiance 5/5)');
+    expect(m).toContain('B (confiance 1/5)');
+  });
+
   it('ne laisse fuiter ni jargon ni valeur technique', () => {
-    const m = buildJarvisMemory(solide, { learnings: ['x'] });
+    const m = buildJarvisMemory(solide, { learnings: [{ statement: 'x', confidence: 3 }] });
     expect(m).not.toMatch(/null|undefined|NaN|hitRate|nConclusive/);
   });
 });
