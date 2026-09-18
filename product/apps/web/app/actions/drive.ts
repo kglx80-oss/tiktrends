@@ -3,6 +3,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, putObject, storeDriveThumb } from '@tiktrends/integrations';
+import type { DernierSyncDrive } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -22,21 +23,25 @@ async function guard() {
 export interface DriveState {
   available: boolean; pickerReady: boolean; needBrand: boolean; brandName: string | null;
   connected: boolean; folderId: string | null; folderName: string | null; syncedAt: string | null;
+  /** Bilan de la dernière TENTATIVE (succès ou échec) · distinct du dernier succès. */
+  dernier: DernierSyncDrive | null;
 }
 
 export async function getDriveState(): Promise<DriveState> {
   const s = await getSession();
   const available = googleConfigured();
   const pickerReady = drivePickerConfigured();
-  const base = { available, pickerReady, needBrand: true, brandName: null, connected: false, folderId: null, folderName: null, syncedAt: null };
+  const base = { available, pickerReady, needBrand: true, brandName: null, connected: false, folderId: null, folderName: null, syncedAt: null, dernier: null };
   if (!s || !db) return base;
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return base;
-  const [b] = await db.select({ tok: schema.brands.driveRefreshToken, fid: schema.brands.driveFolderId, fname: schema.brands.driveFolderName, at: schema.brands.driveSyncedAt })
+  const [b] = await db.select({ tok: schema.brands.driveRefreshToken, fid: schema.brands.driveFolderId, fname: schema.brands.driveFolderName, at: schema.brands.driveSyncedAt, dernier: schema.brands.driveLastSync })
     .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
   return {
     available, pickerReady, needBrand: false, brandName: brand.name,
-    connected: !!b?.tok, folderId: b?.fid ?? null, folderName: b?.fname ?? null, syncedAt: b?.at ? b.at.toISOString() : null,
+    connected: !!b?.tok, folderId: b?.fid ?? null, folderName: b?.fname ?? null,
+    syncedAt: b?.at ? b.at.toISOString() : null,
+    dernier: (b?.dernier as DernierSyncDrive | null) ?? null,
   };
 }
 
@@ -61,7 +66,7 @@ export async function setDriveFolderAction(input: { folderId: string; folderName
   return { ok: true };
 }
 
-export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number; skipped?: number; found?: number; error?: string }> {
+export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number; skipped?: number; found?: number; errors?: number; error?: string }> {
   const g = await guard();
   if ('error' in g) return { error: g.error };
   const ws = g.s.workspaceId;
@@ -69,6 +74,7 @@ export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number;
   const [b] = await db!.select({ tok: schema.brands.driveRefreshToken, fid: schema.brands.driveFolderId }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
   const rt = decryptSecret(b?.tok);
   if (!rt || !b?.fid) return { error: 'Connecte Google Drive et choisis un dossier.' };
+  const at = new Date();
   try {
     const res = await syncDriveAssets({
       existingDriveIds: async () => {
@@ -77,9 +83,17 @@ export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number;
       },
       insertAsset: async (a) => { await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, ...a }); },
     }, { storage: storageFromEnv(), refreshToken: rt, folderId: b.fid, workspaceId: ws, maxFiles: 200 });
-    await db!.update(schema.brands).set({ driveSyncedAt: new Date() }).where(eq(schema.brands.id, brandId));
-    return { ok: true, added: res.added, skipped: res.skipped, found: res.found };
-  } catch (e) { return { error: logAndTranslate('drive', e, { subject: 'la connexion', workspaceId: g.s.workspaceId }) }; }
+    // Le SUCCÈS met à jour le dernier succès ET la dernière tentative (avec bilan).
+    const bilan: DernierSyncDrive = { at: at.toISOString(), ok: true, found: res.found, added: res.added, skipped: res.skipped, errors: res.errors };
+    await db!.update(schema.brands).set({ driveSyncedAt: at, driveLastSync: bilan }).where(eq(schema.brands.id, brandId));
+    return { ok: true, added: res.added, skipped: res.skipped, found: res.found, errors: res.errors };
+  } catch (e) {
+    // L'ÉCHEC enregistre la tentative SANS toucher au dernier succès · l'ancien
+    // `driveSyncedAt` ne masque plus l'échec, il coexiste avec lui (N09).
+    const echec: DernierSyncDrive = { at: at.toISOString(), ok: false };
+    await db!.update(schema.brands).set({ driveLastSync: echec }).where(eq(schema.brands.id, brandId)).catch(() => {});
+    return { error: logAndTranslate('drive', e, { subject: 'la connexion', workspaceId: g.s.workspaceId }) };
+  }
 }
 
 export interface PickedFile { id: string; name: string; mimeType: string; sizeBytes?: number }

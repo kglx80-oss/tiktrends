@@ -1,0 +1,13 @@
+-- Conserver le bilan de la dernière tentative de synchro Drive · CDC v8 · N09.
+--
+-- Le bilan trouvés/importés/ignorés/erreurs n'était affiché que dans l'instant
+-- suivant le clic (message client transitoire) · perdu au rechargement. Et
+-- `drive_synced_at` n'est écrit qu'APRÈS un succès · un échec laissait donc
+-- l'ancien horodatage de succès en place, masquant l'échec récent.
+--
+-- On conserve la dernière TENTATIVE (succès ou échec) dans un JSON ·
+-- { at, ok, found, added, skipped, errors }. `drive_synced_at` garde son sens
+-- (dernier SUCCÈS) · les deux faits restent distincts. Colonne nullable, sans
+-- défaut · rétro-compatible, aucune donnée inventée pour les marques jamais
+-- synchronisées (elles restent « jamais synchronisé »).
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS drive_last_sync jsonb;

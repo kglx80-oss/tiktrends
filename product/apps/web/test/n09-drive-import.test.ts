@@ -36,3 +36,36 @@ describe('N09 · le compteur d’assets explique sa portée', () => {
     expect(page, 'la portée (créations générées comptées à part) n’est pas dite').toMatch(/comptées à part/);
   });
 });
+
+/**
+ * CDC v8 · N09 · le bilan de synchro est CONSERVÉ (survit au rechargement) et
+ * la dernière tentative se distingue du dernier succès · un échec récent n'est
+ * pas masqué par un ancien succès.
+ */
+describe('N09 · le bilan de synchro Drive est conservé et distingue succès / tentative', () => {
+  const drive = readFileSync(join(process.cwd(), 'app/actions/drive.ts'), 'utf8');
+  const dc = readFileSync(join(process.cwd(), 'app/(app)/assets/DriveConnect.tsx'), 'utf8');
+
+  it('l’action persiste le bilan sur SUCCÈS · trouvés/importés/ignorés/erreurs', () => {
+    expect(drive, 'le bilan complet n’est pas conservé sur succès').toContain('ok: true, found: res.found, added: res.added, skipped: res.skipped, errors: res.errors');
+    // Sur succès, le dernier succès ET la dernière tentative sont écrits ensemble.
+    expect(drive, 'le succès n’écrit pas les deux faits').toContain('driveSyncedAt: at, driveLastSync: bilan');
+  });
+
+  it('l’action enregistre l’ÉCHEC sans toucher au dernier succès', () => {
+    expect(drive, 'l’échec n’est pas enregistré comme tentative').toContain('const echec: DernierSyncDrive = { at: at.toISOString(), ok: false }');
+    // Le SET du chemin d'échec ne porte QUE driveLastSync · pas driveSyncedAt.
+    expect(drive, 'un échec réécrit le dernier succès').toContain('.set({ driveLastSync: echec })');
+  });
+
+  it('getDriveState relit le bilan conservé', () => {
+    expect(drive).toContain('dernier: schema.brands.driveLastSync');
+  });
+
+  it('le tiroir distingue dernier succès et dernière tentative échouée, et conserve le bilan', () => {
+    expect(dc).toContain('derniereTentativeDriveEnEchec(');
+    expect(dc, 'un échec récent n’est pas signalé').toMatch(/· échec/);
+    expect(dc, 'le dernier succès n’est plus nommé comme tel').toContain('Dernier succès');
+    expect(dc, 'le bilan conservé n’est pas réaffiché').toContain('Dernier import');
+  });
+});

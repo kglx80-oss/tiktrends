@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { etatCatalogue, dejaDisponible, etatConnecteur, PHASE_CONNECTEUR_LABEL, resumeImportDrive, etatSyncDrive, LIBELLE_SYNC_DRIVE } from '../src/connecteurs-catalogue';
+import { etatCatalogue, dejaDisponible, etatConnecteur, PHASE_CONNECTEUR_LABEL, resumeImportDrive, etatSyncDrive, LIBELLE_SYNC_DRIVE, derniereTentativeDriveEnEchec } from '../src/connecteurs-catalogue';
 
 /**
  * CDC v7 · N09 · « disponible » et « en préparation » ne comptent jamais la
@@ -98,5 +98,47 @@ describe('etatSyncDrive · un inconnu ne devient pas un zéro (N09)', () => {
     expect(LIBELLE_SYNC_DRIVE.jamais_synchronise).toMatch(/jamais synchronisé/i);
     expect(LIBELLE_SYNC_DRIVE.synchronise).toMatch(/synchronis/i);
     expect(LIBELLE_SYNC_DRIVE.sans_dossier).toMatch(/dossier/i);
+  });
+
+  // Le point #4 du propriétaire · syncedAt SEUL ne distingue pas « sans dossier »
+  // de « dossier présent, jamais synchronisé » · c'est folderId qui tranche.
+  it('« sans dossier » se distingue de « jamais synchronisé » par le DOSSIER, pas la date', () => {
+    // Même syncedAt (null) des deux côtés · seul folderId change le verdict.
+    expect(etatSyncDrive({ folderId: null, syncedAt: null })).toBe('sans_dossier');
+    expect(etatSyncDrive({ folderId: 'f1', syncedAt: null })).toBe('jamais_synchronise');
+    // Et une date de synchro sans dossier ne fait pas croire à un dossier.
+    expect(etatSyncDrive({ folderId: null, syncedAt: '2026-09-03T08:00:00Z' })).toBe('sans_dossier');
+  });
+});
+
+/**
+ * CDC v8 · N09 · le dernier SUCCÈS et la dernière TENTATIVE sont deux faits
+ * distincts · un ancien succès ne doit pas masquer un échec survenu après lui.
+ */
+describe('derniereTentativeDriveEnEchec · un échec récent n’est pas masqué', () => {
+  it('aucune tentative enregistrée → rien à signaler', () => {
+    expect(derniereTentativeDriveEnEchec({ syncedAt: '2026-09-01T00:00:00Z', dernier: null })).toBe(false);
+  });
+
+  it('dernière tentative réussie → rien à signaler', () => {
+    expect(derniereTentativeDriveEnEchec({ syncedAt: '2026-09-03T00:00:00Z', dernier: { at: '2026-09-03T00:00:00Z', ok: true } })).toBe(false);
+  });
+
+  it('un échec APRÈS le dernier succès est signalé · l’ancien succès ne le masque pas', () => {
+    expect(derniereTentativeDriveEnEchec({
+      syncedAt: '2026-09-01T00:00:00Z',
+      dernier: { at: '2026-09-05T00:00:00Z', ok: false },
+    })).toBe(true);
+  });
+
+  it('un échec ANTÉRIEUR au dernier succès ne se signale pas · le succès est plus récent', () => {
+    expect(derniereTentativeDriveEnEchec({
+      syncedAt: '2026-09-05T00:00:00Z',
+      dernier: { at: '2026-09-01T00:00:00Z', ok: false },
+    })).toBe(false);
+  });
+
+  it('jamais de succès + dernière tentative en échec → signalé', () => {
+    expect(derniereTentativeDriveEnEchec({ syncedAt: null, dernier: { at: '2026-09-05T00:00:00Z', ok: false } })).toBe(true);
   });
 });
