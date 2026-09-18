@@ -3,6 +3,7 @@ import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { PageInfo } from '../../../../components/PageInfo';
+import { REGLE_ITERATION } from '@tiktrends/core';
 import { Suites } from './Suites';
 import { effectiveAccess } from '../../../../lib/access';
 
@@ -42,8 +43,7 @@ export default async function SuitesPage() {
         suite affiche d’abord <b>ce qu’il ne faut pas toucher</b> : le réflexe, quand une créa ne convertit
         pas, est de tout refaire, et tout refaire jette l’information qu’on venait d’acheter.
         Une suite change <b>exactement une variable</b>, sinon son résultat ne s’attribue à rien.
-        Enfin, on n’itère pas sur une perdante : la proposition reste, mais elle s’enregistre en nouveau
-        concept · déclarer une descendance à partir d’un échec, ce serait en hériter.
+        Enfin, la règle d’itération : {REGLE_ITERATION}
       </PageInfo>
 
       <Suites />

@@ -56,6 +56,20 @@ export interface IterationShape {
   parentAdId: string;
 }
 
+/**
+ * La règle d'itération, dite au lecteur · CDC v8 · N07.
+ *
+ * La fiche Mistakes (« On n'itère que sur une gagnante ») et la page Suites
+ * (« on n'itère pas sur une perdante ») énonçaient la MÊME règle par deux bouts
+ * différents · à la lecture, elles semblaient se contredire, l'une taisant les
+ * gagnantes naissantes, l'autre le sort d'une relative. Une seule phrase, les
+ * deux surfaces la lisent · elle dit qui fait descendance et qui repart neuf.
+ * Elle décrit le prédicat de `checkIteration` (winner ou baby_winner), rien de
+ * plus · le code reste la règle, ceci en est l'énoncé.
+ */
+export const REGLE_ITERATION =
+  'On n’itère (déclinaison filiée) que sur une gagnante ou une gagnante naissante. Une prometteuse relative ou une perdante ne fait pas de descendance · sa proposition repart en nouveau concept, sans en hériter.';
+
 /** Une itération part d'un gagnant, pointe vers son parent, et change une variable. */
 export function checkIteration(it: IterationShape): Violation[] {
   const v: Violation[] = [];

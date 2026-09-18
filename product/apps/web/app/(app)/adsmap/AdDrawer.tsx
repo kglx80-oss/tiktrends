@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { VerdictValue, TestedVariable } from '@tiktrends/core';
-import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, estGagnanteValidee, verdictEffectif } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -281,8 +281,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
               {!gagnante ? (
                 <>
                   <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
-                    On n’itère que sur une gagnante · repartir d’une perdante reproduit ce qui n’a pas marché, en plus cher.
-                    Reprends l’angle dans le Studio pour ouvrir une piste neuve.
+                    {REGLE_ITERATION} Reprends l’angle dans le Studio pour ouvrir une piste neuve.
                   </p>
                   {/* Le verdict le plus fréquent d'un test n'est PAS une gagnante ·
                       la phrase disait « reprends l'angle au Studio » sans y mener.
