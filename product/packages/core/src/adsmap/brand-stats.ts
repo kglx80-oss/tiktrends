@@ -20,6 +20,7 @@
 
 import type { VerdictValue } from './types';
 import { median } from './stats';
+import { tauxReussite } from './verdict-libelle';
 
 export type StatDimension =
   | 'mechanism' | 'hook_type' | 'format' | 'length_bucket'
@@ -192,16 +193,25 @@ export function buildJarvisMemory(ads: StatSourceAd[], opts: { learnings?: strin
   const stats = computeBrandStats(ads);
   const tableau = formatStatsForPrompt(stats);
   const global = globalHitRate(ads);
+  // Le taux VALIDÉ au protocole · même règle qu'Adsmap et le headline Jarvis · un
+  // gagnant non comparable ne compte pas, et sans mesure admissible il n'y a
+  // AUCUN taux de réussite (CDC v8 · N02). L'`global` reste l'HISTORIQUE, montré
+  // comme tel, jamais comme une performance prouvée injectée au modèle.
+  const valide = tauxReussite(ads.map((a) => ({ value: a.verdict, comparable: a.comparable })));
+  const nConclus = ads.filter((a) => a.verdict && CONCLUSIFS.includes(a.verdict)).length;
   const morceaux: string[] = [];
 
   if (tableau) {
-    const entete = global !== null
-      ? `MESURÉ SUR CETTE MARQUE (taux de réussite global ${pctFr(global)} sur ${ads.filter((a) => a.verdict && CONCLUSIFS.includes(a.verdict)).length} tests concluants) :`
-      : 'MESURÉ SUR CETTE MARQUE :';
-    morceaux.push(`${entete}\n${tableau}`);
+    const ligneValide = valide.taux === null
+      ? 'Taux de réussite validé au protocole : non calculable · aucun test comparable évaluable. Ne présente aucun taux de réussite prouvé.'
+      : `Taux de réussite validé au protocole : ${pctFr(valide.taux)} (${valide.succes}/${valide.evaluables} tests évaluables).`;
+    const ligneHisto = global !== null
+      ? `\nRépartition ci-dessous · HISTORIQUE indicatif (inclut les prometteuses relatives et les tests hors protocole), sur ${nConclus} tests concluants · c'est une tendance d'usage, pas une performance prouvée :`
+      : '';
+    morceaux.push(`MESURÉ SUR CETTE MARQUE.\n${ligneValide}${ligneHisto}\n${tableau}`);
   }
   if (opts.learnings?.length) {
-    morceaux.push(`APPRENTISSAGES VALIDÉS (ne pas retester ce qui a été réfuté) :\n- ${opts.learnings.slice(0, 12).join('\n- ')}`);
+    morceaux.push(`APPRENTISSAGES RETENUS (verdicts arbitrés sur cette marque · ne pas retester ce qui a été réfuté ; à confirmer au protocole avant d'en faire une preuve) :\n- ${opts.learnings.slice(0, 12).join('\n- ')}`);
   }
   return morceaux.join('\n\n');
 }
