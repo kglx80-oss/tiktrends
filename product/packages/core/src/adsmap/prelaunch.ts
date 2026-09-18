@@ -164,7 +164,7 @@ export function prelaunchBrief(
     const valeur = input[champ];
     const suit = typeof valeur === 'string' && valeur === row.key;
 
-    const chiffre = `${Math.round(row.shareOfProven * 100)} % des créas qui tiennent sur ce marché`;
+    const chiffre = `${Math.round(row.shareOfProven * 100)} % des annonceurs éprouvés sur ce marché`;
     const notre = ctx.stats.find((s) => s.dimension === row.dimension && s.key === row.key);
 
     if (suit && notre && notre.hitRate !== null && ctx.globalRate !== null && notre.hitRate < ctx.globalRate) {

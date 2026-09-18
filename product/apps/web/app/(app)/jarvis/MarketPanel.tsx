@@ -126,8 +126,9 @@ export function MarketPanel() {
                 Voir les parts d’usage du marché
               </summary>
               <p style={{ margin: '9px 0 10px', fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>
-                Ce sont des parts d’USAGE parmi les créas qui tiennent, pas des taux de réussite ·
-                aucun chiffre de performance des concurrents n’est connu.
+                Ce sont des parts d’USAGE parmi les annonceurs éprouvés (un annonceur qui décline la
+                même créa compte une fois), pas des taux de réussite · aucun chiffre de performance
+                des concurrents n’est connu.
               </p>
               {Object.entries(
                 v.rows.reduce<Record<string, typeof v.rows>>((acc, r) => {
