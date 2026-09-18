@@ -25,6 +25,15 @@ describe('R06 · protocole · saisie en % et champs nommés', () => {
     expect(src).toContain('Niveau de confiance (%)');
   });
 
+  // CDC v8 · R06 · l'écart de budget toléré affichait la fraction brute « 0.2 »,
+  // sans unité, alors que ses voisins étaient déjà en %. On l'aligne.
+  it('l’écart de budget toléré se saisit aussi en %, pas en fraction brute', () => {
+    expect(src, 'l’écart de budget n’est pas saisi en %').toContain('value={Math.round(s.protocol.budgetVarianceTolerance * 100)}');
+    expect(src, 'l’écart de budget n’est pas reconverti en fraction').toContain("setP('budgetVarianceTolerance', Number(e.target.value) / 100)");
+    expect(src, 'le libellé ne porte pas l’unité').toContain('Écart de budget toléré (%)');
+    expect(src, 'la fraction brute 0.2 (max={1}) subsiste').not.toMatch(/value=\{s\.protocol\.budgetVarianceTolerance\}/);
+  });
+
   it('chaque champ est enrobé dans son libellé (nom accessible)', () => {
     const i = src.indexOf('function Champ(');
     const corps = src.slice(i, i + 700);

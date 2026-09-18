@@ -108,9 +108,11 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
             <input type="number" min={1} max={30} value={s.protocol.durationDays} disabled={!canEdit}
               onChange={(e) => setP('durationDays', Number(e.target.value))} style={input} />
           </Champ>
-          <Champ label="Écart de budget toléré" aide="Au-delà, le lot est signalé non conforme et ses verdicts passent en comparaison relative.">
-            <input type="number" min={0} max={1} step={0.05} value={s.protocol.budgetVarianceTolerance} disabled={!canEdit}
-              onChange={(e) => setP('budgetVarianceTolerance', Number(e.target.value))} style={input} />
+          <Champ label="Écart de budget toléré (%)" aide="Au-delà, le lot est signalé non conforme et ses verdicts passent en comparaison relative. 20 % : un budget peut dépasser de 20 % le plus bas du lot.">
+            {/* Saisi en % (R06 · sans conversion mentale) · stocké en fraction ·
+                le champ affichait 0.2 brut, sans unité (CDC v8 · R06). */}
+            <input type="number" min={0} max={100} step={5} value={Math.round(s.protocol.budgetVarianceTolerance * 100)} disabled={!canEdit}
+              onChange={(e) => setP('budgetVarianceTolerance', Number(e.target.value) / 100)} style={input} />
           </Champ>
         </div>
 
