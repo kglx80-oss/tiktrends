@@ -1,12 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import { afficherCredits, texteCredits } from '@tiktrends/core';
 import { AssistantChat } from './AssistantChat';
 import { Icon } from './Icon';
 
 export interface AssistantHomeProps {
   firstName: string;
   credits: number;
+  /** Compte illimité (fondateur/créateur) · l'accueil affiche « Illimité », pas « 0 crédits ». */
+  unlimited: boolean;
   brandName: string | null;
   brandId: string | null;
   aiReady: boolean;
@@ -60,7 +63,10 @@ const PILOTER: Array<{ href: string; icon: string; label: string }> = [
   { href: '/assets', icon: 'folder', label: 'Assets' },
 ];
 
-export function AssistantHome({ firstName, credits, brandName, aiReady }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady }: AssistantHomeProps) {
+  // Même vérité que la puce du rail (N09) · un compte illimité ne montre pas
+  // « 0 crédits », il montre « Illimité ».
+  const etatCredits = afficherCredits({ balance: credits, unlimited });
   return (
     <div style={{ marginBottom: 32 }}>
       {/* Bandeau d'accueil · une phrase, une action, le solde. */}
@@ -87,7 +93,7 @@ export function AssistantHome({ firstName, credits, brandName, aiReady }: Assist
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'rgba(8,5,10,.35)', fontSize: 13, color: 'var(--ink-2)' }}>
                 <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name="coin" size={15} /></span>
-                {credits.toLocaleString('fr-FR')} crédits
+                {texteCredits(etatCredits, (n) => n.toLocaleString('fr-FR'))}{etatCredits.mode === 'solde' ? ' crédits' : ''}
               </span>
             </div>
           </div>

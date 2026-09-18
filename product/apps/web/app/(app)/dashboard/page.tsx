@@ -6,6 +6,7 @@ import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
 import { roleAtLeast } from '../../../lib/rbac';
 import { anthropicConfigured } from '../../../lib/ai-status';
+import { unlimitedCredits } from '../../../lib/credits';
 import { AssistantHome } from '../../../components/AssistantHome';
 import { JourneyPanel } from '../../../components/JourneyPanel';
 import { Bandeau } from '../../../components/Bandeau';
@@ -35,6 +36,9 @@ export default async function Dashboard() {
     if (ab) brand = { id: ab.id, name: ab.name };
   }
   const firstName = ((s?.user.name || s?.user.email || 'toi').trim().split(/\s+/)[0]) || 'toi';
+  // Même vérité que la puce du rail (N09) · un compte illimité affiche « Illimité »,
+  // pas « 0 crédits ». Le drapeau se lit du MÊME `unlimitedCredits` que la barre.
+  const creditsIllimites = unlimitedCredits(s?.user.email);
 
   // Le chemin de démarrage · calculé sur la donnée réelle, jamais sur des cases
   // cochées à la main. Ouvert à tous les rôles qui peuvent agir : un membre qui
@@ -43,7 +47,7 @@ export default async function Dashboard() {
 
   return (
     <main style={{ minHeight: '100vh', padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
-      <AssistantHome firstName={firstName} credits={credits} brandName={brand?.name ?? null} brandId={brand?.id ?? null} aiReady={anthropicConfigured()} />
+      <AssistantHome firstName={firstName} credits={credits} unlimited={creditsIllimites} brandName={brand?.name ?? null} brandId={brand?.id ?? null} aiReady={anthropicConfigured()} />
 
       {parcours && <JourneyPanel j={parcours.journey} relance={parcours.relance} firstName={firstName} />}
 
