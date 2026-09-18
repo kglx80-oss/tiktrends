@@ -51,6 +51,27 @@ describe('N07 · le plan d’itération classe par revue, pas par revenu', () =>
   });
 });
 
+describe('N07 (v8) · les promesses absolues restantes sont retirées', () => {
+  const APPSHELL = lire('components/AppShell.tsx');
+  const ACCUEIL = lire('components/AssistantHome.tsx');
+
+  it('« Cloner une pub gagnante » devient « une pub qui tient » (studio + palette)', () => {
+    expect(STUDIO, 'le studio qualifie encore la source de « gagnante »').not.toContain('Cloner une pub gagnante');
+    expect(APPSHELL, 'la palette de commandes qualifie encore la source de « gagnante »').not.toContain('Cloner une pub gagnante');
+    expect(STUDIO).toContain('Cloner une pub qui tient');
+  });
+
+  it('l’accueil ne promet plus « ta prochaine créative gagnante »', () => {
+    expect(ACCUEIL).not.toContain('créative gagnante');
+    expect(ACCUEIL).toContain('Crée ta prochaine créative, teste');
+  });
+
+  it('la fiche ne dit plus qu’une variation « rend l’écart attribuable »', () => {
+    expect(STUDIO, 'la fiche promet encore l’attribution automatique').not.toContain('rend l’écart attribuable');
+    expect(STUDIO).toContain('l’écart devient interprétable');
+  });
+});
+
 describe('N07 · l’entraînement de Jarvis ne promet plus la performance', () => {
   it('les pubs sources sont « qui tiennent », pas « qui performent » ni « gagnantes »', () => {
     expect(ENTRAINEMENT, 'l’écran promet encore la performance').not.toContain('pubs qui <b>performent</b>');

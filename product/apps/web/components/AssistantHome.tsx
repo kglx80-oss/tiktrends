@@ -83,7 +83,7 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
             </h1>
             <p style={{ margin: '8px 0 0', fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 560 }}>
               {brandName
-                ? <>Marque active · <b style={{ color: 'var(--ink)' }}>{brandName}</b>. Crée ta prochaine créative gagnante, teste, et laisse la mesure trancher.</>
+                ? <>Marque active · <b style={{ color: 'var(--ink)' }}>{brandName}</b>. Crée ta prochaine créative, teste, et laisse la mesure trancher.</>
                 : <>Choisis une marque et lance-toi · l’outil t’amène de l’idée à la créative testée.</>}
             </p>
             {/* Un seul CTA « créer des pubs » sur cet écran · la carte « Pubs IA »

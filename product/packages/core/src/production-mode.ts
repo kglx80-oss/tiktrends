@@ -47,11 +47,16 @@ export const PRODUCTION_RESUME: Record<ProductionMode, string> = {
   entiere: 'Le modèle produit la publicité complète, typographie comprise.',
 };
 
-/** Ce que le mode GARANTIT · une promesse tenue à chaque fois. */
+/**
+ * Ce que le mode APPORTE · décrit par son mécanisme, sans promesse absolue
+ * (CDC v8 · N07). En composée, on écrit le texte et on compose la vraie photo ·
+ * c'est factuel. En entière, le modèle génère tout · la photo GUIDE le rendu,
+ * elle ne le garantit pas · c'est la relecture qui contrôle le résultat.
+ */
 export function garanties(mode: ProductionMode): string[] {
   return mode === 'composee'
-    ? ['Les textes sont exacts, toujours', 'La mise en page est prévisible', 'Le produit reste fidèle']
-    : ['Le produit reste fidèle', 'Le rendu est celui d’une agence', 'Chaque pub est relue · mots et packaging vérifiés'];
+    ? ['Tes textes sont posés tels quels', 'La mise en page est prévisible', 'Ta photo produit est composée telle quelle']
+    : ['Ta photo produit guide le rendu', 'Le rendu est celui d’une agence', 'Chaque pub est relue · mots et packaging vérifiés'];
 }
 
 /** Ce que le mode NE garantit PAS · dit d'avance, pas découvert après. */
