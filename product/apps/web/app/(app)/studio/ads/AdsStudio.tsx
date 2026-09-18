@@ -1198,9 +1198,14 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       {/* Vue détail d'une créa (façon Atria) : grand aperçu + outils à droite + navigation */}
       {detailAd && (
         <div onMouseDown={() => setDetailIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(6,4,8,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
+          {/* À l'étroit (mobile), le détail EMPILE au lieu de garder deux colonnes ·
+              l'aperçu réclame min(320px,100%), donc il passe au-dessus du rail
+              d'outils sous ~550px et l'image retrouve une largeur utile (S23, CDC
+              v8 · N06). Le dialogue défile en vertical pour que les outils et la
+              fermeture restent atteignables une fois empilés. Desktop inchangé. */}
+          <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflowX: 'hidden', overflowY: 'auto', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
             {/* Aperçu + navigation */}
-            <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
+            <div style={{ flex: 1, minWidth: 'min(320px, 100%)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
               {detailIdx != null && detailIdx > 0 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); setScoreFor(null); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
