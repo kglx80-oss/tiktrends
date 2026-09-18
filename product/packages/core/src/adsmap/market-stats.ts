@@ -84,7 +84,8 @@ export interface MarketRow {
   nProven: number;
   /** Nombre total de créas décrites portant cette valeur. */
   nTotal: number;
-  /** Part de cette valeur PARMI les éprouvées · c'est ce qu'on lit. */
+  /** Part des ANNONCEURS éprouvés qui emploient cette valeur · c'est ce qu'on
+   *  lit. Pondérée par annonceur · un seul qui décline la même créa ne l'écrase pas. */
   shareOfProven: number;
   /** Part parmi toutes les créas · sert à repérer ce qui est sur-représenté. */
   shareOfAll: number;
@@ -120,6 +121,23 @@ function cleNormalisee(s: string): string {
   return s.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+/**
+ * Le POIDS d'un ensemble de créas dans une part de marché · un annonceur qui
+ * décline la MÊME valeur sur dix créas pèse UNE voix, pas dix. Sans ça, sa
+ * cadence gonflait la part et « ce que fait le marché » ne disait plus le marché,
+ * mais le plus prolixe. Une créa sans annonceur identifié compte pour elle-même ·
+ * on ne peut pas prouver qu'elle vient de la même source qu'une autre.
+ */
+export function poidsAnnonceurs(ads: readonly { advertiser?: string | null }[]): number {
+  const identifies = new Set<string>();
+  let anonymes = 0;
+  for (const a of ads) {
+    const nom = cleNormalisee(a.advertiser ?? '');
+    if (nom) identifies.add(nom); else anonymes++;
+  }
+  return identifies.size + anonymes;
+}
+
 export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
   const eprouvees = ads.filter(isProven);
   if (!eprouvees.length) return [];
@@ -149,14 +167,19 @@ export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
       const g = groupes.get(cleNormalisee(get(a)!));
       if (g) g.total.push(a);
     }
+    // La part se pèse par ANNONCEUR, pas par créa · un annonceur qui décline la
+    // même valeur ne compte qu'une fois. Le dénominateur est la somme des poids
+    // des groupes · les parts d'un même axe somment donc à 1, sans qu'une cadence
+    // d'un seul annonceur écrase les autres.
+    const totalPoids = [...groupes.values()].reduce((s, g) => s + poidsAnnonceurs(g.proven), 0);
     for (const g of groupes.values()) {
       const key = [...g.affichages.entries()].sort((x, y) => y[1] - x[1])[0]![0];
-      const annonceurs = new Set(g.proven.map((a) => a.advertiser).filter(Boolean));
+      const annonceurs = new Set(g.proven.map((a) => cleNormalisee(a.advertiser ?? '')).filter(Boolean));
       out.push({
         dimension: dim, key,
         nProven: g.proven.length,
         nTotal: g.total.length,
-        shareOfProven: g.proven.length / eprouveesAvecValeur.length,
+        shareOfProven: totalPoids ? poidsAnnonceurs(g.proven) / totalPoids : 0,
         shareOfAll: avecValeur.length ? g.total.length / avecValeur.length : 0,
         advertisers: annonceurs.size,
       });
@@ -221,7 +244,7 @@ export function contrastMarketVsBrand(
 
     const b = parCle.get(`${m.dimension}::${m.key}`);
     const quoi = `${LABEL[m.dimension]} « ${m.key} »`;
-    const marche = `${pct(m.shareOfProven)} des créas qui tiennent sur ce marché`;
+    const marche = `${pct(m.shareOfProven)} des annonceurs éprouvés sur ce marché`;
 
     if (!b || b.nConclusive < 3) {
       out.push({
@@ -313,5 +336,5 @@ export function summarizeMarket(market: MarketRow[], contrasts: Contrast[], samp
   const inexploite = contrasts.find((c) => c.kind === 'inexploite');
   if (inexploite) return inexploite.statement;
   const top = sig[0]!;
-  return `${LABEL[top.dimension]} « ${top.key} » domine ce marché · ${pct(top.shareOfProven)} des créas qui tiennent.`;
+  return `${LABEL[top.dimension]} « ${top.key} » domine ce marché · ${pct(top.shareOfProven)} des annonceurs éprouvés.`;
 }

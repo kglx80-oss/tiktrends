@@ -25,12 +25,36 @@ describe('ce qui compte comme « éprouvé »', () => {
 });
 
 describe('computeMarketStats', () => {
-  it('mesure la part parmi les créas éprouvées', () => {
+  it('mesure la part des ANNONCEURS éprouvés qui emploient la valeur', () => {
+    // Deux annonceurs distincts sur « question », un sur « number » · 2 voix / 3.
     const rows = computeMarketStats([
-      ad({ hookType: 'question' }), ad({ hookType: 'question' }), ad({ hookType: 'number' }),
+      ad({ advertiser: 'A', hookType: 'question' }), ad({ advertiser: 'B', hookType: 'question' }), ad({ advertiser: 'C', hookType: 'number' }),
     ]);
     const q = rows.find((r) => r.dimension === 'hook_type' && r.key === 'question')!;
     expect(q.nProven).toBe(2);
+    expect(q.shareOfProven).toBeCloseTo(2 / 3, 6);
+  });
+
+  it('CDC v7 · N03 · un annonceur qui décline la même créa ne gonfle pas sa part', () => {
+    // A lance 8 fois « question », B une fois « number » · la part n'est PAS 8/9 ·
+    // A ne pèse qu'UNE voix. Sinon la cadence d'un seul écrase le marché.
+    const rows = computeMarketStats([
+      ...Array.from({ length: 8 }, () => ad({ advertiser: 'A', hookType: 'question' })),
+      ad({ advertiser: 'B', hookType: 'number' }),
+    ]);
+    const q = rows.find((r) => r.dimension === 'hook_type' && r.key === 'question')!;
+    expect(q.nProven, 'les 8 créas existent bien, comptées telles quelles').toBe(8);
+    expect(q.advertisers).toBe(1);
+    expect(q.shareOfProven, 'pondérée par annonceur · 1 voix contre 1, pas 8 contre 1').toBeCloseTo(0.5, 6);
+  });
+
+  it('une créa sans annonceur identifié compte pour elle-même', () => {
+    // On ne peut pas prouver que deux anonymes viennent de la même source.
+    const rows = computeMarketStats([
+      ad({ advertiser: null, hookType: 'question' }), ad({ advertiser: null, hookType: 'question' }), ad({ advertiser: 'B', hookType: 'number' }),
+    ]);
+    const q = rows.find((r) => r.dimension === 'hook_type' && r.key === 'question')!;
+    // 2 anonymes (2 voix) + 1 annonceur (1 voix) · question = 2/3.
     expect(q.shareOfProven).toBeCloseTo(2 / 3, 6);
   });
 

@@ -145,7 +145,7 @@ export function explainProposal(
     if (suit) {
       lines.push({
         kind: 'market',
-        text: `« ${suit.key} » · ${Math.round(suit.shareOfProven * 100)} % des créas qui tiennent sur ce marché. Une part d’usage, pas un taux de réussite.`,
+        text: `« ${suit.key} » · ${Math.round(suit.shareOfProven * 100)} % des annonceurs éprouvés sur ce marché. Une part d’usage, pas un taux de réussite.`,
       });
     }
   }
