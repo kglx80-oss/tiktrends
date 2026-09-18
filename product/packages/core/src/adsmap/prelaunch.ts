@@ -31,6 +31,7 @@
 import { prelaunchScore, type PrelaunchInput, type PrelaunchScore, type StatRow } from './brand-stats';
 import { hookFingerprint, type HookEntry } from './hook-library';
 import { significantRows, type MarketRow } from './market-stats';
+import { reussiteEstimee, RESERVE_ESTIMATION } from './verdict-libelle';
 
 export type FlagKind =
   | 'hook_refuted' | 'hook_proven' | 'hook_reused'
@@ -216,7 +217,7 @@ function finalize(score: PrelaunchScore, flags: PrelaunchFlag[], hadHook: boolea
   if (score.band === 'low') {
     return {
       score, flags, recommendation: 'rework',
-      summary: `À retravailler avant de dépenser · ${Math.round(score.pConclusiveWin * 100)} % de réussite attendue, sous ta moyenne.${alerte ? ` ${alerte.message}` : ''}`,
+      summary: `À retravailler avant de dépenser · ${reussiteEstimee(score.pConclusiveWin)}, sous ta moyenne · ${RESERVE_ESTIMATION}.${alerte ? ` ${alerte.message}` : ''}`,
     };
   }
   if (alerte) {
@@ -227,18 +228,18 @@ function finalize(score: PrelaunchScore, flags: PrelaunchFlag[], hadHook: boolea
   }
 
   const bon = flags.find((f) => f.tone === 'good');
-  const chiffre = `${Math.round(score.pConclusiveWin * 100)} % de réussite attendue`;
+  const chiffre = reussiteEstimee(score.pConclusiveWin);
   if (score.band === 'high') {
     return {
       score, flags, recommendation: 'go',
-      summary: `Profil favorable · ${chiffre}.${bon ? ` ${bon.message}` : ''}`,
+      summary: `Profil favorable · ${chiffre} · ${RESERVE_ESTIMATION}.${bon ? ` ${bon.message}` : ''}`,
     };
   }
   return {
     score, flags, recommendation: 'go',
     summary: hadHook
-      ? `Rien ne s’y oppose · ${chiffre}, dans ta moyenne.`
-      : `Rien ne s’y oppose · ${chiffre}. Colle l’accroche envisagée pour un avis plus précis.`,
+      ? `Rien ne s’y oppose · ${chiffre}, dans ta moyenne · ${RESERVE_ESTIMATION}.`
+      : `Rien ne s’y oppose · ${chiffre} · ${RESERVE_ESTIMATION}. Colle l’accroche envisagée pour un avis plus précis.`,
   };
 }
 

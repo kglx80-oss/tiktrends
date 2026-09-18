@@ -126,3 +126,22 @@ export const TAUX_NON_CALCULABLE = 'Non calculable';
 export function libelleTauxFraction(taux: number | null): string {
   return taux === null ? TAUX_NON_CALCULABLE : `${Math.round(taux * 100)} %`;
 }
+
+/**
+ * Le pré-score d'un concept · CDC v8 · R04.
+ *
+ * « X % de réussite ATTENDUE » se lisait comme un engagement chiffré · un chiffre
+ * calculé sur l'historique posé comme une promesse sur CETTE créa. Le pré-score
+ * est une estimation lue sur les tests passés, et c'est le test à venir qui la
+ * tranche. On le dit dans le libellé même · le fragment porte son statut
+ * (estimation) et son ancrage (les tests passés), et la réserve dit ce qui le
+ * confirme. Source unique du fragment · les deux générateurs de synthèse (avis
+ * de pré-lancement, mémoire Jarvis) doivent le dire à l'identique.
+ */
+export const RESERVE_ESTIMATION = 'estimation à confirmer par le test';
+
+/** La part de réussite estimée d'un concept, dite comme une estimation. */
+export function reussiteEstimee(pConclusiveWin: number): string {
+  const pct = Math.round(Math.min(1, Math.max(0, pConclusiveWin)) * 100);
+  return `${pct} % de réussite estimée au vu des tests passés`;
+}
