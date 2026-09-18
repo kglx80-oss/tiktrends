@@ -20,7 +20,7 @@
 
 import type { VerdictValue } from './types';
 import { median } from './stats';
-import { tauxReussite } from './verdict-libelle';
+import { tauxReussite, reussiteEstimee, RESERVE_ESTIMATION } from './verdict-libelle';
 
 export type StatDimension =
   | 'mechanism' | 'hook_type' | 'format' | 'length_bucket'
@@ -326,7 +326,7 @@ export function prelaunchScore(input: PrelaunchInput, stats: StatRow[], globalRa
 /** Phrase de synthèse affichable à côté du concept. */
 export function summarizePrelaunch(s: PrelaunchScore): string {
   if (s.thin) return 'Pas assez d’historique pour se prononcer · à traiter comme une piste neuve.';
-  if (s.band === 'high') return `Profil favorable · ${pctFr(s.pConclusiveWin)} de réussite attendue au vu des tests passés.`;
-  if (s.band === 'low') return `Profil défavorable · ${pctFr(s.pConclusiveWin)} attendus, sous la moyenne de la marque. À retravailler avant de dépenser.`;
-  return `Profil dans la moyenne de la marque (${pctFr(s.pConclusiveWin)}).`;
+  if (s.band === 'high') return `Profil favorable · ${reussiteEstimee(s.pConclusiveWin)} · ${RESERVE_ESTIMATION}.`;
+  if (s.band === 'low') return `Profil défavorable · ${reussiteEstimee(s.pConclusiveWin)}, sous la moyenne de la marque · ${RESERVE_ESTIMATION}. À retravailler avant de dépenser.`;
+  return `Profil dans la moyenne de la marque · ${reussiteEstimee(s.pConclusiveWin)} · ${RESERVE_ESTIMATION}.`;
 }
