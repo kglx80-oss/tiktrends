@@ -23,6 +23,7 @@ const lire = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 const STUDIO = lire('app/(app)/studio/ads/AdsStudio.tsx');
 const ONBOARDING = lire('app/onboarding/OnboardingWizard.tsx');
 const PLAN = lire('app/actions/adsmap-iterate.ts');
+const ENTRAINEMENT = lire('app/(app)/jarvis/JarvisTraining.tsx');
 
 describe('N07 · le studio ne promet plus la performance', () => {
   it('l’accroche parle de pubs À TESTER, pas de pubs « qui performent »', () => {
@@ -47,5 +48,22 @@ describe('N07 · le plan d’itération classe par revue, pas par revenu', () =>
   it('le résumé parle de PRIORITÉ DE REVUE, pas de « ce que le prochain euro rapportera »', () => {
     expect(PLAN, 'le plan promet encore un revenu').not.toContain('prochain euro rapportera');
     expect(PLAN, 'le plan ne dit pas sa méthode de priorité').toContain('classées par priorité de revue');
+  });
+});
+
+describe('N07 · l’entraînement de Jarvis ne promet plus la performance', () => {
+  it('les pubs sources sont « qui tiennent », pas « qui performent » ni « gagnantes »', () => {
+    expect(ENTRAINEMENT, 'l’écran promet encore la performance').not.toContain('pubs qui <b>performent</b>');
+    expect(ENTRAINEMENT, 'le bouton promet encore des « pubs gagnantes »').not.toContain('pubs gagnantes');
+    expect(ENTRAINEMENT).toContain('tiennent dans la durée');
+  });
+  it('on distille des PISTES, pas des « patterns gagnants », et on ORIENTE, pas « tirer la performance »', () => {
+    expect(ENTRAINEMENT, '« patterns gagnants » subsiste').not.toContain('patterns gagnants');
+    expect(ENTRAINEMENT, '« tirer la performance vers le haut » subsiste').not.toContain('tirer la performance');
+    expect(ENTRAINEMENT).toMatch(/distille des <b>pistes<\/b>/);
+  });
+  it('le compte rendu parle de pubs ANALYSÉES, pas « performantes »', () => {
+    expect(ENTRAINEMENT, 'le toast promet encore des « pub(s) performante(s) »').not.toContain('pub(s) performante(s)');
+    expect(ENTRAINEMENT).toContain('pub(s) analysée(s)');
   });
 });
