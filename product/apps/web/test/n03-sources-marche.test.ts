@@ -13,12 +13,14 @@ describe('N03 · le panneau marché affiche le nombre de sources', () => {
     expect(panel).toMatch(/\{c\.sources\} source\{c\.sources > 1 \? 's' : ''\}/);
   });
 
-  // CDC v8 · N03 · chaque part d'usage porte la pertinence de sa source pour la
-  // marque · le lecteur sait pourquoi une inspiration hors catégorie est là et
-  // peut l'écarter, sans toucher un verdict de performance.
-  it('chaque part d’usage porte le libellé de pertinence de sa source', () => {
-    expect(panel, 'le panneau n’adopte pas la carte de pertinence partagée').toContain('LIBELLE_PERTINENCE[r.pertinence]');
-    expect(panel, 'la pertinence n’est pas affichée').toMatch(/\{pert\.court\}/);
-    expect(panel, 'la limite de la source n’est pas donnée en survol').toMatch(/title=\{pert\.note\}/);
+  // CDC v8 · N03 · chaque part d'usage porte DEUX axes distincts · le canal
+  // d'acquisition (fait) et la qualification métier (pertinence). Le lecteur voit
+  // d'où vient la source ET que sa pertinence reste « à qualifier », sans qu'on
+  // déduise l'une de l'autre.
+  it('chaque part d’usage porte son canal ET sa qualification, distincts', () => {
+    expect(panel, 'le canal d’acquisition n’est pas lu').toContain('LIBELLE_CANAL[r.canal]');
+    expect(panel, 'la qualification métier n’est pas lue').toContain('LIBELLE_QUALIFICATION[r.qualification]');
+    expect(panel, 'le canal n’est pas affiché').toMatch(/\{canal\.court\}/);
+    expect(panel, 'la qualification n’est pas affichée').toMatch(/\{qualif\.court\}/);
   });
 });

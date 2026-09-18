@@ -1,75 +1,107 @@
 import { describe, it, expect } from 'vitest';
 import {
-  classerProvenance, compterProvenances, pertinenceDeRangee, ajouterProvenance,
-  compteVide, LIBELLE_PERTINENCE,
+  canalDepuisProvenance, compterCanaux, canalDeRangee, ajouterCanal, compteCanauxVide, LIBELLE_CANAL,
+  qualificationDepuis, compterQualifications, qualifDeRangee, LIBELLE_QUALIFICATION,
 } from '../src/adsmap/source-pertinence';
 
 /**
- * CDC v8 · N03 · on sépare la provenance FACTUELLE d'une source (comment elle
- * est entrée) de sa PERTINENCE pour une marque (ce que ça vaut quand elle la
- * regarde). On n'invente aucune catégorie · l'inconnu reste « non qualifié ».
+ * CDC v8 · N03 · on tient DEUX axes séparés · le CANAL d'acquisition (fait) et
+ * la QUALIFICATION métier (pertinence). Le canal ne confère JAMAIS une
+ * pertinence · une marque suivie ou une détection Radar reste « à qualifier »
+ * tant qu'une qualification distincte et étayée ne l'établit pas.
  */
 
-describe('la provenance stockée se range en classe · l’inconnu ne s’invente pas', () => {
-  it('mappe les valeurs connues', () => {
-    expect(classerProvenance('followed')).toBe('concurrent');
-    expect(classerProvenance('radar')).toBe('inspiration');
-    expect(classerProvenance('propre')).toBe('propre');
+describe('axe 1 · le canal d’acquisition, lu sur la provenance stockée', () => {
+  it('mappe les canaux connus', () => {
+    expect(canalDepuisProvenance('followed')).toBe('suivi');
+    expect(canalDepuisProvenance('radar')).toBe('radar');
   });
 
-  it('range null, undefined et l’inattendu en « non qualifié »', () => {
-    expect(classerProvenance(null)).toBe('nonQualifie');
-    expect(classerProvenance(undefined)).toBe('nonQualifie');
-    expect(classerProvenance('n’importe quoi')).toBe('nonQualifie');
-  });
-});
-
-describe('la pertinence se lit sur le décompte des provenances', () => {
-  it('une seule classe présente → c’est elle', () => {
-    expect(pertinenceDeRangee({ concurrent: 3, inspiration: 0, propre: 0, nonQualifie: 0 })).toBe('concurrent_direct');
-    expect(pertinenceDeRangee({ concurrent: 0, inspiration: 2, propre: 0, nonQualifie: 0 })).toBe('inspiration_adjacente');
-    expect(pertinenceDeRangee({ concurrent: 0, inspiration: 0, propre: 1, nonQualifie: 0 })).toBe('preuve_propre');
-    expect(pertinenceDeRangee({ concurrent: 0, inspiration: 0, propre: 0, nonQualifie: 4 })).toBe('non_qualifiee');
+  it('null, undefined et l’inattendu → « inconnu », jamais inventé', () => {
+    expect(canalDepuisProvenance(null)).toBe('inconnu');
+    expect(canalDepuisProvenance(undefined)).toBe('inconnu');
+    expect(canalDepuisProvenance('n’importe quoi')).toBe('inconnu');
   });
 
-  it('plusieurs classes présentes → « mixte », la divergence ne se masque pas', () => {
-    expect(pertinenceDeRangee({ concurrent: 2, inspiration: 1, propre: 0, nonQualifie: 0 })).toBe('mixte');
-    expect(pertinenceDeRangee({ concurrent: 1, inspiration: 0, propre: 0, nonQualifie: 3 })).toBe('mixte');
+  it('la rangée dit son canal · un seul présent, ou « multiples »', () => {
+    expect(canalDeRangee({ suivi: 3, radar: 0, inconnu: 0 })).toBe('suivi');
+    expect(canalDeRangee({ suivi: 0, radar: 2, inconnu: 0 })).toBe('radar');
+    expect(canalDeRangee({ suivi: 0, radar: 0, inconnu: 5 })).toBe('inconnu');
+    expect(canalDeRangee({ suivi: 2, radar: 1, inconnu: 0 })).toBe('multiples');
+    expect(canalDeRangee(compteCanauxVide())).toBe('inconnu');
   });
 
-  it('aucune source → « non qualifié », pas une pertinence inventée', () => {
-    expect(pertinenceDeRangee(compteVide())).toBe('non_qualifiee');
-  });
-});
-
-describe('l’agrégation compte chaque source dans sa classe', () => {
-  it('compte un mélange sans en perdre', () => {
-    const c = compterProvenances([
+  it('compte les canaux sans en perdre', () => {
+    const c = compterCanaux([
       { provenance: 'followed' }, { provenance: 'followed' },
       { provenance: 'radar' }, { provenance: null }, { provenance: undefined },
     ]);
-    expect(c).toEqual({ concurrent: 2, inspiration: 1, propre: 0, nonQualifie: 2 });
-  });
-
-  it('ajouterProvenance incrémente la bonne classe', () => {
-    const c = compteVide();
-    ajouterProvenance(c, 'radar');
-    expect(c.inspiration).toBe(1);
-    expect(c.concurrent).toBe(0);
+    expect(c).toEqual({ suivi: 2, radar: 1, inconnu: 2 });
   });
 });
 
-describe('chaque pertinence porte un libellé et sa limite', () => {
-  it('l’inspiration adjacente et la source non qualifiée disent qu’on peut les écarter', () => {
-    expect(LIBELLE_PERTINENCE.inspiration_adjacente.court).toBe('Inspiration adjacente');
-    expect(LIBELLE_PERTINENCE.inspiration_adjacente.note).toMatch(/écarte/i);
-    expect(LIBELLE_PERTINENCE.non_qualifiee.court).toBe('Source non qualifiée');
-    expect(LIBELLE_PERTINENCE.non_qualifiee.note).toMatch(/à confirmer/i);
+describe('axe 2 · la qualification métier, jamais déduite du canal', () => {
+  it('ne lit qu’une qualification EXPLICITE et étayée', () => {
+    expect(qualificationDepuis('concurrent_direct')).toBe('concurrent_direct');
+    expect(qualificationDepuis('inspiration_adjacente')).toBe('inspiration_adjacente');
+    expect(qualificationDepuis('preuve_propre')).toBe('preuve_propre');
   });
 
-  it('le concurrent direct et la preuve propre sont nommés', () => {
-    expect(LIBELLE_PERTINENCE.concurrent_direct.court).toBe('Concurrent direct');
-    expect(LIBELLE_PERTINENCE.preuve_propre.court).toBe('Preuve propre');
-    expect(LIBELLE_PERTINENCE.mixte.court).toBe('Sources mêlées');
+  it('toute absence ou valeur inconnue reste « à qualifier »', () => {
+    expect(qualificationDepuis(null)).toBe('a_qualifier');
+    expect(qualificationDepuis(undefined)).toBe('a_qualifier');
+    expect(qualificationDepuis('concurrent')).toBe('a_qualifier');
+  });
+
+  it('la rangée dit sa qualification · aucune établie → « à qualifier », plusieurs → « mixte »', () => {
+    expect(qualifDeRangee({ preuvePropre: 0, concurrentDirect: 0, inspirationAdjacente: 0, aQualifier: 9 })).toBe('a_qualifier');
+    expect(qualifDeRangee({ preuvePropre: 0, concurrentDirect: 3, inspirationAdjacente: 0, aQualifier: 2 })).toBe('concurrent_direct');
+    expect(qualifDeRangee({ preuvePropre: 0, concurrentDirect: 1, inspirationAdjacente: 1, aQualifier: 0 })).toBe('mixte');
+  });
+
+  it('les sources « à qualifier » n’ajoutent aucune diversité de pertinence', () => {
+    // Beaucoup de « à qualifier » + une seule établie → la rangée n'est PAS mixte.
+    expect(qualifDeRangee({ preuvePropre: 0, concurrentDirect: 1, inspirationAdjacente: 0, aQualifier: 100 })).toBe('concurrent_direct');
+  });
+});
+
+describe('LE POINT DE LA CORRECTION · le canal ne confère pas de pertinence', () => {
+  it('une source suivie n’est pas d’office un concurrent direct', () => {
+    // Provenance « followed » · canal = suivi, mais AUCUNE qualification donnée.
+    const source: { provenance: string | null; qualification: string | null } = { provenance: 'followed', qualification: null };
+    expect(canalDeRangee(compterCanaux([source]))).toBe('suivi');
+    expect(qualifDeRangee(compterQualifications([source])), 'suivi ⇏ concurrent direct').toBe('a_qualifier');
+  });
+
+  it('une source détectée au Radar n’est pas d’office une inspiration adjacente', () => {
+    const source: { provenance: string | null; qualification: string | null } = { provenance: 'radar', qualification: null };
+    expect(canalDeRangee(compterCanaux([source]))).toBe('radar');
+    expect(qualifDeRangee(compterQualifications([source])), 'radar ⇏ inspiration adjacente').toBe('a_qualifier');
+  });
+
+  it('une qualification étayée, elle, est reprise · l’axe reste ouvert', () => {
+    const source = { provenance: 'radar' as const, qualification: 'concurrent_direct' as const };
+    expect(canalDeRangee(compterCanaux([source]))).toBe('radar');
+    expect(qualifDeRangee(compterQualifications([source]))).toBe('concurrent_direct');
+  });
+});
+
+describe('les libellés disent ce qu’ils mesurent', () => {
+  it('le canal nomme l’origine, sans jugement', () => {
+    expect(LIBELLE_CANAL.suivi.court).toBe('Marque suivie');
+    expect(LIBELLE_CANAL.radar.court).toBe('Détectée par le Radar');
+    expect(LIBELLE_CANAL.inconnu.court).toBe('Origine inconnue');
+    expect(LIBELLE_CANAL.multiples.court).toBe('Provenances multiples');
+  });
+
+  it('la qualification dit la pertinence, « À qualifier » quand rien n’est prouvé', () => {
+    expect(LIBELLE_QUALIFICATION.a_qualifier.court).toBe('À qualifier');
+    expect(LIBELLE_QUALIFICATION.a_qualifier.note).toMatch(/écarte/i);
+    expect(LIBELLE_QUALIFICATION.concurrent_direct.court).toBe('Concurrent direct');
+    expect(LIBELLE_QUALIFICATION.mixte.court).toBe('Pertinences mixtes');
+  });
+
+  it('« Provenances multiples » et « Pertinences mixtes » ne sont pas le même libellé', () => {
+    expect(LIBELLE_CANAL.multiples.court).not.toBe(LIBELLE_QUALIFICATION.mixte.court);
   });
 });

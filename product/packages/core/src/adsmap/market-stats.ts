@@ -31,8 +31,8 @@
 
 import type { HookType, OpeningType, Talent } from './asset-taxonomy';
 import {
-  type Provenance, type Pertinence, type CompteProvenance,
-  compterProvenances, pertinenceDeRangee,
+  type CanalRangee, type QualifRangee, type CompteCanaux, type CompteQualifs,
+  compterCanaux, canalDeRangee, compterQualifications, qualifDeRangee,
 } from './source-pertinence';
 
 /** Une créa concurrente, décrite par l'agent A0 et accompagnée de ses signaux. */
@@ -55,8 +55,12 @@ export interface MarketAd {
   reachDelta30d?: number | null;
   /** Nombre de pubs vivantes de cet annonceur · un gros compte n'a pas le même sens. */
   liveAdsCount?: number | null;
-  /** D'où vient cette créa · fait d'ingestion (CDC v8 · N03). `null` = non qualifié. */
-  provenance?: Provenance | null;
+  /** Canal d'acquisition · fait d'ingestion, par marque (CDC v8 · N03). `followed`,
+   *  `radar`, ou `null` (origine inconnue). Ce n'est PAS une qualification métier. */
+  provenance?: string | null;
+  /** Qualification métier EXPLICITE, si une qualification étayée existe · sinon
+   *  absente et la source reste « à qualifier ». Jamais déduite du canal. */
+  qualification?: string | null;
 }
 
 /**
@@ -97,10 +101,15 @@ export interface MarketRow {
   shareOfAll: number;
   /** Nombre d'annonceurs distincts · un seul annonceur ne fait pas un marché. */
   advertisers: number;
-  /** Décompte des provenances des créas éprouvées · dit la divergence (CDC v8 · N03). */
-  provenances: CompteProvenance;
-  /** Pertinence pour la marque · lue sur les provenances, jamais figée globalement. */
-  pertinence: Pertinence;
+  /** Décompte des CANAUX d'acquisition des créas éprouvées (CDC v8 · N03). */
+  canaux: CompteCanaux;
+  /** Canal de la rangée · « multiples » quand plusieurs canaux la portent. */
+  canal: CanalRangee;
+  /** Décompte des QUALIFICATIONS métier établies · axe distinct du canal. */
+  qualifications: CompteQualifs;
+  /** Qualification de la rangée · « à qualifier » tant que rien ne l'établit,
+   *  « mixte » quand plusieurs qualifications établies coexistent. */
+  qualification: QualifRangee;
 }
 
 /**
@@ -200,7 +209,8 @@ export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
     for (const g of groupes.values()) {
       const key = [...g.affichages.entries()].sort((x, y) => y[1] - x[1])[0]![0];
       const annonceurs = new Set(g.proven.map((a) => cleNormalisee(a.advertiser ?? '')).filter(Boolean));
-      const provenances = compterProvenances(g.proven);
+      const canaux = compterCanaux(g.proven);
+      const qualifications = compterQualifications(g.proven);
       out.push({
         dimension: dim, key,
         nProven: g.proven.length,
@@ -208,8 +218,10 @@ export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
         shareOfProven: totalPoids ? poidsAnnonceurs(g.proven) / totalPoids : 0,
         shareOfAll: avecValeur.length ? g.total.length / avecValeur.length : 0,
         advertisers: annonceurs.size,
-        provenances,
-        pertinence: pertinenceDeRangee(provenances),
+        canaux,
+        canal: canalDeRangee(canaux),
+        qualifications,
+        qualification: qualifDeRangee(qualifications),
       });
     }
   }

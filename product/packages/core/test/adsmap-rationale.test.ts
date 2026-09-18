@@ -124,7 +124,7 @@ describe('on ne cite que ce qui est au-dessus de la moyenne', () => {
 
 describe('le marché reste à sa place', () => {
   const market: MarketRow[] = [
-    { dimension: 'hook_type', key: 'number', nProven: 8, nTotal: 12, advertisers: 4, shareOfProven: 0.7, shareOfAll: 0.66, provenances: { concurrent: 4, inspiration: 0, propre: 0, nonQualifie: 0 }, pertinence: 'concurrent_direct' },
+    { dimension: 'hook_type', key: 'number', nProven: 8, nTotal: 12, advertisers: 4, shareOfProven: 0.7, shareOfAll: 0.66, canaux: { suivi: 4, radar: 0, inconnu: 0 }, canal: 'suivi', qualifications: { preuvePropre: 0, concurrentDirect: 0, inspirationAdjacente: 0, aQualifier: 4 }, qualification: 'a_qualifier' },
   ];
 
   it('cité en dernier, et présenté comme une part d’usage', () => {

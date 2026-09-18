@@ -1,20 +1,28 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { partDeMax, LIBELLE_PERTINENCE, type Pertinence } from '@tiktrends/core';
+import { partDeMax, LIBELLE_CANAL, LIBELLE_QUALIFICATION, type CanalRangee, type QualifRangee } from '@tiktrends/core';
 import { marketViewAction, learnFromFollowedAction, type MarketView } from '../../actions/market-learn';
 import { BarreValeur } from '../../../components/BarreValeur';
 
 /**
- * La couleur de chaque pertinence · le concurrent suivi reste discret (c'est
- * l'attendu), l'inspiration adjacente et la source non qualifiée ressortent ·
- * ce sont elles que le lecteur doit pouvoir écarter (CDC v8 · N03).
+ * Deux axes affichés séparément (CDC v8 · N03) · le CANAL d'acquisition (fait)
+ * et la QUALIFICATION métier (pertinence). La qualification « À qualifier »
+ * ressort · c'est elle que le lecteur doit pouvoir écarter tant que rien ne
+ * l'établit. Le canal reste sobre · c'est une information d'origine, pas un
+ * jugement de pertinence.
  */
-const TON_PERTINENCE: Record<Pertinence, string> = {
-  concurrent_direct: 'var(--muted)',
-  inspiration_adjacente: '#ffcf8f',
+const TON_CANAL: Record<CanalRangee, string> = {
+  suivi: 'var(--muted)',
+  radar: 'var(--muted)',
+  inconnu: 'var(--muted)',
+  multiples: 'var(--muted)',
+};
+const TON_QUALIF: Record<QualifRangee, string> = {
   preuve_propre: '#7ee8bf',
-  non_qualifiee: '#ff8095',
+  concurrent_direct: '#7ee8bf',
+  inspiration_adjacente: '#ffcf8f',
+  a_qualifier: '#ffcf8f',
   mixte: '#ffcf8f',
 };
 
@@ -154,15 +162,19 @@ export function MarketPanel() {
                     {DIM_LABEL[dim] ?? dim}
                   </div>
                   {rows.slice(0, 5).map((r) => {
-                    const pert = LIBELLE_PERTINENCE[r.pertinence];
+                    const canal = LIBELLE_CANAL[r.canal];
+                    const qualif = LIBELLE_QUALIFICATION[r.qualification];
                     return (
                     <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
                       <span style={{ width: 150, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontSize: 12, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.key}</span>
-                        {/* La pertinence de la source pour cette marque · le lecteur
-                            voit d'où vient la proposition et peut l'écarter (N03). */}
-                        <span title={pert.note} style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.02em', color: TON_PERTINENCE[r.pertinence], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {pert.court}
+                        {/* Deux axes distincts (N03) · le canal d'acquisition (fait)
+                            et la qualification métier (pertinence, non déduite du canal). */}
+                        <span title={canal.note} style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.02em', color: TON_CANAL[r.canal], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {canal.court}
+                        </span>
+                        <span title={qualif.note} style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.02em', color: TON_QUALIF[r.qualification], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {qualif.court}
                         </span>
                       </span>
                       <div style={{ flex: 1 }}>
