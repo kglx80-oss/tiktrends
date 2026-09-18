@@ -73,15 +73,15 @@ export async function listDecisionsAction(): Promise<{ inbox?: Inbox; error?: st
       .from(schema.decisionItems)
       .where(and(eq(schema.decisionItems.brandId, g.brand.id), eq(schema.decisionItems.status, 'dismissed')));
 
-    // Y a-t-il la moindre MESURE arbitrée pour cette marque ? Une file vide ne
+    // La marque a-t-elle été MESURÉE au moins une fois ? Une file vide ne
     // garantit « rien ne brûle » que si l'on a mesuré · sinon on le dit (CDC v6
-    // · R03). Un apprentissage n'existe que pour un verdict validé (invariant
-    // §2.4) · sa présence prouve qu'au moins un test a été mesuré et tranché,
-    // et il porte `brandId` en direct (pas de jointure profonde).
-    const [mes] = await db!.select({ n: sql<number>`count(*)` })
-      .from(schema.learnings)
-      .where(eq(schema.learnings.brandId, g.brand.id));
-    const aDesMesures = Number(mes?.n ?? 0) > 0;
+    // · R03). On lit le MÊME signal que le bouton « Mesurer maintenant »
+    // (`adsmapSyncedAt`) · sinon les deux se contredisaient · le bouton disait
+    // « Jamais mesurée » pendant que l'entête concluait « rien ne brûle » sur la
+    // foi d'anciens apprentissages, alors qu'aucune synchro n'avait tourné.
+    const [mes] = await db!.select({ at: schema.brands.adsmapSyncedAt })
+      .from(schema.brands).where(eq(schema.brands.id, g.brand.id)).limit(1);
+    const aDesMesures = mes?.at != null;
 
     return { inbox: { items, summary: summarizeDecisions(items, { aDesMesures }), dismissed: Number(compte?.n ?? 0) } };
   } catch (e) {
