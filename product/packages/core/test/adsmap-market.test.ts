@@ -88,6 +88,31 @@ describe('computeMarketStats', () => {
     // Le libellé affiché est la variante la plus fréquente (« UGC »).
     expect(formats[0]!.key).toBe('UGC');
   });
+
+  it('CDC v7 · N03 · les tranches de durée fusionnent malgré l’espacement (« <10s » = « < 10s »)', () => {
+    // D'anciennes créas marché au bucket libre (« < 10s ») côtoyaient les buckets
+    // canoniques (« <10s ») · `cleNormalisee` gardait l'espace interne et rendait
+    // DEUX lignes « <10s ». La dimension durée ignore désormais tout blanc.
+    const rows = computeMarketStats([
+      ad({ advertiser: 'A', lengthBucket: '<10s' }),
+      ad({ advertiser: 'B', lengthBucket: '< 10s' }),
+      ad({ advertiser: 'C', lengthBucket: '<10 s' }),
+    ]);
+    const durees = rows.filter((r) => r.dimension === 'length_bucket');
+    expect(durees, 'une seule ligne pour la tranche, pas trois').toHaveLength(1);
+    expect(durees[0]!.advertisers).toBe(3);
+    expect(durees[0]!.nProven).toBe(3);
+  });
+
+  it('les vraies tranches distinctes ne fusionnent pas', () => {
+    const rows = computeMarketStats([
+      ad({ advertiser: 'A', lengthBucket: '<10s' }),
+      ad({ advertiser: 'B', lengthBucket: '10-15s' }),
+      ad({ advertiser: 'C', lengthBucket: '10-15s' }),
+    ]);
+    const durees = rows.filter((r) => r.dimension === 'length_bucket');
+    expect(durees).toHaveLength(2);
+  });
 });
 
 describe('significantRows', () => {

@@ -103,11 +103,23 @@ export const MIN_N_MARKET = 3;
 /** Une tendance portée par un seul annonceur n'est pas une tendance de marché. */
 export const MIN_ADVERTISERS = 2;
 
-const DIMS: Array<{ dim: MarketDimension; get: (a: MarketAd) => string | null | undefined }> = [
+/**
+ * Une tranche de durée n'a pas d'espace SIGNIFIANT · « <10s », « < 10s » et
+ * « <10 s » désignent la même tranche. `cleNormalisee` (qui garde un espace
+ * interne) les laissait en DEUX lignes · d'anciennes créas marché au bucket
+ * libre côtoyaient les buckets canoniques et « <10s » apparaissait deux fois
+ * (CDC v7 · N03). On retire tout blanc pour cette dimension · les vraies
+ * tranches (« 10-15s »…) restent distinctes.
+ */
+function cleDuree(s: string): string {
+  return cleNormalisee(s).replace(/\s+/g, '');
+}
+
+const DIMS: Array<{ dim: MarketDimension; get: (a: MarketAd) => string | null | undefined; cle?: (s: string) => string }> = [
   { dim: 'hook_type', get: (a) => a.hookType },
   { dim: 'opening_type', get: (a) => a.openingType },
   { dim: 'talent', get: (a) => a.talent },
-  { dim: 'length_bucket', get: (a) => a.lengthBucket },
+  { dim: 'length_bucket', get: (a) => a.lengthBucket, cle: cleDuree },
   { dim: 'format', get: (a) => a.format },
 ];
 
@@ -143,7 +155,10 @@ export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
   if (!eprouvees.length) return [];
 
   const out: MarketRow[] = [];
-  for (const { dim, get } of DIMS) {
+  for (const { dim, get, cle } of DIMS) {
+    // La clé de regroupement dépend de la dimension · les durées ignorent tout
+    // espace (« <10s » = « < 10s »), les autres gardent la normalisation commune.
+    const norm = cle ?? cleNormalisee;
     const avecValeur = ads.filter((a) => !!get(a));
     const eprouveesAvecValeur = eprouvees.filter((a) => !!get(a));
     if (!eprouveesAvecValeur.length) continue;
@@ -159,12 +174,12 @@ export function computeMarketStats(ads: MarketAd[]): MarketRow[] {
     };
     for (const a of eprouveesAvecValeur) {
       const brut = get(a)!;
-      const g = groupe(cleNormalisee(brut));
+      const g = groupe(norm(brut));
       g.proven.push(a);
       g.affichages.set(brut, (g.affichages.get(brut) ?? 0) + 1);
     }
     for (const a of avecValeur) {
-      const g = groupes.get(cleNormalisee(get(a)!));
+      const g = groupes.get(norm(get(a)!));
       if (g) g.total.push(a);
     }
     // La part se pèse par ANNONCEUR, pas par créa · un annonceur qui décline la
