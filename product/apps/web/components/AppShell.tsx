@@ -281,7 +281,7 @@ function AppShellInner(props: Props) {
   commands.push(
     { id: 'do-home', label: 'Accueil', group: 'Actions', href: '/dashboard', icon: 'grid', keywords: 'accueil dashboard maison home retour tableau de bord' },
     { id: 'do-ads', label: 'Générer des pubs IA', group: 'Actions', href: '/studio/ads', icon: 'sparkles', keywords: 'créer pub génération ads publicité' },
-    { id: 'do-clone', label: 'Cloner une pub gagnante', group: 'Actions', href: '/studio/ads?mode=clone', icon: 'layers', keywords: 'cloner copier pub concurrent référence' },
+    { id: 'do-clone', label: 'Cloner une pub qui tient', group: 'Actions', href: '/studio/ads?mode=clone', icon: 'layers', keywords: 'cloner copier pub concurrent référence' },
     { id: 'do-image', label: 'Générer une image', group: 'Actions', href: '/studio/image', icon: 'image', keywords: 'image visuel produit scène' },
     { id: 'do-video', label: 'Générer une vidéo', group: 'Actions', href: '/studio/video', icon: 'film', keywords: 'vidéo animation clip' },
     { id: 'do-jarvis', label: 'Ce que Jarvis sait', group: 'Actions', href: '/jarvis', icon: 'brain', keywords: 'jarvis ia memoire accroches regles couches etat' },

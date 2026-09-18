@@ -29,19 +29,22 @@ describe('chaque mode dit ce qu’il tient et ce qu’il ne tient pas', () => {
     }
   });
 
-  it('seule la composition garantit les textes', () => {
+  it('la composition POSE les textes, l’entière les laisse au modèle · sans promesse absolue (N07)', () => {
     // C'est LA raison de garder les deux · un modèle d'images écrit juste le
-    // plus souvent, pas toujours.
-    expect(garanties('composee').join(' ')).toContain('exacts');
+    // plus souvent, pas toujours. Mais on ne le formule plus en « exacts,
+    // toujours » (CDC v8 · N07) · on décrit le mécanisme.
+    expect(garanties('composee').join(' ')).toMatch(/tels quels/);
+    expect(garanties('composee').join(' '), 'plus de « exacts, toujours »').not.toContain('exacts');
     expect(garanties('entiere').join(' ')).not.toContain('exacts');
     expect(reserves('entiere').join(' ')).toContain('trompe');
   });
 
-  it('les deux garantissent la fidélité du produit', () => {
-    // C'est le point éliminatoire · un mode qui ne le tient pas n'a rien à
-    // faire dans la liste.
+  it('les deux parlent du produit, sans promettre une fidélité ABSOLUE (N07)', () => {
     for (const m of PRODUCTION_MODES) {
       expect(garanties(m).join(' '), m).toContain('produit');
+      // « Le produit reste fidèle » posé en garantie absolue est retiré · en
+      // entière le modèle génère, la relecture contrôle · rien n'est garanti d'avance.
+      expect(garanties(m).join(' '), `${m} · plus de « reste fidèle » absolu`).not.toContain('reste fidèle');
     }
   });
 });

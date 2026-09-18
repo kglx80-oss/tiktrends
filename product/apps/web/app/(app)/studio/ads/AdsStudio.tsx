@@ -630,7 +630,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             <button type="button" disabled={!ready} onClick={() => { setMode('clone'); setAvance(true); setError(''); requestAnimationFrame(() => composeur.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} style={{
               padding: '14px 20px', borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: ready ? 'pointer' : 'default',
               border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
-            }}>Cloner une pub gagnante</button>
+            }}>Cloner une pub qui tient</button>
           </div>
         </div>
       </div>
@@ -672,7 +672,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         )}
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {([['brand', 'Depuis la marque'], ['clone', 'Cloner une pub gagnante']] as const).map(([k, label]) => (
+          {([['brand', 'Depuis la marque'], ['clone', 'Cloner une pub qui tient']] as const).map(([k, label]) => (
             <button key={k} type="button" disabled={!ready} onClick={() => { setMode(k); setError(''); }} aria-pressed={mode === k} style={{
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
@@ -1292,7 +1292,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                       <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#7ee8bf', border: '1px solid rgba(126,232,191,.4)', borderRadius: 999, padding: '1px 7px' }}>pour itérer</span>
                     </div>
                     <p style={{ margin: '0 0 9px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
-                      Une seule chose change, le reste est tenu · c’est ce qui rend l’écart attribuable. La scène est déjà payée, elle reste.
+                      Une seule chose change, le reste est tenu · l’écart devient interprétable, et la mesure tranche (une variation isolée aide à lire, elle ne prouve pas seule). La scène est déjà payée, elle reste.
                     </p>
                     {STUDIO_VARIABLES.map((v) => {
                       const prix = prixDeclinaison(v, modelSpec.credits, costFor('suggest'));
