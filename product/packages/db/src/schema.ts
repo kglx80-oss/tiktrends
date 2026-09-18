@@ -106,7 +106,11 @@ export const brands = pgTable('brands', {
   driveRefreshToken: text('drive_refresh_token_enc'), // Google Drive OAuth (chiffré) · par marque
   driveFolderId: text('drive_folder_id'),             // dossier Drive synchronisé pour la marque
   driveFolderName: text('drive_folder_name'),
-  driveSyncedAt: timestamp('drive_synced_at', { withTimezone: true }),
+  driveSyncedAt: timestamp('drive_synced_at', { withTimezone: true }),           // dernier SUCCÈS de synchro
+  // Bilan de la dernière TENTATIVE (succès ou échec) · { at, ok, found, added,
+  // skipped, errors }. Distinct de `driveSyncedAt` · un échec récent ne doit pas
+  // être masqué par un ancien succès, et le bilan survit au rechargement (N09).
+  driveLastSync: jsonb('drive_last_sync'),
   // ADSMAP · cf. docs/adsmap/STACK.md
   vertical: text('vertical'),                          // FASHION, BEAUTY, HOME… (priors de portefeuille)
   namingPattern: text('naming_pattern'),               // {brand}_B{batch}_{concept}_{variant}_{variable}

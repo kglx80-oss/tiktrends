@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
-import { resumeImportDrive, etatSyncDrive } from '@tiktrends/core';
+import { resumeImportDrive, etatSyncDrive, derniereTentativeDriveEnEchec } from '@tiktrends/core';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 
@@ -185,8 +185,12 @@ export function DriveConnect({ state }: { state: DriveState }) {
                 l'absence de date le confondre avec « synchronisé, rien trouvé » (N09). */}
             {etatSyncDrive({ folderId: state.folderId, syncedAt: state.syncedAt }) === 'jamais_synchronise'
               && <span style={{ color: '#ffcf8f' }}>· Jamais synchronisé</span>}
+            {/* Le dernier SUCCÈS · distinct de la dernière tentative. */}
             {etatSyncDrive({ folderId: state.folderId, syncedAt: state.syncedAt }) === 'synchronise'
-              && <span style={{ color: 'var(--muted)' }}>· Dernière synchro {new Date(state.syncedAt!).toLocaleString('fr-FR')}</span>}
+              && <span style={{ color: 'var(--muted)' }}>· Dernier succès {new Date(state.syncedAt!).toLocaleString('fr-FR')}</span>}
+            {/* Un échec récent ne se laisse pas masquer par un ancien succès (N09). */}
+            {derniereTentativeDriveEnEchec({ syncedAt: state.syncedAt, dernier: state.dernier })
+              && <span style={{ color: '#ff9db0' }}>· Dernière tentative {new Date(state.dernier!.at).toLocaleString('fr-FR')} · échec</span>}
           </div>
 
           {state.pickerReady ? (
@@ -215,6 +219,14 @@ export function DriveConnect({ state }: { state: DriveState }) {
             <b> Choisir un dossier</b> = synchro auto d'un dossier que tu possèdes.
           </p>
         </div>
+      )}
+      {/* Le bilan du dernier import réussi · CONSERVÉ, relu depuis la base, il
+          survit au rechargement (N09). Le message transitoire d'une synchro
+          fraîche prend le dessus quand il y en a un. */}
+      {!msg && state.dernier?.ok && (
+        <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+          Dernier import · {resumeImportDrive({ found: state.dernier.found ?? 0, added: state.dernier.added ?? 0, skipped: state.dernier.skipped ?? 0 })}
+        </p>
       )}
       {msg && <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--ink-2)' }}>{msg}</p>}
     </div>

@@ -112,3 +112,32 @@ export const LIBELLE_SYNC_DRIVE: Record<EtatSyncDrive, string> = {
   jamais_synchronise: 'Jamais synchronisé · lance une première synchro pour lire le dossier',
   synchronise: 'Synchronisé',
 };
+
+/**
+ * Le bilan de la dernière TENTATIVE de synchro d'un dossier · conservé pour
+ * l'afficher après un rechargement (CDC v8 · N09), pas seulement dans l'instant
+ * qui suit le clic. `ok` dit si elle a réussi · les compteurs ne sont présents
+ * qu'en cas de succès (un échec n'a pas de bilan à montrer).
+ */
+export interface DernierSyncDrive {
+  /** Horodatage ISO de la tentative (succès ou échec). */
+  at: string;
+  ok: boolean;
+  found?: number;
+  added?: number;
+  skipped?: number;
+  errors?: number;
+}
+
+/**
+ * La dernière tentative a-t-elle échoué SANS qu'un succès plus récent la
+ * couvre ? · un ancien `driveSyncedAt` (dernier SUCCÈS) ne doit pas masquer un
+ * échec survenu après lui (CDC v8 · N09). Le dernier succès et la dernière
+ * tentative sont deux faits distincts · on les compare, on ne confond pas.
+ */
+export function derniereTentativeDriveEnEchec(o: { syncedAt?: string | null; dernier?: DernierSyncDrive | null }): boolean {
+  const d = o.dernier;
+  if (!d || d.ok) return false;
+  if (!o.syncedAt) return true; // jamais de succès, et la dernière tentative a échoué
+  return new Date(d.at).getTime() > new Date(o.syncedAt).getTime();
+}
