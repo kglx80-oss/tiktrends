@@ -29,6 +29,7 @@ export const MARKET_COLS = {
   daysRunning: schema.marketCreatives.daysRunning,
   reachDelta30d: schema.marketCreatives.reachDelta30d,
   liveAdsCount: schema.marketCreatives.liveAdsCount,
+  provenance: schema.marketCreatives.provenance,
 } as const;
 
 export type MarketRowRaw = {
@@ -36,6 +37,7 @@ export type MarketRowRaw = {
   hookType: string | null; openingType: string | null; talent: string | null;
   lengthBucket: string | null; format: string | null;
   daysRunning: number; reachDelta30d: number | null; liveAdsCount: number | null;
+  provenance: string | null;
 };
 
 export function toMarketAd(r: MarketRowRaw): MarketAd {
@@ -46,6 +48,7 @@ export function toMarketAd(r: MarketRowRaw): MarketAd {
     talent: r.talent as MarketAd['talent'],
     lengthBucket: r.lengthBucket, format: r.format,
     daysRunning: r.daysRunning, reachDelta30d: r.reachDelta30d, liveAdsCount: r.liveAdsCount,
+    provenance: (r.provenance as MarketAd['provenance']) ?? null,
   };
 }
 
@@ -76,12 +79,17 @@ export function bucketDuree(sec: number | null): string | null {
 export function ligneMarketCreative(
   ad: InspoAd,
   n: AssetAnalysis,
-  ctx: { workspaceId: string; brandId: string },
+  ctx: { workspaceId: string; brandId: string; provenance?: 'followed' | 'radar' },
   radar?: { signal: RadarSignal; reason: string },
 ): typeof schema.marketCreatives.$inferInsert {
+  // Provenance factuelle · un balayage radar la prouve, sinon on prend ce que
+  // le chemin d'ingestion déclare (marque suivie). `null` reste possible · on
+  // n'invente pas une provenance qu'aucun fait n'établit (CDC v8 · N03).
+  const provenance = radar ? 'radar' : (ctx.provenance ?? null);
   return {
     workspaceId: ctx.workspaceId, brandId: ctx.brandId,
     platform: ad.platform, externalId: ad.id,
+    provenance,
     advertiser: ad.advertiserName ?? null,
     daysRunning: ad.daysRunning ?? 0,
     reachDelta30d: ad.reachDelta30d ?? null,

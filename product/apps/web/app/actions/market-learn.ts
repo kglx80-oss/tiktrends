@@ -63,7 +63,7 @@ export interface LearnResult {
  * coûterait sans rien apprendre, et fausserait les parts si le doublon passait.
  */
 async function analyseLot(
-  ads: InspoAd[], ctx: { workspaceId: string; brandId: string; email: string },
+  ads: InspoAd[], ctx: { workspaceId: string; brandId: string; email: string; provenance?: 'followed' | 'radar' },
 ): Promise<LearnResult> {
   const client = guardedAnthropic({ workspaceId: ctx.workspaceId, action: 'market-learn' });
   if (!client) return { error: GUARD.aiOff() };
@@ -165,7 +165,7 @@ async function analyseLot(
       // La ligne stockée est construite UNE seule fois, partagée avec le radar ·
       // deux copies avaient déjà divergé (le radar oubliait layout et charte).
       await db!.insert(schema.marketCreatives)
-        .values(ligneMarketCreative(a, n, { workspaceId: ctx.workspaceId, brandId: ctx.brandId }))
+        .values(ligneMarketCreative(a, n, { workspaceId: ctx.workspaceId, brandId: ctx.brandId, provenance: ctx.provenance }))
         .onConflictDoNothing();
       analyzed++;
     } catch (e) {
@@ -236,6 +236,8 @@ export async function learnFromFollowedAction(): Promise<LearnResult> {
 
     return await analyseLot(ads, {
       workspaceId: g.s.workspaceId, brandId: g.brand.id, email: g.s.user.email,
+      // Ces créas viennent de marques suivies délibérément · concurrents assumés.
+      provenance: 'followed',
     });
   } catch (e) {
     return { error: logAndTranslate('market:learn-followed', e, { subject: 'la lecture des marques suivies', workspaceId: g.s.workspaceId }) };

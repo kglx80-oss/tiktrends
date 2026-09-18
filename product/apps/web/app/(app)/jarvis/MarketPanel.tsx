@@ -1,9 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { partDeMax } from '@tiktrends/core';
+import { partDeMax, LIBELLE_PERTINENCE, type Pertinence } from '@tiktrends/core';
 import { marketViewAction, learnFromFollowedAction, type MarketView } from '../../actions/market-learn';
 import { BarreValeur } from '../../../components/BarreValeur';
+
+/**
+ * La couleur de chaque pertinence · le concurrent suivi reste discret (c'est
+ * l'attendu), l'inspiration adjacente et la source non qualifiée ressortent ·
+ * ce sont elles que le lecteur doit pouvoir écarter (CDC v8 · N03).
+ */
+const TON_PERTINENCE: Record<Pertinence, string> = {
+  concurrent_direct: 'var(--muted)',
+  inspiration_adjacente: '#ffcf8f',
+  preuve_propre: '#7ee8bf',
+  non_qualifiee: '#ff8095',
+  mixte: '#ffcf8f',
+};
 
 /**
  * Ce que fait le marché, et où nos chiffres le contredisent.
@@ -140,9 +153,18 @@ export function MarketPanel() {
                   <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }}>
                     {DIM_LABEL[dim] ?? dim}
                   </div>
-                  {rows.slice(0, 5).map((r) => (
+                  {rows.slice(0, 5).map((r) => {
+                    const pert = LIBELLE_PERTINENCE[r.pertinence];
+                    return (
                     <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
-                      <span style={{ width: 150, fontSize: 12, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.key}</span>
+                      <span style={{ width: 150, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: 12, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.key}</span>
+                        {/* La pertinence de la source pour cette marque · le lecteur
+                            voit d'où vient la proposition et peut l'écarter (N03). */}
+                        <span title={pert.note} style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.02em', color: TON_PERTINENCE[r.pertinence], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {pert.court}
+                        </span>
+                      </span>
                       <div style={{ flex: 1 }}>
                         <BarreValeur part={partDeMax(r.shareOfProven, 1)} hauteur={7} piste="var(--paper)" />
                       </div>
@@ -151,7 +173,8 @@ export function MarketPanel() {
                         {r.nProven} créas · {r.advertisers} ann.
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
             </details>
