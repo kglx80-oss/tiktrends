@@ -35,25 +35,37 @@ describe('computeMarketStats', () => {
     expect(q.shareOfProven).toBeCloseTo(2 / 3, 6);
   });
 
-  it('CDC v8 · N03 · chaque rangée porte la provenance de ses sources et sa pertinence', () => {
-    // « <10s » vu chez un concurrent suivi ET repéré au radar · la rangée le dit
-    // « mixte » et garde le décompte, elle ne masque pas la divergence.
+  it('CDC v8 · N03 · chaque rangée porte son CANAL (fait), distinct de la qualification', () => {
+    // « <10s » vu via une marque suivie ET au Radar · la rangée dit « multiples »
+    // sur le canal · mais AUCUNE qualification n'a été établie → « à qualifier ».
     const rows = computeMarketStats([
       ad({ advertiser: 'A', lengthBucket: '<10s', provenance: 'followed' }),
       ad({ advertiser: 'B', lengthBucket: '<10s', provenance: 'radar' }),
       ad({ advertiser: 'C', lengthBucket: '10-15s', provenance: 'radar' }),
     ]);
     const court = rows.find((r) => r.dimension === 'length_bucket' && r.key === '<10s')!;
-    expect(court.provenances).toEqual({ concurrent: 1, inspiration: 1, propre: 0, nonQualifie: 0 });
-    expect(court.pertinence).toBe('mixte');
+    expect(court.canaux).toEqual({ suivi: 1, radar: 1, inconnu: 0 });
+    expect(court.canal, 'deux canaux → provenances multiples').toBe('multiples');
+    expect(court.qualification, 'le canal ne confère pas de pertinence').toBe('a_qualifier');
     const moyen = rows.find((r) => r.dimension === 'length_bucket' && r.key === '10-15s')!;
-    expect(moyen.pertinence, 'un seul radar → inspiration adjacente').toBe('inspiration_adjacente');
+    expect(moyen.canal, 'un seul radar → détectée par le Radar').toBe('radar');
+    expect(moyen.qualification, 'Radar ⇏ inspiration adjacente').toBe('a_qualifier');
   });
 
-  it('CDC v8 · N03 · une source sans provenance connue reste « non qualifiée »', () => {
+  it('CDC v8 · N03 · une source sans canal connu → canal « inconnu », pertinence « à qualifier »', () => {
     const rows = computeMarketStats([ad({ advertiser: 'A', hookType: 'number', provenance: null })]);
     const r = rows.find((x) => x.dimension === 'hook_type' && x.key === 'number')!;
-    expect(r.pertinence).toBe('non_qualifiee');
+    expect(r.canal).toBe('inconnu');
+    expect(r.qualification).toBe('a_qualifier');
+  });
+
+  it('CDC v8 · N03 · une qualification métier ÉTAYÉE, elle, est reprise', () => {
+    const rows = computeMarketStats([
+      ad({ advertiser: 'A', hookType: 'number', provenance: 'followed', qualification: 'concurrent_direct' }),
+    ]);
+    const r = rows.find((x) => x.dimension === 'hook_type' && x.key === 'number')!;
+    expect(r.canal).toBe('suivi');
+    expect(r.qualification, 'une qualification étayée est reprise, pas déduite').toBe('concurrent_direct');
   });
 
   it('CDC v7 · N03 · un annonceur qui décline la même créa ne gonfle pas sa part', () => {

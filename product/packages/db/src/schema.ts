@@ -360,10 +360,12 @@ export const marketCreatives = pgTable('market_creatives', {
   // Ce qui a fait entrer cette créa · `null` = analyse déclenchée à la main.
   // Sans elle, la sélection nocturne serait une boîte noire six mois plus tard.
   radarSignal: text('radar_signal'),
-  // Provenance factuelle · comment la créa est entrée pour CETTE marque (CDC v8 · N03).
-  // `followed` = marque suivie délibérément · `radar` = repérée au balayage ·
-  // `null` = historique sans preuve, non qualifié. La pertinence (concurrent
-  // direct / inspiration adjacente) s'en déduit PAR marque, jamais figée globalement.
+  // Canal d'acquisition · comment la créa est entrée pour CETTE marque (CDC v8 · N03).
+  // `followed` = marque suivie · `radar` = repérée au balayage · `null` = origine
+  // inconnue. C'est un FAIT d'acquisition, PAS une qualification métier · la
+  // pertinence (concurrent direct / inspiration adjacente) ne s'en déduit jamais ·
+  // elle reste « à qualifier » tant qu'une qualification distincte et étayée
+  // ne l'établit pas. On ne stocke ici que le canal.
   provenance: text('provenance'),
   // Une créa franchit son cap une fois · la resignaler chaque nuit ferait du bruit.
   reportedAt: timestamp('reported_at', { withTimezone: true }),
