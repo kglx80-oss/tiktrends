@@ -47,9 +47,10 @@ export default async function RadarPage() {
         <b>Détecter est gratuit, décrire coûte.</b> Repérer un franchissement de cap est de l’arithmétique
         sur des données déjà récupérées. Seule la description d’une créa demande un appel modèle · elle n’est
         déclenchée que sur ce qui a franchi un cap, dans la limite du plafond que tu fixes, et jamais deux
-        fois sur la même créa. Un annonceur au-delà de trois créas décrites cède la place à un annonceur
-        qu’on ne connaît pas encore : trois créas suffisent à connaître une manière, et le budget est mieux
-        placé en largeur.
+        fois sur la même créa. Chaque nuit, un même annonceur donne au plus <b>trois</b> créas décrites · le
+        surplus attend la nuit suivante, il n’est pas jeté. Et un concurrent déjà connu passe <b>après</b> un
+        inconnu à signal égal : la largeur d’abord, sans exclure personne · une créa vraiment prouvée d’une
+        marque déjà couverte reste candidate les nuits d’après.
         <br /><br />
         <b>Le radar est éteint par défaut</b>, s’arme marque par marque, et s’arrête net si le plafond
         global de dépense est atteint.
