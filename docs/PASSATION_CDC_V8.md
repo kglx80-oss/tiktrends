@@ -38,36 +38,43 @@ Le timer systemd `tiktrends-deploy.timer` tire et redéploie chaque minute · le
 
 ---
 
-## 2 · Migration 0051 · identification, vérification, migration seulement si absente
+## 2 · Migrations 0051 et 0052 · identification, vérification, migration seulement si absente
 
 **Identification exacte** dans `product/packages/db/drizzle/meta/_journal.json` :
 
-- `idx: 51`, `tag: "0051_market_creative_provenance"`, `version: "7"`, `when: 1788300000010`.
-- Fichier SQL : `product/packages/db/drizzle/0051_market_creative_provenance.sql`.
-- Compte embarqué : `MIGRATIONS_IN_BUILD = 52` dans `product/packages/db/src/journal.ts` (idx 0…51 = 52 migrations), gardé par le test du journal.
-- Effet : `ALTER TABLE market_creatives ADD COLUMN IF NOT EXISTS provenance text;` + backfill `provenance = 'radar'` là où `radar_signal IS NOT NULL`. Nullable, sans défaut · rétro-compatible.
+- 0051 · `idx: 51`, `tag: "0051_market_creative_provenance"`, `version: "7"`, `when: 1788300000010`.
+  Fichier : `product/packages/db/drizzle/0051_market_creative_provenance.sql`.
+  Effet : `ALTER TABLE market_creatives ADD COLUMN IF NOT EXISTS provenance text;` + backfill `provenance = 'radar'` là où `radar_signal IS NOT NULL`.
+- 0052 · `idx: 52`, `tag: "0052_drive_last_sync_bilan"`, `version: "7"`, `when: 1788300000011`.
+  Fichier : `product/packages/db/drizzle/0052_drive_last_sync_bilan.sql`.
+  Effet : `ALTER TABLE brands ADD COLUMN IF NOT EXISTS drive_last_sync jsonb;` (bilan de la dernière tentative de synchro Drive). Nullable, sans défaut, pas de backfill.
+- Compte embarqué : `MIGRATIONS_IN_BUILD = 53` dans `product/packages/db/src/journal.ts` (idx 0…52 = 53 migrations), gardé par le test du journal.
 
-**Vérifier sa présence AVANT toute application** (lecture seule) :
+Les deux colonnes sont nullables, sans défaut · rétro-compatibles.
+
+**Vérifier leur présence AVANT toute application** (lecture seule) :
 
 ```sql
--- (a) L'effet de schéma est-il là ?
-SELECT 1 FROM information_schema.columns
- WHERE table_name = 'market_creatives' AND column_name = 'provenance';
--- 1 ligne = colonne présente.
+-- (a) Les effets de schéma sont-ils là ?
+SELECT table_name, column_name FROM information_schema.columns
+ WHERE (table_name = 'market_creatives' AND column_name = 'provenance')
+    OR (table_name = 'brands' AND column_name = 'drive_last_sync');
+-- 2 lignes = 0051 ET 0052 appliquées ; 1 ligne = une seule ; 0 = aucune.
 
 -- (b) Combien de migrations tracées ? (drizzle inscrit 1 ligne par migration)
 SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations;
--- 52 = 0051 appliquée ; 51 = 0051 non appliquée.
+-- 53 = jusqu'à 0052 appliquée ; 52 = 0052 manquante ; 51 = 0051 et 0052 manquantes.
 ```
 
-**Absence établie UNIQUEMENT si (a) ne renvoie rien ET (b) < 52.** Tant que ce
-n'est pas établi, ne rien appliquer. « 51/51 » ou « 52/52 » seul ne prouve pas
-QUELLE migration a tourné · c'est le couple (colonne, compte) qui tranche.
+**Absence établie UNIQUEMENT si (a) ne renvoie pas la colonne ET (b) < compte
+attendu.** Tant que ce n'est pas établi, ne rien appliquer. Le compte seul ne
+prouve pas QUELLE migration a tourné · c'est le couple (colonne, compte) qui
+tranche.
 
 **Si — et seulement si — l'absence est établie :** le déploiement exécute
-`drizzle-kit migrate` à chaque cycle, donc une 0051 présente dans le build
+`drizzle-kit migrate` à chaque cycle, donc une migration présente dans le build
 s'applique normalement d'elle-même. Une application manuelle n'est justifiée que
-si le build contient déjà 0051 mais que le timer ne l'a pas passée :
+si le build la contient déjà mais que le timer ne l'a pas passée :
 
 ```bash
 cd /home/debian/tiktrends/product && pnpm --filter @tiktrends/db migrate
@@ -190,15 +197,42 @@ testé). Gardes : `source-pertinence.test.ts`, `adsmap-market.test.ts`,
 
 ---
 
+## N09 · bilan de synchro Drive · comportement attendu (après #613 et #614)
+
+Chemin vérifié côté code · le bilan trouvés/importés/ignorés/erreurs est
+**produit** (`syncDriveAssets`), **conservé** (colonne `brands.drive_last_sync`,
+migration 0052) et **affiché** au rechargement (tiroir « Dernier import »).
+
+- **Dernier succès ≠ dernière tentative** · `driveSyncedAt` = dernier SUCCÈS ;
+  `drive_last_sync` = dernière TENTATIVE `{ at, ok, found, added, skipped,
+  errors }`. Un succès écrit les deux ; un échec écrit la tentative
+  (`ok:false`) SANS toucher `driveSyncedAt`. Le tiroir signale « Dernière
+  tentative · échec » quand un échec suit le dernier succès · un ancien succès
+  ne masque plus l'échec.
+- **« sans dossier » vs « jamais synchronisé »** · tranché par `driveFolderId`,
+  pas par la date seule (`etatSyncDrive`). Sans dossier → « Aucun dossier » ;
+  dossier choisi et jamais synchronisé → « Jamais synchronisé ».
+- **Portée du compteur** · « N asset(s) en bibliothèque » = imports + téléversements
+  (table `assets`) ; les créations générées (Pubs IA, Image IA) sont comptées à
+  part, pas dans ce total. Aucune conflation en donnée (`listAssets` ne lit que
+  `assets`).
+
+Cœur de règle : `product/packages/core/src/connecteurs-catalogue.ts`
+(`etatSyncDrive`, `derniereTentativeDriveEnEchec`, `resumeImportDrive`), purs et
+testés. Écriture : `syncDriveNowAction` (`product/apps/web/app/actions/drive.ts`).
+
+---
+
 ## Ce qui reste OUVERT
 
 Le déploiement et la recette navigateur ne sont pas confirmables depuis la
 session (le proxy bloque l'app en ligne, pas d'accès SSH). Restent donc à
 vérifier dans l'application, par le propriétaire :
 
-- application de 0051 en base (section 2, sans réappliquer avant d'établir l'absence) ;
+- application de 0051 et 0052 en base (section 2, sans réappliquer avant d'établir l'absence) ;
 - les trois transitions N04 dans le navigateur (section 3) ;
 - le tag de canal / qualification sur le panneau marché (section N03) ;
+- N09 in situ · dossier vide, fichiers ignorés, un échec PUIS rechargement (le bilan et l'échec doivent survivre), état jamais-synchronisé, fraîcheur, références de marque ;
 - le doublon « <10s », build ET données (section 5).
 
 Les constats concernés restent ouverts jusqu'à cette vérification.
