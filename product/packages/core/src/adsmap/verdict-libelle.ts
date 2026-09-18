@@ -114,3 +114,15 @@ export function tauxReussite(verdicts: ReadonlyArray<{ value: VerdictValue | nul
   }
   return { taux: evaluables ? succes / evaluables : null, succes, evaluables, prometteuses, exclus };
 }
+
+/**
+ * Le mot unique pour un taux non mesurable · « Non calculable », jamais « 0 % »
+ * qui ferait croire à un échec mesuré. Une seule source pour tous les écrans ·
+ * Adsmap et Jarvis doivent dire le même mot du même vide (CDC v7 · N02).
+ */
+export const TAUX_NON_CALCULABLE = 'Non calculable';
+
+/** Un taux (fraction 0..1) mis en toutes lettres · `null` → « Non calculable ». */
+export function libelleTauxFraction(taux: number | null): string {
+  return taux === null ? TAUX_NON_CALCULABLE : `${Math.round(taux * 100)} %`;
+}

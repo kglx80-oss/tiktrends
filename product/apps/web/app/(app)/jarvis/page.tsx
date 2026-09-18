@@ -12,7 +12,7 @@ import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../lib/jarv
 import { spendStatus } from '../../../lib/spend-guard';
 import { currentDeployment } from '../../../lib/deployment';
 import { attributionViewAction, creativeTrendAction, essaisViewAction, bilanNotesAction, bilanCopieAction, calibrationScoreAction } from '../../actions/adsmap-attribution';
-import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, partDeMax, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
+import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, partDeMax, libelleTauxFraction, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { Icon } from '../../../components/Icon';
 import { JarvisRules } from './JarvisRules';
@@ -779,14 +779,17 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
     <>
       <h2 style={{ margin: '4px 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Ce qu’il a appris de cette marque</h2>
       <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 760, lineHeight: 1.55 }}>
-        Mesuré sur les tests de cette marque, pas déduit de règles générales. Ce tableau est exactement
-        ce qui est injecté dans chaque génération.
+        Mesuré sur les tests de cette marque, pas déduit de règles générales. La répartition par
+        dimension ci-dessous est <b>historique · indicative</b> · elle oriente chaque génération.
       </p>
 
       <PageInfo title="lire ce tableau">
-        Le taux se lit sur les tests <b>concluants</b> : une ad non concluante n’apprend rien et ne compte
-        nulle part. Une ligne n’apparaît qu’à partir de <b>trois</b> tests · en dessous, ce serait une
-        anecdote présentée comme une loi. Jarvis applique la même règle : ce qu’il ne sait pas, il ne le dit pas.
+        Deux taux, à ne pas confondre. Le <b>taux validé</b> (en tête) ne compte que les tests évalués
+        au protocole · s’il n’y en a aucun, il est « {libelleTauxFraction(null)} », jamais 0 % · c’est le
+        même chiffre qu’Adsmap. La <b>répartition historique</b> (par dimension) inclut les gagnantes
+        relatives et les tests hors protocole · elle oriente, elle ne se revendique pas. Une ligne
+        n’apparaît qu’à partir de <b>trois</b> tests concluants · en dessous, ce serait une anecdote
+        présentée comme une loi.
       </PageInfo>
 
       {parDim.length === 0 ? (
@@ -799,7 +802,12 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 18 }}>
-            <Stat label="Taux de réussite" value={globalRate === null ? '—' : pct(globalRate)} sub="gagnantes / concluantes" strong />
+            <Stat
+              label="Taux de réussite validé"
+              value={libelleTauxFraction(stats.tauxProtocole.taux)}
+              sub={`${stats.tauxProtocole.succes} / ${stats.tauxProtocole.evaluables} test(s) évaluable(s) au protocole`}
+              strong
+            />
             <Stat label="Ads suivies" value={String(stats.nAds)} />
             <Stat label="Signaux exploitables" value={String(utiles.length)} sub="au moins 3 tests" />
           </div>
@@ -819,7 +827,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
                             couleur={au_dessus ? 'linear-gradient(90deg,#4fd1a5,#7ee8bf)' : 'var(--grad-accent)'}
                           />
                           {globalRate !== null && (
-                            <div title="Moyenne de la marque" style={{ position: 'absolute', left: `${partDeMax(globalRate, 1) * 100}%`, top: -2, width: 1, height: 13, background: 'var(--muted)' }} />
+                            <div title="Moyenne historique de la marque" style={{ position: 'absolute', left: `${partDeMax(globalRate, 1) * 100}%`, top: -2, width: 1, height: 13, background: 'var(--muted)' }} />
                           )}
                         </div>
                         <span style={{ width: 48, textAlign: 'right', fontSize: 12.5, fontWeight: 800, color: au_dessus ? '#7ee8bf' : 'var(--ink-2)' }}>{pct(r.hitRate!)}</span>

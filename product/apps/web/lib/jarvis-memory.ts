@@ -7,9 +7,9 @@ import {
   buildJarvisMemory, computeBrandStats, globalHitRate, prelaunchScore, summarizePrelaunch,
   computeMarketStats, contrastMarketVsBrand, buildMarketMemory,
   buildHookLibrary, formatHooksForPrompt, countHooks, summarizeHooks,
-  prelaunchBrief, memoryOrigin,
+  prelaunchBrief, memoryOrigin, tauxReussite,
   type HookSource, type HookEntry, type HookCounts,
-  type PrelaunchBrief, type MarketRow,
+  type PrelaunchBrief, type MarketRow, type TauxReussite,
   type StatSourceAd, type StatRow, type PrelaunchInput, type PrelaunchScore,
   type MarketAd, type BrandRow,
 } from '@tiktrends/core';
@@ -209,11 +209,16 @@ export async function jarvisMeasuredMemory(brandId: string, workspaceId: string)
  * L'écriture ne bloque pas et n'est pas attendue · un historique qui n'a pas pu
  * s'écrire sera posé au prochain passage, quelques heures plus tard.
  */
-export async function jarvisStats(brandId: string, workspaceId: string): Promise<{ stats: StatRow[]; globalRate: number | null; nAds: number }> {
+export async function jarvisStats(brandId: string, workspaceId: string): Promise<{ stats: StatRow[]; globalRate: number | null; tauxProtocole: TauxReussite; nAds: number }> {
   const { ads } = await loadCached(brandId, workspaceId);
   const stats = computeBrandStats(ads);
   void recordMilestones(brandId, workspaceId, stats);
-  return { stats, globalRate: globalHitRate(ads), nAds: ads.length };
+  // Deux taux, distincts et nommés (CDC v7 · N02) · `globalRate` est HISTORIQUE
+  // (compte les gagnantes relatives, ignore la comparabilité) · `tauxProtocole`
+  // est VALIDÉ (mêmes exclusions qu'Adsmap · « Non calculable » si rien n'est
+  // évaluable au protocole). Le premier oriente, le second se revendique.
+  const tauxProtocole = tauxReussite(ads.map((a) => ({ value: a.verdict, comparable: a.comparable })));
+  return { stats, globalRate: globalHitRate(ads), tauxProtocole, nAds: ads.length };
 }
 
 /** Situe un concept avant de dépenser · agent A7, calculé en code. */
