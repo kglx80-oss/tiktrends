@@ -269,8 +269,10 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {!sample && !error && !query && defaut && (
         <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>
           Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>gagnants installés</b>
-          {defaut.parCategorie ? <> dans ta catégorie <b style={{ color: 'var(--ink-2)' }}>« {defaut.seed} »</b></> : <> ({defaut.seed})</>}
-          {' · '}lance une recherche ou choisis une thématique pour cibler.
+          {defaut.parCategorie
+            ? <> dans ta catégorie <b style={{ color: 'var(--ink-2)' }}>« {defaut.seed} »</b></>
+            : <> <b style={{ color: '#ffcf8f' }}>hors de la catégorie{brand?.name ? <> de {brand.name}</> : null}</b> · échantillon général <b style={{ color: 'var(--ink-2)' }}>« {defaut.seed} »</b> · {brand?.name ? <>renseigne la catégorie de {brand.name}</> : <>renseigne la catégorie de la marque</>} pour cibler</>}
+          {' · '}lance une recherche ou choisis une thématique pour affiner.
         </p>
       )}
       {!sample && !error && !query && !defaut && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}
