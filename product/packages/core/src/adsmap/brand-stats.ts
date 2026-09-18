@@ -189,7 +189,26 @@ export function formatStatsForPrompt(rows: StatRow[], opts: { perDimension?: num
  * Renvoie une chaîne vide s'il n'y a pas assez de matière · un bloc « aucune
  * donnée » occuperait du contexte pour rien et inviterait le modèle à broder.
  */
-export function buildJarvisMemory(ads: StatSourceAd[], opts: { learnings?: string[]; rules?: string | null } = {}): string {
+/**
+ * Un apprentissage retenu sur la marque · un verdict arbitré, gardé comme
+ * mémoire. Sa `confidence` (1 à 5) dit AVEC quelle force on le tient · un « 2/5 »
+ * retenu n'est pas un « 5/5 », et le texte injecté à la génération doit le dire
+ * (CDC v8 · N02) · sans elle, « Ce format captive » passait pour établi malgré
+ * une confiance 2/5.
+ */
+export interface ApprentissageRetenu {
+  statement: string;
+  /** Force du souvenir · 1 (faible) à 5 (forte). */
+  confidence: number;
+}
+
+/** L'apprentissage mis en une ligne · l'énoncé porte sa force de conviction. */
+function ligneApprentissage(a: ApprentissageRetenu): string {
+  const c = Math.min(5, Math.max(1, Math.round(a.confidence)));
+  return `${a.statement} (confiance ${c}/5)`;
+}
+
+export function buildJarvisMemory(ads: StatSourceAd[], opts: { learnings?: ApprentissageRetenu[]; rules?: string | null } = {}): string {
   const stats = computeBrandStats(ads);
   const tableau = formatStatsForPrompt(stats);
   const global = globalHitRate(ads);
@@ -211,7 +230,8 @@ export function buildJarvisMemory(ads: StatSourceAd[], opts: { learnings?: strin
     morceaux.push(`MESURÉ SUR CETTE MARQUE.\n${ligneValide}${ligneHisto}\n${tableau}`);
   }
   if (opts.learnings?.length) {
-    morceaux.push(`APPRENTISSAGES RETENUS (verdicts arbitrés sur cette marque · ne pas retester ce qui a été réfuté ; à confirmer au protocole avant d'en faire une preuve) :\n- ${opts.learnings.slice(0, 12).join('\n- ')}`);
+    const lignes = opts.learnings.slice(0, 12).map(ligneApprentissage).join('\n- ');
+    morceaux.push(`APPRENTISSAGES RETENUS (verdicts arbitrés sur cette marque · ne pas retester ce qui a été réfuté ; la confiance dit avec quelle force chacun est tenu, à confirmer au protocole avant d'en faire une preuve) :\n- ${lignes}`);
   }
   return morceaux.join('\n\n');
 }

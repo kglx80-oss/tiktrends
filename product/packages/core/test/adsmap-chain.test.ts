@@ -248,7 +248,7 @@ describe('graphe → mémoire de Jarvis', () => {
     const stats = computeBrandStats(ads);
     expect(stats.length).toBeGreaterThan(0);
 
-    const memoire = buildJarvisMemory(ads, { learnings: ['Les listicles courts tiennent mieux sur cet avatar.'] });
+    const memoire = buildJarvisMemory(ads, { learnings: [{ statement: 'Les listicles courts tiennent mieux sur cet avatar.', confidence: 4 }] });
     expect(memoire).not.toBe('');
     expect(memoire).toContain('listicle');
   });
