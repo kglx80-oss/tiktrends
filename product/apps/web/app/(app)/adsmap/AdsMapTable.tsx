@@ -8,7 +8,7 @@ import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
 import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
-import { LIBELLE_VERDICT, tauxReussite, verdictEffectif, type VerdictValue } from '@tiktrends/core';
+import { LIBELLE_VERDICT, tauxReussite, verdictEffectif, TAUX_NON_CALCULABLE, type VerdictValue } from '@tiktrends/core';
 
 /**
  * Vue Table d'ADSMAP.
@@ -131,7 +131,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
         <Stat label="Ads" value={String(stats.total)} />
         <Stat
           label="Hit rate"
-          value={stats.hitRate === null ? 'Non calculable' : `${stats.hitRate} %`}
+          value={stats.hitRate === null ? TAUX_NON_CALCULABLE : `${stats.hitRate} %`}
           sub={stats.evaluables ? `${stats.succes}/${stats.evaluables} évaluées${stats.prometteuses ? ` · ${stats.prometteuses} prometteuses` : ''}` : 'aucun test évaluable'}
           strong />
         <Stat label="Verdicts comparables" value={stats.comparablePct === null ? '—' : `${stats.comparablePct} %`} sub="protocole respecté" />

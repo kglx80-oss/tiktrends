@@ -113,7 +113,7 @@ export async function jarvisSnapshot(brandId: string, workspaceId: string): Prom
     // pour une autre marque du compte n'apprend rien sur celle-ci.
     compte(db.select({ n: sql<number>`count(*)` }).from(schema.creatives)
       .where(and(eq(schema.creatives.brandId, brandId), isNotNull(schema.creatives.analysis))), 'créas décrites'),
-    sansCasse('statistiques', jarvisStats(brandId, workspaceId), { stats: [], globalRate: null, nAds: 0 }),
+    sansCasse('statistiques', jarvisStats(brandId, workspaceId), { stats: [], globalRate: null, tauxProtocole: { taux: null, succes: 0, evaluables: 0, prometteuses: 0, exclus: 0 }, nAds: 0 }),
     sansCasse('accroches', jarvisHooks(brandId, workspaceId), []),
   ]);
 
