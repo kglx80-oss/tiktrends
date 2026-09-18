@@ -82,15 +82,29 @@ describe('mémoire injectée dans les prompts', () => {
     expect(buildJarvisMemory([ad({ verdict: 'inconclusive' })])).toBe('');
   });
 
-  it('annonce le taux global et le nombre de tests', () => {
+  it('annonce le taux VALIDÉ au protocole (dénominateurs) et situe l’historique', () => {
+    // `solide` · 3 gagnantes comparables sur 8 concluantes · le validé mesure.
     const m = buildJarvisMemory(solide);
-    expect(m).toMatch(/taux de réussite global/);
+    expect(m).toMatch(/Taux de réussite validé au protocole : 38 % \(3\/8 tests évaluables\)/);
+    expect(m).toMatch(/HISTORIQUE indicatif/);
     expect(m).toMatch(/8 tests concluants/);
   });
 
-  it('ajoute les apprentissages validés en les nommant comme tels', () => {
+  // CDC v8 · N02 · le cas exact du constat · un historique existe (relatifs) mais
+  // rien n'est évaluable au protocole · le texte INJECTÉ ne doit pas présenter de
+  // taux de réussite prouvé (il affichait « taux de réussite global 6 % »).
+  it('sans mesure admissible, le texte injecté n’annonce AUCUN taux prouvé', () => {
+    const relatifs = Array.from({ length: 3 }, () => ad({ mechanism: 'listicle', verdict: 'relative_winner', comparable: false }));
+    const m = buildJarvisMemory(relatifs);
+    expect(m).toMatch(/validé au protocole : non calculable/);
+    expect(m, 'l’historique doit être posé comme indicatif, pas comme une performance').toMatch(/HISTORIQUE indicatif/);
+    expect(m, 'le vieux « taux de réussite global X% » présenté comme validé subsiste').not.toContain('taux de réussite global');
+  });
+
+  it('les apprentissages sont RETENUS (à confirmer), pas sur-affirmés « validés »', () => {
     const m = buildJarvisMemory(solide, { learnings: ['Le produit doit apparaître avant 3 s.'] });
-    expect(m).toMatch(/APPRENTISSAGES VALIDÉS/);
+    expect(m).toMatch(/APPRENTISSAGES RETENUS/);
+    expect(m, '« VALIDÉS » sur-affirmait la conformité au protocole').not.toContain('APPRENTISSAGES VALIDÉS');
     expect(m).toMatch(/avant 3 s/);
   });
 
