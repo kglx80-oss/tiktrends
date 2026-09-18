@@ -24,6 +24,8 @@ const STUDIO = lire('app/(app)/studio/ads/AdsStudio.tsx');
 const ONBOARDING = lire('app/onboarding/OnboardingWizard.tsx');
 const PLAN = lire('app/actions/adsmap-iterate.ts');
 const ENTRAINEMENT = lire('app/(app)/jarvis/JarvisTraining.tsx');
+const AD_DRAWER = lire('app/(app)/adsmap/AdDrawer.tsx');
+const SUITES = lire('app/(app)/adsmap/suites/page.tsx');
 
 describe('N07 · le studio ne promet plus la performance', () => {
   it('l’accroche parle de pubs À TESTER, pas de pubs « qui performent »', () => {
@@ -86,5 +88,25 @@ describe('N07 · l’entraînement de Jarvis ne promet plus la performance', () 
   it('le compte rendu parle de pubs ANALYSÉES, pas « performantes »', () => {
     expect(ENTRAINEMENT, 'le toast promet encore des « pub(s) performante(s) »').not.toContain('pub(s) performante(s)');
     expect(ENTRAINEMENT).toContain('pub(s) analysée(s)');
+  });
+});
+
+/**
+ * CDC v8 · N07 · Mistakes et Suites énonçaient la règle d'itération chacune à sa
+ * façon. Les deux surfaces lisent maintenant la MÊME source (`REGLE_ITERATION`
+ * dans le noyau) · elles ne peuvent plus diverger, et l'ancienne paraphrase
+ * partielle a disparu.
+ */
+describe('N07 · une seule règle d’itération, dite pareil sur Mistakes et Suites', () => {
+  it('le tiroir Mistakes lit la règle du noyau au lieu de la paraphraser', () => {
+    expect(AD_DRAWER, 'le tiroir n’adopte pas la source unique').toContain('REGLE_ITERATION');
+    expect(AD_DRAWER, 'l’ancienne phrase partielle « que sur une gagnante · repartir » subsiste')
+      .not.toContain('On n’itère que sur une gagnante · repartir');
+  });
+
+  it('la page Suites lit la même source', () => {
+    expect(SUITES, 'la page n’adopte pas la source unique').toContain('REGLE_ITERATION');
+    expect(SUITES, 'l’ancienne phrase « on n’itère pas sur une perdante : » subsiste')
+      .not.toContain('on n’itère pas sur une perdante :');
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   checkAdReady, checkIteration, checkVerdictValidation, checkVerdictComparability,
-  wouldCreateCycle, iterationDepth, type AdShape,
+  wouldCreateCycle, iterationDepth, REGLE_ITERATION, type AdShape,
 } from '../src/adsmap/invariants';
 
 /**
@@ -137,5 +137,30 @@ describe('graphe d’itération sans cycle', () => {
     // le calcul doit s'arrêter plutôt que tourner à l'infini.
     const cyclique = [{ child: 'a', parent: 'b' }, { child: 'b', parent: 'a' }];
     expect(iterationDepth(cyclique, 'a')).toBeLessThan(5);
+  });
+});
+
+/**
+ * CDC v8 · N07 · l'énoncé de la règle d'itération dit EXACTEMENT le prédicat de
+ * `checkIteration` · les surfaces (Mistakes, Suites) le liront à l'identique au
+ * lieu de le paraphraser chacune à sa façon.
+ */
+describe('la règle d’itération, dite au lecteur, colle au code', () => {
+  const base = { childAdType: 'iteration' as const, childAdId: 'c', parentAdId: 'p', changedVariable: 'hook' as const };
+
+  it('nomme les deux verdicts qui font descendance · gagnante ET gagnante naissante', () => {
+    // checkIteration n'ouvre l'itération que sur winner ou baby_winner.
+    expect(checkIteration({ ...base, parentVerdict: 'winner' })).toEqual([]);
+    expect(checkIteration({ ...base, parentVerdict: 'baby_winner' })).toEqual([]);
+    expect(REGLE_ITERATION).toContain('gagnante');
+    expect(REGLE_ITERATION, 'la gagnante naissante était tue').toContain('gagnante naissante');
+  });
+
+  it('dit qu’une relative ou une perdante ne fait pas de descendance · elle repart en nouveau concept', () => {
+    // Le code bloque la filiation depuis ces verdicts.
+    expect(checkIteration({ ...base, parentVerdict: 'relative_winner' }).some((v) => v.rule === 'iteration.parent')).toBe(true);
+    expect(checkIteration({ ...base, parentVerdict: 'loser' }).some((v) => v.rule === 'iteration.parent')).toBe(true);
+    expect(REGLE_ITERATION).toContain('ne fait pas de descendance');
+    expect(REGLE_ITERATION).toContain('nouveau concept');
   });
 });
