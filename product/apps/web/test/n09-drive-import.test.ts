@@ -16,4 +16,23 @@ describe('N09 · Drive · les deux synchros passent par resumeImportDrive', () =
   it('la synchro de fichiers choisis utilise aussi le résumé commun', () => {
     expect(dc).toMatch(/resumeImportDrive\(\{ found: files\.length/);
   });
+
+  // CDC v8 · N09 · « jamais synchronisé » est un inconnu · le tiroir le dit au
+  // lieu de le confondre avec « synchronisé, rien trouvé » par l'absence de date.
+  it('le tiroir Drive distingue « jamais synchronisé » de « synchronisé »', () => {
+    expect(dc, 'le tiroir n’adopte pas l’état de synchro du noyau').toContain('etatSyncDrive(');
+    expect(dc, '« jamais synchronisé » n’est pas dit explicitement').toContain('Jamais synchronisé');
+  });
+});
+
+/**
+ * CDC v8 · N09 · le compteur d'assets dit sa PORTÉE · médias de la bibliothèque
+ * (importés/téléversés), les créations générées comptées à part.
+ */
+describe('N09 · le compteur d’assets explique sa portée', () => {
+  const page = readFileSync(join(process.cwd(), 'app/(app)/assets/page.tsx'), 'utf8');
+  it('le total nomme la bibliothèque et sépare les créations générées', () => {
+    expect(page).toContain('asset(s) en bibliothèque');
+    expect(page, 'la portée (créations générées comptées à part) n’est pas dite').toMatch(/comptées à part/);
+  });
 });
