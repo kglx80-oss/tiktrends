@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
-import { resumeImportDrive } from '@tiktrends/core';
+import { resumeImportDrive, etatSyncDrive } from '@tiktrends/core';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 
@@ -181,7 +181,12 @@ export function DriveConnect({ state }: { state: DriveState }) {
             {state.folderName
               ? <span>· Dossier <b style={{ color: 'var(--ink)' }}>{state.folderName}</b></span>
               : <span style={{ color: '#ffcf8f' }}>· Aucun dossier sélectionné</span>}
-            {state.syncedAt && <span style={{ color: 'var(--muted)' }}>· Dernière synchro {new Date(state.syncedAt).toLocaleString('fr-FR')}</span>}
+            {/* « Jamais synchronisé » est un INCONNU · on le dit, au lieu de laisser
+                l'absence de date le confondre avec « synchronisé, rien trouvé » (N09). */}
+            {etatSyncDrive({ folderId: state.folderId, syncedAt: state.syncedAt }) === 'jamais_synchronise'
+              && <span style={{ color: '#ffcf8f' }}>· Jamais synchronisé</span>}
+            {etatSyncDrive({ folderId: state.folderId, syncedAt: state.syncedAt }) === 'synchronise'
+              && <span style={{ color: 'var(--muted)' }}>· Dernière synchro {new Date(state.syncedAt!).toLocaleString('fr-FR')}</span>}
           </div>
 
           {state.pickerReady ? (

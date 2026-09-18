@@ -44,7 +44,9 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Assets</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>BIBLIOTHÈQUE</span>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{assets.length} asset(s){imgCount ? ` · ${imgCount} image(s) mobilisable(s) par l'IA` : ''}</span>
+        {/* Portée du compteur · médias de la BIBLIOTHÈQUE (importés ou téléversés).
+            Les créations générées (Pubs IA, Image IA) sont comptées ailleurs, pas ici (N09). */}
+        <span title="Médias importés ou téléversés dans la bibliothèque · les créations générées (Pubs IA, Image IA) sont comptées à part, pas dans ce total" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{assets.length} asset(s) en bibliothèque{imgCount ? ` · ${imgCount} image(s) mobilisable(s) par l'IA` : ''}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>
         Tes rushs, images, vidéos, audio et imports (Drive, liens). {brand ? <>Rattachés à <b>{brand.name}</b> par défaut, ou communs à l'espace.</> : 'Communs à ton espace de travail.'}

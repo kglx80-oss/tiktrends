@@ -90,3 +90,25 @@ export function resumeImportDrive(o: { found: number; added: number; skipped: nu
   if (erreurs > 0) bouts.push(`${erreurs} en erreur`);
   return `${bouts.join(' · ')}.`;
 }
+
+/**
+ * L'état PERSISTANT d'un Drive branché, pour l'afficher sans confondre les cas
+ * (CDC v8 · N09). Un `syncedAt` absent est un INCONNU, pas un zéro · un dossier
+ * choisi mais jamais synchronisé ne se lit pas « vide » (on ne l'a pas encore
+ * lu). Le bilan trouvés/importés/ignorés/erreurs (voir `resumeImportDrive`) ne
+ * vaut qu'APRÈS une synchro · avant, l'état honnête est « jamais synchronisé ».
+ */
+export type EtatSyncDrive = 'sans_dossier' | 'jamais_synchronise' | 'synchronise';
+
+export function etatSyncDrive(o: { folderId?: string | null; syncedAt?: string | null }): EtatSyncDrive {
+  if (!o.folderId) return 'sans_dossier';
+  if (!o.syncedAt) return 'jamais_synchronise';
+  return 'synchronise';
+}
+
+/** Le libellé de chaque état de synchro · dit l'inconnu comme un inconnu. */
+export const LIBELLE_SYNC_DRIVE: Record<EtatSyncDrive, string> = {
+  sans_dossier: 'Aucun dossier sélectionné',
+  jamais_synchronise: 'Jamais synchronisé · lance une première synchro pour lire le dossier',
+  synchronise: 'Synchronisé',
+};
