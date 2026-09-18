@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { perfParAngle, consigneAnglesMarche, CONCLUSIFS_PLANCHER, type CreaLancee } from '../src/adsmap/perf-par-angle';
 
-/** Fabrique n créas d'un angle, dont `gagnantes` gagnantes, le reste perdantes. */
+/** Fabrique n créas d'un angle, dont `gagnantes` gagnantes, le reste perdantes.
+ *  Verdicts ABSOLUS et COMPARABLES · c'est ce qui compte au protocole. */
 function lot(angle: string, n: number, gagnantes: number): CreaLancee[] {
   return Array.from({ length: n }, (_, i) => ({
     angle,
     verdict: i < gagnantes ? 'winner' : 'loser',
+    comparable: true,
     spend: 10, ctr: 0.02,
   }));
 }
@@ -45,5 +47,26 @@ describe('consigneAnglesMarche · les angles que le marché a tranchés gagnants
     const c = consigneAnglesMarche(perfParAngle(lot('seul', 6, 3)));
     expect(c).toBeTruthy();
     expect(c!).toContain('seul');
+  });
+
+  // CDC v8 · N02 · une gagnante RELATIVE est prometteuse, pas gagnée · elle ne
+  // doit jamais être injectée comme « ce qui a payé ».
+  it('la gagnante relative ne compte NI comme gagnante NI comme conclusive', () => {
+    const relatives: CreaLancee[] = Array.from({ length: 8 }, () => ({ angle: 'relatif', verdict: 'relative_winner', comparable: true, spend: 10 }));
+    const perf = perfParAngle(relatives);
+    const ligne = perf.lignes.find((l) => l.angle === 'relatif')!;
+    expect(ligne.gagnants, 'une relative comptée comme gagnante').toBe(0);
+    expect(ligne.conclusifs, 'une relative comptée comme conclusive au protocole').toBe(0);
+    expect(consigneAnglesMarche(perf), 'un angle 100 % relatif ne s’injecte pas comme gagnant').toBeNull();
+  });
+
+  // CDC v8 · N02 · un verdict IMPORTÉ non comparable ne prouve rien · exclu.
+  it('un verdict non comparable (import) ne compte pas, même « winner »', () => {
+    const importes: CreaLancee[] = Array.from({ length: 8 }, () => ({ angle: 'importé', verdict: 'winner', comparable: false, spend: 10 }));
+    const perf = perfParAngle(importes);
+    const ligne = perf.lignes.find((l) => l.angle === 'importé')!;
+    expect(ligne.conclusifs, 'un import non comparable compté comme conclusif').toBe(0);
+    expect(ligne.gagnants).toBe(0);
+    expect(consigneAnglesMarche(perf)).toBeNull();
   });
 });

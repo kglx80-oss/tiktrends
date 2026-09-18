@@ -9,9 +9,10 @@ import { perfParAngle, CONCLUSIFS_PLANCHER, type CreaLancee } from '@tiktrends/c
  * silence sous le plancher.
  */
 
-const win = (angle: string): CreaLancee => ({ angle, verdict: 'winner', ctr: 0.03, spend: 100 });
-const lose = (angle: string): CreaLancee => ({ angle, verdict: 'loser', ctr: 0.01, spend: 50 });
-const inconc = (angle: string): CreaLancee => ({ angle, verdict: 'inconclusive', spend: 10 });
+// Verdicts absolus ET comparables · seuls comptés au protocole (CDC v8 · N02).
+const win = (angle: string): CreaLancee => ({ angle, verdict: 'winner', comparable: true, ctr: 0.03, spend: 100 });
+const lose = (angle: string): CreaLancee => ({ angle, verdict: 'loser', comparable: true, ctr: 0.01, spend: 50 });
+const inconc = (angle: string): CreaLancee => ({ angle, verdict: 'inconclusive', comparable: true, spend: 10 });
 
 describe('perfParAngle · le vote du marché par angle', () => {
   it('compte les gagnants sur les CONCLUSIVES seulement', () => {

@@ -50,6 +50,7 @@ export default async function IntelligencePage() {
     const rows = await db.select({
       sourceRef: schema.ads.sourceRef,
       computed: schema.verdicts.computed,
+      comparable: schema.verdicts.comparable,
       metricsAgg: schema.verdicts.metricsAgg,
     })
       .from(schema.ads)
@@ -73,6 +74,7 @@ export default async function IntelligencePage() {
       return {
         angle: genId ? angleParGen.get(genId) ?? null : null,
         verdict: (r.computed ?? null) as VerdictValue | null,
+        comparable: !!r.comparable,
         spend: agg?.spend ?? null,
         ctr: agg?.ctr ?? null,
       };
