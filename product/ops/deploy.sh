@@ -36,6 +36,14 @@ fi
 
 cd "$REPO/product"
 
+# L'empreinte du commit qu'on s'apprête à compiler · on est APRÈS le pull, donc
+# HEAD = le commit servi. `docker compose` la passe en build-arg au Dockerfile,
+# `next.config` la fige dans l'env compilé, `deployment.ts` la relit · le bandeau
+# de diagnostic montre alors le SHA au lieu de « inconnu » (CDC · Lot 0). Sans
+# cet export, `${BUILD_SHA-}` du compose est vide et la chaîne reste muette.
+export BUILD_SHA
+BUILD_SHA=$(git rev-parse --short=8 HEAD)
+
 # Build + (re)démarrage des conteneurs modifiés.
 docker compose up -d --build
 

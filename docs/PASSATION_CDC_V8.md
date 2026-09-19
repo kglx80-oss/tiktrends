@@ -39,7 +39,7 @@ git -C /home/debian/tiktrends merge-base --is-ancestor de42e82 HEAD && echo "pr�
 git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#61[79]|#62[02]'
 ```
 
-`présent` = le commit servi descend de `de42e82`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `3bc0e7d` ou un descendant. **Attention** · avant #620 ce champ tombait à « inconnu » en production (l'image Docker ne recevait pas le commit · cf. section 6) · un « inconnu » persistant signe un build antérieur à #620 ou un timer qui n'exporte pas `BUILD_SHA`, pas une donnée absente en soi.
+`présent` = le commit servi descend de `de42e82`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `de42e82` ou un descendant. **Attention** · le champ tombait à « inconnu » en production car la chaîne `BUILD_SHA` était incomplète · #620 a posé le raccordement Docker, #624 le maillon manquant (`ops/deploy.sh` l'exporte, cf. section 6). Un « inconnu » persistant signe donc un build antérieur à #624, ou le décalage d'un cycle (section 6), pas une donnée absente en soi.
 
 ### Corrections par constat · commit + scénario de réception (navigateur)
 
@@ -211,43 +211,98 @@ Cœur de règle : `product/packages/core/src/adsmap/market-stats.ts`
 
 ---
 
-## 6 · Identité du build · pourquoi « inconnu » et comment le vérifier (après #620)
+## 6 · Identité du build · le raccordement EXACT de BUILD_SHA (après #620 et #624)
 
-Le bandeau de diagnostic affichait « inconnu » comme commit servi. La mécanique
-de base était pourtant saine :
+Le bandeau de diagnostic affichait « inconnu » comme commit servi. Ce n'est ni le
+bandeau ni la mécanique applicative qui étaient en cause · c'est le raccordement
+de la variable, resté incomplet.
 
-- `apps/web/next.config.mjs` · `gitSha()` préfère `process.env.BUILD_SHA`, sinon
-  tente `git rev-parse --short=8 HEAD`, sinon `''`. Le résultat est figé dans
-  `env.BUILD_SHA` **au build** (Next l'inline dans le bundle).
-- `apps/web/lib/deployment.ts:46` relit `process.env.BUILD_SHA?.slice(0,8)` · la
-  valeur inlinée · pour le champ `build` du bandeau.
+### La chaîne, maillon par maillon
 
-**Cause du « inconnu »** · l'image web se bâtit depuis le contexte `product/`,
-qui ne contient PAS `.git`, sur `node:20-alpine` qui n'a pas git. `git rev-parse`
-échouait donc au build, et aucune variable ne fournissait le commit → `''`. Le
-maillon manquant était le raccordement Docker, ajouté par #620 :
+Le commit doit traverser CINQ étapes · un seul maillon lâché et le bandeau
+retombe à « inconnu ». De l'amont vers l'aval :
 
-- `Dockerfile.web` · `ARG BUILD_SHA` promu en `ENV BUILD_SHA=$BUILD_SHA` AVANT
-  `pnpm build`.
-- `docker-compose.yml` · le service web passe `args: { BUILD_SHA: "${BUILD_SHA-}" }`.
-- Garde : `apps/web/test/build-sha-wiring.test.ts` (RÉSULTAT du maillon next +
-  présence des deux maillons Docker, chacun prouvé en le faisant tomber).
+1. **Le script de déploiement** · `product/ops/deploy.sh`, lancé EN PLACE par le
+   service systemd (`product/ops/tiktrends-deploy.service` · `ExecStart=/home/
+   debian/tiktrends/product/ops/deploy.sh`, `WorkingDirectory=/home/debian/
+   tiktrends`). Le dépôt utilisé est `/home/debian/tiktrends` (variable `REPO`
+   dans le script), branche `main`. Le timer `tiktrends-deploy.timer` déclenche
+   ce service chaque minute · le timer ne contient AUCUNE logique de build, il
+   ne fait qu'appeler le service · rien à coller dedans.
+   → #624 ajoute, APRÈS le `git pull` et le `cd "$REPO/product"`, juste avant le
+   build :
+   ```bash
+   export BUILD_SHA
+   BUILD_SHA=$(git rev-parse --short=8 HEAD)
+   ```
+   `git rev-parse` est évalué APRÈS le pull, donc `HEAD` = le commit réellement
+   compilé. C'est un ordre de SHELL, dans le script `deploy.sh` · ce n'est PAS
+   une directive systemd, et il n'a pas sa place dans un fichier `.service` ou
+   `.timer`. (Export et affectation sont séparés à dessein · sous `set -e`,
+   `export X=$(cmd)` masquerait un échec de `cmd`.)
+2. **Docker Compose** · `product/docker-compose.yml`, service web ·
+   `build: { context: ., dockerfile: Dockerfile.web, args: { BUILD_SHA: "${BUILD_SHA-}" } }`.
+   Il LIT `BUILD_SHA` dans l'environnement (celui que `deploy.sh` vient
+   d'exporter) et le passe en build-arg. Absent, `${BUILD_SHA-}` vaut la chaîne
+   vide · rien ne casse, le bandeau dit « inconnu ».
+3. **L'image** · `product/Dockerfile.web`, étage `build` · `ARG BUILD_SHA=""`
+   promu en `ENV BUILD_SHA=$BUILD_SHA` AVANT `RUN pnpm --filter @tiktrends/web
+   build`, pour que la variable existe quand Next compile.
+4. **La compilation** · `apps/web/next.config.mjs` · `gitSha()` préfère
+   `process.env.BUILD_SHA` (sinon tente `git rev-parse`, sinon `''`) et fige le
+   résultat dans `env.BUILD_SHA`. Next l'INLINE dans le bundle · la valeur est
+   gelée dans le code compilé, l'étage `run` de l'image n'a donc pas besoin de la
+   variable.
+5. **L'application** · `apps/web/lib/deployment.ts:46` relit
+   `process.env.BUILD_SHA?.slice(0,8)` (la valeur inlinée) pour le champ `build`,
+   rendu par le bandeau (`deploymentState`).
 
-**Procédure de déploiement à respecter** · le timer (ou le script de déploiement)
-doit exporter le commit AVANT le build, sinon le bandeau retombe à « inconnu » :
+**Cause première du « inconnu »** · l'image se bâtit depuis le contexte
+`product/`, qui ne contient PAS `.git`, sur `node:20-alpine` sans git · l'étape 4
+ne pouvait pas déduire le commit seule. Il fallait le lui fournir par les étapes
+1→3. #620 avait posé 2 et 3 ; SANS l'étape 1, le build-arg restait vide et la
+chaîne était muette · #624 pose l'étape 1 (`deploy.sh`), donc raccorde le tout.
+
+**Garde** · `apps/web/test/build-sha-wiring.test.ts` verrouille le RÉSULTAT du
+maillon 4 (un `BUILD_SHA` fourni est bien figé dans `env`) ET la présence des
+maillons 1, 2, 3 (deploy.sh exporte le SHA git avant le build, compose passe
+l'arg, Dockerfile déclare ARG/ENV avant `pnpm build`), chacun prouvé en le
+faisant tomber. Il ne PROUVE pas l'exécution réelle sur le VPS (un build Docker
+complet, hors de portée d'un test unitaire) · seule la vérification ci-dessous le
+fait.
+
+### Ce qui reste à faire sur le VPS · rien à modifier à la main
+
+`deploy.sh` étant lancé EN PLACE depuis le dépôt (pas une copie installée · seuls
+les fichiers `.service`/`.timer` ont été copiés une fois dans `/etc/systemd/`, et
+ils ne changent pas), le correctif #624 s'applique DE LUI-MÊME au prochain cycle
+qui reconstruit. **Aucune édition du timer ni du service n'est requise · ne pas y
+toucher.**
+
+Décalage d'un cycle à connaître · le cycle qui PULL le commit #624 exécute encore
+l'ancien `deploy.sh` (sans export) · ce build-là reste « inconnu ». Le commit de
+CODE suivant déclenche le nouveau `deploy.sh` · le SHA apparaît alors. Pour
+vérifier sans attendre un commit, le proprio peut, depuis le VPS :
 
 ```bash
 cd /home/debian/tiktrends/product
-export BUILD_SHA=$(git rev-parse --short=8 HEAD)
-docker compose up -d --build
+git rev-parse --short=8 HEAD          # le commit attendu
+BUILD_SHA=$(git rev-parse --short=8 HEAD) docker compose up -d --build web
 ```
 
-À câbler dans l'unité `tiktrends-deploy` (le propriétaire édite le VPS). Sans cet
-export, rien ne casse · le bandeau dit seulement « inconnu ».
+(Commande de VÉRIFICATION manuelle, pas une modification du déploiement · elle
+reproduit exactement ce que `deploy.sh` fait désormais tout seul.)
 
-**Vérification (proprio, après déploiement)** · le bandeau de diagnostic Jarvis
-montre les 8 caractères du commit servi (plus « inconnu »). Le comparer à
-`origin/main` pour confirmer que la version en ligne est à jour (section 1).
+### Vérification que le SHA affiché correspond au code construit
+
+1. Sur le VPS, noter `git rev-parse --short=8 HEAD` (le commit compilé).
+2. Ouvrir le bandeau de diagnostic Jarvis · le champ `build` doit afficher CES 8
+   caractères, plus « inconnu ».
+3. Confirmer que ce commit est bien la version voulue · `git merge-base
+   --is-ancestor <sha_du_bandeau> origin/main` renvoie vrai, et le comparer au
+   commit de référence de la section 1. Un bandeau qui montre un SHA absent de
+   `origin/main` signalerait un build local non poussé · à ne pas présenter comme
+   la version servie.
 
 ---
 
@@ -340,14 +395,16 @@ Le déploiement et la recette navigateur ne sont pas confirmables depuis la
 session (le proxy bloque l'app en ligne, pas d'accès SSH). Restent donc à
 vérifier dans l'application, par le propriétaire :
 
-- **Identité du build** · une fois #620 déployé ET le timer patché pour exporter `BUILD_SHA` (section 6), le bandeau doit montrer le SHA servi, plus « inconnu ». Câblage de l'export dans l'unité systemd · à faire par le propriétaire sur le VPS ;
+- **Identité du build** · le raccordement de `BUILD_SHA` est complet en code (#620 + #624), y compris `deploy.sh` qui l'exporte · aucune édition du timer/service à faire (section 6). Reste à CONFIRMER sur le VPS · le bandeau montre le SHA servi (plus « inconnu ») et ce SHA correspond au commit compilé. Attention au décalage d'un cycle · le premier build après #624 tourne encore sur l'ancien script · le SHA apparaît au commit de code suivant, ou par la commande de vérification manuelle de la section 6 ;
 - application de 0051 et 0052 en base (section 2, sans réappliquer avant d'établir l'absence) ;
 - **N02** · sur une marque à verdicts relatifs / importés · panneau renommé, aucun angle relatif ou importé présenté « gagnant » dans le texte injecté ni les recommandations ;
-- les trois transitions N04 dans le navigateur (section 3) ;
-- **N03** · tag canal / qualification sur le panneau marché ; doublon « <10s » · après #619 la cause « caractère invisible » est corrigée en code · reste à confirmer in situ que le panneau ne montre plus qu'une rangée (et, si un doublon subsiste, trancher invisible/homoglyphe/résiduel par §5) ;
+- les trois transitions N04 dans le navigateur (section 3) · les gardes automatisées sont vertes (`n04-suite-faits.test.ts`, `carte-creative.test.ts`), la recette DÉPLOYÉE reste ouverte ;
+- **N03** · tag canal / qualification sur le panneau marché ; doublon « <10s » · **RESTE OUVERT jusqu'à reproduction réussie sur les données concernées** · après #619 la cause « caractère invisible » est corrigée en code, mais tant que le doublon n'est pas reproduit puis vu disparaître in situ, ne pas le clore. Si un doublon subsiste, trancher invisible / homoglyphe / résiduel par §5 · ne PAS étendre la normalisation aux homoglyphes sans preuve qu'ils interviennent dans CE défaut ;
 - **N06** · détail de créa à 360 px sur un vrai appareil ;
-- **R04 / R06** · lot 29 in situ · réussite estimée, unité budget, et — après #622 — le badge « Importé · historique » à côté de « Analysé », la réserve qui explique les ads « Brouillon », le marqueur « · importé » du rail ;
-- N09 in situ · dossier vide, fichiers ignorés, un échec PUIS rechargement (le bilan et l'échec doivent survivre), état jamais-synchronisé, fraîcheur, références de marque.
+- **R04 / R06** · lot 29 in situ · réussite estimée, unité budget · les données historiques sont CONSERVÉES ; la recette confirme que le badge « Importé · historique » et sa réserve rendent la coexistence avec les ads « Brouillon » compréhensible (#622), et que le marqueur « · importé » du rail est présent ;
+- N09 in situ · les gardes automatisées couvrent les sept scénarios (§N09) et sont vertes ; la recette DÉPLOYÉE reste ouverte · dossier vide, fichiers ignorés, un échec PUIS rechargement (le bilan et l'échec doivent survivre), état jamais-synchronisé, fraîcheur, références de marque.
 
 Les constats concernés restent ouverts jusqu'à cette vérification · la prochaine
 étape est la recette de l'application, pas un nouveau chantier de développement.
+Les tests automatisés (N04, N09) sont un acquis · ils ne remplacent pas la
+recette déployée, qui seule confirme le comportement réel.
