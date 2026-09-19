@@ -40,7 +40,26 @@ git -C /home/debian/tiktrends merge-base --is-ancestor debf8a4 HEAD && echo "pr�
 git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#61[79]|#62[024]'
 ```
 
-`présent` = le commit servi descend de `debf8a4`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `debf8a4` ou un descendant. **Attention** · le champ tombait à « inconnu » en production car la chaîne `BUILD_SHA` était incomplète · #620 a posé le raccordement Docker, #624 le maillon manquant (`ops/deploy.sh` l'exporte, cf. section 6). Un « inconnu » persistant signe donc un build antérieur à #624, ou le décalage d'un cycle (section 6), pas une donnée absente en soi.
+Ce que ces commandes prouvent · que **l'arbre source** du VPS contient #624, pas
+que **l'image servie** en a été bâtie. Le dépôt peut avoir avancé depuis le
+build · `HEAD` n'est donc pas forcément le commit compilé. La preuve du build
+servi est le champ `build` du bandeau (les 8 caractères de `BUILD_SHA`, posé au
+build, via `deploymentState`) · c'est LUI qui dit de quel commit l'image tourne.
+
+Pour prouver que ce commit inclut #624, il faut qu'il en soit un **descendant** ·
+être ancêtre de `origin/main` ne suffit pas (un vieux commit l'est aussi) :
+
+```bash
+# <sha_bandeau> = les 8 caractères affichés par le bandeau.
+git -C /home/debian/tiktrends merge-base --is-ancestor debf8a4 <sha_bandeau> \
+  && echo "l'image servie inclut #624" || echo "image antérieure à #624"
+```
+
+**Attention** · le champ tombait à « inconnu » en production car la chaîne
+`BUILD_SHA` était incomplète · #620 a posé le raccordement Docker, #624 le maillon
+manquant (`ops/deploy.sh` l'exporte, cf. section 6). Un « inconnu » persistant
+signe un build antérieur à #624 (ou un cycle pas encore reconstruit avec le
+nouveau script, cf. section 6), pas une donnée absente en soi.
 
 ### Corrections par constat · commit + scénario de réception (navigateur)
 
@@ -280,30 +299,30 @@ ils ne changent pas), le correctif #624 s'applique DE LUI-MÊME au prochain cycl
 qui reconstruit. **Aucune édition du timer ni du service n'est requise · ne pas y
 toucher.**
 
-Décalage d'un cycle à connaître · le cycle qui PULL le commit #624 exécute encore
-l'ancien `deploy.sh` (sans export) · ce build-là reste « inconnu ». Le commit de
-CODE suivant déclenche le nouveau `deploy.sh` · le SHA apparaît alors. Pour
-vérifier sans attendre un commit, le proprio peut, depuis le VPS :
-
-```bash
-cd /home/debian/tiktrends/product
-git rev-parse --short=8 HEAD          # le commit attendu
-BUILD_SHA=$(git rev-parse --short=8 HEAD) docker compose up -d --build web
-```
-
-(Commande de VÉRIFICATION manuelle, pas une modification du déploiement · elle
-reproduit exactement ce que `deploy.sh` fait désormais tout seul.)
+Décalage d'un cycle POSSIBLE, à confirmer selon l'exécution du script · quand le
+cycle qui PULL #624 réévalue-t-il `deploy.sh` ? bash relit le fichier en cours
+d'exécution de façon non garantie · ce cycle-là peut donc tourner sur l'ancien
+script (sans export, « inconnu ») ou sur le nouveau. Dans tous les cas, à partir
+du build suivant reconstruit avec le nouveau script, le SHA apparaît. **Inutile
+de créer un commit artificiel pour forcer un build, et ne pas toucher au timer** ·
+le prochain déploiement de code fera foi.
 
 ### Vérification que le SHA affiché correspond au code construit
 
-1. Sur le VPS, noter `git rev-parse --short=8 HEAD` (le commit compilé).
-2. Ouvrir le bandeau de diagnostic Jarvis · le champ `build` doit afficher CES 8
-   caractères, plus « inconnu ».
-3. Confirmer que ce commit est bien la version voulue · `git merge-base
-   --is-ancestor <sha_du_bandeau> origin/main` renvoie vrai, et le comparer au
-   commit de référence de la section 1. Un bandeau qui montre un SHA absent de
-   `origin/main` signalerait un build local non poussé · à ne pas présenter comme
-   la version servie.
+Le SHA du bandeau est le commit dont l'IMAGE a été bâtie · il peut différer du
+`HEAD` courant du VPS si le dépôt a avancé depuis ce build. On raisonne donc sur
+le SHA du bandeau, pas sur `HEAD` :
+
+1. Ouvrir le bandeau de diagnostic Jarvis · noter le champ `build` (« inconnu »
+   = build sans `BUILD_SHA`, cf. décalage ci-dessus).
+2. Prouver que ce commit inclut #624 · il doit en être un **descendant** (être
+   ancêtre de `origin/main` ne suffit pas) :
+   ```bash
+   git -C /home/debian/tiktrends merge-base --is-ancestor debf8a4 <sha_bandeau> \
+     && echo "l'image servie inclut #624" || echo "image antérieure à #624"
+   ```
+3. Un SHA absent de l'historique de `origin/main` signalerait un build local non
+   poussé · à ne pas présenter comme la version servie.
 
 ---
 
@@ -401,7 +420,7 @@ vérifier dans l'application, par le propriétaire :
 - **N02** · sur une marque à verdicts relatifs / importés · panneau renommé, aucun angle relatif ou importé présenté « gagnant » dans le texte injecté ni les recommandations ;
 - les trois transitions N04 dans le navigateur (section 3) · les gardes automatisées sont vertes (`n04-suite-faits.test.ts`, `carte-creative.test.ts`), la recette DÉPLOYÉE reste ouverte ;
 - **N03** · tag canal / qualification sur le panneau marché ; doublon « <10s » · **RESTE OUVERT jusqu'à reproduction réussie sur les données concernées** · après #619 la cause « caractère invisible » est corrigée en code, mais tant que le doublon n'est pas reproduit puis vu disparaître in situ, ne pas le clore. Si un doublon subsiste, trancher invisible / homoglyphe / résiduel par §5 · ne PAS étendre la normalisation aux homoglyphes sans preuve qu'ils interviennent dans CE défaut ;
-- **N06** · détail de créa à 360 px sur un vrai appareil ;
+- **N06** · détail de créa · confirmé dans Chrome à 360 px (#605) · reste ouvert le seul contrôle sur téléphone PHYSIQUE ;
 - **R04 / R06** · lot 29 in situ · réussite estimée, unité budget · les données historiques sont CONSERVÉES ; la recette confirme que le badge « Importé · historique » et sa réserve rendent la coexistence avec les ads « Brouillon » compréhensible (#622), et que le marqueur « · importé » du rail est présent ;
 - N09 in situ · les gardes automatisées couvrent les sept scénarios (§N09) et sont vertes ; la recette DÉPLOYÉE reste ouverte · dossier vide, fichiers ignorés, un échec PUIS rechargement (le bilan et l'échec doivent survivre), état jamais-synchronisé, fraîcheur, références de marque.
 
