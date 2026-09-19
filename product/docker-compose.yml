@@ -28,7 +28,10 @@ services:
       retries: 20
 
   web:
-    build: { context: ., dockerfile: Dockerfile.web }
+    # BUILD_SHA vient de l'environnement du déploiement · le timer l'exporte
+    # (git rev-parse) AVANT `docker compose up --build`. Absent, le bandeau dit
+    # « inconnu » sans casser le reste (CDC · Lot 0).
+    build: { context: ., dockerfile: Dockerfile.web, args: { BUILD_SHA: "${BUILD_SHA-}" } }
     restart: unless-stopped
     env_file: .env.deploy
     depends_on:
