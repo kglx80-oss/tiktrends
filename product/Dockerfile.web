@@ -2,6 +2,12 @@
 FROM node:20-alpine AS build
 RUN corepack enable
 WORKDIR /app
+# L'empreinte du commit compilé · le contexte de build est `product/`, qui ne
+# contient PAS `.git`, et l'image n'a pas git · `next.config.mjs` ne peut donc
+# pas la déduire seul (il tombe sur « inconnu »). On la passe en build-arg, et
+# `next.config` la préfère à sa tentative git (CDC · Lot 0 · identifier le build).
+ARG BUILD_SHA=""
+ENV BUILD_SHA=$BUILD_SHA
 COPY pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
 COPY packages ./packages
 COPY apps ./apps
