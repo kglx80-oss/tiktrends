@@ -10,6 +10,8 @@ import { Empty } from '../../../../components/Empty';
 import { Bandeau } from '../../../../components/Bandeau';
 import { useToast } from '../../../../components/Toast';
 import { useIsMobile } from '../../../../components/useIsMobile';
+import { estLotImporte } from '@tiktrends/core';
+import { BadgeNatureLot, ReserveNatureLot } from './NatureLot';
 
 /**
  * Préparation d'un lot de test.
@@ -28,7 +30,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function Lots({ batches, brandName }: {
-  batches: Array<{ id: string; number: number; status: string; goal: string | null; ads: number }>;
+  batches: Array<{ id: string; number: number; status: string; goal: string | null; launchedAt: string | null; ads: number }>;
   brandName: string;
 }) {
   // Écran étroit · le contenu et le rail latéral (320px) s'empilent.
@@ -61,7 +63,7 @@ export function Lots({ batches, brandName }: {
     const r = await createBatchAction(nouveauBut);
     setBusy(false);
     if (r.error) { setError(r.error); return; }
-    setListe((l) => [{ id: r.id!, number: r.number!, status: 'planned', goal: nouveauBut || null, ads: 0 }, ...l]);
+    setListe((l) => [{ id: r.id!, number: r.number!, status: 'planned', goal: nouveauBut || null, launchedAt: null, ads: 0 }, ...l]);
     setNouveauBut(''); setChoisi(r.id!);
   }
 
@@ -124,8 +126,15 @@ export function Lots({ batches, brandName }: {
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>Lot {detail.number}</h2>
               <span style={badge}>{STATUS_LABEL[detail.status] ?? detail.status}</span>
+              {/* La NATURE, à côté du statut · un « Analysé » importé n'est pas un
+                  « Analysé » du parcours (CDC v8 · R04). */}
+              <BadgeNatureLot status={detail.status} launchedAt={detail.launchedAt} />
               {detail.goal && <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>· {detail.goal}</span>}
             </div>
+
+            {/* La réserve qui explique la coexistence « Analysé » + « Brouillon »
+                quand le lot est un historique importé · rien pour un lot suivi. */}
+            <ReserveNatureLot status={detail.status} launchedAt={detail.launchedAt} />
 
             {/* Ce que le lot pourra conclure · avant de dépenser, pas après */}
             <div style={{
@@ -236,7 +245,9 @@ export function Lots({ batches, brandName }: {
               }}>
                 <strong>Lot {b.number}</strong> · {b.ads} ad(s)
                 <span style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
-                  {STATUS_LABEL[b.status] ?? b.status}{b.goal ? ` · ${b.goal}` : ''}
+                  {STATUS_LABEL[b.status] ?? b.status}
+                  {estLotImporte({ status: b.status, launchedAt: b.launchedAt }) && ' · importé'}
+                  {b.goal ? ` · ${b.goal}` : ''}
                 </span>
               </button>
             ))}

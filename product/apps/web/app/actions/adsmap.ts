@@ -230,19 +230,21 @@ export async function exportAdsCsvAction(filters: AdFilters = {}, withComputed =
 }
 
 /** Lots de la marque active · alimente le filtre et l'en-tête de la vue Table. */
-export async function listBatchesAction(): Promise<Array<{ id: string; number: number; status: string; goal: string | null; ads: number }>> {
+export async function listBatchesAction(): Promise<Array<{ id: string; number: number; status: string; goal: string | null; launchedAt: string | null; ads: number }>> {
   const g = await guard();
   if ('error' in g) return [];
   const rows = await db!.select({
     id: schema.batches.id, number: schema.batches.number, status: schema.batches.status,
-    goal: schema.batches.goal, ads: sql<number>`count(${schema.ads.id})`,
+    goal: schema.batches.goal, launchedAt: schema.batches.launchedAt, ads: sql<number>`count(${schema.ads.id})`,
   })
     .from(schema.batches)
     .leftJoin(schema.ads, eq(schema.ads.batchId, schema.batches.id))
     .where(eq(schema.batches.brandId, g.brand.id))
     .groupBy(schema.batches.id)
     .orderBy(desc(schema.batches.number));
-  return rows.map((r) => ({ ...r, ads: Number(r.ads) }));
+  // `launchedAt` distingue un lot importé (analysé, jamais lancé) d'un lot suivi ·
+  // il alimente la nature du lot côté écran (CDC v8 · R04).
+  return rows.map((r) => ({ ...r, launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null, ads: Number(r.ads) }));
 }
 
 export interface SyncResult {

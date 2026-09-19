@@ -51,6 +51,7 @@ export * from './adsmap/decisions';
 export * from './adsmap/proposal-taxonomy';
 export * from './adsmap/market-stats';
 export * from './adsmap/source-pertinence';
+export * from './adsmap/lot-nature';
 export * from './adsmap/hook-library';
 export * from './adsmap/attribution';
 export * from './adsmap/perf-par-angle';
