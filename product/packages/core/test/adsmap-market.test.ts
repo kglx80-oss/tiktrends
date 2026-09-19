@@ -68,6 +68,30 @@ describe('computeMarketStats', () => {
     expect(r.qualification, 'une qualification étayée est reprise, pas déduite').toBe('concurrent_direct');
   });
 
+  // CDC v8 · N03 · recette réelle du 19/09 (Klorea) · deux « <10s » identiques
+  // à l'œil persistaient · cause : des `length_bucket` séparés par un caractère
+  // INVISIBLE (U+200B, U+200E, U+2060…) formaient deux groupes. Le regroupement
+  // efface désormais ces caractères de format · une seule recommandation.
+  it('CDC v8 · N03 · deux « <10s » séparés par un caractère invisible fusionnent', () => {
+    const ZWSP = '​', WJ = '⁠';
+    const ads = [
+      ad({ advertiser: 'Klorea-1', lengthBucket: '<10s' }),
+      ad({ advertiser: 'Klorea-1', lengthBucket: `<10${ZWSP}s` }),
+      ad({ advertiser: 'Klorea-2', lengthBucket: `<10${WJ}s` }),
+      ad({ advertiser: 'Klorea-2', lengthBucket: '<‎10s' }),
+    ];
+    const rows = computeMarketStats(ads);
+    const durees = rows.filter((r) => r.dimension === 'length_bucket');
+    expect(durees, 'les variantes invisibles ne fusionnent pas · doublon').toHaveLength(1);
+    expect(durees[0]!.advertisers, 'les deux annonceurs sont conservés dans la fusion').toBe(2);
+
+    // Et une seule recommandation en sort · plus de carte répétée.
+    const brand: BrandRow[] = [];
+    const contrasts = contrastMarketVsBrand(rows, brand, 0.3)
+      .filter((c) => c.dimension === 'length_bucket');
+    expect(contrasts, 'deux recommandations « <10s » identiques subsistent').toHaveLength(1);
+  });
+
   it('CDC v7 · N03 · un annonceur qui décline la même créa ne gonfle pas sa part', () => {
     // A lance 8 fois « question », B une fois « number » · la part n'est PAS 8/9 ·
     // A ne pèse qu'UNE voix. Sinon la cadence d'un seul écrase le marché.
