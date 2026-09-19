@@ -27,18 +27,19 @@ Lot CDC v8 mergé sur `main`, dans l'ordre :
 | #617 | N02 · panneau nommé « mémoire de performance », réserve sur le reste | `868a810` |
 | #619 | N03 · le doublon « <10s » vient de caractères invisibles (normalisation durcie) | `9e9d8cf` |
 | #620 | Lot 0 · identifier le build · passer le commit à l'image Docker | `3bc0e7d` |
+| #622 | R04 · lot importé · rendre visible sa nature « historique » | `de42e82` |
 
-**Commit de référence du lot complet : `3bc0e7d`** (il contient tous les précédents dans son historique).
+**Commit de référence du lot complet : `de42e82`** (il contient tous les précédents dans son historique).
 
 **Vérifier par l'HISTOIRE, jamais par « ≥ SHA ».** Sur le VPS (`debian@51.255.39.79`, dépôt `/home/debian/tiktrends`) :
 
 ```bash
 git -C /home/debian/tiktrends fetch --quiet
-git -C /home/debian/tiktrends merge-base --is-ancestor 3bc0e7d HEAD && echo "présent" || echo "absent"
-git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#61[79]|#620'
+git -C /home/debian/tiktrends merge-base --is-ancestor de42e82 HEAD && echo "présent" || echo "absent"
+git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#61[79]|#62[02]'
 ```
 
-`présent` = le commit servi descend de `3bc0e7d`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `3bc0e7d` ou un descendant. **Attention** · avant #620 ce champ tombait à « inconnu » en production (l'image Docker ne recevait pas le commit · cf. section 6) · un « inconnu » persistant signe un build antérieur à #620 ou un timer qui n'exporte pas `BUILD_SHA`, pas une donnée absente en soi.
+`présent` = le commit servi descend de `de42e82`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `3bc0e7d` ou un descendant. **Attention** · avant #620 ce champ tombait à « inconnu » en production (l'image Docker ne recevait pas le commit · cf. section 6) · un « inconnu » persistant signe un build antérieur à #620 ou un timer qui n'exporte pas `BUILD_SHA`, pas une donnée absente en soi.
 
 ### Corrections par constat · commit + scénario de réception (navigateur)
 
@@ -47,7 +48,7 @@ git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#61[7
 | **N02** · texte génération vs panneau | #603, #608, #616, #617 | Sur une marque à verdicts relatifs / importés · le panneau porte « Mémoire de performance utilisée pour la génération » + la réserve ; aucun angle relatif ou importé n'apparaît « gagnant » ni dans ce texte ni dans les recommandations ; taux validé et historique restent séparés. |
 | **N03** · sources / doublons | #610, #611 | Le panneau marché affiche, par part, canal (Marque suivie / Radar / Origine inconnue) ET qualification (À qualifier tant que non établie) · distincts ; « <10s » n'apparaît qu'une fois (build ET données, cf. §5). |
 | **N06** · détail mobile 360px | #605 | Dialogue à 360 px · l'image reste lisible (empilement), actions et fermeture atteignables, filtres et retour galerie préservés. |
-| **R04** · pré-score / lot | #607 | Le pré-score lit « X % de réussite estimée au vu des tests passés · estimation à confirmer par le test ». Un lot importé « Analysé » avec des ads « Brouillon » se lit comme historique fidèle (verdicts importés non comparables). |
+| **R04** · pré-score / lot | #607, #622 | Le pré-score lit « X % de réussite estimée au vu des tests passés · estimation à confirmer par le test ». Un lot importé « Analysé » avec des ads « Brouillon » porte désormais un badge **« Importé · historique »** à côté du statut + une réserve qui explique la coexistence (verdicts importés non comparables, ads = enregistrements historiques) ; le rail liste « Analysé · importé ». Nature / statut / complétude restent trois axes distincts · cf. `natureLot` (§ ci-dessous). |
 | **R06** · protocole | #606 | « Écart de budget toléré (%) » se saisit en % (0-100, pas 0.2), stocké en fraction. |
 | **N09** · synchro Drive | #613, #614 | Cf. section N09 ci-dessous · dossier vide / ignorés / échec puis rechargement / jamais synchronisé. |
 
@@ -302,6 +303,37 @@ testés. Écriture : `syncDriveNowAction` (`product/apps/web/app/actions/drive.t
 
 ---
 
+## R04 · nature d'un lot · comportement attendu (après #622)
+
+Trois axes tenus **séparés**, pour qu'un lot importé « Analysé » contenant des
+ads « Brouillon » ne se lise plus comme une contradiction :
+
+- **Nature** (`natureLot`) · « suivi » ou « importé ». Lue dans les faits, jamais
+  posée en base · un lot `status = 'analyzed'` SANS `launchedAt` ne peut pas
+  venir du parcours (lancer écrit `launchedAt` avant tout verdict) · c'est un
+  import. Aucun statut n'est réécrit. Aujourd'hui seul l'import pose « analyzed »,
+  mais le gate reste juste si un jour le parcours l'atteint après un vrai test
+  (`launchedAt` renseigné → « suivi »).
+- **Statut opérationnel** (`batch.status`) · où le lot en est dans le parcours.
+  Pour un lot importé, « Analysé » désigne le verdict repris de l'outil tiers,
+  pas une étape de l'outil.
+- **Complétude** de chaque ad (son propre statut · « Brouillon »…). Un import
+  porte des enregistrements historiques parfois partiels · normal, pas un
+  travail en attente.
+
+Affichage · badge « Importé · historique » à côté du statut, réserve sous
+l'en-tête qui explique la coexistence et la non-comparabilité, marqueur
+« · importé » dans le rail. Actions inchangées · un import (analysé) était déjà
+en lecture seule · on nomme désormais pourquoi. Aucune conversion d'historique
+ni de verdict · les réserves d'estimation R04 (#607) sont préservées.
+
+Cœur de règle : `product/packages/core/src/adsmap/lot-nature.ts` (`natureLot`,
+`estLotImporte`, `LIBELLE_NATURE_LOT`, `lotEnLectureSeule`), pur et testé.
+Affichage : `product/apps/web/app/(app)/adsmap/lots/NatureLot.tsx` (rendu vérifié
+en lisant le HTML). Gardes : `lot-nature.test.ts`, `lot-nature-rendu.test.tsx`.
+
+---
+
 ## Ce qui reste OUVERT
 
 Le déploiement et la recette navigateur ne sont pas confirmables depuis la
@@ -314,7 +346,7 @@ vérifier dans l'application, par le propriétaire :
 - les trois transitions N04 dans le navigateur (section 3) ;
 - **N03** · tag canal / qualification sur le panneau marché ; doublon « <10s » · après #619 la cause « caractère invisible » est corrigée en code · reste à confirmer in situ que le panneau ne montre plus qu'une rangée (et, si un doublon subsiste, trancher invisible/homoglyphe/résiduel par §5) ;
 - **N06** · détail de créa à 360 px sur un vrai appareil ;
-- **R04 / R06** · lot 29 in situ (réussite estimée, unité budget) ;
+- **R04 / R06** · lot 29 in situ · réussite estimée, unité budget, et — après #622 — le badge « Importé · historique » à côté de « Analysé », la réserve qui explique les ads « Brouillon », le marqueur « · importé » du rail ;
 - N09 in situ · dossier vide, fichiers ignorés, un échec PUIS rechargement (le bilan et l'échec doivent survivre), état jamais-synchronisé, fraîcheur, références de marque.
 
 Les constats concernés restent ouverts jusqu'à cette vérification · la prochaine
