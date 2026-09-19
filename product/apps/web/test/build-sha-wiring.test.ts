@@ -24,16 +24,21 @@ import { fileURLToPath } from 'node:url';
  *      sinon la variable n'existe pas quand next compile.
  *   3. `docker-compose.yml` passe l'ARG au service web depuis l'environnement du
  *      déploiement.
+ *   4. `ops/deploy.sh` EXPORTE cet environnement · c'est le script que le service
+ *      systemd lance en place, et sans son `export BUILD_SHA` le `${BUILD_SHA-}`
+ *      du compose est vide · toute la chaîne au-dessus reste muette. C'est le
+ *      maillon qui manquait après #620.
  *
- * Fichiers d'infra (Dockerfile, compose) · lecture source · leur exécution
- * réelle exige un build Docker complet, hors de portée d'un test unitaire · le
- * proprio la valide après déploiement (le bandeau doit montrer le SHA, plus
- * « inconnu »).
+ * Fichiers d'infra (Dockerfile, compose, deploy.sh) · lecture source · leur
+ * exécution réelle exige un build Docker complet sur le VPS, hors de portée d'un
+ * test unitaire · le proprio la valide après déploiement (le bandeau doit montrer
+ * le SHA, plus « inconnu »).
  */
 // `product/` · depuis ce fichier (apps/web/test) on remonte de trois crans.
 const PRODUCT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const DOCKERFILE = readFileSync(join(PRODUCT, 'Dockerfile.web'), 'utf8');
 const COMPOSE = readFileSync(join(PRODUCT, 'docker-compose.yml'), 'utf8');
+const DEPLOY = readFileSync(join(PRODUCT, 'ops/deploy.sh'), 'utf8');
 
 describe('le commit du build remonte jusqu’au bandeau de diagnostic', () => {
   it('next.config fige BUILD_SHA fourni par l’environnement dans l’env compilé', async () => {
@@ -65,5 +70,19 @@ describe('le commit du build remonte jusqu’au bandeau de diagnostic', () => {
     );
     expect(ligneWeb, 'le service web doit passer des args de build').toBeTruthy();
     expect(ligneWeb).toContain('BUILD_SHA');
+  });
+
+  it('ops/deploy.sh exporte BUILD_SHA (git rev-parse) AVANT le build compose', () => {
+    // Sans cet export, le build-arg du compose reste vide · le bandeau dit
+    // « inconnu » quoi qu'on fasse en amont.
+    expect(DEPLOY).toContain('export BUILD_SHA');
+    expect(DEPLOY, 'le SHA doit venir de git, pas d’une valeur en dur').toMatch(/BUILD_SHA=\$\(git rev-parse/);
+    const assign = DEPLOY.indexOf('BUILD_SHA=$(git rev-parse');
+    const build = DEPLOY.indexOf('docker compose up -d --build');
+    expect(build, 'le script doit lancer le build compose').toBeGreaterThan(-1);
+    expect(
+      assign > -1 && assign < build,
+      'BUILD_SHA doit être posé AVANT `docker compose up --build`',
+    ).toBe(true);
   });
 });
