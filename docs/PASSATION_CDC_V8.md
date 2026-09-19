@@ -21,18 +21,33 @@ Lot CDC v8 mergé sur `main`, dans l'ordre :
 | #609 | N07 · règle d'itération unique (Mistakes/Suites) | `c0a3338` |
 | #610 | N03 · canal d'acquisition stocké + agrégats | `8b78f17` |
 | #611 | N03 (fix) · séparer canal d'acquisition et qualification métier | `3fdafc0` |
+| #613 | N09 · « jamais synchronisé » ≠ dossier vide, portée du compteur | `41955d2` |
+| #614 | N09 · bilan de synchro conservé, succès vs tentative (migration 0052) | `85151c8` |
+| #616 | N02 · angle « qui a payé » suit le protocole (relatif/importé exclus) | `e287e59` |
+| #617 | N02 · panneau nommé « mémoire de performance », réserve sur le reste | `868a810` |
 
-**Commit de référence du lot complet : `3fdafc0`** (il contient les précédents dans son historique).
+**Commit de référence du lot complet : `868a810`** (il contient tous les précédents dans son historique).
 
 **Vérifier par l'HISTOIRE, jamais par « ≥ SHA ».** Sur le VPS (`debian@51.255.39.79`, dépôt `/home/debian/tiktrends`) :
 
 ```bash
 git -C /home/debian/tiktrends fetch --quiet
-git -C /home/debian/tiktrends merge-base --is-ancestor 3fdafc0 HEAD && echo "présent" || echo "absent"
-git -C /home/debian/tiktrends log --oneline | grep -E '#607|#608|#609|#610|#611'
+git -C /home/debian/tiktrends merge-base --is-ancestor 868a810 HEAD && echo "présent" || echo "absent"
+git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#617'
 ```
 
-`présent` = le commit servi descend de `3fdafc0`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `3fdafc0` ou un descendant. Un `BUILD_SHA` absent n'affiche rien · dans ce cas on ne conclut rien.
+`présent` = le commit servi descend de `868a810`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `868a810` ou un descendant. Un `BUILD_SHA` absent n'affiche rien · dans ce cas on ne conclut rien.
+
+### Corrections par constat · commit + scénario de réception (navigateur)
+
+| Constat | Commit(s) | Scénario de réception in situ |
+| --- | --- | --- |
+| **N02** · texte génération vs panneau | #603, #608, #616, #617 | Sur une marque à verdicts relatifs / importés · le panneau porte « Mémoire de performance utilisée pour la génération » + la réserve ; aucun angle relatif ou importé n'apparaît « gagnant » ni dans ce texte ni dans les recommandations ; taux validé et historique restent séparés. |
+| **N03** · sources / doublons | #610, #611 | Le panneau marché affiche, par part, canal (Marque suivie / Radar / Origine inconnue) ET qualification (À qualifier tant que non établie) · distincts ; « <10s » n'apparaît qu'une fois (build ET données, cf. §5). |
+| **N06** · détail mobile 360px | #605 | Dialogue à 360 px · l'image reste lisible (empilement), actions et fermeture atteignables, filtres et retour galerie préservés. |
+| **R04** · pré-score / lot | #607 | Le pré-score lit « X % de réussite estimée au vu des tests passés · estimation à confirmer par le test ». Un lot importé « Analysé » avec des ads « Brouillon » se lit comme historique fidèle (verdicts importés non comparables). |
+| **R06** · protocole | #606 | « Écart de budget toléré (%) » se saisit en % (0-100, pas 0.2), stocké en fraction. |
+| **N09** · synchro Drive | #613, #614 | Cf. section N09 ci-dessous · dossier vide / ignorés / échec puis rechargement / jamais synchronisé. |
 
 Le timer systemd `tiktrends-deploy.timer` tire et redéploie chaque minute · le décalage build ↔ `main` se résorbe seul, sauf blocage.
 
@@ -230,9 +245,12 @@ session (le proxy bloque l'app en ligne, pas d'accès SSH). Restent donc à
 vérifier dans l'application, par le propriétaire :
 
 - application de 0051 et 0052 en base (section 2, sans réappliquer avant d'établir l'absence) ;
+- **N02** · sur une marque à verdicts relatifs / importés · panneau renommé, aucun angle relatif ou importé présenté « gagnant » dans le texte injecté ni les recommandations ;
 - les trois transitions N04 dans le navigateur (section 3) ;
-- le tag de canal / qualification sur le panneau marché (section N03) ;
-- N09 in situ · dossier vide, fichiers ignorés, un échec PUIS rechargement (le bilan et l'échec doivent survivre), état jamais-synchronisé, fraîcheur, références de marque ;
-- le doublon « <10s », build ET données (section 5).
+- **N03** · tag canal / qualification sur le panneau marché, et doublon « <10s » (build ET données, §5) ;
+- **N06** · détail de créa à 360 px sur un vrai appareil ;
+- **R04 / R06** · lot 29 in situ (réussite estimée, unité budget) ;
+- N09 in situ · dossier vide, fichiers ignorés, un échec PUIS rechargement (le bilan et l'échec doivent survivre), état jamais-synchronisé, fraîcheur, références de marque.
 
-Les constats concernés restent ouverts jusqu'à cette vérification.
+Les constats concernés restent ouverts jusqu'à cette vérification · la prochaine
+étape est la recette de l'application, pas un nouveau chantier de développement.
