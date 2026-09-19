@@ -843,7 +843,15 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
           </div>
           {memoire && (
             <details style={{ marginTop: 16 }}>
-              <summary style={{ fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer' }}>Voir le texte exact injecté dans les générations</summary>
+              {/* Intitulé PRÉCIS (CDC v8 · N02) · ce panneau montre la seule mémoire
+                  de performance mesurée, telle qu'injectée mot pour mot dans la
+                  génération. Les autres éléments du contexte (usages du marché,
+                  accroches, préférences, angles) ne sont PAS affichés ici · l'ancien
+                  « texte exact injecté » les laissait croire présents. */}
+              <summary style={{ fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer' }}>Voir la mémoire de performance utilisée pour la génération</summary>
+              <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+                Part MESURÉE du contexte, injectée telle quelle · les autres éléments (usages du marché, accroches, préférences d’angles) ne sont pas affichés ici.
+              </p>
               <pre style={{ marginTop: 10, padding: '14px 16px', borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 11.5, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontFamily: 'ui-monospace, monospace' }}>
                 {memoire}
               </pre>
