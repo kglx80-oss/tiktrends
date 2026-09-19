@@ -147,9 +147,19 @@ const DIMS: Array<{ dim: MarketDimension; get: (a: MarketAd) => string | null | 
  * « < 10s », « Curiosity » et « curiosity » désignent la même chose. Sans ça,
  * une même proposition remontait deux fois dans « Ce que fait le marché »
  * (CDC v7 · N03) · la description libre de l'IA varie sur la casse et l'espace.
+ *
+ * CDC v8 · N03 · on RETIRE aussi les caractères de FORMAT invisibles (`\p{Cf}` ·
+ * espace insécable de largeur nulle U+200B, marques directionnelles LRM/RLM,
+ * gluon de mots U+2060, ZWNJ/ZWJ, trait d'union conditionnel…). Un import ou un
+ * copier-coller de tableur en injecte sans qu'ils se voient · deux « <10s »
+ * visuellement identiques mais séparés par un U+200B formaient DEUX groupes,
+ * donc deux recommandations identiques après rechargement. Le blanc classique
+ * (espace, insécable, BOM) était déjà géré par `\s` ; ces caractères-là ne le
+ * sont pas. On les efface avant de regrouper · les vraies valeurs restent
+ * distinctes, et aucune source n'est perdue (les groupes fusionnent).
  */
 function cleNormalisee(s: string): string {
-  return s.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+  return s.normalize('NFKC').replace(/\p{Cf}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 /**
