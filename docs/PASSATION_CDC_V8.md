@@ -28,18 +28,19 @@ Lot CDC v8 mergé sur `main`, dans l'ordre :
 | #619 | N03 · le doublon « <10s » vient de caractères invisibles (normalisation durcie) | `9e9d8cf` |
 | #620 | Lot 0 · identifier le build · passer le commit à l'image Docker | `3bc0e7d` |
 | #622 | R04 · lot importé · rendre visible sa nature « historique » | `de42e82` |
+| #624 | Lot 0 · deploy.sh exporte le commit compilé (maillon `BUILD_SHA` manquant) | `debf8a4` |
 
-**Commit de référence du lot complet : `de42e82`** (il contient tous les précédents dans son historique).
+**Commit de référence du lot complet : `debf8a4`** (il contient tous les précédents dans son historique).
 
 **Vérifier par l'HISTOIRE, jamais par « ≥ SHA ».** Sur le VPS (`debian@51.255.39.79`, dépôt `/home/debian/tiktrends`) :
 
 ```bash
 git -C /home/debian/tiktrends fetch --quiet
-git -C /home/debian/tiktrends merge-base --is-ancestor de42e82 HEAD && echo "présent" || echo "absent"
-git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#61[79]|#62[02]'
+git -C /home/debian/tiktrends merge-base --is-ancestor debf8a4 HEAD && echo "présent" || echo "absent"
+git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#61[79]|#62[024]'
 ```
 
-`présent` = le commit servi descend de `de42e82`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `de42e82` ou un descendant. **Attention** · le champ tombait à « inconnu » en production car la chaîne `BUILD_SHA` était incomplète · #620 a posé le raccordement Docker, #624 le maillon manquant (`ops/deploy.sh` l'exporte, cf. section 6). Un « inconnu » persistant signe donc un build antérieur à #624, ou le décalage d'un cycle (section 6), pas une donnée absente en soi.
+`présent` = le commit servi descend de `debf8a4`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `debf8a4` ou un descendant. **Attention** · le champ tombait à « inconnu » en production car la chaîne `BUILD_SHA` était incomplète · #620 a posé le raccordement Docker, #624 le maillon manquant (`ops/deploy.sh` l'exporte, cf. section 6). Un « inconnu » persistant signe donc un build antérieur à #624, ou le décalage d'un cycle (section 6), pas une donnée absente en soi.
 
 ### Corrections par constat · commit + scénario de réception (navigateur)
 
