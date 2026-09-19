@@ -25,18 +25,20 @@ Lot CDC v8 mergé sur `main`, dans l'ordre :
 | #614 | N09 · bilan de synchro conservé, succès vs tentative (migration 0052) | `85151c8` |
 | #616 | N02 · angle « qui a payé » suit le protocole (relatif/importé exclus) | `e287e59` |
 | #617 | N02 · panneau nommé « mémoire de performance », réserve sur le reste | `868a810` |
+| #619 | N03 · le doublon « <10s » vient de caractères invisibles (normalisation durcie) | `9e9d8cf` |
+| #620 | Lot 0 · identifier le build · passer le commit à l'image Docker | `3bc0e7d` |
 
-**Commit de référence du lot complet : `868a810`** (il contient tous les précédents dans son historique).
+**Commit de référence du lot complet : `3bc0e7d`** (il contient tous les précédents dans son historique).
 
 **Vérifier par l'HISTOIRE, jamais par « ≥ SHA ».** Sur le VPS (`debian@51.255.39.79`, dépôt `/home/debian/tiktrends`) :
 
 ```bash
 git -C /home/debian/tiktrends fetch --quiet
-git -C /home/debian/tiktrends merge-base --is-ancestor 868a810 HEAD && echo "présent" || echo "absent"
-git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#617'
+git -C /home/debian/tiktrends merge-base --is-ancestor 3bc0e7d HEAD && echo "présent" || echo "absent"
+git -C /home/debian/tiktrends log --oneline | grep -E '#60[789]|#61[01346]|#61[79]|#620'
 ```
 
-`présent` = le commit servi descend de `868a810`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `868a810` ou un descendant. Un `BUILD_SHA` absent n'affiche rien · dans ce cas on ne conclut rien.
+`présent` = le commit servi descend de `3bc0e7d`. Sans SSH : l'écran de diagnostic Jarvis affiche le champ `build` (les 8 premiers caractères de `BUILD_SHA`, posé au build, via `deploymentState`) · il doit valoir `3bc0e7d` ou un descendant. **Attention** · avant #620 ce champ tombait à « inconnu » en production (l'image Docker ne recevait pas le commit · cf. section 6) · un « inconnu » persistant signe un build antérieur à #620 ou un timer qui n'exporte pas `BUILD_SHA`, pas une donnée absente en soi.
 
 ### Corrections par constat · commit + scénario de réception (navigateur)
 
@@ -164,7 +166,7 @@ SELECT length_bucket, count(*) AS n
  ORDER BY length_bucket;
 ```
 
-Pour voir les octets exacts (espaces, casse) :
+Pour voir les octets exacts (espaces, casse, **caractères invisibles**) :
 
 ```sql
 SELECT DISTINCT length_bucket, encode(convert_to(length_bucket,'UTF8'),'hex') AS octets
@@ -173,16 +175,78 @@ SELECT DISTINCT length_bucket, encode(convert_to(length_bucket,'UTF8'),'hex') AS
  ORDER BY length_bucket;
 ```
 
+Deux « <10s » visuellement identiques mais d'`octets` différents portent un
+caractère caché. Pour trancher **invisible** (corrigé par #619) vs **homoglyphe**
+(hors périmètre de #619) sans lire l'hexa à l'œil :
+
+```sql
+-- Repère les clés qui contiennent un caractère de format Unicode invisible
+-- (ZWSP U+200B, LRM/RLM, joiner U+2060, ZWNJ/ZWJ, trait conditionnel…).
+SELECT length_bucket, encode(convert_to(length_bucket,'UTF8'),'hex') AS octets
+  FROM market_creatives
+ WHERE brand_id = '<brandId>'
+   AND length_bucket ~ '[​‌‍‎‏⁠­﻿]';
+```
+
 **Interprétation** (établir build ET données avant de conclure) :
 
 - **Une seule ligne « <10s »** → donnée saine. Un doublon vu dans l'app vient alors du **build servi** · à confirmer par la section 1, pas à supposer.
-- **Deux lignes « <10s » qui ne diffèrent que par l'espacement** (`<10s` vs `< 10 s`) → `cleDuree` les fusionne déjà à l'affichage depuis #597 (`bf9a043`) · un doublon persistant signe un **build antérieur à #597** · à confirmer par la section 1.
-- **Deux lignes qui diffèrent au-delà de l'espacement** (`<10s` vs `moins de 10s`, `0-10s`…) → **donnée résiduelle historique** non canonique. Aucun écrivain actuel ne la produit (tous passent par `bucketDuree`) · c'est un reliquat d'import ancien.
+- **Deux lignes « <10s » qui ne diffèrent que par un caractère invisible** (`\p{Cf}` · ZWSP, LRM/RLM, word joiner…) → **cause code réelle, corrigée par #619** · `cleNormalisee` retire désormais les `\p{Cf}` avant de regrouper, donc `cleDuree` fusionne les deux. Un doublon de ce type persistant après #619 signe un **build antérieur à #619** · à confirmer par la section 1. (Avant #619, `\s` ne couvrait pas ces caractères · ils formaient deux groupes distincts.)
+- **Deux lignes « <10s » qui ne diffèrent que par l'espacement** (`<10s` vs `< 10 s`) → `cleDuree` les fusionne déjà à l'affichage depuis #597 (`bf9a043`) · un doublon signe un **build antérieur à #597**.
+- **Deux lignes qui diffèrent au-delà de l'espacement/invisible** (`<10s` vs `moins de 10s`, `0-10s`…) → **donnée résiduelle historique** non canonique. Aucun écrivain actuel ne la produit (tous passent par `bucketDuree`) · c'est un reliquat d'import ancien.
+- **Deux lignes qui ne diffèrent que par un HOMOGLYPHE** (lettre confusable, ex. « ѕ » cyrillique U+0455 au lieu de « s » latin) → **hors périmètre de #619** · `\p{Cf}` ne couvre pas les lettres. Si la requête ci-dessus ne renvoie rien alors que l'hexa diffère, c'est la piste homoglyphe · le correctif s'étendrait alors (translittération ciblée), sans sur-corriger à l'aveugle.
 
 Chemin de données vérifié en session : un seul point d'agrégation
-(`computeMarketStats`), déduplication `cleDuree` depuis #597, tous les écrivains
-de `length_bucket` passent par `bucketDuree` (buckets canoniques). Le code
-courant ne peut pas émettre deux rangées « <10s ».
+(`computeMarketStats`), déduplication par `cleDuree` (= `cleNormalisee` sans les
+espaces), et depuis #619 `cleNormalisee` retire les `\p{Cf}`. Tous les écrivains
+de `length_bucket` passent par `bucketDuree` (buckets canoniques), mais une
+donnée résiduelle porteuse d'un invisible ou d'un homoglyphe peut préexister ·
+d'où la requête de tri ci-dessus avant de conclure.
+
+Cœur de règle : `product/packages/core/src/adsmap/market-stats.ts`
+(`cleNormalisee`, `cleDuree`). Garde : `adsmap-market.test.ts` (test « deux
+« <10s » séparés par un caractère invisible fusionnent », prouvé en retirant le
+`\p{Cf}` · 4 rangées au lieu d'une).
+
+---
+
+## 6 · Identité du build · pourquoi « inconnu » et comment le vérifier (après #620)
+
+Le bandeau de diagnostic affichait « inconnu » comme commit servi. La mécanique
+de base était pourtant saine :
+
+- `apps/web/next.config.mjs` · `gitSha()` préfère `process.env.BUILD_SHA`, sinon
+  tente `git rev-parse --short=8 HEAD`, sinon `''`. Le résultat est figé dans
+  `env.BUILD_SHA` **au build** (Next l'inline dans le bundle).
+- `apps/web/lib/deployment.ts:46` relit `process.env.BUILD_SHA?.slice(0,8)` · la
+  valeur inlinée · pour le champ `build` du bandeau.
+
+**Cause du « inconnu »** · l'image web se bâtit depuis le contexte `product/`,
+qui ne contient PAS `.git`, sur `node:20-alpine` qui n'a pas git. `git rev-parse`
+échouait donc au build, et aucune variable ne fournissait le commit → `''`. Le
+maillon manquant était le raccordement Docker, ajouté par #620 :
+
+- `Dockerfile.web` · `ARG BUILD_SHA` promu en `ENV BUILD_SHA=$BUILD_SHA` AVANT
+  `pnpm build`.
+- `docker-compose.yml` · le service web passe `args: { BUILD_SHA: "${BUILD_SHA-}" }`.
+- Garde : `apps/web/test/build-sha-wiring.test.ts` (RÉSULTAT du maillon next +
+  présence des deux maillons Docker, chacun prouvé en le faisant tomber).
+
+**Procédure de déploiement à respecter** · le timer (ou le script de déploiement)
+doit exporter le commit AVANT le build, sinon le bandeau retombe à « inconnu » :
+
+```bash
+cd /home/debian/tiktrends/product
+export BUILD_SHA=$(git rev-parse --short=8 HEAD)
+docker compose up -d --build
+```
+
+À câbler dans l'unité `tiktrends-deploy` (le propriétaire édite le VPS). Sans cet
+export, rien ne casse · le bandeau dit seulement « inconnu ».
+
+**Vérification (proprio, après déploiement)** · le bandeau de diagnostic Jarvis
+montre les 8 caractères du commit servi (plus « inconnu »). Le comparer à
+`origin/main` pour confirmer que la version en ligne est à jour (section 1).
 
 ---
 
@@ -244,10 +308,11 @@ Le déploiement et la recette navigateur ne sont pas confirmables depuis la
 session (le proxy bloque l'app en ligne, pas d'accès SSH). Restent donc à
 vérifier dans l'application, par le propriétaire :
 
+- **Identité du build** · une fois #620 déployé ET le timer patché pour exporter `BUILD_SHA` (section 6), le bandeau doit montrer le SHA servi, plus « inconnu ». Câblage de l'export dans l'unité systemd · à faire par le propriétaire sur le VPS ;
 - application de 0051 et 0052 en base (section 2, sans réappliquer avant d'établir l'absence) ;
 - **N02** · sur une marque à verdicts relatifs / importés · panneau renommé, aucun angle relatif ou importé présenté « gagnant » dans le texte injecté ni les recommandations ;
 - les trois transitions N04 dans le navigateur (section 3) ;
-- **N03** · tag canal / qualification sur le panneau marché, et doublon « <10s » (build ET données, §5) ;
+- **N03** · tag canal / qualification sur le panneau marché ; doublon « <10s » · après #619 la cause « caractère invisible » est corrigée en code · reste à confirmer in situ que le panneau ne montre plus qu'une rangée (et, si un doublon subsiste, trancher invisible/homoglyphe/résiduel par §5) ;
 - **N06** · détail de créa à 360 px sur un vrai appareil ;
 - **R04 / R06** · lot 29 in situ (réussite estimée, unité budget) ;
 - N09 in situ · dossier vide, fichiers ignorés, un échec PUIS rechargement (le bilan et l'échec doivent survivre), état jamais-synchronisé, fraîcheur, références de marque.
