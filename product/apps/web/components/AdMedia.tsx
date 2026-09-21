@@ -8,8 +8,16 @@ import { apercuImage } from '@tiktrends/core';
  *  `fit` · `cover` (défaut · vignette de veille, cadre plein) ou `contain`
  *  (création interne · on ne rogne JAMAIS une créa qu'on a produite · elle porte
  *  son texte et son produit, les couper les perd · marges sombres au besoin). */
-export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect = '1/1', fit = 'cover' }: {
+export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect = '1/1', fit = 'cover', interactive = true }: {
   mediaUrl?: string; thumbnailUrl?: string; isVideo?: boolean; daysRunning?: number; aspect?: string; fit?: 'cover' | 'contain';
+  /**
+   * La zone est-elle cliquable PAR ELLE-MÊME · défaut oui (lit la vidéo en place,
+   * ou ouvre l'image dans un onglet). `false` quand un parent porte déjà le clic
+   * (le bouton d'aperçu d'une carte) · on ne met alors NI bouton NI lien à
+   * l'intérieur · un interactif imbriqué dans un bouton est invalide et, au clic,
+   * déclenchait l'ouverture ET un onglet de miniature en plus (CDC v8 · F04).
+   */
+  interactive?: boolean;
 }) {
   const [playing, setPlaying] = useState(false);
   const canPlay = isVideo && !!mediaUrl;
@@ -41,6 +49,15 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
     </>
   );
 
+  // Un parent porte déjà le clic (bouton d'aperçu) · on reste NON interactif ·
+  // ni bouton de lecture, ni lien · c'est le parent qui ouvre (F04).
+  if (!interactive) {
+    return (
+      <div style={{ position: 'relative', aspectRatio: aspect, background: 'var(--paper)' }}>
+        {inner}
+      </div>
+    );
+  }
   // Vidéo : lecture en place. Sinon (image) : ouvre le média en grand dans un onglet.
   if (canPlay) {
     return (

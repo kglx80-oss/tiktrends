@@ -24,7 +24,10 @@ describe('N06 · le détail de créa empile en mobile', () => {
     expect(bloc, 'l’ancien minWidth: 0 laissait l’image s’écraser').not.toMatch(/flex: 1, minWidth: 0,/);
   });
 
-  it('le dialogue défile en vertical pour garder outils et fermeture atteignables', () => {
-    expect(bloc).toMatch(/overflowY: 'auto'/);
+  it('empilé, le dialogue défile en bloc pour garder outils et fermeture atteignables', () => {
+    // CDC v8 · F04 · le défilement en bloc est réservé à l'empilement · côte à
+    // côte, c'est le rail qui défile et la zone média reste bornée (sinon l'image
+    // se centre hors cadre). La garde F04 tient le versant desktop.
+    expect(bloc).toContain("overflowY: detailEmpile ? 'auto' : 'hidden'");
   });
 });

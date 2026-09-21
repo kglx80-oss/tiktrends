@@ -9,6 +9,7 @@ import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
 import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type EtatVerdictCarte, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
+import { useIsMobile } from '../../../../components/useIsMobile';
 import { DropZone } from '../../../../components/DropZone';
 import { RatingControl } from '../../../../components/CreativeActions';
 import { CartePub } from './CartePub';
@@ -235,6 +236,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // toujours la fenêtre du dessus, comme avant · une seule est active à la fois.
   usePiegeFocus(previewRef, { actif: preview != null, onFermer: () => setPreview(null) });
   usePiegeFocus(detailRef, { actif: detailIdx != null && preview == null, onFermer: () => setDetailIdx(null) });
+  // Le détail EMPILE ses deux colonnes sous ce seuil · au-dessus, elles sont
+  // côte à côte et la zone média doit être BORNÉE à la hauteur visible pendant
+  // que le rail d'outils défile seul (sinon la colonne média s'étire à la
+  // hauteur du rail et centre l'image hors du cadre · CDC v8 · F04).
+  const detailEmpile = useIsMobile('(max-width: 575px)');
   const [varyBusy, setVaryBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   // Le défaut suit ce qu'on a MESURÉ chez la marque quand l'intervalle tranche ·
@@ -1203,9 +1209,13 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               d'outils sous ~550px et l'image retrouve une largeur utile (S23, CDC
               v8 · N06). Le dialogue défile en vertical pour que les outils et la
               fermeture restent atteignables une fois empilés. Desktop inchangé. */}
-          <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflowX: 'hidden', overflowY: 'auto', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
+          {/* Côte à côte (desktop) · le dialogue NE défile PAS en bloc · la zone
+              média est bornée à la hauteur visible et le rail défile seul. Empilé
+              (≤575px) · le dialogue défile en un bloc pour atteindre outils et
+              fermeture. C'est ce qui empêche l'image d'être centrée hors cadre. */}
+          <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflowX: 'hidden', overflowY: detailEmpile ? 'auto' : 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
             {/* Aperçu + navigation */}
-            <div style={{ flex: 1, minWidth: 'min(320px, 100%)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
+            <div style={{ flex: 1, minWidth: 'min(320px, 100%)', maxHeight: detailEmpile ? undefined : '92vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
               {detailIdx != null && detailIdx > 0 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); setScoreFor(null); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
@@ -1240,8 +1250,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               <span style={{ position: 'absolute', top: 12, left: 16, fontSize: 11.5, color: 'var(--muted)', background: 'rgba(0,0,0,.45)', padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
             </div>
 
-            {/* Rail d'outils */}
-            <div style={{ width: 230, flexShrink: 0, borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: 16, overflowY: 'auto' }}>
+            {/* Rail d'outils · défile SEUL sur desktop (borné à la hauteur du
+                dialogue), pendant que la zone média reste en place (F04). */}
+            <div style={{ width: 230, flexShrink: 0, maxHeight: detailEmpile ? undefined : '92vh', borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: 16, overflowY: 'auto' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <b style={{ flex: 1, fontSize: 14, color: 'var(--ink)' }}>Créa</b>
                 <button type="button" onClick={() => setDetailIdx(null)} aria-label="Fermer" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 16, cursor: 'pointer' }}>×</button>
