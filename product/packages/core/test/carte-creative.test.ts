@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { qualiteCarte, type ControleCarte } from '../src/carte-creative';
+import { qualiteCarte, type ControleCarte, type FaitControle } from '../src/carte-creative';
+import { faitsPortes, etatFait } from '../src/adsmap/fait-preuve';
 
 /**
  * CDC v6 · la carte créative distingue pertinence, QUALITÉ et performance.
@@ -27,6 +28,20 @@ describe('qualiteCarte · la synthèse de la relecture', () => {
     expect(q.libelle).toBe('Prête à diffuser');
     expect(q.pretADiffuser).toBe(true);
     expect(q.automatique).toBe(false);
+  });
+
+  // CDC v8 · F02 · bout en bout · une pastille « -50 % » sur un gabarit qui n'est
+  // PAS « Offre » lève désormais un fait factuel non vérifié · même techniquement
+  // propre, la carte ne peut plus être « Prête à diffuser ».
+  it('une remise dans le rendu (gabarit ≠ Offre) bloque « Prête à diffuser »', () => {
+    const recette = { template: 'problem_solution', headline: 'Votre piscine vire au vert', badge: '-50 %' };
+    const faits: FaitControle[] = faitsPortes(recette).map((f) => ({
+      cle: f.cle, label: f.label, etat: etatFait(f.contenu, null),
+    }));
+    expect(faits.some((f) => f.cle === 'offre' && f.etat === 'a_verifier'), 'l’offre doit être un fait à vérifier').toBe(true);
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, faits });
+    expect(q.pretADiffuser, 'une offre non vérifiée bloque le vert').toBe(false);
+    expect(q.factuel.aVerifier).toBeGreaterThan(0);
   });
 
   it('un défaut bloquant confirmé reste visible ET interdit « Prête à diffuser »', () => {

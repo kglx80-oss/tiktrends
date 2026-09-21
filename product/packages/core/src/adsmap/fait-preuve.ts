@@ -88,24 +88,105 @@ export interface FaitPorte {
  * mutation d'un champ porteur doit la casser. Un gabarit qui n'affirme rien à
  * prouver ne porte aucun fait.
  */
-export function faitsPortes(pub: { template?: string | null; headline?: string | null; quote?: string | null; badge?: string | null }): FaitPorte[] {
+/**
+ * Une affirmation commerciale · prix, remise, gratuité, multi-achat · repérée
+ * dans un texte. Elle ne dépend PAS du gabarit · une pastille « -50 % » sur un
+ * gabarit « Problème / solution » est une offre autant que sur un gabarit
+ * « Offre » (CDC v8 · F02 · une remise présente dans le rendu échappait au
+ * contrôle parce que le format n'était pas « Offre »).
+ *
+ * On mesure les motifs, on ne les pose pas d'instinct · le tableau ci-dessous a
+ * été vérifié contre une liste de cas positifs et négatifs (test dédié). En cas
+ * de doute, on PENCHE vers « c'est une offre » · l'absence de fait est le
+ * défaut coûteux (une affirmation non prouvée passe « Prête à diffuser »), pas
+ * le fait de trop (une vérification demandée à tort).
+ */
+const RE_DEVISE = /\d[\d .,]*\s?[€$£]|[€$£]\s?\d/u;      // 9,99 € · €9.99 · 19 €
+const RE_REMISE_SIGNEE = /[-−–]\s?\d/u;                 // -50% · -30€ · –50 %
+const RE_MULTIACHAT = /\b\d+\s?\+\s?\d+\b/u;            // 2+1
+const RE_POURCENT = /\d+\s?%/u;                         // 50 % (compte comme offre en PASTILLE)
+const RE_MOTS_OFFRE =
+  /(promo(?:tion)?s?|soldes?|remises?|r[eé]ductions?|offert(?:e|es|s)?|gratuit(?:e|es|s)?|[eé]conomis\w*|cashback|d[eé]stockage|liquidation|bon plan|livraison offerte|achet\w+\s+\w*\s*(?:offert|gratuit))/u;
+
+/**
+ * Vrai si `texte` porte une affirmation commerciale. `pastille` = le texte est
+ * une pastille (badge) · là, un pourcentage seul suffit (une pastille « 50 % »
+ * est promotionnelle par nature), alors qu'ailleurs il faut un signe de remise,
+ * une devise ou un mot d'offre pour ne pas confondre avec un bénéfice chiffré.
+ */
+export function texteContientOffre(texte: string, opts?: { pastille?: boolean }): boolean {
+  const n = (texte ?? '').normalize('NFKC').toLowerCase();
+  if (RE_DEVISE.test(n) || RE_REMISE_SIGNEE.test(n) || RE_MULTIACHAT.test(n) || RE_MOTS_OFFRE.test(n)) return true;
+  return !!opts?.pastille && RE_POURCENT.test(n);
+}
+
+/** Les champs texte d'une pub · matière du contrôle factuel, quel que soit le gabarit. */
+export interface ChampsPub {
+  template?: string | null;
+  headline?: string | null;
+  quote?: string | null;
+  badge?: string | null;
+  subhead?: string | null;
+  kicker?: string | null;
+  cta?: string | null;
+  benefits?: string[] | null;
+}
+
+/**
+ * Ce qu'une pub AFFIRME et qu'une relecture technique ne vérifie pas.
+ *
+ * D'abord le fait DU GABARIT (témoignage → citation, offre → prix, stat →
+ * chiffre, avant/après → preuve), au contenu INCHANGÉ · les validations
+ * existantes reposent sur sa signature, on n'y touche pas.
+ *
+ * Puis, EN PLUS, les faits que le contenu porte HORS de son gabarit · une remise
+ * dans une pastille ou un bénéfice sur un gabarit qui n'est pas « Offre », une
+ * citation posée hors d'un gabarit « Témoignage ». Additif · on ne double jamais
+ * un fait déjà produit, donc les gabarits « offer »/« testimonial » gardent
+ * exactement leur fait (et leur signature). C'est ce qui ferme F02 sans casser
+ * l'acquis N04-suite.
+ */
+export function faitsPortes(pub: ChampsPub): FaitPorte[] {
   const headline = (pub.headline ?? '').trim();
   const quote = (pub.quote ?? '').trim();
   const badge = (pub.badge ?? '').trim();
   const joindre = (...parts: string[]) => parts.filter(Boolean).join(' · ');
   const fait = (cle: string, label: string, contenu: string): FaitPorte[] => contenu ? [{ cle, label, contenu }] : [];
+
+  const faits: FaitPorte[] = [];
   switch (pub.template) {
-    case 'testimonial':
-      return fait('temoignage', 'Témoignage', joindre(quote, headline));
-    case 'offer':
-      return fait('offre', 'Offre / prix', joindre(badge, headline));
-    case 'stat':
-      return fait('stat', 'Chiffre avancé', headline);
-    case 'before_after':
-      return fait('avant_apres', 'Avant / après', headline);
-    default:
-      return [];
+    case 'testimonial': faits.push(...fait('temoignage', 'Témoignage', joindre(quote, headline))); break;
+    case 'offer': faits.push(...fait('offre', 'Offre / prix', joindre(badge, headline))); break;
+    case 'stat': faits.push(...fait('stat', 'Chiffre avancé', headline)); break;
+    case 'before_after': faits.push(...fait('avant_apres', 'Avant / après', headline)); break;
+    default: break;
   }
+  const aDeja = (cle: string) => faits.some((f) => f.cle === cle);
+
+  // Offre HORS gabarit · on balaie tous les champs porteurs (la pastille compte
+  // un pourcentage seul). Le contenu = les fragments qui portent l'affirmation,
+  // dans un ordre fixe · éditer l'un d'eux rend la validation caduque.
+  if (!aDeja('offre')) {
+    const benefits = (pub.benefits ?? []).map((b) => (b ?? '').trim()).filter(Boolean);
+    const champs: Array<{ t: string; pastille: boolean }> = [
+      { t: badge, pastille: true },
+      { t: headline, pastille: false },
+      { t: (pub.subhead ?? '').trim(), pastille: false },
+      { t: (pub.kicker ?? '').trim(), pastille: false },
+      { t: (pub.cta ?? '').trim(), pastille: false },
+      ...benefits.map((t) => ({ t, pastille: false })),
+    ];
+    const porteurs = champs.filter((c) => c.t && texteContientOffre(c.t, { pastille: c.pastille })).map((c) => c.t);
+    if (porteurs.length) faits.push({ cle: 'offre', label: 'Offre / prix', contenu: joindre(...porteurs) });
+  }
+
+  // Citation HORS gabarit · une pub qui porte une citation (champ `quote`) sans
+  // être un gabarit « Témoignage » affirme quand même la parole d'un tiers.
+  if (!aDeja('temoignage') && quote) {
+    faits.push({ cle: 'temoignage', label: 'Témoignage', contenu: joindre(quote, headline) });
+  }
+
+  return faits;
 }
 
 /** Une preuve datée · ce qu'il faut pour désigner l'ACTIVE de façon stable. */
