@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { briefDepuisVeille } from '@tiktrends/core';
+import { briefDepuisVeille, refSourceVeille } from '@tiktrends/core';
 
 /**
  * L'URL des Pubs IA, armée depuis une pub de veille.
@@ -30,6 +30,12 @@ export function studioDepuisVeille(ad: InspoAd, opts?: { ref?: string | null }):
   const params = new URLSearchParams();
   if (opts?.ref) { params.set('mode', 'clone'); params.set('ref', opts.ref); }
   if (brief) params.set('angle', brief.angle);
+  // CDC v8 · F07 · la PROVENANCE de la source suit le lien · une clé structurée
+  // unique (plateforme:id) et le nom de l'annonceur · sans ça, « Décline cette
+  // piste » perdait toute référence en route (Sauvegardes en portait une, pas la
+  // Veille). Le studio la relit et l'affiche.
+  const src = refSourceVeille(ad);
+  if (src) { params.set('src', src.cle); if (src.nom) params.set('srcnom', src.nom); }
   const q = params.toString();
   return q ? `/studio/ads?${q}` : '/studio/ads';
 }

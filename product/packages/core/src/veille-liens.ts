@@ -48,6 +48,32 @@ export function bibliothequePub(o: { platform?: string | null; name?: string | n
 }
 
 /**
+ * Le libellé du lien bibliothèque · nomme clairement que c'est une RECHERCHE par
+ * annonceur, pas l'annonce exacte (CDC v8 · F07). On ne fait pas de lien profond
+ * par identifiant (cf. `bibliothequePub` · un id non officiel ouvre une page
+ * vide), donc le repli est une recherche · autant le dire, pour ne pas laisser
+ * croire qu'on rouvre la créa précise.
+ */
+export function libelleBibliotheque(lib: { label: string } | null): string | null {
+  if (!lib) return null;
+  return `${lib.label} · rechercher l’annonceur`;
+}
+
+/**
+ * La RÉFÉRENCE structurée d'une source de veille · à porter jusqu'au studio (et
+ * au-delà), pour ne pas perdre la provenance entre « ce qui a inspiré » et « ce
+ * qu'on a créé » (CDC v8 · F07). Une clé unique et stable (plateforme + id) et
+ * le nom de l'annonceur pour l'afficher. `null` sans identifiant · on ne fabrique
+ * pas une provenance qu'on ne saurait pas retrouver.
+ */
+export function refSourceVeille(ad: { platform?: string | null; id?: string | null; advertiserName?: string | null }): { cle: string; nom: string } | null {
+  const id = (ad.id ?? '').toString().trim();
+  if (!id) return null;
+  const plateforme = (ad.platform ?? 'meta').toString().trim() || 'meta';
+  return { cle: `${plateforme}:${id}`, nom: (ad.advertiserName ?? '').trim() };
+}
+
+/**
  * Nettoie un nom de marque pour une recherche dans la bibliothèque publicitaire.
  *
  * ── Pourquoi ─────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, bibliothequePub, siteMarque } from '@tiktrends/core';
+import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -90,7 +90,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
         )}
         {(biblio || site) && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={lienExterne}>{biblio.label} ↗</a>}
+            {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={lienExterne} title="Ouvre une recherche par nom d’annonceur · pas l’annonce exacte">{libelleBibliotheque(biblio)} ↗</a>}
             {site && <a href={site} target="_blank" rel="noreferrer" style={lienExterne}>Site ↗</a>}
           </div>
         )}
