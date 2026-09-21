@@ -53,7 +53,10 @@ export function prochainGesteStudio(e: GesteEtat): GesteStudio | null {
 
   if (e.jugees !== null && e.jugees > 0) {
     return {
-      title: 'Itère sur ce qui a gagné',
+      // CDC v8 · F10 · « ce qui a gagné » clamait une victoire · tous les verdicts
+      // posés ne sont pas des gagnantes (perdantes, relatives). On itère sur ce
+      // qu'on a JUGÉ · Suites tranche ensuite l'éligibilité et la nature (F06).
+      title: 'Itère sur ce que tu as jugé',
       why: `${e.jugees} verdict(s) posé(s). Jarvis peut maintenant proposer la variante suivante en ne changeant qu’une seule chose · c’est ce qui rend un résultat attribuable.`,
       href: '/adsmap/suites',
       cta: 'Ouvrir les suites',

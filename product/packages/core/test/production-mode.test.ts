@@ -47,6 +47,14 @@ describe('chaque mode dit ce qu’il tient et ce qu’il ne tient pas', () => {
       expect(garanties(m).join(' '), `${m} · plus de « reste fidèle » absolu`).not.toContain('reste fidèle');
     }
   });
+
+  // CDC v8 · F10 · sous « Garanti », que des traitements DÉTERMINISTES · la
+  // qualité PROBABILISTE d'un rendu (« rendu d'agence ») n'y a pas sa place.
+  it('« Garanti » ne promet pas la qualité probabiliste d’un rendu d’agence', () => {
+    for (const m of PRODUCTION_MODES) {
+      expect(garanties(m).join(' ').toLowerCase(), `${m} · « rendu d'agence » n'est pas une garantie`).not.toContain('agence');
+    }
+  });
 });
 
 describe('ce que le mode décide en aval', () => {
