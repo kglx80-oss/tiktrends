@@ -314,7 +314,9 @@ Le SHA du bandeau est le commit dont l'IMAGE a été bâtie · il peut différer
 le SHA du bandeau, pas sur `HEAD` :
 
 1. Ouvrir le bandeau de diagnostic Jarvis · noter le champ `build` (« inconnu »
-   = build sans `BUILD_SHA`, cf. décalage ci-dessus).
+   = build sans `BUILD_SHA`, cf. décalage ci-dessus). Depuis F09, tant que le
+   commit est « inconnu » le badge n'affiche PLUS un vert « À jour » · il dit
+   « Schéma à jour · code non identifié » (schéma à jour ≠ code à jour).
 2. Prouver que ce commit inclut #624 · il doit en être un **descendant** (être
    ancêtre de `origin/main` ne suffit pas) :
    ```bash

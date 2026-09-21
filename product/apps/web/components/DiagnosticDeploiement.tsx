@@ -15,6 +15,11 @@ function etatVisuel(etat: DeploymentState): { libelle: string; fg: string; bord:
   if (etat.applied === null) return { libelle: 'État illisible', fg: 'var(--muted)', bord: 'var(--line-2)', icone: 'help' };
   if (etat.behind && etat.behind > 0) return { libelle: 'Migrations en attente', fg: '#ff9db0', bord: 'rgba(255,77,109,.55)', icone: 'alert' };
   if (etat.ahead) return { libelle: 'Base en avance', fg: '#ffca6b', bord: 'rgba(255,202,107,.5)', icone: 'alert' };
+  // Schéma à jour mais commit inconnu · on ne peut pas afficher un vert « À jour »
+  // qui laisserait croire le CODE à jour · schéma à jour ≠ code à jour (F09).
+  if (!etat.codeIdentifie && etat.behind === 0 && !etat.ahead) {
+    return { libelle: 'Schéma à jour · code non identifié', fg: '#ffca6b', bord: 'rgba(255,202,107,.5)', icone: 'alert' };
+  }
   return { libelle: 'À vérifier', fg: 'var(--muted)', bord: 'var(--line-2)', icone: 'help' };
 }
 
