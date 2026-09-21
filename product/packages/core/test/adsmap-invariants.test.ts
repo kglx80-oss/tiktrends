@@ -58,6 +58,15 @@ describe('une itération part d’un gagnant et change une variable', () => {
   it('itérer un gagnant est valide', () => expect(checkIteration(base)).toEqual([]));
   it('itérer un gagnant naissant aussi', () => expect(checkIteration({ ...base, parentVerdict: 'baby_winner' })).toEqual([]));
 
+  // CDC v8 · F06 · la comparabilité décide, comme dans la fiche et Suites · un
+  // « gagnant » non comparable est une prometteuse relative · pas de descendance.
+  it('itérer un gagnant COMPARABLE est valide', () => {
+    expect(checkIteration({ ...base, parentVerdict: 'winner', parentComparable: true })).toEqual([]);
+  });
+  it('itérer un « gagnant » NON comparable est refusé · nouveau concept', () => {
+    expect(checkIteration({ ...base, parentVerdict: 'winner', parentComparable: false }).map((x) => x.rule)).toContain('iteration.parent');
+  });
+
   it('itérer un perdant est refusé', () => {
     expect(checkIteration({ ...base, parentVerdict: 'loser' }).map((x) => x.rule)).toContain('iteration.parent');
   });

@@ -95,21 +95,24 @@ describe('une gagnante se décline sans toucher à ce qui a gagné', () => {
 });
 
 describe('CDC v7 · N02 · un gagnant NON prouvé ne « gagne » pas dans Suites', () => {
-  it('un gagnant NON comparable (importé/déclaré) se décline SANS crier victoire', () => {
-    // Le cas Mistakes v4 · un « winner » retenu sans protocole · on le décline
-    // (piste prometteuse), mais on ne dit jamais « Elle a gagné ».
+  it('un gagnant NON comparable (importé/déclaré) repart en NOUVEAU CONCEPT, pas en descendance', () => {
+    // CDC v8 · F06 · la fiche, Suites et la création disent la MÊME règle · un
+    // « winner » retenu sans protocole est une prometteuse relative · déclinable
+    // comme piste, mais SANS filiation (une descendance attribuerait une
+    // performance non démontrée).
     const [p] = proposeIterations({ ...base, verdict: 'winner', comparable: false });
     expect(p!.mode).toBe('more');            // déclinable · c'est une piste
-    expect(p!.edgeLegal).toBe(true);         // filiation légale
+    expect(p!.edgeLegal).toBe(false);        // PAS de filiation · nouveau concept
     expect(p!.rationale, 'un import non prouvé ne doit pas crier victoire').not.toContain('Elle a gagné');
     expect(p!.rationale.toLowerCase()).toContain('prometteuse');
-    expect(p!.rationale.toLowerCase()).toContain('protocole');
+    expect(p!.rationale.toLowerCase()).toContain('nouveau concept');
   });
 
-  it('une gagnante relative se décline avec la même prudence', () => {
+  it('une gagnante relative se décline avec la même prudence · nouveau concept', () => {
     const [p] = proposeIterations({ ...base, verdict: 'relative_winner', comparable: false });
     expect(p!.rationale).not.toContain('Elle a gagné');
     expect(p!.rationale.toLowerCase()).toContain('prometteuse');
+    expect(p!.edgeLegal, 'une relative ne fait pas descendance').toBe(false);
   });
 });
 
@@ -153,8 +156,8 @@ describe('un échec localisé se corrige sur son étape, seul', () => {
     expect(p!.edgeLegal).toBe(false);
   });
 
-  it('sur une gagnante avec un point faible, la filiation est légale', () => {
-    const [p] = proposeIterations({ ...base, verdict: 'baby_winner', failedStage: 'click' });
+  it('sur une gagnante PROUVÉE avec un point faible, la filiation est légale', () => {
+    const [p] = proposeIterations({ ...base, verdict: 'baby_winner', comparable: true, failedStage: 'click' });
     expect(p!.edgeLegal).toBe(true);
     expect(p!.mode).toBe('better');
   });

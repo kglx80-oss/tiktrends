@@ -265,7 +265,7 @@ export function proposeIterations(input: IterationInput): IterationProposal[] {
       freeze: frozenBy('convert'),
       rationale: 'Le tunnel passe et le coût ne suit pas · c\'est l\'économie de l\'offre qui bloque, pas la créa. Refaire la vidéo ne changera pas le prix de l\'acquisition.',
       priority: 0,
-      edgeLegal: iterable,
+      edgeLegal: gagnanteValidee,
     });
   }
 
@@ -282,10 +282,10 @@ export function proposeIterations(input: IterationInput): IterationProposal[] {
       // « Elle a gagné » seulement si c'est PROUVÉ au protocole · une prometteuse
       // (relative, ou un import non comparable) se décline sans crier victoire (N02).
       rationale: gagnanteValidee
-        ? `Résultat conforme au protocole · décline-la en changeant ${VARIABLE_LABEL[v]} et rien d'autre. Garde l'accroche, l'angle et l'offre intacts · l'hypothèse est que ce sont eux qui portent, isoler une variable la teste.`
-        : `Piste prometteuse (comparaison relative · rien n'est encore prouvé au protocole) · tu peux la décliner en changeant ${VARIABLE_LABEL[v]}, mais confirme-la d'abord avant d'en tirer une conclusion. Garde l'accroche, l'angle et l'offre.`,
+        ? `Résultat conforme au protocole · décline-la (itération filiée) en changeant ${VARIABLE_LABEL[v]} et rien d'autre. Garde l'accroche, l'angle et l'offre intacts · l'hypothèse est que ce sont eux qui portent, isoler une variable la teste.`
+        : `Piste prometteuse (comparaison relative · rien n'est encore prouvé au protocole) · elle repart en NOUVEAU CONCEPT, pas en descendance · reprends l'idée en changeant ${VARIABLE_LABEL[v]} et confirme-la d'abord avant d'en tirer une conclusion. Garde l'accroche, l'angle et l'offre.`,
       priority: 1,
-      edgeLegal: true,
+      edgeLegal: gagnanteValidee,
     });
     return out;
   }
@@ -324,7 +324,7 @@ export function proposeIterations(input: IterationInput): IterationProposal[] {
         ? `Elle a lâché sur ${STAGE_LABEL[stage]} · change ${VARIABLE_LABEL[v]}, seulement. ${acquis}`
         : `Elle a lâché dès ${STAGE_LABEL[stage]} · change ${VARIABLE_LABEL[v]}. Rien n'a encore été prouvé sur cette ad, il n'y a donc rien à préserver.`,
       priority: cher ? 0 : 2,
-      edgeLegal: iterable,
+      edgeLegal: gagnanteValidee,
     });
 
     // Un repli, et un seul · la deuxième variable de la même étape.
@@ -339,7 +339,7 @@ export function proposeIterations(input: IterationInput): IterationProposal[] {
         freeze: gel,
         rationale: `Si ${VARIABLE_LABEL[v]} ne suffit pas : ${VARIABLE_LABEL[repli]}, sur la même étape. Une seule des deux à la fois.`,
         priority: 3,
-        edgeLegal: iterable,
+        edgeLegal: gagnanteValidee,
       });
     }
     return out;
