@@ -31,13 +31,18 @@ export function ContexteCreation({ brandName, edenCount, isAdmin }: {
   edenCount: number;
   isAdmin: boolean;
 }) {
-  const [described, setDescribed] = useState<number | null>(null);
+  // Deux unités DISTINCTES · les créas décrites (`count(*)`) et les concurrents
+  // qui les portent (`count(distinct advertiser)`). Les confondre affichait « 16
+  // concurrents » là où il y avait 16 créas de 2 concurrents (CDC v8 · F05).
+  const [couverture, setCouverture] = useState<{ described: number; advertisers: number } | null>(null);
 
   useEffect(() => {
     let vivant = true;
-    marketCoverageAction().then((r) => { if (vivant) setDescribed(r.described); }).catch(() => {});
+    marketCoverageAction().then((r) => { if (vivant) setCouverture({ described: r.described, advertisers: r.advertisers }); }).catch(() => {});
     return () => { vivant = false; };
   }, []);
+  const described = couverture?.described ?? null;
+  const advertisers = couverture?.advertisers ?? 0;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18, fontSize: 12.5, color: 'var(--muted)' }}>
@@ -50,7 +55,7 @@ export function ContexteCreation({ brandName, edenCount, isAdmin }: {
       ) : described === 0 ? (
         <span>catégorie pas encore décrite · <Link href="/veille" style={lien}>suivre des concurrents ›</Link></span>
       ) : (
-        <span>ta catégorie suit <b style={{ color: 'var(--ink-2)', fontWeight: 700 }}>{described}</b> concurrent{described > 1 ? 's' : ''} · tes pubs en suivent la grammaire</span>
+        <CouvertureMarche described={described} advertisers={advertisers} />
       )}
 
       {/* Jarvis · admin seulement, réduit à une puce cliquable. Plus d'encart. */}
@@ -63,6 +68,22 @@ export function ContexteCreation({ brandName, edenCount, isAdmin }: {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * La couverture du marché · deux unités DISTINCTES, jamais confondues (F05) · les
+ * créas décrites d'un côté, les concurrents qui les portent de l'autre. « 16
+ * créas de 2 concurrents » ne se dit pas « 16 concurrents ».
+ */
+export function CouvertureMarche({ described, advertisers }: { described: number; advertisers: number }) {
+  const gras = { color: 'var(--ink-2)', fontWeight: 700 } as const;
+  return (
+    <span>
+      ta catégorie · <b style={gras}>{described}</b> créa{described > 1 ? 's' : ''} décrite{described > 1 ? 's' : ''}
+      {advertisers > 0 && <> chez <b style={gras}>{advertisers}</b> concurrent{advertisers > 1 ? 's' : ''}</>}
+      {' '}· tes pubs en suivent la grammaire
+    </span>
   );
 }
 
