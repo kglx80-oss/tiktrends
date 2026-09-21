@@ -12,7 +12,12 @@ import { faitsPortes, etatFait, versionFait, signatureFait, preuvePlusRecente, t
  * lecture qui tranche, pas une écriture (l'historique approuvé reste intact).
  */
 
-type Recette = { template?: string | null; headline?: string | null; quote?: string | null; badge?: string | null };
+// Tous les champs texte que la génération a persistés dans `input` · le contrôle
+// factuel les lit TOUS, pas seulement ceux du gabarit (CDC v8 · F02).
+type Recette = {
+  template?: string | null; headline?: string | null; quote?: string | null; badge?: string | null;
+  subhead?: string | null; kicker?: string | null; cta?: string | null; benefits?: string[] | null;
+};
 
 /** La preuve ACTIVE (la plus récente) par (rendu, clé de fait), avec son validateur lisible. */
 export async function chargerValidationsActives(
