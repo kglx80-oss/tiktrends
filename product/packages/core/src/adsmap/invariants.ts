@@ -11,7 +11,7 @@
  * lisible, ce qu'elle refuserait de toute façon.
  */
 
-import type { AdStatus, AdType, VerdictValue, TestedVariable } from './types';
+import { verdictEffectif, type AdStatus, type AdType, type VerdictValue, type TestedVariable } from './types';
 
 /** Une violation nommée, avec un message affichable tel quel. */
 export interface Violation { rule: string; message: string }
@@ -51,6 +51,15 @@ export function checkAdReady(ad: AdShape): Violation[] {
 export interface IterationShape {
   childAdType: AdType;
   parentVerdict?: VerdictValue | null;
+  /**
+   * Le verdict du parent a-t-il été évalué au PROTOCOLE (comparable) ? Un
+   * « gagnant » NON comparable (importé, déclaré) n'a rien prouvé · il est
+   * EFFECTIVEMENT une prometteuse relative, et ne fait donc PAS de descendance
+   * (CDC v8 · F06 · la fiche, Suites et la création disent la même règle). Absent
+   * = on s'en tient à la valeur du verdict (rétro-compatible · un vrai gagnant est
+   * comparable). Le serveur, lui, passe la vraie comparabilité.
+   */
+  parentComparable?: boolean;
   changedVariable: TestedVariable;
   childAdId: string;
   parentAdId: string;
@@ -79,10 +88,13 @@ export function checkIteration(it: IterationShape): Violation[] {
   if (it.changedVariable === 'none_control') {
     v.push({ rule: 'iteration.variable', message: 'Une itération change exactement une variable · sinon ce n’est pas une itération mais une nouvelle piste (NEW).' });
   }
-  if (it.parentVerdict !== 'winner' && it.parentVerdict !== 'baby_winner') {
+  // Le verdict EFFECTIF · un gagnant non comparable redevient prometteuse
+  // relative, qui ne fait pas de descendance (même règle que la fiche et Suites).
+  const eff = verdictEffectif(it.parentVerdict ?? null, it.parentComparable ?? true);
+  if (eff !== 'winner' && eff !== 'baby_winner') {
     v.push({
       rule: 'iteration.parent',
-      message: "On n'itère que sur un gagnant ou un gagnant naissant. Repartir d'un perdant reproduit ce qui n'a pas marché.",
+      message: "On n'itère (déclinaison filiée) que sur une gagnante ou une gagnante naissante PROUVÉE au protocole. Une prometteuse relative, un gagnant non comparable ou une perdante repart en nouveau concept, sans hériter d'une performance non démontrée.",
     });
   }
   return v;

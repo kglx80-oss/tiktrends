@@ -325,6 +325,7 @@ export async function createIterationAction(input: IterateInput): Promise<{ ok?:
       brandId: schema.personas.brandId,
       computed: schema.verdicts.computed,
       validated: schema.verdicts.validated,
+      comparable: schema.verdicts.comparable,
     })
       .from(schema.ads)
       .leftJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
@@ -350,6 +351,8 @@ export async function createIterationAction(input: IterateInput): Promise<{ ok?:
     const violations = checkIteration({
       childAdType: 'iteration',
       parentVerdict: verdictParent,
+      // Un « gagnant » non comparable (importé/déclaré) ne fait pas descendance · F06.
+      parentComparable: parent.comparable ?? false,
       changedVariable: input.changedVariable,
       childAdId: '__nouveau__',
       parentAdId: input.parentAdId,

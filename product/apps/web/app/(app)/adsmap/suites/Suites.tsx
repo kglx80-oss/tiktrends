@@ -165,8 +165,9 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
 
       {!row.edgeLegal && (
         <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.6 }}>
-          Le parent n’est pas gagnant · ce sera enregistré comme nouveau concept, pas comme itération.
-          Repartir d’un perdant en le déclarant descendance reproduirait ce qui n’a pas marché.
+          Le parent n’a pas de victoire PROUVÉE au protocole · ce sera enregistré comme
+          nouveau concept, pas comme itération. Une descendance attribuerait une performance
+          non démontrée (une piste relative reste à confirmer, une perdante n’a rien prouvé).
         </p>
       )}
 

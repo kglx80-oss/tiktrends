@@ -232,6 +232,7 @@ export async function createIterationAction(
       offerId: schema.ads.offerId,
       landingPageId: schema.ads.landingPageId,
       validated: schema.verdicts.validated,
+      comparable: schema.verdicts.comparable,
     })
       .from(schema.ads)
       .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
@@ -240,10 +241,12 @@ export async function createIterationAction(
 
     if (!parent) return { error: GUARD.notFound('l’ad parente') };
 
-    // La filiation n'est légale que sur un parent gagnant · sinon, nouveau concept.
+    // La filiation n'est légale que sur un parent gagnant PROUVÉ · un « gagnant »
+    // non comparable est une prometteuse relative · nouveau concept (F06).
     const violations = checkIteration({
       childAdType: 'iteration',
       parentVerdict: (parent.validated ?? null) as VerdictValue | null,
+      parentComparable: parent.comparable ?? false,
       changedVariable: input.changedVariable,
       childAdId: 'nouveau',
       parentAdId: parent.id,
