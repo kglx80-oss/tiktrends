@@ -279,7 +279,9 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
             <ul style={{ margin: '8px 0 0', paddingLeft: 18, color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.8 }}>
               <li>Marque : <b>{f.name || '·'}</b>{f.category ? ` · ${f.category}` : ''}</li>
               <li>{scenarios.filter((x) => x.title.trim()).length} scénario(s), {personas.filter((p) => p.name.trim()).length} persona(s)</li>
-              <li>{f.competitors.split('\n').map((x) => x.trim()).filter(Boolean).length} concurrent(s) suivi(s)</li>
+              {/* CDC v8 · F08 · saisir un nom, c'est RENSEIGNER un concurrent · le
+                  suivi ACTIF se met en place depuis la Veille, il ne se compte pas ici. */}
+              <li>{f.competitors.split('\n').map((x) => x.trim()).filter(Boolean).length} concurrent(s) renseigné(s)</li>
             </ul>
           </div>
         </section>

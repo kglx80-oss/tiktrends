@@ -29,8 +29,10 @@ describe('la carte de concurrent se voit', () => {
     // Pas de favicon ni de lien externe · on n'invente pas de site.
     expect(h).not.toContain('s2/favicons');
     expect(h).not.toContain('target="_blank"');
-    // Un sous-titre neutre plutôt qu'un domaine faux.
-    expect(h).toContain('Concurrent suivi');
+    // CDC v8 · F08 · « renseigné » n'est pas « suivi activement » · le sous-titre
+    // dit l'état réel (un nom saisi), jamais un suivi actif qui n'a pas lieu.
+    expect(h).toContain('Renseigné');
+    expect(h, 'un nom renseigné ne doit pas se dire « suivi »').not.toContain('Concurrent suivi');
   });
 
   it('une saisie de domaine · favicon en fond et lien « voir le site » sûr', () => {
