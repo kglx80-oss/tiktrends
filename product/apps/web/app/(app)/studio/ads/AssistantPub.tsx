@@ -302,7 +302,7 @@ function EtapeProduit({ p }: { p: AssistantProps }) {
     return (
       <Note>
         Cette marque n’a pas encore de produit. On peut générer sans · le modèle composera une scène
-        sans packaging. Ajoute un produit et sa photo pour que ton emballage soit reproduit à l’identique.
+        sans packaging. Ajoute un produit et sa photo pour que ton emballage guide le rendu.
       </Note>
     );
   }
@@ -330,7 +330,7 @@ function EtapeProduit({ p }: { p: AssistantProps }) {
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{prod.name}</div>
               <div style={{ fontSize: 11.5, color: aPhoto ? '#7ee8bf' : '#ffca6b' }}>
-                {aPhoto ? 'Photo présente · ton emballage sera reproduit' : 'Sans photo · le modèle inventera l’emballage'}
+                {aPhoto ? 'Photo présente · ton emballage guide le rendu' : 'Sans photo · le modèle inventera l’emballage'}
               </div>
             </div>
           </button>

@@ -54,9 +54,13 @@ export const PRODUCTION_RESUME: Record<ProductionMode, string> = {
  * elle ne le garantit pas · c'est la relecture qui contrôle le résultat.
  */
 export function garanties(mode: ProductionMode): string[] {
+  // Sous « Garanti », seulement des traitements DÉTERMINISTES · pas la qualité
+  // PROBABILISTE d'un rendu. « Le rendu est celui d'une agence » promettait une
+  // qualité qu'aucune mécanique ne garantit · retiré de cette liste (CDC v8 ·
+  // F10 · distinguer garantie d'un traitement et qualité d'un rendu).
   return mode === 'composee'
     ? ['Tes textes sont posés tels quels', 'La mise en page est prévisible', 'Ta photo produit est composée telle quelle']
-    : ['Ta photo produit guide le rendu', 'Le rendu est celui d’une agence', 'Chaque pub est relue · mots et packaging vérifiés'];
+    : ['Ta photo produit guide le rendu', 'Chaque pub est relue · mots et packaging vérifiés'];
 }
 
 /** Ce que le mode NE garantit PAS · dit d'avance, pas découvert après. */

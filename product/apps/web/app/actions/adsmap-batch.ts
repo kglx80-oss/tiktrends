@@ -124,7 +124,9 @@ function conclusiveness(budgetParAd: number, jours: number, cfg: VerdictConfig):
   const requis = cfg.minSpendMultiple * cfg.targetCpa;
   const prevu = budgetParAd * jours;
   if (prevu >= requis) {
-    return `Chaque ad atteindra ${Math.round(prevu)} € sur ${jours} jours, au-dessus des ${Math.round(requis)} € nécessaires pour conclure sur le CPA.`;
+    // CDC v8 · F10 · un budget PRÉVU n'est pas une dépense certaine · « devrait
+    // atteindre au rythme prévu », pas « atteindra » (R04 · prévu ≠ engagé).
+    return `Au rythme prévu, chaque ad devrait atteindre ${Math.round(prevu)} € sur ${jours} jours, au-dessus des ${Math.round(requis)} € nécessaires pour conclure sur le CPA.`;
   }
   const jourMin = Math.ceil(requis / Math.max(1, budgetParAd));
   const budgetMin = Math.ceil(requis / Math.max(1, jours));

@@ -25,6 +25,14 @@ describe('prochainGesteStudio · jamais un CTA qui dédouble une carte studio', 
     expect(g?.href).toBe('/adsmap/suites');
   });
 
+  // CDC v8 · F10 · « ce qui a gagné » clamait une victoire sur des verdicts qui
+  // ne sont pas tous des gagnantes · le geste porte sur ce qu'on a JUGÉ.
+  it('le geste dit « ce que tu as jugé », jamais « ce qui a gagné »', () => {
+    const g = prochainGesteStudio({ jugees: 32, enAttente: 0 });
+    expect(g?.title).toBe('Itère sur ce que tu as jugé');
+    expect(g?.title).not.toContain('gagné');
+  });
+
   it('INVARIANT · quel que soit l’état, le geste ne pointe jamais vers /studio', () => {
     for (const jugees of [null, 0, 1, 40]) {
       for (const enAttente of [null, 0, 1, 12]) {
