@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { findGaps, iterationParentSet, countGraph, summarizeGaps, type GraphNodeShape } from '../src/adsmap/graph';
 
-const n = (id: string, kind: GraphNodeShape['kind'], childCount = 0, verdict?: string): GraphNodeShape =>
-  ({ id, kind, parentId: null, childCount, verdict: verdict ?? null });
+// `comparable` DÉCIDE ce qui compte comme gagnante (comme la table) · un gagnant
+// non comparable, ou une gagnante relative, est une piste, pas une gagnante.
+const n = (id: string, kind: GraphNodeShape['kind'], childCount = 0, verdict?: string, comparable?: boolean): GraphNodeShape =>
+  ({ id, kind, parentId: null, childCount, verdict: verdict ?? null, comparable: comparable ?? null });
 
 describe('findGaps', () => {
   it('repère un désir sans angle', () => {
@@ -16,22 +18,26 @@ describe('findGaps', () => {
     expect(g.map((x) => x.kind)).toEqual(['angle_no_concept', 'concept_no_ad']);
   });
 
-  it('repère une gagnante jamais itérée', () => {
-    const g = findGaps([n('ad1', 'ad', 0, 'winner')]);
+  it('repère une gagnante VALIDÉE (comparable) jamais itérée', () => {
+    const g = findGaps([n('ad1', 'ad', 0, 'winner', true)]);
     expect(g[0]).toMatchObject({ kind: 'winner_no_iteration' });
   });
 
   it('ne signale pas une gagnante déjà itérée', () => {
-    expect(findGaps([n('ad1', 'ad', 0, 'winner')], new Set(['ad1']))).toHaveLength(0);
+    expect(findGaps([n('ad1', 'ad', 0, 'winner', true)], new Set(['ad1']))).toHaveLength(0);
   });
 
-  it('traite la gagnante naissante et la gagnante relative comme des gagnantes', () => {
-    const g = findGaps([n('a', 'ad', 0, 'baby_winner'), n('b', 'ad', 0, 'relative_winner')]);
-    expect(g).toHaveLength(2);
+  // CDC v8 · F03 · le cœur du défaut · une piste relative n'est pas une gagnante.
+  it('la gagnante naissante COMPARABLE compte · la relative et le gagnant NON comparable, non', () => {
+    // baby_winner comparable → gagnante validée → occasion « jamais itérée ».
+    expect(findGaps([n('a', 'ad', 0, 'baby_winner', true)])).toHaveLength(1);
+    // relative_winner → piste prometteuse, jamais « gagnante jamais itérée ».
+    expect(findGaps([n('b', 'ad', 0, 'relative_winner', true)])).toHaveLength(0);
+    // gagnant NON comparable → lu « prometteuse relative » → pas une gagnante.
+    expect(findGaps([n('c', 'ad', 0, 'winner', false)])).toHaveLength(0);
   });
 
   it('ne signale pas une perdante non itérée · c’est le comportement voulu', () => {
-    // On n'itère pas sur un échec · l'absence d'itération n'est pas un manque ici.
     expect(findGaps([n('ad1', 'ad', 0, 'loser'), n('ad2', 'ad', 0, 'inconclusive')])).toHaveLength(0);
   });
 
@@ -55,23 +61,43 @@ describe('iterationParentSet', () => {
 });
 
 describe('countGraph', () => {
-  it('compte par type et par manque', () => {
-    const nodes = [n('p', 'persona', 1), n('d', 'desire', 0), n('ad', 'ad', 0, 'winner')];
+  it('compte par type et par manque · gagnantes validées seulement', () => {
+    const nodes = [n('p', 'persona', 1), n('d', 'desire', 0), n('ad', 'ad', 0, 'winner', true)];
     const c = countGraph(nodes, findGaps(nodes));
-    expect(c).toMatchObject({ personas: 1, desires: 1, ads: 1, winners: 1 });
+    expect(c).toMatchObject({ personas: 1, desires: 1, ads: 1, winners: 1, promising: 0 });
     expect(c.gaps.desire_no_angle).toBe(1);
     expect(c.gaps.winner_no_iteration).toBe(1);
+  });
+
+  // CDC v8 · F03 · la carte ne doit plus « 2 gagnantes » ce que la table dit 0 %.
+  it('sépare gagnantes validées et pistes relatives · jamais additionnées', () => {
+    const nodes = [
+      n('w', 'ad', 0, 'winner', true),          // gagnante validée
+      n('r', 'ad', 0, 'relative_winner', true), // piste relative
+      n('nc', 'ad', 0, 'winner', false),        // gagnant non comparable → piste
+    ];
+    const c = countGraph(nodes, findGaps(nodes));
+    expect(c.winners).toBe(1);
+    expect(c.promising).toBe(2);
+    expect(c.gaps.winner_no_iteration).toBe(1);
+  });
+
+  it('aucune gagnante validée quand tout est non comparable (table à 0 %)', () => {
+    const nodes = [n('a', 'ad', 0, 'winner', false), n('b', 'ad', 0, 'baby_winner', false)];
+    const c = countGraph(nodes, findGaps(nodes));
+    expect(c.winners).toBe(0);
+    expect(c.promising).toBe(2);
+    expect(c.gaps.winner_no_iteration).toBe(0);
   });
 });
 
 describe('summarizeGaps', () => {
-  const base = { personas: 1, desires: 1, angles: 1, concepts: 1, ads: 1, winners: 0 };
+  const base = { personas: 1, desires: 1, angles: 1, concepts: 1, ads: 1, winners: 0, promising: 0 };
   const gaps = (o: Partial<Record<string, number>> = {}) => ({
     desire_no_angle: 0, angle_no_concept: 0, concept_no_ad: 0, winner_no_iteration: 0, ...o,
   }) as ReturnType<typeof countGraph>['gaps'];
 
   it('nomme la gagnante non itérée en priorité, même si tout manque', () => {
-    // L'ordre est celui du rendement · itérer coûte moins cher que tout le reste.
     const s = summarizeGaps({ ...base, gaps: gaps({ winner_no_iteration: 2, concept_no_ad: 9, desire_no_angle: 5 }) });
     expect(s).toContain('gagnante');
   });

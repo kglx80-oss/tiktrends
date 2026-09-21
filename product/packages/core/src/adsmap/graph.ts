@@ -13,6 +13,9 @@
  * du graphe. Le canvas s'en sert pour marquer, les écrans pour compter.
  */
 
+import { verdictEffectif, type VerdictValue } from './types';
+import { estGagnanteValidee } from './verdict-libelle';
+
 export type GraphNodeKind = 'persona' | 'desire' | 'angle' | 'concept' | 'ad';
 
 /** Le minimum dont la lecture a besoin · volontairement structurel. */
@@ -21,7 +24,26 @@ export interface GraphNodeShape {
   kind: GraphNodeKind;
   parentId: string | null;
   verdict?: string | null;
+  /**
+   * La comparabilité du verdict · elle DÉCIDE ce qui compte comme gagnante, comme
+   * dans la table (CDC v8 · F03). Un « gagnant » non comparable (ou une gagnante
+   * relative) n'est PAS une gagnante validée · c'est une piste prometteuse. Sans
+   * cette qualification, le canvas comptait « 2 gagnantes » et « 1 gagnante jamais
+   * itérée » là où la table disait 0 % comparable · la certitude gonflait d'un
+   * écran à l'autre.
+   */
+  comparable?: boolean | null;
   childCount: number;
+}
+
+/** Vrai si le nœud est une gagnante VALIDÉE au protocole · comparable ET absolue. */
+function estGagnanteValideeNode(n: GraphNodeShape): boolean {
+  return n.kind === 'ad' && estGagnanteValidee(n.verdict as VerdictValue, !!n.comparable);
+}
+
+/** Vrai si le nœud est une piste PROMETTEUSE · relative, ou gagnante non comparable. */
+function estPistePrometteuse(n: GraphNodeShape): boolean {
+  return n.kind === 'ad' && verdictEffectif(n.verdict as VerdictValue, !!n.comparable) === 'relative_winner';
 }
 
 export type GapKind = 'desire_no_angle' | 'angle_no_concept' | 'concept_no_ad' | 'winner_no_iteration';
@@ -33,14 +55,16 @@ export interface Gap {
   message: string;
 }
 
-const GAGNANTS = new Set(['winner', 'baby_winner', 'relative_winner']);
-
 /**
  * Les occasions perdues du graphe.
  *
  * Volontairement limité à quatre règles, toutes vérifiables sans jugement. On
  * pourrait en inventer d'autres (« ce persona a peu d'angles »), mais un canvas
  * qui signale trop finit signalé partout, donc lu nulle part.
+ *
+ * « Gagnante jamais itérée » ne parle QUE des gagnantes validées (comparables) ·
+ * une piste relative n'est pas une gagnante, donc son absence d'itération n'est
+ * pas cette occasion-là (CDC v8 · F03).
  */
 export function findGaps(
   nodes: GraphNodeShape[],
@@ -54,7 +78,7 @@ export function findGaps(
       out.push({ nodeId: n.id, kind: 'angle_no_concept', message: 'Angle jamais décliné · aucun concept n’en est sorti.' });
     } else if (n.kind === 'concept' && n.childCount === 0) {
       out.push({ nodeId: n.id, kind: 'concept_no_ad', message: 'Concept jamais produit · aucune ad ne l’a testé.' });
-    } else if (n.kind === 'ad' && n.verdict && GAGNANTS.has(n.verdict) && !iterationParents.has(n.id)) {
+    } else if (estGagnanteValideeNode(n) && !iterationParents.has(n.id)) {
       out.push({
         nodeId: n.id, kind: 'winner_no_iteration',
         message: 'Gagnante jamais itérée · c’est le gisement le moins cher du compte, et il dort.',
@@ -71,7 +95,10 @@ export function iterationParentSet(edges: Array<{ source: string; kind: string }
 
 export interface GraphCounts {
   personas: number; desires: number; angles: number; concepts: number; ads: number;
+  /** Gagnantes VALIDÉES au protocole · comparables et absolues, comme la table. */
   winners: number;
+  /** Pistes PROMETTEUSES · relatives, ou gagnantes non comparables · comptées à part. */
+  promising: number;
   /** Nombre d'occasions perdues, par type · l'entête du canvas les affiche. */
   gaps: Record<GapKind, number>;
 }
@@ -82,7 +109,8 @@ export function countGraph(nodes: GraphNodeShape[], gaps: Gap[]): GraphCounts {
   return {
     personas: parKind('persona'), desires: parKind('desire'), angles: parKind('angle'),
     concepts: parKind('concept'), ads: parKind('ad'),
-    winners: nodes.filter((n) => n.kind === 'ad' && n.verdict && GAGNANTS.has(n.verdict)).length,
+    winners: nodes.filter(estGagnanteValideeNode).length,
+    promising: nodes.filter(estPistePrometteuse).length,
     gaps: {
       desire_no_angle: compte('desire_no_angle'),
       angle_no_concept: compte('angle_no_concept'),
