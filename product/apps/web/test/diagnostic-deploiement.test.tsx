@@ -43,4 +43,15 @@ describe('le panneau de diagnostic du déploiement', () => {
   it('commit absent · dit « inconnu », ne prétend rien', () => {
     expect(html({ build: null, inBuild: 49, applied: 49 })).toContain('inconnu');
   });
+
+  // CDC v8 · F09 · schéma à jour ≠ code à jour · sans le commit servi, le badge
+  // ne peut PAS afficher un vert « À jour » qui laisserait croire le code à jour.
+  it('schéma à jour mais commit inconnu · le badge NE dit PAS « À jour » vert', () => {
+    const h = html({ build: null, inBuild: 53, applied: 53 });
+    expect(h, 'le badge doit qualifier · code non identifié').toContain('code non identifié');
+    // Le vert « À jour » est réservé à un code identifié · l'icône de succès n'y est pas.
+    expect(h, 'le résumé sépare schéma et code').toMatch(/Schéma à jour|schéma à jour ≠ code à jour/);
+    // Un build identifié, lui, garde le vert « À jour ».
+    expect(html({ build: 'abc12345', inBuild: 53, applied: 53 })).toContain('À jour');
+  });
 });

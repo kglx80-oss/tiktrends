@@ -45,7 +45,14 @@ export interface DeploymentState {
   behind: number | null;
   /** Vrai quand la base est EN AVANCE · déploiement annulé après ses migrations. */
   ahead: boolean;
-  /** Rien à signaler. */
+  /**
+   * Le commit servi est-il IDENTIFIÉ · `false` quand le build n'a pas reçu son
+   * empreinte (« inconnu »). Un schéma à jour n'est pas un code à jour · sans
+   * cette empreinte on ne peut PAS affirmer que le code en ligne est le bon
+   * (CDC v8 · F09).
+   */
+  codeIdentifie: boolean;
+  /** Rien à signaler · schéma à jour ET code identifié. */
   ok: boolean;
   summary: string;
 }
@@ -58,12 +65,14 @@ export function deploymentState(input: {
 }): DeploymentState {
   const build = input.build?.trim() || null;
   const applied = input.applied;
+  const codeIdentifie = build !== null;
 
   const base = {
     renderVersion: input.renderVersion,
     build,
     inBuild: input.inBuild,
     applied,
+    codeIdentifie,
   };
 
   if (applied === null) {
@@ -91,8 +100,18 @@ export function deploymentState(input: {
     };
   }
 
+  // Le schéma est à jour. Mais « à jour » ne peut PAS s'affirmer sans savoir quel
+  // CODE tourne · un commit inconnu laisse ouverte la possibilité d'un build
+  // antérieur qui expliquerait un défaut « déjà corrigé » persistant (F09).
+  if (!codeIdentifie) {
+    return {
+      ...base, behind: 0, ahead: false, ok: false,
+      summary: `Schéma à jour · ${applied} migration(s), maquette v${input.renderVersion}. Mais le commit servi est INCONNU · impossible d’affirmer que le code en ligne est à jour (schéma à jour ≠ code à jour).`,
+    };
+  }
+
   return {
     ...base, behind: 0, ahead: false, ok: true,
-    summary: `À jour · ${applied} migration(s), maquette v${input.renderVersion}${build ? `, build ${build}` : ''}.`,
+    summary: `À jour · ${applied} migration(s), maquette v${input.renderVersion}, build ${build}.`,
   };
 }
