@@ -367,7 +367,7 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
           {summarizeGaps(c)}
         </span>
         <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-          {c.personas} avatar(s) · {c.desires} désir(s) · {c.angles} angle(s) · {c.concepts} concept(s) · {c.ads} ad(s) · {c.winners} gagnante(s)
+          {c.personas} avatar(s) · {c.desires} désir(s) · {c.angles} angle(s) · {c.concepts} concept(s) · {c.ads} ad(s) · {c.winners} gagnante(s){c.promising > 0 ? ` · ${c.promising} piste(s) relative(s)` : ''}
         </span>
       </div>
 

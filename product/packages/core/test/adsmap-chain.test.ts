@@ -223,18 +223,23 @@ describe('graphe → mémoire de Jarvis', () => {
         childCount: plan.angles.filter((a) => a.desireLabel === d.label).length,
       })),
       ...plan.ads.map((a, i): GraphNodeShape => ({
-        id: `ad:${i}`, kind: 'ad', parentId: 'c', childCount: 0, verdict: a.verdict,
+        // L'import donne des verdicts NON comparables (protocole d'alors inconnu) ·
+        // ce sont donc des pistes relatives, jamais des gagnantes validées (F03).
+        id: `ad:${i}`, kind: 'ad', parentId: 'c', childCount: 0, verdict: a.verdict, comparable: false,
       })),
     ];
     const gaps = findGaps(nodes, iterationParentSet([]));
     const counts = countGraph(nodes, gaps);
 
     expect(counts.ads).toBe(plan.ads.length);
-    // Le fichier contient des gagnantes, et l'import ne crée aucune itération
-    // vers elles · c'est exactement la première priorité que le canvas doit dire.
-    expect(counts.winners).toBeGreaterThan(0);
-    expect(counts.gaps.winner_no_iteration).toBeGreaterThan(0);
-    expect(summarizeGaps(counts)).toContain('gagnante');
+    // Le fichier contient des « gagnantes » importées, mais NON comparables · la
+    // carte ne les compte pas comme gagnantes validées (comme la table à 0 %) ·
+    // elle les range en pistes relatives, sans « gagnante jamais itérée » factice.
+    expect(counts.winners).toBe(0);
+    expect(counts.promising).toBeGreaterThan(0);
+    expect(counts.gaps.winner_no_iteration).toBe(0);
+    // Le canvas nomme quand même une priorité (branches structurelles à travailler).
+    expect(summarizeGaps(counts).length).toBeGreaterThan(0);
   });
 
   it('les verdicts remontent jusqu’à une mémoire que Jarvis peut lire', () => {
