@@ -21,7 +21,7 @@ import { conseilMoteur, conseilMode } from '@tiktrends/core';
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
 
-export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string; ref?: string }> }) {
+export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string; ref?: string; src?: string; srcnom?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   const sp = await searchParams;
@@ -30,6 +30,10 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   // écran qui ne la lit pas · un réglage sans effet, pire qu'absent.
   const initialRef = (sp.ref ?? '').slice(0, 64);
   const initialMode = sp.mode === 'clone' || initialRef ? 'clone' : 'brand';
+  // CDC v8 · F07 · la provenance portée par le lien de veille · on la RELIT et on
+  // l'affiche, pour retrouver la source sans la rechercher à la main.
+  const sourceCle = (sp.src ?? '').slice(0, 96);
+  const sourceNom = (sp.srcnom ?? '').slice(0, 120);
   const initialAngle = (sp.angle ?? '').slice(0, 300);
   // Trois lectures INDÉPENDANTES, menées en parallèle · les enchaîner ajoutait
   // deux allers-retours à chaque ouverture du studio, pour rien.
@@ -123,6 +127,16 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
            montre en le parcourant ; ce qui s'enrichit, la Veille et Jarvis le
            font. Ici, on informe et on crée, on ne règle rien d'annexe. */}
       {brand && <ContexteCreation brandName={brand.name} edenCount={edenCount} isAdmin={roleAtLeast(s.role, 'admin')} />}
+
+      {/* CDC v8 · F07 · la source qui a inspiré cette création, portée depuis la
+          Veille · on la retrouve ici sans la rechercher. Sa clé structurée reste
+          dans l'URL (provenance traçable). */}
+      {sourceCle && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '7px 12px', borderRadius: 999, border: '1px dashed var(--line-2)', background: 'var(--paper)', fontSize: 12, color: 'var(--muted)' }}>
+          <Icon name="search" size={13} />
+          <span>Inspiré d’une source de la Veille{sourceNom ? <> · <b style={{ color: 'var(--ink-2)', fontWeight: 700 }}>{sourceNom}</b></> : ''}</span>
+        </div>
+      )}
 
       {/* CDC v8 · F01 · le changement de marque passe par `setActiveBrand` +
           `router.refresh()`, un rafraîchissement SOUPLE · les composants serveur

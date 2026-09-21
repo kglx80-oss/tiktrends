@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { bibliothequePub, siteMarque } from '@tiktrends/core';
+import { bibliothequePub, libelleBibliotheque, refSourceVeille, siteMarque } from '@tiktrends/core';
 
 /**
  * Depuis la Veille, on doit pouvoir SORTIR vers la source · la bibliothèque
@@ -39,6 +39,42 @@ describe('bibliothequePub · la bonne bibliothèque par plateforme, par nom', ()
   });
 });
 
+// CDC v8 · F07 · le repli bibliothèque est une RECHERCHE, pas la créa exacte ·
+// le libellé doit le dire, sinon on laisse croire qu'on rouvre l'annonce vue.
+describe('libelleBibliotheque · le repli se nomme comme une recherche', () => {
+  it('nomme la plateforme ET dit que c’est une recherche d’annonceur', () => {
+    const l = libelleBibliotheque({ label: 'Bibliothèque Meta' })!;
+    expect(l).toContain('Bibliothèque Meta');
+    expect(l).toContain('rechercher l’annonceur');
+  });
+
+  it('null quand il n’y a pas de bibliothèque', () => {
+    expect(libelleBibliotheque(null)).toBeNull();
+  });
+});
+
+// CDC v8 · F07 · la PROVENANCE portée jusqu'au studio · une clé stable
+// (plateforme:id) et le nom, ou rien si on ne saurait pas la retrouver.
+describe('refSourceVeille · la référence structurée de la source', () => {
+  it('clé plateforme:id et nom de l’annonceur', () => {
+    expect(refSourceVeille({ platform: 'meta', id: '789', advertiserName: 'Klorea' }))
+      .toEqual({ cle: 'meta:789', nom: 'Klorea' });
+  });
+
+  it('plateforme absente · Meta par défaut', () => {
+    expect(refSourceVeille({ id: '789', advertiserName: 'Klorea' })!.cle).toBe('meta:789');
+  });
+
+  it('null sans identifiant · pas de provenance qu’on ne saurait pas retrouver', () => {
+    expect(refSourceVeille({ platform: 'meta', id: '', advertiserName: 'Klorea' })).toBeNull();
+    expect(refSourceVeille({ advertiserName: 'Klorea' })).toBeNull();
+  });
+
+  it('nom vide toléré · la clé suffit à tracer la source', () => {
+    expect(refSourceVeille({ platform: 'tiktok', id: '42' })).toEqual({ cle: 'tiktok:42', nom: '' });
+  });
+});
+
 describe('siteMarque · domaine puis URL', () => {
   it('normalise le domaine (sans www, sans chemin)', () => {
     expect(siteMarque({ landingDomain: 'www.klorea.com/promo' })).toBe('https://klorea.com');
@@ -66,5 +102,13 @@ describe('les surfaces de veille exposent bien le lien bibliothèque', () => {
     expect(CARD).toMatch(/bibliothequePub\(/);
     expect(SWIPE).toMatch(/bibliothequePub\(/);
     expect(SAVED).toMatch(/bibliothequePub\(/);
+  });
+
+  // CDC v8 · F07 · carte et swipe file nomment le repli via `libelleBibliotheque`
+  // (« … rechercher l'annonceur ») · le lien ne se présente plus comme la créa
+  // exacte. Marques suivies porte déjà un libellé générique honnête.
+  it('carte et swipe file nomment le repli comme une recherche', () => {
+    expect(CARD).toMatch(/libelleBibliotheque\(/);
+    expect(SWIPE).toMatch(/libelleBibliotheque\(/);
   });
 });

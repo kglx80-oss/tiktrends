@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
-import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, type AngleKey } from '@tiktrends/core';
+import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, type AngleKey } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
 import { Empty } from '../../../../components/Empty';
 
@@ -185,12 +185,12 @@ function Card({ it }: { it: SwipeItem }) {
             </a>
           )}
           {biblio && (
-            <a href={biblio.url} target="_blank" rel="noreferrer noopener" style={{
+            <a href={biblio.url} target="_blank" rel="noreferrer noopener" title="Ouvre une recherche par nom d’annonceur · pas l’annonce exacte" style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               padding: '8px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent',
               color: 'var(--ink-2)', fontWeight: 700, fontSize: 12, textDecoration: 'none',
             }}>
-              {biblio.label} <span style={{ color: 'var(--accent-strong)' }}>↗</span>
+              {libelleBibliotheque(biblio)} <span style={{ color: 'var(--accent-strong)' }}>↗</span>
             </a>
           )}
         </div>

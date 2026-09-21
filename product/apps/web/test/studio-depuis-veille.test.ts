@@ -39,8 +39,29 @@ describe('le pont mène aux Pubs IA, armé', () => {
     expect(angle, 'l’instruction d’adaptation survit').toContain('nos mots');
   });
 
-  it('sans matière, pointe quand même vers le bon écran, à vide', () => {
-    expect(studioDepuisVeille(ad({}))).toBe('/studio/ads');
+  it('sans matière (ni brief ni source), pointe quand même vers le bon écran, à vide', () => {
+    expect(studioDepuisVeille(ad({ id: '' }))).toBe('/studio/ads');
+  });
+
+  // CDC v8 · F07 · la PROVENANCE suit le lien · « Décline cette piste » ne perd
+  // plus la référence de la source, comme Sauvegardes portait la sienne.
+  it('porte une référence structurée de la source (plateforme:id) et le nom de l’annonceur', () => {
+    const url = studioDepuisVeille(ad({ id: '789', platform: 'meta', advertiserName: 'Klorea', body: 'x', daysRunning: 40 }));
+    const q = new URLSearchParams(url.split('?')[1]);
+    expect(q.get('src'), 'la clé structurée unique de la source').toBe('meta:789');
+    expect(q.get('srcnom'), 'le nom de l’annonceur, pour l’afficher').toBe('Klorea');
+  });
+
+  it('porte la source même sans brief distillé · la provenance ne dépend pas de la matière', () => {
+    const url = studioDepuisVeille(ad({ id: '789', platform: 'meta', advertiserName: 'Klorea' }));
+    const q = new URLSearchParams(url.split('?')[1]);
+    expect(q.get('src')).toBe('meta:789');
+    expect(q.get('angle'), 'pas de brief sans matière').toBeNull();
+  });
+
+  it('sans identifiant de source, aucune provenance inventée', () => {
+    const url = studioDepuisVeille(ad({ id: '', body: 'x', daysRunning: 40 }));
+    expect(new URLSearchParams(url.split('?')[1]).get('src')).toBeNull();
   });
 
   it('avec une pub sauvegardée en référence, ouvre le clone · angle ET structure', () => {
