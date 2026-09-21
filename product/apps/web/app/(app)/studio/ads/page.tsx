@@ -124,7 +124,14 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
            font. Ici, on informe et on crée, on ne règle rien d'annexe. */}
       {brand && <ContexteCreation brandName={brand.name} edenCount={edenCount} isAdmin={roleAtLeast(s.role, 'admin')} />}
 
-      <AdsStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} initialRef={initialRef} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
+      {/* CDC v8 · F01 · le changement de marque passe par `setActiveBrand` +
+          `router.refresh()`, un rafraîchissement SOUPLE · les composants serveur
+          se recalculent, mais l'arbre client (`AdsStudio`) n'est pas remonté et
+          ses états semés une fois depuis les props (galerie `ads`, `prods`,
+          `productId`, sélection…) restent ceux de la marque précédente jusqu'à un
+          rechargement complet. La clé par marque force le remontage · TOUT le
+          contexte client se ré-ensemence ensemble depuis les nouvelles props. */}
+      <AdsStudio key={brand?.id ?? 'aucune-marque'} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} initialRef={initialRef} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
     </main>
   );
 }
