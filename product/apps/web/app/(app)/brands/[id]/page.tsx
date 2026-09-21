@@ -301,8 +301,11 @@ export default async function BrandDetailPage({ params, searchParams }: {
           <input type="hidden" name="fonts" value={j(b.fonts)} />
           <input type="hidden" name="preferredWords" value={j(b.preferredWords)} />
           <input type="hidden" name="avoidWords" value={j(b.avoidWords)} />
-          <h2 style={sectionH}>Concurrents <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{competitors.length}</span></h2>
-          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>On surveille ces marques pour que tu saches toujours où tu te situes. Tu pourras les suivre en direct depuis la Veille une fois les bibliothèques branchées.</p>
+          <h2 style={sectionH}>Concurrents renseignés <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{competitors.length}</span></h2>
+          {/* CDC v8 · F08 · « renseigné » n'est pas « suivi activement » · le suivi
+              actif (et ses événements) se fait depuis la Veille et se compte au
+              Radar · on ne présente jamais ces noms comme déjà surveillés. */}
+          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)' }}>Ces marques sont <b style={{ color: 'var(--ink-2)', fontWeight: 700 }}>renseignées</b> ici pour situer ta catégorie. Le suivi actif · leurs nouveautés et leurs événements · se met en place depuis la Veille, une fois les bibliothèques branchées · c'est lui que compte le Radar.</p>
           {competitors.length > 0 && (
             // Une grille de cartes · favicon+domaine quand la saisie en porte un,
             // avatar teinté sinon · plus lisible qu'un mur de lignes grises.

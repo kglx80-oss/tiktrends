@@ -45,7 +45,10 @@ export function CarteConcurrent({ nom, brandId }: { nom: string; brandId: string
               <Icon name="link" size={11} /> {domaine}
             </a>
           ) : (
-            <span style={{ display: 'block', marginTop: 2, fontSize: 12, color: 'var(--muted)' }}>Concurrent suivi</span>
+            // CDC v8 · F08 · un concurrent RENSEIGNÉ (un nom dans le profil) n'est
+            // pas un concurrent SUIVI activement · le suivi actif se fait depuis la
+            // Veille et se compte au Radar. Ne pas confondre les deux états.
+            <span style={{ display: 'block', marginTop: 2, fontSize: 12, color: 'var(--muted)' }}>Renseigné · à suivre depuis la Veille</span>
           )}
         </div>
         <Link href={analyser} style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Analyser ›</Link>
