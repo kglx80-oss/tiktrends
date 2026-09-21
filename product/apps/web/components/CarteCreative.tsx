@@ -105,7 +105,10 @@ export function CarteCreative(props: CarteCreativeProps) {
         ) : onApercu ? (
           <button type="button" onClick={onApercu} aria-label={`Ouvrir · ${titre}`} title="Ouvrir en grand"
             style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }}>
-            <AdMedia mediaUrl={media.url ?? undefined} thumbnailUrl={media.thumbUrl ?? undefined} isVideo={media.isVideo} aspect={media.aspect ?? '1 / 1'} fit={media.fit ?? 'contain'} />
+            {/* `interactive={false}` · le bouton porte déjà le clic · sans ça
+                l'`<a>`/le bouton de lecture d'AdMedia s'imbriquait ici et ouvrait
+                un onglet de miniature en plus du détail (CDC v8 · F04). */}
+            <AdMedia mediaUrl={media.url ?? undefined} thumbnailUrl={media.thumbUrl ?? undefined} isVideo={media.isVideo} aspect={media.aspect ?? '1 / 1'} fit={media.fit ?? 'contain'} interactive={false} />
           </button>
         ) : (
           <AdMedia mediaUrl={media.url ?? undefined} thumbnailUrl={media.thumbUrl ?? undefined} isVideo={media.isVideo} aspect={media.aspect ?? '1 / 1'} fit={media.fit ?? 'contain'} />
