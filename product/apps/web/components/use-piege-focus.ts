@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 /**
  * Le piège à focus d'une fenêtre modale · une seule fois, partagé.
@@ -26,6 +26,18 @@ export function usePiegeFocus(
   ref: RefObject<HTMLElement | null>,
   { actif, onFermer }: { actif: boolean; onFermer: () => void },
 ): void {
+  // `onFermer` est presque toujours une lambda INLINE (identité neuve à chaque
+  // rendu). S'il entrait dans les dépendances de l'effet, celui-ci se
+  // désabonnerait et se réabonnerait à CHAQUE rendu du parent · dans un écran
+  // lourd comme le studio (le détail porte des outils qui posent de l'état), cela
+  // fait des centaines de cycles addEventListener/removeEventListener et de
+  // re-focus tant que la fenêtre est ouverte · une fragilité qui pouvait faire
+  // manquer Échap (CDC v8 · F04). On garde `onFermer` dans une ref TOUJOURS à
+  // jour · l'effet ne dépend plus que de `actif`, s'abonne UNE fois à l'ouverture
+  // et se ferme UNE fois à la fermeture, sans jamais rater une frappe.
+  const onFermerRef = useRef(onFermer);
+  onFermerRef.current = onFermer;
+
   useEffect(() => {
     if (!actif) return;
     // Qui avait le focus avant l'ouverture · on le lui rend à la fermeture.
@@ -38,7 +50,7 @@ export function usePiegeFocus(
     ).filter((el) => el.offsetParent !== null);
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onFermer(); return; }
+      if (e.key === 'Escape') { onFermerRef.current(); return; }
       // Piège à focus · le Tab ne doit pas s'échapper derrière la fenêtre.
       if (e.key === 'Tab') {
         const els = focusables();
@@ -65,5 +77,8 @@ export function usePiegeFocus(
       clearTimeout(t);
       rendreA?.focus?.();
     };
-  }, [actif, onFermer, ref]);
+    // Dépend de `actif` SEULEMENT · `onFermer` passe par la ref, `ref` est stable ·
+    // l'abonnement ne se rejoue plus à chaque rendu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actif]);
 }
