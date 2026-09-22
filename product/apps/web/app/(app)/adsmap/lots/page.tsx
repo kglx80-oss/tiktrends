@@ -51,7 +51,13 @@ export default async function LotsPage() {
         le brief se recopie.
       </PageInfo>
 
-      <Lots batches={batches} brandName={brand.name} />
+      {/* CDC v8 · F01 (lots) · la bascule de marque passe par un rafraîchissement
+          SOUPLE · les composants serveur se recalculent, mais `Lots` sème son
+          état à la monte (`liste`, `choisi`, `detail`…) et resterait sur les lots
+          de la marque précédente jusqu'à un rechargement complet · ses actions
+          agiraient alors dans le mauvais contexte. La clé par marque force le
+          remontage · toute la sélection et la liste se ré-ensemencent ensemble. */}
+      <Lots key={brand.id} batches={batches} brandName={brand.name} />
     </main>
   );
 }
