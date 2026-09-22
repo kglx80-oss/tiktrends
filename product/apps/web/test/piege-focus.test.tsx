@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { act, useRef, useState, type ReactNode } from 'react';
+import { act, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { usePiegeFocus } from '../components/use-piege-focus';
 
@@ -104,6 +104,41 @@ describe('usePiegeFocus · le clavier ne quitte pas la fenêtre', () => {
     q('#a').focus();
     touche({ key: 'Tab', shiftKey: true });
     expect(document.activeElement, 'Shift+Tab depuis le premier doit aller au dernier').toBe(q('#b'));
+  });
+
+  // CDC v8 · F04 · dans un écran lourd, le parent d'une fenêtre modale se re-rend
+  // souvent. Avec un `onFermer` INLINE, l'effet ne doit PAS se réabonner à chaque
+  // rendu (centaines de cycles addEventListener/removeEventListener · la
+  // fragilité qui pouvait faire manquer Échap). On prouve : un seul abonnement
+  // « keydown » par ouverture MALGRÉ les re-rendus, et Échap ferme toujours.
+  it('un onFermer inline ne réabonne pas l’écouteur à chaque rendu (stable), et Échap ferme', () => {
+    vi.useFakeTimers();
+    let ajoutsKeydown = 0;
+    const origAdd = window.addEventListener.bind(window);
+    const spy = vi.spyOn(window, 'addEventListener').mockImplementation(
+      (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => {
+        if (type === 'keydown') ajoutsKeydown += 1;
+        origAdd(type as keyof WindowEventMap, listener, options);
+      },
+    );
+
+    const ferme = vi.fn();
+    // Parent qui SE RE-REND en boucle bornée pendant que la fenêtre est ouverte,
+    // avec un onFermer recréé à chaque rendu.
+    function Parent() {
+      const [n, setN] = useState(0);
+      useEffect(() => { if (n < 5) setN((v) => v + 1); }, [n]);
+      const ref = useRef<HTMLDivElement>(null);
+      usePiegeFocus(ref, { actif: true, onFermer: () => ferme(n) });
+      return <div ref={ref} role="dialog" aria-modal="true" tabIndex={-1}><button id="a" type="button">A</button></div>;
+    }
+    monter(<Parent />);
+    act(() => { vi.advanceTimersByTime(30); });
+
+    expect(ajoutsKeydown, 'un seul abonnement keydown malgré 5 re-rendus').toBe(1);
+    touche({ key: 'Escape' });
+    expect(ferme, 'Échap ferme, avec le onFermer le plus récent').toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   it('à la fermeture, le focus revient au déclencheur', () => {
