@@ -20,9 +20,18 @@ describe('le panneau de diagnostic du déploiement', () => {
     expect(h).toContain('origin/main'); // l'invite à comparer
   });
 
-  it('à jour · un état nommé, pas seulement une couleur', () => {
+  // CDC v8 · F09 · schéma appliqué + commit identifié est le meilleur état
+  // constatable de l'intérieur · mais identifier le commit ne prouve pas qu'il
+  // est le DERNIER. Le badge qualifie donc « Schéma à jour · commit identifié »
+  // et renvoie à origin/main · il ne claironne pas « À jour · » (code forcément
+  // à jour).
+  it('schéma + commit · un état nommé qui ne prétend pas « code à jour »', () => {
     const h = html({ build: 'abc12345', inBuild: 49, applied: 49 });
-    expect(h).toContain('À jour');
+    expect(h).toContain('Schéma à jour · commit identifié');
+    // Le résumé scope à ce qui est vérifié et renvoie à origin/main pour conclure.
+    expect(h).toMatch(/Reste à confirmer via origin\/main/);
+    // Il ne prétend PAS « À jour · N migration(s) » (le surclaim d'avant).
+    expect(h).not.toMatch(/À jour · \d+ migration/);
   });
 
   it('migrations en attente · le cas le plus grave est nommé', () => {
@@ -51,7 +60,8 @@ describe('le panneau de diagnostic du déploiement', () => {
     expect(h, 'le badge doit qualifier · code non identifié').toContain('code non identifié');
     // Le vert « À jour » est réservé à un code identifié · l'icône de succès n'y est pas.
     expect(h, 'le résumé sépare schéma et code').toMatch(/Schéma à jour|schéma à jour ≠ code à jour/);
-    // Un build identifié, lui, garde le vert « À jour ».
-    expect(html({ build: 'abc12345', inBuild: 53, applied: 53 })).toContain('À jour');
+    // Un build identifié, lui, garde le vert · qualifié « Schéma à jour · commit
+    // identifié » (schéma appliqué + commit connu), sans prétendre le code à jour.
+    expect(html({ build: 'abc12345', inBuild: 53, applied: 53 })).toContain('Schéma à jour · commit identifié');
   });
 });

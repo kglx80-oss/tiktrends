@@ -11,7 +11,11 @@ import { Icon } from './Icon';
  * un texte ET une icône ET une couleur · jamais la couleur seule.
  */
 function etatVisuel(etat: DeploymentState): { libelle: string; fg: string; bord: string; icone: string } {
-  if (etat.ok) return { libelle: 'À jour', fg: '#18cc8c', bord: 'rgba(24,204,140,.45)', icone: 'check' };
+  // Schéma appliqué à jour ET commit servi identifié · le meilleur état que le
+  // produit peut CONSTATER seul. Il ne prouve pas que ce commit est le dernier
+  // (origin/main) · le badge le dit précisément plutôt qu'un « À jour » qui
+  // laisserait croire le code forcément à jour (CDC v8 · F09).
+  if (etat.ok) return { libelle: 'Schéma à jour · commit identifié', fg: '#18cc8c', bord: 'rgba(24,204,140,.45)', icone: 'check' };
   if (etat.applied === null) return { libelle: 'État illisible', fg: 'var(--muted)', bord: 'var(--line-2)', icone: 'help' };
   if (etat.behind && etat.behind > 0) return { libelle: 'Migrations en attente', fg: '#ff9db0', bord: 'rgba(255,77,109,.55)', icone: 'alert' };
   if (etat.ahead) return { libelle: 'Base en avance', fg: '#ffca6b', bord: 'rgba(255,202,107,.5)', icone: 'alert' };
