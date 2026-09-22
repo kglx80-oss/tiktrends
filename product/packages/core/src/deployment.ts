@@ -110,8 +110,14 @@ export function deploymentState(input: {
     };
   }
 
+  // Schéma à jour ET commit identifié · c'est tout ce que le produit PEUT
+  // vérifier de l'intérieur. Il ne sait pas si ce commit est le DERNIER
+  // (origin/main) · l'affirmer serait le même surclaim que « à jour » sur un
+  // commit inconnu, un cran plus loin (CDC v8 · F09). On qualifie donc « schéma
+  // à jour · commit identifié » et on renvoie à la comparaison origin/main pour
+  // conclure que le code en ligne est bien à jour.
   return {
     ...base, behind: 0, ahead: false, ok: true,
-    summary: `À jour · ${applied} migration(s), maquette v${input.renderVersion}, build ${build}.`,
+    summary: `Schéma à jour et commit identifié · ${applied} migration(s), maquette v${input.renderVersion}, build ${build}. Reste à confirmer via origin/main que ce commit porte le correctif attendu.`,
   };
 }
