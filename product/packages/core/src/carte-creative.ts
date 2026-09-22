@@ -83,6 +83,16 @@ export interface ControleCarte {
   approbation?: { par: string; le?: string | null } | null;
   /** Qui a fabriqué la création, quand, quelle version. */
   provenance?: ProvenanceCarte | null;
+  /**
+   * Le rendu porte-t-il du texte écrit PAR LE MODÈLE, dans l'image (mode
+   * entière) ? Le contrôle factuel lit des CHAMPS · il est donc structurellement
+   * aveugle à une offre cuite dans l'image et qu'aucun champ ne porte (CDC v8 ·
+   * F02). Quand c'est le cas, l'absence de fait LU ne prouve pas l'absence de
+   * fait · la couverture factuelle est INCONNUE, et on le dit au lieu de
+   * conclure « prête ». En composée, c'est nous qui écrivons le texte · la
+   * couverture est complète, ce drapeau reste faux.
+   */
+  renduPorteTexte?: boolean | null;
 }
 
 export type NiveauQualite = 'ok' | 'suspicion' | 'bloquant';
@@ -123,6 +133,15 @@ export interface QualiteCarte {
   ton: TonQualite;
   /** Contrôles bloquants passés · relecture technique OK et aucun fait ouvert. */
   pretADiffuser: boolean;
+  /**
+   * La couverture factuelle du rendu est-elle INCONNUE ? Vrai quand le modèle a
+   * écrit le texte dans l'image (mode entière) et que personne ne l'a confirmé à
+   * l'œil · le contrôle factuel ne lisant que des champs, il ne peut PAS garantir
+   * qu'aucune offre n'est cuite dans l'image. Dans ce cas « aucun fait lu » ne
+   * vaut pas « aucun fait », et la création n'est pas « prête » sans un regard
+   * humain (CDC v8 · F02).
+   */
+  couvertureInconnue: boolean;
   /** Les suspicions techniques viennent d'une relecture automatique. */
   automatique: boolean;
   /** Les trois natures, distinctes et consultables. */
@@ -194,11 +213,20 @@ export function qualiteCarte(controle?: ControleCarte | null): QualiteCarte {
       ? { auteur: txt(prov.auteur) || null, date: txt(prov.date) || null, version: txt(prov.version) || null }
       : null;
 
+  // ── Couverture factuelle du rendu. ─────────────────────────────────────────
+  // En mode entière, le texte est écrit par le modèle DANS l'image · le contrôle
+  // factuel, qui ne lit que des champs, ne peut pas certifier qu'aucune offre
+  // n'y est cuite. Tant qu'un humain ne l'a pas confirmé à l'œil, la couverture
+  // est INCONNUE · « aucun fait lu » ne prouve alors pas « aucun fait ». En
+  // composée, c'est nous qui écrivons le texte · la couverture est complète.
+  const couvertureInconnue = !!c.renduPorteTexte && !humain.approuve;
+
   // ── Réserves et points approuvés · pour la consultation. ───────────────────
   const reserves = [
     ...pointsTech,
     ...faits.filter((f) => f.etat === 'invalidee').map((f) => `${f.label} · validation caduque`),
     ...faits.filter((f) => f.etat === 'a_verifier').map((f) => `${f.label} · à vérifier`),
+    ...(couvertureInconnue ? ['Texte dans l’image · couverture factuelle non établie'] : []),
   ];
   const pointsApprouves = [
     ...(c.produitFidele === true ? ['Produit fidèle'] : []),
@@ -217,8 +245,10 @@ export function qualiteCarte(controle?: ControleCarte | null): QualiteCarte {
   const niveau: NiveauQualite = bloquant ? 'bloquant' : reserves.length ? 'suspicion' : 'ok';
 
   // Prête = la relecture technique a eu lieu et ne relève rien, ET aucun fait
-  // n'est ouvert (à vérifier ou caduc). Un fait non vérifié suffit à retenir.
-  const pretADiffuser = techniqueFait && niveauTech === 'ok' && aVerifier === 0 && invalides === 0;
+  // n'est ouvert (à vérifier ou caduc), ET la couverture factuelle est établie.
+  // Un fait non vérifié suffit à retenir · une couverture inconnue aussi · sinon
+  // une offre cuite dans l'image passerait « prête » faute d'un champ à lire.
+  const pretADiffuser = techniqueFait && niveauTech === 'ok' && aVerifier === 0 && invalides === 0 && !couvertureInconnue;
 
   const n = reserves.length;
   const pluriel = n > 1 ? 's' : '';
@@ -247,6 +277,7 @@ export function qualiteCarte(controle?: ControleCarte | null): QualiteCarte {
     libelle,
     ton,
     pretADiffuser,
+    couvertureInconnue,
     // Les suspicions techniques sortent d'une relecture automatique.
     automatique: pointsTech.length > 0,
     technique,

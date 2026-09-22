@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, type ReactNode } from 'react';
-import { qualiteCarte, type EtatVerdictCarte } from '@tiktrends/core';
+import { qualiteCarte, texteAttenduDansImage, type EtatVerdictCarte } from '@tiktrends/core';
 import { CarteCreative, type ActionCarte } from '../../../../components/CarteCreative';
 import { RatingControl } from '../../../../components/CreativeActions';
 import { trackGeneratedAdAction } from '../../../actions/adsmap-bridge';
@@ -86,7 +86,7 @@ export function CartePub({ ad, format, sousTitre, meta, note, vignetteUrl, fullU
       note={note}
       onApercu={onOpen}
       pertinence={<RatingControl genId={ad.id} rating={ad.rating} />}
-      qualite={qualiteCarte({ ...(ad.controle ?? {}), faits: ad.faits ?? [], provenance: { date: (ad.createdAt ?? '').slice(0, 10) || null } })}
+      qualite={qualiteCarte({ ...(ad.controle ?? {}), faits: ad.faits ?? [], renduPorteTexte: texteAttenduDansImage(ad.mode), provenance: { date: (ad.createdAt ?? '').slice(0, 10) || null } })}
       performance={{ verdict, prediction: typeof ad.score === 'number' ? ad.score : null }}
       onVerifierFait={verifier}
       verifEnCours={enVerif}
