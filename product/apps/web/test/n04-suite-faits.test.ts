@@ -92,6 +92,18 @@ describe('N04-suite · ajouter source → vérifier → modifier → invalider �
     expect(qualiteCarte({ ...CONTROLE_PROPRE, faits: f }).pretADiffuser).toBe(true);
   });
 
+  it('3bis · un fait VÉRIFIÉ mais SANS relecture technique dit « Contrôle technique à faire »', async () => {
+    // Le fait est factuellement vérifié (source réelle enregistrée), mais aucune
+    // relecture technique n'a jugé le rendu · la carte ne peut pas se dire prête ·
+    // elle nomme le contrôle qui manque, elle ne le passe pas sous silence (N04).
+    const f = await faits(recV1);
+    expect(f[0]!.etat).toBe('verifiee');
+    const q = qualiteCarte({ faits: f });
+    expect(q.technique.fait, 'aucune relecture technique n’a eu lieu').toBe(false);
+    expect(q.pretADiffuser).toBe(false);
+    expect(q.libelle).toBe('Contrôle technique à faire');
+  });
+
   it('4 · modifier la citation INVALIDE la preuve, sans effacer l’historique approuvé', async () => {
     // On change le contenu du fait (la citation) · la signature ne colle plus.
     await db!.update(schema.generations).set({ input: recV2 }).where(eq(schema.generations.id, genId));
