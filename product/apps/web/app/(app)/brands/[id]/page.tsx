@@ -125,7 +125,12 @@ export default async function BrandDetailPage({ params, searchParams }: {
           { key: 'charte', label: 'Définir la charte visuelle', desc: 'Logo, couleurs et polices de la marque', done: !!(b.logoUrl || (b.colors ?? []).length > 0 || (b.fonts ?? []).length > 0), href: `/brands/${id}`, cta: 'Définir' },
           { key: 'produits', label: 'Ajouter les produits', desc: 'Import Shopify / site ou saisie manuelle', done: products.length > 0, href: `/brands/${id}?tab=products`, cta: 'Ajouter' },
           { key: 'audience', label: "Décrire l'audience", desc: 'Personas et scénarios d’usage', done: personas.length > 0 && scenarios.length > 0, href: `/brands/${id}?tab=audience`, cta: 'Décrire' },
-          { key: 'concurrents', label: 'Suivre les concurrents', desc: 'Les marques à surveiller', done: competitors.length > 0, href: `/brands/${id}?tab=competitors`, cta: 'Suivre' },
+          // CDC v8 · F08 · saisir un concurrent dans le profil le RENSEIGNE (situer
+          // la catégorie) · ce n'est pas le SUIVRE activement (ses nouveautés et
+          // événements, mis en place depuis la Veille, comptés au Radar). L'étape
+          // dit donc « renseigner », sinon « Suivre les concurrents · Fait »
+          // prétendait un suivi actif que le Radar contredit (0 suivi).
+          { key: 'concurrents', label: 'Renseigner les concurrents', desc: 'Les marques qui situent ta catégorie', done: competitors.length > 0, href: `/brands/${id}?tab=competitors`, cta: 'Renseigner' },
           { key: 'jarvis', label: 'Poser les règles Jarvis', desc: 'Tes consignes maison sur l’IA créative', done: !!(b.creativeRules && b.creativeRules.trim()), href: '/jarvis', cta: 'Configurer' },
           { key: 'crea', label: 'Générer ta première créa', desc: 'Une pub IA à partir du profil', done: gens.length > 0, href: '/studio/ads', cta: 'Générer' },
         ];
