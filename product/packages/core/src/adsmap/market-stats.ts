@@ -373,6 +373,26 @@ export function buildMarketMemory(
   return lignes.join('\n');
 }
 
+/**
+ * Le résumé à AFFICHER EN TÊTE de « Ce que fait le marché », ou `null` quand il
+ * ne ferait que répéter la première recommandation déjà listée juste en dessous.
+ *
+ * CDC v8 · F05 · le doublon des recommandations. `summarizeMarket` renvoie, dès
+ * qu'une confrontation existe, EXACTEMENT l'énoncé de la première (la plus utile) ·
+ * l'écran affichait alors ce même énoncé DEUX fois · une fois en résumé, une fois
+ * en première carte. Le tableau des parts, lui, ne montrait la valeur qu'une fois ·
+ * d'où « le tableau est corrigé, pas la sortie des recommandations ». Ici on tranche
+ * au RÉSULTAT · si le résumé est le doublon de la première carte, on ne l'affiche
+ * pas · les cartes, mieux qualifiées (couleur, sources), portent la recommandation.
+ * Sinon (aucune confrontation · un résumé de repli « pas assez de créas » ou
+ * « la durée X domine »), on le garde · il n'est alors dupliqué par aucune carte.
+ */
+export function resumeMarcheEnTete(summary: string, contrasts: Contrast[]): string | null {
+  const premier = contrasts[0];
+  if (premier && premier.statement.trim() === summary.trim()) return null;
+  return summary;
+}
+
 /** Une phrase pour l'écran · nomme la divergence la plus utile, pas la liste. */
 export function summarizeMarket(market: MarketRow[], contrasts: Contrast[], sampleSize: number): string {
   const sig = significantRows(market);

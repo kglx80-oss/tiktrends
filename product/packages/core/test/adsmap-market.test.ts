@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isProven, computeMarketStats, significantRows, contrastMarketVsBrand,
-  buildMarketMemory, summarizeMarket, PROVEN_DAYS, type MarketAd, type BrandRow,
+  buildMarketMemory, summarizeMarket, resumeMarcheEnTete, PROVEN_DAYS, type MarketAd, type BrandRow,
 } from '../src/adsmap/market-stats';
 
 const ad = (o: Partial<MarketAd> = {}): MarketAd => ({
@@ -276,5 +276,37 @@ describe('summarizeMarket', () => {
     const brand: BrandRow[] = [{ dimension: 'hook_type', key: 'question', hitRate: 0.1, nConclusive: 8 }];
     const c = contrastMarketVsBrand(marche, brand, 0.4);
     expect(summarizeMarket(marche, c, 3)).toContain('suis tes chiffres');
+  });
+});
+
+/**
+ * CDC v8 · F05 · le doublon des recommandations. Dès qu'une confrontation existe,
+ * `summarizeMarket` renvoie EXACTEMENT l'énoncé de la première · l'écran affichait
+ * alors la même recommandation deux fois (résumé + première carte), alors que le
+ * tableau des parts ne la montrait qu'une fois. `resumeMarcheEnTete` tranche au
+ * résultat · null quand le résumé n'est que le doublon de la première carte.
+ */
+describe('resumeMarcheEnTete · pas de recommandation affichée deux fois (F05)', () => {
+  const marche = computeMarketStats([ad({ advertiser: 'A' }), ad({ advertiser: 'B' }), ad({ advertiser: 'C' })]);
+
+  it('le résumé EST l’énoncé de la première confrontation · donc à masquer en tête', () => {
+    // Une pratique majoritaire jamais testée chez nous · une confrontation existe.
+    const c = contrastMarketVsBrand(marche, [], null);
+    expect(c.length, 'au moins une confrontation').toBeGreaterThan(0);
+    const summary = summarizeMarket(marche, c, 3);
+    // La preuve du doublon · le résumé est mot pour mot la première carte.
+    expect(summary).toBe(c[0]!.statement);
+    // Donc on ne le ré-affiche pas en tête · la carte le porte déjà.
+    expect(resumeMarcheEnTete(summary, c)).toBeNull();
+  });
+
+  it('sans confrontation, le résumé de repli reste affiché · aucune carte ne le double', () => {
+    const summary = summarizeMarket([], [], 4);
+    expect(resumeMarcheEnTete(summary, [])).toBe(summary);
+  });
+
+  it('un résumé DISTINCT de la première carte est conservé', () => {
+    const c = contrastMarketVsBrand(marche, [], null);
+    expect(resumeMarcheEnTete('Un tout autre résumé.', c)).toBe('Un tout autre résumé.');
   });
 });
