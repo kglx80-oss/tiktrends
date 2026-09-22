@@ -27,6 +27,14 @@ describe('les étapes sont décrites entièrement', () => {
     expect(ETAPES[0]).toBe('produit');
     expect(ETAPES[ETAPES.length - 1]).toBe('volume');
   });
+
+  // CDC v8 · F10 · la photo ne GARANTIT pas la fidélité · en mode entière le
+  // modèle écrit tout et la photo GUIDE seulement. Le rôle de l'étape produit ne
+  // promet donc pas une garantie · il dit « sert de référence ».
+  it('l’étape produit ne promet pas une fidélité « garantie »', () => {
+    expect(ETAPE_ROLE.produit.toLowerCase()).not.toContain('garantit');
+    expect(ETAPE_ROLE.produit).toContain('référence');
+  });
 });
 
 describe('ce qui manque est une phrase, pas un booléen', () => {

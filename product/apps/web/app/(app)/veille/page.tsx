@@ -268,7 +268,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {error && <Bandeau ton="error">Erreur de la source de données : {error}</Bandeau>}
       {!sample && !error && !query && defaut && (
         <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>
-          Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>gagnants installés</b>
+          Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>pistes installées</b>
           {defaut.parCategorie
             ? <> dans ta catégorie <b style={{ color: 'var(--ink-2)' }}>« {defaut.seed} »</b></>
             : <> <b style={{ color: '#ffcf8f' }}>hors de la catégorie{brand?.name ? <> de {brand.name}</> : null}</b> · échantillon général <b style={{ color: 'var(--ink-2)' }}>« {defaut.seed} »</b> · {brand?.name ? <>renseigne la catégorie de {brand.name}</> : <>renseigne la catégorie de la marque</>} pour cibler</>}
@@ -289,13 +289,13 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
       {/* Une recherche sans résultat rendait une grille VIDE, sans un mot ·
           l'écran se lisait comme cassé. On dit ce qui s'est passé et on donne
-          une sortie · repartir des gagnants installés (efface la recherche). */}
+          une sortie · repartir des pistes installées (efface la recherche). */}
       {!sample && !error && ads.length === 0 && (
         <Empty
           tone="todo" icon="search"
           title={query ? `Aucune annonce pour « ${query} ».` : 'Aucune annonce à afficher pour l’instant.'}
-          why="Élargis le terme, change de plateforme, ou repars des gagnants installés dans ta catégorie."
-          action={{ label: 'Voir les gagnants installés', href: '/veille' }}
+          why="Élargis le terme, change de plateforme, ou repars des pistes installées dans ta catégorie."
+          action={{ label: 'Voir les pistes installées', href: '/veille' }}
         />
       )}
 

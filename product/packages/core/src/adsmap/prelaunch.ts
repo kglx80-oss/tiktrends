@@ -237,15 +237,22 @@ function finalize(score: PrelaunchScore, flags: PrelaunchFlag[], hadHook: boolea
   }
   return {
     score, flags, recommendation: 'go',
+    // CDC v8 · F10 · ce verdict est une ESTIMATION historique, pas une autorisation
+    // de lancement · les champs manquants (hypothèse, variable, offre, page)
+    // bloquent le passage en « prêt » sur un axe distinct. On dit donc « côté
+    // estimation », sinon « Rien ne s'y oppose » à côté de champs bloquants se
+    // lisait comme un feu vert au lancement.
     summary: hadHook
-      ? `Rien ne s’y oppose · ${chiffre}, dans ta moyenne · ${RESERVE_ESTIMATION}.`
-      : `Rien ne s’y oppose · ${chiffre} · ${RESERVE_ESTIMATION}. Colle l’accroche envisagée pour un avis plus précis.`,
+      ? `Côté estimation, rien ne s’y oppose · ${chiffre}, dans ta moyenne · ${RESERVE_ESTIMATION}.`
+      : `Côté estimation, rien ne s’y oppose · ${chiffre} · ${RESERVE_ESTIMATION}. Colle l’accroche envisagée pour un avis plus précis.`,
   };
 }
 
 export const RECOMMENDATION_LABEL: Record<PrelaunchBrief['recommendation'], string> = {
   stop: 'Ne pas lancer en l’état',
   rework: 'À retravailler',
-  go: 'Rien ne s’y oppose',
+  // « · estimation » · ce verdict juge le PROFIL historique, pas la complétude du
+  // lot · l'autorisation de lancement dépend des champs requis, comptée ailleurs.
+  go: 'Rien ne s’y oppose · estimation',
   unknown: 'Piste neuve',
 };
