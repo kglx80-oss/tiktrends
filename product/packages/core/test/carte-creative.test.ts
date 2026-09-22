@@ -192,3 +192,44 @@ describe('qualiteCarte · N04 · validation factuelle et approbation, distinctes
     }
   });
 });
+
+/**
+ * CDC v8 · F02 · le texte du mode ENTIÈRE est écrit par le modèle DANS l'image ·
+ * le contrôle factuel ne lit que des champs, il est donc aveugle à une offre
+ * cuite dans l'image et absente des champs. « Aucun fait LU » ne prouve pas
+ * « aucun fait » · la couverture factuelle est INCONNUE, et la carte ne peut plus
+ * se déclarer « Prête à diffuser » sur ce seul silence.
+ */
+describe('qualiteCarte · F02 · couverture factuelle du rendu entière', () => {
+  it('rendu portant le texte (entière), relue propre, aucun champ porteur → couverture INCONNUE, pas « prête »', () => {
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, faits: [], renduPorteTexte: true });
+    expect(q.couvertureInconnue, 'le texte est dans l’image · on ne sait pas ce qu’il affirme').toBe(true);
+    expect(q.pretADiffuser, 'une couverture inconnue interdit le vert').toBe(false);
+    expect(q.ton).not.toBe('bon');
+    expect(q.libelle).not.toBe('Prête à diffuser');
+    expect(q.reserves).toContain('Texte dans l’image · couverture factuelle non établie');
+  });
+
+  it('un regard humain (approbation) établit la couverture → « prête » de nouveau', () => {
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, faits: [], renduPorteTexte: true, approbation: { par: 'Camille' } });
+    expect(q.couvertureInconnue, 'l’humain a confirmé le rendu à l’œil').toBe(false);
+    expect(q.pretADiffuser).toBe(true);
+    expect(q.libelle).toBe('Prête à diffuser');
+  });
+
+  it('acquis préservé · en COMPOSÉE (texte posé par nous) la couverture reste complète', () => {
+    // C'est nous qui écrivons le texte en overlay · les champs disent tout ce que
+    // le rendu affiche · rien ne change pour la composée.
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, faits: [], renduPorteTexte: false });
+    expect(q.couvertureInconnue).toBe(false);
+    expect(q.pretADiffuser).toBe(true);
+    expect(q.libelle).toBe('Prête à diffuser');
+  });
+
+  it('entière AVEC une offre déjà lue dans un champ · le fait ET la couverture cohabitent', () => {
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true, renduPorteTexte: true, faits: [{ cle: 'offre', label: 'Offre / prix', etat: 'a_verifier' }] });
+    expect(q.pretADiffuser).toBe(false);
+    expect(q.factuel.aVerifier).toBe(1);
+    expect(q.couvertureInconnue).toBe(true);
+  });
+});

@@ -37,6 +37,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { qualiteCarte } from '@tiktrends/core';
 import { verifierFaitAction } from '../app/actions/ads-faits';
+import { listBrandAds } from '../app/actions/ads';
 import { chargerValidationsActives, faitsAvecEtat } from '../lib/faits-preuve';
 
 const CONTROLE_PROPRE = { produitFidele: true, texteLisible: true };
@@ -108,5 +109,42 @@ describe('N04-suite · ajouter source → vérifier → modifier → invalider �
     expect(f[0]!.etat).toBe('verifiee');
     expect(f[0]!.source, 'la preuve active est la plus récente').toBe('https://avis.example/456');
     expect(await nbPreuves(), 'append-only · deux preuves, l’ancienne conservée').toBe(2);
+  });
+});
+
+/**
+ * CDC v8 · F02 · une offre logée AILLEURS que dans la pastille · sous-titre,
+ * accroche secondaire, bullet, CTA · doit lever un fait à vérifier. Le contrôle
+ * lit TOUS les champs porteurs · le site de lecture ne doit en oublier aucun.
+ * On confronte le RÉSULTAT (`faitsAvecEtat` + `qualiteCarte`), champ par champ.
+ */
+describe('F02 · l’offre est captée dans tout champ porteur, pas seulement la pastille', () => {
+  const OFFRE = 'Profitez de -50 % cette semaine';
+  const parChamp: Array<[string, Parameters<typeof faitsAvecEtat>[0]]> = [
+    ['subhead', { template: 'problem_solution', headline: 'Votre piscine vire au vert', subhead: OFFRE }],
+    ['kicker', { template: 'problem_solution', headline: 'Votre piscine vire au vert', kicker: OFFRE }],
+    ['cta', { template: 'problem_solution', headline: 'Votre piscine vire au vert', cta: OFFRE }],
+    ['benefits', { template: 'problem_solution', headline: 'Votre piscine vire au vert', benefits: [OFFRE] }],
+  ];
+  for (const [champ, rec] of parChamp) {
+    it(`offre dans « ${champ} » → fait « offre » à vérifier, pas « prête »`, () => {
+      const f = faitsAvecEtat(rec, undefined);
+      expect(f.some((x) => x.cle === 'offre' && x.etat === 'a_verifier'), `l’offre dans ${champ} doit lever un fait`).toBe(true);
+      expect(qualiteCarte({ produitFidele: true, texteLisible: true, faits: f }).pretADiffuser).toBe(false);
+    });
+  }
+
+  // Le vrai chemin de lecture · `listBrandAds` (la galerie du studio) doit
+  // relayer TOUS les champs au contrôle. Ce test tombe si ce site retombe sur un
+  // sous-ensemble (le défaut réel de F02 · l'offre en `subhead` échappait).
+  it('bout en bout · listBrandAds lève le fait « offre » d’une pub dont l’offre est dans le sous-titre', async () => {
+    const [g] = await db!.insert(schema.generations).values({
+      brandId: ids.brandId, kind: 'ad',
+      input: { template: 'problem_solution', headline: 'Votre piscine vire au vert', subhead: 'Profitez de -50 % cette semaine', mode: 'composee' },
+    }).returning({ id: schema.generations.id });
+    const ads = await listBrandAds();
+    const cible = ads.find((a) => a.id === g!.id)!;
+    expect(cible.faits?.some((x) => x.cle === 'offre' && x.etat === 'a_verifier'), 'l’offre du sous-titre doit remonter jusqu’à la carte').toBe(true);
+    expect(qualiteCarte({ ...cible.controle, faits: cible.faits ?? [] }).pretADiffuser).toBe(false);
   });
 });

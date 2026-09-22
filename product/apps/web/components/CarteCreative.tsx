@@ -208,14 +208,20 @@ function PanneauQualite({ q, t, id, onVerifierFait, verifEnCours, erreurVerif }:
       {/* Nature 2 · validation factuelle · chaque fait montre sa preuve, ou de
           quoi la fournir. Une case cochée ne suffit pas · il faut une source. */}
       <NatureBloc titre="Validation factuelle">
-        {q.factuel.faits.length === 0 ? (
-          <LigneReserve texte="Aucun fait à valider sur cette création." ton="var(--muted)" icone="check" />
-        ) : (
+        {q.factuel.faits.length > 0 && (
           <>
             {q.factuel.faits.map((f) => <FaitLigne key={f.cle} f={f} bonFg={bon.fg} onVerifier={onVerifierFait} enCours={verifEnCours} erreur={erreurVerif} />)}
             <span style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.35 }}>Une absence de défaut détecté n’équivaut pas à la vérification d’une preuve.</span>
           </>
         )}
+        {/* CDC v8 · F02 · en mode entière le texte est cuit dans l'image · le
+            contrôle factuel ne lit que des champs, il ne peut donc pas certifier
+            l'absence d'offre. On le DIT, au lieu de conclure « aucun fait ». */}
+        {q.couvertureInconnue ? (
+          <LigneReserve texte="Texte écrit dans l’image · couverture factuelle non établie. Vérifie l’offre à l’œil avant de diffuser." ton={t.fg} icone="alert" />
+        ) : q.factuel.faits.length === 0 ? (
+          <LigneReserve texte="Aucun fait à valider sur cette création." ton="var(--muted)" icone="check" />
+        ) : null}
       </NatureBloc>
 
       {/* Nature 3 · approbation humaine. */}

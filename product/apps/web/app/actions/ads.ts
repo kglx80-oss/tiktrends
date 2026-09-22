@@ -1569,7 +1569,13 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       essai: rec.essai?.variable ?? null,
       sceneBrief: !!rec.sceneBrief?.trim(),
       controle: controleDepuisRecette(rec),
-      faits: faitsAvecEtat({ template: rec.template, headline: rec.headline, quote: rec.quote, badge: rec.badge }, validationsParGen.get(id)),
+      // CDC v8 · F02 · on passe la recette ENTIÈRE, pas un sous-ensemble de
+      // champs · une offre logée dans `subhead`/`kicker`/`cta`/`benefits`
+      // échappait au contrôle parce que ce site n'en relayait que quatre, alors
+      // que `faitsPortes` les balaie tous. En passant `rec` tel quel, aucun champ
+      // porteur ne peut plus être oublié en route (les clés hors sujet sont
+      // ignorées par le noyau).
+      faits: faitsAvecEtat(rec, validationsParGen.get(id)),
       verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre, comparable: !!v?.comparable }),
       lot: rec.lot,
       mode: rec.mode ?? undefined,
