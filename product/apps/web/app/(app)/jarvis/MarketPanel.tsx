@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { partDeMax, LIBELLE_CANAL, LIBELLE_QUALIFICATION, type CanalRangee, type QualifRangee } from '@tiktrends/core';
+import { partDeMax, LIBELLE_CANAL, LIBELLE_QUALIFICATION, resumeMarcheEnTete, type CanalRangee, type QualifRangee } from '@tiktrends/core';
 import { marketViewAction, learnFromFollowedAction, type MarketView } from '../../actions/market-learn';
 import { BarreValeur } from '../../../components/BarreValeur';
 
@@ -108,13 +108,19 @@ export function MarketPanel() {
 
       {v && (
         <>
-          <p style={{
-            margin: '14px 0 0', padding: '10px 13px', borderRadius: 10,
-            background: 'var(--paper)', border: '1px solid var(--line)',
-            fontSize: 12.5, color: 'var(--ink)', fontWeight: 600, lineHeight: 1.55,
-          }}>
-            {v.summary}
-          </p>
+          {/* CDC v8 · F05 · le résumé n'est affiché QUE s'il n'est pas déjà la
+              première carte de confrontation ci-dessous · sinon la même
+              recommandation « durée <10s » se lisait DEUX fois. Les cartes,
+              mieux qualifiées (couleur, sources), portent la recommandation. */}
+          {resumeMarcheEnTete(v.summary, v.contrasts) && (
+            <p style={{
+              margin: '14px 0 0', padding: '10px 13px', borderRadius: 10,
+              background: 'var(--paper)', border: '1px solid var(--line)',
+              fontSize: 12.5, color: 'var(--ink)', fontWeight: 600, lineHeight: 1.55,
+            }}>
+              {resumeMarcheEnTete(v.summary, v.contrasts)}
+            </p>
+          )}
 
           {/* La confrontation d'abord · c'est elle qui fait décider. */}
           {v.contrasts.length > 0 && (
