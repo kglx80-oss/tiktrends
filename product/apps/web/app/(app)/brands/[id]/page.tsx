@@ -13,6 +13,7 @@ import {
 } from '../../../actions/brand-detail';
 import { input, lbl, Msg } from '../../../../components/ui';
 import { Icon } from '../../../../components/Icon';
+import { AvatarSite } from '../../../../components/AvatarSite';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
 import { BrandOnboarding, type OnboardStep } from '../../../../components/BrandOnboarding';
 import { ShopifyConnect } from './ShopifyConnect';
@@ -73,14 +74,15 @@ export default async function BrandDetailPage({ params, searchParams }: {
   const aiReady = anthropicConfigured();
   const imgReady = falConfigured();
 
-  const initials = b.name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 940, margin: '0 auto' }}>
       <Link href="/brands" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Marques</Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>
-        <span style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>{initials}</span>
+        {/* La favicon du site de la marque · même avatar identitaire que le
+            sélecteur et les concurrents · repli sur les initiales teintées. */}
+        <AvatarSite nom={b.name} site={b.url} taille={46} rayon={12} />
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>{b.name}</h1>
           <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[b.category || b.industry, b.url].filter(Boolean).join(' · ') || 'Profil à compléter'}</div>

@@ -55,7 +55,7 @@ const ADMIN_CONTENT = {
 
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
 interface Group { group: string; items: NavItem[] }
-interface Brand { id: string; name: string; logoUrl?: string | null }
+interface Brand { id: string; name: string; logoUrl?: string | null; url?: string | null }
 interface AccountGroup { section: string; items: NavItem[] }
 interface Props {
   nav: Group[];

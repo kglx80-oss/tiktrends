@@ -5,11 +5,13 @@ import { db, schema } from '@tiktrends/db';
 
 export const BRAND_COOKIE = 'tt_brand';
 
-export interface BrandLite { id: string; name: string; logoUrl?: string | null; category?: string | null }
+export interface BrandLite { id: string; name: string; logoUrl?: string | null; url?: string | null; category?: string | null }
 
 export async function listBrands(workspaceId: string): Promise<BrandLite[]> {
   if (!db) return [];
-  return db.select({ id: schema.brands.id, name: schema.brands.name, logoUrl: schema.brands.logoUrl })
+  // `url` accompagne la liste · c'est d'elle que se tire la favicon de la marque
+  // (avatar du sélecteur et du profil), sans réseau serveur ni stockage.
+  return db.select({ id: schema.brands.id, name: schema.brands.name, logoUrl: schema.brands.logoUrl, url: schema.brands.url })
     .from(schema.brands).where(eq(schema.brands.workspaceId, workspaceId));
 }
 
@@ -19,7 +21,7 @@ export async function getActiveBrand(workspaceId: string): Promise<BrandLite | n
   const c = await cookies();
   const id = c.get(BRAND_COOKIE)?.value;
   if (!id) return null;
-  const [b] = await db.select({ id: schema.brands.id, name: schema.brands.name, logoUrl: schema.brands.logoUrl, category: schema.brands.category })
+  const [b] = await db.select({ id: schema.brands.id, name: schema.brands.name, logoUrl: schema.brands.logoUrl, url: schema.brands.url, category: schema.brands.category })
     .from(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, workspaceId))).limit(1);
   return b ?? null;
 }
