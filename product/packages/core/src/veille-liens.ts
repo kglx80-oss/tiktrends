@@ -74,6 +74,52 @@ export function refSourceVeille(ad: { platform?: string | null; id?: string | nu
 }
 
 /**
+ * La source de veille RECOMPOSÉE en objet durable · plateforme, identifiant,
+ * annonceur (CDC v8 · provenance Veille→création→Adsmap). `refSourceVeille`
+ * sérialise la source vers l'URL (`cle` = `plateforme:id`, `nom`) ; celle-ci fait
+ * le chemin inverse, pour l'ENREGISTRER sur la génération plutôt que de la laisser
+ * mourir dans l'URL. `null` sans clé exploitable · on ne fabrique pas une
+ * provenance qu'on ne saurait pas relire (symétrique du refus de `refSourceVeille`
+ * sans identifiant).
+ */
+export interface SourceVeille {
+  /** Meta, TikTok, Google… · décide de la bibliothèque où retrouver l'annonceur. */
+  plateforme: string;
+  /** L'identifiant de la créa source, tel que la source l'a rendu. */
+  id: string;
+  /** Le nom de l'annonceur · vide possible (l'affichage et le lien s'en passent). */
+  annonceur: string;
+}
+
+export function sourceVeilleDepuisRef(cle: string | null | undefined, nom?: string | null): SourceVeille | null {
+  const c = (cle ?? '').trim();
+  if (!c) return null;
+  // On coupe sur le PREMIER « : » · la plateforme est un mot, l'identifiant peut
+  // en contenir. Sans séparateur exploitable (rien avant, ou rien après), la clé
+  // ne décrit pas une source relisable · on renvoie `null` plutôt que d'inventer.
+  const i = c.indexOf(':');
+  if (i <= 0 || i >= c.length - 1) return null;
+  const plateforme = c.slice(0, i).trim();
+  const id = c.slice(i + 1).trim();
+  if (!plateforme || !id) return null;
+  return { plateforme, id, annonceur: (nom ?? '').trim() };
+}
+
+/**
+ * Le LIEN disponible vers la source · la bibliothèque publicitaire de l'annonceur.
+ *
+ * On ne stocke pas d'URL (elle rouille) · on la DÉRIVE de la source à l'affichage,
+ * par le même `bibliothequePub` que la Veille · recherche par nom, jamais lien
+ * profond par identifiant (un id non officiel ouvre une page vide). `null` quand
+ * on ne sait pas viser juste · pas d'annonceur, ou plateforme sans recherche par
+ * nom fiable (Google) · un bouton mort vaut moins que pas de bouton.
+ */
+export function lienSourceVeille(s: SourceVeille | null | undefined): { url: string; label: string } | null {
+  if (!s || !s.annonceur.trim()) return null;
+  return bibliothequePub({ platform: s.plateforme, name: s.annonceur });
+}
+
+/**
  * Nettoie un nom de marque pour une recherche dans la bibliothèque publicitaire.
  *
  * ── Pourquoi ─────────────────────────────────────────────────────────────────

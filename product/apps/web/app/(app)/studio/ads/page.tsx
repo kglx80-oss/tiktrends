@@ -16,7 +16,7 @@ import { ContexteCreation } from '../../../../components/ContexteCreation';
 import { effectiveAccess } from '../../../../lib/access';
 import { spendStatus } from '../../../../lib/spend-guard';
 import { bilanCopieAction } from '../../../actions/adsmap-attribution';
-import { conseilMoteur, conseilMode } from '@tiktrends/core';
+import { conseilMoteur, conseilMode, sourceVeilleDepuisRef } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
@@ -34,6 +34,10 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   // l'affiche, pour retrouver la source sans la rechercher à la main.
   const sourceCle = (sp.src ?? '').slice(0, 96);
   const sourceNom = (sp.srcnom ?? '').slice(0, 120);
+  // La source recomposée en objet durable · c'est CETTE forme qui descend dans le
+  // studio puis s'enregistre sur la génération · sans ça, la provenance mourait
+  // avec l'URL (elle n'atteignait ni la création enregistrée, ni son test Adsmap).
+  const initialSource = sourceVeilleDepuisRef(sourceCle, sourceNom);
   const initialAngle = (sp.angle ?? '').slice(0, 300);
   // Trois lectures INDÉPENDANTES, menées en parallèle · les enchaîner ajoutait
   // deux allers-retours à chaque ouverture du studio, pour rien.
@@ -145,7 +149,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
           `productId`, sélection…) restent ceux de la marque précédente jusqu'à un
           rechargement complet. La clé par marque force le remontage · TOUT le
           contexte client se ré-ensemence ensemble depuis les nouvelles props. */}
-      <AdsStudio key={brand?.id ?? 'aucune-marque'} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} initialRef={initialRef} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
+      <AdsStudio key={brand?.id ?? 'aucune-marque'} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} initialRef={initialRef} initialSource={initialSource} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
     </main>
   );
 }

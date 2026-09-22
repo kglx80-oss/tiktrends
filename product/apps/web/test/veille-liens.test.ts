@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { bibliothequePub, libelleBibliotheque, refSourceVeille, siteMarque } from '@tiktrends/core';
+import { bibliothequePub, libelleBibliotheque, refSourceVeille, siteMarque, sourceVeilleDepuisRef, lienSourceVeille } from '@tiktrends/core';
 
 /**
  * Depuis la Veille, on doit pouvoir SORTIR vers la source · la bibliothèque
@@ -72,6 +72,57 @@ describe('refSourceVeille · la référence structurée de la source', () => {
 
   it('nom vide toléré · la clé suffit à tracer la source', () => {
     expect(refSourceVeille({ platform: 'tiktok', id: '42' })).toEqual({ cle: 'tiktok:42', nom: '' });
+  });
+});
+
+// CDC v8 · provenance durable · le chemin INVERSE de `refSourceVeille` · relire
+// la source depuis ce qui a été porté (clé + nom), pour l'enregistrer sur la
+// génération plutôt que de la perdre avec l'URL. Puis le lien dérivé (jamais
+// stocké) vers la bibliothèque de l'annonceur.
+describe('sourceVeilleDepuisRef · recompose la source durable depuis la clé portée', () => {
+  it('clé plateforme:id + nom → objet {plateforme, id, annonceur}', () => {
+    expect(sourceVeilleDepuisRef('meta:789', 'Klorea'))
+      .toEqual({ plateforme: 'meta', id: '789', annonceur: 'Klorea' });
+  });
+
+  it('aller-retour fidèle · refSourceVeille puis sourceVeilleDepuisRef', () => {
+    const ref = refSourceVeille({ platform: 'tiktok', id: '42', advertiserName: 'Neva' })!;
+    expect(sourceVeilleDepuisRef(ref.cle, ref.nom))
+      .toEqual({ plateforme: 'tiktok', id: '42', annonceur: 'Neva' });
+  });
+
+  it('coupe au PREMIER « : » · un identifiant qui en contient reste entier', () => {
+    expect(sourceVeilleDepuisRef('meta:12:34', 'X'))
+      .toEqual({ plateforme: 'meta', id: '12:34', annonceur: 'X' });
+  });
+
+  it('nom absent toléré · annonceur vide', () => {
+    expect(sourceVeilleDepuisRef('meta:789')).toEqual({ plateforme: 'meta', id: '789', annonceur: '' });
+  });
+
+  it('null quand la clé ne décrit pas une source relisable', () => {
+    expect(sourceVeilleDepuisRef('', 'Klorea')).toBeNull();       // rien
+    expect(sourceVeilleDepuisRef('meta', 'Klorea')).toBeNull();   // pas de séparateur
+    expect(sourceVeilleDepuisRef(':789', 'Klorea')).toBeNull();   // pas de plateforme
+    expect(sourceVeilleDepuisRef('meta:', 'Klorea')).toBeNull();  // pas d'identifiant
+    expect(sourceVeilleDepuisRef(null)).toBeNull();
+  });
+});
+
+describe('lienSourceVeille · le lien disponible, DÉRIVÉ (jamais stocké)', () => {
+  it('Meta · recherche l’annonceur dans l’Ad Library', () => {
+    const l = lienSourceVeille({ plateforme: 'meta', id: '789', annonceur: 'Klorea' })!;
+    expect(l.url).toContain('facebook.com/ads/library');
+    expect(decodeURIComponent(l.url)).toContain('Klorea');
+    expect(l.label).toBe('Bibliothèque Meta');
+  });
+
+  it('null sans annonceur · une recherche par nom sans nom n’atterrit nulle part', () => {
+    expect(lienSourceVeille({ plateforme: 'meta', id: '789', annonceur: '' })).toBeNull();
+  });
+
+  it('null sur Google · pas de recherche par nom fiable · pas de bouton mort', () => {
+    expect(lienSourceVeille({ plateforme: 'google', id: '789', annonceur: 'Klorea' })).toBeNull();
   });
 });
 

@@ -22,7 +22,7 @@ import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { imageJointe } from '../../lib/image-jointe';
 import { chargerValidationsActives, faitsAvecEtat } from '../../lib/faits-preuve';
-import type { FaitControle } from '@tiktrends/core';
+import type { FaitControle, SourceVeille } from '@tiktrends/core';
 
 export interface AdItem {
   id: string; template: AdTemplate; headline: string; url: string; createdAt: string;
@@ -79,6 +79,13 @@ export interface AdItem {
    * Sert à regrouper un lot au rechargement pour en reconstruire le débrief.
    */
   lot?: string;
+  /**
+   * La source de veille qui a INSPIRÉ cette création · plateforme, identifiant,
+   * annonceur (CDC v8 · provenance). Enregistrée sur la génération, elle survit
+   * au rechargement et suit la créa jusqu'à son test Adsmap · sans elle, « d'où
+   * vient cette pub » n'avait pas de réponse une fois l'URL de veille oubliée.
+   */
+  sourceVeille?: SourceVeille | null;
 }
 export interface AdsResult {
   error?: string; ads?: AdItem[]; requested?: number;
@@ -283,6 +290,12 @@ async function composeBatch(o: {
    * boucle d'itération ne se lisait pas.
    */
   angle?: string | null;
+  /**
+   * La source de veille qui a armé ce lot · consignée sur chaque créa à côté de
+   * l'angle (même raison · relier plus tard la création à sa provenance). Absente
+   * quand le studio n'a pas été ouvert depuis une pub de veille.
+   */
+  sourceVeille?: SourceVeille | null;
   /** Prompt maison · remplace l'univers fourni quand il est choisi. */
   preset?: { id: string; prompt: string; negative: string | null } | null;
   /** De quoi expliquer chaque proposition · les mêmes chiffres que ceux injectés. */
@@ -764,10 +777,10 @@ async function composeBatch(o: {
         brandId: o.brandId, kind: 'ad',
         // On consigne l'hypothèse d'angle À CÔTÉ de la recette (sans toucher au
         // type de rendu) · c'est ce qui relie plus tard la créa à son résultat.
-        input: { ...(recipe as unknown as Record<string, unknown>), angle: o.angle ?? null, lot: lotId },
+        input: { ...(recipe as unknown as Record<string, unknown>), angle: o.angle ?? null, lot: lotId, ...(o.sourceVeille ? { sourceVeille: o.sourceVeille } : {}) },
         status: 'completed', assetUrls: [sceneUrl], creditsCost: o.unlimited ? 0 : o.creditsPerImage,
       }).returning({ id: schema.generations.id, createdAt: schema.generations.createdAt });
-      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(), lot: lotId, mode: recipe.mode ?? undefined,
+      if (row) ads.push({ id: row.id, template: c.template, headline: c.headline, url: adUrl(row.id, recipe), createdAt: (row.createdAt as Date).toISOString(), rationale: recipe.rationale ?? null, essai: recipe.essai?.variable ?? null, sceneBrief: !!recipe.sceneBrief?.trim(), lot: lotId, mode: recipe.mode ?? undefined, sourceVeille: o.sourceVeille ?? null,
         // La relecture est faite · la poser ICI la rend visible dès la
         // génération, et donne au débrief du lot la matière à additionner.
         // Sans ça, la carte restait muette jusqu'à un rechargement, et le lot
@@ -1016,6 +1029,12 @@ async function genererLotInterne(input: {
    * près, et le mode le dit.
    */
   mode?: string;
+  /**
+   * La source de veille qui a ouvert le studio · portée depuis le lien de veille
+   * (clé structurée + nom), recomposée par l'appelant. Enregistrée telle quelle
+   * sur la génération pour que la provenance survive au rechargement (CDC v8).
+   */
+  sourceVeille?: SourceVeille | null;
 }): Promise<AdsResult> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
@@ -1308,6 +1327,7 @@ async function genererLotInterne(input: {
     modelSpec, creditsPerImage: modelSpec.credits, echec,
     productId: input.productId, personaId: input.personaId, objective: input.objective,
     angle: input.angle?.trim() || null,
+    sourceVeille: input.sourceVeille ?? null,
     memoryUse: memoire.use, rationaleCtx,
   };
   const ads = await composeBatch(options);
@@ -1536,7 +1556,7 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
   // `adsmapAdId`, on lit son verdict d'un coup pour tout le lot plutôt qu'une
   // requête par carte. Seul un verdict ARBITRÉ (`validated`) tranche · un calcul
   // provisoire compte comme « en mesure », comme le fait déjà l'attribution.
-  const parGen = gardees.map((r) => ({ id: r.id, createdAt: r.createdAt as Date, rec: (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore; adsmapAdId?: string; lot?: string } }));
+  const parGen = gardees.map((r) => ({ id: r.id, createdAt: r.createdAt as Date, rec: (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore; adsmapAdId?: string; lot?: string; sourceVeille?: SourceVeille | null } }));
   const adIds = [...new Set(parGen.map((g) => g.rec.adsmapAdId).filter((x): x is string => !!x))];
   const verdictParAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; arbitre: boolean; comparable: boolean }>();
   if (adIds.length) {
@@ -1579,6 +1599,9 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre, comparable: !!v?.comparable }),
       lot: rec.lot,
       mode: rec.mode ?? undefined,
+      // La provenance de veille, relue depuis la génération · elle survit ainsi au
+      // rechargement, là où l'URL de veille ne survit pas (CDC v8 · provenance).
+      sourceVeille: rec.sourceVeille ?? null,
     };
   });
 }
