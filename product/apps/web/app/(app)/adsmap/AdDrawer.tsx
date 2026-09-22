@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { VerdictValue, TestedVariable } from '@tiktrends/core';
-import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -141,6 +141,20 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
                 {d.angle && ` · ${d.angle}`}
               </p>
             )}
+            {/* La provenance de veille · d'où vient cette créa (CDC v8). Le lien
+                vers la bibliothèque de l'annonceur est DÉRIVÉ · affiché seulement
+                s'il vise juste, sinon le nom seul, ou la seule mention de la source. */}
+            {d?.sourceVeille && (() => {
+              const lien = lienSourceVeille(d.sourceVeille);
+              const nom = d.sourceVeille.annonceur;
+              return (
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                  Inspiré d’une source de veille{nom ? <> · {lien
+                    ? <a href={lien.url} target="_blank" rel="noopener noreferrer" title={lien.label} style={{ color: 'var(--ink-2)', fontWeight: 700, textDecoration: 'none' }}>{nom}</a>
+                    : <b style={{ color: 'var(--ink-2)', fontWeight: 700 }}>{nom}</b>}</> : ''}
+                </p>
+              );
+            })()}
           </div>
           <button type="button" onClick={onClose} aria-label="Fermer" style={{
             width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
