@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   checkIteration, checkVerdictValidation, checkVerdictComparability,
-  formatViolations, type VerdictValue, type TestedVariable,
+  formatViolations, type VerdictValue, type TestedVariable, type SourceVeille,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -64,6 +64,12 @@ export interface AdDetail {
   learnings: Array<{ id: string; statement: string; confidence: number; status: string; scope: string }>;
   parent: { adId: string; variantCode: string; concept: string; changedVariable: string; mode: string } | null;
   children: Array<{ adId: string; variantCode: string; changedVariable: string; mode: string; verdict: string | null }>;
+  /**
+   * La source de veille qui a inspiré cette créa · plateforme, identifiant,
+   * annonceur (CDC v8 · provenance). Relue depuis la génération qui l'a produite ·
+   * `null` pour une ad importée, saisie à la main, ou créée hors d'une pub de veille.
+   */
+  sourceVeille: SourceVeille | null;
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -133,6 +139,22 @@ export async function adDetailAction(adId: string): Promise<{ detail?: AdDetail;
     const agg = (row.verdict?.metricsAgg ?? {}) as Record<string, unknown>;
     const proto = (row.protocolCheck ?? null) as { summary?: string } | null;
 
+    // La provenance de veille · relue depuis la génération qui a produit cette ad
+    // (la source est écrite sur `generations.input.sourceVeille` au studio). On la
+    // résout À LA LECTURE plutôt que de la dénormaliser sur l'ad · toute ad issue
+    // d'une génération sourcée l'affiche, même suivie avant ce correctif (CDC v8).
+    const genId = (row.ad.sourceRef as { generationId?: string } | null)?.generationId ?? null;
+    let sourceVeille: SourceVeille | null = null;
+    if (genId) {
+      const [gen] = await db!.select({ input: schema.generations.input })
+        .from(schema.generations)
+        .where(eq(schema.generations.id, genId))
+        .limit(1);
+      const sv = (gen?.input as { sourceVeille?: SourceVeille | null } | null)?.sourceVeille ?? null;
+      // On n'affiche qu'une source RELISABLE · plateforme ET identifiant présents.
+      if (sv && sv.plateforme && sv.id) sourceVeille = sv;
+    }
+
     return {
       detail: {
         id: row.ad.id,
@@ -176,6 +198,7 @@ export async function adDetailAction(adId: string): Promise<{ detail?: AdDetail;
             verdict: c?.validated ?? c?.verdict ?? null,
           };
         }),
+        sourceVeille,
       },
     };
   } catch (e) {
