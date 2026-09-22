@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, texteAttenduDansImage, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type EtatVerdictCarte, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, texteAttenduDansImage, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type EtatVerdictCarte, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN, lienSourceVeille, type SourceVeille } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { useIsMobile } from '../../../../components/useIsMobile';
@@ -70,7 +70,7 @@ const TPL_LABEL: Record<AdTemplate, string> = {
 };
 
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', initialSource = null, adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean; photoUrl?: string | null }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
@@ -79,6 +79,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   initialAngle?: string;
   /** Pub de veille pré-sélectionnée comme référence de clone · vient de `?ref=`. */
   initialRef?: string;
+  /**
+   * La source de veille qui a ouvert le studio · recomposée depuis `?src`/`?srcnom`
+   * en objet durable. Enregistrée sur chaque génération de la session, elle rend
+   * la provenance traçable jusqu'à la création puis son test Adsmap (CDC v8).
+   */
+  initialSource?: SourceVeille | null;
   /** La carte ADSMAP est ouverte à cet espace · conditionne le bouton « Suivre ». */
   adsmap?: boolean;
   /**
@@ -359,7 +365,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   async function vary(a: AdItem) {
     if (varyBusy) return;
     setVaryBusy(true); setError('');
-    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates: [a.template], angle: a.headline, count: 3, model });
+    const res = await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates: [a.template], angle: a.headline, count: 3, model, sourceVeille: a.sourceVeille ?? undefined });
     setVaryBusy(false);
     if (res.error) { setError(res.error); return; }
     if (res.ads?.length) { setAds((list) => [...res.ads!, ...list]); setDetailIdx(0); setAdsPage(0); }
@@ -546,7 +552,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             direction: angle.trim() || undefined,
             presetId: sceneId || undefined,
           })
-        : await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model, essai: essai || undefined, mode: fabrication });
+        : await generateAdsAction({ productId: productId || undefined, personaId: personaId || undefined, objective, templates, angle: angle.trim() || undefined, universe, layout: layout === 'auto' ? undefined : layout, count, assetIds: assetIds.length ? assetIds : undefined, offer: offer.trim() || undefined, model, essai: essai || undefined, mode: fabrication, sourceVeille: initialSource ?? undefined });
       return apresLot(applyResult(res));
     } catch (e) {
       const message = `La génération s'est interrompue · ${(e as Error)?.message || 'erreur inattendue'}. Réessaie · si ça persiste, c'est côté serveur, pas ton lot.`;
@@ -1164,10 +1170,26 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             // Filiation et essai · une déclinaison qui ne se présente pas comme
             // telle est une créa de plus dans la grille · on la lit alors à l'œil
             // au lieu de la lire comme la réponse à une question posée.
-            const meta = (a.variable || a.essai) ? (
+            // La provenance de veille · d'où vient cette création (CDC v8). Le lien
+            // vers la bibliothèque de l'annonceur est DÉRIVÉ (jamais stocké), et
+            // n'apparaît que s'il vise juste · sinon le nom seul, ou la seule
+            // mention de la source quand l'annonceur est inconnu.
+            const src = a.sourceVeille ?? null;
+            const lienSrc = lienSourceVeille(src);
+            const meta = (a.variable || a.essai || src) ? (
               <>
                 {a.variable && <span style={filiation}>↳ {STUDIO_LABEL[a.variable].toLowerCase()}</span>}
                 {a.essai && <span style={{ ...filiation, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="scale" size={12} /> essai · {ESSAI_LABEL[a.essai].toLowerCase()}</span>}
+                {src && (
+                  <span style={{ ...filiation, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Icon name="search" size={12} />
+                    {src.annonceur ? (
+                      <>inspiré de · {lienSrc
+                        ? <a href={lienSrc.url} target="_blank" rel="noopener noreferrer" title={lienSrc.label} style={{ color: 'var(--ink-2)', fontWeight: 700, textDecoration: 'none' }}>{src.annonceur}</a>
+                        : <b style={{ color: 'var(--ink-2)', fontWeight: 700 }}>{src.annonceur}</b>}</>
+                    ) : 'inspiré d’une source de veille'}
+                  </span>
+                )}
               </>
             ) : undefined;
             // Pourquoi Jarvis l'a proposée · calculé depuis la mémoire, pas rédigé
