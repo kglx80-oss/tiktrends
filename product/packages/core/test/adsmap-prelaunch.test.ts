@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { prelaunchBrief, hookSimilarity, findHookMatch, SIMILAR_ENOUGH } from '../src/adsmap/prelaunch';
+import { prelaunchBrief, hookSimilarity, findHookMatch, SIMILAR_ENOUGH, RECOMMENDATION_LABEL } from '../src/adsmap/prelaunch';
 import { buildHookLibrary, type HookSource } from '../src/adsmap/hook-library';
 import { computeMarketStats, type MarketAd } from '../src/adsmap/market-stats';
 import type { StatRow, StatDimension } from '../src/adsmap/brand-stats';
@@ -72,6 +72,21 @@ describe('l’accroche réfutée l’emporte sur tout', () => {
     );
     expect(b.recommendation).toBe('go');
     expect(b.flags.some((f) => f.kind === 'hook_proven')).toBe(true);
+  });
+
+  // CDC v8 · F10 · le verdict « go » est une ESTIMATION historique, pas une
+  // autorisation de lancement (les champs manquants bloquent le passage en
+  // « prêt » sur un autre axe). Le libellé et le résumé le scopent à l'estimation.
+  it('le verdict favorable se dit « estimation », pas une autorisation de lancer', () => {
+    expect(RECOMMENDATION_LABEL.go).toContain('estimation');
+    expect(RECOMMENDATION_LABEL.go).not.toBe('Rien ne s’y oppose');
+    // Un profil correct sans drapeau · le résumé par défaut « go » scope à l'estimation.
+    const b = prelaunchBrief(
+      { hookType: 'question' },
+      { stats: [stat('hook_type', 'question', 0.5)], globalRate: 0.5 },
+    );
+    expect(b.recommendation).toBe('go');
+    expect(b.summary.startsWith('Côté estimation')).toBe(true);
   });
 
   it('avertit quand on reprend l’accroche d’un concurrent', () => {

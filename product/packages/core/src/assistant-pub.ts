@@ -46,7 +46,7 @@ export const ETAPE_TITRE: Record<Etape, string> = {
 
 /** Ce que l'étape décide · affiché sous son titre, pour situer. */
 export const ETAPE_ROLE: Record<Etape, string> = {
-  produit: 'Ce qu’on met en scène, et la photo qui garantit sa fidélité.',
+  produit: 'Ce qu’on met en scène, et la photo produit qui sert de référence.',
   message: 'L’angle et l’offre · c’est ce que Jarvis écrira.',
   style: 'La direction artistique · cadrage, lumière, typographie.',
   fabrication: 'Textes posés par nous, ou publicité produite entière.',
