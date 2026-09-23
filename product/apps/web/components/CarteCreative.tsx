@@ -85,7 +85,11 @@ const TON_QUALITE: Record<string, { fg: string; bord: string }> = {
 
 const carte: CSSProperties = {
   display: 'flex', flexDirection: 'column', minWidth: 0,
-  border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden',
+  // Pas d'`overflow: hidden` sur la carte · il CLIPPAIT le menu d'actions (« … »)
+  // qui, plus large que la carte, déborde de quelques pixels et se faisait couper
+  // au bord (mesuré : 26 px tranchés à gauche). L'arrondi du média est porté par
+  // son propre conteneur (voir plus bas) · l'arrondi du bas tient par la bordure.
+  border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)',
 };
 const labelZone: CSSProperties = { fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' };
 
@@ -97,7 +101,10 @@ export function CarteCreative(props: CarteCreativeProps) {
   return (
     <article style={carte}>
       {/* Aperçu · intégral (contain pour une création interne), cliquable. */}
-      <div style={{ position: 'relative', background: 'var(--paper)' }}>
+      {/* Le conteneur média porte l'arrondi et le clip (les coins carrés de l'image
+          suivent l'arrondi de la carte) · c'est ici, pas sur la carte, pour ne
+          pas rogner le menu d'actions qui déborde. */}
+      <div style={{ position: 'relative', background: 'var(--paper)', overflow: 'hidden', borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
         {erreur ? (
           <div style={{ aspectRatio: media.aspect ?? '1 / 1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, color: 'var(--muted)', textAlign: 'center' }}>
             <Icon name="alert" size={20} />
