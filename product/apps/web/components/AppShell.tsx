@@ -570,7 +570,7 @@ function AppShellInner(props: Props) {
         <NotificationBell />
         {/* Le fil d'Ariane est posé ICI, une fois pour toutes · vingt et une pages
             portaient le leur, écrit à la main, et ils avaient divergé. */}
-        <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} />
+        <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} />
         {children}
         <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
       </div>

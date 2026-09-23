@@ -23,15 +23,19 @@ import { breadcrumb, isBrandScoped } from '../lib/navigation';
  * La seule exception est un écran qui dépend de la marque : là, le fil dit de
  * quelle marque on parle, et cette information-là manque vraiment.
  */
-export function Breadcrumb({ brandName }: { brandName: string | null }) {
+export function Breadcrumb({ brandName, brandId }: { brandName: string | null; brandId?: string | null }) {
   const pathname = usePathname() || '/';
-  const crumbs = breadcrumb(pathname, { brandName, brandScoped: isBrandScoped(pathname) });
+  const crumbs = breadcrumb(pathname, { brandName, brandId, brandScoped: isBrandScoped(pathname) });
   if (!crumbs.length) return null;
 
   return (
     <nav
       aria-label="Fil d’Ariane"
       style={{
+        // `position: relative` + `zIndex` · la marge basse négative fait remonter
+        // le contenu de page de 8px SUR le fil · sans ça, il recouvrait le bas des
+        // liens et interceptait une partie des clics (« on ne peut pas cliquer »).
+        position: 'relative', zIndex: 1,
         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
         padding: '0 36px', margin: '18px 0 -8px', maxWidth: 1320,
         fontSize: 12, lineHeight: 1.4,

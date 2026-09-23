@@ -145,6 +145,19 @@ describe('le fil d’Ariane dit où l’on est', () => {
     expect(c.map((x) => x.label)).toEqual(['Accueil', 'Atelier', 'TrueFords', 'Jarvis']);
   });
 
+  it('le maillon marque est CLIQUABLE vers sa fiche quand on a son id', () => {
+    // Sur un écran marque-par-marque (ici /jarvis), on doit pouvoir remonter à la
+    // marque depuis le fil · sinon « Vitalys » s'affiche mais ne mène nulle part.
+    const c = breadcrumb('/jarvis', { brandScoped: true, brandName: 'Vitalys', brandId: 'b1' });
+    const marque = c.find((x) => x.label === 'Vitalys');
+    expect(marque?.href, 'on doit pouvoir revenir à la fiche de la marque').toBe('/brands/b1');
+  });
+
+  it('sans id de marque, le maillon marque reste non-cliquable (pas de lien mort)', () => {
+    const c = breadcrumb('/jarvis', { brandScoped: true, brandName: 'Vitalys' });
+    expect(c.find((x) => x.label === 'Vitalys')?.href).toBeNull();
+  });
+
   it('sans nom de marque, on n’invente pas de maillon', () => {
     const c = breadcrumb('/adsmap/lots', { brandScoped: true, brandName: null });
     expect(c.map((x) => x.label)).toEqual(['Accueil', 'Laboratoire', 'Adsmap', 'Lots de test']);

@@ -166,6 +166,12 @@ export interface CrumbOptions {
    * Sans elle, « ADSMAP › Radar » décrit un écran qui n'existe pas.
    */
   brandScoped?: boolean;
+  /**
+   * Id de la marque active · rend le maillon marque CLIQUABLE (retour à sa fiche)
+   * sur les écrans marque-par-marque, où sinon on ne pouvait pas remonter à la
+   * marque depuis le fil.
+   */
+  brandId?: string | null;
 }
 
 /** Écrans dont le contenu dépend entièrement de la marque active. */
@@ -218,8 +224,9 @@ export function breadcrumb(pathname: string, opts: CrumbOptions = {}): Crumb[] {
 
   if (opts.brandScoped && opts.brandName) {
     // La marque vient juste après la section · c'est le contexte dans lequel
-    // tout le reste se lit.
-    crumbs.push({ label: opts.brandName, href: null });
+    // tout le reste se lit. Cliquable vers sa fiche quand on a son id · sinon on
+    // ne pouvait pas remonter à la marque depuis un écran marque-par-marque.
+    crumbs.push({ label: opts.brandName, href: opts.brandId ? `/brands/${opts.brandId}` : null });
   }
 
   for (let i = 0; i < chaine.length; i++) {
