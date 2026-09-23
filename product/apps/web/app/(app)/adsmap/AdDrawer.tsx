@@ -8,6 +8,7 @@ import {
   type AdDetail, type ValidateInput,
 } from '../../actions/adsmap-verdict';
 import { PartageGagnante } from './PartageGagnante';
+import { Portail } from '../../../components/Portail';
 
 /**
  * Panneau d'arbitrage d'un test.
@@ -123,7 +124,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
   const labelVerdict = (v: VerdictValue | null | undefined) => VERDICT_LABEL[verdictEffectif(v, !!d?.comparable) ?? (v ?? '')] ?? v;
 
   return (
-    <>
+    <Portail>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 60 }} />
       <aside role="dialog" aria-modal="true" aria-labelledby="addrawer-titre" style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(560px, 100vw)', zIndex: 70,
@@ -360,7 +361,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
           </>
         )}
       </aside>
-    </>
+    </Portail>
   );
 }
 

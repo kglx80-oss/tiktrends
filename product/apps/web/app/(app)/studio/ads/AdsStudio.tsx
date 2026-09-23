@@ -10,6 +10,7 @@ import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { useIsMobile } from '../../../../components/useIsMobile';
+import { Portail } from '../../../../components/Portail';
 import { DropZone } from '../../../../components/DropZone';
 import { RatingControl } from '../../../../components/CreativeActions';
 import { CartePub } from './CartePub';
@@ -1218,15 +1219,15 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       )}
 
       {preview && (
-        <div ref={previewRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Aperçu plein écran" onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,4,8,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+        <Portail><div ref={previewRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Aperçu plein écran" onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,4,8,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
           <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
-        </div>
+        </div></Portail>
       )}
 
       {/* Vue détail d'une créa (façon Atria) : grand aperçu + outils à droite + navigation */}
       {detailAd && (
-        <div onMouseDown={() => setDetailIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(6,4,8,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <Portail><div onMouseDown={() => setDetailIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(6,4,8,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           {/* À l'étroit (mobile), le détail EMPILE au lieu de garder deux colonnes ·
               l'aperçu réclame min(320px,100%), donc il passe au-dessus du rail
               d'outils sous ~550px et l'image retrouve une largeur utile (S23, CDC
@@ -1337,7 +1338,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 onArchiver={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }}
               />
           </div>
-        </div>
+        </div></Portail>
       )}
     </div>
   );
