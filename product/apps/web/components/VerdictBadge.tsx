@@ -1,4 +1,5 @@
 import { VERDICT_CARTE, type EtatVerdictCarte, type TonVerdictCarte } from '@tiktrends/core';
+import { FOND_PASTILLE_MEDIA } from './ui';
 
 /**
  * Le verdict du marché, sur la carte de la créa.
@@ -31,7 +32,7 @@ export function VerdictBadge({ etat, overlay = false }: { etat?: EtatVerdictCart
     <span
       title={`Verdict marché · ${def.court}${def.note ? ` · ${def.note}` : ''}`}
       style={overlay
-        ? { ...base, position: 'absolute', top: 8, right: 8, background: 'rgba(8,5,10,.72)', backdropFilter: 'blur(4px)' }
+        ? { ...base, position: 'absolute', top: 8, right: 8, background: FOND_PASTILLE_MEDIA, backdropFilter: 'blur(4px)' }
         : { ...base, background: 'transparent' }}
     >
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: t.fg, flexShrink: 0 }} />

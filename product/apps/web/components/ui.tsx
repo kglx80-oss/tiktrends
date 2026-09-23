@@ -1,5 +1,15 @@
 import type { CSSProperties } from 'react';
 
+/**
+ * Le fond translucide d'une pastille posée SUR une créa · pronostic et verdict
+ * dans la galerie, sélecteur de cadre, « Format d'origine » et compteur dans la
+ * fiche. Un seul voile sombre magenté, identique de la galerie à la fiche · une
+ * pastille sur image ne doit pas changer de teinte d'un écran du parcours à
+ * l'autre. La galerie le portait déjà (carte + verdict) · la fiche recopiait
+ * trois `rgba(0,0,0,.4x)` au hasard, qu'on fait converger ici.
+ */
+export const FOND_PASTILLE_MEDIA = 'rgba(8,5,10,.72)';
+
 export const input: CSSProperties = {
   width: '100%', padding: '10px 12px', borderRadius: 12,
   border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)',
