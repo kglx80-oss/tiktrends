@@ -29,6 +29,8 @@ describe('AdsStudio · sélectionner un format est gratuit', () => {
     // ET le téléchargement la partagent, donc le fichier exporté est identique à
     // ce qui est affiché, quel que soit le mode.
     expect(src, 'l’adresse d’aperçu n’est pas un simple paramètre d’URL').toMatch(/const detailSrc = detailAd \? \(fmtApercu\.choixCadre \? withParam\(detailAd\.url, 'r', ratio\) : detailAd\.url\) : ''/);
-    expect(src, 'le téléchargement ne pointe pas sur l’adresse d’aperçu').toContain('href={detailSrc}');
+    // Le rail présentiel reçoit cette même adresse pour le téléchargement · le
+    // fichier exporté est donc identique à l'aperçu affiché.
+    expect(src, 'le téléchargement ne pointe pas sur l’adresse d’aperçu').toContain('telechargementHref={detailSrc}');
   });
 });

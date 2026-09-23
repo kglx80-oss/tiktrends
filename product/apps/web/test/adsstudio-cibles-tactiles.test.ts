@@ -17,13 +17,18 @@ const src = readFileSync(
   join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.tsx'),
   'utf8',
 );
+// La croix du détail vit désormais dans le rail présentiel extrait · RailFicheCrea.
+const rail = readFileSync(
+  join(process.cwd(), 'app/(app)/studio/ads/RailFicheCrea.tsx'),
+  'utf8',
+);
 
 /** La déclaration de style d'un bouton, à partir d'un ancre unique dans son onClick/aria. */
-function styleApres(ancre: string): string {
-  const i = src.indexOf(ancre);
+function styleApres(ancre: string, dans: string = src): string {
+  const i = dans.indexOf(ancre);
   expect(i, `ancre introuvable · ${ancre}`).toBeGreaterThan(-1);
-  const styleDebut = src.indexOf('style={{', i);
-  return src.slice(styleDebut, styleDebut + 320);
+  const styleDebut = dans.indexOf('style={{', i);
+  return dans.slice(styleDebut, styleDebut + 320);
 }
 
 describe('AdsStudio · cibles tactiles du détail créa', () => {
@@ -38,7 +43,7 @@ describe('AdsStudio · cibles tactiles du détail créa', () => {
   });
 
   it('la croix du détail atteint la cible', () => {
-    const style = styleApres('onClick={() => setDetailIdx(null)} aria-label="Fermer"');
+    const style = styleApres('onClick={props.onClose} aria-label="Fermer"', rail);
     expect(style).toContain('width: CIBLE_TACTILE_MIN');
     expect(style).toContain('height: CIBLE_TACTILE_MIN');
   });

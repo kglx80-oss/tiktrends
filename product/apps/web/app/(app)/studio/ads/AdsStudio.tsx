@@ -13,6 +13,7 @@ import { useIsMobile } from '../../../../components/useIsMobile';
 import { DropZone } from '../../../../components/DropZone';
 import { RatingControl } from '../../../../components/CreativeActions';
 import { CartePub } from './CartePub';
+import { RailFicheCrea, toolBtn } from './RailFicheCrea';
 import { BarreFiltresGalerie } from '../../../../components/BarreFiltresGalerie';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
@@ -1272,130 +1273,69 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               <span style={{ position: 'absolute', top: 12, left: 16, fontSize: 11.5, color: 'var(--muted)', background: 'rgba(0,0,0,.45)', padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
             </div>
 
-            {/* Rail d'outils · défile SEUL sur desktop (borné à la hauteur du
-                dialogue), pendant que la zone média reste en place (F04). */}
-            <div style={{ width: 230, flexShrink: 0, maxHeight: detailEmpile ? undefined : '92vh', borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: 16, overflowY: 'auto' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <b style={{ flex: 1, fontSize: 14, color: 'var(--ink)' }}>Créa</b>
-                <button type="button" onClick={() => setDetailIdx(null)} aria-label="Fermer" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 16, cursor: 'pointer' }}>×</button>
-              </div>
-              {editText ? (
-                /* Panneau d'édition de texte (gratuit · l'overlay est recomposé) */
-                <>
-                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>Éditer le texte</span>
-                  {!textForm ? (
-                    <p style={{ margin: '10px 0', fontSize: 12.5, color: 'var(--muted)' }}>Chargement…</p>
-                  ) : (
-                    <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-                      <TextField label="Kicker" value={textForm.kicker ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, kicker: v }))} />
-                      <TextField label="Accroche" value={textForm.headline ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, headline: v }))} area />
-                      <TextField label="Sous-titre" value={textForm.subhead ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, subhead: v }))} area />
-                      <TextField label="CTA" value={textForm.cta ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, cta: v }))} />
-                      <TextField label="Badge (offre)" value={textForm.badge ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, badge: v }))} />
-                    </div>
-                  )}
-                  <p style={{ margin: '8px 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>Modifie le texte sans régénérer l'image · <b>gratuit</b>.</p>
-                  <button type="button" onClick={() => applyText(detailAd)} disabled={textBusy || !textForm} style={toolPrimary}>{textBusy ? 'Application…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="check" size={14} /> Appliquer les textes</span>}</button>
-                  <button type="button" onClick={() => setEditText(false)} style={{ ...toolBtn, marginTop: 8 }}>Annuler</button>
-                </>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>{TPL_LABEL[detailAd.template]}</span>
-                    {/* Le verdict du marché · au sommet du détail, avec le gabarit.
-                        C'est le résultat payé, la seule mesure qui tranche l'itération. */}
-                    <VerdictBadge etat={detailAd.verdict} />
+            {/* Rail d'actions · défile SEUL sur desktop (borné à la hauteur du
+                dialogue), pendant que la zone média reste en place (F04). Les
+                actions sont rangées en quatre rubriques nommées · Itérer,
+                Modifier, Contrôler, Exporter (RailFicheCrea). */}
+            <RailFicheCrea
+                maxHeight={detailEmpile ? undefined : '92vh'}
+                onClose={() => setDetailIdx(null)}
+                editText={editText}
+                textPret={!!textForm}
+                textBusy={textBusy}
+                champsTexte={textForm && (
+                  <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+                    <TextField label="Kicker" value={textForm.kicker ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, kicker: v }))} />
+                    <TextField label="Accroche" value={textForm.headline ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, headline: v }))} area />
+                    <TextField label="Sous-titre" value={textForm.subhead ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, subhead: v }))} area />
+                    <TextField label="CTA" value={textForm.cta ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, cta: v }))} />
+                    <TextField label="Badge (offre)" value={textForm.badge ?? ''} onChange={(v) => setTextForm((f) => ({ ...f!, badge: v }))} />
                   </div>
-                  {detailAd.variable && (
-                    <p style={{ margin: '5px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
-                      <b style={{ color: 'var(--ink-2)' }}>Déclinaison · {STUDIO_LABEL[detailAd.variable].toLowerCase()}</b><br />
-                      Change {CHANGE[detailAd.variable]} · garde {tenuConstant(detailAd.variable).join(', ')}.
-                    </p>
-                  )}
-                  {/* La lignée · « accroche v3 » n'a de sens qu'en face de v2 et
-                      v1. Une famille de tests dispersée dans la grille se lit à
-                      l'œil, c'est-à-dire pas du tout. */}
-                  <Lignee id={detailAd.id} ads={ads} onOuvrir={(i) => setDetailIdx(i)} />
-                  <p style={{ margin: '4px 0 14px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{detailAd.headline}</p>
-
-                  {/* Décliner d'ABORD · une seule chose change, le reste tenu · c'est
-                      la seule itération dont l'écart est ATTRIBUABLE, donc la seule qui
-                      apprend. Elle porte la primauté visuelle · « Varier » (tout change
-                      à la fois) suit en second, pour explorer vite sans rien conclure.
-                      L'inverse — Varier en gros, Décliner en petit — poussait le geste
-                      qui n'enseigne rien. */}
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>Décliner</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#7ee8bf', border: '1px solid rgba(126,232,191,.4)', borderRadius: 999, padding: '1px 7px' }}>pour itérer</span>
-                    </div>
-                    <p style={{ margin: '0 0 9px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>
-                      Une seule chose change, le reste est tenu · l’écart devient interprétable, et la mesure tranche (une variation isolée aide à lire, elle ne prouve pas seule). La scène est déjà payée, elle reste.
-                    </p>
-                    {STUDIO_VARIABLES.map((v) => {
-                      const prix = prixDeclinaison(v, modelSpec.credits, costFor('suggest'));
-                      // Un bouton absent laisse croire que la fonction n'existe
-                      // pas · un bouton grisé qui s'explique se comprend.
-                      const bloque = empechement(v, !!detailAd.sceneBrief);
-                      return (
-                        <button key={v} type="button" onClick={() => decline(detailAd, v)}
-                          disabled={!!declineBusy || !!bloque || (v !== 'mise_en_page' && !aiReady)}
-                          title={bloque || STUDIO_HINT[v]}
-                          style={{ ...toolBtn, marginBottom: 6, textAlign: 'left', opacity: declineBusy && declineBusy !== v ? 0.5 : 1 }}>
-                          {declineBusy === v ? 'Déclinaison…' : (
-                            <>
-                              <span style={{ display: 'block' }}>
-                                {STUDIO_LABEL[v]}
-                                <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{' · '}{prix === 0 ? 'gratuit' : `${prix} cr.`}</span>
-                              </span>
-                              {/* Le contrat, écrit sur le bouton · une infobulle ne se
-                                  lit pas au doigt, et c'est ce qui est TENU qui donne
-                                  son sens à la déclinaison. */}
-                              <span style={{ display: 'block', fontSize: 10.5, fontWeight: 500, color: 'var(--muted)', lineHeight: 1.35, marginTop: 2 }}>
-                                {bloque || <>Change {CHANGE[v]} · garde {tenuConstant(v).join(', ')}</>}
-                              </span>
-                            </>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Varier · l'explorer-vite, en SECOND et en action secondaire · tout
-                      change à la fois, donc l'écart n'est attribuable à rien. Utile pour
-                      ouvrir des pistes, jamais pour conclure · c'est pourquoi il ne porte
-                      plus la CTA forte. */}
-                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginBottom: 12 }}>
-                    <button type="button" onClick={() => vary(detailAd)} disabled={varyBusy || !ready} style={{ ...toolBtn, textAlign: 'left' }}>
-                      {varyBusy ? 'Génération…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={14} /> Varier (3) · explorer vite</span>}
-                    </button>
-                    <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>3 nouvelles créas · tout change à la fois, l’écart n’est attribuable à rien ({modelSpec.credits * 3} cr.).</p>
-                  </div>
-
-                  {/* Score Jarvis · notre signature */}
-                  {scoreFor === detailAd.id && scoreData ? (
-                    <ScoreCard s={scoreData} copie={copieData} onRedo={() => runScore(detailAd, true)} busy={scoring} />
-                  ) : (
-                    <button type="button" onClick={() => runScore(detailAd)} disabled={scoring || !aiReady} style={{ ...toolBtn, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)', fontWeight: 800 }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {scoring ? 'Analyse Jarvis…' : typeof detailAd.score === 'number' ? `Voir le Score Jarvis (${detailAd.score}/100)` : 'Score Jarvis · 2 cr.'}</span>
-                    </button>
-                  )}
-
-                  <button type="button" onClick={() => openTextEditor(detailAd)} style={toolBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="pen" size={14} /> Éditer le texte <span style={{ color: 'var(--muted)' }}>· gratuit</span></span></button>
-                  <button type="button" onClick={() => copyLink(detailSrc)} style={toolBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name={copied ? 'check' : 'link'} size={14} /> {copied ? 'Lien copié' : 'Copier le lien'}</span></button>
-                  <a href={detailSrc} target="_blank" rel="noreferrer" style={{ ...toolBtn, textAlign: 'center', textDecoration: 'none', display: 'block' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="download" size={14} /> {fmtApercu.libelleTelechargement}</span></a>
-                  {/* La limite dite en clair · une entière ne se recadre pas sans
-                      régénérer · on ne présente pas un recadrage comme une adaptation. */}
-                  {fmtApercu.note && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>{fmtApercu.note}</p>}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 2px 2px', borderTop: '1px solid var(--line)', marginTop: 4 }}>
-                    <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>Pertinence · entraîne Jarvis</span>
-                    <RatingControl genId={detailAd.id} rating={detailAd.rating} />
-                  </div>
-                  <span style={{ flex: 1 }} />
-                  <button type="button" onClick={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }} style={{ ...toolBtn, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Archiver</button>
-                </>
-              )}
-            </div>
+                )}
+                onAppliquerTexte={() => applyText(detailAd)}
+                onAnnulerTexte={() => setEditText(false)}
+                templateLabel={TPL_LABEL[detailAd.template]}
+                verdict={<VerdictBadge etat={detailAd.verdict} />}
+                declinaison={detailAd.variable ? { label: STUDIO_LABEL[detailAd.variable].toLowerCase(), change: CHANGE[detailAd.variable], garde: tenuConstant(detailAd.variable).join(', ') } : null}
+                lignee={<Lignee id={detailAd.id} ads={ads} onOuvrir={(i) => setDetailIdx(i)} />}
+                headline={detailAd.headline}
+                declinaisons={STUDIO_VARIABLES.map((v) => {
+                  const prix = prixDeclinaison(v, modelSpec.credits, costFor('suggest'));
+                  // Un bouton absent laisse croire que la fonction n'existe pas ·
+                  // un bouton grisé qui s'explique se comprend.
+                  const bloque = empechement(v, !!detailAd.sceneBrief);
+                  return {
+                    key: v,
+                    label: STUDIO_LABEL[v],
+                    prixLabel: prix === 0 ? 'gratuit' : `${prix} cr.`,
+                    contrat: bloque || <>Change {CHANGE[v]} · garde {tenuConstant(v).join(', ')}</>,
+                    disabled: !!declineBusy || !!bloque || (v !== 'mise_en_page' && !aiReady),
+                    busy: declineBusy === v,
+                    autreBusy: !!declineBusy && declineBusy !== v,
+                    title: bloque || STUDIO_HINT[v],
+                    onClick: () => decline(detailAd, v),
+                  };
+                })}
+                onVarier={() => vary(detailAd)}
+                varierBusy={varyBusy}
+                varierDisabled={!ready}
+                varierCredits={modelSpec.credits * 3}
+                onEditerTexte={() => openTextEditor(detailAd)}
+                score={scoreFor === detailAd.id && scoreData ? (
+                  <ScoreCard s={scoreData} copie={copieData} onRedo={() => runScore(detailAd, true)} busy={scoring} />
+                ) : (
+                  <button type="button" onClick={() => runScore(detailAd)} disabled={scoring || !aiReady} style={{ ...toolBtn, marginBottom: 0, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)', fontWeight: 800 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {scoring ? 'Analyse Jarvis…' : typeof detailAd.score === 'number' ? `Voir le Score Jarvis (${detailAd.score}/100)` : 'Score Jarvis · 2 cr.'}</span>
+                  </button>
+                )}
+                pertinence={<RatingControl genId={detailAd.id} rating={detailAd.rating} />}
+                onCopierLien={() => copyLink(detailSrc)}
+                lienCopie={copied}
+                telechargementHref={detailSrc}
+                telechargementLabel={fmtApercu.libelleTelechargement}
+                noteFormat={fmtApercu.note}
+                onArchiver={() => { archive(detailAd.id); setDetailIdx((i) => (i != null && i >= ads.length - 1 ? null : i)); }}
+              />
           </div>
         </div>
       )}
@@ -1517,8 +1457,6 @@ const lbl = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBotto
 const miniBtn = { fontSize: 12, fontWeight: 800, padding: '7px 12px', borderRadius: 999, cursor: 'pointer', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)' } as const;
 /** Repère de filiation · discret, mais lisible d'un coup d'œil dans la grille. */
 const filiation = { display: 'inline-block', marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--muted)' } as const;
-const toolPrimary = { width: '100%', padding: '11px 14px', borderRadius: 11, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
-const toolBtn = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 } as const;
 const navArrow = (side: 'left' | 'right'): React.CSSProperties => ({ position: 'absolute', [side]: 12, top: '50%', transform: 'translateY(-50%)', width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 22, cursor: 'pointer', zIndex: 2 });
 
 /** Pastille d'action secondaire · même forme que celles de la barre de composition. */
