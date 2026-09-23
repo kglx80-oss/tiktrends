@@ -5,6 +5,7 @@ import { CIBLE_TACTILE_MIN, type QualiteCarte, type EtatVerdictCarte, type FaitC
 import { AdMedia } from './AdMedia';
 import { VerdictBadge } from './VerdictBadge';
 import { Icon } from './Icon';
+import { FOND_PASTILLE_MEDIA } from './ui';
 
 /**
  * La carte créative COMMUNE · une anatomie, des zones adaptées au contexte.
@@ -115,7 +116,7 @@ export function CarteCreative(props: CarteCreativeProps) {
         )}
         {typeof performance?.prediction === 'number' && (
           <span title={`Prédiction Jarvis · ${performance.prediction}/100 · un pronostic, pas un résultat mesuré`}
-            style={{ position: 'absolute', top: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, background: 'rgba(8,5,10,.72)', border: '1px solid var(--line-2)', color: '#e7e7ef', fontSize: 11, fontWeight: 800, backdropFilter: 'blur(4px)' }}>
+            style={{ position: 'absolute', top: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, background: FOND_PASTILLE_MEDIA, border: '1px solid var(--line-2)', color: '#e7e7ef', fontSize: 11, fontWeight: 800, backdropFilter: 'blur(4px)' }}>
             <Icon name="sparkles" size={12} /> Préd. {performance.prediction}
           </span>
         )}

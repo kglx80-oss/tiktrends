@@ -15,6 +15,7 @@ import { RatingControl } from '../../../../components/CreativeActions';
 import { CartePub } from './CartePub';
 import { RailFicheCrea, toolBtn } from './RailFicheCrea';
 import { BarreFiltresGalerie } from '../../../../components/BarreFiltresGalerie';
+import { FOND_PASTILLE_MEDIA } from '../../../../components/ui';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Icon } from '../../../../components/Icon';
@@ -1217,7 +1218,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       )}
 
       {preview && (
-        <div ref={previewRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Aperçu plein écran" onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+        <div ref={previewRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Aperçu plein écran" onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,4,8,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
           <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div>
@@ -1237,7 +1238,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               fermeture. C'est ce qui empêche l'image d'être centrée hors cadre. */}
           <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflowX: 'hidden', overflowY: detailEmpile ? 'auto' : 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
             {/* Aperçu + navigation */}
-            <div style={{ flex: 1, minWidth: 'min(320px, 100%)', maxHeight: detailEmpile ? undefined : '92vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c080e', padding: 18 }}>
+            <div style={{ flex: 1, minWidth: 'min(320px, 100%)', maxHeight: detailEmpile ? undefined : '92vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)', padding: 18 }}>
               {detailIdx != null && detailIdx > 0 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); setScoreFor(null); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
@@ -1257,7 +1258,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   (composée). Une entière n'a qu'un format · on le dit plutôt que
                   d'offrir des cadres qui ne recomposent rien. */}
               {fmtApercu.choixCadre ? (
-                <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, background: 'rgba(0,0,0,.5)', padding: 5, borderRadius: 999 }}>
+                <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, background: FOND_PASTILLE_MEDIA, padding: 5, borderRadius: 999 }}>
                   {(['9:16', '4:5', '1:1'] as const).map((r) => (
                     <button key={r} type="button" onClick={() => setRatio(r)} style={{
                       minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center',
@@ -1267,9 +1268,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                   ))}
                 </div>
               ) : (
-                <span style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 11.5, fontWeight: 800, padding: '5px 13px', borderRadius: 999, background: 'rgba(0,0,0,.5)', color: '#fff' }}>Format d’origine</span>
+                <span style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 11.5, fontWeight: 800, padding: '5px 13px', borderRadius: 999, background: FOND_PASTILLE_MEDIA, color: '#fff' }}>Format d’origine</span>
               )}
-              <span style={{ position: 'absolute', top: 12, left: 16, fontSize: 11.5, color: 'var(--muted)', background: 'rgba(0,0,0,.45)', padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
+              <span style={{ position: 'absolute', top: 12, left: 16, fontSize: 11.5, color: 'var(--muted)', background: FOND_PASTILLE_MEDIA, padding: '3px 10px', borderRadius: 999 }}>{(detailIdx ?? 0) + 1} / {ads.length}</span>
             </div>
 
             {/* Rail d'actions · défile SEUL sur desktop (borné à la hauteur du

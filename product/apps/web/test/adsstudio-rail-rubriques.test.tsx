@@ -141,11 +141,14 @@ describe('Fiche créa · l’aperçu domine le rail (adoption source, modale non
   const rail = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/RailFicheCrea.tsx'), 'utf8');
 
   it('la zone média est FLEXIBLE (flex: 1) · elle prend la place', () => {
-    // La colonne aperçu · fond sombre + flex: 1 · c'est elle qui s'étire.
-    const i = studio.indexOf("background: '#0c080e'");
+    // La colonne aperçu · repérée par sa largeur mini `min(320px, 100%)` (unique
+    // à elle) · elle s'étire (flex: 1) et pose la créa sur `var(--paper)`, le
+    // même fond que la carte de galerie (cohérence du parcours · axe 3).
+    const i = studio.indexOf("minWidth: 'min(320px, 100%)'");
     expect(i, 'colonne média introuvable').toBeGreaterThan(-1);
-    const bloc = studio.slice(i - 200, i);
+    const bloc = studio.slice(i - 40, i + 220);
     expect(bloc, 'la zone média ne s’étire pas (flex: 1 manquant)').toContain('flex: 1');
+    expect(bloc, 'la zone média n’adopte pas le fond var(--paper) du parcours').toContain("background: 'var(--paper)'");
   });
 
   it('le rail est à LARGEUR FIXE et ne grandit pas · il n’écrase pas l’aperçu', () => {
