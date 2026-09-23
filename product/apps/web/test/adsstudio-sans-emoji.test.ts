@@ -14,12 +14,15 @@ import { join } from 'node:path';
  * statut (« photos déjà récupérées ✓ ») reste du texte, pas une icône kitsch.
  */
 const SRC = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
+// Le rail d'actions de la fiche créa est présentiel · RailFicheCrea · il fait
+// partie de l'interface Pubs IA, il tombe sous la même règle.
+const RAIL = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/RailFicheCrea.tsx'), 'utf8');
 
 const BANNIS = ['✨', '✦', '🔒', '📷', '📥', '🔗', '⚠️', '⚠', '🔁', '⬆', '✎', '🖼️', '🧬', '⧉', '⬚', '◐'];
 
 describe('Pubs IA · plus aucun emoji d’interface', () => {
   it('le studio n’emploie aucun emoji-icône · tout passe par <Icon>', () => {
-    const trouves = BANNIS.filter((e) => SRC.includes(e));
+    const trouves = BANNIS.filter((e) => SRC.includes(e) || RAIL.includes(e));
     expect(trouves, `emoji(s) d’interface encore présent(s) dans Pubs IA : ${trouves.join(' ')}`).toEqual([]);
   });
 
@@ -27,6 +30,7 @@ describe('Pubs IA · plus aucun emoji d’interface', () => {
     // Preuve que la conversion a eu lieu, pas seulement la suppression.
     expect(SRC).toMatch(/<Icon name="sparkles"/);
     expect(SRC).toMatch(/<Icon name=\{suggestion\.avantTout \? 'alert' : 'swap'\}/);
-    expect(SRC).toMatch(/<Icon name=\{copied \? 'check' : 'link'\}/);
+    // Copier le lien vit dans le rail présentiel · l'icône bascule check/link.
+    expect(RAIL).toMatch(/<Icon name=\{props\.lienCopie \? 'check' : 'link'\}/);
   });
 });

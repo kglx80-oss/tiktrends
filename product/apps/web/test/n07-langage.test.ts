@@ -69,8 +69,11 @@ describe('N07 (v8) · les promesses absolues restantes sont retirées', () => {
   });
 
   it('la fiche ne dit plus qu’une variation « rend l’écart attribuable »', () => {
+    // Le corps de la fiche (rail d'actions) est désormais présentiel · RailFicheCrea.
+    const RAIL = lire('app/(app)/studio/ads/RailFicheCrea.tsx');
     expect(STUDIO, 'la fiche promet encore l’attribution automatique').not.toContain('rend l’écart attribuable');
-    expect(STUDIO).toContain('l’écart devient interprétable');
+    expect(RAIL, 'la fiche promet encore l’attribution automatique').not.toContain('rend l’écart attribuable');
+    expect(RAIL).toContain('l’écart devient interprétable');
   });
 });
 
