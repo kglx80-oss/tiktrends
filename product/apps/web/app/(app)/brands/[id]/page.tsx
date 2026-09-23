@@ -15,6 +15,7 @@ import { input, lbl, Msg } from '../../../../components/ui';
 import { Icon } from '../../../../components/Icon';
 import { AvatarSite } from '../../../../components/AvatarSite';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
+import { RenameMarque } from '../../../../components/RenameMarque';
 import { BrandOnboarding, type OnboardStep } from '../../../../components/BrandOnboarding';
 import { ShopifyConnect } from './ShopifyConnect';
 import { BrandDA } from './BrandDA';
@@ -83,8 +84,8 @@ export default async function BrandDetailPage({ params, searchParams }: {
         {/* La favicon du site de la marque · même avatar identitaire que le
             sélecteur et les concurrents · repli sur les initiales teintées. */}
         <AvatarSite nom={b.name} site={b.url} taille={46} rayon={12} />
-        <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>{b.name}</h1>
+        <div style={{ minWidth: 0 }}>
+          <RenameMarque id={b.id} name={b.name} />
           <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[b.category || b.industry, b.url].filter(Boolean).join(' · ') || 'Profil à compléter'}</div>
         </div>
         <span style={{ flex: 1 }} />

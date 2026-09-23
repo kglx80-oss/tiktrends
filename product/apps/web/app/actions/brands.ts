@@ -200,6 +200,29 @@ export async function updateBrandAction(formData: FormData): Promise<void> {
   redirect(`/brands/${id}?ok=saved`);
 }
 
+/**
+ * Renommer une marque · le nom seul, depuis l'en-tête de la fiche.
+ *
+ * Le nom était modifiable uniquement dans le formulaire de profil, enfoui en bas
+ * de page · on ne le trouvait pas et la marque restait « Ma boutique ». Ici,
+ * édition en place sur le titre. Mêmes gardes que `updateBrandAction` · admin de
+ * l'espace, et mise à jour PORTÉE à l'espace de la session (un admin ne renomme
+ * pas la marque d'un autre espace en devinant un id).
+ */
+export async function renameBrandAction(formData: FormData): Promise<void> {
+  const s = await getSession();
+  if (!s || !db) redirect('/login');
+  if (!roleAtLeast(s.role, 'admin')) redirect('/brands?e=forbidden');
+  const id = norm(formData.get('id'));
+  const name = norm(formData.get('name'));
+  if (!id) redirect('/brands');
+  // Un nom vide n'écrase rien · on revient sans toucher à la marque.
+  if (!name) redirect(`/brands/${id}`);
+  await db.update(schema.brands).set({ name })
+    .where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId)));
+  redirect(`/brands/${id}?ok=saved`);
+}
+
 export async function deleteBrandAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
