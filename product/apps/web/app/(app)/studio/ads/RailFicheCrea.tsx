@@ -112,7 +112,12 @@ export function RailFicheCrea(props: {
       </div>
 
       {props.editText ? (
-        /* Panneau d'édition de texte (gratuit · l'overlay est recomposé) */
+        /* Panneau d'édition de texte (gratuit · l'overlay est recomposé).
+           La zone champs défile AVEC le rail · le pied Appliquer/Annuler est
+           COLLANT (position: sticky, bottom: 0), structurellement séparé des
+           champs, pour que le bouton principal reste TOUJOURS visible même
+           quand les cinq champs rendent le rail plus haut que la fenêtre. Sans
+           ça, « Appliquer les textes » sortait de vue sous le bord de défilement. */
         <>
           <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>Éditer le texte</span>
           {props.textPret ? (
@@ -121,8 +126,10 @@ export function RailFicheCrea(props: {
             <p style={{ margin: '10px 0', fontSize: 12.5, color: 'var(--muted)' }}>Chargement…</p>
           )}
           <p style={{ margin: '8px 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>Modifie le texte sans régénérer l'image · <b>gratuit</b>.</p>
-          <button type="button" onClick={props.onAppliquerTexte} disabled={props.textBusy || !props.textPret} style={toolPrimary}>{props.textBusy ? 'Application…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="check" size={14} /> Appliquer les textes</span>}</button>
-          <button type="button" onClick={props.onAnnulerTexte} style={{ ...toolBtn, marginTop: 8 }}>Annuler</button>
+          <div style={editFooter}>
+            <button type="button" onClick={props.onAppliquerTexte} disabled={props.textBusy || !props.textPret} style={toolPrimary}>{props.textBusy ? 'Application…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="check" size={14} /> Appliquer les textes</span>}</button>
+            <button type="button" onClick={props.onAnnulerTexte} style={{ ...toolBtn, marginTop: 8, marginBottom: 0 }}>Annuler</button>
+          </div>
         </>
       ) : (
         <>
@@ -218,6 +225,18 @@ export function RailFicheCrea(props: {
     </div>
   );
 }
+
+/**
+ * Le pied du panneau d'édition · COLLANT au bas du rail défilant.
+ *
+ * Le rail entier défile (`overflowY: auto`). Les cinq champs le rendent plus
+ * haut que la fenêtre · sans pied collant, « Appliquer les textes » passait
+ * SOUS le bord de défilement, hors d'atteinte. `position: sticky` le maintient
+ * visible pendant que la zone champs défile derrière. Un filet en tête (le
+ * seul cas où l'espace ne suffit pas · du contenu glisse DERRIÈRE le pied) et
+ * un fond `var(--surface)` (celui du dialogue, sous le rail transparent)
+ * l'isolent des champs qui défilent. `bottom: 0` le colle au bord bas. */
+export const editFooter = { position: 'sticky', bottom: 0, marginTop: 12, paddingTop: 12, background: 'var(--surface)', borderTop: '1px solid var(--line)' } as const;
 
 export const toolPrimary = { width: '100%', padding: '11px 14px', borderRadius: 11, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
 export const toolBtn = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 } as const;

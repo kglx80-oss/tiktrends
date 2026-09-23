@@ -108,6 +108,32 @@ describe('Fiche créa · rail rangé en quatre rubriques nommées', () => {
     // Le rail d'actions n'est plus monté · pas de double affichage
     expect(html).not.toContain('Itérer');
   });
+
+  it('le pied Appliquer/Annuler est COLLANT et séparé de la zone champs (bouton principal toujours accessible)', () => {
+    const html = rendu({ editText: true, textPret: true, champsTexte: <span>champs de texte</span> });
+    // Un pied en position sticky existe · c'est lui qui garde le bouton visible
+    // quand les cinq champs rendent le rail plus haut que la fenêtre.
+    expect(html, 'le pied doit être collant (position:sticky)').toContain('position:sticky');
+    const champs = html.indexOf('champs de texte');
+    const pied = html.indexOf('position:sticky');
+    const appliquer = html.indexOf('Appliquer les textes');
+    const annuler = html.indexOf('Annuler');
+    // La zone champs (défilante) précède le pied · le pied la SÉPARE, il n'est
+    // pas noyé dans les champs.
+    expect(champs, 'les champs doivent précéder le pied collant').toBeLessThan(pied);
+    // Appliquer ET Annuler vivent DANS le pied collant (après son ouverture).
+    expect(pied, 'Appliquer doit être dans le pied collant').toBeLessThan(appliquer);
+    expect(pied, 'Annuler doit être dans le pied collant').toBeLessThan(annuler);
+  });
+
+  it('CADRE STABLE · la largeur du rail est identique entre vue actions et vue édition', () => {
+    const largeur = (html: string) => html.match(/width:(\d+)px/)?.[1];
+    const actions = largeur(rendu({ editText: false }));
+    const edition = largeur(rendu({ editText: true, textPret: true, champsTexte: <span>champs</span> }));
+    expect(actions, 'largeur du rail introuvable (vue actions)').toBeTruthy();
+    expect(edition, 'largeur du rail introuvable (vue édition)').toBeTruthy();
+    expect(edition, 'le rail ne doit pas changer de largeur en passant à l’édition').toBe(actions);
+  });
 });
 
 describe('Fiche créa · l’aperçu domine le rail (adoption source, modale non rendable)', () => {
