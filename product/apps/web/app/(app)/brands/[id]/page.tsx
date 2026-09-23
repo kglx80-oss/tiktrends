@@ -123,8 +123,12 @@ export default async function BrandDetailPage({ params, searchParams }: {
         const score = Math.round((checks.filter(Boolean).length / checks.length) * 100);
         // Parcours de démarrage guidé · 7 étapes à respecter dans l'ordre.
         const steps: OnboardStep[] = [
-          { key: 'profil', label: 'Compléter le profil', desc: 'Description, USP, audience et catégorie', done: !!(b.description && b.usp && b.audience && b.category), href: `/brands/${id}`, cta: 'Compléter' },
-          { key: 'charte', label: 'Définir la charte visuelle', desc: 'Logo, couleurs et polices de la marque', done: !!(b.logoUrl || (b.colors ?? []).length > 0 || (b.fonts ?? []).length > 0), href: `/brands/${id}`, cta: 'Définir' },
+          // Le profil et la charte vivent sur l'onglet Aperçu · l'étape ANCRE la
+          // page vers la bonne section (sinon un lien vers `/brands/${id}` ne
+          // bougeait pas · on était déjà sur la page, le formulaire restait plus
+          // bas, hors de vue · « le bouton ne déclenche rien »).
+          { key: 'profil', label: 'Compléter le profil', desc: 'Description, USP, audience et catégorie', done: !!(b.description && b.usp && b.audience && b.category), href: `/brands/${id}?tab=overview#profil`, cta: 'Compléter' },
+          { key: 'charte', label: 'Définir la charte visuelle', desc: 'Logo, couleurs et polices de la marque', done: !!(b.logoUrl || (b.colors ?? []).length > 0 || (b.fonts ?? []).length > 0), href: `/brands/${id}?tab=overview#charte`, cta: 'Définir' },
           { key: 'produits', label: 'Ajouter les produits', desc: 'Import Shopify / site ou saisie manuelle', done: products.length > 0, href: `/brands/${id}?tab=products`, cta: 'Ajouter' },
           { key: 'audience', label: "Décrire l'audience", desc: 'Personas et scénarios d’usage', done: personas.length > 0 && scenarios.length > 0, href: `/brands/${id}?tab=audience`, cta: 'Décrire' },
           // CDC v8 · F08 · saisir un concurrent dans le profil le RENSEIGNE (situer
@@ -179,8 +183,13 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} />
           </form>
 
-          <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} daVisuelle={(b.brandKit ?? null) as DaVisuelleMarque | null} />
+          {/* Ancres des étapes « Compléter le profil » / « Définir la charte » ·
+              scrollMarginTop pour ne pas coller la section sous le haut de page. */}
+          <div id="charte" style={{ scrollMarginTop: 90 }}>
+            <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} daVisuelle={(b.brandKit ?? null) as DaVisuelleMarque | null} />
+          </div>
 
+        <div id="profil" style={{ scrollMarginTop: 90 }}>
         <BrandOverviewForm init={{
           id: b.id, name: b.name, url: b.url ?? '', description: b.description ?? '', usp: b.usp ?? '',
           audience: b.audience ?? '', category: b.category ?? '', categoryNeeds: b.categoryNeeds ?? '',
@@ -188,6 +197,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           tone: b.tone ?? '', languages: j(b.languages), colors: j(b.colors), fonts: j(b.fonts),
           preferredWords: j(b.preferredWords), avoidWords: j(b.avoidWords), competitors: competitors.join('\n'),
         }} />
+        </div>
         </div>
         );
       })()}
