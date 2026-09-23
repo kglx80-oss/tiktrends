@@ -8,6 +8,7 @@ import {
   type EtapeVideo, type EtatAssistantVideo,
 } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
+import { Portail } from '../../../../components/Portail';
 
 /**
  * Le studio Vidéo, guidé · une décision à la fois, sur le moteur `assistant-video`.
@@ -68,6 +69,7 @@ export function AssistantVideo(p: Props) {
   const pret = derniere ? peutGenererVideo(p.etat) && !p.busy : !bloquant;
 
   return (
+    <Portail>
     <div style={fond} onClick={p.onFermer}>
       <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-video-titre">
         <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -197,6 +199,7 @@ export function AssistantVideo(p: Props) {
         </div>
       </div>
     </div>
+    </Portail>
   );
 }
 

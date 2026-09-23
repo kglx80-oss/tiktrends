@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { scoreRecherche } from '../lib/recherche';
 import { Icon } from './Icon';
+import { Portail } from './Portail';
 
 export interface Command {
   id: string;
@@ -107,7 +108,7 @@ export function CommandPalette({ commands }: { commands: Command[] }) {
   });
 
   return (
-    <div onMouseDown={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,4,8,.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh' }}>
+    <Portail><div onMouseDown={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,4,8,.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh' }}>
       <div role="dialog" aria-modal="true" aria-label="Recherche et navigation" onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(640px, 92vw)', maxHeight: '70vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 16, boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)', overflow: 'hidden' }}>
         {/* Champ de recherche */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
@@ -150,7 +151,7 @@ export function CommandPalette({ commands }: { commands: Command[] }) {
           <span style={{ marginLeft: 'auto' }}><kbd style={kbd}>⌘</kbd><kbd style={kbd}>K</kbd> partout</span>
         </div>
       </div>
-    </div>
+    </div></Portail>
   );
 }
 

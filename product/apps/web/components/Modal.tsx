@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useRef, type ReactNode } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { usePiegeFocus } from './use-piege-focus';
+import { Portail } from './Portail';
 
 /**
  * Fenêtre modale réutilisable (pop-up). Base du système « tout en pop-up » :
@@ -33,18 +33,14 @@ export function Modal({
   icon?: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  // Le portail ne peut viser `document.body` qu'après le montage client · on
-  // rend `null` au premier rendu (SSR) puis on portalise.
-  const [monte, setMonte] = useState(false);
-  useEffect(() => setMonte(true), []);
   // Le piège à focus partagé · même comportement (focus entrant, Tab piégé,
   // Échap, verrou du défilement, retour au déclencheur), éprouvé une seule fois.
   usePiegeFocus(panelRef, { actif: open, onFermer: onClose });
 
-  if (!open || !monte) return null;
+  if (!open) return null;
 
-  return createPortal((
-    <div
+  return (
+    <Portail><div
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
@@ -73,6 +69,6 @@ export function Modal({
         </div>
         <div style={{ padding: '18px 20px 20px', overflowY: 'auto' }}>{children}</div>
       </div>
-    </div>
-  ), document.body);
+    </div></Portail>
+  );
 }

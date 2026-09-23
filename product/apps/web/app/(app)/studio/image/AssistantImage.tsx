@@ -9,6 +9,7 @@ import {
 } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
 import { GrilleMoteurs } from '../../../../components/GrilleMoteurs';
+import { Portail } from '../../../../components/Portail';
 
 /**
  * Le studio Image, guidé · une décision à la fois.
@@ -81,6 +82,7 @@ export function AssistantImage(p: Props) {
   const pret = derniere ? peutGenererImage(p.etat) && !p.busy : !bloquant;
 
   return (
+    <Portail>
     <div style={fond} onClick={p.onFermer}>
       <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-image-titre">
         {/* Le fil · une étape faite se rouvre, une étape dont les précédentes ne
@@ -229,6 +231,7 @@ export function AssistantImage(p: Props) {
         </div>
       </div>
     </div>
+    </Portail>
   );
 }
 

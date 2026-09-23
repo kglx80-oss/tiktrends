@@ -6,6 +6,7 @@ import {
 } from '../../actions/adsmap-share';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { EmptyLine } from '../../../components/Empty';
+import { Portail } from '../../../components/Portail';
 
 /**
  * Partage client de la carte (§12).
@@ -66,7 +67,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
   }
 
   return (
-    <>
+    <Portail>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 60 }} />
       <div role="dialog" aria-label="Partager la carte" style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 70,
@@ -157,7 +158,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
           ))}
         </div>
       </div>
-    </>
+    </Portail>
   );
 }
 

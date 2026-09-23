@@ -12,6 +12,7 @@ import type { AdTemplate } from '@tiktrends/ai';
 import { SelecteurMoteur } from './SelecteurMoteur';
 import { Icon } from '../../../../components/Icon';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
+import { Portail } from '../../../../components/Portail';
 
 /**
  * L'assistant · une décision par écran.
@@ -123,6 +124,7 @@ export function AssistantPub(p: AssistantProps) {
   const derniere = suivante === null;
 
   return (
+    <Portail>
     <div style={fond} onClick={p.onFermer}>
       <div ref={panelRef} tabIndex={-1} style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-titre">
         <Entete etape={etape} etat={p.etat} onAller={setEtape} onFermer={p.onFermer} />
@@ -146,6 +148,7 @@ export function AssistantPub(p: AssistantProps) {
         />
       </div>
     </div>
+    </Portail>
   );
 }
 
