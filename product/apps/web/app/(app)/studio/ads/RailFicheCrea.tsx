@@ -105,7 +105,7 @@ export function RailFicheCrea(props: {
   onArchiver: () => void;
 }) {
   return (
-    <div style={{ width: 236, flexShrink: 0, maxHeight: props.maxHeight, borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: 16, overflowY: 'auto' }}>
+    <div style={{ width: 236, flexShrink: 0, maxHeight: props.maxHeight, borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', padding: 16, overflowY: props.maxHeight ? 'auto' : 'visible' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <b style={{ flex: 1, fontSize: 14, color: 'var(--ink)' }}>Créa</b>
         <button type="button" onClick={props.onClose} aria-label="Fermer" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 16, cursor: 'pointer' }}>×</button>

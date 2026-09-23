@@ -55,8 +55,11 @@ describe('F04 · l’aperçu d’une carte n’imbrique aucun interactif', () =>
 describe('F04 · le dialogue détail borne la zone média et fait défiler le rail', () => {
   const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
 
-  it('la zone média est bornée à la hauteur visible hors empilement', () => {
-    expect(src).toContain("maxHeight: detailEmpile ? undefined : '92vh'");
+  it('la zone média est bornée dans les deux modes · desktop 92vh, empilé 46vh', () => {
+    // En empilé (≤575px) le média est désormais borné (46vh) pour que le rail
+    // et son pied « Appliquer » restent atteignables à 360px · défaut trouvé au
+    // vrai navigateur (le média plein écran poussait le pied hors de vue).
+    expect(src).toContain("maxHeight: detailEmpile ? '46vh' : '92vh'");
   });
   it('le dialogue ne défile en bloc QUE lorsqu’il empile', () => {
     expect(src).toContain("overflowY: detailEmpile ? 'auto' : 'hidden'");
