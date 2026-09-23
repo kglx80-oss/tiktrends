@@ -1,10 +1,15 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Modal } from '../components/Modal';
 import { Pager } from '../components/Pager';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 /**
  * Les contrôles PARTAGÉS se rataient au doigt · la croix de TOUTE modale (30 px),
@@ -18,9 +23,20 @@ import { Pager } from '../components/Pager';
  */
 describe('Cibles tactiles · composants partagés', () => {
   it('la croix de la modale atteint la cible (rendu)', () => {
-    const out = renderToStaticMarkup(<Modal open onClose={() => {}} title="X">c</Modal>);
-    expect(out, 'la croix de fermeture est sous la cible tactile')
-      .toContain(`width:${CIBLE_TACTILE_MIN}px;height:${CIBLE_TACTILE_MIN}px;flex-shrink:0;border-radius:9px`);
+    // La modale est portalisée sur <body> · on la monte en DOM réel et on lit
+    // les dimensions RENDUES de la croix (jsdom sérialise les styles avec
+    // espaces · on lit donc l'élément, pas la chaîne compacte).
+    const hote = document.createElement('div');
+    document.body.appendChild(hote);
+    const root = createRoot(hote);
+    act(() => root.render(<Modal open onClose={() => {}} title="X">c</Modal>));
+    const croix = document.querySelector<HTMLElement>('[aria-label="Fermer"]');
+    expect(croix, 'la croix de fermeture doit être rendue').not.toBeNull();
+    expect(croix!.style.width, 'largeur de la croix sous la cible').toBe(`${CIBLE_TACTILE_MIN}px`);
+    expect(croix!.style.height, 'hauteur de la croix sous la cible').toBe(`${CIBLE_TACTILE_MIN}px`);
+    expect(croix!.style.borderRadius, 'arrondi de la croix').toBe('9px');
+    act(() => root.unmount());
+    hote.remove();
   });
 
   it('les boutons de pagination atteignent la cible (rendu)', () => {

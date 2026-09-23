@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+// @vitest-environment jsdom
+import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Modal } from '../components/Modal';
@@ -12,23 +14,36 @@ import { Modal } from '../components/Modal';
  * piège à focus (le Tab s'échappe derrière) ; des contrôles sans nom accessible.
  */
 
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 describe('la fenêtre modale est une vraie boîte de dialogue', () => {
-  const html = renderToStaticMarkup(
-    <Modal open onClose={() => {}} title="Confirmer la suppression">corps</Modal>,
-  );
+  // La modale est désormais PORTALISÉE sur <body> (pour échapper aux pièges
+  // d'empilement) · elle rend `null` côté serveur, donc `renderToStaticMarkup`
+  // ne verrait rien. On la monte dans un vrai DOM (jsdom), l'effet de montage la
+  // portalise, puis on lit le HTML réellement peint sur <body> · même contrat.
+  let root: Root;
+  let hote: HTMLDivElement;
+  beforeAll(() => {
+    hote = document.createElement('div');
+    document.body.appendChild(hote);
+    root = createRoot(hote);
+    act(() => root.render(<Modal open onClose={() => {}} title="Confirmer la suppression">corps</Modal>));
+  });
+  afterAll(() => { act(() => root.unmount()); hote.remove(); });
+  const html = () => document.body.innerHTML;
 
   it('porte le rôle et les attributs ARIA d’un dialog', () => {
-    expect(html).toContain('role="dialog"');
-    expect(html).toContain('aria-modal="true"');
-    expect(html).toContain('aria-label="Confirmer la suppression"');
+    expect(html()).toContain('role="dialog"');
+    expect(html()).toContain('aria-modal="true"');
+    expect(html()).toContain('aria-label="Confirmer la suppression"');
   });
 
   it('reste focalisable pour y porter le focus à l’ouverture', () => {
-    expect(html).toContain('tabindex="-1"');
+    expect(html()).toContain('tabindex="-1"');
   });
 
   it('offre une fermeture étiquetée', () => {
-    expect(html).toContain('aria-label="Fermer"');
+    expect(html()).toContain('aria-label="Fermer"');
   });
 });
 

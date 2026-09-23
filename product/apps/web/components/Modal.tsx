@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { usePiegeFocus } from './use-piege-focus';
 
@@ -8,6 +9,17 @@ import { usePiegeFocus } from './use-piege-focus';
  * Fenêtre modale réutilisable (pop-up). Base du système « tout en pop-up » :
  * overlay sombre, panneau centré, fermeture par Échap / clic extérieur / croix.
  * À réutiliser pour toute action courte plutôt que d'ouvrir une nouvelle page.
+ *
+ * ── Rendue via un PORTAIL vers <body> ────────────────────────────────────────
+ *
+ * Sans ça, la modale héritait du CONTEXTE D'EMPILEMENT de l'endroit d'où on
+ * l'ouvre · le rail latéral, ou un ancêtre transformé (`transform`) du tableau
+ * de bord. Un `position: fixed` sous un ancêtre transformé n'est plus relatif à
+ * l'écran mais à cet ancêtre · l'overlay ne couvrait plus la page, et le chrome
+ * de page (sélecteur « équipe & invitations », cartes) passait PAR-DESSUS la
+ * modale. Montée sur <body>, elle est au niveau racine · son overlay couvre
+ * vraiment l'écran et son z-index domine tout le chrome. (Le voile · clic
+ * extérieur · Échap · piège à focus sont inchangés.)
  */
 export function Modal({
   open, onClose, title, subtitle, children, maxWidth = 460, icon,
@@ -21,13 +33,17 @@ export function Modal({
   icon?: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Le portail ne peut viser `document.body` qu'après le montage client · on
+  // rend `null` au premier rendu (SSR) puis on portalise.
+  const [monte, setMonte] = useState(false);
+  useEffect(() => setMonte(true), []);
   // Le piège à focus partagé · même comportement (focus entrant, Tab piégé,
   // Échap, verrou du défilement, retour au déclencheur), éprouvé une seule fois.
   usePiegeFocus(panelRef, { actif: open, onFermer: onClose });
 
-  if (!open) return null;
+  if (!open || !monte) return null;
 
-  return (
+  return createPortal((
     <div
       onClick={onClose}
       style={{
@@ -58,5 +74,5 @@ export function Modal({
         <div style={{ padding: '18px 20px 20px', overflowY: 'auto' }}>{children}</div>
       </div>
     </div>
-  );
+  ), document.body);
 }
