@@ -134,6 +134,18 @@ describe('Fiche créa · rail rangé en quatre rubriques nommées', () => {
     expect(edition, 'largeur du rail introuvable (vue édition)').toBeTruthy();
     expect(edition, 'le rail ne doit pas changer de largeur en passant à l’édition').toBe(actions);
   });
+
+  // Vérifié au vrai navigateur (next dev + Chromium CDP) · à 360 px (mode
+  // empilé), sans cette bascule le pied collant ne se pinçait à rien (le rail,
+  // `overflow-y:auto` sans hauteur bornée, restait son propre conteneur) et
+  // « Appliquer les textes » tombait sous la ligne de flottaison. Ici la
+  // non-régression : en empilé (pas de maxHeight) le rail laisse défiler le
+  // DIALOGUE (overflow-y:visible) · c'est lui qui devient le conteneur de
+  // défilement, et le pied collant s'y pince.
+  it('empilé (sans maxHeight) · le rail laisse défiler le dialogue (overflow-y visible)', () => {
+    expect(rendu({ editText: false }), 'en empilé, le rail ne doit pas être son propre scroller').toContain('overflow-y:visible');
+    expect(rendu({ editText: false, maxHeight: '92vh' }), 'sur desktop, le rail défile seul (borné)').toContain('overflow-y:auto');
+  });
 });
 
 describe('Fiche créa · l’aperçu domine le rail (adoption source, modale non rendable)', () => {
@@ -154,5 +166,13 @@ describe('Fiche créa · l’aperçu domine le rail (adoption source, modale non
   it('le rail est à LARGEUR FIXE et ne grandit pas · il n’écrase pas l’aperçu', () => {
     expect(rail, 'le rail doit être borné en largeur').toContain('width: 236');
     expect(rail, 'le rail ne doit pas grandir').toContain('flexShrink: 0');
+  });
+
+  // Vérifié au vrai navigateur · en empilé (≤575px) l'image occupait tout
+  // l'écran et poussait le rail (et son pied Appliquer) hors de vue. On BORNE
+  // le média en empilé pour que le rail reste atteignable. Desktop inchangé.
+  it('empilé · le média est borné en hauteur pour laisser le rail atteignable à 360 px', () => {
+    expect(studio, 'la colonne média n’est pas bornée en empilé').toContain("maxHeight: detailEmpile ? '46vh'");
+    expect(studio, 'l’image d’aperçu n’est pas bornée en empilé').toContain("maxHeight: detailEmpile ? '42vh'");
   });
 });

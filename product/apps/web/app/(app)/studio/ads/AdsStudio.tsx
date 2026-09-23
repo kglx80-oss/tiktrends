@@ -1238,7 +1238,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               fermeture. C'est ce qui empêche l'image d'être centrée hors cadre. */}
           <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflowX: 'hidden', overflowY: detailEmpile ? 'auto' : 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
             {/* Aperçu + navigation */}
-            <div style={{ flex: 1, minWidth: 'min(320px, 100%)', maxHeight: detailEmpile ? undefined : '92vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)', padding: 18 }}>
+            <div style={{ flex: 1, minWidth: 'min(320px, 100%)', maxHeight: detailEmpile ? '46vh' : '92vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)', padding: 18 }}>
               {detailIdx != null && detailIdx > 0 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.max(0, (i ?? 0) - 1)); setEditText(false); setScoreFor(null); }} aria-label="Précédent" style={navArrow('left')}>‹</button>
               )}
@@ -1250,7 +1250,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 role="button" tabIndex={0} title="Agrandir en plein écran"
                 onClick={() => setPreview(detailSrc)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreview(detailSrc); } }}
-                style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 10, objectFit: 'contain', cursor: 'zoom-in' }} />
+                style={{ maxWidth: '100%', maxHeight: detailEmpile ? '42vh' : '78vh', borderRadius: 10, objectFit: 'contain', cursor: 'zoom-in' }} />
               {detailIdx != null && detailIdx < ads.length - 1 && (
                 <button type="button" onClick={() => { setDetailIdx((i) => Math.min(ads.length - 1, (i ?? 0) + 1)); setEditText(false); setScoreFor(null); }} aria-label="Suivant" style={navArrow('right')}>›</button>
               )}
