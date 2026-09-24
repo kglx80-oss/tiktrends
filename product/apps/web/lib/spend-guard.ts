@@ -30,8 +30,14 @@ import {
  *    exactement le comportement qu'on cherche à empêcher.
  */
 
-/** Plafond par défaut · délibérément bas tant que le produit n'est pas lancé. */
-const DEFAULT_CAP_USD = 10;
+/**
+ * Plafond par défaut · le garde-fou en dur, celui qui s'applique quand
+ * `AI_SPEND_CAP_USD` n'est pas posé (ou « ne prend pas » côté VPS). Relevé de
+ * 10 à 50 $ sur demande explicite du propriétaire · c'est le chemin robuste
+ * (déploiement par push), là où éditer `.env.deploy` ne prenait pas. Reste un
+ * plafond DUR : au-delà, aucune requête payante ne part.
+ */
+const DEFAULT_CAP_USD = 50;
 /** Fenêtre du plafond · glissante sur 30 jours, pas calendaire. */
 const WINDOW_DAYS = 30;
 
