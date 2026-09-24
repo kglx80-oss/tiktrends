@@ -16,6 +16,9 @@ export const channelEnum = pgEnum('agent_channel', ['web', 'slack', 'whatsapp'])
 
 /* ============================ CORE ============================ */
 export const accountKindEnum = pgEnum('account_kind', ['normal', 'beta', 'staff']);
+// Rôles de l'ÉQUIPE INTERNE (agence) qui opère TikTrends · distincts des rôles
+// d'espace client (member_role). Voir packages/core/src/equipe-plateforme.ts.
+export const platformRoleEnum = pgEnum('platform_role', ['adminplus', 'admin', 'manager', 'dev', 'moderateur', 'membre', 'freelance', 'lecture']);
 export const workspaces = pgTable('workspaces', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -59,6 +62,24 @@ export const workspaceMembers = pgTable('workspace_members', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   role: roleEnum('role').notNull().default('member'),
 }, (t) => ({ pk: primaryKey({ columns: [t.workspaceId, t.userId] }) }));
+
+// L'équipe interne · un e-mail (minuscule) → un rôle plateforme. Table à part du
+// client · un membre de l'équipe n'est pas rattaché à un espace client.
+export const platformStaff = pgTable('platform_staff', {
+  email: text('email').primaryKey(),
+  role: platformRoleEnum('role').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// La MATRICE éditable des droits · une ligne par rôle matriciel → la liste des
+// clés de rubriques cochées. adminplus/admin n'y figurent pas (accès total). Un
+// rôle sans ligne retombe sur ses droits par défaut (DROITS_DEFAUT, noyau).
+export const platformRoleRights = pgTable('platform_role_rights', {
+  role: platformRoleEnum('role').primaryKey(),
+  rubriques: jsonb('rubriques_json').notNull().default([]),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const brands = pgTable('brands', {
   id: uuid('id').primaryKey().defaultRandom(),
