@@ -23,10 +23,11 @@ import { ajouterRecent, type EcranRecent } from '../lib/recents';
 // Les pages « espace de travail » du client (marques, connexions, membres,
 // abonnement, réglages) gardent la DA magenta standard.
 // Navigation dédiée quand le fondateur entre en mode ADMIN+ (remplace le rail client).
-const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: string }> = [
+export const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: string }> = [
   { key: 'a-home', label: "Vue d'ensemble", href: '/admin', icon: 'grid' },
   { key: 'a-fin', label: 'Finance · MRR', href: '/admin/finance', icon: 'chart' },
   { key: 'a-signups', label: 'Inscriptions', href: '/admin/signups', icon: 'users' },
+  { key: 'a-equipe', label: 'Équipe & droits', href: '/admin/equipe', icon: 'lock' },
   { key: 'a-plans', label: 'Formules & crédits', href: '/admin/plans', icon: 'card' },
   { key: 'a-pay', label: 'Chaîne de paiement', href: '/admin/paiement', icon: 'gauge' },
   { key: 'a-incid', label: 'Incidents', href: '/admin/incidents', icon: 'radar' },
@@ -299,6 +300,7 @@ function AppShellInner(props: Props) {
       { id: 'adm-home', label: 'ADMIN+ · Coulisses', group: 'Plateforme', href: '/admin', icon: 'gauge', keywords: 'admin backstage console' },
       { id: 'adm-fin', label: 'Finance · MRR & marges', group: 'Plateforme', href: '/admin/finance', icon: 'chart', keywords: 'mrr revenu marge chiffre' },
       { id: 'adm-signups', label: 'Inscriptions & onboarding', group: 'Plateforme', href: '/admin/signups', icon: 'users', keywords: 'inscriptions comptes profils' },
+      { id: 'adm-equipe', label: 'Équipe & droits', group: 'Plateforme', href: '/admin/equipe', icon: 'lock', keywords: 'equipe role droits rubrique admin manager dev membre lecture freelance moderateur' },
       { id: 'nav-adsmap', label: 'Adsmap · carte des tests', group: 'Analyse', href: '/adsmap', icon: 'map', keywords: 'adsmap test verdict hypothese iteration batch lot' },
       { id: 'adm-plans', label: 'Formules & crédits · pilotage', group: 'Plateforme', href: '/admin/plans', icon: 'card', keywords: 'formule plan crédit offrir ajuster' },
       { id: 'adm-pay', label: 'Vérifier la chaîne de paiement', group: 'Plateforme', href: '/admin/paiement', icon: 'card', keywords: 'stripe paiement webhook prix test carte' },
