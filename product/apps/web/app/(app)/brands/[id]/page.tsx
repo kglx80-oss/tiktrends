@@ -11,7 +11,7 @@ import {
   addPersonaAction, deletePersonaAction, addScenarioAction, deleteScenarioAction,
   addProductAction, deleteProductAction, importProductsAction, generateFullBrandAction,
 } from '../../../actions/brand-detail';
-import { input, lbl, Msg } from '../../../../components/ui';
+import { input, lbl, Msg, LARGEURS } from '../../../../components/ui';
 import { Icon } from '../../../../components/Icon';
 import { AvatarSite } from '../../../../components/AvatarSite';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
@@ -77,7 +77,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
 
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 940, margin: '0 auto' }}>
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: LARGEURS.data, margin: '0 auto' }}>
       <Link href="/brands" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Marques</Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>
