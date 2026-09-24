@@ -39,6 +39,7 @@ export default async function AdminBackstage() {
   const tools: Tool[] = [
     { icon: 'chart', title: 'Finance · MRR & marges', desc: 'Revenu récurrent, bénéfice net réel, optimisation des marges par formule.', href: '/admin/finance' },
     { icon: 'users', title: 'Inscriptions & onboarding', desc: 'Nouveaux comptes, profils déclarés, niveau IA et objectifs.', href: '/admin/signups', badge: `${m.new30} / 30j` },
+    { icon: 'lock', title: 'Équipe & droits', desc: 'Rôles de l’agence (Admin+ → Lecture) et rubriques visibles par rôle.', href: '/admin/equipe' },
     { icon: 'coin', title: 'Crédits & marges', desc: 'Barème, coût réel API, règle × markup et marge par action.', href: '/credits' },
     { icon: 'terminal', title: 'Console', desc: 'État du système, intégrations, files de génération, diagnostics.', href: '/console' },
     { icon: 'brain', title: 'Jarvis', desc: 'Règles créatives maison imposées à chaque génération, par marque.', href: '/jarvis' },
