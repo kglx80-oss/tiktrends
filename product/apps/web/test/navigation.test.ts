@@ -3,6 +3,7 @@ import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROUTES, matchRoute, breadcrumb, isBrandScoped, routeLabel } from '../lib/navigation';
 import { FEATURES } from '../lib/rbac';
+import { ADMIN_NAV } from '../components/AppShell';
 
 describe('la carte décrit toutes les pages · sinon elle dérive', () => {
   /**
@@ -62,6 +63,24 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
   it('aucun chemin déclaré deux fois', () => {
     const vus = ROUTES.map((r) => r.path);
     expect(new Set(vus).size).toBe(vus.length);
+  });
+
+  /**
+   * Le rail ADMIN+ dérive à part.
+   *
+   * Le rail plateforme (`ADMIN_NAV`, dans AppShell) est une liste À PART de
+   * `ROUTES` et des cartes de /admin. Une page d'admin ajoutée + déclarée dans
+   * ROUTES peut donc rester INVISIBLE du rail — c'est arrivé à /admin/equipe,
+   * livré mais absent du menu. On cloue les deux bords : chaque entrée /admin/*
+   * du rail a une page réelle, et l'écran Équipe & droits y figure.
+   */
+  it('le rail ADMIN+ ne mène jamais dans le vide, et porte l’écran Équipe', () => {
+    const reelles = new Set(pagesDe(join(process.cwd(), 'app')));
+    const morts = ADMIN_NAV
+      .map((e) => e.href)
+      .filter((h) => h.startsWith('/admin/') && !reelles.has(h));
+    expect(morts, `Entrée(s) du rail ADMIN+ sans page : ${morts.join(', ')}`).toEqual([]);
+    expect(ADMIN_NAV.map((e) => e.href), 'le rail ADMIN+ doit porter Équipe & droits').toContain('/admin/equipe');
   });
 });
 
