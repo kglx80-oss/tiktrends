@@ -27,6 +27,20 @@ export const panel: CSSProperties = {
   border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 20,
 };
 export const pageWrap: CSSProperties = { padding: '30px 36px 60px', maxWidth: 860, margin: '0 auto' };
+
+/**
+ * Largeurs de contenu · quatre paliers, pas quinze valeurs au hasard.
+ *
+ * Les écrans avaient dérivé sur ~15 largeurs de 700 à 1320 sans logique · un
+ * même type d'écran paraissait tassé ici, large là. On fixe le vocabulaire :
+ *  - `table`  · une table/canvas large (Adsmap).
+ *  - `data`   · le DÉFAUT d'un écran à grilles/données · déjà la largeur des
+ *               meilleurs écrans (dashboard, veille, studio) · « exploite tout
+ *               l'espace ».
+ *  - `detail` · un écran plus resserré (détail, colonne mixte).
+ *  - `prose`  · une mesure de lecture (texte long, réglages étroits).
+ */
+export const LARGEURS = { table: 1320, data: 1180, detail: 1040, prose: 760 } as const;
 export const h1: CSSProperties = { margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' };
 export const h2: CSSProperties = { margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' };
 export const sub: CSSProperties = { color: 'var(--muted)', fontSize: 13, marginTop: 0, marginBottom: 16 };
