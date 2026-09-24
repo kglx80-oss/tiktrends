@@ -1,6 +1,8 @@
 // RBAC TikTrends · droits par rôle + gating par abonnement (CDC §F1).
 // Pur (aucune dépendance serveur) : importable partout.
 
+import { roleVoitRubrique, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
+
 export type Role = 'owner' | 'admin' | 'member' | 'client_viewer';
 export type Plan = 'starter' | 'core' | 'plus' | 'business';
 
@@ -134,18 +136,54 @@ export const FEATURES: Feature[] = [
   // (ADMIN+ · isFounder), pas exposés dans le menu client. Voir app/(app)/admin.
 ];
 
-export interface Access { role: Role; plan: Plan; }
+/**
+ * Chaque fonctionnalité appartient à une RUBRIQUE gouvernable par l'équipe
+ * interne (voir packages/core · equipe-plateforme). C'est ce qui relie le menu
+ * client (par feature) au système de droits de l'équipe (par rubrique). Support
+ * n'a pas de rubrique · toujours visible pour l'équipe.
+ */
+const RUBRIQUE_DE_FEATURE: Record<string, string> = {
+  dashboard: 'dashboard', analytics: 'analytics',
+  inspo: 'veille', scale: 'veille', tags: 'veille', saved: 'saved', radar: 'radar',
+  jarvis: 'jarvis', studio: 'studio', ads: 'studio', image: 'studio', video: 'studio', textes: 'studio', assets: 'assets',
+  adsmap: 'adsmap', suites: 'adsmap', lots: 'adsmap', ttradar: 'adsmap', tri: 'adsmap', protocole: 'adsmap', import: 'adsmap',
+  brands: 'marques', team: 'equipe', connect: 'connexions', usage: 'usage', billing: 'facturation', settings: 'reglages',
+};
+export function rubriqueDeFeature(key: string): string | null {
+  return RUBRIQUE_DE_FEATURE[key] ?? null;
+}
+
+/**
+ * L'accès effectif d'une session · soit un CLIENT (rôle d'espace + formule), soit
+ * un membre de l'ÉQUIPE interne (`equipe` présent · rôle plateforme + matrice).
+ * Les deux ne se mélangent pas : quand `equipe` est là, c'est lui qui décide, et
+ * la formule ne s'applique plus (l'équipe n'est pas facturée).
+ */
+export interface Access { role: Role; plan: Plan; equipe?: { role: RolePlateforme; matrice: MatriceDroits } }
 export type NavItem = Feature & { locked: boolean; isSub: boolean };
+
+/** La feature est-elle VISIBLE ? Client · rôle d'espace. Équipe · matrice des rubriques. */
+function voitFeature(a: Access, f: Feature): boolean {
+  if (!a.equipe) return roleAtLeast(a.role, f.minRole);
+  const rub = rubriqueDeFeature(f.key);
+  if (rub === null) return true; // sans rubrique (support) · toujours pour l'équipe
+  return roleVoitRubrique(a.equipe.role, rub, a.equipe.matrice);
+}
+
+/** La feature est-elle VERROUILLÉE par la formule ? L'équipe n'est jamais bloquée par le plan. */
+function verrouille(a: Access, f: Feature): boolean {
+  return a.equipe ? false : !planAtLeast(a.plan, f.minPlan);
+}
 
 /** Navigation du rail, groupée ; les sous-menus suivent leur parent (indentés). */
 export function railNav(a: Access): Array<{ group: NavGroup; items: NavItem[] }> {
   return RAIL_GROUPS.map((g) => ({
     group: g,
-    items: FEATURES.filter((f) => f.group === g && !f.parent && roleAtLeast(a.role, f.minRole)).flatMap((f) => {
-      const self: NavItem = { ...f, locked: !planAtLeast(a.plan, f.minPlan), isSub: false };
+    items: FEATURES.filter((f) => f.group === g && !f.parent && voitFeature(a, f)).flatMap((f) => {
+      const self: NavItem = { ...f, locked: verrouille(a, f), isSub: false };
       const subs: NavItem[] = FEATURES
-        .filter((c) => c.parent === f.key && roleAtLeast(a.role, c.minRole))
-        .map((c) => ({ ...c, locked: !planAtLeast(a.plan, c.minPlan), isSub: true }));
+        .filter((c) => c.parent === f.key && voitFeature(a, c))
+        .map((c) => ({ ...c, locked: verrouille(a, c), isSub: true }));
       return [self, ...subs];
     }),
   })).filter((grp) => grp.items.length > 0);
@@ -153,8 +191,8 @@ export function railNav(a: Access): Array<{ group: NavGroup; items: NavItem[] }>
 
 /** Fonctionnalités du menu de compte (profil). */
 export function accountFeatures(a: Access): NavItem[] {
-  return FEATURES.filter((f) => f.group === 'account' && roleAtLeast(a.role, f.minRole))
-    .map((f) => ({ ...f, locked: !planAtLeast(a.plan, f.minPlan), isSub: false }));
+  return FEATURES.filter((f) => f.group === 'account' && voitFeature(a, f))
+    .map((f) => ({ ...f, locked: verrouille(a, f), isSub: false }));
 }
 
 export const ACCOUNT_SECTIONS: AccountSection[] = ['Compte', 'Espace', 'Admin'];
@@ -165,13 +203,15 @@ export function accountSections(a: Access): Array<{ section: AccountSection; ite
     .filter((g) => g.items.length > 0);
 }
 
-/** L'utilisateur a-t-il accès (rôle ET abonnement suffisants) ? */
+/** L'utilisateur a-t-il accès ? Client · rôle ET formule. Équipe · la rubrique suffit (pas de formule). */
 export function canAccess(a: Access, f: Feature): boolean {
+  if (a.equipe) return voitFeature(a, f);
   return roleAtLeast(a.role, f.minRole) && planAtLeast(a.plan, f.minPlan);
 }
 
 /** Raison d'un refus (pour l'UI de page verrouillée). */
 export function denyReason(a: Access, f: Feature): 'role' | 'plan' | null {
+  if (a.equipe) return voitFeature(a, f) ? null : 'role';
   if (!roleAtLeast(a.role, f.minRole)) return 'role';
   if (!planAtLeast(a.plan, f.minPlan)) return 'plan';
   return null;
