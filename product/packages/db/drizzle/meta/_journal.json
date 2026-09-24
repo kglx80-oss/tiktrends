@@ -372,6 +372,13 @@
       "when": 1788300000011,
       "tag": "0052_drive_last_sync_bilan",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790236856401,
+      "tag": "0053_modern_quasar",
+      "breakpoints": true
     }
   ]
 }
