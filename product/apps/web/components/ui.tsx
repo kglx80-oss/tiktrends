@@ -26,7 +26,7 @@ export const btnGhost: CSSProperties = {
 export const panel: CSSProperties = {
   border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 20,
 };
-export const pageWrap: CSSProperties = { padding: '30px 36px 60px', maxWidth: 860, margin: '0 auto' };
+export const pageWrap: CSSProperties = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 860, margin: '0 auto' };
 
 /**
  * Largeurs de contenu · quatre paliers, pas quinze valeurs au hasard.
