@@ -4,12 +4,36 @@ import { db, schema } from '@tiktrends/db';
 import { isFounder } from './founder';
 
 /**
- * Crédits illimités pour les comptes fondateur/créateur (FOUNDER_EMAILS).
+ * Registre en mémoire des comptes d'ÉQUIPE à accès total (adminplus/admin) qui
+ * ne sont pas des fondateurs codés en dur · alimenté par `getSession`.
+ *
+ * Pourquoi un registre plutôt qu'une lecture base à chaque débit : `unlimitedCredits`
+ * est synchrone et appelé depuis ~30 endroits (email seul, sans session). Le
+ * rendre asynchrone essaimerait partout. Le registre reste correct et
+ * AUTO-CICATRISANT : toute action qui dépense passe d'abord par `getSession`,
+ * qui (ré)inscrit ou retire le compte selon son rôle courant. Un admin
+ * rétrogradé est donc retiré AVANT sa prochaine dépense, dans la requête même.
+ */
+const EMAILS_STAFF_ILLIMITE = new Set<string>();
+
+/** Appelé par getSession · `illimite` = le compte a un rôle d'équipe à accès total. */
+export function noterCreditsStaff(email: string | null | undefined, illimite: boolean): void {
+  const e = email?.trim().toLowerCase();
+  if (!e) return;
+  if (illimite) EMAILS_STAFF_ILLIMITE.add(e);
+  else EMAILS_STAFF_ILLIMITE.delete(e);
+}
+
+/**
+ * Crédits illimités · fondateurs (codés en dur / FOUNDER_EMAILS) ET membres de
+ * l'équipe à accès total (adminplus/admin, inscrits par getSession).
  * Quand vrai : on ne vérifie pas le solde et on ne débite pas.
  * (Les espaces clients restent soumis au barème normal.)
  */
 export function unlimitedCredits(email?: string | null): boolean {
-  return isFounder(email);
+  if (isFounder(email)) return true;
+  const e = email?.trim().toLowerCase();
+  return !!e && EMAILS_STAFF_ILLIMITE.has(e);
 }
 
 /**
