@@ -8,6 +8,7 @@ export * from './credits';
 export * from './spend-guard';
 export * from './spend-refund';
 export * from './economics';
+export * from './equipe-plateforme';
 export * from './moteur-vignette';
 export * from './concurrent-carte';
 export * from './score-jarvis';
