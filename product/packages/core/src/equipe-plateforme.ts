@@ -115,3 +115,32 @@ export function roleVoitRubrique(role: RolePlateforme, rubrique: string, matrice
 export function rubriquesDuRole(role: RolePlateforme, matrice?: MatriceDroits): string[] {
   return CLES_RUBRIQUES.filter((k) => roleVoitRubrique(role, k, matrice));
 }
+
+/* ─────────────────────────── Écriture · l'écran d'admin ─────────────────────
+ * Les rôles gouvernables par la matrice · adminplus/admin en sont EXCLUS (accès
+ * total, jamais éditable · sinon l'admin pourrait se verrouiller hors de l'outil).
+ */
+export const ROLES_MATRICIELS: readonly RolePlateforme[] =
+  ROLES_PLATEFORME.filter((r) => !accesTotal(r));
+
+/** Garde de saisie · `x` est-il un rôle plateforme connu ? (rejette une valeur forgée) */
+export function estRolePlateforme(x: unknown): x is RolePlateforme {
+  return typeof x === 'string' && (ROLES_PLATEFORME as readonly string[]).includes(x);
+}
+
+/** Un rôle dont la matrice a un sens (ni adminplus ni admin). */
+export function estRoleMatriciel(role: RolePlateforme): boolean {
+  return !accesTotal(role);
+}
+
+/**
+ * Garde d'ÉCRITURE de la matrice · ne conserve que des rubriques CONNUES,
+ * dédupliquées, dans l'ordre canonique. Une clé forgée ou en double n'entre
+ * jamais en base · c'est ce qui empêche une faute de frappe d'ouvrir un accès
+ * fantôme, côté écriture cette fois (roleVoitRubrique garde la lecture).
+ */
+export function nettoyerRubriques(entrees: readonly unknown[]): string[] {
+  const vues = new Set<string>();
+  for (const e of entrees) if (typeof e === 'string' && CLES_RUBRIQUES.includes(e)) vues.add(e);
+  return CLES_RUBRIQUES.filter((k) => vues.has(k));
+}

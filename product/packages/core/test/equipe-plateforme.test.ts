@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ROLES_PLATEFORME, ROLES_ACCES_TOTAL, CLES_RUBRIQUES, DROITS_DEFAUT,
+  ROLES_PLATEFORME, ROLES_ACCES_TOTAL, ROLES_MATRICIELS, CLES_RUBRIQUES, DROITS_DEFAUT,
   accesTotal, creditIllimitePourRole, roleVoitRubrique, rubriquesDuRole,
+  estRolePlateforme, estRoleMatriciel, nettoyerRubriques,
   type RolePlateforme,
 } from '../src/equipe-plateforme';
 
@@ -68,5 +69,36 @@ describe('équipe plateforme · rôles matriciels', () => {
   it('rubriquesDuRole rend exactement ce qui est visible', () => {
     const r: RolePlateforme = 'lecture';
     expect(rubriquesDuRole(r).sort()).toEqual([...DROITS_DEFAUT.lecture].sort());
+  });
+});
+
+describe('équipe plateforme · gardes d’écriture (écran d’admin)', () => {
+  it('ROLES_MATRICIELS exclut l’accès total', () => {
+    expect(ROLES_MATRICIELS).not.toContain('adminplus');
+    expect(ROLES_MATRICIELS).not.toContain('admin');
+    expect(ROLES_MATRICIELS).toContain('membre');
+    for (const r of ROLES_MATRICIELS) expect(estRoleMatriciel(r)).toBe(true);
+    for (const r of ROLES_ACCES_TOTAL) expect(estRoleMatriciel(r)).toBe(false);
+  });
+
+  it('estRolePlateforme rejette une valeur forgée, accepte les rôles connus', () => {
+    expect(estRolePlateforme('membre')).toBe(true);
+    expect(estRolePlateforme('root')).toBe(false);
+    expect(estRolePlateforme('')).toBe(false);
+    expect(estRolePlateforme(null)).toBe(false);
+    expect(estRolePlateforme(42)).toBe(false);
+    for (const r of ROLES_PLATEFORME) expect(estRolePlateforme(r)).toBe(true);
+  });
+
+  it('nettoyerRubriques ne garde que le connu, déduplique, ordre canonique', () => {
+    // Ordre d'entrée mélangé + doublon + clé forgée → sortie propre et ordonnée.
+    const sale = ['studio', 'nexistepas', 'dashboard', 'studio', 'root'];
+    expect(nettoyerRubriques(sale)).toEqual(['dashboard', 'studio']);
+    // Types non-string ignorés · aucune exception, aucun accès fantôme.
+    expect(nettoyerRubriques([42, null, {}, 'adsmap'])).toEqual(['adsmap']);
+    expect(nettoyerRubriques([])).toEqual([]);
+    // La sortie suit l'ordre de CLES_RUBRIQUES, jamais l'ordre d'entrée.
+    const inverse = [...CLES_RUBRIQUES].slice().reverse();
+    expect(nettoyerRubriques(inverse)).toEqual([...CLES_RUBRIQUES]);
   });
 });

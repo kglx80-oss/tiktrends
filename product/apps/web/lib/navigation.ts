@@ -112,6 +112,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/admin', label: 'Coulisses', section: 'Plateforme' },
   { path: '/admin/finance', label: 'Finance · MRR', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/signups', label: 'Inscriptions', parent: '/admin', section: 'Plateforme' },
+  { path: '/admin/equipe', label: 'Équipe & droits', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/plans', label: 'Formules & crédits', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/paiement', label: 'Chaîne de paiement', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/incidents', label: 'Incidents', parent: '/admin', section: 'Plateforme' },
