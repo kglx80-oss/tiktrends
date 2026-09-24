@@ -9,6 +9,9 @@ import { db, schema } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
 import type { Role, Plan } from './rbac';
 import { epochDuJeton, sessionEpochValide } from './session-epoch';
+import { accesTotal } from '@tiktrends/core';
+import { equipeDeSession, type EquipeSession } from './equipe-plateforme';
+import { noterCreditsStaff } from './credits';
 
 const COOKIE = 'tt_session';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 jours
@@ -41,6 +44,9 @@ export interface Session {
   workspaceName: string;
   role: Role;
   plan: Plan;
+  // Équipe interne (rôle plateforme + matrice) · absent pour un compte client.
+  // Présent → c'est lui qui décide l'accès (voir effectiveAccess / rbac).
+  equipe?: EquipeSession | null;
 }
 
 /* ----------------------------- Mots de passe ----------------------------- */
@@ -131,11 +137,19 @@ export async function getSession(): Promise<Session | null> {
     .limit(1);
   if (!w) return null;
 
+  // Rôle d'équipe interne (plateforme) · lu frais à chaque requête. On note au
+  // passage le droit aux crédits illimités (accès total) dans un registre
+  // AUTO-CICATRISANT : comme toute dépense passe d'abord par getSession, une
+  // rétrogradation retire l'email AVANT la prochaine dépense de ce compte.
+  const equipe = await equipeDeSession(u.email);
+  noterCreditsStaff(u.email, !!equipe && accesTotal(equipe.role));
+
   return {
     user: { id: u.id, email: u.email, name: u.name },
     workspaceId: w.id,
     workspaceName: w.name,
     role: m.role as Role,
     plan: (w.plan as Plan) || 'starter',
+    equipe,
   };
 }
