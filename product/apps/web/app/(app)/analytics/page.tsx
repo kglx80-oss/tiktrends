@@ -10,6 +10,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { Icon } from '../../../components/Icon';
 import { MetaKeyMetrics } from './MetaKeyMetrics';
 import { CreativeIntel, type CreativeStats } from './CreativeIntel';
+import { SectionAttribution } from '../jarvis/sections/SectionAttribution';
 
 const TPL_LABEL: Record<string, string> = { problem_solution: 'Problème/solution', before_after: 'Avant/après', testimonial: 'Témoignage', benefits: 'Bénéfices', ugc: 'UGC', stat: 'Stat', offer: 'Offre' };
 
@@ -197,6 +198,11 @@ export default async function AnalyticsPage() {
         })}
       </div>
       </>)}
+
+      {/* Le bilan avancé de Jarvis · attribution et tendance, à leur destination.
+          Self-porté (offre Plus, marque active) · rend null sinon, il ne s'impose
+          jamais à un compte qui n'y avait pas droit. */}
+      <SectionAttribution />
     </main>
   );
 }

@@ -80,9 +80,37 @@ export function JarvisContexte({ contexte, brandName, onClose }: {
             : <p style={{ ...corps, color: 'var(--muted)' }}>Aucune consigne maison · Jarvis suit alors ses règles générales.</p>}
         </Bloc>
 
+        {/* Les accroches, mot pour mot · le tableau des sources donne des
+            catégories, ici on donne les phrases. Elles sont injectées telles
+            quelles dans chaque génération, avec ce qu'elles ont donné. Portée
+            marque, derrière l'offre Plus · absentes proprement sinon. */}
+        {contexte.hooks && (
+          <Bloc titre="Accroches" portee="marque">
+            <p style={corps}>{contexte.hooks.summary}</p>
+            {contexte.hooks.entries.length > 0 && (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {contexte.hooks.entries.slice(0, 8).map((h, i) => {
+                  const t = HOOK_TON[h.evidence] ?? HOOK_TON.untested!;
+                  return (
+                    <div key={`${h.evidence}-${i}`} style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: t.fg, border: `1px solid ${t.bd}`, whiteSpace: 'nowrap' }}>{t.label}</span>
+                      <span style={{ flex: '1 1 200px', minWidth: 0, fontSize: 12, color: 'var(--ink)', lineHeight: 1.45 }}>« {h.text} »</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {contexte.hooks.counts.market > 0 && (
+              <p style={{ margin: '10px 0 0', fontSize: 10.5, color: '#ffcf8f', lineHeight: 1.5 }}>
+                Les accroches de concurrents ne sont jamais recopiées · Jarvis en reprend la mécanique, pas les mots.
+              </p>
+            )}
+          </Bloc>
+        )}
+
         <Bloc titre="Sources de Jarvis" portee="marque">
           <p style={corps}>
-            Mémoire mesurée, accroches et apprentissages de cette marque, avec leur provenance ·
+            La mémoire mesurée et les apprentissages de cette marque, avec leur provenance ·
             ils vivent dans les sources détaillées, sous la conversation.
           </p>
           <Link href="/jarvis/sources" style={lien}>Voir les sources et la mémoire ›</Link>
@@ -110,6 +138,14 @@ function Bloc({ titre, portee, children }: { titre: string; portee: 'utilisateur
     </section>
   );
 }
+
+/** Le poids d'une accroche · a-t-elle gagné ici, vient-elle du marché, jamais tranchée. */
+const HOOK_TON: Record<string, { bd: string; fg: string; label: string }> = {
+  proven: { bd: 'rgba(126,232,191,.45)', fg: '#7ee8bf', label: 'a gagné ici' },
+  market: { bd: 'rgba(245,166,35,.4)', fg: '#ffcf8f', label: 'marché' },
+  untested: { bd: 'var(--line-2)', fg: 'var(--muted)', label: 'jamais tranchée' },
+  refuted: { bd: 'rgba(254,44,85,.4)', fg: '#ff8095', label: 'a perdu ici' },
+};
 
 const corps = { margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 } as const;
 const lien = { display: 'inline-block', marginTop: 8, fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' } as const;

@@ -7,7 +7,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { canAccess, FEATURES, roleAtLeast } from '../../lib/rbac';
 import { effectiveAccess } from '../../lib/access';
-import { jarvisStats } from '../../lib/jarvis-memory';
+import { jarvisStats, jarvisHookView } from '../../lib/jarvis-memory';
 import { logAndTranslate } from '../../lib/error-log';
 import { GUARD } from '../../lib/guard-error';
 
@@ -29,12 +29,21 @@ export interface ChatTurn { id: string; role: 'user' | 'assistant'; content: str
  * sa portée, affichée telle quelle. Rien de nouveau n'est exposé · c'est le
  * contenu de la marque du membre, en lecture.
  */
+/**
+ * Les accroches, mot pour mot · ce que Jarvis injecte tel quel dans chaque
+ * génération, avec ce que chacune a donné. Portée marque, derrière l'offre Plus
+ * (comme la mémoire mesurée) · null quand l'accès manque ou qu'il n'y a rien.
+ */
+export type ChatHooks = Awaited<ReturnType<typeof jarvisHookView>>;
+
 export interface ChatContexte {
   brandId: string;
   /** Identité déclarée · description, promesse, audience · vide si rien. */
   identity: string | null;
   /** Consignes créatives maison · injectées dans chaque génération. Portée marque. */
   rules: string | null;
+  /** Accroches mesurées et de marché · portée marque, offre Plus. null sinon. */
+  hooks: ChatHooks | null;
 }
 
 export interface ChatThread {
@@ -58,7 +67,7 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
 
   try {
     const voitMemoire = canAccess(effectiveAccess(s), adsmap);
-    const [rows, stats, ws, ident] = await Promise.all([
+    const [rows, stats, ws, ident, hooks] = await Promise.all([
       db.select({
         id: schema.jarvisMessages.id, role: schema.jarvisMessages.role,
         content: schema.jarvisMessages.content, createdAt: schema.jarvisMessages.createdAt,
@@ -76,6 +85,8 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
         description: schema.brands.description, usp: schema.brands.usp,
         audience: schema.brands.audience, creativeRules: schema.brands.creativeRules,
       }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1),
+      // Accroches · même provenance que la page Sources, même garde (offre Plus).
+      voitMemoire ? jarvisHookView(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
     ]);
 
     const n = stats?.nAds ?? 0;
@@ -93,7 +104,7 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
         starters: starters({ measuredAds: n, hasMarket: false, objectif }),
         measuredAds: n,
         brandName: brand.name,
-        contexte: { brandId: brand.id, identity, rules: b?.creativeRules?.trim() || null },
+        contexte: { brandId: brand.id, identity, rules: b?.creativeRules?.trim() || null, hooks },
       },
     };
   } catch (e) {

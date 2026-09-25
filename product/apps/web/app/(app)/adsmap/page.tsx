@@ -13,6 +13,7 @@ import { Views } from './Views';
 import { effectiveAccess } from '../../../lib/access';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
+import { SectionEssais } from '../jarvis/sections/SectionEssais';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,6 +105,12 @@ export default async function AdsMapPage() {
       </PageInfo>
 
       <Views batches={batches} canBuild={peutMesurer} />
+
+      {/* Ce que Jarvis a appris de ces tests · essais, Score Jarvis, relectures.
+          Le cumul vit là où on lit les tests, plus sous la conversation. Self-porté
+          (offre Plus, marque active) · l'écran Adsmap est déjà derrière la même
+          porte, la section double la garde par sûreté et rend null sinon. */}
+      <SectionEssais />
     </main>
   );
 }
