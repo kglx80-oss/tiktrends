@@ -42,7 +42,9 @@ export const pageWrap: CSSProperties = { padding: '30px clamp(16px, 4vw, 36px) 6
  */
 export const LARGEURS = { table: 1320, data: 1180, detail: 1040, prose: 760 } as const;
 export const h1: CSSProperties = { margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' };
-export const h2: CSSProperties = { margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' };
+// Titre de section · aligné sur la référence Jarvis (17/800) · un seul jeton, donc
+// une seule vérité pour tous les écrans d'espace (réglages, équipe, profil…).
+export const h2: CSSProperties = { margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' };
 export const sub: CSSProperties = { color: 'var(--muted)', fontSize: 13, marginTop: 0, marginBottom: 16 };
 export const lbl: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBottom: 6 };
 
