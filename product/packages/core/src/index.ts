@@ -125,4 +125,5 @@ export * from './adsmap/merge';
 export * from './adsmap/draft';
 export * from './creative-presets';
 export * from './onboarding';
+export * from './accueil';
 export * from './assistant-pub';

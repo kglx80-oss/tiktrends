@@ -1,6 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { chatSystemPrompt, trimThread, type ChatMessage } from '@tiktrends/core';
+import { chatSystemPrompt, trimThread, personnalisationAccueil, type ChatMessage } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../lib/rbac';
@@ -69,15 +69,19 @@ export async function POST(req: Request) {
     ]);
 
     const voitMemoire = canAccess(effectiveAccess(s), adsmap);
-    const [memoire, stats, ligne] = await Promise.all([
+    const [memoire, stats, ligne, ws] = await Promise.all([
       voitMemoire ? jarvisFullMemory(brand.id, s.workspaceId).catch(() => '') : Promise.resolve(''),
       voitMemoire ? jarvisStats(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
       db.select({
         rules: schema.brands.creativeRules, description: schema.brands.description,
         usp: schema.brands.usp, audience: schema.brands.audience,
       }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1),
+      db.select({ onboarding: schema.workspaces.onboarding }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
     ]);
     const b = ligne[0];
+    // Le niveau déclaré à l'accueil règle le registre d'explication de Jarvis ·
+    // il ne ferme aucune fonction (cf. accueil.ts).
+    const { niveau } = personnalisationAccueil(ws[0]?.onboarding);
 
     const system = chatSystemPrompt({
       brandName: brand.name,
@@ -89,6 +93,7 @@ export async function POST(req: Request) {
       // Il ne peut proposer que ce qu'on lui laisse ouvrir · sans la carte, les
       // boutons mèneraient vers des écrans fermés.
       canPropose: voitMemoire,
+      niveau,
     });
 
     await db.insert(schema.jarvisMessages).values({
