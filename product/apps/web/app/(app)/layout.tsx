@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/auth';
+import { RAIL_COOKIE, railCollapsedFromCookie } from '../../lib/rail-preference';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { railNav, accountSections, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, RAIL_GROUP_LABEL } from '../../lib/rbac';
@@ -33,6 +35,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const me = (meRow as Array<{ a: string | null; h: boolean | null }>)[0];
   const avatarUrl = me?.a ?? '';
 
+  // Préférence de repli du rail · lue AU RENDU serveur pour que la coquille
+  // sorte à la bonne largeur dès le premier pixel (cf. lib/rail-preference).
+  const collapsedInitial = railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value);
+
   // Espace « Marque » (rail) : accès direct aux sections de la marque active.
   const bid = activeBrand?.id;
   const brandNav = roleAtLeast(s.role, 'admin') && bid ? [{
@@ -63,6 +69,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       roleLabel={ROLE_LABEL[s.role]}
       planLabel={PLAN_LABEL[s.plan]}
       workspaceName={s.workspaceName}
+      collapsedInitial={collapsedInitial}
       logout={logoutAction}
     >
       {/* Canal de retour unique · `useToast()` sous ce fournisseur pose un

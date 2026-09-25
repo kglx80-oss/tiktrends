@@ -16,6 +16,7 @@ import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { chromeCoquille } from '../lib/chrome-coquille';
+import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
 
@@ -75,6 +76,9 @@ interface Props {
   roleLabel: string;
   planLabel: string;
   workspaceName: string;
+  /** Rail replié au PREMIER rendu · lu du cookie côté serveur pour que la
+   * géométrie soit juste dès le premier pixel (pas de saut après montage). */
+  collapsedInitial: boolean;
   logout: () => Promise<void>;
   children: ReactNode;
 }
@@ -185,7 +189,7 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, logout, children } = props;
+  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, collapsedInitial, logout, children } = props;
   // Menu profil : « Compte » (personnel) + « Espace de travail » (marques, membres,
   // connexions, abonnement, réglages). Les coulisses plateforme (ADMIN+) restent
   // réservées au fondateur/staff.
@@ -199,9 +203,12 @@ function AppShellInner(props: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // Barre repliable (« plus d'espace ») · préférence mémorisée par navigateur.
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => { try { setCollapsed(localStorage.getItem('tt_rail_collapsed') === '1'); } catch { /* stockage indispo */ } }, []);
-  const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('tt_rail_collapsed', n ? '1' : '0'); } catch { /* ignore */ } return n; });
+  // L'état part de la valeur SERVEUR (cookie) · le premier rendu client et le
+  // rendu serveur coïncident, donc le rail ne saute plus de 184 à 64px après
+  // montage. Le basculement réécrit le cookie · au prochain chargement, le
+  // serveur rendra directement la bonne largeur (cf. lib/rail-preference).
+  const [collapsed, setCollapsed] = useState(collapsedInitial);
+  const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { document.cookie = railCookieString(n); } catch { /* cookie indispo */ } return n; });
   // Sur écran étroit, le rail sort du flux en tiroir · un hamburger l'ouvre.
   const mobile = useIsMobile();
   const [drawer, setDrawer] = useState(false);
