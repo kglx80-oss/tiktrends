@@ -85,7 +85,7 @@ export function JarvisContexte({ contexte, brandName, onClose }: {
             Mémoire mesurée, accroches et apprentissages de cette marque, avec leur provenance ·
             ils vivent dans les sources détaillées, sous la conversation.
           </p>
-          <Link href="/jarvis#detail" style={lien}>Voir les sources et la mémoire ›</Link>
+          <Link href="/jarvis/sources" style={lien}>Voir les sources et la mémoire ›</Link>
         </Bloc>
       </div>
     </div>

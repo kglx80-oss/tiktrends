@@ -22,6 +22,9 @@ const FICHIERS = readdirSync(DIR)
 // définies en emoji (`icon: '🎯'`), invisibles au scan du dossier · c'est
 // exactement le trou qui a laissé passer la page Jarvis. On l'ajoute ici.
 FICHIERS.push({ rel: 'lib/jarvis-state.ts', src: readFileSync(join(process.cwd(), 'lib/jarvis-state.ts'), 'utf8') });
+// Le détail a déménagé dans le sous-dossier `sources` · on l'ajoute au scan,
+// sinon un emoji réintroduit là-bas passerait sous le radar.
+FICHIERS.push({ rel: 'jarvis/sources/page.tsx', src: readFileSync(join(DIR, 'sources/page.tsx'), 'utf8') });
 
 // Pictogrammes : plan emoji + symboles divers + étoiles décoratives. Pas ✓ ni →.
 const PICTO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{2728}\u{2726}\u{FE0F}]/gu;
@@ -49,7 +52,7 @@ describe('Jarvis · plus aucun emoji d’interface', () => {
 
   it('les couches d’état portent un NOM d’icône du jeu, rendu dynamiquement', () => {
     const state = FICHIERS.find((f) => f.rel === 'lib/jarvis-state.ts')!.src;
-    const page = FICHIERS.find((f) => f.rel === 'jarvis/page.tsx')!.src;
+    const page = FICHIERS.find((f) => f.rel === 'jarvis/sources/page.tsx')!.src;
     // les descripteurs ne portent plus d'emoji mais des noms du jeu…
     expect(state, 'les sections doivent porter un nom d’icône, pas un emoji').toMatch(/icon: 'target'/);
     expect(state).toMatch(/icon: 'radar'/);

@@ -119,7 +119,7 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     // tenue par le type). L'issue n'a pas disparu pour autant · le `why` de
     // chaque section nomme toujours Pubs IA, en toutes lettres · pas d'impasse,
     // pas de doublon.
-    const src = lit('app/(app)/jarvis/page.tsx');
+    const src = lit('app/(app)/jarvis/sources/page.tsx');
 
     const cta = src.split("href: '/studio/ads'").length - 1;
     expect(cta, 'CTA « Ouvrir Pubs IA » empilé dans un état wait · doublon de parcours').toBe(0);
