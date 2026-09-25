@@ -26,7 +26,12 @@
   --accent:        #fe2c55;
   --accent-strong: #ff5c8a;
   --accent-soft:   #2a1320;
-  --on-accent:     #ffffff;
+  /* Texte/pictos SUR le rose vif · sombre, pour le contraste (design.md).
+     Le blanc sur le dégradé plafonne à ~3,49:1 (sous le seuil AA) ; le sombre
+     #120810 atteint ~5,34:1. Vérifié : tous les usages de --on-accent posent ce
+     ton sur le dégradé rose (boutons, onglets/puces actifs), jamais sur un fond
+     sombre · le flip est donc sûr et couvre tout d'un coup. */
+  --on-accent:     #120810;
   --grad-accent:   linear-gradient(135deg, #fe2c55 0%, #ff2d8f 100%);
 
   /* Statuts */
@@ -69,7 +74,7 @@ body {
 /* Primaires en dégradé magenta */
 .btn-primary {
   background: var(--grad-accent);
-  color: #fff;
+  color: var(--on-accent);
   border-radius: var(--r-pill);
 }
 .btn-primary:hover { filter: brightness(1.08); }
