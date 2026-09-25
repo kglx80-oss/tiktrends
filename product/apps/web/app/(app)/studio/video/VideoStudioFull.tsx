@@ -256,7 +256,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
 
       {/* Galerie */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Tes vidéos {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
+        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Tes vidéos {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{videos.length}</span>
       </div>
 

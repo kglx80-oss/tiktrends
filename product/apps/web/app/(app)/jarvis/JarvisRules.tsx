@@ -81,7 +81,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
   return (
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Règles créatives</h2>
+        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Règles créatives</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{brandName ? `· ${brandName}` : '· marque active'}</span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={generate} disabled={aiBusy} style={{ fontSize: 12.5, fontWeight: 800, padding: '8px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', cursor: aiBusy ? 'default' : 'pointer', opacity: aiBusy ? .6 : 1 }}>

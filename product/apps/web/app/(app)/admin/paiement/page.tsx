@@ -53,7 +53,7 @@ export default async function PaiementPage() {
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 900, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Chaîne de paiement</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Chaîne de paiement</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22, maxWidth: 720, lineHeight: 1.6 }}>
@@ -61,7 +61,7 @@ export default async function PaiementPage() {
       </p>
 
       <section style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>1 · Vérification automatique</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>1 · Vérification automatique</h2>
         <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 14px', lineHeight: 1.6, maxWidth: 660 }}>
           Sans carte ni paiement. Contrôle la clé et son mode, chaque prix (existence, mode, tarif réellement facturé
           face à celui affiché), l'endpoint webhook et les événements qu'il envoie, puis le portail client.
@@ -70,7 +70,7 @@ export default async function PaiementPage() {
       </section>
 
       <section style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px', marginTop: 16 }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>2 · Test manuel à la carte</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>2 · Test manuel à la carte</h2>
         <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 16px', lineHeight: 1.6, maxWidth: 660 }}>
           La vérification ci-dessus valide la configuration · seul ce parcours valide l'expérience réelle.
           À faire en <b>mode test</b> (bandeau orange dans Stripe), depuis un compte client.

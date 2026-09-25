@@ -35,7 +35,7 @@ export default async function JarvisPage() {
   if (!brand) {
     return (
       <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--ink)' }}>Jarvis</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Jarvis</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
             tone="todo" title="Sélectionne une marque active."
@@ -51,19 +51,17 @@ export default async function JarvisPage() {
 
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
-      <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--line-2)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(230,0,126,.16), rgba(120,90,255,.10) 60%, var(--surface))', padding: '26px 28px', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', flexShrink: 0 }}><Icon name="brain" size={26} /></div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Jarvis</h1>
-              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>· {brand.name}</span>
-            </div>
-            <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 640, lineHeight: 1.5 }}>
-              {snapshot.summary}
-            </p>
-          </div>
+      {/* En-tête sobre (charte) · plus de bandeau dégradé ni de tuile d'icône rose ·
+          un titre 32/28, la marque, le résumé, séparés du contenu par un filet. */}
+      <div style={{ padding: '4px 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', color: 'var(--muted)', flexShrink: 0 }}><Icon name="brain" size={22} /></span>
+          <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Jarvis</h1>
+          <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>· {brand.name}</span>
         </div>
+        <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 640, lineHeight: 1.5 }}>
+          {snapshot.summary}
+        </p>
       </div>
 
       {/* La conversation, seule au premier plan · c'est la seule interface qui

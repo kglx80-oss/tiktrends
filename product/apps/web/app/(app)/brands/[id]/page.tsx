@@ -40,7 +40,7 @@ const ERR: Record<string, string> = { nourl: 'Renseigne le site de la marque pou
 
 const area = { ...input, minHeight: 74, resize: 'vertical' as const, lineHeight: 1.5, fontFamily: 'inherit' };
 const card = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: 14, marginBottom: 12 } as const;
-const sectionH = { margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' } as const;
+const sectionH = { margin: '0 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' } as const;
 const j = (a?: string[] | null) => (a ?? []).join(', ');
 const delBtn = { padding: '7px 11px', borderRadius: 999, border: '1px solid rgba(255,77,109,.3)', background: 'transparent', color: '#ff9db0', fontWeight: 600, fontSize: 12, cursor: 'pointer' } as const;
 const addBtn = { padding: '9px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' } as const;

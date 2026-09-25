@@ -34,7 +34,7 @@ export default async function AdsMapPage() {
     const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0', lineHeight: 1.6 }}>
@@ -56,7 +56,7 @@ export default async function AdsMapPage() {
   if (!brand) {
     return (
       <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
             tone="todo" title="Sélectionne une marque active."
@@ -79,7 +79,7 @@ export default async function AdsMapPage() {
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1320, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Adsmap</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Adsmap</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
         <span style={{ flex: 1 }} />
         {/* Il ne reste ici que ce qui AGIT sur la carte · mesurer, partager.

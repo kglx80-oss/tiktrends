@@ -34,7 +34,7 @@ export default function JarvisError({ error, reset }: { error: Error & { digest?
 
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
-      <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--ink)' }}>Jarvis</h1>
+      <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Jarvis</h1>
       <div role="alert" style={{
         marginTop: 20, padding: '20px 22px', borderRadius: 16,
         border: '1px solid rgba(245,166,35,.45)', background: 'rgba(245,166,35,.08)',

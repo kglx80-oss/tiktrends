@@ -41,10 +41,17 @@ export const pageWrap: CSSProperties = { padding: '30px clamp(16px, 4vw, 36px) 6
  *  - `prose`  · une mesure de lecture (texte long, réglages étroits).
  */
 export const LARGEURS = { table: 1320, data: 1180, detail: 1040, prose: 760 } as const;
-export const h1: CSSProperties = { margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' };
-// Titre de section · aligné sur la référence Jarvis (17/800) · un seul jeton, donc
-// une seule vérité pour tous les écrans d'espace (réglages, équipe, profil…).
-export const h2: CSSProperties = { margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' };
+/**
+ * Titres · alignés sur la charte (design.md) · titre de PAGE 32px desktop / 28px
+ * mobile, titre de SECTION 18–20px, graisses SOBRES (plus de 800 · la charte
+ * privilégie les graisses légères). Un seul jeton par niveau · une seule vérité.
+ *
+ * Le titre de page est responsive sans media query (styles en ligne obligent) :
+ * `clamp(28px, 4vw, 32px)` vaut 28 sous ~700px de large, 32 au-delà · exactement
+ * 28 mobile / 32 desktop.
+ */
+export const h1: CSSProperties = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' };
+export const h2: CSSProperties = { margin: '0 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' };
 export const sub: CSSProperties = { color: 'var(--muted)', fontSize: 13, marginTop: 0, marginBottom: 16 };
 export const lbl: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBottom: 6 };
 

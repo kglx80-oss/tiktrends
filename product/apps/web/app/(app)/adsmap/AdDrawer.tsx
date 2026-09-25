@@ -133,7 +133,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 id="addrawer-titre" style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.3 }}>
+            <h2 id="addrawer-titre" style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.3 }}>
               {d?.concept ?? 'Chargement…'}
             </h2>
             {d && (

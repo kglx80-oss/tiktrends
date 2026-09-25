@@ -20,14 +20,14 @@ export function CreativeIntel({ stats }: { stats: CreativeStats }) {
   return (
     <section style={{ marginBottom: 30 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Diversité créative <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· tes générations & tags</span></h2>
+        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Diversité créative <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· tes générations & tags</span></h2>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 16 }}>
         {/* Score + gabarits */}
         <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
             <span style={{ position: 'relative', width: 60, height: 60, borderRadius: '50%', background: `conic-gradient(${lv.color} ${stats.score * 3.6}deg, var(--line-2) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ width: 46, height: 46, borderRadius: '50%', background: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>{stats.score}</span>
+              <span style={{ width: 46, height: 46, borderRadius: '50%', background: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>{stats.score}</span>
             </span>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, color: lv.color }}>{lv.label}</div>

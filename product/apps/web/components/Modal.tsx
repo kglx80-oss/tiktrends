@@ -59,7 +59,7 @@ export function Modal({
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '18px 20px 14px', borderBottom: '1px solid var(--line)' }}>
           {icon && <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>{title}</div>
+            <div style={{ fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>{title}</div>
             {subtitle && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>}
           </div>
           <button type="button" onClick={onClose} aria-label="Fermer" style={{

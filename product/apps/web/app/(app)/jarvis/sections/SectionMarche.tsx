@@ -33,7 +33,7 @@ export async function SectionMarche() {
   return (
     <section aria-label="Mémoire marché de Jarvis" style={{ marginTop: 30, borderTop: '1px solid var(--line)', paddingTop: 22 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Mémoire marché de Jarvis</h2>
+        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Mémoire marché de Jarvis</h2>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
       </div>
       <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: 760, lineHeight: 1.55 }}>

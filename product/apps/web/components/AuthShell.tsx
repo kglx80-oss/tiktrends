@@ -33,7 +33,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
           <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-.01em' }}>TikTrends</span>
         </div>
         <div>
-          <h2 style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-.02em', maxWidth: 420 }}>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, lineHeight: 1.15, letterSpacing: '-.02em', maxWidth: 420 }}>
             Creative Intelligence, <span style={{ color: 'var(--accent-strong)' }}>TikTok-first</span>, pour agences.
           </h2>
           <p style={{ marginTop: 14, color: 'var(--ink-2)', fontSize: 14, maxWidth: 420, lineHeight: 1.6 }}>

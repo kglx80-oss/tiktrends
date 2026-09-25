@@ -64,7 +64,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>Crédits</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Crédits</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>
@@ -98,11 +98,11 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
 
       {/* Solde + allocation */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
-        <div style={card}><div style={cl}>Solde actuel</div><div style={{ fontSize: 30, fontWeight: 800, color: 'var(--accent-strong)' }}>◈ {balance.toLocaleString('fr-FR')}</div></div>
-        <div style={card}><div style={cl}>Allocation ({PLAN_LABEL[s.plan]})</div><div style={{ fontSize: 30, fontWeight: 800, color: 'var(--ink)' }}>{alloc.toLocaleString('fr-FR')}</div><div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>par mois</div></div>
+        <div style={card}><div style={cl}>Solde actuel</div><div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--accent-strong)' }}>◈ {balance.toLocaleString('fr-FR')}</div></div>
+        <div style={card}><div style={cl}>Allocation ({PLAN_LABEL[s.plan]})</div><div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>{alloc.toLocaleString('fr-FR')}</div><div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>par mois</div></div>
         <div style={card}>
           <div style={cl}>Consommé ce cycle</div>
-          <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--ink)' }}>{usedPct}%</div>
+          <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>{usedPct}%</div>
           <div style={{ marginTop: 8 }}>
             <BarreValeur part={partDeMax(usedPct, 100)} hauteur={8} piste="var(--bg)" />
           </div>
@@ -181,7 +181,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
             <div key={p.plan} style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
               <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{p.plan}</div>
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>{p.priceEur} € / mois HT</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#7ee8bf', lineHeight: 1 }}>+{Math.round(p.netEur)} €</div>
+              <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: '#7ee8bf', lineHeight: 1 }}>+{Math.round(p.netEur)} €</div>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>net / mois · {p.netPct}% du prix</div>
               <div style={{ fontSize: 11, color: 'var(--ink-2)', marginTop: 8, lineHeight: 1.5 }}>soit <b style={{ color: 'var(--ink)' }}>{Math.round(p.netEur * 12)} €</b> net / an par client</div>
             </div>
