@@ -62,10 +62,36 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
     try {
       const r = await saveOnboardingAction({ profile, adLevel, goals, brandName, siteUrl });
       if (r.error) { setErr(r.error); setBusy(false); return; }
-      router.push('/dashboard');
+      // La fin ouvre JARVIS · l'objectif choisi oriente déjà ses trois
+      // suggestions (cf. accueil.ts) · on arrive donc sur une conversation
+      // pertinente, pas sur un tableau de bord vide.
+      router.push('/jarvis');
       router.refresh();
     } catch {
       setErr('La préparation a échoué. Réessaie dans un instant.');
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Passer · l'accès à Jarvis ne se mérite pas en finissant le questionnaire.
+   *
+   * On enregistre ce qui a DÉJÀ été répondu (rien n'est perdu) et on marque le
+   * compte comme onboardé · sans ça, le layout renverrait l'utilisateur ici à
+   * chaque page, et « passer » ne passerait rien. Aucune marque n'est créée si
+   * on n'a pas donné de nom · Jarvis proposera alors d'en choisir une.
+   */
+  async function passer() {
+    if (busy) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const r = await saveOnboardingAction({ profile, adLevel, goals, brandName, siteUrl });
+      if (r.error) { setErr(r.error); setBusy(false); return; }
+      router.push('/jarvis');
+      router.refresh();
+    } catch {
+      setErr('Impossible d’ouvrir Jarvis pour l’instant. Réessaie dans un instant.');
       setBusy(false);
     }
   }
@@ -77,6 +103,12 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--grad-accent)' }} />
           <b style={{ fontSize: 16, color: 'var(--ink)' }}>TikTrends</b>
+          <span style={{ flex: 1 }} />
+          {/* Passer · toujours accessible · on n'oblige personne à finir le
+              questionnaire pour parler à Jarvis (spec · le parcours est facultatif). */}
+          <button type="button" onClick={passer} disabled={busy} style={{ border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 13, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
+            Passer →
+          </button>
         </div>
 
         {step === 0 && (
@@ -110,8 +142,10 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
           </Step>
         )}
 
-        {/* Progression + navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 34 }}>
+        {/* Progression + navigation · l'étape est dite en toutes lettres (X/4),
+            pas seulement par une barre · on sait où l'on en est. */}
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', marginTop: 30 }}>Étape {step + 1}/{TOTAL}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
           <div style={{ display: 'flex', gap: 6, flex: 1 }}>
             {Array.from({ length: TOTAL }).map((_, i) => (
               <span key={i} style={{ height: 4, flex: 1, borderRadius: 999, background: i <= step ? 'var(--accent-strong)' : 'var(--line-2)', transition: 'background .2s' }} />

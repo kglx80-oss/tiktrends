@@ -12,9 +12,9 @@ import { join } from 'node:path';
  * AUCUNE marque (l'action exige `brandName || url`), et renvoyait sur un
  * tableau de bord vide · après un écran qui promettait « on la crée pour toi ».
  *
- * Pire, `finish()` naviguait vers /dashboard quoi qu'il arrive · une erreur
- * serveur (ou un throw) laissait le bouton figé sur « Préparation… », sans un
- * mot, et le compte à moitié configuré.
+ * Pire, `finish()` naviguait quoi qu'il arrive · une erreur serveur (ou un
+ * throw) laissait le bouton figé sur « Préparation… », sans un mot, et le
+ * compte à moitié configuré. (La fin ouvre désormais Jarvis, plus le dashboard.)
  *
  * ── L'invariant ──────────────────────────────────────────────────────────────
  *
@@ -47,8 +47,10 @@ describe('l’onboarding ne navigue pas sur un échec, et le dit', () => {
   });
 
   it('la navigation n’arrive qu’APRÈS le contrôle d’erreur', () => {
+    // La fin ouvre Jarvis (orienté par l'objectif) · l'invariant est le même :
+    // on ne navigue jamais avant d'avoir vérifié l'échec serveur.
     const iErr = WIZARD.indexOf('if (r.error)');
-    const iNav = WIZARD.indexOf("router.push('/dashboard')");
+    const iNav = WIZARD.indexOf("router.push('/jarvis')");
     expect(iErr).toBeGreaterThan(-1);
     expect(iNav).toBeGreaterThan(iErr);
   });

@@ -89,6 +89,15 @@ export default async function JarvisPage() {
         </span>
         <span style={{ color: 'var(--muted)', fontSize: 15, flexShrink: 0 }}>›</span>
       </Link>
+
+      {/* Personnaliser Jarvis · rejoue l'accueil (usage, expérience pub,
+          objectif, marque) à la demande · le parcours est facultatif et ne se
+          rejoue que sur ce clic, jamais tout seul. */}
+      <div style={{ marginTop: 10, textAlign: 'center' }}>
+        <Link href="/onboarding?redo=1" style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>
+          Personnaliser Jarvis · revoir mes réponses d’accueil
+        </Link>
+      </div>
     </main>
   );
 }
