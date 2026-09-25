@@ -71,17 +71,17 @@ export async function klaviyoSignedUp(opts: { email: string; name?: string | nul
   });
 }
 
-/** Onboarding terminé : enrichit le profil (profil déclaré, niveau IA, objectifs, marque). */
+/** Onboarding terminé : enrichit le profil (profil déclaré, expérience pub, objectifs, marque). */
 export async function klaviyoOnboarded(opts: {
-  email: string; name?: string | null; profile?: string; aiLevel?: string; goals?: string[]; brandName?: string; siteUrl?: string;
+  email: string; name?: string | null; profile?: string; adLevel?: string; goals?: string[]; brandName?: string; siteUrl?: string;
 }) {
   return klaviyoTrack({
     email: opts.email,
     name: opts.name,
     event: 'Completed Onboarding',
-    properties: { profile: opts.profile, aiLevel: opts.aiLevel, goals: opts.goals, brandName: opts.brandName, siteUrl: opts.siteUrl },
+    properties: { profile: opts.profile, adLevel: opts.adLevel, goals: opts.goals, brandName: opts.brandName, siteUrl: opts.siteUrl },
     profileProperties: {
-      onboarding_profile: opts.profile, ai_level: opts.aiLevel, goals: opts.goals,
+      onboarding_profile: opts.profile, ad_level: opts.adLevel, goals: opts.goals,
       first_brand: opts.brandName, first_site: opts.siteUrl,
     },
   });

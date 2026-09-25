@@ -10,7 +10,7 @@ import { personnalisationAccueil, starters, chatSystemPrompt } from '../src/inde
 
 describe('personnalisationAccueil · traduit les réponses stockées', () => {
   it('le premier but qui a un sens fixe l’objectif · « analyser » vise les résultats', () => {
-    expect(personnalisationAccueil({ goals: ['analyze'], aiLevel: 'starter' }))
+    expect(personnalisationAccueil({ goals: ['analyze'], adLevel: 'debute' }))
       .toEqual({ objectif: 'resultats', niveau: 'debut' });
   });
 
@@ -21,16 +21,28 @@ describe('personnalisationAccueil · traduit les réponses stockées', () => {
     expect(personnalisationAccueil({ goals: ['video'] }).objectif).toBe('creer');
   });
 
-  it('le niveau IA se traduit en registre · avancé, à l’aise, débutant', () => {
-    expect(personnalisationAccueil({ aiLevel: 'advanced' }).niveau).toBe('avance');
-    expect(personnalisationAccueil({ aiLevel: 'comfortable' }).niveau).toBe('intermediaire');
-    expect(personnalisationAccueil({ aiLevel: 'exploring' }).niveau).toBe('debut');
+  it('l’expérience PUBLICITAIRE se traduit en registre · métier/teste, crée, débute', () => {
+    expect(personnalisationAccueil({ adLevel: 'metier' }).niveau).toBe('avance');
+    expect(personnalisationAccueil({ adLevel: 'teste' }).niveau).toBe('avance');
+    expect(personnalisationAccueil({ adLevel: 'cree' }).niveau).toBe('intermediaire');
+    expect(personnalisationAccueil({ adLevel: 'debute' }).niveau).toBe('debut');
+  });
+
+  it('l’ancien « niveau IA » n’est PAS relu comme une expérience pub · niveau nul', () => {
+    // Re-signifier une ancienne réponse serait un mensonge · un compte qui n'a
+    // répondu qu'à l'ancienne question n'a pas de niveau pub tant qu'il ne
+    // répond pas à la nouvelle.
+    expect(personnalisationAccueil({ aiLevel: 'advanced' }).niveau).toBeNull();
+    expect(personnalisationAccueil({ aiLevel: 'starter' }).niveau).toBeNull();
+    // Et l'objectif reste lu, lui, à partir des buts inchangés.
+    expect(personnalisationAccueil({ goals: ['analyze'], aiLevel: 'advanced' }))
+      .toEqual({ objectif: 'resultats', niveau: null });
   });
 
   it('absent, vide, inconnu ou d’une autre forme · aucune personnalisation devinée', () => {
     expect(personnalisationAccueil(null)).toEqual({ objectif: null, niveau: null });
     expect(personnalisationAccueil({})).toEqual({ objectif: null, niveau: null });
-    expect(personnalisationAccueil({ goals: ['autre_but'], aiLevel: 'inconnu' }))
+    expect(personnalisationAccueil({ goals: ['autre_but'], adLevel: 'inconnu' }))
       .toEqual({ objectif: null, niveau: null });
     expect(personnalisationAccueil('bruit')).toEqual({ objectif: null, niveau: null });
   });

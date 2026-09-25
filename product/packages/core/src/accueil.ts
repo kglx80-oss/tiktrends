@@ -48,12 +48,21 @@ const OBJECTIF_PAR_BUT: Readonly<Record<string, ObjectifAccueil>> = {
   analyze: 'resultats',
 };
 
-/** Le niveau d'aisance IA du questionnaire → un registre d'explication. */
-const NIVEAU_PAR_IA: Readonly<Record<string, NiveauAccueil>> = {
-  starter: 'debut',
-  exploring: 'debut',
-  comfortable: 'intermediaire',
-  advanced: 'avance',
+/**
+ * Le niveau d'EXPÉRIENCE PUBLICITAIRE du questionnaire → un registre.
+ *
+ * C'est le domaine où Jarvis doit ajuster son accompagnement · pas l'aisance
+ * avec l'IA. L'ancien champ `aiLevel` mesurait autre chose (savoir se servir
+ * d'outils IA) · on ne le relit PAS ici comme s'il disait l'expérience pub · ce
+ * serait donner un sens nouveau à une réponse ancienne. Un compte qui n'a
+ * répondu qu'à l'ancienne question n'a donc pas de niveau pub · registre neutre,
+ * jusqu'à ce qu'il réponde à la nouvelle.
+ */
+const NIVEAU_PAR_PUB: Readonly<Record<string, NiveauAccueil>> = {
+  debute: 'debut',
+  cree: 'intermediaire',
+  teste: 'avance',
+  metier: 'avance',
 };
 
 /**
@@ -68,7 +77,7 @@ const NIVEAU_PAR_IA: Readonly<Record<string, NiveauAccueil>> = {
  */
 export function personnalisationAccueil(onboarding: unknown): PersonnalisationAccueil {
   if (!onboarding || typeof onboarding !== 'object') return { objectif: null, niveau: null };
-  const o = onboarding as { goals?: unknown; aiLevel?: unknown };
+  const o = onboarding as { goals?: unknown; adLevel?: unknown };
 
   let objectif: ObjectifAccueil | null = null;
   if (Array.isArray(o.goals)) {
@@ -80,8 +89,10 @@ export function personnalisationAccueil(onboarding: unknown): PersonnalisationAc
     }
   }
 
-  const niveau = typeof o.aiLevel === 'string' && o.aiLevel in NIVEAU_PAR_IA
-    ? NIVEAU_PAR_IA[o.aiLevel]!
+  // Le niveau vient de l'EXPÉRIENCE PUBLICITAIRE (`adLevel`), jamais de
+  // l'ancien `aiLevel` · voir NIVEAU_PAR_PUB. Absent · registre neutre.
+  const niveau = typeof o.adLevel === 'string' && o.adLevel in NIVEAU_PAR_PUB
+    ? NIVEAU_PAR_PUB[o.adLevel]!
     : null;
 
   return { objectif, niveau };

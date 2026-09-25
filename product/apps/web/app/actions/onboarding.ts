@@ -10,7 +10,18 @@ import { GUARD } from '../../lib/guard-error';
 
 export interface OnboardingData {
   profile?: string;       // brand | agency | freelancer | ai_artist | other
-  aiLevel?: string;       // starter | exploring | comfortable | advanced
+  /**
+   * Expérience PUBLICITAIRE · debute | cree | teste | metier. C'est le domaine
+   * où Jarvis ajuste son accompagnement (cf. accueil.ts · NIVEAU_PAR_PUB).
+   */
+  adLevel?: string;
+  /**
+   * LEGACY · ancien « niveau IA » (starter|exploring|comfortable|advanced). Le
+   * questionnaire ne le collecte plus · on l'accepte encore en lecture pour ne
+   * pas casser un ancien appel, mais il ne pilote plus rien · il n'est pas
+   * relu comme une expérience publicitaire.
+   */
+  aiLevel?: string;
   goals?: string[];       // objectifs prioritaires
   teamSize?: string;      // solo | small | large
   brandName?: string;
@@ -26,7 +37,10 @@ export async function saveOnboardingAction(data: OnboardingData): Promise<{ ok?:
   const url = clean(data.siteUrl).replace(/^https?:\/\//i, '').replace(/\/+$/, '');
   const payload = {
     profile: clean(data.profile) || null,
-    aiLevel: clean(data.aiLevel) || null,
+    // Nouveau signal · l'expérience publicitaire. L'ancien `aiLevel` n'est plus
+    // écrit par le questionnaire · les anciennes réponses restent dans les lignes
+    // existantes, on ne les réécrit ni ne les réinterprète.
+    adLevel: clean(data.adLevel) || null,
     goals: Array.isArray(data.goals) ? data.goals.slice(0, 8) : [],
     teamSize: clean(data.teamSize) || null,
     brandName: clean(data.brandName) || null,
@@ -54,7 +68,7 @@ export async function saveOnboardingAction(data: OnboardingData): Promise<{ ok?:
   try {
     await klaviyoOnboarded({
       email: s.user.email, name: s.user.name,
-      profile: payload.profile ?? undefined, aiLevel: payload.aiLevel ?? undefined,
+      profile: payload.profile ?? undefined, adLevel: payload.adLevel ?? undefined,
       goals: payload.goals, brandName: payload.brandName ?? undefined, siteUrl: payload.siteUrl ?? undefined,
     });
   } catch { /* ignore */ }
