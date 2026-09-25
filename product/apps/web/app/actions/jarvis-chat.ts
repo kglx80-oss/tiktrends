@@ -23,6 +23,20 @@ const adsmap = FEATURES.find((f) => f.key === 'adsmap')!;
 
 export interface ChatTurn { id: string; role: 'user' | 'assistant'; content: string; at: string }
 
+/**
+ * Le contexte de marque, à la demande · ce sur quoi Jarvis s'appuie, montré sans
+ * quitter la conversation. Chaque élément est propre à la MARQUE active · c'est
+ * sa portée, affichée telle quelle. Rien de nouveau n'est exposé · c'est le
+ * contenu de la marque du membre, en lecture.
+ */
+export interface ChatContexte {
+  brandId: string;
+  /** Identité déclarée · description, promesse, audience · vide si rien. */
+  identity: string | null;
+  /** Consignes créatives maison · injectées dans chaque génération. Portée marque. */
+  rules: string | null;
+}
+
 export interface ChatThread {
   turns: ChatTurn[];
   /** Entrées proposées quand le fil est vide · elles apprennent ce que Jarvis sait faire. */
@@ -30,6 +44,8 @@ export interface ChatThread {
   /** Combien de tests nourrissent ses réponses · dit ce qu'on peut en attendre. */
   measuredAds: number;
   brandName: string;
+  /** Ce que Jarvis a comme contexte de marque · ouvert à la demande. */
+  contexte: ChatContexte;
 }
 
 export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?: string }> {
@@ -42,7 +58,7 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
 
   try {
     const voitMemoire = canAccess(effectiveAccess(s), adsmap);
-    const [rows, stats, ws] = await Promise.all([
+    const [rows, stats, ws, ident] = await Promise.all([
       db.select({
         id: schema.jarvisMessages.id, role: schema.jarvisMessages.role,
         content: schema.jarvisMessages.content, createdAt: schema.jarvisMessages.createdAt,
@@ -56,12 +72,18 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
         .limit(120),
       voitMemoire ? jarvisStats(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
       db.select({ onboarding: schema.workspaces.onboarding }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
+      db.select({
+        description: schema.brands.description, usp: schema.brands.usp,
+        audience: schema.brands.audience, creativeRules: schema.brands.creativeRules,
+      }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1),
     ]);
 
     const n = stats?.nAds ?? 0;
     // L'objectif déclaré à l'accueil oriente les trois suggestions · c'est ici
     // que ses réponses cessent d'être un formulaire sans effet.
     const { objectif } = personnalisationAccueil(ws[0]?.onboarding);
+    const b = ident[0];
+    const identity = [b?.description, b?.usp, b?.audience].filter(Boolean).join('\n').trim() || null;
     return {
       thread: {
         turns: rows.map((r) => ({
@@ -71,6 +93,7 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
         starters: starters({ measuredAds: n, hasMarket: false, objectif }),
         measuredAds: n,
         brandName: brand.name,
+        contexte: { brandId: brand.id, identity, rules: b?.creativeRules?.trim() || null },
       },
     };
   } catch (e) {

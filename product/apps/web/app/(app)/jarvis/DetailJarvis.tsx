@@ -30,7 +30,7 @@ export function DetailJarvis({ brandName, children }: { brandName: string; child
   const id = useId();
 
   return (
-    <section style={{ marginTop: 22 }}>
+    <section id="detail" style={{ marginTop: 22 }}>
       <button
         type="button"
         onClick={() => setOuvert((o) => !o)}

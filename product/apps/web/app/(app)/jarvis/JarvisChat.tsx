@@ -7,6 +7,7 @@ import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } fro
 import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
 import { DraftCard } from '../../../components/DraftCard';
+import { JarvisContexte } from './JarvisContexte';
 
 /**
  * L'espace où l'on parle à Jarvis.
@@ -58,6 +59,9 @@ export function JarvisChat() {
   const [saisie, setSaisie] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [partiel, setPartiel] = useState('');
+  // Le contexte de marque, à la demande · replié par défaut, la conversation
+  // reste au premier plan.
+  const [contexteOuvert, setContexteOuvert] = useState(false);
   const filRef = useRef<HTMLDivElement>(null);
   // Verrou pris de façon SYNCHRONE · `enCours` est un état qui ne bascule qu'au
   // rendu suivant, donc deux clics du même tick (une amorce cliquée deux fois,
@@ -145,9 +149,13 @@ export function JarvisChat() {
 
   return (
     <section style={{
+      position: 'relative',
       border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--paper)',
       display: 'flex', flexDirection: 'column', height: '62vh', minHeight: 440, overflow: 'hidden',
     }}>
+      {contexteOuvert && (
+        <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} onClose={() => setContexteOuvert(false)} />
+      )}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
         borderBottom: '1px solid var(--line)', background: 'var(--surface)', flexWrap: 'wrap',
@@ -210,7 +218,24 @@ export function JarvisChat() {
         <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: '#ff8095', borderTop: '1px solid var(--line)' }}>{erreur}</p>
       )}
 
-      <div style={{ display: 'flex', gap: 8, padding: '11px 14px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
+      <div style={{ padding: '10px 14px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
+        <div style={{ marginBottom: 8 }}>
+          <button
+            type="button"
+            onClick={() => setContexteOuvert(true)}
+            aria-haspopup="dialog"
+            title="Voir ce que Jarvis sait de ta marque"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
+              border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink-2)',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+            Ajouter du contexte
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
         <textarea
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
@@ -241,6 +266,7 @@ export function JarvisChat() {
         >
           {enCours ? '…' : 'Envoyer'}
         </button>
+        </div>
       </div>
     </section>
   );
