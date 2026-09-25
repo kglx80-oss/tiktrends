@@ -78,6 +78,9 @@ export const ROUTES: RouteNode[] = [
 
   // ── Création ───────────────────────────────────────────────────────────────
   { path: '/jarvis', label: 'Jarvis', section: 'Atelier' },
+  // Le détail de Jarvis · mémoire, bilan, sources · atteint depuis la
+  // conversation, pas listé dans le rail (cf. jarvis/sources/page).
+  { path: '/jarvis/sources', label: 'Sources & bilan', parent: '/jarvis', section: 'Atelier', hidden: true },
 
   { path: '/veille', label: 'Veille', section: 'Observatoire' },
   { path: '/veille/scale', label: 'Ce qui scale', parent: '/veille', section: 'Observatoire' },

@@ -8,7 +8,7 @@ import { join } from 'node:path';
  * la même chose qu'Adsmap · « Non calculable » quand rien n'est évaluable.
  */
 describe('N02 · Jarvis · le headline suit le taux validé, pas l’historique', () => {
-  const page = readFileSync(join(process.cwd(), 'app/(app)/jarvis/page.tsx'), 'utf8');
+  const page = readFileSync(join(process.cwd(), 'app/(app)/jarvis/sources/page.tsx'), 'utf8');
 
   it('le headline est alimenté par tauxProtocole via libelleTauxFraction', () => {
     expect(page).toMatch(/label="Taux de réussite validé"/);
@@ -26,7 +26,7 @@ describe('N02 · Jarvis · le headline suit le taux validé, pas l’historique'
  * réutilise la source existante (`jarvisMeasuredMemory`), sans second assemblage.
  */
 describe('N02 · le panneau nomme exactement ce qu’il affiche', () => {
-  const page = readFileSync(join(process.cwd(), 'app/(app)/jarvis/page.tsx'), 'utf8');
+  const page = readFileSync(join(process.cwd(), 'app/(app)/jarvis/sources/page.tsx'), 'utf8');
   const memory = readFileSync(join(process.cwd(), 'lib/jarvis-memory.ts'), 'utf8');
 
   it('l’intitulé « texte exact injecté » (trompeur) a disparu', () => {

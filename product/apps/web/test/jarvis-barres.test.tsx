@@ -21,7 +21,7 @@ const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const LARGEUR_MAIN = /width:\s*`[^`]*%[^`]*`/;
 
 const CAS = [
-  'app/(app)/jarvis/page.tsx',
+  'app/(app)/jarvis/sources/page.tsx',
   'app/(app)/jarvis/MarketPanel.tsx',
 ];
 
@@ -40,7 +40,7 @@ describe('les barres de Jarvis ont adopté BarreValeur', () => {
   it('la couleur conditionnelle « au-dessus de la moyenne » est préservée sur la barre', () => {
     // Le vert d'un taux au-dessus de la moyenne doit rester porté par la barre
     // (prop couleur de BarreValeur), pas perdu dans la migration.
-    const src = lit('app/(app)/jarvis/page.tsx');
+    const src = lit('app/(app)/jarvis/sources/page.tsx');
     const bloc = src.slice(src.indexOf('<BarreValeur'), src.indexOf('<BarreValeur') + 400);
     expect(bloc).toContain('couleur=');
     expect(bloc).toContain('au_dessus');

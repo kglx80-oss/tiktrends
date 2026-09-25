@@ -12,7 +12,7 @@ import { join } from 'node:path';
  * vérifie donc que la confrontation vit dans SA propre action, pas dans le cumul.
  */
 const ACTIONS = readFileSync(join(process.cwd(), 'app/actions/adsmap-attribution.ts'), 'utf8');
-const PAGE = readFileSync(join(process.cwd(), 'app/(app)/jarvis/page.tsx'), 'utf8');
+const PAGE = readFileSync(join(process.cwd(), 'app/(app)/jarvis/sources/page.tsx'), 'utf8');
 
 describe('la calibration du score est câblée', () => {
   it('une action dédiée relie score et verdict et passe par le noyau', () => {

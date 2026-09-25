@@ -38,7 +38,7 @@ describe('JarvisContexte · le contexte de marque, portée comprise', () => {
   });
 
   it('les sources renvoient au détail sous la conversation', () => {
-    expect(html).toContain('href="/jarvis#detail"');
+    expect(html).toContain('href="/jarvis/sources"');
   });
 
   it('vide · on le dit sans inventer, et on garde la portée', () => {
