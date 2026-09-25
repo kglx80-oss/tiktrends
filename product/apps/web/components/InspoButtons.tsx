@@ -44,7 +44,7 @@ export function SaveButton({ ad, initialSaved }: { ad: InspoAd; initialSaved: bo
       title={saved ? 'Retirer des sauvegardes' : 'Sauvegarder'}
       onClick={basculer}
       style={{ minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', padding: 0, cursor: pending ? 'default' : 'pointer' }}>
-      <span aria-hidden style={{ width: 30, height: 30, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: saved ? 'var(--grad-accent)' : 'rgba(0,0,0,.65)', color: '#fff', fontSize: 14, lineHeight: 1 }}>
+      <span aria-hidden style={{ width: 30, height: 30, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: saved ? 'var(--grad-accent)' : 'rgba(0,0,0,.65)', color: saved ? 'var(--on-accent)' : '#fff', fontSize: 14, lineHeight: 1 }}>
         {saved ? '★' : '☆'}
       </span>
     </button>
