@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Icon } from './Icon';
 
 /**
@@ -111,7 +112,8 @@ export function Empty(props: EmptyProps) {
         <Link
           href={action.href}
           style={{
-            display: 'inline-block', marginTop: 16, padding: '9px 18px', borderRadius: 999,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            minHeight: CIBLE_TACTILE_MIN, marginTop: 16, padding: '9px 18px', borderRadius: 999,
             background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5,
             textDecoration: 'none',
           }}

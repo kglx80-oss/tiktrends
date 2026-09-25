@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Modal } from './Modal';
 import { BrandWizard } from './BrandWizard';
 
@@ -12,9 +13,10 @@ export function NewBrandButton({ aiReady, draftCost, label = '+ Nouvelle marque'
   aiReady: boolean; draftCost: number; label?: string; variant?: 'primary' | 'ghost';
 }) {
   const [open, setOpen] = useState(false);
+  const base = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, borderRadius: 999, cursor: 'pointer' } as const;
   const style = variant === 'primary'
-    ? { padding: '9px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }
-    : { padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' };
+    ? { ...base, padding: '9px 16px', border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13 }
+    : { ...base, padding: '8px 14px', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5 };
 
   return (
     <>

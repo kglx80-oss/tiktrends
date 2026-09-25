@@ -22,7 +22,9 @@ const LARGEUR_MAIN = /width:\s*`[^`]*%[^`]*`/;
 describe('Consommation · la répartition par type d’action passe par BarreValeur', () => {
   it('importe et utilise BarreValeur + partDeMax', () => {
     expect(usage).toContain("import { BarreValeur }");
-    expect(usage).toMatch(/import \{ partDeMax \} from '@tiktrends\/core'/);
+    // partDeMax reste importé du noyau · d'autres jetons peuvent l'accompagner
+    // (ex. CIBLE_TACTILE_MIN pour les cibles tactiles) sans casser cette garde.
+    expect(usage).toMatch(/import \{[^}]*\bpartDeMax\b[^}]*\} from '@tiktrends\/core'/);
     expect(usage).toContain('<BarreValeur part={partDeMax(total, maxFamily)}');
   });
   it('ne calcule plus aucune largeur de barre à la main', () => {

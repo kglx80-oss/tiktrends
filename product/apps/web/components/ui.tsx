@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * Le fond translucide d'une pastille posée SUR une créa · pronostic et verdict
@@ -15,12 +16,16 @@ export const input: CSSProperties = {
   border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)',
   fontSize: 14, outline: 'none',
 };
+// Boutons partagés · hauteur réelle ≥ CIBLE_TACTILE_MIN (mesurée, pas déduite du
+// padding) · inline-flex centré pour que le minHeight tienne quel que soit le texte.
 export const btn: CSSProperties = {
-  padding: '10px 16px', borderRadius: 999, border: 'none',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  minHeight: CIBLE_TACTILE_MIN, padding: '10px 16px', borderRadius: 999, border: 'none',
   background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13, cursor: 'pointer',
 };
 export const btnGhost: CSSProperties = {
-  padding: '7px 12px', borderRadius: 999, border: '1px solid var(--line-2)',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  minHeight: CIBLE_TACTILE_MIN, padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)',
   background: 'transparent', color: 'var(--ink-2)', fontWeight: 600, fontSize: 12, cursor: 'pointer',
 };
 export const panel: CSSProperties = {
