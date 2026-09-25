@@ -100,7 +100,7 @@ function NavLink({ it, active, inPath = false, onClick }: {
       opacity: disabled ? 0.55 : 1, cursor: disabled ? 'default' : 'pointer',
     }}>
       {it.isSub ? <span style={{ width: 5, height: 5, borderRadius: '50%', background: active ? 'var(--accent)' : 'var(--line-2)' }} /> : <Icon name={it.icon} />}
-      <span style={{ flex: 1 }}>{it.label}</span>
+      <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.label}</span>
       {it.soon && <span style={pill('#8a6d3b', 'rgba(245,166,35,.15)')}>Bientôt</span>}
       {!it.soon && it.locked && <span style={{ ...pill('var(--muted)', 'rgba(255,255,255,.06)'), display: 'inline-flex', alignItems: 'center', padding: '3px 6px' }}><Icon name="lock" size={12} /></span>}
     </span>
