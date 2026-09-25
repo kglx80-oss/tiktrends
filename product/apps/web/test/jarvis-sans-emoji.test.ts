@@ -25,6 +25,11 @@ FICHIERS.push({ rel: 'lib/jarvis-state.ts', src: readFileSync(join(process.cwd()
 // Le détail a déménagé dans le sous-dossier `sources` · on l'ajoute au scan,
 // sinon un emoji réintroduit là-bas passerait sous le radar.
 FICHIERS.push({ rel: 'jarvis/sources/page.tsx', src: readFileSync(join(DIR, 'sources/page.tsx'), 'utf8') });
+// Les sections relocalisées (montées sur Adsmap, Analytics, Veille) vivent dans
+// `jarvis/sections` · même règle · un emoji réintroduit là-bas doit tomber ici.
+for (const f of ['SectionAttribution.tsx', 'SectionEssais.tsx', 'SectionMarche.tsx']) {
+  FICHIERS.push({ rel: `jarvis/sections/${f}`, src: readFileSync(join(DIR, 'sections', f), 'utf8') });
+}
 
 // Pictogrammes : plan emoji + symboles divers + étoiles décoratives. Pas ✓ ni →.
 const PICTO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{2728}\u{2726}\u{FE0F}]/gu;

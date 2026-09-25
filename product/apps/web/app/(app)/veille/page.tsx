@@ -14,6 +14,7 @@ import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veill
 import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
 import { Icon } from '../../../components/Icon';
 import { Empty } from '../../../components/Empty';
+import { SectionMarche } from '../jarvis/sections/SectionMarche';
 
 export const dynamic = 'force-dynamic';
 
@@ -311,6 +312,11 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             : <span style={{ ...pageBtn, opacity: .4, pointerEvents: 'none' }}>Suivant →</span>}
         </div>
       )}
+
+      {/* La mémoire marché de Jarvis · ce qu'il a retenu des concurrents suivis,
+          à sa destination. Self-porté (offre Plus, marque active) · rend null pour
+          un compte qui n'y avait pas droit, la Veille reste accessible dès Core. */}
+      <SectionMarche />
     </main>
   );
 }

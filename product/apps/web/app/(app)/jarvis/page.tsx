@@ -82,9 +82,9 @@ export default async function JarvisPage() {
       >
         <span style={{ display: 'inline-flex', color: 'var(--accent-strong)', flexShrink: 0 }}><Icon name="chart" size={18} /></span>
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Sources &amp; bilan · ce que Jarvis sait</span>
+          <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Sources · ce que Jarvis sait</span>
           <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginTop: 2 }}>
-            Mémoire mesurée, essais, attribution, accroches et réglages · tout ce qu’il exploite, à sa place.
+            Sa mémoire mesurée de la marque, de quoi la nourrir, et ses réglages · les essais, l’attribution et le marché se lisent à leur destination.
           </span>
         </span>
         <span style={{ color: 'var(--muted)', fontSize: 15, flexShrink: 0 }}>›</span>
