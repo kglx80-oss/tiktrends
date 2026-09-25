@@ -59,7 +59,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <div style={{ display: 'grid', gap: 8 }}>
           {[
             { label: 'IA · Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', on: !!process.env.ANTHROPIC_API_KEY, unlocks: 'Studio, assistant, pré-remplissage marque, analyse concurrent' },
-            { label: 'Bibliothèque pub · Trendtrack', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Veille, suivis, analyse concurrent' },
+            // Marque blanche · on nomme la CAPACITÉ, jamais le fournisseur
+            // (« Trendtrack » n'apparaît jamais à l'écran, même sur cette surface
+            // opérateur · c'est le produit dont on est le marque blanche). La
+            // variable d'environnement garde son nom, elle n'atteint pas l'écran.
+            { label: 'Bibliothèque pub concurrentielle', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Veille, suivis, analyse concurrent' },
             { label: 'Image & Vidéo IA · Fal.ai', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studio Image (Nano Banana, GPT Image) et Vidéo (Kling 2.5)' },
             { label: 'Stockage objet · S3 / OVH', env: 'S3_BUCKET', on: !!(process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY && process.env.S3_ENDPOINT), unlocks: 'Upload direct des gros fichiers (rushs vidéo) dans Assets' },
             { label: 'Vidéo IA · Higgsfield (option)', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Alternative vidéo (contrôles caméra)' },
