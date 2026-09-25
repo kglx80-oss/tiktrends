@@ -8,10 +8,13 @@ import { isFounder } from '../../../../lib/founder';
 export const dynamic = 'force-dynamic';
 
 const PROFILE_LABEL: Record<string, string> = { brand: 'Marque / E-com', agency: 'Agence', freelancer: 'Freelance', ai_artist: 'AI Artist', other: 'Autre' };
+// Expérience publicitaire · le signal courant. `AI_LABEL` reste pour lire les
+// anciennes réponses « niveau IA », affichées comme héritées, jamais confondues.
+const AD_LABEL: Record<string, string> = { debute: 'Débute', cree: 'Crée déjà', teste: 'Teste', metier: 'Métier' };
 const AI_LABEL: Record<string, string> = { starter: 'Débutant', exploring: 'Explore', comfortable: 'À l’aise', advanced: 'Avancé' };
 const GOAL_LABEL: Record<string, string> = { ads: 'Pubs', clone: 'Clone', analyze: 'Analytics', scale: 'Échelle', multi: 'Multi-marques', video: 'Vidéo' };
 
-interface Onb { profile?: string; aiLevel?: string; goals?: string[]; brandName?: string; siteUrl?: string }
+interface Onb { profile?: string; adLevel?: string; aiLevel?: string; goals?: string[]; brandName?: string; siteUrl?: string }
 
 export default async function SignupsPage() {
   const s = await getSession();
@@ -48,7 +51,7 @@ export default async function SignupsPage() {
 
       <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
-          <thead><tr>{['Espace', 'Propriétaire', 'Profil', 'Niveau IA', 'Objectifs', 'Site', 'Plan', 'Inscrit', 'Onboardé'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+          <thead><tr>{['Espace', 'Propriétaire', 'Profil', 'Expérience pub', 'Objectifs', 'Site', 'Plan', 'Inscrit', 'Onboardé'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
           <tbody>
             {rows.map((r) => {
               const o = (r.onboarding ?? {}) as Onb;
@@ -57,7 +60,11 @@ export default async function SignupsPage() {
                   <td style={{ ...td, fontWeight: 700, color: 'var(--ink)' }}>{r.name}</td>
                   <td style={{ ...td, color: 'var(--ink-2)' }}>{ownerBy.get(r.id) ?? '—'}</td>
                   <td style={td}>{o.profile ? (PROFILE_LABEL[o.profile] ?? o.profile) : '—'}</td>
-                  <td style={td}>{o.aiLevel ? (AI_LABEL[o.aiLevel] ?? o.aiLevel) : '—'}</td>
+                  <td style={td}>{o.adLevel
+                    ? (AD_LABEL[o.adLevel] ?? o.adLevel)
+                    : o.aiLevel
+                      ? <span title="Ancienne réponse « niveau IA », pas une expérience publicitaire" style={{ color: 'var(--muted)' }}>{AI_LABEL[o.aiLevel] ?? o.aiLevel} · IA hérité</span>
+                      : '—'}</td>
                   <td style={td}>{o.goals?.length ? <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{o.goals.map((g) => <span key={g} style={chip}>{GOAL_LABEL[g] ?? g}</span>)}</span> : '—'}</td>
                   <td style={td}>{o.siteUrl ? <a href={`https://${o.siteUrl}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-strong)' }}>{o.siteUrl}</a> : '—'}</td>
                   <td style={td}>{PLAN_LABEL[r.plan as Plan] ?? r.plan}</td>

@@ -13,11 +13,13 @@ const PROFILES = [
   { key: 'ai_artist', label: 'AI Artist', hint: 'Art & expérimentations', icon: 'palette' },
   { key: 'other', label: 'Autre', hint: 'Je verrai en avançant', icon: 'sparkles' },
 ];
-const AI_LEVELS = [
-  { key: 'starter', label: 'Je débute', hint: "Jamais utilisé l'IA pour créer" },
-  { key: 'exploring', label: "J'explore", hint: "J'utilise des outils IA, je cherche encore" },
-  { key: 'comfortable', label: "À l'aise", hint: 'ChatGPT / Midjourney au quotidien' },
-  { key: 'advanced', label: 'Avancé', hint: "J'ai construit des workflows IA" },
+// Expérience PUBLICITAIRE · c'est le domaine où Jarvis ajuste son
+// accompagnement (pas l'aisance avec l'IA · cf. accueil.ts · NIVEAU_PAR_PUB).
+const AD_LEVELS = [
+  { key: 'debute', label: 'Je débute', hint: "Pas encore lancé de vraie campagne" },
+  { key: 'cree', label: 'Je crée déjà des pubs', hint: 'Je produis des créas régulièrement' },
+  { key: 'teste', label: 'Je teste régulièrement', hint: "J'itère et je compare mes résultats" },
+  { key: 'metier', label: "C'est mon métier", hint: 'La publicité est mon quotidien' },
 ];
 const GOALS = [
   { key: 'ads', label: 'Créer des pubs qui vendent', icon: 'spark' },
@@ -34,7 +36,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState('');
-  const [aiLevel, setAiLevel] = useState('');
+  const [adLevel, setAdLevel] = useState('');
   const [goals, setGoals] = useState<string[]>([]);
   const [brandName, setBrandName] = useState('');
   const [siteUrl, setSiteUrl] = useState('');
@@ -48,7 +50,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
   // marquait quand même le compte onboardé · l'utilisateur retombait sur un
   // tableau de bord vide, après un écran qui promettait « on la crée pour toi ».
   const peutFinir = !!brandName.trim();
-  const canNext = step === 0 ? !!profile : step === 1 ? !!aiLevel : step === 2 ? goals.length > 0 : peutFinir;
+  const canNext = step === 0 ? !!profile : step === 1 ? !!adLevel : step === 2 ? goals.length > 0 : peutFinir;
 
   async function finish() {
     if (busy || !peutFinir) return;
@@ -58,7 +60,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
     // vers le dashboard quoi qu'il arrive, et une erreur (ou un throw) laissait
     // le bouton figé sur « Préparation… », sans un mot.
     try {
-      const r = await saveOnboardingAction({ profile, aiLevel, goals, brandName, siteUrl });
+      const r = await saveOnboardingAction({ profile, adLevel, goals, brandName, siteUrl });
       if (r.error) { setErr(r.error); setBusy(false); return; }
       router.push('/dashboard');
       router.refresh();
@@ -85,9 +87,9 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
           </Step>
         )}
         {step === 1 && (
-          <Step title="Où en es-tu avec l'IA ?" sub="On adapte l'accompagnement à ton niveau.">
+          <Step title="Où en es-tu avec la publicité ?" sub="On adapte le niveau d'explication à ton expérience, sans jamais rien te fermer.">
             <Grid>
-              {AI_LEVELS.map((p) => <Card key={p.key} active={aiLevel === p.key} onClick={() => setAiLevel(p.key)} label={p.label} hint={p.hint} />)}
+              {AD_LEVELS.map((p) => <Card key={p.key} active={adLevel === p.key} onClick={() => setAdLevel(p.key)} label={p.label} hint={p.hint} />)}
             </Grid>
           </Step>
         )}
