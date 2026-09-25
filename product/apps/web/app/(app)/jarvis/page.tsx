@@ -18,6 +18,7 @@ import { Icon } from '../../../components/Icon';
 import { JarvisRules } from './JarvisRules';
 import { JarvisTraining } from './JarvisTraining';
 import { JarvisChat } from './JarvisChat';
+import { DetailJarvis } from './DetailJarvis';
 import { DescribePanel } from './DescribePanel';
 import { MarketPanel } from './MarketPanel';
 import { Empty } from '../../../components/Empty';
@@ -165,6 +166,12 @@ export default async function JarvisPage() {
            interface qui n'exige pas de savoir où chercher · c'est donc elle
            qu'on rencontre d'abord. */}
       <JarvisChat />
+
+      {/* Tout ce qui suit est le DÉTAIL · mesures, diagnostics, réglages. Il
+          reste à un clic, sous la conversation, replié par défaut · la page
+          « Jarvis » est d'abord un espace où l'on parle, le tableau de bord
+          vient quand on le demande (cf. DetailJarvis, experience-jarvis.md). */}
+      <DetailJarvis brandName={brand.name}>
 
       {/* 0 bis · Ce que CE serveur exécute.
 
@@ -705,6 +712,8 @@ export default async function JarvisPage() {
           </p>
         </>
       )}
+
+      </DetailJarvis>
     </main>
   );
 }
