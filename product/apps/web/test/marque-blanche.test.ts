@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -51,4 +51,43 @@ describe('marque blanche · écrans client sans nom de fournisseur', () => {
       }
     });
   }
+});
+
+/**
+ * « Trendtrack » est un cas À PART · c'est le produit dont TikTrends est la marque
+ * blanche, pas un simple moteur d'infra. La règle du dépôt est absolue : « jamais
+ * à l'écran », SANS l'exemption des surfaces opérateur qui vaut pour les moteurs
+ * (Fal, Higgsfield…). Le libellé « Bibliothèque pub · Trendtrack » des Réglages
+ * l'exposait pourtant · ce garde balaie TOUT écran (client ET opérateur) et
+ * tombe si « Trendtrack » reparaît hors commentaire.
+ */
+// Sensible à la casse · on vise le NOM PROPRE « Trendtrack » (majuscule) tel
+// qu'il s'écrirait dans un libellé d'écran, pas l'identifiant interne de source
+// de données `'trendtrack'` (minuscule) ni la variable d'env `TRENDTRACK_API_KEY`
+// (pas de frontière de mot avant « _ »). Le premier atteint l'écran, pas les autres.
+const TRENDTRACK = /\bTrendtrack\b/;
+function tsxRecursif(dir: string): string[] {
+  return readdirSync(dir).flatMap((e) => {
+    const p = join(dir, e);
+    if (statSync(p).isDirectory()) return e === 'node_modules' || e === '.next' ? [] : tsxRecursif(p);
+    return p.endsWith('.tsx') || p.endsWith('.ts') ? [p] : [];
+  });
+}
+
+describe('marque blanche · « Trendtrack » jamais à l’écran, même en surface opérateur', () => {
+  const base = process.cwd();
+  const fichiers = [...tsxRecursif(join(base, 'app')), ...tsxRecursif(join(base, 'components'))]
+    .filter((p) => !p.includes('/test/'));
+
+  it('a scanné un jeu d’écrans non vide', () => {
+    expect(fichiers.length).toBeGreaterThan(30);
+  });
+
+  it('aucun fichier d’écran ne rend « Trendtrack » (hors commentaires)', () => {
+    const fautifs: string[] = [];
+    for (const f of fichiers) {
+      if (TRENDTRACK.test(texteEcran(readFileSync(f, 'utf8')))) fautifs.push(f.slice(base.length + 1));
+    }
+    expect(fautifs, `« Trendtrack » atteint l’écran dans : ${fautifs.join(', ')}`).toEqual([]);
+  });
 });
