@@ -84,7 +84,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
   return (
     <main style={{ ...ADMIN_THEME, padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1120, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>ADMIN+</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>ADMIN+</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>CONSOLE</span>
         {founder && <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#fe2c55', background: 'rgba(254,44,85,.12)' }}>FONDATEUR</span>}
       </div>
@@ -396,7 +396,7 @@ function ManageCard({ href, title, desc }: { href: string; title: string; desc: 
   );
 }
 
-const sectionH = { margin: '0 0 14px', fontSize: 17, fontWeight: 800, color: 'var(--ink)' } as const;
+const sectionH = { margin: '0 0 14px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' } as const;
 const lblC = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
 const th = { padding: '9px 16px', fontWeight: 700 } as const;
 const td = { padding: '10px 16px' } as const;

@@ -69,16 +69,15 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
   const etatCredits = afficherCredits({ balance: credits, unlimited });
   return (
     <div style={{ marginBottom: 32 }}>
-      {/* Bandeau d'accueil · une phrase, une action, le solde. */}
+      {/* En-tête d'accueil · sobre (charte) · une phrase, le solde · plus de
+          bandeau dégradé · un simple filet sépare l'en-tête du contenu. */}
       <div style={{
-        position: 'relative', overflow: 'hidden', borderRadius: 20, padding: 'clamp(20px, 4vw, 34px)',
-        marginBottom: 24, border: '1px solid var(--line-2)',
-        background: 'linear-gradient(135deg, rgba(230,0,126,.22), rgba(120,40,200,.14) 60%, var(--surface))',
+        padding: '4px 0 20px', marginBottom: 24, borderBottom: '1px solid var(--line)',
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 240 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent-strong)', marginBottom: 6 }}>TikTrends</div>
-            <h1 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 32px)', fontWeight: 800, color: 'var(--ink)', lineHeight: 1.12 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>TikTrends</div>
+            <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.15 }}>
               Bonjour {firstName}
             </h1>
             <p style={{ margin: '8px 0 0', fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 560 }}>
@@ -147,4 +146,5 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
   );
 }
 
-const sectionH = { margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.01em' } as const;
+// Titre de section · charte (18–20px, graisse sobre).
+const sectionH = { margin: '0 0 4px', fontSize: 18, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-.01em' } as const;

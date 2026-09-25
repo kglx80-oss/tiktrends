@@ -530,7 +530,7 @@ export function Landing() {
         <div className="lp-wrap" style={{ padding: 40, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Logo size={26} />
-            <span style={{ fontSize: 17, fontWeight: 800 }}>TikTrends</span>
+            <span style={{ fontSize: 19, fontWeight: 600 }}>TikTrends</span>
           </div>
           <div style={{ display: 'flex', gap: 26, color: 'var(--muted)', fontSize: 13, flexWrap: 'wrap' }}>
             <a href="#galerie">Créatives</a>

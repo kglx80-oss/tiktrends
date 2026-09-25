@@ -166,7 +166,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
       {/* Colonne vitrine (notre identité) */}
       <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 44px', background: 'linear-gradient(150deg, rgba(255,60,120,.22), rgba(124,60,190,.16) 55%, rgba(20,12,26,.9))', borderLeft: '1px solid var(--line)' }}>
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.08em', color: 'var(--accent-strong)' }}>CREATIVE INTELLIGENCE</div>
-        <h2 style={{ margin: '10px 0 14px', fontSize: 30, fontWeight: 800, color: '#fff', lineHeight: 1.15, letterSpacing: -0.5 }}>Des créas guidées par la donnée, du repérage au test.</h2>
+        <h2 style={{ margin: '10px 0 14px', fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: '#fff', lineHeight: 1.15, letterSpacing: -0.5 }}>Des créas guidées par la donnée, du repérage au test.</h2>
         <p style={{ margin: 0, fontSize: 14.5, color: 'rgba(255,255,255,.82)', lineHeight: 1.6, maxWidth: 420 }}>
           Génère, clone et itère tes publicités · Jarvis apprend de la veille et de tes performances pour te dire ce qui va marcher, avant de dépenser.
         </p>

@@ -63,4 +63,4 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
 }
 
 const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' } as const;
-const h1 = { margin: 0, fontSize: 26, fontWeight: 800, color: 'var(--ink)' } as const;
+const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' } as const;
