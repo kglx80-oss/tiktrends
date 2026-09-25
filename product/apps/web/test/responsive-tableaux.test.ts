@@ -27,9 +27,13 @@ describe('Tableaux · min-width + cadre scrollable, plus de colonnes écrasées'
     expect(meta, 'le cadre du tableau ne défile pas').toContain("borderRadius: 16, overflowX: 'auto'");
   });
 
-  it('Team · l’en-tête et les lignes membres partagent min-width et cadre scrollable', () => {
-    const n = team.split("'1fr 1fr 160px', minWidth: 480").length - 1;
-    expect(n, 'l’en-tête ET les lignes membres doivent porter la min-width').toBe(2);
-    expect(team, 'le cadre de la liste ne défile pas').toContain("borderRadius: 16, overflowX: 'auto'");
+  // La liste des membres N'EST PAS un vrai tableau dense · trois champs simples
+  // (nom, e-mail, rôle). La direction validée veut qu'une grille ORDINAIRE se
+  // REPLIE sur mobile plutôt que de défiler à l'horizontale · le défilement reste
+  // réservé aux vrais tableaux (ROAS d'Analytics, KPI Meta ci-dessus). On garde
+  // donc la garde de repli ici · l'inverse de l'ancien patron « min-width + scroll ».
+  it('Team · la liste des membres se replie, elle ne défile plus', () => {
+    expect(team, 'la grille figée + scroll subsiste').not.toContain("'1fr 1fr 160px', minWidth: 480");
+    expect(team, 'la liste ne se replie pas (flexWrap)').toContain("flexWrap: 'wrap'");
   });
 });

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { breadcrumb, isBrandScoped } from '../lib/navigation';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * Le fil d'Ariane.
@@ -47,7 +48,7 @@ export function Breadcrumb({ brandName, brandId }: { brandName: string | null; b
           <span key={`${c.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {i > 0 && <span style={{ color: 'var(--line-2)' }} aria-hidden>›</span>}
             {c.href ? (
-              <Link href={c.href} style={{ color: 'var(--muted)', textDecoration: 'none', fontWeight: 600 }}>
+              <Link href={c.href} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, color: 'var(--muted)', textDecoration: 'none', fontWeight: 600 }}>
                 {c.label}
               </Link>
             ) : (

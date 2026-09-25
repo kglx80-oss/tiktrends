@@ -11,7 +11,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { NewBrandButton } from '../../../components/NewBrandButton';
 import { ConfirmButton } from '../../../components/ConfirmButton';
 import { anthropicConfigured } from '../../../lib/ai-status';
-import { costFor, domaineConcurrent } from '@tiktrends/core';
+import { costFor, domaineConcurrent, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Empty } from '../../../components/Empty';
 import { AvatarSite } from '../../../components/AvatarSite';
 import { Icon } from '../../../components/Icon';
@@ -114,10 +114,10 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <Link href={`/brands/${b.id}`} style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>Voir détails</Link>
+                <Link href={`/brands/${b.id}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>Voir détails</Link>
                 <form action={deleteBrandAction} style={{ margin: 0 }}>
                   <input type="hidden" name="id" value={b.id} />
-                  <ConfirmButton message={`Supprimer « ${b.name} » et TOUT son contenu (personas, produits, créas) ? Cette action est irréversible.`} style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,77,109,.3)', background: 'transparent', color: '#ff9db0', fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>Supprimer</ConfirmButton>
+                  <ConfirmButton message={`Supprimer « ${b.name} » et TOUT son contenu (personas, produits, créas) ? Cette action est irréversible.`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,77,109,.3)', background: 'transparent', color: '#ff9db0', fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>Supprimer</ConfirmButton>
                 </form>
               </div>
             </div>

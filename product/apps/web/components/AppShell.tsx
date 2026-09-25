@@ -164,7 +164,7 @@ function NavBranch({ b, isActive, inPath, open, onToggle, onOpen }: {
           <NavLink it={b.head} active={headActive} inPath={headInPath} onClick={onOpen} />
         </div>
         <button type="button" onClick={onToggle} aria-label={`${open ? 'Replier' : 'Déplier'} ${b.head.label}`} aria-expanded={open} style={{
-          width: 26, height: 26, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 30, minHeight: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           border: 'none', background: 'transparent', color: headInPath || headActive ? 'var(--ink-2)' : 'var(--muted)', cursor: 'pointer', borderRadius: 8,
         }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 6l6 6-6 6" /></svg>
@@ -392,7 +392,7 @@ function AppShellInner(props: Props) {
           </button>
         ) : (
           <button type="button" onClick={openCommandPalette} style={{
-            marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 10,
+            marginTop: 8, width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 10,
             border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
           }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
@@ -570,7 +570,7 @@ function AppShellInner(props: Props) {
             <button ref={burgerRef} type="button" onClick={() => setDrawer((o) => !o)} aria-label={drawer ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={drawer} aria-controls="nav-rail" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
             </button>
-            <Link href="/dashboard" aria-label="Accueil" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+            <Link href="/dashboard" aria-label="Accueil" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 8, textDecoration: 'none' }}>
               <span style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--grad-accent)', display: 'block' }} />
               <b style={{ fontSize: 15, color: 'var(--ink)' }}>TikTrends</b>
             </Link>
@@ -591,7 +591,7 @@ const menuItem = { display: 'block', padding: '9px 12px', borderRadius: 9, fontS
 const menuItemIcon = { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
 // Bouton icône (rail replié) : carré centré, tooltip via title.
 const railIconBtn = { width: 44, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer', textDecoration: 'none', flexShrink: 0 } as const;
-const collapseBtn = { width: 28, height: 28, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer' } as const;
+const collapseBtn = { width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer' } as const;
 /** Icône « replier / déplier le panneau » (barre verticale + flèche). */
 function CollapseIcon({ dir }: { dir: 'left' | 'right' }) {
   return (

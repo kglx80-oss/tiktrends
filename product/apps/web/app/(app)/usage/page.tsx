@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { partDeMax } from '@tiktrends/core';
+import { partDeMax, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { unlimitedCredits } from '../../../lib/credits';
@@ -79,7 +79,7 @@ export default async function UsagePage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Utilisation des crédits</h1>
         <span style={{ flex: 1 }} />
-        <Link href="/billing" style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Abonnement & factures ›</Link>
+        <Link href="/billing" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Abonnement &amp; factures ›</Link>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
         Le détail de ce que ton espace a consommé, action par action. Rien n'est facturé sans apparaître ici.

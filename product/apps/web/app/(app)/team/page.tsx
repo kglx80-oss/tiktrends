@@ -103,16 +103,19 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         </div>
       )}
 
-      {/* Membres */}
-      <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflowX: 'auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px', minWidth: 480, padding: '11px 16px', background: 'var(--surface)', fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>
-          <span>Membre</span><span>E-mail</span><span>Rôle</span>
+      {/* Membres · liste ordinaire (nom, e-mail, rôle) · elle SE REPLIE sur mobile
+          plutôt que de défiler à l'horizontale · le défilement est réservé aux
+          vrais tableaux denses (ex. Top créas d'Analytics). Chaque champ garde une
+          base flexible et passe à la ligne quand la largeur manque. */}
+      <div style={{ border: '1px solid var(--line)', borderRadius: 16 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px', padding: '11px 16px', background: 'var(--surface)', fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>
+          <span style={{ flex: '1 1 140px', minWidth: 0 }}>Membre</span><span style={{ flex: '2 1 200px', minWidth: 0 }}>E-mail</span><span style={{ flex: '0 0 auto' }}>Rôle</span>
         </div>
         {members.map((m) => (
-          <div key={m.email} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px', minWidth: 480, padding: '13px 16px', borderTop: '1px solid var(--line)', alignItems: 'center' }}>
-            <span style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{m.name || '(sans nom)'}</span>
-            <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>{m.email}</span>
-            <span><span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, color: roleColor[m.role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[m.role]}</span></span>
+          <div key={m.email} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px', padding: '13px 16px', borderTop: '1px solid var(--line)' }}>
+            <span style={{ flex: '1 1 140px', minWidth: 0, fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{m.name || '(sans nom)'}</span>
+            <span style={{ flex: '2 1 200px', minWidth: 0, color: 'var(--ink-2)', fontSize: 13, overflowWrap: 'anywhere' }}>{m.email}</span>
+            <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, color: roleColor[m.role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[m.role]}</span>
           </div>
         ))}
       </div>
