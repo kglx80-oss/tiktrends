@@ -33,8 +33,16 @@ export interface Chrome {
   largeurRail: number;
 }
 
+/**
+ * Largeurs du rail · alignées sur la direction validée (design.md § 5) ·
+ * 184px développé, 64px réduit. Replier libère donc 120px pour le contenu,
+ * sans changer la route ni l'état en cours.
+ */
+export const RAIL_DEVELOPPE = 184;
+export const RAIL_REDUIT = 64;
+
 export function chromeCoquille({ mobile, collapsed, drawerOuvert }: EtatChrome): Chrome {
-  const largeurRail = collapsed ? 72 : 250;
+  const largeurRail = collapsed ? RAIL_REDUIT : RAIL_DEVELOPPE;
   if (!mobile) {
     return { colonnes: `${largeurRail}px minmax(0,1fr)`, railTiroir: false, railVisible: true, hamburger: false, voile: false, largeurRail };
   }

@@ -1,24 +1,30 @@
 import { describe, it, expect } from 'vitest';
-import { chromeCoquille } from '../lib/chrome-coquille';
+import { chromeCoquille, RAIL_DEVELOPPE, RAIL_REDUIT } from '../lib/chrome-coquille';
 
 /**
- * La géométrie de la coquille. Le défaut : un rail de 250px fixes qui, sur un
- * téléphone, mangeait l'écran. La règle doit garder le desktop INTACT et faire
- * du rail un tiroir sur mobile.
+ * La géométrie de la coquille. Le rail suit la direction validée (design.md § 5)
+ * · 184px développé, 64px réduit, replier libère 120px. Desktop INTACT, tiroir
+ * sur mobile.
  */
 describe('la coquille adapte sa géométrie à la largeur', () => {
-  it('desktop · deux colonnes, rail collé et visible, pas de hamburger', () => {
+  it('les largeurs suivent la charte · 184 / 64, delta de 120px', () => {
+    expect(RAIL_DEVELOPPE).toBe(184);
+    expect(RAIL_REDUIT).toBe(64);
+    expect(RAIL_DEVELOPPE - RAIL_REDUIT).toBe(120);
+  });
+
+  it('desktop · deux colonnes (184px), rail collé et visible, pas de hamburger', () => {
     const c = chromeCoquille({ mobile: false, collapsed: false, drawerOuvert: false });
-    expect(c.colonnes).toBe('250px minmax(0,1fr)');
+    expect(c.colonnes).toBe('184px minmax(0,1fr)');
     expect(c.railTiroir).toBe(false);
     expect(c.railVisible).toBe(true);
     expect(c.hamburger).toBe(false);
     expect(c.voile).toBe(false);
   });
 
-  it('desktop replié · le rail en barre d’icônes (72px), géométrie inchangée sinon', () => {
+  it('desktop replié · le rail en barre d’icônes (64px), géométrie inchangée sinon', () => {
     const c = chromeCoquille({ mobile: false, collapsed: true, drawerOuvert: false });
-    expect(c.colonnes).toBe('72px minmax(0,1fr)');
+    expect(c.colonnes).toBe('64px minmax(0,1fr)');
     expect(c.railTiroir).toBe(false);
   });
 
