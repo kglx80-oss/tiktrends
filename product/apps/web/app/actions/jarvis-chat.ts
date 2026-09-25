@@ -2,7 +2,7 @@
 
 import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { starters } from '@tiktrends/core';
+import { starters, personnalisationAccueil } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { canAccess, FEATURES, roleAtLeast } from '../../lib/rbac';
@@ -42,7 +42,7 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
 
   try {
     const voitMemoire = canAccess(effectiveAccess(s), adsmap);
-    const [rows, stats] = await Promise.all([
+    const [rows, stats, ws] = await Promise.all([
       db.select({
         id: schema.jarvisMessages.id, role: schema.jarvisMessages.role,
         content: schema.jarvisMessages.content, createdAt: schema.jarvisMessages.createdAt,
@@ -55,16 +55,20 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
         .orderBy(asc(schema.jarvisMessages.createdAt))
         .limit(120),
       voitMemoire ? jarvisStats(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
+      db.select({ onboarding: schema.workspaces.onboarding }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
     ]);
 
     const n = stats?.nAds ?? 0;
+    // L'objectif déclaré à l'accueil oriente les trois suggestions · c'est ici
+    // que ses réponses cessent d'être un formulaire sans effet.
+    const { objectif } = personnalisationAccueil(ws[0]?.onboarding);
     return {
       thread: {
         turns: rows.map((r) => ({
           id: r.id, role: r.role as ChatTurn['role'], content: r.content,
           at: (r.createdAt as Date).toISOString(),
         })),
-        starters: starters({ measuredAds: n, hasMarket: false }),
+        starters: starters({ measuredAds: n, hasMarket: false, objectif }),
         measuredAds: n,
         brandName: brand.name,
       },

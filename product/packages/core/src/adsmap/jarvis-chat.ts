@@ -32,6 +32,7 @@
  */
 
 import { actionsPromptBlock } from './jarvis-actions';
+import type { ObjectifAccueil, NiveauAccueil } from '../accueil';
 
 export interface ChatContext {
   brandName: string;
@@ -50,6 +51,11 @@ export interface ChatContext {
    * il pose un bouton, et c'est la personne qui clique.
    */
   canPropose?: boolean;
+  /**
+   * Le niveau d'aisance déclaré à l'accueil · règle la densité d'explication,
+   * jamais l'accès à une fonction. `null`/absent · registre neutre, comme avant.
+   */
+  niveau?: NiveauAccueil | null;
 }
 
 /** Au-delà, on paie des jetons pour du contexte que le modèle ne lira plus. */
@@ -117,6 +123,9 @@ export function chatSystemPrompt(ctx: ChatContext): string {
 
   blocs.push(prudence(ctx.measuredAds));
 
+  const ton = tonSelonNiveau(ctx.niveau ?? null);
+  if (ton) blocs.push(ton);
+
   if (ctx.canAdsmap) {
     blocs.push(
       'OÙ ENVOYER\n'
@@ -164,6 +173,27 @@ function prudence(n: number): string {
     + 'le nombre de tests derrière chaque taux, c’est ce qui rend une affirmation vérifiable.';
 }
 
+/**
+ * Le registre d'explication, réglé sur le niveau déclaré à l'accueil.
+ *
+ * Le niveau ne ferme AUCUNE fonction · il change seulement la façon dont Jarvis
+ * explique. Un débutant a besoin qu'on définisse les termes au passage ; un
+ * profil avancé perd son temps avec un tutoriel. Le registre intermédiaire est
+ * le défaut · on ne pousse alors aucune consigne, la forme générique suffit.
+ */
+function tonSelonNiveau(niveau: NiveauAccueil | null): string | null {
+  if (niveau === 'debut') {
+    return 'REGISTRE\nLa personne débute en publicité. Définis les termes au fil de l’eau, avance une\n'
+      + 'étape à la fois, et ne présuppose aucun acquis · sans jamais retirer une fonction ni\n'
+      + 'la présenter comme réservée aux experts.';
+  }
+  if (niveau === 'avance') {
+    return 'REGISTRE\nLa personne est expérimentée. Va droit au but, sans tutoriel ni définitions de base ·\n'
+      + 'donne les paramètres et les arbitrages directement.';
+  }
+  return null;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Fil de conversation                                                       */
 /* -------------------------------------------------------------------------- */
@@ -198,7 +228,13 @@ export function trimThread(messages: ChatMessage[]): ChatMessage[] {
  * clignote produit surtout de la gêne, et les questions proposées apprennent au
  * passage ce que Jarvis sait faire.
  */
-export function starters(ctx: { measuredAds: number; hasMarket: boolean }): string[] {
+export function starters(ctx: { measuredAds: number; hasMarket: boolean; objectif?: ObjectifAccueil | null }): string[] {
+  // L'objectif déclaré à l'accueil oriente la première question · c'est là que
+  // le questionnaire cesse d'être un formulaire sans effet. Absent · on retombe
+  // sur le comportement générique, réglé sur ce qui est mesuré.
+  const parObjectif = ctx.objectif ? startersObjectif(ctx.objectif, ctx.measuredAds) : null;
+  if (parObjectif) return parObjectif;
+
   if (ctx.measuredAds === 0) {
     return [
       'Par où je commence avec cette marque ?',
@@ -213,4 +249,47 @@ export function starters(ctx: { measuredAds: number; hasMarket: boolean }): stri
   ];
   if (ctx.hasMarket) base.push('Où est-ce que le marché me contredit ?');
   return base;
+}
+
+/**
+ * Les trois entrées, orientées par l'objectif d'accueil.
+ *
+ * « Résultats » dépend de ce qui est mesuré · sans chiffres, on ne propose pas
+ * de lire des performances qui n'existent pas, on propose d'en produire. Les
+ * autres objectifs ne dépendent pas de la mesure · créer, chercher des idées et
+ * observer les concurrents se font dès le premier jour.
+ */
+function startersObjectif(objectif: ObjectifAccueil, measuredAds: number): string[] {
+  switch (objectif) {
+    case 'creer':
+      return [
+        'On crée quoi ensemble pour cette marque ?',
+        'Donne-moi trois angles à comparer pour un de mes produits.',
+        'Aide-moi à préparer un test propre · une seule variable à la fois.',
+      ];
+    case 'idees':
+      return [
+        'Propose-moi des angles que je n’ai pas encore essayés.',
+        'Quelles mécaniques marchent dans mon marché en ce moment ?',
+        'À partir de ce que tu sais de moi, trois pistes à tester.',
+      ];
+    case 'resultats':
+      return measuredAds === 0
+        ? [
+            'De quelles données as-tu besoin pour juger mes résultats ?',
+            'Comment lire un test pour savoir s’il a vraiment gagné ?',
+            'Par où commencer pour mesurer proprement ?',
+          ]
+        : [
+            'Qu’est-ce qui marche le mieux chez moi, et sur combien de tests ?',
+            'Quelle est la prochaine chose que je devrais tester ?',
+            'Où est-ce que je me trompe le plus souvent ?',
+          ];
+    case 'concurrents':
+      return [
+        'Quelle marque veux-tu qu’on examine de près ?',
+        'Qu’est-ce que mes concurrents diffusent en ce moment ?',
+        'Quelles accroches tiennent longtemps chez eux ?',
+      ];
+  }
 }
