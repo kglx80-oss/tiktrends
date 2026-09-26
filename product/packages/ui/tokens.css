@@ -56,19 +56,12 @@
   --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
 
-/* Fond signature : halo magenta + grille de petits carrés (36px).
-   À appliquer sur body (et les vues plein écran). */
+/* Fond principal UNI · #120810, sans quadrillage décoratif ni halo rose global
+   (charte validée). L'ancien fond signature (halos magenta + grille 36px)
+   chargeait l'écran ; on garde une seule couleur calme, base de toute vue. */
 body {
   background-color: #120810;
   color: var(--ink);
-  background-image:
-    radial-gradient(1000px 560px at 50% -10%, rgba(254,44,85,0.40), transparent 60%),
-    radial-gradient(760px 520px at 88% 4%, rgba(150,30,110,0.22), transparent 55%),
-    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
-  background-position: center top;
-  background-attachment: fixed;
 }
 
 /* Primaires en dégradé magenta */

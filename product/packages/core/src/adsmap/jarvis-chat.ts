@@ -242,12 +242,17 @@ export function starters(ctx: { measuredAds: number; hasMarket: boolean; objecti
       'Qu’est-ce que tu as besoin de savoir pour m’être utile ?',
     ];
   }
+  // Les trois piliers de la boucle · résultats (mes KPI), veille (le marché,
+  // seulement si des données de marché existent · sinon Jarvis n'en a pas et ne
+  // le prétend pas), test (la prochaine itération). L'écran n'en montre que
+  // trois · la veille doit donc passer AVANT « ce qui a perdu », sinon elle
+  // tombe hors des trois premières et le pilier veille disparaît de l'accueil.
   const base = [
     'Qu’est-ce qui marche le mieux chez moi, et sur combien de tests ?',
+    ...(ctx.hasMarket ? ['Où est-ce que le marché me contredit ?'] : []),
     'Quelle est la prochaine chose que je devrais tester ?',
     'Quelles sont mes accroches qui ont perdu ?',
   ];
-  if (ctx.hasMarket) base.push('Où est-ce que le marché me contredit ?');
   return base;
 }
 

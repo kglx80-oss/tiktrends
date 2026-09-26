@@ -46,8 +46,10 @@ export default async function JarvisPage() {
     );
   }
 
-  return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
+    return (
+    // Écran conversationnel · colonne calme de 760 px (charte), pas la largeur
+    // « data » des tableaux · la conversation et l'accueil se lisent centrés.
+    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 760, margin: '0 auto' }}>
       {/* En-tête sobre (charte) · titre 32/28, la marque, une phrase humaine. Le
           détail technique (couches alimentées, prochaine à ouvrir) vit dans
           Sources · la conversation reste calme. */}

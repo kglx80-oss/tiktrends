@@ -147,23 +147,21 @@ export function JarvisChat() {
 
   const vide = thread.turns.length === 0;
 
+  // Trois suggestions au plus · l'accueil propose, il n'inonde pas (charte).
+  const amorces = thread.starters.slice(0, 3);
+
   return (
     <section style={{
       position: 'relative',
-      border: '1px solid var(--line)', borderRadius: 18, background: 'var(--bg)',
       display: 'flex', flexDirection: 'column', height: '64vh', minHeight: 460, overflow: 'hidden',
     }}>
       {contexteOuvert && (
         <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />
       )}
-      {/* En-tête minimal · le détail technique (« N tests mesurés ») a déménagé
-          dans le panneau Contexte · la conversation reste calme au premier plan. */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
-        borderBottom: '1px solid var(--line)', background: 'transparent',
-      }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', flex: 1 }}>Parler à Jarvis</span>
-        {!vide && (
+      {/* Pas de grande boîte · la conversation flotte sur le fond uni. Seul
+          « Effacer le fil » subsiste, discret, quand il y a un fil. */}
+      {!vide && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>
           <button onClick={effacer} style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
             padding: '5px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
@@ -171,22 +169,22 @@ export function JarvisChat() {
           }}>
             Effacer le fil
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '22px 16px', display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 780, margin: '0 auto', boxSizing: 'border-box' }}>
+      <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 760, margin: '0 auto', boxSizing: 'border-box' }}>
         {vide && !enCours && (
-          <div style={{ margin: 'auto', textAlign: 'center', maxWidth: 520 }}>
+          <div style={{ margin: 'auto', textAlign: 'center', maxWidth: 560 }}>
             <div style={{ color: 'var(--muted)' }}><Icon name="brain" size={30} /></div>
-            <p style={{ margin: '10px 0 0', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
-              Demande-lui ce que tu veux sur cette marque.
+            <p style={{ margin: '12px 0 0', fontSize: 17, fontWeight: 500, color: 'var(--ink)', lineHeight: 1.35 }}>
+              Quelle publicité améliorer en premier ?
             </p>
-            <p style={{ margin: '6px 0 16px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6 }}>
-              Il cite tes chiffres, ou il admet qu’il n’en a pas · il ne comble jamais avec des
-              généralités. Et il a le droit de te contredire, c’est même ce qu’on lui demande.
+            <p style={{ margin: '8px 0 18px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6 }}>
+              Jarvis lit tes résultats et la veille · il cite tes chiffres, ou admet qu’il n’en a
+              pas · et t’aide à décider quoi tester ensuite, et pourquoi.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {thread.starters.map((q) => (
+              {amorces.map((q) => (
                 <button key={q} onClick={() => void envoyer(q)} style={{
                   display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
                   padding: '8px 15px', borderRadius: 999, border: '1px solid var(--line-2)',
@@ -216,10 +214,11 @@ export function JarvisChat() {
         <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: '#ff8095', borderTop: '1px solid var(--line)' }}>{erreur}</p>
       )}
 
-      {/* Le composeur · centré, c'est l'action première de l'écran. Le contexte
-          s'ouvre depuis ici, la mémoire mesurée se lit dans Sources. */}
-      <div style={{ padding: '12px 16px 14px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
-        <div style={{ width: '100%', maxWidth: 780, margin: '0 auto' }}>
+      {/* Le composeur · généreux, arrondi 24, centré dans la colonne · c'est
+          l'action première. « Ajouter du contexte » ouvre Contexte, la mémoire
+          mesurée se lit dans Sources · les deux restent discrets, à la demande. */}
+      <div style={{ padding: '10px 4px 4px', background: 'transparent' }}>
+        <div style={{ width: '100%', maxWidth: 760, margin: '0 auto' }}>
         <div style={{ marginBottom: 8 }}>
           <button
             type="button"
@@ -229,7 +228,7 @@ export function JarvisChat() {
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
               gap: 6, padding: '6px 14px', borderRadius: 999,
-              border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink-2)',
+              border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)',
               fontSize: 12, fontWeight: 700, cursor: 'pointer',
             }}
           >
@@ -237,7 +236,11 @@ export function JarvisChat() {
             Ajouter du contexte
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+        {/* La surface généreuse · rayon 24, elle contient le champ et l'envoi. */}
+        <div style={{
+          display: 'flex', gap: 8, alignItems: 'flex-end',
+          padding: 8, borderRadius: 24, border: '1px solid var(--line-2)', background: 'var(--surface)',
+        }}>
         <textarea
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
@@ -247,13 +250,17 @@ export function JarvisChat() {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(saisie); }
           }}
           rows={2}
-          placeholder="Écris à Jarvis · Entrée pour envoyer, Maj+Entrée pour aller à la ligne"
+          // Placeholder court · à 390 px l'ancienne version débordait sur trois
+          // lignes et se faisait rogner par la carte Sources · le composeur doit
+          // rester aéré (charte). Le geste Maj+Entrée reste actif (voir onKeyDown),
+          // simplement plus annoncé ici.
+          placeholder="Écris à Jarvis · Entrée pour envoyer"
           disabled={enCours}
           style={{
             flex: 1, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box',
-            padding: '10px 13px', borderRadius: 12, border: '1px solid var(--line-2)',
-            background: 'var(--bg)', color: 'var(--ink)', fontSize: 13.5, fontFamily: 'inherit',
-            resize: 'none', lineHeight: 1.5,
+            padding: '10px 12px', borderRadius: 18, border: 'none',
+            background: 'transparent', color: 'var(--ink)', fontSize: 13.5, fontFamily: 'inherit',
+            resize: 'none', lineHeight: 1.5, outline: 'none',
           }}
         />
         <button
@@ -261,8 +268,8 @@ export function JarvisChat() {
           onClick={() => void envoyer(saisie)}
           disabled={enCours || !saisie.trim()}
           style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
-            padding: '0 20px', borderRadius: 12, border: 'none',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN,
+            padding: '0 20px', borderRadius: 18, border: 'none',
             background: enCours || !saisie.trim() ? 'var(--line-2)' : 'var(--grad-accent)',
             color: enCours || !saisie.trim() ? 'var(--muted)' : 'var(--on-accent)',
             fontWeight: 800, fontSize: 13, cursor: enCours || !saisie.trim() ? 'default' : 'pointer',

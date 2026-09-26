@@ -76,6 +76,24 @@ describe('starters · l’objectif oriente les trois suggestions', () => {
     expect(starters({ measuredAds: 0, hasMarket: false, objectif: null })).toEqual(generique);
     expect(starters({ measuredAds: 3, hasMarket: false }).join(' ')).toContain('marche le mieux');
   });
+
+  it('mesuré AVEC données de marché · le pilier veille tient dans les trois premières', () => {
+    // La boucle produit tient sur trois piliers · résultats, veille, test. L'écran
+    // ne montre que trois suggestions · quand des données de marché existent, la
+    // veille doit survivre à cette coupe, pas rester en réserve. Muter l'ordre
+    // (repousser le marché en quatrième) fait retomber la veille hors de l'écran.
+    const troisPremieres = starters({ measuredAds: 8, hasMarket: true }).slice(0, 3).join(' ');
+    expect(troisPremieres).toContain('le marché me contredit');
+    expect(troisPremieres).toContain('marche le mieux');
+    expect(troisPremieres).toContain('tester');
+  });
+
+  it('mesuré SANS données de marché · pas de veille inventée', () => {
+    // Honnêteté · sans données de marché, Jarvis ne propose pas de veille qu'il
+    // ne peut pas tenir.
+    const trois = starters({ measuredAds: 8, hasMarket: false }).slice(0, 3).join(' ');
+    expect(trois).not.toContain('le marché me contredit');
+  });
 });
 
 describe('chatSystemPrompt · le niveau règle le registre, jamais l’accès', () => {
