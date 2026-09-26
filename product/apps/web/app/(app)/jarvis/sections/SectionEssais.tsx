@@ -64,7 +64,7 @@ export async function SectionEssais() {
   return (
     <section aria-label="Essais, notes et relectures de Jarvis" style={{ marginTop: 30 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Ce que Jarvis a appris de tes tests</h2>
+        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Ce que Jarvis a appris de tes tests</h2>
       </div>
       <p style={{ margin: '6px 0 16px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 760, lineHeight: 1.55 }}>
         Le cumul de tes lots d’essai, de tes notes et des relectures · d’où vient tout ce que Jarvis

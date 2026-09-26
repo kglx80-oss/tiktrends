@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { useRouter } from 'next/navigation';
 import { syncAdsMapAction } from '../../actions/adsmap';
 
@@ -33,6 +34,7 @@ export function SyncButton({ syncedAt }: { syncedAt: string | null }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
       <button type="button" onClick={lancer} disabled={busy} style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
         padding: '8px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
         color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
       }}>

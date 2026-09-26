@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { verrouAction } from '@tiktrends/core';
+import { verrouAction, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { saveSettingsAction, suggestSettingsAction, type SettingsBundle } from '../../../actions/adsmap-protocol';
 
 /**
@@ -68,7 +68,7 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" onClick={proposer} disabled={busy}
-          style={{ padding: '9px 17px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 17px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
           {busy ? 'Analyse…' : 'Proposer des seuils depuis mes 30 derniers jours'}
         </button>
         {fromReal === false && <span style={{ fontSize: 12.5, color: '#ffcf8f' }}>Sans données Meta · valeurs génériques</span>}
@@ -171,7 +171,7 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
       {canEdit ? (
         <div>
           <button type="button" onClick={enregistrer} disabled={busy}
-            style={{ padding: '10px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
             {busy ? 'Enregistrement…' : 'Enregistrer'}
           </button>
         </div>
@@ -199,6 +199,6 @@ function Champ({ label, aide, children }: { label: string; aide: string; childre
 const panel: CSSProperties = { border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' };
 const h2: CSSProperties = { margin: '0 0 4px', fontSize: 16, fontWeight: 800, color: 'var(--ink)' };
 const sub: CSSProperties = { color: 'var(--muted)', fontSize: 12.5, margin: '0 0 16px', lineHeight: 1.6, maxWidth: 680 };
-const input: CSSProperties = { width: '100%', padding: '8px 11px', borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 };
+const input: CSSProperties = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '8px 11px', borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 };
 const grille: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0 16px' };
 const bandeau: CSSProperties = { padding: '10px 14px', borderRadius: 11, border: '1px solid', fontSize: 12.5, lineHeight: 1.55 };

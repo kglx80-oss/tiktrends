@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead, type NotifItem } from '../app/actions/notifications';
 import { Icon } from './Icon';
 
@@ -78,7 +79,7 @@ export function NotificationBell() {
         onClick={() => { setOpen((o) => !o); if (!open) refresh(); }}
         aria-label="Notifications"
         style={{
-          position: 'relative', width: 40, height: 40, borderRadius: 12, cursor: 'pointer',
+          position: 'relative', width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, borderRadius: 12, cursor: 'pointer',
           border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 18px -8px rgba(0,0,0,.5)',
         }}

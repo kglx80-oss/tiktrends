@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
@@ -26,7 +27,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
   return (
     <div style={{ position: 'relative', margin: '10px 0 4px' }}>
       <button type="button" onClick={() => setOpen((o) => !o)} style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 10,
+        width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 10,
         border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer',
       }}>
         {/* La favicon de la marque active · identité reconnaissable d'un coup d'œil.

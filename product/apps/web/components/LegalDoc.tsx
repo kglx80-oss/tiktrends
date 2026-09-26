@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 export function LegalDoc({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <main style={{ maxWidth: 820, margin: '0 auto', padding: '40px 24px 80px' }}>
-      <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)', letterSpacing: -0.5 }}>{title}</h1>
+      <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)', letterSpacing: -0.5 }}>{title}</h1>
       {subtitle && <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--muted)' }}>{subtitle}</p>}
       <div style={{ marginTop: 26, display: 'grid', gap: 22 }}>{children}</div>
     </main>
@@ -13,7 +13,7 @@ export function LegalDoc({ title, subtitle, children }: { title: string; subtitl
 export function LSection({ h, children }: { h: string; children: ReactNode }) {
   return (
     <section>
-      <h2 style={{ margin: '0 0 8px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>{h}</h2>
+      <h2 style={{ margin: '0 0 8px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>{h}</h2>
       <div style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--ink-2)' }}>{children}</div>
     </section>
   );

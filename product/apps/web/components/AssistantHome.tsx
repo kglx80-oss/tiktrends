@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { afficherCredits, texteCredits } from '@tiktrends/core';
+import { afficherCredits, texteCredits, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { AssistantChat } from './AssistantChat';
 import { Icon } from './Icon';
 
@@ -77,7 +77,7 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 240 }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>TikTrends</div>
-            <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.15 }}>
+            <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.15 }}>
               Bonjour {firstName}
             </h1>
             <p style={{ margin: '8px 0 0', fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 560 }}>
@@ -128,7 +128,7 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
       <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', margin: '10px 0 26px' }}>
         {PILOTER.map((p) => (
           <Link key={p.href} href={p.href} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 12, textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '9px 14px', borderRadius: 12, textDecoration: 'none',
             border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 13, fontWeight: 600,
           }}>
             <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name={p.icon} size={16} /></span>
@@ -147,4 +147,4 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
 }
 
 // Titre de section · charte (18–20px, graisse sobre).
-const sectionH = { margin: '0 0 4px', fontSize: 18, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-.01em' } as const;
+const sectionH = { margin: '0 0 4px', fontSize: 18, fontWeight: 500, color: 'var(--ink)', letterSpacing: '-.01em' } as const;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition, type CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import {
   radarViewAction, setRadarAction, runRadarNowAction, radarCostPreviewAction,
   conceptFromFindingAction,
@@ -87,7 +88,7 @@ export function Radar() {
             <input
               type="number" min={1} max={20} value={cap}
               onChange={(e) => setCap(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-              style={{ width: 62, marginLeft: 10, padding: '6px 9px', borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 13 }}
+              style={{ width: 62, marginLeft: 10, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '6px 9px', borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 13 }}
             />
           </label>
           {apercu && (
@@ -106,14 +107,14 @@ export function Radar() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => basculer(!state.armed)} disabled={busy || state.followed === 0}
-            style={{ padding: '9px 18px', borderRadius: 999, border: 'none', background: state.armed ? 'var(--line-2)' : 'var(--grad-accent)', color: state.armed ? 'var(--ink)' : 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'wait' : 'pointer' }}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 18px', borderRadius: 999, border: 'none', background: state.armed ? 'var(--line-2)' : 'var(--grad-accent)', color: state.armed ? 'var(--ink)' : 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'wait' : 'pointer' }}
           >
             {state.armed ? 'Éteindre le radar' : 'Armer le radar'}
           </button>
           {state.armed && (
             <button
               onClick={passer} disabled={busy}
-              style={{ padding: '9px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: busy ? 'wait' : 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: busy ? 'wait' : 'pointer' }}
             >
               Passer maintenant
             </button>

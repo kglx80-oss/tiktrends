@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { RailFicheCrea, type DeclinaisonRow } from '../app/(app)/studio/ads/RailFicheCrea';
 
 /**
@@ -94,11 +95,11 @@ describe('Fiche créa · rail rangé en quatre rubriques nommées', () => {
     expect(html.indexOf('Exporter')).toBeLessThan(html.lastIndexOf('Archiver'));
   });
 
-  it('la croix de fermeture atteint la cible tactile (40 px carrés)', () => {
+  it('la croix de fermeture atteint la cible tactile (carrés à la charte)', () => {
     const html = rendu();
     expect(html).toContain('aria-label="Fermer"');
-    expect(html, 'la croix doit faire 40 px de large').toContain('width:40px');
-    expect(html, 'la croix doit faire 40 px de haut').toContain('height:40px');
+    expect(html, 'la croix est sous la cible en largeur').toContain(`width:${CIBLE_TACTILE_MIN}px`);
+    expect(html, 'la croix est sous la cible en hauteur').toContain(`height:${CIBLE_TACTILE_MIN}px`);
   });
 
   it('en mode « Éditer le texte », le rail bascule sur les champs', () => {

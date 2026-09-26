@@ -94,7 +94,7 @@ export default async function IntelligencePage() {
       </p>
 
       {/* Matrice comparative */}
-      <h2 style={{ margin: '0 0 12px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Matrice comparative</h2>
+      <h2 style={{ margin: '0 0 12px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Matrice comparative</h2>
       <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden', marginBottom: 30 }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 680 }}>
@@ -148,7 +148,7 @@ export default async function IntelligencePage() {
       </div>
 
       {/* Notre pile IA */}
-      <h2 style={{ margin: '0 0 12px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Notre pile IA · orchestration maison</h2>
+      <h2 style={{ margin: '0 0 12px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Notre pile IA · orchestration maison</h2>
       <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--ink-2)', maxWidth: 760, lineHeight: 1.6 }}>
         Les modèles (Nano Banana, Kling, Claude) sont le <b>moteur</b>. Notre valeur, c'est la <b>chaîne</b> et la
         gouvernance : veille → contexte marque → règles Jarvis → concept → scène produit fidèle → design → vidéo →
@@ -168,7 +168,7 @@ export default async function IntelligencePage() {
       </div>
 
       {/* Concurrents */}
-      <h2 style={{ margin: '0 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Concurrents directs</h2>
+      <h2 style={{ margin: '0 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Concurrents directs</h2>
       <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>Atria · Foreplay · Higgsfield</p>
 
       <div style={{ display: 'grid', gap: 16 }}>
@@ -206,7 +206,7 @@ export default async function IntelligencePage() {
       </div>
 
       {/* Seuil « éprouvé » · mesuré, pas posé de tête */}
-      <h2 style={{ margin: '4px 0 6px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Seuil « éprouvé » · mesuré</h2>
+      <h2 style={{ margin: '4px 0 6px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Seuil « éprouvé » · mesuré</h2>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 0, marginBottom: 14, maxWidth: 760, lineHeight: 1.6 }}>
         Le code fige <b>PROVEN_DAYS = {PROVEN_DAYS} j</b>, écrit de tête. Voici ce que dit la donnée réelle
         (âge de chaque créa concurrente décrite, tous espaces confondus). On <b>ne change rien</b> ici · on montre la
@@ -252,7 +252,7 @@ export default async function IntelligencePage() {
       )}
 
       {/* La boucle d'itération · l'angle testé → la pertinence jugée */}
-      <h2 style={{ margin: '4px 0 6px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Hypothèses d'angle · ce qui convainc</h2>
+      <h2 style={{ margin: '4px 0 6px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Hypothèses d'angle · ce qui convainc</h2>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 0, marginBottom: 14, maxWidth: 760, lineHeight: 1.6 }}>
         Chaque créa générée porte l'angle qui l'a armée · on la relie au jugement du client (validé / rejeté). Taux de
         pertinence <b>par angle</b>, comparé au taux général · un angle sous {5} jugements « attend » plutôt que de trancher.
@@ -291,7 +291,7 @@ export default async function IntelligencePage() {
       )}
 
       {/* Le pendant OBJECTIF · la performance réelle par angle */}
-      <h2 style={{ margin: '4px 0 6px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Hypothèses d'angle · ce qui a PAYÉ</h2>
+      <h2 style={{ margin: '4px 0 6px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Hypothèses d'angle · ce qui a PAYÉ</h2>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 0, marginBottom: 6, maxWidth: 760, lineHeight: 1.6 }}>
         Le vote objectif · pour chaque angle, la part de créas lancées jugées <b>gagnantes</b> par Adsmap (sur métriques
         réelles), comparée au taux général. « Le client a aimé » et « le marché a payé » sont deux choses · voici la seconde.

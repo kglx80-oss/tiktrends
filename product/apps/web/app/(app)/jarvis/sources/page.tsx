@@ -60,7 +60,7 @@ export default async function JarvisPage() {
   if (!brand) {
     return (
       <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Sources de Jarvis</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Sources de Jarvis</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
             tone="todo" title="Sélectionne une marque active."
@@ -103,7 +103,7 @@ export default async function JarvisPage() {
       <div style={{ padding: '4px 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', color: 'var(--muted)', flexShrink: 0 }}><Icon name="brain" size={22} /></span>
-          <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Sources de Jarvis</h1>
+          <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Sources de Jarvis</h1>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>· {brand.name}</span>
         </div>
         <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 640, lineHeight: 1.5 }}>
@@ -134,7 +134,7 @@ export default async function JarvisPage() {
       )}
 
       {/* 1 · L'état réel · avant toute promesse. */}
-      <h2 style={{ margin: '30px 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Ce qui tourne, en ce moment</h2>
+      <h2 style={{ margin: '30px 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Ce qui tourne, en ce moment</h2>
       <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 720, lineHeight: 1.55 }}>
         Chaque couche dit si elle est alimentée, sur quel volume, et le geste qui l’allume quand elle ne l’est pas.
       </p>
@@ -163,7 +163,7 @@ export default async function JarvisPage() {
       {voitMemoire && <div id="decrire"><DescribePanel /></div>}
 
       {/* 4 · Les gestes qui nourrissent les couches, et où Jarvis rend ce qu'il sait. */}
-      <h2 id="actions" style={{ margin: '30px 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Ce qu’on lui demande</h2>
+      <h2 id="actions" style={{ margin: '30px 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Ce qu’on lui demande</h2>
       <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 720, lineHeight: 1.55 }}>
         Les gestes qui nourrissent les couches ci-dessus, et les écrans où Jarvis rend ce qu’il a appris.
       </p>
@@ -191,7 +191,7 @@ export default async function JarvisPage() {
       {/* 6 · Les réglages maison · fondateur seulement, comme avant. */}
       {fondateur && (
         <>
-          <h2 style={{ margin: '32px 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Réglages maison</h2>
+          <h2 style={{ margin: '32px 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Réglages maison</h2>
           <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 720, lineHeight: 1.55 }}>
             Ta couche par-dessus les modèles · visible de toi seul.
           </p>
@@ -202,7 +202,7 @@ export default async function JarvisPage() {
             <JarvisRules brandName={brand.name} initial={row?.creativeRules ?? ''} />
           </div>
 
-          <h2 style={{ margin: '28px 0 12px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Moteurs orchestrés</h2>
+          <h2 style={{ margin: '28px 0 12px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Moteurs orchestrés</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
             {ENGINES.map((e) => (
               <div key={e.name} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
@@ -289,7 +289,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
 
   return (
     <>
-      <h2 style={{ margin: '4px 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Ce qu’il a appris de cette marque</h2>
+      <h2 style={{ margin: '4px 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Ce qu’il a appris de cette marque</h2>
       <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 760, lineHeight: 1.55 }}>
         Mesuré sur les tests de cette marque, pas déduit de règles générales. La répartition par
         dimension ci-dessous est <b>historique · indicative</b> · elle oriente chaque génération.

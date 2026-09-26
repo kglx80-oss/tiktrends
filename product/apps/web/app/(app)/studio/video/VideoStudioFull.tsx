@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
-import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, costFor, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
+import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, costFor, CIBLE_TACTILE_MIN, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { DropZone } from '../../../../components/DropZone';
@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   completed: { label: 'Prête', color: '#18cc8c' }, failed: { label: 'Échec', color: '#ff4d6d' },
 };
 
-const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
+const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
 export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, initialPrompt, assets, adsmap = false }: {
   ready: boolean; aiReady?: boolean; brandName: string | null; initialVideos: BrandVideo[]; initialPrompt?: string; assets: AnimatableAsset[];
@@ -188,14 +188,14 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           {([['t2v', 'Texte → Vidéo'], ['i2v', 'Image → Vidéo']] as const).map(([k, label]) => (
             <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
-              fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
               background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
             }}>{label}</button>
           ))}
           <span style={{ flex: 1 }} />
           <button type="button" disabled={!ready} onClick={() => setAssistantOuvert(true)} style={{
-            fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
             border: '1px solid var(--accent-strong)', background: 'transparent', color: 'var(--accent-strong)',
           }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Assistant guidé</span></button>
         </div>
@@ -239,7 +239,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           ]}
           extra={
             <button type="button" onClick={suggestMotion} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose un mouvement à partir de ta marque' : 'IA non configurée'} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
               cursor: ready && aiReady && !suggesting ? 'pointer' : 'default', whiteSpace: 'nowrap',
               border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
             }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {suggesting ? 'Rédaction…' : `${mode === 't2v' ? 'Proposer une description' : 'Proposer un mouvement'} · ${costFor('suggest')} cr.`}</span></button>
@@ -256,7 +256,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
 
       {/* Galerie */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Tes vidéos {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
+        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Tes vidéos {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{videos.length}</span>
       </div>
 
@@ -290,7 +290,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                         <CreativeActions genId={v.id} rating={v.rating} downloadUrl={v.videoUrl} onArchive={() => removeVideo(v.id)} archiveLabel="Supprimer" trackable={adsmap} />
                         {v.prompt && (
                           <button type="button" onClick={() => { setPrompt(v.prompt); window.scrollTo({ top: 0, behavior: 'smooth' }); }} title="Repartir de ce brief pour une nouvelle vidéo" style={{
-                            marginTop: 6, width: '100%', padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, marginTop: 6, width: '100%', padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
                             border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)', cursor: 'pointer',
                           }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> Reprendre ce brief</span></button>
                         )}

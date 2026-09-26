@@ -2,12 +2,12 @@
 
 import { useActionState, useState } from 'react';
 import { generateAction, type StudioState } from '../../../actions/studio';
-import { costFor } from '@tiktrends/core';
+import { costFor, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import type { CreativeOutput } from '@tiktrends/ai';
 import { Icon } from '../../../../components/Icon';
 import { useIsMobile } from '../../../../components/useIsMobile';
 
-const input: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' };
+const input: React.CSSProperties = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 };
 const card: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: 18 };
 const h2: React.CSSProperties = { margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'var(--ink)' };
@@ -16,7 +16,7 @@ function Copy({ text }: { text: string }) {
   const [done, setDone] = useState(false);
   return (
     <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1200); } catch { /* noop */ } }}
-      style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: done ? 'var(--ok)' : 'var(--ink-2)', cursor: 'pointer', flexShrink: 0 }}>
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11, padding: '3px 9px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: done ? 'var(--ok)' : 'var(--ink-2)', cursor: 'pointer', flexShrink: 0 }}>
       {done ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={11} /> copié</span> : 'copier'}
     </button>
   );
@@ -26,7 +26,7 @@ function Copy({ text }: { text: string }) {
 function ToAds({ text }: { text: string }) {
   return (
     <a href={`/studio/ads?angle=${encodeURIComponent(text)}`} title="Créer la pub à partir de cet angle"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 999, border: '1px solid rgba(254,44,85,.35)', background: 'transparent', color: 'var(--accent-strong)', fontWeight: 700, cursor: 'pointer', flexShrink: 0, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 999, border: '1px solid rgba(254,44,85,.35)', background: 'transparent', color: 'var(--accent-strong)', fontWeight: 700, cursor: 'pointer', flexShrink: 0, textDecoration: 'none', whiteSpace: 'nowrap' }}>
       <Icon name="sparkles" size={12} /> Pubs IA
     </a>
   );
@@ -56,7 +56,7 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
           </div>
         </div>
         <div><label style={lbl}>Inspiration (créa gagnante à réinterpréter)</label><textarea name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
-        <button type="submit" disabled={pending || !hasKey} style={{ padding: '12px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending || !hasKey ? .6 : 1 }}>
+        <button type="submit" disabled={pending || !hasKey} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '12px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending || !hasKey ? .6 : 1 }}>
           {pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative · {costFor('script')} crédits</span>}
         </button>
         {/* Le coût se dit AVANT le clic · aucune génération payante sans prix connu

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, useTransition, type CSSProperties } from 'react';
-import { KIND_LABEL, isTrivialMerge, type MergePlan, type NodeKind } from '@tiktrends/core';
+import { KIND_LABEL, isTrivialMerge, CIBLE_TACTILE_MIN, type MergePlan, type NodeKind } from '@tiktrends/core';
 import {
   curationViewAction, validateNodeAction, rejectNodeAction, validateManyAction,
   mergeCandidatesAction, mergePlanAction, mergePersonasAction,
@@ -42,6 +42,7 @@ const carte: CSSProperties = {
 };
 
 const btn = (ton: 'oui' | 'non' | 'neutre'): CSSProperties => ({
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
   padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
   border: ton === 'neutre' ? '1px solid var(--line-2)' : 'none',
   background: ton === 'oui' ? 'var(--grad-accent)' : 'transparent',
@@ -119,7 +120,7 @@ export function Curation() {
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); appliquer(); } }}
           placeholder="Rechercher un nom…"
           aria-label="Rechercher dans les propositions à trier"
-          style={{ flex: '1 1 240px', minWidth: 200, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13 }}
+          style={{ flex: '1 1 240px', minWidth: 200, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '8px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13 }}
         />
         <button onClick={appliquer} disabled={saisie.trim() === q} style={btn('neutre')}>Rechercher</button>
         {q && <button onClick={reinitialiser} style={btn('neutre')}>Réinitialiser</button>}
@@ -129,7 +130,7 @@ export function Curation() {
 
       {q && view.nodes.length === 0 && (
         <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
-          Aucun résultat pour « {q} » · <button onClick={reinitialiser} style={{ ...btn('neutre'), padding: '2px 8px' }}>réinitialiser</button>
+          Aucun résultat pour « {q} » · <button onClick={reinitialiser} style={{ border: 'none', background: 'none', padding: 0, font: 'inherit', color: 'var(--accent-strong)', textDecoration: 'underline', cursor: 'pointer' }}>réinitialiser</button>
         </p>
       )}
 
@@ -173,7 +174,8 @@ export function Curation() {
 /* -------------------------------------------------------------------------- */
 
 const champ: CSSProperties = {
-  flex: '1 1 220px', minWidth: 180, padding: '8px 11px', borderRadius: 10,
+  flex: '1 1 220px', minWidth: 180, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box',
+  padding: '8px 11px', borderRadius: 10,
   border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)',
   fontSize: 13.5, fontFamily: 'inherit',
 };
@@ -343,7 +345,7 @@ function Ligne({ node, onFait }: { node: ProposedNode; onFait: () => Promise<voi
         <input
           value={nom} onChange={(e) => setNom(e.target.value)}
           style={{
-            flex: '1 1 260px', minWidth: 200, padding: '8px 11px', borderRadius: 10,
+            flex: '1 1 260px', minWidth: 200, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '8px 11px', borderRadius: 10,
             border: `1px solid ${node.rename ? 'rgba(245,166,35,.5)' : 'var(--line-2)'}`,
             background: 'var(--bg)', color: 'var(--ink)', fontSize: 13.5, fontFamily: 'inherit',
           }}

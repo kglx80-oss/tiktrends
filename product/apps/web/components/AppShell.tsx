@@ -345,7 +345,7 @@ function AppShellInner(props: Props) {
           <LogoHome collapsed={collapsed} onExpand={toggleCollapsed} />
           {!collapsed && (
             <button type="button" onClick={() => setWsMenuOpen((o) => !o)}
-              style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 10, border: 'none', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: 'flex-start' }}>
+              style={{ flex: 1, minWidth: 0, minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 10, border: 'none', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: 'flex-start' }}>
               <div style={{ lineHeight: 1.1, minWidth: 0, flex: 1, textAlign: 'left' }}>
                 <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)' }}>TikTrends</div>
                 <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</div>
@@ -537,7 +537,7 @@ function AppShellInner(props: Props) {
               </div>
             </>
           )}
-          <button type="button" onClick={() => setMenuOpen((o) => !o)} title={collapsed ? (userName || userEmail) : undefined} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+          <button type="button" onClick={() => setMenuOpen((o) => !o)} title={collapsed ? (userName || userEmail) : undefined} style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
             <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
               {avatarUrl
                  
