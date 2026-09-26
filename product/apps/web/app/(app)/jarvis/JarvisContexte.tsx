@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import type { ChatContexte } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 
@@ -22,9 +23,11 @@ import { Icon } from '../../../components/Icon';
  * édite (la marque, ses données). Il n'expose rien de nouveau · c'est le contenu
  * de la marque du membre, en lecture, au même endroit que la conversation.
  */
-export function JarvisContexte({ contexte, brandName, onClose }: {
+export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
   contexte: ChatContexte;
   brandName: string;
+  /** Tests mesurés de la marque · le statut technique déplacé hors de la conversation. */
+  measuredAds: number;
   onClose: () => void;
 }) {
   // Échap referme · au clavier, on n'est jamais coincé dans le panneau.
@@ -54,7 +57,7 @@ export function JarvisContexte({ contexte, brandName, onClose }: {
         <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="brain" size={16} /></span>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', flex: 1 }}>Contexte de marque · {brandName}</span>
         <button type="button" onClick={onClose} aria-label="Fermer le contexte" style={{
-          width: 30, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink-2)', cursor: 'pointer',
         }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -65,6 +68,17 @@ export function JarvisContexte({ contexte, brandName, onClose }: {
         <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
           Ce sur quoi Jarvis s’appuie pour cette marque · la portée de chaque élément est indiquée.
           Il ne s’en sert pas comme d’une vérité mesurée · elle oriente, elle ne tranche pas.
+        </p>
+
+        {/* Le statut technique · déplacé ici depuis l'en-tête de la conversation,
+            pour garder le fil calme (réconciliation charte). */}
+        <p style={{
+          margin: 0, padding: '9px 12px', borderRadius: 10, border: '1px solid var(--line)',
+          background: 'var(--surface)', fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5,
+        }}>
+          {measuredAds > 0
+            ? `Il répond avec ${measuredAds} test(s) mesuré(s) de ${brandName}.`
+            : `Aucun test mesuré sur ${brandName} · il le dira plutôt que de meubler.`}
         </p>
 
         <Bloc titre="La marque" portee="marque">
