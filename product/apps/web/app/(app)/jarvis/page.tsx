@@ -46,52 +46,42 @@ export default async function JarvisPage() {
     );
   }
 
-    return (
+  return (
     // Écran conversationnel · colonne calme de 760 px (charte), pas la largeur
     // « data » des tableaux · la conversation et l'accueil se lisent centrés.
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 760, margin: '0 auto' }}>
-      {/* En-tête sobre (charte) · titre 32/28, la marque, une phrase humaine. Le
-          détail technique (couches alimentées, prochaine à ouvrir) vit dans
-          Sources · la conversation reste calme. */}
-      <div style={{ padding: '4px 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', color: 'var(--muted)', flexShrink: 0 }}><Icon name="brain" size={22} /></span>
-          <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Jarvis</h1>
-          <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>· {brand.name}</span>
+    <main style={{ padding: '24px clamp(16px, 4vw, 36px) 60px', maxWidth: 760, margin: '0 auto' }}>
+      {/* En-tête COMPACT · Jarvis + marque, sans sous-titre redondant ni
+          séparateur · le seul titre dominant est la question, à l'accueil
+          (l'emblème est centré au-dessus d'elle, pas ici). À droite, un accès
+          DISCRET aux Sources · cible effective 44 px, hors de la zone de saisie
+          · la carte pleine largeur d'avant reproduisait mal la référence. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Jarvis</span>
+          <span style={{ fontSize: 13, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {brand.name}</span>
         </div>
-        <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 640, lineHeight: 1.5 }}>
-          Demande-lui ce que tu veux sur {brand.name} · il cite tes chiffres, ou il admet qu’il n’en a pas.
-        </p>
+        <Link
+          href="/jarvis/sources"
+          title="Sources de Jarvis · ce qu’il sait de ta marque, de quoi le nourrir, ses réglages"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44,
+            padding: '0 6px', flexShrink: 0, textDecoration: 'none',
+            color: 'var(--muted)', fontSize: 12.5, fontWeight: 600,
+          }}
+        >
+          <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="chart" size={15} /></span>
+          Sources de Jarvis
+        </Link>
       </div>
 
       {/* La conversation, seule au premier plan · c'est la seule interface qui
           n'exige pas de savoir où chercher. */}
       <JarvisChat />
 
-      {/* La porte vers le détail · il vit à sa destination, pas sur cet écran.
-          « Ajouter du contexte » (dans le chat) y renvoie aussi. */}
-      <Link
-        href="/jarvis/sources"
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12, marginTop: 14,
-          padding: '13px 16px', borderRadius: 14, textDecoration: 'none',
-          border: '1px solid var(--line-2)', background: 'var(--surface)',
-        }}
-      >
-        <span style={{ display: 'inline-flex', color: 'var(--accent-strong)', flexShrink: 0 }}><Icon name="chart" size={18} /></span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Sources · ce que Jarvis sait</span>
-          <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginTop: 2 }}>
-            Sa mémoire mesurée de la marque, de quoi la nourrir, et ses réglages · les essais, l’attribution et le marché se lisent à leur destination.
-          </span>
-        </span>
-        <span style={{ color: 'var(--muted)', fontSize: 15, flexShrink: 0 }}>›</span>
-      </Link>
-
       {/* Personnaliser Jarvis · rejoue l'accueil (usage, expérience pub,
           objectif, marque) à la demande · le parcours est facultatif et ne se
           rejoue que sur ce clic, jamais tout seul. */}
-      <div style={{ marginTop: 10, textAlign: 'center' }}>
+      <div style={{ marginTop: 14, textAlign: 'center' }}>
         <Link href="/onboarding?redo=1" style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>
           Personnaliser Jarvis · revoir mes réponses d’accueil
         </Link>

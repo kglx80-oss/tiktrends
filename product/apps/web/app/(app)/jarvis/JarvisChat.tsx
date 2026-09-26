@@ -8,6 +8,7 @@ import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
 import { DraftCard } from '../../../components/DraftCard';
 import { JarvisContexte } from './JarvisContexte';
+import { useIsMobile } from '../../../components/useIsMobile';
 
 /**
  * L'espace où l'on parle à Jarvis.
@@ -53,6 +54,19 @@ const bulle = (moi: boolean): CSSProperties => ({
   wordBreak: 'break-word',
 });
 
+// Réponse de Jarvis · texte AÉRÉ, sans encadrement systématique (charte).
+// La bulle reste pour l'UTILISATEUR · elle marque qui a parlé. Encadrer AUSSI
+// chaque réponse de Jarvis chargeait la lecture · un mur de cartes empilées.
+const reponse: CSSProperties = {
+  alignSelf: 'flex-start',
+  maxWidth: '92%',
+  color: 'var(--ink)',
+  fontSize: 14,
+  lineHeight: 1.7,
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+};
+
 export function JarvisChat() {
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -68,6 +82,9 @@ export function JarvisChat() {
   // Entrée pressée en rafale) le voient tous les deux à false et partent en
   // double · un double appel modèle, donc une double dépense.
   const verrou = useRef(verrouAction());
+  // Responsive par JS (styles en ligne uniquement dans ce dépôt · pas de media
+  // query CSS) · le composeur est plus dense en mobile, le titre plus petit.
+  const isMobile = useIsMobile();
 
   const charger = useCallback(async () => {
     const r = await chatThreadAction();
@@ -150,136 +167,148 @@ export function JarvisChat() {
   // Trois suggestions au plus · l'accueil propose, il n'inonde pas (charte).
   const amorces = thread.starters.slice(0, 3);
 
-  return (
-    <section style={{
-      position: 'relative',
-      display: 'flex', flexDirection: 'column', height: '64vh', minHeight: 460, overflow: 'hidden',
-    }}>
-      {contexteOuvert && (
-        <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />
-      )}
-      {/* Pas de grande boîte · la conversation flotte sur le fond uni. Seul
-          « Effacer le fil » subsiste, discret, quand il y a un fil. */}
-      {!vide && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>
-          <button onClick={effacer} style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
-            padding: '5px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
-            background: 'transparent', color: 'var(--muted)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-          }}>
-            Effacer le fil
-          </button>
-        </div>
-      )}
-
-      <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 760, margin: '0 auto', boxSizing: 'border-box' }}>
-        {vide && !enCours && (
-          <div style={{ margin: 'auto', textAlign: 'center', maxWidth: 560 }}>
-            <div style={{ color: 'var(--muted)' }}><Icon name="brain" size={30} /></div>
-            <p style={{ margin: '12px 0 0', fontSize: 17, fontWeight: 500, color: 'var(--ink)', lineHeight: 1.35 }}>
-              Quelle publicité améliorer en premier ?
-            </p>
-            <p style={{ margin: '8px 0 18px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6 }}>
-              Jarvis lit tes résultats et la veille · il cite tes chiffres, ou admet qu’il n’en a
-              pas · et t’aide à décider quoi tester ensuite, et pourquoi.
-            </p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {amorces.map((q) => (
-                <button key={q} onClick={() => void envoyer(q)} style={{
-                  display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
-                  padding: '8px 15px', borderRadius: 999, border: '1px solid var(--line-2)',
-                  background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5,
-                  cursor: 'pointer', textAlign: 'left', lineHeight: 1.4,
-                }}>
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {thread.turns.map((t) => (
-          <Tour key={t.id} turn={t} />
-        ))}
-
-        {/* Pendant l'écriture, on coupe à la première ouverture de marqueur ·
-            voir « [[ACTI » une demi-seconde donne l'impression que ça fuit. */}
-        {partiel && <div style={bulle(false)}>{visibleWhileStreaming(partiel)}</div>}
-        {enCours && !partiel && (
-          <div style={{ ...bulle(false), color: 'var(--muted)', fontStyle: 'italic' }}>Jarvis relit ta mémoire…</div>
-        )}
-      </div>
-
-      {erreur && (
-        <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: '#ff8095', borderTop: '1px solid var(--line)' }}>{erreur}</p>
-      )}
-
-      {/* Le composeur · généreux, arrondi 24, centré dans la colonne · c'est
-          l'action première. « Ajouter du contexte » ouvre Contexte, la mémoire
-          mesurée se lit dans Sources · les deux restent discrets, à la demande. */}
-      <div style={{ padding: '10px 4px 4px', background: 'transparent' }}>
-        <div style={{ width: '100%', maxWidth: 760, margin: '0 auto' }}>
-        <div style={{ marginBottom: 8 }}>
+  // ── Le composeur · une seule pièce, réutilisée à l'accueil et en conversation.
+  // Surface arrondie 24, textarea PLEINE LARGEUR (min-height 64), et une seconde
+  // rangée À L'INTÉRIEUR · « Ajouter du contexte » à gauche, « Envoyer » à droite,
+  // deux cibles 44x44. Généreux · padding 18 / texte 15 en desktop, padding 14 /
+  // texte 16 en mobile (le 16 empêche le zoom iOS à la mise au point).
+  const composeur = (
+    <div style={{ width: '100%', maxWidth: 760, margin: '0 auto' }}>
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 10,
+        padding: isMobile ? 14 : 18,
+        borderRadius: 24, border: '1px solid var(--line-2)', background: 'var(--surface)',
+      }}>
+        <textarea
+          value={saisie}
+          onChange={(e) => setSaisie(e.target.value)}
+          onKeyDown={(e) => {
+            // Entrée envoie, Maj+Entrée passe à la ligne · l'attendu d'une
+            // conversation, l'inverse d'un formulaire.
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(saisie); }
+          }}
+          rows={2}
+          placeholder="Écris à Jarvis…"
+          disabled={enCours}
+          aria-label="Écrire à Jarvis"
+          style={{
+            width: '100%', minHeight: 64, boxSizing: 'border-box',
+            padding: 0, border: 'none', background: 'transparent', color: 'var(--ink)',
+            fontSize: isMobile ? 16 : 15, fontFamily: 'inherit',
+            resize: 'none', lineHeight: 1.5, outline: 'none',
+          }}
+        />
+        {/* Seconde rangée, DANS la surface · contexte à gauche, envoi à droite. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <button
             type="button"
             onClick={() => setContexteOuvert(true)}
             aria-haspopup="dialog"
             title="Voir ce que Jarvis sait de ta marque"
             style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
-              gap: 6, padding: '6px 14px', borderRadius: 999,
-              border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, gap: 6, padding: '0 14px',
+              borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent',
+              color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
             }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
             Ajouter du contexte
           </button>
-        </div>
-        {/* La surface généreuse · rayon 24, elle contient le champ et l'envoi. */}
-        <div style={{
-          display: 'flex', gap: 8, alignItems: 'flex-end',
-          padding: 8, borderRadius: 24, border: '1px solid var(--line-2)', background: 'var(--surface)',
-        }}>
-        <textarea
-          value={saisie}
-          onChange={(e) => setSaisie(e.target.value)}
-          onKeyDown={(e) => {
-            // Entrée envoie, Maj+Entrée passe à la ligne · c'est ce qu'on attend
-            // d'une conversation, et l'inverse d'un formulaire.
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(saisie); }
-          }}
-          rows={2}
-          // Placeholder court · à 390 px l'ancienne version débordait sur trois
-          // lignes et se faisait rogner par la carte Sources · le composeur doit
-          // rester aéré (charte). Le geste Maj+Entrée reste actif (voir onKeyDown),
-          // simplement plus annoncé ici.
-          placeholder="Écris à Jarvis · Entrée pour envoyer"
-          disabled={enCours}
-          style={{
-            flex: 1, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box',
-            padding: '10px 12px', borderRadius: 18, border: 'none',
-            background: 'transparent', color: 'var(--ink)', fontSize: 13.5, fontFamily: 'inherit',
-            resize: 'none', lineHeight: 1.5, outline: 'none',
-          }}
-        />
-        <button
-          aria-label="Envoyer le message à Jarvis"
-          onClick={() => void envoyer(saisie)}
-          disabled={enCours || !saisie.trim()}
-          style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN,
-            padding: '0 20px', borderRadius: 18, border: 'none',
-            background: enCours || !saisie.trim() ? 'var(--line-2)' : 'var(--grad-accent)',
-            color: enCours || !saisie.trim() ? 'var(--muted)' : 'var(--on-accent)',
-            fontWeight: 800, fontSize: 13, cursor: enCours || !saisie.trim() ? 'default' : 'pointer',
-          }}
-        >
-          {enCours ? '…' : 'Envoyer'}
-        </button>
-        </div>
+          <button
+            aria-label="Envoyer le message à Jarvis"
+            onClick={() => void envoyer(saisie)}
+            disabled={enCours || !saisie.trim()}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, padding: '0 20px',
+              borderRadius: 999, border: 'none',
+              background: enCours || !saisie.trim() ? 'var(--line-2)' : 'var(--grad-accent)',
+              color: enCours || !saisie.trim() ? 'var(--muted)' : 'var(--on-accent)',
+              fontWeight: 800, fontSize: 13, cursor: enCours || !saisie.trim() ? 'default' : 'pointer',
+            }}
+          >
+            {enCours ? '…' : 'Envoyer'}
+          </button>
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <section style={
+      vide
+        // Accueil · flux naturel, aucune hauteur artificielle ne pousse la saisie
+        // en bas. La page défile si besoin.
+        ? { position: 'relative', display: 'flex', flexDirection: 'column' }
+        // Conversation · le fil défile dans une hauteur bornée, le composeur reste
+        // dessous, toujours atteignable.
+        : { position: 'relative', display: 'flex', flexDirection: 'column', height: '68vh', minHeight: 460, overflow: 'hidden' }
+    }>
+      {contexteOuvert && (
+        <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />
+      )}
+
+      {vide && !enCours ? (
+        // ── Accueil · emblème centré AU-DESSUS de la question, un seul titre
+        // dominant (32/28, graisse 500, interligne 1.2), une courte phrase, PUIS
+        // le composeur, PUIS trois suggestions au plus.
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', maxWidth: 640, margin: '0 auto' }}>
+          <div style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name="brain" size={30} /></div>
+          <h2 style={{ margin: '14px 0 0', fontSize: isMobile ? 28 : 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+            Quelle publicité améliorer en premier ?
+          </h2>
+          <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5, maxWidth: 520 }}>
+            Il cite tes chiffres, ou admet qu’il n’en a pas · et t’aide à décider quoi tester ensuite.
+          </p>
+          <div style={{ width: '100%', marginTop: isMobile ? 24 : 32 }}>{composeur}</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 18 }}>
+            {amorces.map((q) => (
+              <button key={q} onClick={() => void envoyer(q)} style={{
+                display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
+                padding: '8px 15px', borderRadius: 999, border: '1px solid var(--line-2)',
+                background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5,
+                cursor: 'pointer', textAlign: 'left', lineHeight: 1.4,
+              }}>
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        // ── Conversation · « Effacer le fil » discret, le fil défilant, le
+        // composeur dessous.
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>
+            <button onClick={effacer} style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+              padding: '5px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
+              background: 'transparent', color: 'var(--muted)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+            }}>
+              Effacer le fil
+            </button>
+          </div>
+
+          <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 760, margin: '0 auto', boxSizing: 'border-box' }}>
+            {thread.turns.map((t) => (
+              <Tour key={t.id} turn={t} />
+            ))}
+
+            {/* Pendant l'écriture, on coupe à la première ouverture de marqueur ·
+                voir « [[ACTI » une demi-seconde donne l'impression que ça fuit. */}
+            {partiel && <div style={reponse}>{visibleWhileStreaming(partiel)}</div>}
+            {enCours && !partiel && (
+              <div style={{ ...reponse, color: 'var(--muted)', fontStyle: 'italic' }}>Jarvis relit ta mémoire…</div>
+            )}
+          </div>
+
+          {erreur && (
+            <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: '#ff8095', borderTop: '1px solid var(--line)' }}>{erreur}</p>
+          )}
+
+          <div style={{ padding: '10px 4px 4px' }}>{composeur}</div>
+        </>
+      )}
     </section>
   );
 }
@@ -302,7 +331,7 @@ function Tour({ turn }: { turn: ChatTurn }) {
   const { text, actions } = parseAnswer(turn.content);
   return (
     <div style={{ display: 'contents' }}>
-      <div style={bulle(false)}>{text}</div>
+      <div style={reponse}>{text}</div>
       {actions.length > 0 && <Gestes actions={actions} />}
     </div>
   );

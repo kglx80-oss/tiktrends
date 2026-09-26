@@ -576,7 +576,15 @@ function AppShellInner(props: Props) {
             portaient le leur, écrit à la main, et ils avaient divergé. */}
         <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} />
         {children}
-        <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
+        {/* Le lanceur de support (bulle flottante, coin bas-droit) est une
+            fonction DISTINCTE de Jarvis. Sur l'écran de conversation `/jarvis`,
+            sa position fixe recouvrait le bas du bouton « Envoyer » et le bloc de
+            saisie (mesuré à 390 et 360 px) · il est masqué là pour ne recouvrir
+            aucun contrôle. Le support reste joignable hors saisie · page `/support`
+            (et ses entrées console/erreur). Les sous-pages de Jarvis le gardent. */}
+        {pathname !== '/jarvis' && (
+          <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
+        )}
       </div>
     </div>
   );
