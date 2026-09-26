@@ -134,6 +134,8 @@ describe('Cibles tactiles · composants partagés', () => {
     ['app/(app)/studio/textes/StudioClient.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['app/(app)/studio/ads/AdsStudio.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['app/(app)/analytics/page.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/jarvis/JarvisChat.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/jarvis/JarvisContexte.tsx', ['CIBLE_TACTILE_MIN']],
   ];
   for (const [chemin, jetons] of adoptions) {
     it(`${chemin} adopte la cible tactile de la charte`, () => {

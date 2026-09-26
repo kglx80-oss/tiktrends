@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { JarvisContexte } from '../app/(app)/jarvis/JarvisContexte';
 import type { ChatHooks } from '../app/actions/jarvis-chat';
 
@@ -15,11 +16,13 @@ function rendu(
   identity: string | null = 'Crème solaire clean',
   rules: string | null = 'Toujours montrer le packaging',
   hooks: ChatHooks | null = null,
+  measuredAds = 21,
 ): string {
   return renderToStaticMarkup(
     <JarvisContexte
       contexte={{ brandId: 'b-42', identity, rules, hooks }}
       brandName="Neva"
+      measuredAds={measuredAds}
       onClose={() => {}}
     />,
   );
@@ -57,6 +60,18 @@ describe('JarvisContexte · le contexte de marque, portée comprise', () => {
   it('le panneau s’annonce comme une fenêtre nommée et fermable', () => {
     expect(html).toContain('aria-modal="true"');
     expect(html).toContain('aria-label="Fermer le contexte"');
+  });
+
+  // Réconciliation charte · le statut technique « N tests mesurés » a quitté
+  // l'en-tête de la conversation pour vivre ICI (informations techniques →
+  // Contexte). On prouve les deux états ; le retirer fait tomber la garde.
+  it('le statut technique des tests mesurés vit dans le contexte, pas dans le fil', () => {
+    expect(rendu('X', 'Y', null, 21)).toContain('21 test(s) mesuré(s) de Neva');
+    expect(rendu('X', 'Y', null, 0)).toContain('Aucun test mesuré sur Neva');
+  });
+
+  it('la croix de fermeture atteint la cible tactile de la charte', () => {
+    expect(html).toContain(`width:${CIBLE_TACTILE_MIN}px;height:${CIBLE_TACTILE_MIN}px`);
   });
 
   // Les accroches ont déménagé de la page Sources vers ce panneau (« accroches et

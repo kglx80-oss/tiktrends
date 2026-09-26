@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
-import { jarvisSnapshot } from '../../../lib/jarvis-state';
 import { Icon } from '../../../components/Icon';
 import { JarvisChat } from './JarvisChat';
 import { Empty } from '../../../components/Empty';
@@ -47,12 +46,11 @@ export default async function JarvisPage() {
     );
   }
 
-  const snapshot = await jarvisSnapshot(brand.id, s.workspaceId);
-
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
-      {/* En-tête sobre (charte) · plus de bandeau dégradé ni de tuile d'icône rose ·
-          un titre 32/28, la marque, le résumé, séparés du contenu par un filet. */}
+      {/* En-tête sobre (charte) · titre 32/28, la marque, une phrase humaine. Le
+          détail technique (couches alimentées, prochaine à ouvrir) vit dans
+          Sources · la conversation reste calme. */}
       <div style={{ padding: '4px 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', color: 'var(--muted)', flexShrink: 0 }}><Icon name="brain" size={22} /></span>
@@ -60,7 +58,7 @@ export default async function JarvisPage() {
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>· {brand.name}</span>
         </div>
         <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 640, lineHeight: 1.5 }}>
-          {snapshot.summary}
+          Demande-lui ce que tu veux sur {brand.name} · il cite tes chiffres, ou il admet qu’il n’en a pas.
         </p>
       </div>
 

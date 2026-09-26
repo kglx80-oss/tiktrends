@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { parseAnswer, visibleWhileStreaming, verrouAction, JARVIS_ACTIONS, type JarvisAction } from '@tiktrends/core';
+import { parseAnswer, visibleWhileStreaming, verrouAction, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
@@ -150,26 +150,23 @@ export function JarvisChat() {
   return (
     <section style={{
       position: 'relative',
-      border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--paper)',
-      display: 'flex', flexDirection: 'column', height: '62vh', minHeight: 440, overflow: 'hidden',
+      border: '1px solid var(--line)', borderRadius: 18, background: 'var(--bg)',
+      display: 'flex', flexDirection: 'column', height: '64vh', minHeight: 460, overflow: 'hidden',
     }}>
       {contexteOuvert && (
-        <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} onClose={() => setContexteOuvert(false)} />
+        <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />
       )}
+      {/* En-tête minimal · le détail technique (« N tests mesurés ») a déménagé
+          dans le panneau Contexte · la conversation reste calme au premier plan. */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
-        borderBottom: '1px solid var(--line)', background: 'var(--surface)', flexWrap: 'wrap',
+        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
+        borderBottom: '1px solid var(--line)', background: 'transparent',
       }}>
-        <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>Parler à Jarvis</span>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-          · {thread.measuredAds > 0
-            ? `il répond avec ${thread.measuredAds} test(s) mesuré(s) de ${thread.brandName}`
-            : `aucun test mesuré sur ${thread.brandName} · il le dira plutôt que de meubler`}
-        </span>
-        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', flex: 1 }}>Parler à Jarvis</span>
         {!vide && (
           <button onClick={effacer} style={{
-            padding: '5px 11px', borderRadius: 999, border: '1px solid var(--line-2)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+            padding: '5px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
             background: 'transparent', color: 'var(--muted)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
           }}>
             Effacer le fil
@@ -177,7 +174,7 @@ export function JarvisChat() {
         )}
       </div>
 
-      <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '22px 16px', display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 780, margin: '0 auto', boxSizing: 'border-box' }}>
         {vide && !enCours && (
           <div style={{ margin: 'auto', textAlign: 'center', maxWidth: 520 }}>
             <div style={{ color: 'var(--muted)' }}><Icon name="brain" size={30} /></div>
@@ -191,7 +188,8 @@ export function JarvisChat() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
               {thread.starters.map((q) => (
                 <button key={q} onClick={() => void envoyer(q)} style={{
-                  padding: '8px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
+                  display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
+                  padding: '8px 15px', borderRadius: 999, border: '1px solid var(--line-2)',
                   background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5,
                   cursor: 'pointer', textAlign: 'left', lineHeight: 1.4,
                 }}>
@@ -218,7 +216,10 @@ export function JarvisChat() {
         <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: '#ff8095', borderTop: '1px solid var(--line)' }}>{erreur}</p>
       )}
 
-      <div style={{ padding: '10px 14px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
+      {/* Le composeur · centré, c'est l'action première de l'écran. Le contexte
+          s'ouvre depuis ici, la mémoire mesurée se lit dans Sources. */}
+      <div style={{ padding: '12px 16px 14px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
+        <div style={{ width: '100%', maxWidth: 780, margin: '0 auto' }}>
         <div style={{ marginBottom: 8 }}>
           <button
             type="button"
@@ -226,7 +227,8 @@ export function JarvisChat() {
             aria-haspopup="dialog"
             title="Voir ce que Jarvis sait de ta marque"
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+              gap: 6, padding: '6px 14px', borderRadius: 999,
               border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink-2)',
               fontSize: 12, fontWeight: 700, cursor: 'pointer',
             }}
@@ -235,7 +237,7 @@ export function JarvisChat() {
             Ajouter du contexte
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
         <textarea
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
@@ -248,7 +250,8 @@ export function JarvisChat() {
           placeholder="Écris à Jarvis · Entrée pour envoyer, Maj+Entrée pour aller à la ligne"
           disabled={enCours}
           style={{
-            flex: 1, padding: '9px 12px', borderRadius: 11, border: '1px solid var(--line-2)',
+            flex: 1, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box',
+            padding: '10px 13px', borderRadius: 12, border: '1px solid var(--line-2)',
             background: 'var(--bg)', color: 'var(--ink)', fontSize: 13.5, fontFamily: 'inherit',
             resize: 'none', lineHeight: 1.5,
           }}
@@ -258,7 +261,8 @@ export function JarvisChat() {
           onClick={() => void envoyer(saisie)}
           disabled={enCours || !saisie.trim()}
           style={{
-            padding: '0 20px', borderRadius: 11, border: 'none',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+            padding: '0 20px', borderRadius: 12, border: 'none',
             background: enCours || !saisie.trim() ? 'var(--line-2)' : 'var(--grad-accent)',
             color: enCours || !saisie.trim() ? 'var(--muted)' : 'var(--on-accent)',
             fontWeight: 800, fontSize: 13, cursor: enCours || !saisie.trim() ? 'default' : 'pointer',
@@ -266,6 +270,7 @@ export function JarvisChat() {
         >
           {enCours ? '…' : 'Envoyer'}
         </button>
+        </div>
         </div>
       </div>
     </section>
@@ -330,7 +335,7 @@ function Gestes({ actions }: { actions: JarvisAction[] }) {
               disabled={ecrit && payant}
               title={def.effect}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 7,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 7,
                 padding: '8px 14px', borderRadius: 999, cursor: ecrit && payant ? 'wait' : 'pointer',
                 border: `1px solid ${payant ? 'var(--accent-strong)' : 'var(--line-2)'}`,
                 background: 'var(--surface)', color: payant ? 'var(--accent-strong)' : 'var(--ink-2)',
