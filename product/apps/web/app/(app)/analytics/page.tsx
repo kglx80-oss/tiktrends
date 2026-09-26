@@ -6,6 +6,7 @@ import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { Icon } from '../../../components/Icon';
 import { MetaKeyMetrics } from './MetaKeyMetrics';
@@ -114,7 +115,7 @@ export default async function AnalyticsPage() {
             <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Branche Meta Ads pour tes vrais KPI</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Dépense, ROAS, CPA, panier moyen, CPC, CPM et tes top créas, avec les variations vs période précédente.</div>
           </div>
-          <Link href="/connections" style={{ padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>Connecter Meta Ads ›</Link>
+          <Link href="/connections" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>Connecter Meta Ads ›</Link>
         </div>
       )}
 
@@ -132,7 +133,7 @@ export default async function AnalyticsPage() {
         {kpis.map(([label, value, sub]) => (
           <div key={label} style={card}>
             <div style={cardLabel}>{label}</div>
-            <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>{value}</div>
+            <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{value}</div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>
           </div>
         ))}
@@ -208,7 +209,7 @@ export default async function AnalyticsPage() {
 }
 
 const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1100, margin: '0 auto' } as const;
-const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' } as const;
+const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;
 const h2 = { margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--ink)' } as const;
 const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
 const cardLabel = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 8 } as const;

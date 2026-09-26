@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { SharePanel } from './SharePanel';
 import { OUVRIR_PARTAGE } from './PartageGagnante';
 
@@ -19,6 +20,7 @@ export function ShareButton() {
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
         padding: '8px 16px', borderRadius: 999, border: '1px solid var(--line-2)',
         background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer',
       }}>

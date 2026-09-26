@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition, type CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { iterationPlanAction, createIterationAction, type IterationPlanView, type IterationRow } from '../../../actions/adsmap-iterate';
 import { Empty } from '../../../../components/Empty';
 import { DraftCard } from '../../../../components/DraftCard';
@@ -64,7 +65,7 @@ export function Suites() {
         </p>
         <button
           onClick={recharger} disabled={charge}
-          style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: charge ? 'wait' : 'pointer' }}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: charge ? 'wait' : 'pointer' }}
         >
           {charge ? 'Calcul…' : 'Recalculer'}
         </button>

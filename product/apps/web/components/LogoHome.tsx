@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * Le logo · une porte de retour vers l'accueil.
@@ -16,14 +17,14 @@ export function LogoHome({ collapsed, onExpand }: { collapsed: boolean; onExpand
   if (collapsed) {
     return (
       <button type="button" onClick={onExpand} title="Déplier la barre" aria-label="Déplier la barre"
-        style={{ width: 44, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
+        style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
         {marque}
       </button>
     );
   }
   return (
     <Link href="/dashboard" title="Accueil" aria-label="Accueil"
-      style={{ flexShrink: 0, display: 'inline-flex', padding: 2, borderRadius: 11, textDecoration: 'none' }}>
+      style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, padding: 2, borderRadius: 11, textDecoration: 'none' }}>
       {marque}
     </Link>
   );

@@ -36,7 +36,7 @@ export function ProfileIdentity({ init }: {
           {avatarUrl.trim()
              
             ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <span style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>{initial}</span>}
+            : <span style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{initial}</span>}
         </div>
         <div style={{ flex: 1, minWidth: 220 }}>
           <label style={lbl}>Photo de profil</label>

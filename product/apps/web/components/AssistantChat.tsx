@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, useTransition } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { askAssistant } from '../app/actions/assistant';
 import type { ChatMessage } from '@tiktrends/ai';
 import { Icon } from './Icon';
@@ -65,6 +66,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
         <div style={{ padding: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {SUGGESTIONS.map((sug) => (
             <button key={sug} type="button" disabled={!ready || pending} onClick={() => send(sug)} style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
               fontSize: 12.5, fontWeight: 600, padding: '8px 12px', borderRadius: 999, cursor: ready ? 'pointer' : 'default',
               border: '1px solid var(--line-2)', background: 'transparent', color: ready ? 'var(--ink-2)' : 'var(--muted)', opacity: ready ? 1 : .6,
             }}>{sug}</button>
@@ -86,9 +88,10 @@ export function AssistantChat({ ready }: { ready: boolean }) {
           onChange={(e) => setValue(e.target.value)}
           disabled={!ready || pending}
           placeholder={ready ? 'Pose ta question…' : 'Assistant en veille (clé IA requise)'}
-          style={{ flex: 1, padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14 }}
+          style={{ flex: 1, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14 }}
         />
         <button type="submit" disabled={!ready || pending || !value.trim()} style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
           padding: '0 18px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14, cursor: ready && value.trim() ? 'pointer' : 'default',
           background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready && value.trim() && !pending ? 1 : .5,
         }}>Envoyer</button>

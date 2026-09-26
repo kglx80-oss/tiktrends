@@ -21,7 +21,7 @@ const src = readFileSync(
 
 describe('ProtocolForm · un seul geste à la fois', () => {
   it('prend le verrou du noyau', () => {
-    expect(src).toMatch(/import \{ verrouAction \} from '@tiktrends\/core'/);
+    expect(src).toMatch(/import \{[^}]*\bverrouAction\b[^}]*\} from '@tiktrends\/core'/);
     expect(src).toContain('useRef(verrouAction())');
   });
 

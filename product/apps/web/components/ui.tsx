@@ -12,7 +12,7 @@ import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 export const FOND_PASTILLE_MEDIA = 'rgba(8,5,10,.72)';
 
 export const input: CSSProperties = {
-  width: '100%', padding: '10px 12px', borderRadius: 12,
+  width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 12,
   border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)',
   fontSize: 14, outline: 'none',
 };
@@ -55,8 +55,8 @@ export const LARGEURS = { table: 1320, data: 1180, detail: 1040, prose: 760 } as
  * `clamp(28px, 4vw, 32px)` vaut 28 sous ~700px de large, 32 au-delà · exactement
  * 28 mobile / 32 desktop.
  */
-export const h1: CSSProperties = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' };
-export const h2: CSSProperties = { margin: '0 0 4px', fontSize: 19, fontWeight: 600, color: 'var(--ink)' };
+export const h1: CSSProperties = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)' };
+export const h2: CSSProperties = { margin: '0 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' };
 export const sub: CSSProperties = { color: 'var(--muted)', fontSize: 13, marginTop: 0, marginBottom: 16 };
 export const lbl: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', display: 'block', marginBottom: 6 };
 

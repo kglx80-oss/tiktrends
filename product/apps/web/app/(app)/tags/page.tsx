@@ -11,7 +11,7 @@ export default function Tags() {
   const max = (arr: { weightedMetric: number }[]) => Math.max(1, ...arr.map((x) => x.weightedMetric));
   return (
     <main style={{ minHeight: '100vh', padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1100, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Top Creative Tags</h1>
+      <h1 style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Top Creative Tags</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, margin: '6px 0 22px' }}>
         Analyse par ingrédient créatif (métrique cible : ROAS, pondérée par le spend). La combinaison gagnante persona × hook en un coup d'œil.
       </p>

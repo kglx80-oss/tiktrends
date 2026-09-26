@@ -110,7 +110,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>{PLAN_LABEL[p]}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, minHeight: 32 }}>{HINT[p]}</div>
               <div style={{ margin: '10px 0 4px', display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <span style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>{PLAN_PRICE[p] === 0 ? '0 €' : `${PLAN_PRICE[p]} €`}</span>
+                <span style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{PLAN_PRICE[p] === 0 ? '0 €' : `${PLAN_PRICE[p]} €`}</span>
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>{PLAN_PRICE[p] === 0 ? '' : '/ mois HT'}</span>
               </div>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', marginBottom: 12 }}>◈ {PLAN_CREDITS[p].toLocaleString('fr-FR')} crédits / mois</div>

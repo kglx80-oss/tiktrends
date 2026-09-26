@@ -14,7 +14,7 @@ const DESC: Record<string, string> = {
 export default function LegalIndex() {
   return (
     <main style={{ maxWidth: 820, margin: '0 auto', padding: '40px 24px 80px' }}>
-      <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)', letterSpacing: -0.5 }}>Informations légales</h1>
+      <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)', letterSpacing: -0.5 }}>Informations légales</h1>
       <p style={{ margin: '8px 0 26px', fontSize: 14, color: 'var(--ink-2)' }}>Les documents légaux de TikTrends.</p>
       <div style={{ display: 'grid', gap: 12 }}>
         {LEGAL_NAV.map((l) => (

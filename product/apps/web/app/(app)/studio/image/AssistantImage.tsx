@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   ETAPES_IMAGE, ETAPE_IMAGE_TITRE, ETAPE_IMAGE_ROLE,
   manqueImage, etapeImageComplete, etapeImageSuivante, etapeImagePrecedente,
-  premiereImageIncomplete, peutGenererImage, recapitulatifImage,
+  premiereImageIncomplete, peutGenererImage, recapitulatifImage, CIBLE_TACTILE_MIN,
   type EtapeImage, type EtatAssistantImage,
 } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
@@ -52,7 +52,7 @@ interface Props {
 
 const fond: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 };
 const boite: React.CSSProperties = { width: 'min(680px, 100%)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 90px -30px rgba(0,0,0,.7)' };
-const champ: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none', fontFamily: 'inherit' };
+const champ: React.CSSProperties = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none', fontFamily: 'inherit' };
 // `htmlFor` lie le libellé à son champ · sans lui, un `<label>` non rattaché
 // n'annonce rien au focus. Sans cible (libellé de groupe de boutons), il reste
 // un libellé visuel simple.
@@ -98,7 +98,7 @@ export function AssistantImage(p: Props) {
                   aria-current={ici ? 'step' : undefined}
                   title={ouvrable ? ETAPE_IMAGE_TITRE[e] : 'Termine les étapes précédentes.'}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 6, padding: '5px 11px', borderRadius: 999,
                     fontSize: 11.5, fontWeight: ici ? 800 : 600, cursor: ouvrable ? 'pointer' : 'default',
                     border: `1px solid ${ici ? 'transparent' : 'var(--line-2)'}`,
                     background: ici ? 'var(--grad-accent)' : 'transparent',
@@ -109,7 +109,7 @@ export function AssistantImage(p: Props) {
               );
             })}
           </div>
-          <button type="button" onClick={p.onFermer} aria-label="Fermer" style={{ border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button type="button" onClick={p.onFermer} aria-label="Fermer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
         <div style={{ padding: '18px 20px', overflowY: 'auto', flex: 1 }}>
@@ -121,7 +121,7 @@ export function AssistantImage(p: Props) {
               <div style={{ display: 'flex', gap: 8 }}>
                 {([['i2i', 'Mise en scène produit'], ['t2i', 'Texte → Image']] as const).map(([k, label]) => (
                   <button key={k} type="button" onClick={() => p.onMode(k)} aria-pressed={p.etat.mode === k} style={{
-                    fontSize: 12.5, fontWeight: p.etat.mode === k ? 800 : 600, padding: '8px 13px', borderRadius: 12, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: p.etat.mode === k ? 800 : 600, padding: '8px 13px', borderRadius: 12, cursor: 'pointer',
                     border: `1px solid ${p.etat.mode === k ? 'transparent' : 'var(--line-2)'}`,
                     background: p.etat.mode === k ? 'var(--grad-accent)' : 'transparent', color: p.etat.mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
                   }}>{label}</button>
@@ -148,7 +148,7 @@ export function AssistantImage(p: Props) {
                 style={{ ...champ, resize: 'vertical' }} />
               {p.onSuggest && (
                 <button type="button" onClick={p.onSuggest} disabled={!p.aiReady || p.suggesting} style={{
-                  justifySelf: 'start', fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
+                  justifySelf: 'start', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
                   border: '1px solid var(--line-2)', background: 'transparent', color: p.aiReady ? 'var(--accent-strong)' : 'var(--muted)',
                   cursor: p.aiReady && !p.suggesting ? 'pointer' : 'default',
                 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {p.suggesting ? 'Rédaction…' : 'Proposer une description'}</span></button>
@@ -213,13 +213,13 @@ export function AssistantImage(p: Props) {
         <div style={{ padding: '14px 20px', borderTop: '1px solid var(--line)', display: 'grid', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <button type="button" onClick={() => precedente && setEtape(precedente)} disabled={!precedente} style={{
-              padding: '10px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'transparent',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'transparent',
               color: precedente ? 'var(--ink-2)' : 'var(--muted)', fontWeight: 700, fontSize: 13, cursor: precedente ? 'pointer' : 'default', opacity: precedente ? 1 : 0.4,
             }}>← Retour</button>
             <span style={{ flex: 1 }} />
             {derniere && <span style={{ fontSize: 12, color: 'var(--muted)' }}><b style={{ color: 'var(--ink-2)' }}>{total} crédits</b> · {p.duree}</span>}
             <button type="button" onClick={derniere ? p.onGenerer : () => suivante && setEtape(suivante)} disabled={!pret} style={{
-              padding: '11px 22px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '11px 22px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14,
               background: pret ? 'var(--grad-accent)' : 'var(--line-2)', color: pret ? 'var(--on-accent)' : 'var(--muted)', cursor: pret ? 'pointer' : 'default',
             }}>{p.busy ? 'Génération…' : derniere ? `Générer ${p.etat.nombre} visuel${p.etat.nombre > 1 ? 's' : ''}` : 'Suivant →'}</button>
           </div>
@@ -237,7 +237,7 @@ export function AssistantImage(p: Props) {
 
 function pastille(on: boolean): React.CSSProperties {
   return {
-    padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
     border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
     background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
   };

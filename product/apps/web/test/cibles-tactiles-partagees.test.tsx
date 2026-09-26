@@ -8,6 +8,16 @@ import { join } from 'node:path';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Modal } from '../components/Modal';
 import { Pager } from '../components/Pager';
+import { Composer } from '../components/Composer';
+
+/** Lit la cible tactile EFFECTIVE d'un élément rendu · hauteur imposée soit par
+ *  `minHeight`, soit par `height` (les boutons-icône carrés). jsdom ne calcule
+ *  pas la mise en page · on lit donc le style en ligne, pas `getBoundingClientRect`. */
+function cibleEffective(el: HTMLElement): number {
+  const mh = parseFloat(el.style.minHeight || '0');
+  const h = parseFloat(el.style.height || '0');
+  return Math.max(mh, h);
+}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -15,7 +25,7 @@ import { Pager } from '../components/Pager';
  * Les contrôles PARTAGÉS se rataient au doigt · la croix de TOUTE modale (30 px),
  * la barre d'actions de CHAQUE carte créa (30×28, 28×24), le bouton du menu
  * MOBILE lui-même (38 px), la pagination (32 px), l'attache du composeur (34 px).
- * On les porte à la cible tactile du noyau (`CIBLE_TACTILE_MIN`, prouvée à 40 px
+ * On les porte à la cible tactile du noyau (`CIBLE_TACTILE_MIN`, la charte à 44 px
  * dans cible-tactile.test.ts).
  *
  * Modal et Pager sont purs · on RÉEND et on lit le HTML. Les autres tirent le
@@ -70,4 +80,68 @@ describe('Cibles tactiles · composants partagés', () => {
     expect(style, 'le bouton d’ouverture du menu mobile est sous la cible')
       .toContain('width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN');
   });
+
+  // La barre de composition est le composant partagé des trois studios (image,
+  // vidéo, Pubs IA) · ses pastilles de réglage, ses menus déroulants, l'attache,
+  // « Enregistrer la scène » et le bouton Générer se rataient tous au doigt.
+  // On RÉEND avec de vrais réglages et on lit la cible effective de CHAQUE
+  // bouton · un `minHeight` retiré d'une pastille fait tomber ce test.
+  it('la barre de composition · tous ses boutons atteignent la cible (rendu)', () => {
+    const hote = document.createElement('div');
+    document.body.appendChild(hote);
+    const root = createRoot(hote);
+    act(() => root.render(
+      <Composer
+        value="Une description assez longue pour que « Enregistrer la scène » apparaisse."
+        onChange={() => {}}
+        onGenerate={() => {}}
+        onAttach={() => {}}
+        onSaveScene={() => {}}
+        controls={[{ key: 'ratio', title: 'Ratio', options: [{ value: '1:1', label: '1:1' }], value: '1:1', onChange: () => {} }]}
+        toggles={[{ key: 'texte', label: 'Texte lisible', value: true, onChange: () => {} }]}
+        scenes={[{ id: 's1', name: 'Scène A', prompt: 'x', summary: null }]}
+        cost={{ credits: 4 }}
+      />,
+    ));
+    const boutons = Array.from(hote.querySelectorAll<HTMLElement>('button'));
+    expect(boutons.length, 'la barre doit rendre des boutons').toBeGreaterThan(3);
+    for (const b of boutons) {
+      expect(cibleEffective(b), `un bouton « ${b.textContent?.trim().slice(0, 24)} » est sous la cible`)
+        .toBeGreaterThanOrEqual(CIBLE_TACTILE_MIN);
+    }
+    act(() => root.unmount());
+    hote.remove();
+  });
+
+  // Les écrans page-locaux (Adsmap, studios, accueil) tirent le graphe serveur
+  // ou le routeur · on vérifie l'adoption de la cible dans la SOURCE, réglage par
+  // réglage. Chaque entrée pointe un contrôle qui se ratait au doigt avant la
+  // charte 44 px · le retrait du token fait tomber la ligne correspondante.
+  const adoptions: Array<[string, string[]]> = [
+    ['components/Bandeau.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['components/JourneyPanel.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['components/AssistantHome.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['components/AssistantChat.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['components/LogoHome.tsx', ['minHeight: CIBLE_TACTILE_MIN', 'minWidth: CIBLE_TACTILE_MIN']],
+    ['app/(app)/adsmap/lots/Lots.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/adsmap/tri/Curation.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/adsmap/import/ImportPanel.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/adsmap/suites/Suites.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/adsmap/radar/Radar.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/studio/image/ImageStudio.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/studio/image/AssistantImage.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/studio/video/VideoStudioFull.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/studio/textes/StudioClient.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/studio/ads/AdsStudio.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['app/(app)/analytics/page.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+  ];
+  for (const [chemin, jetons] of adoptions) {
+    it(`${chemin} adopte la cible tactile de la charte`, () => {
+      const src = readFileSync(join(process.cwd(), chemin), 'utf8');
+      expect(src, `${chemin} n’importe pas la cible du noyau`).toContain('CIBLE_TACTILE_MIN');
+      for (const jeton of jetons) {
+        expect(src, `${chemin} · « ${jeton} » manquant`).toContain(jeton);
+      }
+    });
+  }
 });

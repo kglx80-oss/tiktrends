@@ -37,12 +37,12 @@ describe('charte · jetons de titre partagés', () => {
     expect(h2).toMatch(/fontSize: ?(18|19|20)\b/);
   });
 
-  it('aucun titre partagé n’est en graisse 800 · la charte veut sobre', () => {
-    expect(h1, 'le titre de page est trop gras (800)').not.toMatch(/fontWeight: ?800/);
-    expect(h2, 'le titre de section est trop gras (800)').not.toMatch(/fontWeight: ?800/);
-    // Et la graisse choisie reste légère (≤ 600).
-    expect(h1).toMatch(/fontWeight: ?(400|500|600)\b/);
-    expect(h2).toMatch(/fontWeight: ?(400|500|600)\b/);
+  it('la graisse des titres est 500 · la valeur de la charte (design.md), pas plus', () => {
+    // La charte tranche 500 · ni 600, ni 700, ni 800.
+    expect(h1, 'le titre de page n’est pas en graisse 500').toMatch(/fontWeight: ?500\b/);
+    expect(h2, 'le titre de section n’est pas en graisse 500').toMatch(/fontWeight: ?500\b/);
+    expect(h1).not.toMatch(/fontWeight: ?(600|700|800)/);
+    expect(h2).not.toMatch(/fontWeight: ?(600|700|800)/);
   });
 });
 

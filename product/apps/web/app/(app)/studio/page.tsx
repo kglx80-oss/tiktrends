@@ -193,4 +193,4 @@ async function lireEtat(workspaceId: string, brandId: string | null): Promise<Et
 }
 
 const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' } as const;
-const h1 = { margin: '0 0 18px', fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' } as const;
+const h1 = { margin: '0 0 18px', fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;

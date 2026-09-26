@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import dynamic from 'next/dynamic';
 import { AdsMapTable } from './AdsMapTable';
 import { Inbox } from './Inbox';
@@ -66,6 +67,7 @@ export function Views({ batches, canBuild = false }: { batches: Array<{ id: stri
 }
 
 const onglet = (actif: boolean): CSSProperties => ({
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
   padding: '7px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
   border: '1px solid ' + (actif ? 'transparent' : 'var(--line-2)'),
   background: actif ? 'var(--grad-accent)' : 'var(--surface)',

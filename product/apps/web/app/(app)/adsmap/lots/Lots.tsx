@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import {
   batchDetailAction, candidatesAction, createBatchAction, setBatchAdAction,
   prepareBatchAction, launchBatchAction,
@@ -327,21 +328,25 @@ const code: CSSProperties = {
 };
 
 const petitBouton: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
   padding: '3px 8px', borderRadius: 7, border: '1px solid var(--line-2)', background: 'transparent',
   color: 'var(--muted)', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
 };
 
 const bouton: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
   padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
   color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
 };
 
 const boutonSecondaire: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
   padding: '9px 18px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent',
   color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer',
 };
 
 const champ: CSSProperties = {
-  flex: 1, minWidth: 0, padding: '8px 11px', borderRadius: 9, border: '1px solid var(--line-2)',
+  flex: 1, minWidth: 0, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box',
+  padding: '8px 11px', borderRadius: 9, border: '1px solid var(--line-2)',
   background: 'var(--paper)', color: 'var(--ink)', fontSize: 12, outline: 'none',
 };

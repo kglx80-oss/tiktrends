@@ -332,7 +332,7 @@ function Select({ name, def, opts }: { name: string; def?: string; opts: string[
 // Marge latérale fluide · 36px sur large écran, 16px sur mobile · le contenu ne
 // se colle plus aux bords du téléphone.
 const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' } as const;
-const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' } as const;
+const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;
 // minHeight: CIBLE_TACTILE_MIN · le champ de recherche ET les filtres <Select>
 // partagent inputBase · un seul endroit les porte tous deux à la cible tactile.
 const inputBase = { padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none', minHeight: CIBLE_TACTILE_MIN } as const;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { previewImportAction, applyImportAction, type PreviewResult } from '../../../actions/adsmap-import';
 
 /**
@@ -50,8 +51,18 @@ export function ImportPanel({ brandName }: { brandName: string }) {
           Le CSV exporté depuis Google Sheets, onglet de la marque. L’en-tête peut se trouver en
           deuxième ligne et les valeurs porter des émojis · c’est prévu.
         </p>
-        <input type="file" accept=".csv,text/csv" onChange={(e) => choisir(e.target.files?.[0] ?? null)}
-          style={{ fontSize: 13, color: 'var(--ink-2)' }} />
+        {/* Le champ de fichier natif n'expose qu'un bouton « Parcourir » de ~26 px ·
+            on l'enrobe dans un label stylé à la cible de la charte, l'input restant
+            masqué mais toujours l'élément qui reçoit le clic (le label le relaie). */}
+        <label style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+          padding: '0 18px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)',
+          color: 'var(--ink)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+        }}>
+          {nom ? 'Choisir un autre fichier' : 'Choisir un fichier CSV'}
+          <input type="file" accept=".csv,text/csv" onChange={(e) => choisir(e.target.files?.[0] ?? null)}
+            style={{ display: 'none' }} />
+        </label>
         {nom && <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>{nom}</p>}
       </section>
 
@@ -115,7 +126,7 @@ export function ImportPanel({ brandName }: { brandName: string }) {
 
           <div>
             <button type="button" onClick={appliquer} disabled={busy}
-              style={{ padding: '11px 22px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'wait' : 'pointer' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '11px 22px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'wait' : 'pointer' }}>
               {busy ? 'Import en cours…' : `Importer ${rep.ads} ad(s) dans ${brandName}`}
             </button>
             <p style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 8 }}>

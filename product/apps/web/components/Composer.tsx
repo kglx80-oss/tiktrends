@@ -125,7 +125,7 @@ export interface ComposerProps {
 }
 
 const pastille: CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: 6,
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN,
   padding: '7px 12px', borderRadius: 999, border: '1px solid var(--line-2)',
   background: 'var(--paper)', color: 'var(--ink-2)',
   fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
@@ -296,11 +296,11 @@ export function Composer(props: ComposerProps) {
         <button
           type="button" onClick={() => onGenerate()} disabled={!pret}
           style={{
-            padding: '11px 20px', borderRadius: 14, border: 'none',
+            minHeight: CIBLE_TACTILE_MIN, padding: '11px 20px', borderRadius: 14, border: 'none',
             background: pret ? 'var(--grad-accent)' : 'var(--line-2)',
             color: pret ? 'var(--on-accent)' : 'var(--muted)',
             fontWeight: 800, fontSize: 14, cursor: pret ? 'pointer' : 'default',
-            display: 'inline-flex', alignItems: 'center', gap: 8,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
         >
           {busy ? 'Génération…' : generateLabel}
@@ -328,7 +328,7 @@ export function Composer(props: ComposerProps) {
               if (e.key === 'Enter' && nom.trim()) { void onSaveScene(nom.trim(), value.trim()); setNom(null); }
             }}
             style={{
-              flex: 1, minWidth: 0, padding: '8px 11px', borderRadius: 10,
+              flex: 1, minWidth: 0, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '8px 11px', borderRadius: 10,
               border: '1px solid var(--line-2)', background: 'var(--paper)',
               color: 'var(--ink)', fontSize: 13, outline: 'none', fontFamily: 'inherit',
             }}
@@ -367,7 +367,8 @@ export function Composer(props: ComposerProps) {
 /* -------------------------------------------------------------------------- */
 
 const ligneMenu: CSSProperties = {
-  display: 'block', width: '100%', textAlign: 'left', padding: '8px 11px',
+  display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+  width: '100%', textAlign: 'left', padding: '8px 11px',
   border: 'none', background: 'transparent', color: 'var(--ink-2)',
   fontSize: 12.5, cursor: 'pointer', borderRadius: 8,
 };

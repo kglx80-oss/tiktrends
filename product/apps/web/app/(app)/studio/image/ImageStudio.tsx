@@ -20,7 +20,7 @@ import { useScenes } from '../../../../components/useScenes';
 import { AssistantImage } from './AssistantImage';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
-const fld = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
+const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
 type Product = { id: string; name: string; hasImage: boolean };
 
@@ -237,11 +237,13 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onPickFile} disabled={!ready || busy} style={{ display: 'none' }} />
             <button type="button" onClick={() => fileRef.current?.click()} disabled={!ready || busy} style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
               fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: ready && !busy ? 'pointer' : 'default',
               border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', opacity: ready ? 1 : .55,
             }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="upload" size={14} /> {uploadedUri ? 'Changer la photo' : 'Importer une photo'}</span></button>
             {uploadedUri && productId && (
               <button type="button" onClick={saveForProduct} disabled={saving} style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
                 fontSize: 12.5, fontWeight: 800, padding: '8px 13px', borderRadius: 999, cursor: saving ? 'default' : 'pointer',
                 border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--accent-strong)',
               }}>{saving ? 'Enregistrement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={13} /> Enregistrer pour ce produit</span>}</button>
@@ -278,6 +280,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           {([['i2i', 'Mise en scène produit'], ['t2i', 'Texte → Image']] as const).map(([k, label]) => (
             <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
               background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
@@ -287,6 +290,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           {/* L'entrée guidée · une décision à la fois, sur le même moteur d'étapes
               que Pubs IA. La barre à plat reste pour qui veut aller vite. */}
           <button type="button" disabled={!ready} onClick={() => setAssistantOuvert(true)} style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
             fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
             border: '1px solid var(--accent-strong)', background: 'transparent', color: 'var(--accent-strong)',
           }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Assistant guidé</span></button>
@@ -384,7 +388,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           extra={
             <>
               <button type="button" onClick={suggest} disabled={!ready || !aiReady || suggesting} title={aiReady ? 'Propose une description à partir de ta marque et du produit' : 'IA non configurée'} style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 6, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
                 cursor: ready && aiReady && !suggesting ? 'pointer' : 'default', whiteSpace: 'nowrap',
                 border: '1px solid var(--line-2)', background: 'transparent', color: aiReady ? 'var(--accent-strong)' : 'var(--muted)', opacity: ready && aiReady ? 1 : .55,
               }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {suggesting ? 'Rédaction…' : `Proposer une description · ${costFor('suggest')} cr.`}</span></button>
@@ -409,7 +413,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, color: 'var(--ink)' }}>Tes visuels {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
+        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Tes visuels {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{images.length}</span>
       </div>
       {/* Débrief du lot · « sur N jugés, X retenus », dès qu'on a noté des

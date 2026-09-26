@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type CSSProperties } from 'react';
-import type { Journey, JourneyStep, Relance } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, type Journey, type JourneyStep, type Relance } from '@tiktrends/core';
 import { Icon } from './Icon';
 
 /**
@@ -76,7 +76,7 @@ export function JourneyPanel({ j, firstName, relance = null }: { j: Journey; fir
         </div>
         <button
           type="button" onClick={basculer}
-          style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 8px', fontSize: 12, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
         >
           {ouvert ? 'Replier' : 'Voir le chemin'}
         </button>
@@ -178,7 +178,7 @@ function Ligne({ s }: { s: JourneyStep }) {
   );
 
   const style: CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 9, padding: '6px 8px',
+    display: 'flex', alignItems: 'center', gap: 9, minHeight: CIBLE_TACTILE_MIN, padding: '6px 8px',
     borderRadius: 9, textDecoration: 'none',
   };
 

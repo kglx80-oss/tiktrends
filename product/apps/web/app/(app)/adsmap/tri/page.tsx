@@ -30,7 +30,7 @@ export default async function TriPage() {
 
   return (
     <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
-      <h1 style={{ margin: '0 0 6px', fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 600, color: 'var(--ink)' }}>Tri des propositions</h1>
+      <h1 style={{ margin: '0 0 6px', fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Tri des propositions</h1>
       <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 720 }}>
         Ce que le radar, les studios et l’import ont posé sur la carte de <b>{brand.name}</b> sans décider à ta
         place. Tant que ça reste « proposé », ça encombre la carte sans rien y ajouter.
