@@ -323,17 +323,17 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
             <Stat label="Ads suivies" value={String(stats.nAds)} />
             <Stat label="Signaux exploitables" value={String(utiles.length)} sub="au moins 3 tests" />
           </div>
-          <div style={{ display: 'grid', gap: 14 }}>
+          <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
             {parDim.map(({ dim, rows }) => (
-              <section key={dim} style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '15px 18px' }}>
+              <section key={dim} style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '15px 18px', boxSizing: 'border-box', minWidth: 0 }}>
                 <h3 style={{ margin: '0 0 12px', fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{DIM_LABEL[dim] ?? dim}</h3>
                 <div style={{ display: 'grid', gap: 8 }}>
                   {rows.map((r) => {
                     const au_dessus = globalRate !== null && r.hitRate! > globalRate;
                     return (
                       <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ width: 210, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.key}>{r.key}</span>
-                        <div style={{ flex: 1, position: 'relative' }}>
+                        <span style={{ flex: '2 1 72px', minWidth: 0, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.key}>{r.key}</span>
+                        <div style={{ flex: '3 1 48px', position: 'relative' }}>
                           <BarreValeur
                             part={partDeMax(r.hitRate ?? 0, 1)} hauteur={9} piste="var(--paper)"
                             couleur={au_dessus ? 'linear-gradient(90deg,#4fd1a5,#7ee8bf)' : 'var(--grad-accent)'}
@@ -342,8 +342,8 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
                             <div title="Moyenne historique de la marque" style={{ position: 'absolute', left: `${partDeMax(globalRate, 1) * 100}%`, top: -2, width: 1, height: 13, background: 'var(--muted)' }} />
                           )}
                         </div>
-                        <span style={{ width: 48, textAlign: 'right', fontSize: 12.5, fontWeight: 800, color: au_dessus ? '#7ee8bf' : 'var(--ink-2)' }}>{pct(r.hitRate!)}</span>
-                        <span style={{ width: 84, textAlign: 'right', fontSize: 11.5, color: 'var(--muted)' }}>
+                        <span style={{ width: 44, flexShrink: 0, textAlign: 'right', fontSize: 12.5, fontWeight: 800, color: au_dessus ? '#7ee8bf' : 'var(--ink-2)' }}>{pct(r.hitRate!)}</span>
+                        <span style={{ width: 76, flexShrink: 0, textAlign: 'right', fontSize: 11.5, color: 'var(--muted)' }}>
                           {r.nWinners + r.nBaby}/{r.nConclusive} tests
                         </span>
                       </div>
