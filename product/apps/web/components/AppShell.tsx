@@ -45,14 +45,9 @@ const ADMIN_CONTENT = {
   '--accent-strong': '#ffca6b',
   '--accent-soft': '#2a2110',
   '--grad-accent': 'linear-gradient(135deg,#f5a623 0%,#ff8c42 100%)',
+  // Thème admin (fondateur) · distingué par sa couleur et son accent, sans
+  // quadrillage ni halo (charte : fond uni, aucun décor).
   backgroundColor: '#130d07',
-  backgroundImage:
-    'radial-gradient(1100px 560px at 50% -12%, rgba(245,166,35,0.20), transparent 60%),' +
-    'radial-gradient(760px 520px at 90% 2%, rgba(255,140,66,0.13), transparent 55%),' +
-    'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),' +
-    'linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
-  backgroundSize: '100% 100%, 100% 100%, 36px 36px, 36px 36px',
-  backgroundAttachment: 'fixed',
 } as unknown as CSSProperties;
 
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
@@ -581,7 +576,15 @@ function AppShellInner(props: Props) {
             portaient le leur, écrit à la main, et ils avaient divergé. */}
         <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} />
         {children}
-        <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
+        {/* Le lanceur de support (bulle flottante, coin bas-droit) est une
+            fonction DISTINCTE de Jarvis. Sur l'écran de conversation `/jarvis`,
+            sa position fixe recouvrait le bas du bouton « Envoyer » et le bloc de
+            saisie (mesuré à 390 et 360 px) · il est masqué là pour ne recouvrir
+            aucun contrôle. Le support reste joignable hors saisie · page `/support`
+            (et ses entrées console/erreur). Les sous-pages de Jarvis le gardent. */}
+        {pathname !== '/jarvis' && (
+          <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
+        )}
       </div>
     </div>
   );
