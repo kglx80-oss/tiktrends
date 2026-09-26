@@ -13,7 +13,7 @@ import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
  * de la coquille (et son `server-only`) dans un test.
  */
 export function LogoHome({ collapsed, onExpand }: { collapsed: boolean; onExpand: () => void }) {
-  const marque = <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--grad-accent)', flexShrink: 0, display: 'block' }} />;
+  const marque = <span style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0, display: 'block' }} />;
   if (collapsed) {
     return (
       <button type="button" onClick={onExpand} title="Déplier la barre" aria-label="Déplier la barre"

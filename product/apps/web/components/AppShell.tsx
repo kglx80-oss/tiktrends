@@ -88,6 +88,8 @@ function NavLink({ it, active, inPath = false, onClick }: {
   const inner = (
     <span style={{
       display: 'flex', alignItems: 'center', gap: 11, padding: it.isSub ? '8px 10px 8px 30px' : '10px 11px', borderRadius: 10,
+      // Cible tactile réelle 44 · le padding seul tombait à 41 px (charte 44).
+      minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box',
       fontSize: it.isSub ? 13 : 14, fontWeight: active || inPath ? 700 : 500,
       color: disabled ? 'var(--muted)' : active || inPath ? 'var(--ink)' : 'var(--ink-2)',
       // « Je suis ici » se dit d'un liséré accent + une teinte légère, pas d'un
@@ -325,81 +327,89 @@ function AppShellInner(props: Props) {
         {...(chrome.railTiroir ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': 'Navigation' } : {})}
         style={{
         background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column',
-        padding: collapsed ? '16px 10px' : '16px 12px', top: 0, height: '100vh',
+        padding: collapsed ? '16px 10px' : '12px 12px', top: 0, height: '100vh',
         // Desktop : rail collé, inchangé. Mobile : tiroir hors-flux, glissé hors
         // écran quand fermé, au-dessus du contenu quand ouvert.
         ...(chrome.railTiroir
           ? { position: 'fixed', left: 0, width: chrome.largeurRail, zIndex: 90, transform: chrome.railVisible ? 'none' : 'translateX(-100%)', transition: 'transform .22s ease', boxShadow: chrome.railVisible ? '0 0 40px rgba(0,0,0,.55)' : 'none' }
           : { position: 'sticky' }),
       }}>
-        {/* En-tête : menu d'espace (façon Pletor) + repli de la barre */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* Le logo ramène à l'accueil · la convention universelle qui manquait ·
-              on cliquait le logo et rien ne se passait. En replié, pas la place
-              pour un retour ET un dépli · le logo rouvre alors la barre. */}
+        {/* En-tête COMPACT (14 pouces) · l'identité, puis un sélecteur d'espace
+            DISTINCT, puis (plus bas) la marque et la recherche. Le bouton Réduire
+            a QUITTÉ cette ligne · il vit au pied du rail · ici, collé à l'identité,
+            il l'écrasait : « TikTrends » passait dessous et le nom d'espace se
+            rognait en « Ag… » sur un rail de 184 px. */}
+        {!collapsed ? (
+          // Identité · symbole 22 + nom 15, lisible, SANS gros carré décoratif ni
+          // bouton. Non interactive · pas de cible < 44 px ici · le retour à
+          // l'accueil reste au fil d'Ariane (« Accueil ») et à « Dashboard ».
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 4px', minHeight: 23 }}>
+            <span aria-hidden style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0, display: 'block' }} />
+            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>TikTrends</span>
+          </div>
+        ) : (
           <LogoHome collapsed={collapsed} onExpand={toggleCollapsed} />
-          {!collapsed && (
-            <button type="button" onClick={() => setWsMenuOpen((o) => !o)}
-              style={{ flex: 1, minWidth: 0, minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 10, border: 'none', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: 'flex-start' }}>
-              <div style={{ lineHeight: 1.1, minWidth: 0, flex: 1, textAlign: 'left' }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)' }}>TikTrends</div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</div>
-              </div>
+        )}
+
+        {/* Espace de travail · sélecteur DISTINCT de la marque, sur sa propre
+            ligne compacte de 44 px. Le nom peut se tronquer ici, le libellé
+            COMPLET se lit dans son menu (et dans l'infobulle). On ne supprime pas
+            le changement d'espace. */}
+        {!collapsed && (
+          <div style={{ position: 'relative', marginTop: 8 }}>
+            <button type="button" onClick={() => setWsMenuOpen((o) => !o)} aria-haspopup="menu" aria-expanded={wsMenuOpen} title={`Espace · ${workspaceName}`}
+              style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 10, border: '1px solid var(--line)', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer' }}>
+              <span aria-hidden style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0 }}>{(workspaceName || '?').trim().slice(0, 1).toUpperCase()}</span>
+              <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</span>
               <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>⌄</span>
             </button>
-          )}
-          {!collapsed && (
-            <button type="button" onClick={toggleCollapsed} title="Replier la barre" aria-label="Replier la barre" style={collapseBtn}>
-              <CollapseIcon dir="left" />
-            </button>
-          )}
 
-          {/* Menu d'espace */}
-          {wsMenuOpen && !collapsed && (
-            <>
-              <div onClick={() => setWsMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden' }}>
-                <div style={{ padding: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px' }}>
-                    <div style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</span>
-                    <span style={{ color: 'var(--accent-strong)', fontSize: 13 }}>✓</span>
+            {/* Menu d'espace · le libellé complet s'y lit en entier (pas de coupe). */}
+            {wsMenuOpen && (
+              <>
+                <div onClick={() => setWsMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
+                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden' }}>
+                  <div style={{ padding: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px' }}>
+                      <div style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0 }} />
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3, wordBreak: 'break-word' }}>{workspaceName}</span>
+                      <span style={{ color: 'var(--accent-strong)', fontSize: 13, flexShrink: 0 }}>✓</span>
+                    </div>
+                    {workspaceItems.length > 0 && <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />}
+                    {workspaceItems.map((it) => {
+                      if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItemIcon, color: 'var(--muted)', opacity: .6, cursor: 'default' }}><Icon name={it.icon} />{it.label}{it.soon && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
+                      if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { setWsMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name={it.icon} />{it.label}</button>;
+                      return <Link key={it.key} href={it.href} onClick={() => setWsMenuOpen(false)} style={menuItemIcon}><Icon name={it.icon} />{it.label}</Link>;
+                    })}
                   </div>
-                  {workspaceItems.length > 0 && <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />}
-                  {workspaceItems.map((it) => {
-                    if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItemIcon, color: 'var(--muted)', opacity: .6, cursor: 'default' }}><Icon name={it.icon} />{it.label}{it.soon && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
-                    if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { setWsMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name={it.icon} />{it.label}</button>;
-                    return <Link key={it.key} href={it.href} onClick={() => setWsMenuOpen(false)} style={menuItemIcon}><Icon name={it.icon} />{it.label}</Link>;
-                  })}
                 </div>
-              </div>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Sélecteur de marque (masqué en mode replié ou en mode ADMIN+) */}
         {!collapsed && !inAdmin && <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />}
 
-        {/* Recherche universelle ⌘K */}
+        {/* Recherche · ligne 44, texte « Rechercher », icône 16, UN seul indice
+            ⌘K discret (pas deux gros pavés) · le raccourci reste actif partout. */}
         {collapsed ? (
-          <button type="button" onClick={openCommandPalette} title="Rechercher · ⌘K" style={{ ...railIconBtn, marginTop: 10 }}>
+          <button type="button" onClick={openCommandPalette} title="Rechercher · ⌘K" aria-label="Rechercher" style={{ ...railIconBtn, marginTop: 8 }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
           </button>
         ) : (
           <button type="button" onClick={openCommandPalette} style={{
-            marginTop: 8, width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 10,
+            marginTop: 8, width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 10,
             border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
           }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-            <span style={{ flex: 1, textAlign: 'left' }}>Rechercher…</span>
-            <span style={{ display: 'inline-flex', gap: 2 }}>
-              <kbd style={kbdRail}>⌘</kbd><kbd style={kbdRail}>K</kbd>
-            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+            <span style={{ flex: 1, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Rechercher</span>
+            <kbd style={{ ...kbdRail, flexShrink: 0, minWidth: 26 }}>⌘K</kbd>
           </button>
         )}
 
         {/* Navigation · rail client OU rail ADMIN+ (fondateur en coulisses) */}
-        <nav style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 14), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
+        <nav style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 14), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
           {inAdmin ? (
             <>
               {/* Retour à la vue SaaS (app) */}
@@ -465,7 +475,7 @@ function AppShellInner(props: Props) {
               }))
             : nav.map((grp) => (
               <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 10px 5px' }}>{grp.group}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 2px' }}>{grp.group}</div>
                 {branchesOf(grp.items).map((b) => {
                   // Une branche s'ouvre d'office quand on est dedans · sinon on
                   // arrive sur une page dont les voisines sont cachées.
@@ -484,12 +494,20 @@ function AppShellInner(props: Props) {
             ))}
         </nav>
 
-        {/* Ré-ouvrir la barre (mode replié) */}
-        {collapsed && (
-          <button type="button" onClick={toggleCollapsed} title="Déplier la barre" aria-label="Déplier la barre" style={{ ...railIconBtn, marginBottom: 8 }}>
-            <CollapseIcon dir="right" />
-          </button>
-        )}
+        {/* Réduire / Développer · commande DISCRÈTE au pied du rail. Elle a quitté
+            l'en-tête, où, collée à l'identité, elle l'écrasait. Cible 44, libellé +
+            infobulle + clavier (bouton natif, Entrée/Espace). Le propriétaire n'est
+            jamais replié d'office · c'est SON geste. */}
+        <button type="button" onClick={toggleCollapsed}
+          title={collapsed ? 'Développer la barre' : 'Réduire la barre'}
+          aria-label={collapsed ? 'Développer la barre' : 'Réduire la barre'}
+          aria-expanded={!collapsed}
+          style={collapsed
+            ? { ...collapseBtn, background: 'transparent', border: 'none', color: 'var(--muted)', marginBottom: 8 }
+            : { width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 10, padding: '0 11px', marginBottom: 8, borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600 }}>
+          <CollapseIcon dir={collapsed ? 'right' : 'left'} />
+          {!collapsed && <span>Réduire le menu</span>}
+        </button>
 
         {/* Crédits (solde réel) · visible en direct, clic = recharge / offre */}
         <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginBottom: 8 }}>
@@ -593,7 +611,7 @@ function AppShellInner(props: Props) {
 const menuItem = { display: 'block', padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
 const menuItemIcon = { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
 // Bouton icône (rail replié) : carré centré, tooltip via title.
-const railIconBtn = { width: 44, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer', textDecoration: 'none', flexShrink: 0 } as const;
+const railIconBtn = { width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer', textDecoration: 'none', flexShrink: 0 } as const;
 const collapseBtn = { width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer' } as const;
 /** Icône « replier / déplier le panneau » (barre verticale + flèche). */
 function CollapseIcon({ dir }: { dir: 'left' | 'right' }) {

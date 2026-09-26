@@ -25,7 +25,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
   };
 
   return (
-    <div style={{ position: 'relative', margin: '10px 0 4px' }}>
+    <div style={{ position: 'relative', margin: '8px 0 0' }}>
       <button type="button" onClick={() => setOpen((o) => !o)} style={{
         width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 10,
         border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer',
