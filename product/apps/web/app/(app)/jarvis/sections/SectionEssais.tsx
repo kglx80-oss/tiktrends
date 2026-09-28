@@ -6,6 +6,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { essaisViewAction, bilanNotesAction, bilanCopieAction, calibrationScoreAction } from '../../../actions/adsmap-attribution';
 import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, CIBLE_TACTILE_MIN, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { Empty } from '../../../../components/Empty';
+import { Revelation, MARGE_ANCRE } from './Revelation';
 
 /**
  * Essais, lots et verdicts · à leur destination, Adsmap.
@@ -62,7 +63,7 @@ export async function SectionEssais() {
     : null;
 
   return (
-    <section id="appris" aria-label="Essais, notes et relectures de Jarvis" style={{ marginTop: 30, scrollMarginTop: 16 }}>
+    <section id="appris" aria-label="Essais, notes et relectures de Jarvis" style={{ marginTop: 30, scrollMarginTop: MARGE_ANCRE }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Ce que Jarvis a appris de tes tests</h2>
       </div>
@@ -103,16 +104,8 @@ export async function SectionEssais() {
 
       {/* Ce que les lots d'essai ont répondu. Replié par défaut · l'aperçu et le
           conseil vivent au-dessus, le détail se déplie quand on le demande. */}
-      <details id="essais" style={{
-        marginBottom: 12, padding: '14px 18px', borderRadius: 14,
-        border: `1px solid ${essaisVue?.cumuls.some((c) => c.conclusif) ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
-        background: 'var(--surface)', scrollMarginTop: 16,
-      }}>
-        <summary style={sommaire}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Qu’ont répondu tes lots d’essai ?</span>
-          <span style={etiquette}>Essais</span>
-          <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>déplier ▾</span>
-        </summary>
+      <Revelation id="essais" titre="Qu’ont répondu tes lots d’essai ?" badge="Essais"
+        borderColor={essaisVue?.cumuls.some((c) => c.conclusif) ? 'rgba(126,232,191,.4)' : 'var(--line)'}>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           Un lot d’essai fait varier <b>une seule chose</b> et tient tout le reste · même scène, mêmes
           textes, même gabarit. C’est la seule comparaison de l’outil où l’écart est vraiment
@@ -171,19 +164,11 @@ export async function SectionEssais() {
           expliquerait. Les accroches ne se cumulent pas d’un essai à l’autre : chacun en compare de
           nouvelles.
         </p>
-      </details>
+      </Revelation>
 
       {/* Ce que les notes déjà payées disent ensemble. Replié par défaut. */}
-      <details id="bilan-notes" style={{
-        marginBottom: 12, padding: '14px 18px', borderRadius: 14,
-        border: `1px solid ${notes?.defauts.suspects.length ? 'rgba(255,90,120,.35)' : 'var(--line)'}`,
-        background: 'var(--surface)', scrollMarginTop: 16,
-      }}>
-        <summary style={sommaire}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Ce que tes notes disent ensemble</span>
-          <span style={etiquette}>Score Jarvis</span>
-          <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>déplier ▾</span>
-        </summary>
+      <Revelation id="bilan-notes" titre="Ce que tes notes disent ensemble" badge="Score Jarvis"
+        borderColor={notes?.defauts.suspects.length ? 'rgba(255,90,120,.35)' : 'var(--line)'}>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           Chaque Score Jarvis coûte deux crédits et ne servait qu’une fois. Voici leur somme ·
           d’où viennent tes ratés de fabrication, et ce qui tient le mieux chez toi.
@@ -265,19 +250,11 @@ export async function SectionEssais() {
             </p>
           </>
         )}
-      </details>
+      </Revelation>
 
       {/* Ce que les relectures disent ensemble. Replié par défaut. */}
-      <details id="bilan-copie" style={{
-        marginBottom: 8, padding: '14px 18px', borderRadius: 14,
-        border: `1px solid ${relectures?.dimensions.some((d) => d.conclusif) ? 'rgba(255,90,120,.35)' : 'var(--line)'}`,
-        background: 'var(--surface)', scrollMarginTop: 16,
-      }}>
-        <summary style={sommaire}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Quel moteur écrit tes mots, et garde ton produit</span>
-          <span style={etiquette}>Pubs générées entièrement</span>
-          <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>déplier ▾</span>
-        </summary>
+      <Revelation id="bilan-copie" titre="Quel moteur écrit tes mots, et garde ton produit" badge="Pubs générées entièrement"
+        borderColor={relectures?.dimensions.some((d) => d.conclusif) ? 'rgba(255,90,120,.35)' : 'var(--line)'}>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           En mode « générée entièrement », c’est le modèle d’images qui écrit la typographie. Chaque
           pub est relue à sa génération · voici la somme de ces relectures.
@@ -343,7 +320,7 @@ export async function SectionEssais() {
             </p>
           </>
         )}
-      </details>
+      </Revelation>
     </section>
   );
 }
@@ -358,13 +335,3 @@ function Compteur({ v, l }: { v: number; l: string }) {
   );
 }
 
-const sommaire = {
-  listStyle: 'none', cursor: 'pointer', userSelect: 'none',
-  display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap',
-  minHeight: CIBLE_TACTILE_MIN,
-} as const;
-
-const etiquette = {
-  fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em',
-  color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)',
-} as const;

@@ -102,20 +102,36 @@ describe('Adsmap · en-tête sobre + liens locaux + support ancré (source)', ()
 
 describe('Adsmap · le cumul « appris » est replié, l’aperçu et le conseil restent visibles (source)', () => {
   it('les trois lectures deviennent des révélations repliées, ancres profondes préservées', () => {
-    expect(essais).toContain('<details id="essais"');
-    expect(essais).toContain('<details id="bilan-notes"');
-    expect(essais).toContain('<details id="bilan-copie"');
+    expect(essais).toContain('<Revelation id="essais"');
+    expect(essais).toContain('<Revelation id="bilan-notes"');
+    expect(essais).toContain('<Revelation id="bilan-copie"');
     expect(essais).toContain('id="appris"');
   });
 
   it('le conseil du prochain essai est SORTI du repli · trouvable sans tout ouvrir', () => {
-    // Le conseil (et son lien de destination) vit au-dessus des <details>, dans
+    // Le conseil (et son lien de destination) vit au-dessus des révélations, dans
     // l'aperçu toujours visible.
     const iConseil = essais.indexOf('LE PROCHAIN ESSAI');
-    const iPremierDetails = essais.indexOf('<details id="essais"');
+    const iPremierDetails = essais.indexOf('<Revelation id="essais"');
     expect(iConseil, 'le conseil a disparu').toBeGreaterThan(-1);
     expect(iConseil, 'le conseil est encore enfermé dans le repli').toBeLessThan(iPremierDetails);
     expect(essais).toContain('Lancer cet essai dans Pubs IA');
+  });
+});
+
+describe('Adsmap · révélation · libellé ouvert/fermé + dégagement d’ancre (recette R3, source)', () => {
+  const revel = read('app/(app)/jarvis/sections/Revelation.tsx');
+
+  it('le summary bascule déplier ↔ replier selon l’état d’ouverture', () => {
+    expect(revel).toContain('onToggle');
+    expect(revel).toMatch(/ouvert \? 'replier[^']*' : 'déplier/);
+  });
+
+  it('l’ancre dégage la barre mobile collante (scrollMarginTop = marge d’ancre)', () => {
+    // La barre collante mesure 65px · la marge la dépasse pour poser le titre entier.
+    expect(revel).toMatch(/MARGE_ANCRE = (7\d|8\d|9\d)/);
+    expect(revel).toContain('scrollMarginTop: MARGE_ANCRE');
+    expect(essais).toContain('scrollMarginTop: MARGE_ANCRE');
   });
 });
 
