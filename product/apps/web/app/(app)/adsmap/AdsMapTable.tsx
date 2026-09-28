@@ -173,7 +173,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
             <Select value={filters.verdict ?? ''} onChange={(v) => setFilters((f) => ({ ...f, verdict: v || undefined }))}
               options={[{ v: '', l: 'Tous les verdicts' }, ...Object.entries(VERDICT_LABEL).map(([v, l]) => ({ v, l }))]} />
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-2)', cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN }}>
-              <input type="checkbox" checked={!!filters.comparableOnly} onChange={(e) => setFilters((f) => ({ ...f, comparableOnly: e.target.checked || undefined }))} />
+              <input type="checkbox" checked={!!filters.comparableOnly} onChange={(e) => setFilters((f) => ({ ...f, comparableOnly: e.target.checked || undefined }))} style={{ width: 18, height: 18 }} />
               Verdicts comparables seulement
             </label>
             {filtresActifs && (
@@ -420,7 +420,7 @@ function Stat({ label, value, sub, strong, alerte }: { label: string; value: str
 function Select({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: Array<{ v: string; l: string }> }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)}
-      style={{ padding: '7px 11px', borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 12.5 }}>
+      style={{ minHeight: CIBLE_TACTILE_MIN, padding: '7px 11px', borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 12.5 }}>
       {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
     </select>
   );

@@ -118,3 +118,36 @@ describe('Adsmap · le cumul « appris » est replié, l’aperçu et le conseil
     expect(essais).toContain('Lancer cet essai dans Pubs IA');
   });
 });
+
+describe('Adsmap · cibles tactiles des contrôles filtres / tiroir / aide (recette R2, source)', () => {
+  const drawer = read('app/(app)/adsmap/AdDrawer.tsx');
+  const partage = read('app/(app)/adsmap/PartageGagnante.tsx');
+
+  it('l’aide « lire cette carte » de /adsmap porte la cible tactile', () => {
+    expect(page).toMatch(/title="lire cette carte"[^>]*minHeight=\{CIBLE_TACTILE_MIN\}/);
+  });
+
+  it('le lien « Lancer cet essai » de l’aperçu porte la cible tactile', () => {
+    const i = essais.indexOf('Lancer cet essai dans Pubs IA');
+    const style = essais.slice(Math.max(0, i - 260), i);
+    expect(style).toContain('minHeight: CIBLE_TACTILE_MIN');
+  });
+
+  it('les selects de filtres de la Table portent la cible tactile', () => {
+    const i = table.indexOf('<select value={value}');
+    const style = table.slice(i, i + 220);
+    expect(style).toContain('minHeight: CIBLE_TACTILE_MIN');
+  });
+
+  it('les styles d’action et de champ du tiroir portent la cible tactile', () => {
+    for (const decl of ['const champ', 'const bouton', 'const boutonSecondaire']) {
+      const i = drawer.indexOf(decl);
+      expect(i, `${decl} introuvable`).toBeGreaterThan(-1);
+      expect(drawer.slice(i, i + 280), `${decl} sous la cible`).toContain('CIBLE_TACTILE_MIN');
+    }
+  });
+
+  it('le bouton « Partager au client » du tiroir porte la cible tactile', () => {
+    expect(partage).toContain('minHeight: CIBLE_TACTILE_MIN');
+  });
+});

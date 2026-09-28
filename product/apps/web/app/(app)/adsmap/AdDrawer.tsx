@@ -253,7 +253,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
                     <div style={{ flex: '1 1 140px' }}>
                       <Label>Confiance · {confiance}/5</Label>
                       <input type="range" min={1} max={5} value={confiance} onChange={(e) => setConfiance(Number(e.target.value))}
-                        style={{ width: '100%', accentColor: 'var(--accent-strong)' }} />
+                        style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, accentColor: 'var(--accent-strong)' }} />
                     </div>
                   </div>
 
@@ -319,7 +319,8 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {(['more', 'better', 'new'] as const).map((m) => (
                       <button key={m} type="button" onClick={() => setMode(m)} title={MODE_LABEL[m]!.aide} style={{
-                        padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                        minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                         border: '1px solid ' + (mode === m ? 'transparent' : 'var(--line-2)'),
                         background: mode === m ? 'var(--grad-accent)' : 'var(--paper)',
                         color: mode === m ? 'var(--on-accent)' : 'var(--ink-2)',
@@ -389,16 +390,18 @@ function Label({ children }: { children: ReactNode }) {
 }
 
 const champ: CSSProperties = {
-  width: '100%', padding: '8px 11px', borderRadius: 9, border: '1px solid var(--line-2)',
+  width: '100%', minHeight: CIBLE_TACTILE_MIN, padding: '8px 11px', borderRadius: 9, border: '1px solid var(--line-2)',
   background: 'var(--paper)', color: 'var(--ink)', fontSize: 12.5, outline: 'none', fontFamily: 'inherit',
 };
 
 const bouton: CSSProperties = {
+  minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
   color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
 };
 
 const boutonSecondaire: CSSProperties = {
+  minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   padding: '9px 18px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent',
   color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer',
 };

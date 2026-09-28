@@ -94,7 +94,7 @@ export async function SectionEssais() {
           <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{conseil.pourquoi}</div>
           {conseil.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
           {conseil.variable && (
-            <Link href="/studio/ads" style={{ display: 'inline-block', marginTop: 8, fontSize: 11.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>
+            <Link href="/studio/ads" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, marginTop: 6, fontSize: 11.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>
               Lancer cet essai dans Pubs IA →
             </Link>
           )}

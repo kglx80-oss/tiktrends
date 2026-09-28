@@ -101,7 +101,7 @@ export default async function AdsMapPage() {
         {peutMesurer && <LienLocal href="/adsmap/lots" label="Préparer un test" />}
         <LienLocal href="/adsmap/suites" label="Voir les suites" />
         <LienLocal href="#appris" label="Apprentissages" ancre />
-        <PageInfo title="lire cette carte" mb={0}>
+        <PageInfo title="lire cette carte" mb={0} minHeight={CIBLE_TACTILE_MIN}>
           Une ad n’entre en test qu’avec une <b>hypothèse</b> et <b>une seule variable</b> modifiée : c’est ce qui permet
           d’attribuer un résultat à une cause. Le verdict est <b>calculé</b>, pas saisi · un astérisque signale un test
           hors protocole, dont la conclusion ne vaut que par comparaison au sein du lot. Le <b>CPA</b> est suivi de sa
