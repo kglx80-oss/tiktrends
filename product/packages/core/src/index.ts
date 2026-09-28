@@ -1,4 +1,5 @@
 export * from './radar';
+export * from './dashboard-accueil';
 export * from './naming';
 export * from './libelle-compte';
 export * from './ingest';

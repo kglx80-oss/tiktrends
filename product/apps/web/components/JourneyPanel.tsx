@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useState, type CSSProperties } from 'react';
 import { CIBLE_TACTILE_MIN, type Journey, type JourneyStep, type Relance } from '@tiktrends/core';
 import { Icon } from './Icon';
 
@@ -41,10 +41,14 @@ const puce: CSSProperties = {
   fontSize: 10, fontWeight: 800,
 };
 
-export function JourneyPanel({ j, firstName, relance = null }: { j: Journey; firstName: string; relance?: Relance | null }) {
-  const [ouvert, setOuvert] = useState(true);
+export function JourneyPanel({ j, relance = null }: { j: Journey; relance?: Relance | null }) {
+  // `ouvert` ne pilote QUE le reste du parcours (la liste des étapes) · l'action
+  // dominante, elle, reste TOUJOURS visible. Replié par défaut · la liste des
+  // étapes ne doit pas repousser le reste de l'écran hors de vue.
+  const [ouvert, setOuvert] = useState(false);
+  const listeId = useId();
   useEffect(() => {
-    try { setOuvert(localStorage.getItem(OUVERT) !== '0'); } catch { /* stockage indispo */ }
+    try { setOuvert(localStorage.getItem(OUVERT) === '1'); } catch { /* stockage indispo */ }
   }, []);
 
   const basculer = () => setOuvert((o) => {
@@ -57,88 +61,76 @@ export function JourneyPanel({ j, firstName, relance = null }: { j: Journey; fir
   if (j.complete) return null;
 
   const pct = j.totalRequired ? Math.round((j.doneCount / j.totalRequired) * 100) : 0;
+  const requises = j.steps.filter((s) => !s.optional && s.key !== j.next?.key);
+  const optionnelles = j.steps.filter((s) => s.optional && s.status !== 'done');
 
   return (
-    <div style={{
-      border: '1px solid var(--line-2)', borderRadius: 18, marginBottom: 22,
-      background: 'linear-gradient(135deg, rgba(255,60,120,.07), var(--surface) 60%)',
-      padding: ouvert ? '20px 22px' : '13px 18px',
-    }}>
+    <section aria-label="Ta prochaine étape" style={{ border: '1px solid var(--line-2)', borderRadius: 18, marginBottom: 22, background: 'var(--surface)', padding: '18px 20px' }}>
+      {/* En-tête · titre + progression compacte, toujours. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 13, flexWrap: 'wrap' }}>
         <Anneau pct={pct} />
         <div style={{ flex: 1, minWidth: 200 }}>
-          <h2 style={{ margin: 0, fontSize: ouvert ? 18 : 15, fontWeight: 800, color: 'var(--ink)' }}>
-            {j.doneCount === 0 ? `Bien démarrer, ${firstName}` : 'Ton chemin'}
-          </h2>
-          <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-            {ouvert ? j.summary : `${j.doneCount}/${j.totalRequired} · ${j.next?.label ?? 'à jour'}`}
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 500, color: 'var(--ink)', letterSpacing: '-.01em' }}>Ta prochaine étape</h2>
+          <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+            {j.doneCount}/{j.totalRequired} · {j.next?.label ?? 'en attente d’un accès'}
           </p>
         </div>
-        <button
-          type="button" onClick={basculer}
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 8px', fontSize: 12, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
-        >
-          {ouvert ? 'Replier' : 'Voir le chemin'}
-        </button>
       </div>
 
-      {ouvert && (
-        <>
-          {/* Relance douce · quand une étape de valeur traîne (la 1re créa), on
-              encourage sans répéter la consigne · on retire l'excuse, pas plus. */}
-          {relance && (
-            <div style={{
-              marginTop: 16, padding: '14px 16px', borderRadius: 14,
-              border: '1px solid rgba(254,44,85,.35)',
-              background: 'linear-gradient(135deg, rgba(254,44,85,.12), var(--surface) 70%)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span aria-hidden style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="sparkles" size={15} /></span>
-                <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{relance.titre}</div>
-              </div>
-              <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 5, lineHeight: 1.55 }}>{relance.corps}</div>
-            </div>
-          )}
-
-          {/* LA prochaine action · en grand, seule, avec ce qu'elle débloque. */}
-          {j.next && (
-            <Link
-              href={j.next.href}
-              style={{
-                display: 'block', marginTop: 16, padding: '15px 17px', borderRadius: 14,
-                border: '1px solid rgba(254,44,85,.35)', background: 'var(--surface)', textDecoration: 'none',
-              }}
-            >
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>
-                Prochaine étape
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginTop: 4 }}>{j.next.label} ›</div>
-              <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 4, lineHeight: 1.55 }}>{j.next.why}</div>
-            </Link>
-          )}
-
-          {/* Le reste du chemin · il dit où l'on va, il n'appelle pas au clic. */}
-          <div style={{ display: 'grid', gap: 4, marginTop: 14 }}>
-            {j.steps.filter((s) => !s.optional && s.key !== j.next?.key).map((s) => (
-              <Ligne key={s.key} s={s} />
-            ))}
+      {/* Relance douce · quand une étape de valeur traîne. */}
+      {relance && (
+        <div style={{ marginTop: 14, padding: '13px 15px', borderRadius: 14, border: '1px solid rgba(254,44,85,.35)', background: 'var(--paper)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span aria-hidden style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="sparkles" size={15} /></span>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{relance.titre}</div>
           </div>
-
-          {j.steps.some((s) => s.optional && s.status !== 'done') && (
-            <>
-              <p style={{ margin: '15px 0 6px', fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-                Quand tu veux · ça améliore les résultats sans bloquer la suite
-              </p>
-              <div style={{ display: 'grid', gap: 4 }}>
-                {j.steps.filter((s) => s.optional && s.status !== 'done').map((s) => (
-                  <Ligne key={s.key} s={s} />
-                ))}
-              </div>
-            </>
-          )}
-        </>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 5, lineHeight: 1.55 }}>{relance.corps}</div>
+        </div>
       )}
-    </div>
+
+      {/* L'ACTION dominante · TOUJOURS visible. Quand aucune action n'est
+          autorisée (`next` nul · ex. étapes réservées à un admin pour un
+          membre), on énonce un état FACTUEL · on ne propose pas une action
+          interdite, et « en attente » ne veut pas dire « terminé ». */}
+      {j.next ? (
+        <Link href={j.next.href} style={{ display: 'block', marginTop: 14, padding: '15px 17px', borderRadius: 14, border: '1px solid rgba(254,44,85,.35)', background: 'var(--paper)', textDecoration: 'none' }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>Prochaine étape</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginTop: 4 }}>{j.next.label} ›</div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 4, lineHeight: 1.55 }}>{j.next.why}</div>
+        </Link>
+      ) : (
+        <div style={{ marginTop: 14, padding: '13px 15px', borderRadius: 14, border: '1px solid var(--line-2)', background: 'var(--paper)' }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)' }}>En attente</div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', marginTop: 4, lineHeight: 1.5 }}>
+            Rien à faire de ton côté pour l’instant · la mise en route de l’espace revient à un administrateur.
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{j.doneCount}/{j.totalRequired} étapes · le reste du parcours ci-dessous.</div>
+        </div>
+      )}
+
+      {/* Le reste du parcours · derrière une révélation, replié par défaut · il
+          ne repousse pas Analyser & décider hors de l'écran. */}
+      <button type="button" onClick={basculer} aria-expanded={ouvert} aria-controls={listeId}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, marginTop: 12, padding: '0 4px', fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+        {ouvert ? 'Masquer le parcours' : 'Voir le parcours'} <span aria-hidden>{ouvert ? '▴' : '▾'}</span>
+      </button>
+
+      <div id={listeId} hidden={!ouvert} style={{ marginTop: 8 }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          {requises.map((s) => <Ligne key={s.key} s={s} />)}
+        </div>
+        {optionnelles.length > 0 && (
+          <>
+            <p style={{ margin: '15px 0 6px', fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+              Quand tu veux · ça améliore les résultats sans bloquer la suite
+            </p>
+            <div style={{ display: 'grid', gap: 4 }}>
+              {optionnelles.map((s) => <Ligne key={s.key} s={s} />)}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
 

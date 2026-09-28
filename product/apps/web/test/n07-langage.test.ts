@@ -71,7 +71,9 @@ describe('N07 (v8) · les promesses absolues restantes sont retirées', () => {
 
   it('l’accueil ne promet plus « ta prochaine créative gagnante »', () => {
     expect(ACCUEIL).not.toContain('créative gagnante');
-    expect(ACCUEIL).toContain('Crée ta prochaine créative, teste');
+    // Lot Dashboard · l'en-tête oriente l'ITÉRATION (observe/teste/apprends),
+    // pas la performance ni une création vedette.
+    expect(ACCUEIL).toContain('Observe, teste, apprends de chaque itération');
   });
 
   it('la fiche ne dit plus qu’une variation « rend l’écart attribuable »', () => {

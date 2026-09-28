@@ -17,7 +17,7 @@ const j = journey(new Set(['brand', 'identity']));
 
 describe('le panneau affiche la relance quand elle existe', () => {
   const r = relance(j, { joursDepuisMarque: 5, joursDepuisGeneration: null });
-  const html = renderToStaticMarkup(<JourneyPanel j={j} firstName="Kévin" relance={r} />);
+  const html = renderToStaticMarkup(<JourneyPanel j={j} relance={r} />);
 
   it('la logique produit bien une relance sur ce compte', () => {
     expect(r).not.toBeNull();
@@ -33,7 +33,7 @@ describe('le second palier · a généré mais n’a pas testé', () => {
   // Marque + identité + génération faites · la prochaine étape est « map ».
   const jMap = journey(new Set(['brand', 'identity', 'generate']));
   const r = relance(jMap, { joursDepuisMarque: 30, joursDepuisGeneration: 6 });
-  const html = renderToStaticMarkup(<JourneyPanel j={jMap} firstName="Kévin" relance={r} />);
+  const html = renderToStaticMarkup(<JourneyPanel j={jMap} relance={r} />);
 
   it('la relance « teste tes créas » est produite et rendue', () => {
     expect(r?.cle).toBe('map');
@@ -42,7 +42,7 @@ describe('le second palier · a généré mais n’a pas testé', () => {
 });
 
 describe('sans relance, rien ne s’ajoute', () => {
-  const html = renderToStaticMarkup(<JourneyPanel j={j} firstName="Kévin" relance={null} />);
+  const html = renderToStaticMarkup(<JourneyPanel j={j} relance={null} />);
   it('le panneau ne fabrique pas d’encouragement de lui-même', () => {
     expect(html).not.toContain('il ne manque que ta première pub');
   });
