@@ -5,8 +5,10 @@ import { join } from 'node:path';
 /**
  * Suite du responsive (#324 rail, #325 Veille) · les surfaces denses de création
  * (Studio, Adsmap) avaient une marge latérale figée à 36px · sur un téléphone le
- * contenu se collait aux bords. On la rend fluide (clamp · 36px large, 16px
- * mobile). Pages serveur denses · on lit la source.
+ * contenu se collait aux bords. On la rend fluide (clamp · plancher 16px mobile).
+ * La borne haute vaut 36px partout, sauf sur Pubs IA (`/studio/ads`) que le lot
+ * Codex du 28/09 resserre à 32px (contrat `docs/ux/pubs-ia-composition.md`) · la
+ * garde tolère 32 ou 36, jamais une marge figée. Pages serveur denses · on lit la source.
  */
 const PAGES = [
   'app/(app)/studio/page.tsx',
@@ -26,7 +28,8 @@ const PAGES = [
 describe('les surfaces denses ont une marge latérale fluide', () => {
   it.each(PAGES)('%s ne colle plus le contenu aux bords sur mobile', (p) => {
     const s = readFileSync(join(process.cwd(), p), 'utf8');
-    expect(s, 'la marge latérale fluide a disparu de cette page').toContain('clamp(16px, 4vw, 36px)');
-    expect(s, 'une marge latérale figée à 36px subsiste').not.toMatch(/padding: '\d+px 36px/);
+    // Plancher 16px mobile obligatoire, borne haute 32 ou 36px (Pubs IA resserre à 32).
+    expect(s, 'la marge latérale fluide a disparu de cette page').toMatch(/clamp\(16px, 4vw, 3[26]px\)/);
+    expect(s, 'une marge latérale figée subsiste').not.toMatch(/padding: '\d+px 3[26]px/);
   });
 });

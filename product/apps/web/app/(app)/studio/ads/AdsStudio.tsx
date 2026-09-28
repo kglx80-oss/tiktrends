@@ -623,31 +623,21 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         onGenerer={() => { void run('brand').then((out) => { if (producedSomething(out)) setAssistant(false); }); }}
       />
 
-      {/* Hero CTA · démarrage rapide (façon Atria) */}
-      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 20, marginBottom: 20, padding: '22px 24px', border: '1px solid var(--accent-strong)', background: 'linear-gradient(120deg, rgba(255,60,120,.16), rgba(255,140,66,.08) 60%, var(--surface))' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: 'var(--accent-strong)' }}>DÉMARRAGE RAPIDE</div>
-            <h2 style={{ margin: '4px 0 4px', fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>Génère des pubs à tester, en 1 clic</h2>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', maxWidth: 520, lineHeight: 1.5 }}>
-              Pars d’un format repéré sur le marché, on applique ta marque{brandName ? <> <b>{brandName}</b></> : null} et ton produit, puis on génère plusieurs variantes.
-            </p>
-          </div>
-          {/* Deux entrées, et la seconde est la SEULE chose que le démarrage
-              rapide ne sait pas faire · c'est ce qui justifie qu'un second
-              formulaire existe encore, et il n'a plus à être ouvert pour être
-              trouvé. */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={!ready} onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
-              padding: '14px 24px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
-              background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
-            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}><Icon name="sparkles" size={16} /> Créer des pubs</span></button>
-            <button type="button" disabled={!ready} onClick={() => { setMode('clone'); setAvance(true); setError(''); requestAnimationFrame(() => composeur.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} style={{
-              padding: '14px 20px', borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: ready ? 'pointer' : 'default',
-              border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
-            }}>Cloner une pub qui tient</button>
-          </div>
-        </div>
+      {/* Barre de création · UNE action dominante (l'assistant, le flux
+          existant), le clone en secondaire. Pas de gros bandeau marketing ·
+          l'explication est en tête de page, et la galerie doit apparaître dans
+          le premier écran. Les deux commandes portent la cible 44. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+        <button type="button" disabled={!ready} onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN,
+          padding: '0 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
+          background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
+        }}><Icon name="sparkles" size={16} /> Créer des pubs</button>
+        <button type="button" disabled={!ready} onClick={() => { setMode('clone'); setAvance(true); setError(''); requestAnimationFrame(() => composeur.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+          padding: '0 18px', borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: ready ? 'pointer' : 'default',
+          border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
+        }}>Cloner une pub qui tient</button>
       </div>
 
       {/* Le mode expert · un seul repli, clairement secondaire.
@@ -1081,9 +1071,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           est une réponse. */}
       {suggestion && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 16px', padding: '12px 15px', borderRadius: 14,
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 24px', padding: '12px 15px', borderRadius: 14,
           border: `1px solid ${suggestion.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
-          background: 'linear-gradient(120deg, rgba(255,60,120,.08), var(--surface))',
+          background: 'var(--surface)',
         }}>
           <span style={{ display: 'inline-flex', color: suggestion.avantTout ? '#ffb3c0' : 'var(--accent-strong)' }}><Icon name={suggestion.avantTout ? 'alert' : 'swap'} size={17} /></span>
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
@@ -1161,7 +1151,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               why="Élargis la recherche ou efface les filtres pour retrouver tes pubs."
             />
           ) : (
-          <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          <>
+          {/* Grille fluide, adaptée à la taille réelle des cartes · ~4 colonnes
+              à 1440, 3 à 1280 (rail ouvert), 2 en tablette, 1 à 390. La borne
+              `min(270px, 100%)` empêche toute piste de dépasser la largeur
+              dispo (pas de défilement horizontal). */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))', gap: 20 }}>
           {pagedAds.map((a) => {
             // Le détail s'ouvre par ID sur la liste COMPLÈTE · filtrer la vue ne
             // déplace pas la navigation précédent/suivant.
