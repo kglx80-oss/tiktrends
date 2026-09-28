@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useTransition, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { useEffect, useMemo, useState, useTransition, type CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN, MODE_LABEL } from '@tiktrends/core';
 import { iterationPlanAction, createIterationAction, type IterationPlanView, type IterationRow } from '../../../actions/adsmap-iterate';
 import { Empty } from '../../../../components/Empty';
 import { DraftCard } from '../../../../components/DraftCard';
@@ -12,30 +12,43 @@ import { draftConceptAction, type DraftView } from '../../../actions/adsmap-draf
  *
  * ── Ce qu'on affiche en premier ──────────────────────────────────────────────
  *
- * Pas la variable à changer · **ce qu'il ne faut pas toucher**. C'est
- * contre-intuitif à l'écran comme dans la tête, et c'est le seul endroit où
- * l'outil apporte quelque chose qu'un humain pressé ne fera pas tout seul :
+ * Le mode (décliner, corriger, repartir), la cible, et la variable à changer.
+ * Ce qu'il ne faut pas toucher tient dans les chips « À conserver » · c'est le
+ * seul endroit où l'outil apporte ce qu'un humain pressé ne fait pas seul :
  * quand une créa n'a pas converti, le réflexe est de tout refaire, et tout
  * refaire jette trois réponses déjà payées.
  *
- * ── Pourquoi l'hypothèse est obligatoire ici aussi ───────────────────────────
+ * ── Le paragraphe du moteur se replie, la réserve reste ──────────────────────
  *
- * On pourrait pré-remplir et laisser partir. Une itération sans pari écrit rend
- * un chiffre que personne ne saura interpréter · le champ reste à remplir, et
- * la raison est affichée plutôt que la contrainte.
+ * La rationale du moteur — longue, et proche d'une carte à l'autre — noyait la
+ * décision. Elle passe dans une révélation « Pourquoi cette suite ». Ce qui NE
+ * se replie jamais, c'est la réserve qui change ce que fait l'action : quand le
+ * parent n'a pas de victoire prouvée, la suite s'enregistre en nouveau concept,
+ * pas en itération. La cacher ferait valider un geste mal compris.
+ *
+ * ── Le filtre ne recalcule rien ──────────────────────────────────────────────
+ *
+ * Tous / Décliner / Corriger / Repartir est un tri d'AFFICHAGE · il masque des
+ * lignes déjà calculées, garde l'ordre de priorité du serveur, et ne relance
+ * aucune lecture. Le recalcul reste strictement manuel (bouton Recalculer).
  */
 
-const TON: Record<string, string> = { more: '#7ee8bf', better: '#ffcf8f', new: '#9fb4ff' };
+const MODES = ['more', 'better', 'new'] as const;
+type Mode = (typeof MODES)[number];
+type Filtre = 'all' | Mode;
+
+const TON: Record<Mode, string> = { more: '#7ee8bf', better: '#ffcf8f', new: '#9fb4ff' };
 
 const carte: CSSProperties = {
-  border: '1px solid var(--line)', borderRadius: 14, padding: '14px 16px',
-  background: 'var(--surface)', display: 'grid', gap: 10,
+  border: '1px solid var(--line)', borderRadius: 14, padding: '13px 15px',
+  background: 'var(--surface)', display: 'grid', gap: 9,
 };
 
 export function Suites() {
   const [view, setView] = useState<IterationPlanView | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ouvert, setOuvert] = useState<string | null>(null);
+  const [filtre, setFiltre] = useState<Filtre>('all');
   const [charge, lance] = useTransition();
 
   useEffect(() => {
@@ -50,6 +63,13 @@ export function Suites() {
     if (r.error) setErr(r.error); else { setErr(null); setView(r.view ?? null); }
   });
 
+  // Compteurs calculés sur les lignes PRÉSENTES · jamais un chiffre posé à la main.
+  const compte = useMemo(() => {
+    const c: Record<Filtre, number> = { all: 0, more: 0, better: 0, new: 0 };
+    for (const r of view?.rows ?? []) { c.all++; c[r.mode]++; }
+    return c;
+  }, [view]);
+
   if (err) {
     return <div style={{ ...carte, borderColor: '#ff8095', color: '#ff8095', fontSize: 13 }}>{err}</div>;
   }
@@ -57,19 +77,31 @@ export function Suites() {
     return <div style={{ color: 'var(--muted)', fontSize: 13 }}>Lecture des verdicts arbitrés…</div>;
   }
 
+  // Filtre d'affichage · l'ordre de priorité du serveur est conservé dans chaque mode.
+  const visibles = filtre === 'all' ? view.rows : view.rows.filter((r) => r.mode === filtre);
+
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', flex: 1, minWidth: 260, lineHeight: 1.6 }}>
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', flex: 1, minWidth: 220, lineHeight: 1.55 }}>
           {view.summary}
         </p>
         <button
           onClick={recharger} disabled={charge}
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: charge ? 'wait' : 'pointer' }}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '6px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: charge ? 'wait' : 'pointer' }}
         >
           {charge ? 'Calcul…' : 'Recalculer'}
         </button>
       </div>
+
+      {view.rows.length > 0 && (
+        <div role="group" aria-label="Filtrer les suites par mode" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          <Onglet actif={filtre === 'all'} onClick={() => setFiltre('all')} libelle="Tous" n={compte.all} teinte="var(--ink)" />
+          {MODES.map((m) => (
+            <Onglet key={m} actif={filtre === m} onClick={() => setFiltre(m)} libelle={MODE_LABEL[m]} n={compte[m]} teinte={TON[m]} />
+          ))}
+        </div>
+      )}
 
       {!view.rows.length && (
         <Empty
@@ -78,8 +110,20 @@ export function Suites() {
         />
       )}
 
-      {view.rows.map((r, i) => (
-        <Ligne
+      {/* Aucun résultat dans CE mode · distinct de « la marque n'a aucun verdict ».
+          Les autres modes en portent, le filtre le dit plutôt que d'imiter le vide. */}
+      {view.rows.length > 0 && !visibles.length && (
+        <div style={{ ...carte, borderStyle: 'dashed', color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.6 }}>
+          Aucune suite en « {MODE_LABEL[filtre as Mode]} » · {compte.all} suite(s) en tout,
+          réparties sur les autres modes. <button
+            onClick={() => setFiltre('all')}
+            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-strong)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}
+          >Tout revoir</button>.
+        </div>
+      )}
+
+      {visibles.map((r, i) => (
+        <CarteSuite
           key={`${r.adId}-${r.changedVariable}-${i}`}
           row={r}
           ouvert={ouvert === `${r.adId}-${i}`}
@@ -91,7 +135,59 @@ export function Suites() {
   );
 }
 
-function Ligne({ row, ouvert, onToggle, onCree }: {
+/** Un onglet de filtre · cible tactile pleine, état actif lisible. */
+function Onglet({ actif, onClick, libelle, n, teinte }: {
+  actif: boolean; onClick: () => void; libelle: string; n: number; teinte: string;
+}) {
+  return (
+    <button
+      type="button" onClick={onClick} aria-pressed={actif}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: CIBLE_TACTILE_MIN,
+        padding: '6px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+        border: `1px solid ${actif ? teinte : 'var(--line-2)'}`,
+        background: actif ? 'var(--paper)' : 'transparent',
+        color: actif ? 'var(--ink)' : 'var(--ink-2)',
+      }}
+    >
+      {libelle}
+      <span style={{ fontSize: 11, fontWeight: 800, color: actif ? teinte : 'var(--muted)' }}>{n}</span>
+    </button>
+  );
+}
+
+/**
+ * « Pourquoi cette suite » · la rationale du moteur, repliée.
+ *
+ * Native `<details>` pour le clavier · l'étiquette resterait figée sur
+ * « déplier » une fois ouverte, on suit donc l'état (client) pour basculer
+ * déplier ▾ ↔ replier ▴. Le contenu reste rendu, jamais réécrit.
+ */
+function Pourquoi({ hint, rationale }: { hint: string; rationale: string }) {
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <details
+      onToggle={(e) => setOuvert((e.currentTarget as HTMLDetailsElement).open)}
+      style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}
+    >
+      <summary style={sommaire}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>Pourquoi cette suite</span>
+        <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>
+          {ouvert ? 'replier ▴' : 'déplier ▾'}
+        </span>
+      </summary>
+      <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6 }}>{hint}</p>
+      <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.65 }}>{rationale}</p>
+    </details>
+  );
+}
+
+const sommaire: CSSProperties = {
+  listStyle: 'none', cursor: 'pointer', userSelect: 'none',
+  display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN,
+};
+
+export function CarteSuite({ row, ouvert, onToggle, onCree }: {
   row: IterationRow; ouvert: boolean; onToggle: () => void; onCree: () => void;
 }) {
   const [hypo, setHypo] = useState('');
@@ -101,12 +197,6 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
   const [redige, ecrit] = useTransition();
   const ton = TON[row.mode] ?? 'var(--muted)';
 
-  /**
-   * Jarvis rédige la suite qu'il vient de conseiller.
-   *
-   * On lui passe le GEL tel quel · c'est la contrainte que la suite a calculée,
-   * et la lui reformuler la diluerait.
-   */
   const ecrire = () => ecrit(async () => {
     setMsg(null);
     const r = await draftConceptAction({
@@ -135,27 +225,23 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
 
   return (
     <div style={{ ...carte, borderLeft: `3px solid ${ton}` }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color: ton, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-          {row.modeLabel}
-        </span>
-        <strong style={{ fontSize: 13.5, color: 'var(--ink)' }}>{row.label}</strong>
+      {/* Ligne de tête · mode textuel + cible, la dépense engagée en discret. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, fontWeight: 800, color: ton }}>{row.modeLabel}</span>
+        <strong style={{ fontSize: 13.5, color: 'var(--ink)', minWidth: 0, overflowWrap: 'anywhere' }}>{row.label}</strong>
         {row.spend !== null && row.spend > 0 && (
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>· {Math.round(row.spend)} € engagés</span>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>· {Math.round(row.spend)} € engagés</span>
         )}
-        <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>
-          change <b style={{ color: 'var(--ink)' }}>{row.variableLabel}</b>
-        </span>
       </div>
 
-      <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.65 }}>{row.rationale}</p>
+      {/* La variable à changer · mise en avant, c'est la décision de la carte. */}
+      <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+        Changer&nbsp;: <b style={{ color: 'var(--ink)' }}>{row.variableLabel}</b>
+      </div>
 
-      {/* Ce qui est acquis passe avant ce qui change · c'est l'information que
-          personne ne se donne tout seul. */}
       {row.freezeLabels.length > 0 && (
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 700 }}>Ne touche pas :</span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 700 }}>À conserver :</span>
           {row.freezeLabels.map((f) => (
             <span key={f} style={{ fontSize: 11.5, padding: '3px 9px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)' }}>
               {f}
@@ -164,21 +250,22 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
         </div>
       )}
 
+      {/* Réserve INDISPENSABLE · elle change ce que fait l'action, jamais repliée. */}
       {!row.edgeLegal && (
-        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.6 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.55 }}>
           Le parent n’a pas de victoire PROUVÉE au protocole · ce sera enregistré comme
           nouveau concept, pas comme itération. Une descendance attribuerait une performance
           non démontrée (une piste relative reste à confirmer, une perdante n’a rien prouvé).
         </p>
       )}
 
-      {/* Le brouillon · c'est ici que le conseil devient un texte à tourner.
-          Jarvis se relit avant de le montrer, et le dit quand il s'est corrigé. */}
+      <Pourquoi hint={row.modeHint} rationale={row.rationale} />
+
       {brouillon && (
         <DraftCard view={brouillon}>
           <button
-            onClick={() => { setHypo(brouillon.draft.hypothesis); onToggle(); }}
-            style={{ justifySelf: 'start', padding: '7px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
+            onClick={() => { setHypo(brouillon.draft.hypothesis); if (!ouvert) onToggle(); }}
+            style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
           >
             Créer la suite avec ce concept
           </button>
@@ -187,16 +274,18 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
 
       {!ouvert ? (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {/* Action principale · pleine. */}
           <button
             onClick={onToggle}
-            style={{ padding: '7px 14px', borderRadius: 999, border: `1px solid ${ton}`, background: 'transparent', color: ton, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
           >
             Créer la suite
           </button>
+          {/* Action secondaire · fantôme. */}
           {!brouillon && (
             <button
               onClick={ecrire} disabled={redige}
-              style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 15px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
             >
               {redige ? 'Jarvis écrit…' : 'Demander le concept à Jarvis'}
             </button>
@@ -215,22 +304,19 @@ function Ligne({ row, ouvert, onToggle, onCree }: {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={creer} disabled={envoi || hypo.trim().length < 10}
-              style={{ padding: '8px 16px', borderRadius: 999, border: 'none', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: envoi ? 'wait' : 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 16px', borderRadius: 999, border: 'none', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: envoi ? 'wait' : 'pointer' }}
             >
               {envoi ? 'Création…' : 'Créer'}
             </button>
             <button
               onClick={onToggle}
-              style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}
             >
               Annuler
             </button>
             {msg && <span style={{ fontSize: 12, color: msg.startsWith('Créée') ? '#7ee8bf' : '#ff8095' }}>{msg}</span>}
-            {/* Créé, l'ad « attend son brief » · sans lien, il fallait deviner
-                d'aller le produire. On aiguille vers la carte, où le brouillon
-                apparaît avec son bouton Studio. */}
             {msg?.startsWith('Créée') && (
-              <a href="/adsmap" style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Produire depuis la carte ›</a>
+              <a href="/adsmap" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>Produire depuis la carte ›</a>
             )}
           </div>
         </div>

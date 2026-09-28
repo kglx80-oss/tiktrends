@@ -3,7 +3,7 @@ import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { PageInfo } from '../../../../components/PageInfo';
-import { REGLE_ITERATION } from '@tiktrends/core';
+import { REGLE_ITERATION, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Suites } from './Suites';
 import { effectiveAccess } from '../../../../lib/access';
 
@@ -27,17 +27,16 @@ export default async function SuitesPage() {
   if (!brand) redirect('/adsmap');
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1000, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
+    <main style={{ padding: '18px clamp(16px, 4vw, 36px) 60px', maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '2px 0 4px' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Suites</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
       </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 20, maxWidth: 780, lineHeight: 1.6 }}>
-        Chaque test arbitré ouvre une suite : décliner ce qui a gagné, corriger le point précis qui a lâché,
-        ou repartir d’ailleurs quand il ne reste rien à garder.
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 12, maxWidth: 760, lineHeight: 1.55 }}>
+        Le prochain test de chaque gagnante · décliner ce qui a gagné, corriger ce qui a lâché, ou repartir.
       </p>
 
-      <PageInfo title="lire ces suites">
+      <PageInfo title="lire ces suites" minHeight={CIBLE_TACTILE_MIN} mb={16}>
         Un tunnel est <b>ordonné</b>. Une créa qui échoue à la conversion a été vue, regardée et cliquée ·
         son accroche a marché, son montage a tenu. Ces réponses sont déjà payées. C’est pourquoi chaque
         suite affiche d’abord <b>ce qu’il ne faut pas toucher</b> : le réflexe, quand une créa ne convertit
