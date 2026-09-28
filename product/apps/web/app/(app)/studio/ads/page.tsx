@@ -153,7 +153,8 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   );
 }
 
-// Le bas réserve une gouttière · le lanceur de support (FAB du shell, en bas à
-// droite) ne doit recouvrir ni la dernière rangée de la galerie ni ses actions.
-const wrap = { padding: '32px clamp(16px, 4vw, 32px) 96px', maxWidth: 1200, margin: '0 auto' } as const;
+// Le lanceur de support n'est plus une bulle FIXE sur cette route (il est ancré
+// en zone de commandes, sous le contenu, par le shell) · plus besoin de réserver
+// une gouttière basse contre une superposition flottante.
+const wrap = { padding: '32px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' } as const;
 const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;

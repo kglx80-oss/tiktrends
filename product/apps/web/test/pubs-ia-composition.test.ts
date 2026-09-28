@@ -15,6 +15,8 @@ const page = read('app/(app)/studio/ads/page.tsx');
 const studio = read('app/(app)/studio/ads/AdsStudio.tsx');
 const barre = read('components/BarreFiltresGalerie.tsx');
 const contexte = read('components/ContexteCreation.tsx');
+const appshell = read('components/AppShell.tsx');
+const support = read('components/SupportWidget.tsx');
 
 describe('Pubs IA · en-tête court, sans bandeau marketing', () => {
   it('titre court + explication « prochain test », pas de pastille marketing', () => {
@@ -65,8 +67,18 @@ describe('Pubs IA · recette Codex passe1 · vue mobile réellement galerie', ()
     expect(studio, 'le détail de l’hypothèse ne se déplie pas').toContain('const detailVisible = !compact || hypDetail');
   });
 
-  it('le contenu réserve une gouttière basse · le lanceur de support ne recouvre pas la galerie', () => {
-    expect(page, 'aucune gouttière basse pour le FAB de support').toContain('4vw, 32px) 96px');
+  it('le support n’est plus une bulle FIXE sur cette route · lanceur ANCRÉ en zone de commandes', () => {
+    // Recette Codex passe2 · une bulle fixe recouvrait un filtre / l'état vide au
+    // défilement. Sur /studio/ads, le shell rend le support ANCRÉ (lanceur inline,
+    // qui défile avec la page) au lieu du flottant. Rail et autres routes inchangés.
+    expect(appshell, 'le shell ne distingue pas /studio/ads pour le support').toContain("pathname === '/studio/ads'");
+    expect(appshell, 'le support n’est pas ancré sur cette route').toContain('<SupportWidget anchored');
+    // Le mode ancré est un vrai dialogue · Escape ferme en rendant le focus au
+    // lanceur, et le panneau porte le rôle dialog.
+    expect(support, 'le mode ancré n’existe pas').toContain('anchored');
+    expect(support, 'Escape ne ferme pas le dialogue ancré').toContain("e.key === 'Escape'");
+    expect(support, 'le focus n’est pas rendu au lanceur').toContain('lanceurRef.current?.focus()');
+    expect(support, 'le panneau ancré n’est pas un dialogue').toContain("role={anchored ? 'dialog'");
   });
 
   it('le contexte détaillé passe derrière un accès « Contexte » sur mobile', () => {
