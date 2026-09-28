@@ -49,6 +49,10 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [ouverte, setOuverte] = useState<string | null>(null);
+  // Raisons longues repliées · on déplie ligne par ligne sans jamais perdre le texte.
+  const [deplie, setDeplie] = useState<Set<string>>(() => new Set());
+  const basculer = (id: string) =>
+    setDeplie((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const charger = useCallback(async () => {
     const r = await listDecisionsAction();
@@ -84,10 +88,10 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
   return (
     <div>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14,
-        padding: '12px 15px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)',
+        display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12,
+        padding: '9px 13px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)',
       }}>
-        <span style={{ flex: '1 1 320px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.5 }}>
+        <span style={{ flex: '1 1 200px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.45 }}>
           {data.summary}
         </span>
         <button type="button" onClick={recalculer} disabled={busy} style={{
@@ -108,29 +112,45 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
             de la nuit. {data.dismissed > 0 && `${data.dismissed} décision(s) écartée(s) ne reviendront pas.`}</>}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {data.items.map((it) => {
             const ton = TON[it.priority] ?? TON[3]!;
+            // Une raison longue se replie · le texte reste entier, on n'en montre
+            // qu'une ligne tant qu'on n'a pas déplié.
+            const long = it.action.length > 110;
+            const ouvertRaison = deplie.has(it.id);
             return (
               <div key={it.id} style={{
-                border: `1px solid ${ton.bd}`, borderRadius: 12, background: 'var(--surface)', padding: '12px 15px',
+                border: `1px solid ${ton.bd}`, borderRadius: 12, background: 'var(--surface)', padding: '10px 13px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{
-                    padding: '2px 9px', borderRadius: 999, fontSize: 10, fontWeight: 800,
+                    padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 800,
                     textTransform: 'uppercase', letterSpacing: '.04em', color: ton.fg, border: `1px solid ${ton.bd}`,
                   }}>
                     {TYPE_LABEL[it.type] ?? it.type}
                   </span>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', fontWeight: 600, lineHeight: 1.45 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', fontWeight: 600, lineHeight: 1.4 }}>
                     {it.title}
                   </span>
                 </div>
-                <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>{it.action}</p>
+                {it.action && (
+                  <p style={{
+                    margin: '5px 0 0', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.45,
+                    ...(long && !ouvertRaison ? { display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : null),
+                  }}>{it.action}</p>
+                )}
+                {long && (
+                  <button type="button" onClick={() => basculer(it.id)} style={lienReplier}>
+                    {ouvertRaison ? 'Replier' : 'Déplier'}
+                  </button>
+                )}
 
-                <div style={{ display: 'flex', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 7, marginTop: 9, flexWrap: 'wrap' }}>
+                  {/* Ouvrir la fiche · action PRIMAIRE (là où on décide vraiment).
+                      Fait / Pas un problème restent accessibles, en retrait. */}
                   {it.targetKind === 'ad' && (
-                    <button type="button" onClick={() => setOuverte(it.targetId)} style={{ ...petit, color: 'var(--accent-strong)' }}>
+                    <button type="button" onClick={() => setOuverte(it.targetId)} style={principal}>
                       Ouvrir la fiche
                     </button>
                   )}
@@ -157,4 +177,18 @@ const petit: CSSProperties = {
   minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center',
   padding: '4px 13px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)',
   color: 'var(--ink-2)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+};
+
+/** L'action primaire de chaque décision · où l'on ouvre vraiment le test. */
+const principal: CSSProperties = {
+  minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center',
+  padding: '4px 15px', borderRadius: 8, border: '1px solid var(--accent-strong)', background: 'var(--accent-soft)',
+  color: 'var(--accent-strong)', fontSize: 11.5, fontWeight: 800, cursor: 'pointer',
+};
+
+/** Le repli d'une raison longue · discret, mais tappable à la cible du noyau. */
+const lienReplier: CSSProperties = {
+  minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center',
+  padding: 0, background: 'none', border: 'none',
+  color: 'var(--muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline',
 };

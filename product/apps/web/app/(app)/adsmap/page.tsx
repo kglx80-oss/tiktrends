@@ -13,6 +13,7 @@ import { Views } from './Views';
 import { effectiveAccess } from '../../../lib/access';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { SectionEssais } from '../jarvis/sections/SectionEssais';
 
 export const dynamic = 'force-dynamic';
@@ -77,11 +78,11 @@ export default async function AdsMapPage() {
   const peutMesurer = roleAtLeast(s.role, 'admin');
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1320, margin: '0 auto' }}>
+    <main style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Adsmap</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(26px, 4vw, 30px)', fontWeight: 500, color: 'var(--ink)' }}>Adsmap</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
-        <span style={{ flex: 1 }} />
+        <span style={{ flex: 1, minWidth: 12 }} />
         {/* Il ne reste ici que ce qui AGIT sur la carte · mesurer, partager.
             Les six écrans du module vivent dans le rail, comme ceux du Studio :
             une barre de sept boutons n'est plus une navigation, c'est une
@@ -89,20 +90,27 @@ export default async function AdsMapPage() {
         {peutMesurer && <ShareButton />}
         {peutMesurer && <SyncButton syncedAt={row?.at ? row.at.toISOString() : null} />}
       </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18, maxWidth: 760, lineHeight: 1.6 }}>
-        Chaque test et son résultat, de l’hypothèse au verdict. Les lots {batches.length > 0 && `· ${batches.length} lot(s) `}
-        se lisent ici avant d’être arbitrés.
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 3, marginBottom: 8, maxWidth: 720, lineHeight: 1.5 }}>
+        Chaque test, son verdict, et ce qu’il t’apprend pour le suivant.
       </p>
 
-      <PageInfo title="lire cette carte">
-        Une ad n’entre en test qu’avec une <b>hypothèse</b> et <b>une seule variable</b> modifiée : c’est ce qui permet
-        d’attribuer un résultat à une cause. Le verdict est <b>calculé</b>, pas saisi · un astérisque signale un test
-        hors protocole, dont la conclusion ne vaut que par comparaison au sein du lot. Le <b>CPA</b> est suivi de sa
-        borne haute : avec peu d’achats, l’écart entre les deux dit à quel point le chiffre est encore incertain.
-        L’onglet <b>Carte</b> montre la même chose autrement : avatar → désir → angle → concept → ad, avec les
-        <b> branches mortes</b> en pointillé · un angle jamais décliné ou une gagnante jamais itérée ne se voient
-        que là.
-      </PageInfo>
+      {/* Raccourcis locaux et aide sur UNE seule rangée · préparer un test en amont,
+          voir les suites en aval, sauter au cumul, lire la carte. Le rail garde la
+          navigation complète · on regroupe pour dégager le haut sans rien retirer. */}
+      <nav aria-label="Raccourcis et aide Adsmap" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '0 0 10px' }}>
+        {peutMesurer && <LienLocal href="/adsmap/lots" label="Préparer un test" />}
+        <LienLocal href="/adsmap/suites" label="Voir les suites" />
+        <LienLocal href="#appris" label="Apprentissages" ancre />
+        <PageInfo title="lire cette carte" mb={0} minHeight={CIBLE_TACTILE_MIN}>
+          Une ad n’entre en test qu’avec une <b>hypothèse</b> et <b>une seule variable</b> modifiée : c’est ce qui permet
+          d’attribuer un résultat à une cause. Le verdict est <b>calculé</b>, pas saisi · un astérisque signale un test
+          hors protocole, dont la conclusion ne vaut que par comparaison au sein du lot. Le <b>CPA</b> est suivi de sa
+          borne haute : avec peu d’achats, l’écart entre les deux dit à quel point le chiffre est encore incertain.
+          L’onglet <b>Carte</b> montre la même chose autrement : avatar → désir → angle → concept → ad, avec les
+          <b> branches mortes</b> en pointillé · un angle jamais décliné ou une gagnante jamais itérée ne se voient
+          que là.
+        </PageInfo>
+      </nav>
 
       <Views batches={batches} canBuild={peutMesurer} />
 
@@ -113,4 +121,19 @@ export default async function AdsMapPage() {
       <SectionEssais />
     </main>
   );
+}
+
+/**
+ * Lien local discret · même repère tactile que le reste (cible 44), sans le poids
+ * d'un bouton d'action. Interne via `Link`, ancre de page via `<a>` (le hash ne
+ * change pas de route · Link le traiterait comme une navigation).
+ */
+function LienLocal({ href, label, ancre = false }: { href: string; label: string; ancre?: boolean }) {
+  const style = {
+    display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
+    padding: '6px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
+    background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600,
+    textDecoration: 'none', whiteSpace: 'nowrap',
+  } as const;
+  return ancre ? <a href={href} style={style}>{label}</a> : <Link href={href} style={style}>{label}</Link>;
 }

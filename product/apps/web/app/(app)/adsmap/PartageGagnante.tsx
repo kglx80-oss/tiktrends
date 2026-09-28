@@ -1,5 +1,7 @@
 'use client';
 
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+
 /**
  * Proposer le partage au bon moment · quand une créa vient de gagner.
  *
@@ -38,7 +40,7 @@ export function PartageGagnante({ gagnante, peutPartager }: { gagnante: boolean;
       <button
         type="button"
         onClick={() => { try { window.dispatchEvent(new CustomEvent(OUVRIR_PARTAGE)); } catch { /* pas de fenêtre */ } }}
-        style={{ marginTop: 9, padding: '8px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
+        style={{ marginTop: 9, minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
       >
         Partager au client
       </button>
