@@ -366,7 +366,9 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
         <span style={{ fontSize: 12.5, color: 'var(--ink)', fontWeight: 700, flex: '1 1 300px', lineHeight: 1.5 }}>
           {summarizeGaps(c)}
         </span>
-        <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+        {/* Compteurs · laissés LIBRES de retomber à la ligne · figés en une ligne
+            (`nowrap`), ils débordaient de 36px à 390. Le graphe n'est pas touché. */}
+        <span style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
           {c.personas} avatar(s) · {c.desires} désir(s) · {c.angles} angle(s) · {c.concepts} concept(s) · {c.ads} ad(s) · {c.winners} gagnante(s){c.promising > 0 ? ` · ${c.promising} piste(s) relative(s)` : ''}
         </span>
       </div>

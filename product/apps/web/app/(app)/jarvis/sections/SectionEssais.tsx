@@ -4,7 +4,7 @@ import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { essaisViewAction, bilanNotesAction, bilanCopieAction, calibrationScoreAction } from '../../../actions/adsmap-attribution';
-import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
+import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, CIBLE_TACTILE_MIN, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { Empty } from '../../../../components/Empty';
 
 /**
@@ -62,30 +62,58 @@ export async function SectionEssais() {
     : null;
 
   return (
-    <section aria-label="Essais, notes et relectures de Jarvis" style={{ marginTop: 30 }}>
+    <section id="appris" aria-label="Essais, notes et relectures de Jarvis" style={{ marginTop: 30, scrollMarginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Ce que Jarvis a appris de tes tests</h2>
       </div>
-      <p style={{ margin: '6px 0 16px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 760, lineHeight: 1.55 }}>
+      <p style={{ margin: '6px 0 12px', fontSize: 12.5, color: 'var(--muted)', maxWidth: 760, lineHeight: 1.55 }}>
         Le cumul de tes lots d’essai, de tes notes et des relectures · d’où vient tout ce que Jarvis
-        sait de cette marque, additionné ici plutôt que dispersé test par test.
+        sait de cette marque, additionné ici plutôt que dispersé test par test. Le détail se déplie
+        section par section ci-dessous.
       </p>
 
-      {/* Ce que les lots d'essai ont répondu. */}
-      <section id="essais" style={{
-        marginBottom: 24, padding: '16px 18px', borderRadius: 14,
-        border: `1px solid ${essaisVue?.cumuls.some((c) => c.conclusif) ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
-        background: 'var(--surface)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
-            Qu’ont répondu tes lots d’essai ?
-          </h3>
-          <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
-            Essais
-          </span>
+      {/* Aperçu TOUJOURS visible · des compteurs bruts (aucun score synthétique) et,
+          quand il existe, le conseil du prochain essai avec ses limites · trouvable
+          sans déplier tout le cumul. Le détail vit dans les trois révélations. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: conseil ? 12 : 18 }}>
+        <Compteur v={essaisVue?.lots.length ?? 0} l="lot(s) d’essai" />
+        <Compteur v={notes?.notes ?? 0} l="créa(s) notée(s)" />
+        <Compteur v={relectures?.relues ?? 0} l="pub(s) relue(s)" />
+      </div>
+
+      {conseil && (
+        <div style={{
+          marginBottom: 18, padding: '11px 14px', borderRadius: 12,
+          border: `1px solid ${conseil.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
+          background: 'var(--surface)',
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
+            {conseil.avantTout ? 'AVANT DE TESTER' : 'LE PROCHAIN ESSAI'}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginTop: 3, lineHeight: 1.45 }}>{conseil.question}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{conseil.pourquoi}</div>
+          {conseil.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
+          {conseil.variable && (
+            <Link href="/studio/ads" style={{ display: 'inline-block', marginTop: 8, fontSize: 11.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>
+              Lancer cet essai dans Pubs IA →
+            </Link>
+          )}
         </div>
-        <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
+      )}
+
+      {/* Ce que les lots d'essai ont répondu. Replié par défaut · l'aperçu et le
+          conseil vivent au-dessus, le détail se déplie quand on le demande. */}
+      <details id="essais" style={{
+        marginBottom: 12, padding: '14px 18px', borderRadius: 14,
+        border: `1px solid ${essaisVue?.cumuls.some((c) => c.conclusif) ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
+        background: 'var(--surface)', scrollMarginTop: 16,
+      }}>
+        <summary style={sommaire}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Qu’ont répondu tes lots d’essai ?</span>
+          <span style={etiquette}>Essais</span>
+          <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>déplier ▾</span>
+        </summary>
+        <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           Un lot d’essai fait varier <b>une seule chose</b> et tient tout le reste · même scène, mêmes
           textes, même gabarit. C’est la seule comparaison de l’outil où l’écart est vraiment
           attribuable à ce qu’on testait.
@@ -137,49 +165,26 @@ export async function SectionEssais() {
           </>
         )}
 
-        {conseil && (
-          <div style={{
-            marginTop: 12, padding: '10px 13px', borderRadius: 10,
-            border: `1px solid ${conseil.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
-            background: 'var(--paper)',
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
-              {conseil.avantTout ? 'AVANT DE TESTER' : 'LE PROCHAIN ESSAI'}
-            </div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginTop: 3, lineHeight: 1.45 }}>{conseil.question}</div>
-            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{conseil.pourquoi}</div>
-            {conseil.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
-            {conseil.variable && (
-              <Link href="/studio/ads" style={{ display: 'inline-block', marginTop: 8, fontSize: 11.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>
-                Lancer cet essai dans Pubs IA →
-              </Link>
-            )}
-          </div>
-        )}
-
         <p style={{ margin: '11px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
           Un lot seul donne <b>une observation par bras</b> · pas un taux. C’est en répétant l’essai
           que l’écart devient une mesure, et on ne conclut qu’au-dessus de ce que le hasard
           expliquerait. Les accroches ne se cumulent pas d’un essai à l’autre : chacun en compare de
           nouvelles.
         </p>
-      </section>
+      </details>
 
-      {/* Ce que les notes déjà payées disent ensemble. */}
-      <section id="bilan-notes" style={{
-        marginBottom: 24, padding: '16px 18px', borderRadius: 14,
+      {/* Ce que les notes déjà payées disent ensemble. Replié par défaut. */}
+      <details id="bilan-notes" style={{
+        marginBottom: 12, padding: '14px 18px', borderRadius: 14,
         border: `1px solid ${notes?.defauts.suspects.length ? 'rgba(255,90,120,.35)' : 'var(--line)'}`,
-        background: 'var(--surface)',
+        background: 'var(--surface)', scrollMarginTop: 16,
       }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
-            Ce que tes notes disent ensemble
-          </h3>
-          <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
-            Score Jarvis
-          </span>
-        </div>
-        <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
+        <summary style={sommaire}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Ce que tes notes disent ensemble</span>
+          <span style={etiquette}>Score Jarvis</span>
+          <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>déplier ▾</span>
+        </summary>
+        <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           Chaque Score Jarvis coûte deux crédits et ne servait qu’une fois. Voici leur somme ·
           d’où viennent tes ratés de fabrication, et ce qui tient le mieux chez toi.
         </p>
@@ -260,23 +265,20 @@ export async function SectionEssais() {
             </p>
           </>
         )}
-      </section>
+      </details>
 
-      {/* Ce que les relectures disent ensemble. */}
-      <section id="bilan-copie" style={{
-        marginBottom: 8, padding: '16px 18px', borderRadius: 14,
+      {/* Ce que les relectures disent ensemble. Replié par défaut. */}
+      <details id="bilan-copie" style={{
+        marginBottom: 8, padding: '14px 18px', borderRadius: 14,
         border: `1px solid ${relectures?.dimensions.some((d) => d.conclusif) ? 'rgba(255,90,120,.35)' : 'var(--line)'}`,
-        background: 'var(--surface)',
+        background: 'var(--surface)', scrollMarginTop: 16,
       }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
-            Quel moteur écrit tes mots, et garde ton produit
-          </h3>
-          <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
-            Pubs générées entièrement
-          </span>
-        </div>
-        <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
+        <summary style={sommaire}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Quel moteur écrit tes mots, et garde ton produit</span>
+          <span style={etiquette}>Pubs générées entièrement</span>
+          <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>déplier ▾</span>
+        </summary>
+        <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           En mode « générée entièrement », c’est le modèle d’images qui écrit la typographie. Chaque
           pub est relue à sa génération · voici la somme de ces relectures.
         </p>
@@ -341,7 +343,28 @@ export async function SectionEssais() {
             </p>
           </>
         )}
-      </section>
+      </details>
     </section>
   );
 }
+
+/** Un compteur brut de l'aperçu · un nombre déjà payé, aucun score synthétique. */
+function Compteur({ v, l }: { v: number; l: string }) {
+  return (
+    <div style={{ padding: '7px 12px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--surface)' }}>
+      <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>{v}</span>{' '}
+      <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{l}</span>
+    </div>
+  );
+}
+
+const sommaire = {
+  listStyle: 'none', cursor: 'pointer', userSelect: 'none',
+  display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap',
+  minHeight: CIBLE_TACTILE_MIN,
+} as const;
+
+const etiquette = {
+  fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em',
+  color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)',
+} as const;
