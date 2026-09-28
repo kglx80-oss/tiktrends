@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { partDeMax, LIBELLE_CANAL, LIBELLE_QUALIFICATION, resumeMarcheEnTete, type CanalRangee, type QualifRangee } from '@tiktrends/core';
 import { marketViewAction, learnFromFollowedAction, type MarketView } from '../../actions/market-learn';
 import { BarreValeur } from '../../../components/BarreValeur';
@@ -54,6 +54,11 @@ export function MarketPanel() {
   const [v, setV] = useState<MarketView | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ texte: string; erreur: boolean } | null>(null);
+  // La lecture détaillée (confrontations + parts d'usage) est repliée par
+  // défaut · elle ne s'étale plus comme une seconde page sous la grille. Ouvrir
+  // le dépliable n'appelle RIEN · la seule dépense reste le bouton « Apprendre ».
+  const [ouvert, setOuvert] = useState(false);
+  const detailId = useId();
 
   const charger = useCallback(async () => {
     const r = await marketViewAction();
@@ -74,6 +79,9 @@ export function MarketPanel() {
   }
 
   const pct = (x: number) => `${Math.round(x * 100)} %`;
+  // De quoi la lecture détaillée est-elle faite · confrontations et/ou parts.
+  // Sans données, on n'ouvre pas un dépliable vide · on énonce un état factuel.
+  const aDesDonnees = !!v && (v.contrasts.length > 0 || v.rows.length > 0);
 
   return (
     <section style={{ marginTop: 22, padding: '16px 18px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)' }}>
@@ -86,10 +94,13 @@ export function MarketPanel() {
             signal disponible est qu’<b>une pub qui tourne encore après trois semaines est une pub que
             son annonceur continue de payer</b>.
           </p>
-          {v && (
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
-              {v.sampleSize} créa(s) décrites · {v.provenSize} qui tiennent · {v.advertisers} annonceur(s).
-            </p>
+          {v && (v.sampleSize > 0
+            ? <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+                {v.sampleSize} créa(s) décrites · {v.provenSize} qui tiennent · {v.advertisers} annonceur(s).
+              </p>
+            : <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+                Aucune créa concurrente décrite pour l’instant · suis des marques dans la Veille, puis lance « Apprendre » pour nourrir cette lecture.
+              </p>
           )}
         </div>
         <button type="button" onClick={apprendre} disabled={busy} style={{
@@ -106,7 +117,15 @@ export function MarketPanel() {
         </p>
       )}
 
-      {v && (
+      {aDesDonnees && (
+        <button type="button" onClick={() => setOuvert((o) => !o)} aria-expanded={ouvert} aria-controls={detailId}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, marginTop: 6, padding: '0 2px', fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+          {ouvert ? 'Masquer la lecture détaillée' : 'Voir la lecture détaillée'} <span aria-hidden>{ouvert ? '▴' : '▾'}</span>
+        </button>
+      )}
+
+      <div id={detailId} hidden={!aDesDonnees || !ouvert}>
+        {v && (
         <>
           {/* CDC v8 · F05 · le résumé n'est affiché QUE s'il n'est pas déjà la
               première carte de confrontation ci-dessous · sinon la même
@@ -198,7 +217,8 @@ export function MarketPanel() {
             </details>
           )}
         </>
-      )}
+        )}
+      </div>
 
       <p style={{ margin: '12px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
         2 crédits par créa décrite · par lots de 20. Une créa déjà décrite n’est jamais repayée.

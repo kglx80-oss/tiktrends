@@ -25,7 +25,15 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string }) {
+export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
+  /**
+   * Rend le pont vers la création DISCRET · même lien, même texte, même
+   * comportement, mais sans le fond plein accentué. La Veille mène par
+   * l'observation et l'analyse · la création y est secondaire. Défaut `false` ·
+   * les autres usages de la carte (Sauvegardes, découverte, tracker) gardent
+   * l'emphase existante et ne régressent pas.
+   */
+  ctaSobre?: boolean }) {
   // Gagnant = éprouvé · tient depuis assez longtemps, ou portée qui progresse.
   // On le flague et on pousse le clone · c'est la pub PROUVÉE qu'on veut refaire,
   // pas le énième lancement d'un concurrent.
@@ -102,10 +110,10 @@ export function AdCard({ ad, saved = false, following = false, cloneRef }: { ad:
         {/* La piste qui tient est mise en avant · fond plein, l'action évidente.
              Une pub sans signal garde le geste discret · rien n'y presse. */}
         <a href={studioDepuisVeille(ad, { ref: cloneRef })}
-          style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: gagnant ? 800 : 700, padding: '7px 10px', borderRadius: 10,
-            border: gagnant ? 'none' : '1px solid var(--line-2)',
-            background: gagnant ? 'var(--grad-accent)' : 'transparent',
-            color: gagnant ? 'var(--on-accent)' : 'var(--ink)', textDecoration: 'none' }}>
+          style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: (gagnant && !ctaSobre) ? 800 : 700, padding: '7px 10px', borderRadius: 10,
+            border: (gagnant && !ctaSobre) ? 'none' : '1px solid var(--line-2)',
+            background: (gagnant && !ctaSobre) ? 'var(--grad-accent)' : 'transparent',
+            color: (gagnant && !ctaSobre) ? 'var(--on-accent)' : (ctaSobre ? 'var(--ink-2)' : 'var(--ink)'), textDecoration: 'none' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {gagnant ? 'Décline cette piste' : 'Génère ta version'}</span>
         </a>
       </div>

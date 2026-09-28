@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { Bandeau } from '../../../components/Bandeau';
@@ -19,6 +20,10 @@ import { SectionMarche } from '../jarvis/sections/SectionMarche';
 export const dynamic = 'force-dynamic';
 
 const feature = FEATURES.find((f) => f.key === 'inspo')!;
+// La mémoire marché de Jarvis suit l'offre Plus (`adsmap`) · sert à savoir si
+// le raccourci « Lecture du marché » a une destination (la section ne rend rien
+// sans cet accès ni marque active).
+const adsmapFeature = FEATURES.find((f) => f.key === 'adsmap')!;
 const CHIPS = ['skincare', 'fitness', 'mode', 'maison', 'nutrition', 'beauté', 'gadget'];
 const LIMIT = 24;
 
@@ -46,7 +51,11 @@ type SP = {
 };
 
 const PLATFORMS: [AdPlatform, string][] = [['meta', 'Meta'], ['tiktok', 'TikTok'], ['google', 'Google']];
-const platformLabel: Record<AdPlatform, string> = { meta: 'Meta', tiktok: 'TikTok', google: 'Google' };
+// Libellés des filtres avancés · servent aux puces « critères actifs » sans
+// redéclarer les listes deux fois.
+const SEARCHIN_LABEL: Record<string, string> = { ad_copy: 'copy', brand: 'marque', domain: 'domaine' };
+const SORT_LABEL: Record<string, string> = Object.fromEntries(SORTS);
+const MEDIA_LABEL: Record<string, string> = { video: 'Vidéo', image: 'Image' };
 
 function buildQS(sp: SP, over: Partial<SP>): string {
   const merged = { ...sp, ...over };
@@ -85,12 +94,13 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
   const sp = await searchParams;
   const query = (sp.q || '').trim();
-  // Un critère de veille est actif dès qu'un champ restreint la recherche · sert
-  // à proposer « Réinitialiser » (retour à la vue par défaut) · exigence S13.
-  const filtresVeilleActifs = !!(query || sp.media || sp.status || sp.sort || sp.country);
   const platform: AdPlatform = sp.p === 'tiktok' || sp.p === 'google' ? sp.p : 'meta';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
   const apiKey = process.env.TRENDTRACK_API_KEY;
+  // Base de la source · surchargée par `TRENDTRACK_BASE_URL` (proxy auto-hébergé
+  // ou mock local de recette). Absente en production → l'intégration retombe sur
+  // l'URL par défaut · aucun changement de comportement.
+  const baseUrl = process.env.TRENDTRACK_BASE_URL || undefined;
 
   // Détection URL/domaine : si l'utilisateur tape une URL ou un domaine,
   // on bascule automatiquement en recherche par domaine (plus pertinent).
@@ -135,15 +145,15 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       try {
         let r;
         if (platform === 'tiktok') {
-          r = await ttSearchTikTok({ apiKey }, {
+          r = await ttSearchTikTok({ apiKey, baseUrl }, {
             search: autoDomain ? undefined : effSearch,
             domain: autoDomain ? effSearch : undefined,
             limit: LIMIT, page, mediaType: media,
           });
         } else if (platform === 'google') {
-          r = await ttSearchGoogle({ apiKey }, { search: effSearch, limit: LIMIT, page, country: sp.country || undefined });
+          r = await ttSearchGoogle({ apiKey, baseUrl }, { search: effSearch, limit: LIMIT, page, country: sp.country || undefined });
         } else {
-          r = await ttSearchAds({ apiKey }, {
+          r = await ttSearchAds({ apiKey, baseUrl }, {
             search: effSearch, limit: LIMIT, offset: (page - 1) * LIMIT,
             mediaType: media,
             status: sp.status === 'active' ? 'active' : 'all',
@@ -169,7 +179,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       const cle = cleRecherche(['defaut', platform, seed, page, sp.country]);
       const enCache = sp.refresh ? undefined : lireRecherche(cle);
       if (enCache) return { ads: enCache.ads, total: enCache.total };
-      const r = await ttSearchAds({ apiKey }, {
+      const r = await ttSearchAds({ apiKey, baseUrl }, {
         search: seed, limit: LIMIT, offset: (page - 1) * LIMIT,
         status: 'active', searchIn: 'ad_copy', sortBy: 'longestRunning',
         country: sp.country || undefined,
@@ -213,58 +223,108 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
   const totalPages = Math.min(Math.ceil(total / LIMIT) || 1, 417);
 
+  // La « Lecture du marché » n'a de destination que si la section peut rendre
+  // (offre Plus + marque active) · sinon on ne propose pas d'ancrage vide.
+  const marcheDispo = canAccess(access, adsmapFeature) && !!brand;
+
+  // Critères avancés actifs · pour l'étiquette « Filtres (N) » et les puces des
+  // critères actifs. On ne compte jamais un filtre que la source n'honore pas.
+  const avances: Array<{ cle: keyof SP; texte: string }> = [];
+  if (sp.searchIn) avances.push({ cle: 'searchIn', texte: 'Dans : ' + (SEARCHIN_LABEL[sp.searchIn] ?? sp.searchIn) });
+  if (platform === 'meta' && sp.sort) avances.push({ cle: 'sort', texte: 'Tri : ' + (SORT_LABEL[sp.sort] ?? sp.sort) });
+  if (sp.media && MEDIA_LABEL[sp.media]) avances.push({ cle: 'media', texte: MEDIA_LABEL[sp.media]! });
+  if (sp.status === 'active') avances.push({ cle: 'status', texte: 'Actives' });
+  if (sp.country) avances.push({ cle: 'country', texte: 'Pays : ' + sp.country });
+
   return (
     <main style={wrap}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={h1}>Veille</h1>
-        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>bibliothèque concurrentielle · {platformLabel[platform]}</span>
-      </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
-        Recherche les publicités qui tournent chez tes concurrents. L'ancienneté (<b>jours actifs</b>) est un proxy de performance.
+      {/* En-tête sobre · observer pour préparer un test, pas une promesse. */}
+      <h1 style={h1}>Veille</h1>
+      <p style={{ color: 'var(--ink-2)', fontSize: 14, marginTop: 8, marginBottom: 6, maxWidth: 640, lineHeight: 1.5 }}>
+        Observe les publicités du marché pour préparer tes prochains tests.
+      </p>
+      <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0, marginBottom: 16, maxWidth: 640, lineHeight: 1.5 }}>
+        Durée de diffusion et portée sont des <b style={{ color: 'var(--ink-2)' }}>signaux d’observation</b>, pas des preuves de rentabilité.
       </p>
 
-      <PageInfo title="chercher & sourcer des créas">
-        Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
-        (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
-        fait remonter les créas diffusées depuis longtemps (souvent des gagnantes). Clique <b>★</b> pour sauvegarder une
-        créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
-      </PageInfo>
-
-      {/* Filtres */}
-      <form action="/veille" method="get" style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: 1, minWidth: 240, ...inputBase }} />
-          <button type="submit" style={searchBtn}>Rechercher</button>
-          {filtresVeilleActifs && (
-            <a href="/veille" style={{ display: 'inline-flex', alignItems: 'center', padding: '11px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN }}>Réinitialiser</a>
-          )}
-        </div>
-        {/* Grille auto-ajustée · les filtres forment des colonnes égales qui se
-            reflowent tout seuls · une ligne pleine sur large écran, deux ou trois
-            colonnes sur mobile, sans media query (styles inline obligent). */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
-          <Select name="p" def={sp.p} opts={PLATFORMS} />
-          <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
-          {platform === 'meta' && <Select name="sort" def={sp.sort} opts={SORTS.map(([v, l]) => [v, 'Tri : ' + l])} />}
-          <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
-          <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
-          <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
-        </div>
-        {/* Honnêteté des filtres (R14) · on n'affiche que ce que la source
-            honore réellement. Langue, reach mini et ancienneté mini ne sont pas
-            branchés · on ne les propose pas plutôt que de les ignorer en silence. */}
-        <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
-          Filtres langue, reach minimum et ancienneté minimum · non disponibles depuis la source pour l'instant. Ils reviendront une fois pris en charge côté fournisseur.
-        </p>
-      </form>
-
-      {/* Chips thématiques (réinitialisent la recherche en gardant les filtres) */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-        {CHIPS.map((c) => (
-          <a key={c} href={buildQS(sp, { q: c, page: '1' })} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 999, border: '1px solid var(--line)', color: 'var(--ink-2)', textDecoration: 'none' }}>{c}</a>
-        ))}
+      {/* Accès voisins compacts · l'observation approfondie et la mémoire, à côté. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <LienSec href="/veille/scale" icon="trend">Ce qui scale</LienSec>
+        <LienSec href="/radar" icon="radar">Radar produits</LienSec>
+        <LienSec href="/saved" icon="bookmark">Sauvegardes</LienSec>
+        {marcheDispo && <LienSec href="#lecture-marche" icon="brain">Lecture du marché ↓</LienSec>}
       </div>
 
+      {/* Recherche + plateforme accessibles d'emblée · les 5 autres filtres
+          repliés (mais dans le form · ils partent quand même à la soumission). */}
+      <form action="/veille" method="get" style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: '1 1 240px', minWidth: 0, ...inputBase }} />
+          <select name="p" defaultValue={sp.p ?? 'meta'} aria-label="Plateforme" style={{ ...inputBase, padding: '8px 12px', fontSize: 13.5, cursor: 'pointer', flex: '0 0 auto' }}>
+            {PLATFORMS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <button type="submit" style={searchBtn}>Rechercher</button>
+        </div>
+
+        {/* Critères actifs · compacts, chacun retirable ; réinitialisation globale. */}
+        {avances.length > 0 && (
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+            {avances.map((a) => (
+              <a key={a.cle} href={buildQS(sp, { [a.cle]: '', page: '1' })} title="Retirer ce critère"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, padding: '4px 10px', borderRadius: 999, border: '1px solid rgba(255,92,138,.4)', background: 'var(--paper)', color: 'var(--ink)', textDecoration: 'none' }}>
+                {a.texte} <span aria-hidden style={{ color: 'var(--muted)' }}>✕</span>
+              </a>
+            ))}
+            <a href="/veille" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', textDecoration: 'none' }}>Réinitialiser</a>
+          </div>
+        )}
+
+        {/* Filtres avancés · repliés par défaut, ne repoussent pas les résultats.
+            En <details> natif · les <select> restent dans le DOM et se soumettent
+            même fermés · valeurs et réinitialisation préservées via l'URL. */}
+        <details style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)' }}>
+          <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', fontSize: 13, fontWeight: 700, color: 'var(--ink-2)' }}>
+            <span aria-hidden style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="gauge" size={15} /></span>
+            Filtres{avances.length > 0 ? ` · ${avances.length} actif${avances.length > 1 ? 's' : ''}` : ''}
+            <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 12 }}>▾</span>
+          </summary>
+          <div style={{ padding: '4px 14px 14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+              <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
+              {platform === 'meta' && <Select name="sort" def={sp.sort} opts={SORTS.map(([v, l]) => [v, 'Tri : ' + l])} />}
+              <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
+              <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
+              <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
+            </div>
+            {/* Honnêteté des filtres (R14) · on n'affiche que ce que la source honore. */}
+            <p style={{ margin: '10px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+              Filtres langue, reach minimum et ancienneté minimum · non disponibles depuis la source pour l'instant. Ils reviendront une fois pris en charge côté fournisseur.
+            </p>
+          </div>
+        </details>
+
+        {/* Aide et explications techniques · à la demande. */}
+        <PageInfo title="chercher & sourcer des créas">
+          Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
+          (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
+          fait remonter les créas diffusées depuis longtemps. Clique <b>★</b> pour sauvegarder une
+          créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
+        </PageInfo>
+      </form>
+
+      {/* Thématiques · révélation optionnelle, elles ne poussent pas la grille. */}
+      <details style={{ marginBottom: 16 }}>
+        <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 700, color: 'var(--muted)' }}>
+          <Icon name="sparkles" size={14} /> Suggestions de thématiques
+        </summary>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+          {CHIPS.map((c) => (
+            <a key={c} href={buildQS(sp, { q: c, page: '1' })} style={{ fontSize: 12, padding: '6px 13px', borderRadius: 999, border: '1px solid var(--line)', color: 'var(--ink-2)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>{c}</a>
+          ))}
+        </div>
+      </details>
+
+      {/* Bandeau source/démo · TOUJOURS avant la grille. */}
       {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon réel. La source de données n'est pas encore configurée sur le serveur pour la recherche en direct.</Bandeau>}
       {error && <Bandeau ton="error">Erreur de la source de données : {error}</Bandeau>}
       {!sample && !error && !query && defaut && (
@@ -279,10 +339,12 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {!sample && !error && !query && !defaut && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}
       {!sample && !error && query && <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>≈ {compact(total)} annonce(s) · page {page}/{totalPages}{autoDomain && <> · recherche par domaine <b style={{ color: 'var(--ink-2)' }}>{effSearch}</b></>}</p>}
 
-      {/* Grille */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
+      {/* Grille aérée · médias prédominants, 3-4 colonnes selon la place, 2 en
+          tablette, 1 en mobile · auto-fill garde des cartes de taille normale
+          même à deux résultats (pas d'étirement géant). */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 18 }}>
         {ads.map((ad) => (
-          <AdCard key={ad.id} ad={ad}
+          <AdCard key={ad.id} ad={ad} ctaSobre
             saved={savedSet.has(ad.platform + ':' + ad.id)}
             following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}
@@ -313,11 +375,35 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         </div>
       )}
 
+      {/* Transition vers l'itération · un lien EXPLICITE, sans workflow fictif ·
+          il n'y a pas de passage de contexte veille→Adsmap, on ne le prétend pas. */}
+      {ads.length > 0 && (
+        <div style={{ marginTop: 26, padding: '14px 16px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>Une piste t’inspire ?</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 3, lineHeight: 1.5 }}>Le test se prépare dans Adsmap · c’est là que tu poses l’hypothèse et lis le verdict. Ce lien ouvre simplement tes tests.</div>
+          </div>
+          <a href="/adsmap" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: CIBLE_TACTILE_MIN, padding: '10px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+            <span aria-hidden style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name="radar" size={16} /></span>
+            Ouvrir mes tests dans Adsmap <span aria-hidden>→</span>
+          </a>
+        </div>
+      )}
+
       {/* La mémoire marché de Jarvis · ce qu'il a retenu des concurrents suivis,
           à sa destination. Self-porté (offre Plus, marque active) · rend null pour
           un compte qui n'y avait pas droit, la Veille reste accessible dès Core. */}
       <SectionMarche />
     </main>
+  );
+}
+
+function LienSec({ href, icon, children }: { href: string; icon: string; children: ReactNode }) {
+  return (
+    <a href={href} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: CIBLE_TACTILE_MIN, padding: '8px 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}>
+      <span aria-hidden style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name={icon} size={15} /></span>
+      {children}
+    </a>
   );
 }
 
@@ -331,8 +417,8 @@ function Select({ name, def, opts }: { name: string; def?: string; opts: string[
 
 // Marge latérale fluide · 36px sur large écran, 16px sur mobile · le contenu ne
 // se colle plus aux bords du téléphone.
-const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' } as const;
-const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;
+const wrap = { padding: '32px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' } as const;
+const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-.01em', color: 'var(--ink)' } as const;
 // minHeight: CIBLE_TACTILE_MIN · le champ de recherche ET les filtres <Select>
 // partagent inputBase · un seul endroit les porte tous deux à la cible tactile.
 const inputBase = { padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none', minHeight: CIBLE_TACTILE_MIN } as const;

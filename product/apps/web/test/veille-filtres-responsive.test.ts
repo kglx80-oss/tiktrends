@@ -23,6 +23,8 @@ describe('la Veille tient sur un écran étroit', () => {
   });
 
   it('la marge latérale de la page est fluide', () => {
-    expect(SRC, 'la marge latérale figée revient coller le contenu aux bords').toContain('clamp(16px, 4vw, 36px)');
+    // Charte Jarvis · marge 32 desktop / 16 mobile · reste fluide (clamp), seule
+    // la borne haute passe de 36 à 32.
+    expect(SRC, 'la marge latérale figée revient coller le contenu aux bords').toContain('clamp(16px, 4vw, 32px)');
   });
 });
