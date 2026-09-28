@@ -313,9 +313,20 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
       </form>
 
-      {/* Suggestions + aide · une même rangée de révélations compactes · elles
-          ne repoussent pas la grille (repliées par défaut). */}
+      {/* Aide + suggestions · une même rangée de révélations compactes, repliées
+          par défaut · elles ne repoussent pas la grille. L'Aide est en tête (à
+          gauche) · son panneau absolu s'ouvre alors dans le viewport, sans
+          déborder à droite comme il le ferait depuis une position décalée. */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 10 }}>
+        <div style={{ flex: '0 1 auto' }}>
+          <PageInfo title="Aide" minHeight={CIBLE_TACTILE_MIN}>
+            Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
+            (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
+            fait remonter les créas diffusées depuis longtemps. Clique <b>★</b> pour sauvegarder une
+            créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
+            Sans <b>catégorie de marque</b> renseignée, la sélection par défaut est générique · précise la catégorie pour cibler.
+          </PageInfo>
+        </div>
         <details style={{ flex: '1 1 auto', minWidth: 0 }}>
           <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 700, color: 'var(--muted)' }}>
             <Icon name="sparkles" size={14} /> Suggestions de thématiques
@@ -326,15 +337,6 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             ))}
           </div>
         </details>
-        <div style={{ flex: '0 1 auto' }}>
-          <PageInfo title="Aide" minHeight={CIBLE_TACTILE_MIN}>
-            Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
-            (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
-            fait remonter les créas diffusées depuis longtemps. Clique <b>★</b> pour sauvegarder une
-            créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
-            Sans <b>catégorie de marque</b> renseignée, la sélection par défaut est générique · précise la catégorie pour cibler.
-          </PageInfo>
-        </div>
       </div>
 
       {/* Bandeau source/démo · TOUJOURS avant la grille. */}
