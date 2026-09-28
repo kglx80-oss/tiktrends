@@ -31,7 +31,7 @@ export async function SectionMarche() {
   if (!brand) return null;
 
   return (
-    <section aria-label="Mémoire marché de Jarvis" style={{ marginTop: 30, borderTop: '1px solid var(--line)', paddingTop: 22 }}>
+    <section id="lecture-marche" aria-label="Mémoire marché de Jarvis" style={{ marginTop: 30, borderTop: '1px solid var(--line)', paddingTop: 22, scrollMarginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Mémoire marché de Jarvis</h2>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>

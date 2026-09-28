@@ -25,11 +25,14 @@ describe('S13 · erreurs via Bandeau (Inbox, Lots) et reset Veille', () => {
 
   it('Veille propose Réinitialiser quand un critère est actif', () => {
     const s = read('app/(app)/veille/page.tsx');
-    // Le lien de reset est GARDÉ par le critère actif · sinon il s'afficherait
-    // même sur la vue par défaut (rien à réinitialiser).
-    const i = s.indexOf('{filtresVeilleActifs && (');
+    // Le lien de reset est GARDÉ par un critère avancé actif · sinon il
+    // s'afficherait même sur la vue par défaut (rien à réinitialiser). Le bloc
+    // « critères actifs » (puces retirables) porte aussi la réinitialisation.
+    const i = s.indexOf('{avances.length > 0 && (');
     expect(i, 'le reset n’est pas gardé par un critère actif').toBeGreaterThan(-1);
-    const bloc = s.slice(i, i + 520);
+    // Le bloc « critères actifs » (puces retirables + réinitialisation) · on lit
+    // jusqu'à sa fermeture pour couvrir le lien de reset après la boucle.
+    const bloc = s.slice(i, i + 1400);
     expect(bloc).toContain('<a href="/veille"');
     expect(bloc).toContain('Réinitialiser');
   });

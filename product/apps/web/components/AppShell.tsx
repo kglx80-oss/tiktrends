@@ -195,7 +195,7 @@ function AppShellInner(props: Props) {
   const pathname = usePathname();
   // Le support est ANCRÉ (zone de commandes en pied) sur les écrans denses en
   // commandes bas-de-page · ailleurs il reste flottant, /jarvis le masque.
-  const supportAncre = pathname === '/studio/ads' || pathname === '/dashboard';
+  const supportAncre = pathname === '/studio/ads' || pathname === '/dashboard' || pathname === '/veille';
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
