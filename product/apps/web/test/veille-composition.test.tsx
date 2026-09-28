@@ -43,6 +43,15 @@ describe('Veille · le pont de création est SECONDAIRE (HTML rendu)', () => {
     const contexte = h.slice(Math.max(0, iCta - 400), iCta);
     expect(contexte, 'le CTA Veille garde un fond accentué au lieu d’être sobre').not.toContain('var(--grad-accent)');
   });
+
+  it('en Veille (cibles44) les liens autonomes et le pont portent la cible tactile 44', () => {
+    const n44 = (s: string) => (s.match(/min-height:44px/g) || []).length;
+    const avec = renderToStaticMarkup(<AdCard ad={adGagnant} ctaSobre cibles44 />);
+    const sans = renderToStaticMarkup(<AdCard ad={adGagnant} ctaSobre />);
+    // Mutation : si `cibles44` était ignoré, les deux rendus auraient le même
+    // nombre de cibles 44 · le drapeau doit en ajouter (biblio, site, CTA).
+    expect(n44(avec), 'les liens de carte restent sous 44 en Veille').toBeGreaterThan(n44(sans));
+  });
 });
 
 describe('Veille · la page mène par l’observation (source)', () => {

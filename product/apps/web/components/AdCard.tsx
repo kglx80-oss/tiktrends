@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque } from '@tiktrends/core';
+import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -25,7 +25,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
+export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false, cibles44 = false }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
   /**
    * Rend le pont vers la création DISCRET · même lien, même texte, même
    * comportement, mais sans le fond plein accentué. La Veille mène par
@@ -33,7 +33,15 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
    * les autres usages de la carte (Sauvegardes, découverte, tracker) gardent
    * l'emphase existante et ne régressent pas.
    */
-  ctaSobre?: boolean }) {
+  ctaSobre?: boolean;
+  /**
+   * Porte les liens AUTONOMES de la carte (biblio, site) et le pont de création
+   * à la cible tactile 44 · un lien de carte n'est pas un lien inline exempté.
+   * Défaut `false` · les autres surfaces (Sauvegardes, découverte, tracker,
+   * landing) gardent leur densité inchangée.
+   */
+  cibles44?: boolean }) {
+  const t44 = cibles44 ? { minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' } as const : null;
   // Gagnant = éprouvé · tient depuis assez longtemps, ou portée qui progresse.
   // On le flague et on pousse le clone · c'est la pub PROUVÉE qu'on veut refaire,
   // pas le énième lancement d'un concurrent.
@@ -98,8 +106,8 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
         )}
         {(biblio || site) && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={lienExterne} title="Ouvre une recherche par nom d’annonceur · pas l’annonce exacte">{libelleBibliotheque(biblio)} ↗</a>}
-            {site && <a href={site} target="_blank" rel="noreferrer" style={lienExterne}>Site ↗</a>}
+            {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={{ ...lienExterne, ...t44 }} title="Ouvre une recherche par nom d’annonceur · pas l’annonce exacte">{libelleBibliotheque(biblio)} ↗</a>}
+            {site && <a href={site} target="_blank" rel="noreferrer" style={{ ...lienExterne, ...t44 }}>Site ↗</a>}
           </div>
         )}
         {/* Le pont veille → création. Il pointait vers `/studio` (le hub, pas les
@@ -111,6 +119,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
              Une pub sans signal garde le geste discret · rien n'y presse. */}
         <a href={studioDepuisVeille(ad, { ref: cloneRef })}
           style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: (gagnant && !ctaSobre) ? 800 : 700, padding: '7px 10px', borderRadius: 10,
+            ...(cibles44 ? { minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', justifyContent: 'center' } : null),
             border: (gagnant && !ctaSobre) ? 'none' : '1px solid var(--line-2)',
             background: (gagnant && !ctaSobre) ? 'var(--grad-accent)' : 'transparent',
             color: (gagnant && !ctaSobre) ? 'var(--on-accent)' : (ctaSobre ? 'var(--ink-2)' : 'var(--ink)'), textDecoration: 'none' }}>

@@ -104,6 +104,7 @@ export function MarketPanel() {
           )}
         </div>
         <button type="button" onClick={apprendre} disabled={busy} style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44,
           padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
           color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
         }}>
@@ -168,7 +169,7 @@ export function MarketPanel() {
           {/* Les parts ensuite · avec le rappel que ce ne sont pas des performances. */}
           {v.rows.length > 0 && (
             <details style={{ marginTop: 14 }}>
-              <summary style={{ fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>
+              <summary style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>
                 Voir les parts d’usage du marché
               </summary>
               <p style={{ margin: '9px 0 10px', fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>

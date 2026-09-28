@@ -8,12 +8,18 @@ import type { ReactNode } from 'react';
  * propriétaire ne l'avait jamais vu. On le rend visible : une pastille bordée,
  * un « i » en accent, un libellé lisible · sans crier, mais on le trouve.
  */
-export function PageInfo({ children, title = 'Mode d’emploi' }: { children: ReactNode; title?: string }) {
+export function PageInfo({ children, title = 'Mode d’emploi', minHeight }: {
+  children: ReactNode; title?: string;
+  /** Hauteur minimale du chip · opt-in (ex. 44 pour la cible tactile) · absente
+   *  ailleurs, les 26 autres usages gardent leur taille inchangée. */
+  minHeight?: number;
+}) {
   return (
     <details style={{ position: 'relative', display: 'inline-block', marginBottom: 14 }}>
       <summary style={{
         listStyle: 'none', cursor: 'pointer', userSelect: 'none',
         display: 'inline-flex', alignItems: 'center', gap: 7,
+        ...(minHeight ? { minHeight } : null),
         padding: '5px 12px 5px 7px', borderRadius: 999,
         border: '1px solid var(--line-2)', background: 'var(--surface)',
         fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)',

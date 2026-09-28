@@ -20,6 +20,23 @@ import 'server-only';
  * Hors recette, la fonction renvoie `undefined` et l'intégration retombe sur son
  * URL par défaut · le comportement de production ne change pas.
  */
+/**
+ * La clé envoyée à la source EN RECETTE · un identifiant factice CONSTANT, sans
+ * aucun rapport avec `TRENDTRACK_API_KEY`. Ainsi, même si une vraie clé traîne
+ * dans l'environnement de dev, elle n'est jamais dirigée vers le mock loopback.
+ */
+export const RECETTE_API_KEY = 'recette-mock-key';
+
+/**
+ * Choisit la clé EFFECTIVE de la requête · en recette (base loopback active) la
+ * clé factice constante ; sinon la vraie clé d'environnement (comportement de
+ * production inchangé). On ne lit jamais la vraie clé quand la base recette est
+ * active · la vraie clé ne peut donc pas partir vers le mock.
+ */
+export function cleEffective(baseRecette: string | undefined, cleEnv: string | undefined): string | undefined {
+  return baseRecette ? RECETTE_API_KEY : cleEnv;
+}
+
 export function baseUrlRecette(): string | undefined {
   // 1. Jamais en production.
   if (process.env.NODE_ENV === 'production') return undefined;

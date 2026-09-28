@@ -16,7 +16,7 @@ import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
 import { Icon } from '../../../components/Icon';
 import { Empty } from '../../../components/Empty';
 import { SectionMarche } from '../jarvis/sections/SectionMarche';
-import { baseUrlRecette } from '../../../lib/veille-recette-base';
+import { baseUrlRecette, cleEffective } from '../../../lib/veille-recette-base';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,11 +97,13 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   const query = (sp.q || '').trim();
   const platform: AdPlatform = sp.p === 'tiktok' || sp.p === 'google' ? sp.p : 'meta';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
-  const apiKey = process.env.TRENDTRACK_API_KEY;
   // Base de source ALTERNATIVE réservée à la recette locale (mock loopback) ·
   // refusée en production, opt-in explicite, hôte loopback uniquement. Hors
   // recette → undefined → l'intégration garde son URL par défaut.
   const baseUrl = baseUrlRecette();
+  // Clé effective · EN RECETTE une clé factice constante (jamais la vraie clé
+  // d'environnement, même si elle est posée) · sinon la vraie clé de production.
+  const apiKey = cleEffective(baseUrl, process.env.TRENDTRACK_API_KEY);
 
   // Détection URL/domaine : si l'utilisateur tape une URL ou un domaine,
   // on bascule automatiquement en recherche par domaine (plus pertinent).
@@ -325,7 +327,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           </div>
         </details>
         <div style={{ flex: '0 1 auto' }}>
-          <PageInfo title="Aide">
+          <PageInfo title="Aide" minHeight={CIBLE_TACTILE_MIN}>
             Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
             (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
             fait remonter les créas diffusées depuis longtemps. Clique <b>★</b> pour sauvegarder une
@@ -353,7 +355,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           même à deux résultats (pas d'étirement géant). */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 18 }}>
         {ads.map((ad) => (
-          <AdCard key={ad.id} ad={ad} ctaSobre
+          <AdCard key={ad.id} ad={ad} ctaSobre cibles44
             saved={savedSet.has(ad.platform + ':' + ad.id)}
             following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import { baseUrlRecette } from '../lib/veille-recette-base';
+import { baseUrlRecette, cleEffective, RECETTE_API_KEY } from '../lib/veille-recette-base';
 
 /**
  * La base de source alternative de /veille est un dispositif de RECETTE, pas un
@@ -49,5 +49,18 @@ describe('baseUrlRecette · garde stricte hors production', () => {
   it('REFUS d’une URL invalide', () => {
     vi.stubEnv('TRENDTRACK_BASE_URL', 'pas-une-url');
     expect(baseUrlRecette()).toBeUndefined();
+  });
+});
+
+describe('cleEffective · la vraie clé ne part JAMAIS vers le mock', () => {
+  it('en recette (base loopback active) · clé factice constante, pas la vraie clé d’environnement', () => {
+    const cle = cleEffective('http://127.0.0.1:9099', 'VRAIE-CLE-SECRETE');
+    expect(cle).toBe(RECETTE_API_KEY);
+    expect(cle).not.toBe('VRAIE-CLE-SECRETE');
+  });
+
+  it('hors recette (pas de base alternative) · la vraie clé d’environnement est utilisée (prod inchangée)', () => {
+    expect(cleEffective(undefined, 'VRAIE-CLE-SECRETE')).toBe('VRAIE-CLE-SECRETE');
+    expect(cleEffective(undefined, undefined)).toBeUndefined();
   });
 });
