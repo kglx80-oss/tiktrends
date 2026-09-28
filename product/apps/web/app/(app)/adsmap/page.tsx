@@ -90,28 +90,27 @@ export default async function AdsMapPage() {
         {peutMesurer && <ShareButton />}
         {peutMesurer && <SyncButton syncedAt={row?.at ? row.at.toISOString() : null} />}
       </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 12, maxWidth: 720, lineHeight: 1.55 }}>
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 3, marginBottom: 8, maxWidth: 720, lineHeight: 1.5 }}>
         Chaque test, son verdict, et ce qu’il t’apprend pour le suivant.
       </p>
 
-      {/* Raccourcis locaux DISCRETS · préparer un test en amont, voir les suites en
-          aval, sauter au cumul. Le rail garde la navigation complète du module ·
-          ce ne sont pas des blocs, juste des liens repérables sous l'en-tête. */}
-      <nav aria-label="Raccourcis Adsmap" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '0 0 14px' }}>
+      {/* Raccourcis locaux et aide sur UNE seule rangée · préparer un test en amont,
+          voir les suites en aval, sauter au cumul, lire la carte. Le rail garde la
+          navigation complète · on regroupe pour dégager le haut sans rien retirer. */}
+      <nav aria-label="Raccourcis et aide Adsmap" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '0 0 10px' }}>
         {peutMesurer && <LienLocal href="/adsmap/lots" label="Préparer un test" />}
         <LienLocal href="/adsmap/suites" label="Voir les suites" />
         <LienLocal href="#appris" label="Apprentissages" ancre />
+        <PageInfo title="lire cette carte" mb={0}>
+          Une ad n’entre en test qu’avec une <b>hypothèse</b> et <b>une seule variable</b> modifiée : c’est ce qui permet
+          d’attribuer un résultat à une cause. Le verdict est <b>calculé</b>, pas saisi · un astérisque signale un test
+          hors protocole, dont la conclusion ne vaut que par comparaison au sein du lot. Le <b>CPA</b> est suivi de sa
+          borne haute : avec peu d’achats, l’écart entre les deux dit à quel point le chiffre est encore incertain.
+          L’onglet <b>Carte</b> montre la même chose autrement : avatar → désir → angle → concept → ad, avec les
+          <b> branches mortes</b> en pointillé · un angle jamais décliné ou une gagnante jamais itérée ne se voient
+          que là.
+        </PageInfo>
       </nav>
-
-      <PageInfo title="lire cette carte">
-        Une ad n’entre en test qu’avec une <b>hypothèse</b> et <b>une seule variable</b> modifiée : c’est ce qui permet
-        d’attribuer un résultat à une cause. Le verdict est <b>calculé</b>, pas saisi · un astérisque signale un test
-        hors protocole, dont la conclusion ne vaut que par comparaison au sein du lot. Le <b>CPA</b> est suivi de sa
-        borne haute : avec peu d’achats, l’écart entre les deux dit à quel point le chiffre est encore incertain.
-        L’onglet <b>Carte</b> montre la même chose autrement : avatar → désir → angle → concept → ad, avec les
-        <b> branches mortes</b> en pointillé · un angle jamais décliné ou une gagnante jamais itérée ne se voient
-        que là.
-      </PageInfo>
 
       <Views batches={batches} canBuild={peutMesurer} />
 

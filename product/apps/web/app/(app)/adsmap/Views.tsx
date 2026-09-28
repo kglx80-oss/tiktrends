@@ -37,7 +37,7 @@ export function Views({ batches, canBuild = false }: { batches: Array<{ id: stri
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         <button type="button" onClick={() => aller('decider')} style={onglet(vue === 'decider')}>À décider</button>
         <button type="button" onClick={() => aller('table')} style={onglet(vue === 'table')}>Table</button>
         <button type="button" onClick={() => aller('carte')} style={onglet(vue === 'carte')}>Carte</button>
