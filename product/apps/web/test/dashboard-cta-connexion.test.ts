@@ -8,21 +8,24 @@ import { join } from 'node:path';
  * Il portait un bandeau « Brancher un compte » (→ /connections) ET deux boutons
  * directs « Connecter TikTok/Meta ». Le doublon brouillait le fil, et le bouton
  * TikTok lançait un flux OAuth incomplet (app id factice, sans vérif session).
- * On garde le seul chemin cohérent : le bandeau vers /connections, foyer unique
- * de la connexion.
+ * On garde le seul chemin cohérent · une porte vers /connections, foyer unique
+ * de la connexion. Lot Dashboard · l'aperçu d'exemple (`ApercuExemple`) porte
+ * désormais cette porte, sans laisser croire qu'elle rend les fixtures réelles.
  *
  * La page est un composant serveur (db, session) · non rendable en test. On
  * éprouve l'ADOPTION par la source.
  */
-const src = readFileSync(join(process.cwd(), 'app/(app)/dashboard/page.tsx'), 'utf8');
+const page = readFileSync(join(process.cwd(), 'app/(app)/dashboard/page.tsx'), 'utf8');
+const exemple = readFileSync(join(process.cwd(), 'components/ApercuExemple.tsx'), 'utf8');
 
 describe('Dashboard · un seul point d’entrée pour la connexion', () => {
   it('aucun CTA OAuth direct sur le Dashboard', () => {
     // Les liens `/api/oauth/*` sont l'affaire de /connections, pas du Dashboard.
-    expect((src.match(/\/api\/oauth\//g) ?? []).length, 'un CTA OAuth direct traîne encore').toBe(0);
+    expect((page.match(/\/api\/oauth\//g) ?? []).length, 'un CTA OAuth direct traîne sur la page').toBe(0);
+    expect((exemple.match(/\/api\/oauth\//g) ?? []).length, 'un CTA OAuth direct traîne dans l’aperçu').toBe(0);
   });
 
-  it('le bandeau route vers /connections, chemin unique de connexion', () => {
-    expect(src, 'le chemin unique vers /connections a disparu').toContain("sortie={{ href: '/connections'");
+  it('une porte unique route vers /connections (dans l’aperçu d’exemple)', () => {
+    expect(exemple, 'le chemin unique vers /connections a disparu').toContain('href="/connections"');
   });
 });

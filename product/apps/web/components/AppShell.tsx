@@ -193,6 +193,9 @@ function AppShellInner(props: Props) {
   const personalItems = accountGroups.find((g) => g.section === 'Compte')?.items ?? [];
   const workspaceItems = accountGroups.find((g) => g.section === 'Espace')?.items ?? [];
   const pathname = usePathname();
+  // Le support est ANCRÉ (zone de commandes en pied) sur les écrans denses en
+  // commandes bas-de-page · ailleurs il reste flottant, /jarvis le masque.
+  const supportAncre = pathname === '/studio/ads' || pathname === '/dashboard';
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
@@ -600,11 +603,12 @@ function AppShellInner(props: Props) {
             saisie (mesuré à 390 et 360 px) · il est masqué là pour ne recouvrir
             aucun contrôle. Le support reste joignable hors saisie · page `/support`
             (et ses entrées console/erreur). Les sous-pages de Jarvis le gardent. */}
-        {/* Sur la galerie de Pubs IA, dense en commandes bas-de-page, la bulle
-            FIXE recouvrait des contrôles au défilement (filtres, état vide) · on
-            l'ancre dans une zone de commandes en PIED, qui défile avec la page.
-            Le rail et les autres routes gardent la bulle flottante. */}
-        {pathname === '/studio/ads' ? (
+        {/* Sur les écrans denses en commandes bas-de-page (galerie de Pubs IA,
+            accueil), la bulle FIXE recouvrait des contrôles au défilement
+            (filtres, chat, actions) · on l'ancre dans une zone de commandes en
+            PIED, qui défile avec la page. Le rail et les AUTRES routes gardent
+            la bulle flottante inchangée. */}
+        {supportAncre ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '4px clamp(16px, 4vw, 32px) 28px' }}>
             <SupportWidget anchored firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
           </div>
