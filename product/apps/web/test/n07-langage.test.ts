@@ -21,6 +21,10 @@ import { join } from 'node:path';
 
 const lire = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 const STUDIO = lire('app/(app)/studio/ads/AdsStudio.tsx');
+// Lot Codex 28/09 · l'accroche du studio (« à tester », source observée) a quitté
+// un gros bandeau héros pour l'en-tête sobre de la PAGE · la garde suit l'accroche
+// là où elle vit, sans lâcher l'interdit de sur-promesse (côté STUDIO).
+const STUDIO_PAGE = lire('app/(app)/studio/ads/page.tsx');
 const ONBOARDING = lire('app/onboarding/OnboardingWizard.tsx');
 const PLAN = lire('app/actions/adsmap-iterate.ts');
 const ENTRAINEMENT = lire('app/(app)/jarvis/JarvisTraining.tsx');
@@ -30,12 +34,14 @@ const SUITES = lire('app/(app)/adsmap/suites/page.tsx');
 describe('N07 · le studio ne promet plus la performance', () => {
   it('l’accroche parle de pubs À TESTER, pas de pubs « qui performent »', () => {
     expect(STUDIO, 'l’accroche promet encore la performance').not.toContain('pubs qui performent');
-    expect(STUDIO, 'l’accroche ne dit pas qu’on génère pour tester').toContain('Génère des pubs à tester');
+    // L'accroche vit désormais dans l'en-tête de page · elle nomme le TEST, pas la performance.
+    expect(STUDIO_PAGE, 'l’en-tête ne dit pas qu’on crée pour tester').toContain('prochain test');
   });
 
-  it('le corps parle d’un format REPÉRÉ sur le marché, pas de « gabarits gagnants »', () => {
+  it('le corps parle d’une SOURCE observée, pas de « gabarits gagnants »', () => {
     expect(STUDIO, 'le corps qualifie encore les gabarits de « gagnants »').not.toContain('gabarits gagnants');
-    expect(STUDIO, 'le corps ne nomme pas la source observée').toContain('format repéré sur le marché');
+    // La filiation d'une pub reste énoncée comme une source OBSERVÉE (veille), jamais un gagnant décrété.
+    expect(STUDIO, 'le corps ne nomme pas la source observée').toContain('source de veille');
   });
 });
 

@@ -176,13 +176,19 @@ function ZoneQualite({ q, initialOuvert, onVerifierFait, verifEnCours, erreurVer
     <div style={{ display: 'grid', gap: 5, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
         <span style={labelZone}>Qualité</span>
+        {/* Un disclosure · sa ZONE TACTILE atteint la cible (44), sans grossir la
+            pastille. Le bouton fait 44 de haut/large mini ; la pastille visible
+            (~28) est centrée dedans. Pas de chevauchement · la zone suivante
+            (Performance) est séparée par le `gap` de la grille parente. */}
         <button type="button" onClick={() => setOuvert((v) => !v)}
           aria-expanded={ouvert} aria-controls={ouvert ? panneauId : undefined}
           title="Consulter le contrôle qualité"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%', minWidth: 0, minHeight: 28, padding: '3px 9px', borderRadius: 999, border: `1px solid ${t.bord}`, background: 'transparent', color: t.fg, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
-          <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: t.fg, flexShrink: 0 }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.libelle}</span>
-          <span aria-hidden style={{ flexShrink: 0, transform: ouvert ? 'rotate(180deg)' : 'none', display: 'inline-flex' }}><Chevron /></span>
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', maxWidth: '100%', minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%', minWidth: 0, minHeight: 28, padding: '3px 9px', borderRadius: 999, border: `1px solid ${t.bord}`, color: t.fg, fontSize: 11, fontWeight: 800 }}>
+            <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: t.fg, flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.libelle}</span>
+            <span aria-hidden style={{ flexShrink: 0, transform: ouvert ? 'rotate(180deg)' : 'none', display: 'inline-flex' }}><Chevron /></span>
+          </span>
         </button>
       </div>
       {ouvert && <PanneauQualite q={q} t={t} id={panneauId} onVerifierFait={onVerifierFait} verifEnCours={verifEnCours} erreurVerif={erreurVerif} />}

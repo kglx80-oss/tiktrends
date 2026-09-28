@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Icon } from './Icon';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { useIsMobile } from './useIsMobile';
 import { marketCoverageAction } from '../app/actions/market-learn';
 
 /**
@@ -35,6 +37,12 @@ export function ContexteCreation({ brandName, edenCount, isAdmin }: {
   // qui les portent (`count(distinct advertiser)`). Les confondre affichait « 16
   // concurrents » là où il y avait 16 créas de 2 concurrents (CDC v8 · F05).
   const [couverture, setCouverture] = useState<{ described: number; advertisers: number } | null>(null);
+  // Sur téléphone, le contexte DÉTAILLÉ (catégorie, concurrents, Jarvis) mange
+  // trois lignes avant la moindre commande · il passe derrière un accès
+  // « Contexte », l'info reste à un geste. Sur grand écran, il tient sur une
+  // ligne et s'affiche tel quel. `false` au SSR, corrigé par matchMedia.
+  const compact = useIsMobile('(max-width: 768px)');
+  const [ouvert, setOuvert] = useState(false);
 
   useEffect(() => {
     let vivant = true;
@@ -44,8 +52,29 @@ export function ContexteCreation({ brandName, edenCount, isAdmin }: {
   const described = couverture?.described ?? null;
   const advertisers = couverture?.advertisers ?? 0;
 
+  // Le repli mobile · un déclencheur compact (cible 44) qui montre/masque le
+  // détail. Le détail lui-même est le MÊME bloc que sur grand écran.
+  if (compact && !ouvert) {
+    return (
+      <button type="button" onClick={() => setOuvert(true)} aria-expanded={false} style={{
+        display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, marginBottom: 14,
+        padding: '0 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+      }}>
+        <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="target" size={14} /></span>
+        Contexte{brandName ? <> · <b style={{ fontWeight: 700 }}>{brandName}</b></> : ''}
+        <span aria-hidden style={{ color: 'var(--muted)' }}>▾</span>
+      </button>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18, fontSize: 12.5, color: 'var(--muted)' }}>
+      {compact && (
+        <button type="button" onClick={() => setOuvert(false)} aria-expanded aria-label="Masquer le contexte" style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN,
+          padding: 0, borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', flexShrink: 0,
+        }}>▴</button>
+      )}
       <span style={{ display: "inline-flex" }}><Icon name="target" size={14} /></span>
       {brandName && <><b style={{ color: 'var(--ink-2)', fontWeight: 700 }}>{brandName}</b><Sep /></>}
 

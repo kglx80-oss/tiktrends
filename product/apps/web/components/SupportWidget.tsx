@@ -1,11 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { createTicketAction } from '../app/actions/support';
 import { fetchMyTickets, type MyTicket } from '../app/actions/support';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { input } from './ui';
 import { Icon } from './Icon';
+import { Portail } from './Portail';
+
+/**
+ * Rend ses enfants SUR `<body>` (via Portail) quand `portalise`, en place sinon.
+ * Le dialogue d'aide ancré porte un voile plein écran · il DOIT être portalisé
+ * (invariant `overlay-portail-invariant` · un voile fixe piégé sous un ancêtre
+ * transformé ne couvre plus l'écran). Le mode flottant reste rendu en place.
+ */
+function Enveloppe({ portalise, children }: { portalise: boolean; children: ReactNode }) {
+  return portalise ? <Portail>{children}</Portail> : <>{children}</>;
+}
 
 const FAQ: Array<{ q: string; a: string }> = [
   { q: 'Comment créer une marque ?', a: "Menu profil → Marques → « Créer une marque ». Le wizard en 5 étapes te guide ; l'IA peut pré-remplir le profil depuis ton site." },
@@ -20,12 +32,30 @@ const STATUS: Record<string, { label: string; color: string }> = {
 };
 const TYPE_ICON: Record<string, string> = { bug: 'alert', suggestion: 'bulb', question: 'help' };
 
-export function SupportWidget({ firstName }: { firstName: string }) {
+/**
+ * L'aide et le support · deux présentations pour un même panneau (FAQ + tickets).
+ *
+ * `floating` (défaut, toutes les routes sauf exceptions) · une bulle fixe au
+ * coin bas-droit. Sur les surfaces DENSES en commandes bas-de-page (la galerie
+ * de `/studio/ads`), cette bulle fixe recouvrait des contrôles au défilement
+ * (un select de filtre, du texte de l'état vide) · un `padding-bottom` ne règle
+ * pas une superposition FIXE qui suit le scroll.
+ *
+ * `anchored` · pas de bulle flottante. Le lanceur est un bouton INLINE, posé
+ * dans une zone de commandes en pied de contenu (il défile avec la page, ne
+ * recouvre rien). Le panneau devient un vrai dialogue · fond, Escape qui ferme
+ * en rendant le focus au lanceur, focus porté dans le panneau à l'ouverture,
+ * bouton de fermeture. Le contenu (FAQ, tickets, formulaire) est identique.
+ */
+export function SupportWidget({ firstName, anchored = false }: { firstName: string; anchored?: boolean }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'home' | 'messages'>('home');
   const [asking, setAsking] = useState(false);
   const [q, setQ] = useState('');
   const [tickets, setTickets] = useState<MyTicket[] | null>(null);
+  const lanceurRef = useRef<HTMLButtonElement | null>(null);
+  const panneauRef = useRef<HTMLDivElement | null>(null);
+  const titreId = useId();
 
   useEffect(() => {
     if (open && tab === 'messages' && tickets === null) {
@@ -33,21 +63,52 @@ export function SupportWidget({ firstName }: { firstName: string }) {
     }
   }, [open, tab, tickets]);
 
+  // Dialogue ancré · Escape ferme et REND le focus au lanceur ; à l'ouverture le
+  // focus entre dans le panneau. (Le mode flottant garde son comportement.)
+  useEffect(() => {
+    if (!anchored || !open) return;
+    const clavier = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); lanceurRef.current?.focus(); } };
+    document.addEventListener('keydown', clavier);
+    // Le panneau est PORTALISÉ · son conteneur n'est rattaché au <body> qu'au
+    // montage. On porte le focus après ce tour (timeout), sinon on vise un nœud
+    // encore détaché et le focus retombe sur <body>.
+    const t = setTimeout(() => {
+      panneauRef.current?.querySelector<HTMLElement>('button, input, select, textarea, a[href]')?.focus();
+    }, 60);
+    return () => { document.removeEventListener('keydown', clavier); clearTimeout(t); };
+  }, [anchored, open]);
+
+  const fermer = () => { setOpen(false); lanceurRef.current?.focus(); };
   const faq = FAQ.filter((f) => !q.trim() || (f.q + ' ' + f.a).toLowerCase().includes(q.toLowerCase()));
+
+  const panneauStyle = anchored
+    ? { position: 'fixed' as const, left: '50%', bottom: 24, transform: 'translateX(-50%)', width: 'min(420px, calc(100vw - 32px))', maxHeight: 'min(620px, calc(100vh - 120px))', display: 'flex' as const, flexDirection: 'column' as const, zIndex: 120, borderRadius: 20, overflow: 'hidden', border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', boxShadow: '0 26px 70px -18px rgba(0,0,0,.8)' }
+    : { position: 'fixed' as const, bottom: 88, right: 20, width: 380, maxWidth: 'calc(100vw - 40px)', maxHeight: 'min(620px, calc(100vh - 120px))', display: 'flex' as const, flexDirection: 'column' as const, zIndex: 45, borderRadius: 20, overflow: 'hidden', border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', boxShadow: '0 26px 70px -18px rgba(0,0,0,.8)' };
 
   return (
     <>
-      {/* Panneau */}
+      {/* Overlay (voile + panneau) · PORTALISÉ sur <body> en mode ancré (voile
+          plein écran · invariant anti-piège d'empilement), rendu en place en
+          flottant. */}
       {open && (
-        <div style={{
-          position: 'fixed', bottom: 88, right: 20, width: 380, maxWidth: 'calc(100vw - 40px)', maxHeight: 'min(620px, calc(100vh - 120px))',
-          display: 'flex', flexDirection: 'column', zIndex: 45, borderRadius: 20, overflow: 'hidden',
-          border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', boxShadow: '0 26px 70px -18px rgba(0,0,0,.8)',
-        }}>
+        <Enveloppe portalise={anchored}>
+          {anchored && (
+            <div onClick={fermer} style={{ position: 'fixed', inset: 0, zIndex: 119, background: 'rgba(6,4,8,.5)' }} />
+          )}
+          <div ref={panneauRef} role={anchored ? 'dialog' : undefined} aria-modal={anchored ? true : undefined} aria-labelledby={anchored ? titreId : undefined} style={panneauStyle}>
           {/* En-tête */}
-          <div style={{ padding: '20px 20px 16px', background: 'var(--grad-accent)', color: 'var(--on-accent)' }}>
+          <div style={{ padding: '20px 20px 16px', background: 'var(--grad-accent)', color: 'var(--on-accent)', position: 'relative' }}>
             <div style={{ fontSize: 20, fontWeight: 800, opacity: .8 }}>Bonjour {firstName}</div>
-            <div style={{ fontSize: 20, fontWeight: 800 }}>Comment peut-on aider ?</div>
+            <div id={anchored ? titreId : undefined} style={{ fontSize: 20, fontWeight: 800 }}>Comment peut-on aider ?</div>
+            {anchored && (
+              <button type="button" onClick={fermer} aria-label="Fermer l’aide" style={{
+                position: 'absolute', top: 12, right: 12, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10,
+                border: 'none', background: 'rgba(0,0,0,.16)', color: 'var(--on-accent)', cursor: 'pointer',
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              </button>
+            )}
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
@@ -131,26 +192,48 @@ export function SupportWidget({ firstName }: { firstName: string }) {
               );
             })}
           </div>
-        </div>
+          </div>
+        </Enveloppe>
       )}
 
-      {/* Bouton flottant */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label="Aide et support"
-        style={{
-          position: 'fixed', bottom: 20, right: 20, width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', zIndex: 46,
-          border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', boxShadow: '0 14px 34px -8px rgba(254,44,85,.5)',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        {open ? (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
-        ) : (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
-        )}
-      </button>
+      {anchored ? (
+        /* Lanceur INLINE · dans une zone de commandes en pied de contenu · il
+           défile avec la page et ne recouvre aucun contrôle. */
+        <button
+          ref={lanceurRef}
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 9, minHeight: CIBLE_TACTILE_MIN,
+            padding: '0 18px', borderRadius: 999, cursor: 'pointer',
+            border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 13, fontWeight: 700,
+          }}
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
+          Aide &amp; support
+        </button>
+      ) : (
+        /* Bouton flottant · toutes les autres routes (comportement inchangé). */
+        <button
+          ref={lanceurRef}
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Aide et support"
+          style={{
+            position: 'fixed', bottom: 20, right: 20, width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', zIndex: 46,
+            border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', boxShadow: '0 14px 34px -8px rgba(254,44,85,.5)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          {open ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
+          )}
+        </button>
+      )}
     </>
   );
 }

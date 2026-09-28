@@ -98,6 +98,23 @@ describe('carte créative · N04 · le badge qualité est explicable et consulta
     expect(h, 'le badge qualité est rendu inerte').not.toContain('disabled=""');
   });
 
+  it('la ZONE TACTILE du badge atteint la cible (44) sans grossir la pastille (28)', () => {
+    // Recette Codex passe1 · un disclosure 28px ne satisfait pas notre contrat
+    // 44. La zone cliquable atteint 44 ; la pastille visible reste à 28. On lit
+    // le HTML rendu · le bouton (title « Consulter le contrôle qualité ») porte
+    // min-height:44px ET min-width:44px, la pastille interne garde min-height:28px.
+    const q = qualiteCarte({ produitFidele: true, texteLisible: true });
+    const h = html({ qualite: q });
+    const i = h.indexOf('Consulter le contrôle qualité');
+    expect(i, 'le badge qualité est introuvable').toBeGreaterThan(-1);
+    const styleBouton = h.slice(i, i + 360);
+    expect(styleBouton, 'la zone tactile du badge n’atteint pas 44 en hauteur').toContain('min-height:44px');
+    expect(styleBouton, 'la zone tactile du badge n’atteint pas 44 en largeur').toContain('min-width:44px');
+    // La pastille visible ne grossit pas · elle reste à 28 (mutation : la porter
+    // à 44 ferait retomber cette assertion).
+    expect(styleBouton, 'la pastille visible a grossi au lieu de rester à 28').toContain('min-height:28px');
+  });
+
   it('ouvert, il expose les TROIS natures et l’avertissement de preuve', () => {
     const q = qualiteCarte({
       produitFidele: true, texteLisible: true,

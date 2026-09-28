@@ -600,9 +600,17 @@ function AppShellInner(props: Props) {
             saisie (mesuré à 390 et 360 px) · il est masqué là pour ne recouvrir
             aucun contrôle. Le support reste joignable hors saisie · page `/support`
             (et ses entrées console/erreur). Les sous-pages de Jarvis le gardent. */}
-        {pathname !== '/jarvis' && (
+        {/* Sur la galerie de Pubs IA, dense en commandes bas-de-page, la bulle
+            FIXE recouvrait des contrôles au défilement (filtres, état vide) · on
+            l'ancre dans une zone de commandes en PIED, qui défile avec la page.
+            Le rail et les autres routes gardent la bulle flottante. */}
+        {pathname === '/studio/ads' ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '4px clamp(16px, 4vw, 32px) 28px' }}>
+            <SupportWidget anchored firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
+          </div>
+        ) : pathname !== '/jarvis' ? (
           <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
-        )}
+        ) : null}
       </div>
     </div>
   );

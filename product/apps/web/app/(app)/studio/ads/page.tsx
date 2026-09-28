@@ -118,12 +118,11 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
 
   return (
     <main style={wrap}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-        <h1 style={h1}>Pubs IA</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>CONCEPT · SCÈNE · DESIGN</span>
-      </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>
-        Des publicités complètes, prêtes à poster, rattachées à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
+      {/* En-tête court · pas de gros bandeau marketing ni de pastille. La
+          création concrétise un test · l'explication le dit sobrement. */}
+      <h1 style={h1}>Pubs IA</h1>
+      <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 6, marginBottom: 20, lineHeight: 1.5 }}>
+        Crée les variantes de ton prochain test{brand ? <> · rattachées à <b>{brand.name}</b></> : ''}.
       </p>
 
       {/* Le contexte tient sur UNE ligne · marque, ce que la catégorie a appris,
@@ -154,5 +153,8 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   );
 }
 
-const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1080, margin: '0 auto' } as const;
+// Le lanceur de support n'est plus une bulle FIXE sur cette route (il est ancré
+// en zone de commandes, sous le contenu, par le shell) · plus besoin de réserver
+// une gouttière basse contre une superposition flottante.
+const wrap = { padding: '32px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' } as const;
 const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;

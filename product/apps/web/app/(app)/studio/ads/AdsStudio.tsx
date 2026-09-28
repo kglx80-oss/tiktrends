@@ -250,6 +250,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // que le rail d'outils défile seul (sinon la colonne média s'étire à la
   // hauteur du rail et centre l'image hors du cadre · CDC v8 · F04).
   const detailEmpile = useIsMobile('(max-width: 575px)');
+  // Sur téléphone (≤768, où le rail passe en tiroir), l'en-tête de création doit
+  // rester COMPACT · la galerie doit apparaître sans défiler. Réglages avancés
+  // sans phrase ni grosse carte, hypothèse en résumé dépliable. `false` au SSR,
+  // corrigé par matchMedia · les captures attendent l'hydratation.
+  const compact = useIsMobile('(max-width: 768px)');
+  const [hypDetail, setHypDetail] = useState(false);
   const [varyBusy, setVaryBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   // Le défaut suit ce qu'on a MESURÉ chez la marque quand l'intervalle tranche ·
@@ -623,31 +629,21 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         onGenerer={() => { void run('brand').then((out) => { if (producedSomething(out)) setAssistant(false); }); }}
       />
 
-      {/* Hero CTA · démarrage rapide (façon Atria) */}
-      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 20, marginBottom: 20, padding: '22px 24px', border: '1px solid var(--accent-strong)', background: 'linear-gradient(120deg, rgba(255,60,120,.16), rgba(255,140,66,.08) 60%, var(--surface))' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: 'var(--accent-strong)' }}>DÉMARRAGE RAPIDE</div>
-            <h2 style={{ margin: '4px 0 4px', fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>Génère des pubs à tester, en 1 clic</h2>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', maxWidth: 520, lineHeight: 1.5 }}>
-              Pars d’un format repéré sur le marché, on applique ta marque{brandName ? <> <b>{brandName}</b></> : null} et ton produit, puis on génère plusieurs variantes.
-            </p>
-          </div>
-          {/* Deux entrées, et la seconde est la SEULE chose que le démarrage
-              rapide ne sait pas faire · c'est ce qui justifie qu'un second
-              formulaire existe encore, et il n'a plus à être ouvert pour être
-              trouvé. */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={!ready} onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
-              padding: '14px 24px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
-              background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready ? 1 : .5, boxShadow: '0 10px 30px -8px rgba(255,60,120,.5)', whiteSpace: 'nowrap',
-            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}><Icon name="sparkles" size={16} /> Créer des pubs</span></button>
-            <button type="button" disabled={!ready} onClick={() => { setMode('clone'); setAvance(true); setError(''); requestAnimationFrame(() => composeur.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} style={{
-              padding: '14px 20px', borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: ready ? 'pointer' : 'default',
-              border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
-            }}>Cloner une pub qui tient</button>
-          </div>
-        </div>
+      {/* Barre de création · UNE action dominante (l'assistant, le flux
+          existant), le clone en secondaire. Pas de gros bandeau marketing ·
+          l'explication est en tête de page, et la galerie doit apparaître dans
+          le premier écran. Les deux commandes portent la cible 44. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+        <button type="button" disabled={!ready} onClick={() => { setMode('brand'); setAssistant(true); setError(''); }} style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN,
+          padding: '0 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 15, cursor: ready ? 'pointer' : 'default',
+          background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
+        }}><Icon name="sparkles" size={16} /> Créer des pubs</button>
+        <button type="button" disabled={!ready} onClick={() => { setMode('clone'); setAvance(true); setError(''); requestAnimationFrame(() => composeur.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+          padding: '0 18px', borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: ready ? 'pointer' : 'default',
+          border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
+        }}>Cloner une pub qui tient</button>
       </div>
 
       {/* Le mode expert · un seul repli, clairement secondaire.
@@ -656,15 +652,21 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
            vit ce que l'assistant ne fait pas · cloner une pub, charger une photo
            produit, rappeler une scène, forcer objectif et persona. On ne déplie
            que pour forcer un réglage. */}
-      <div ref={composeur} style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', marginBottom: 28, scrollMarginTop: 16 }}>
+      {/* Réglages avancés · un CONTRÔLE compact, pas une grosse carte. Le chrome
+          (bordure, fond) n'apparaît qu'une fois DÉPLIÉ · replié, c'est une ligne
+          sobre. La phrase descriptive tombe sur mobile (elle mange une ligne au
+          moment où la galerie doit remonter). Cible 44 sur le déclencheur. */}
+      <div ref={composeur} style={{ border: avance ? '1px solid var(--line-2)' : 'none', borderRadius: 18, background: avance ? 'var(--surface)' : 'transparent', marginBottom: avance ? 28 : 16, scrollMarginTop: 16 }}>
         <button type="button" onClick={() => setAvance((v) => !v)} style={{
-          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '14px 22px',
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: CIBLE_TACTILE_MIN, padding: avance ? '13px 22px' : '8px 4px',
           border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left',
         }}>
           <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-2)' }}>Réglages avancés</span>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            · cloner une pub, photo produit, scènes, objectif, persona
-          </span>
+          {!compact && (
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+              · cloner une pub, photo produit, scènes, objectif, persona
+            </span>
+          )}
           {/* Armé en clone mais replié, la référence chargée deviendrait
               invisible · on le dit dans l'en-tête. */}
           {mode === 'clone' && (
@@ -1079,32 +1081,47 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           vivait dans les réglages avancés, repliés · donc invisible au moment
           exact où elle sert. `null` quand la mesure ne tranche pas · le silence
           est une réponse. */}
-      {suggestion && (
+      {suggestion && (() => {
+        // Le détail (pourquoi, réserve, gagnants mesurés, action) est visible
+        // d'emblée sur grand écran ; sur mobile il se déplie, pour que la galerie
+        // remonte. Le résumé (label + question) reste toujours lu. L'action de
+        // l'hypothèse est SECONDAIRE · un seul CTA rose dominant sur l'écran
+        // (« Créer des pubs »), celui-ci porte un cadre sobre à l'accent.
+        const detailVisible = !compact || hypDetail;
+        const label = suggestion.avantTout ? 'AVANT DE TESTER' : ads.length > 0 ? 'PROCHAINE HYPOTHÈSE' : 'JARVIS CONSEILLE';
+        const teinte = suggestion.avantTout ? '#ffb3c0' : 'var(--accent-strong)';
+        return (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 16px', padding: '12px 15px', borderRadius: 14,
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 24px', padding: '11px 14px', borderRadius: 14,
           border: `1px solid ${suggestion.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
-          background: 'linear-gradient(120deg, rgba(255,60,120,.08), var(--surface))',
+          background: 'var(--surface)',
         }}>
-          <span style={{ display: 'inline-flex', color: suggestion.avantTout ? '#ffb3c0' : 'var(--accent-strong)' }}><Icon name={suggestion.avantTout ? 'alert' : 'swap'} size={17} /></span>
-          <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: suggestion.avantTout ? '#ffb3c0' : 'var(--accent-strong)' }}>
-              {suggestion.avantTout ? 'AVANT DE TESTER' : ads.length > 0 ? 'PROCHAINE HYPOTHÈSE' : 'JARVIS CONSEILLE'}
-            </div>
+          <span style={{ display: 'inline-flex', color: teinte }}><Icon name={suggestion.avantTout ? 'alert' : 'swap'} size={17} /></span>
+          <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: teinte }}>{label}</div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginTop: 2, lineHeight: 1.4 }}>{suggestion.question}</div>
-            {suggestion.pourquoi && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{suggestion.pourquoi}</div>}
-            {suggestion.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 4, lineHeight: 1.4 }}>{suggestion.avantTout}</div>}
+            {detailVisible && suggestion.pourquoi && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{suggestion.pourquoi}</div>}
+            {detailVisible && suggestion.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 4, lineHeight: 1.4 }}>{suggestion.avantTout}</div>}
           </div>
+          {/* Sur mobile, un déclencheur COMPACT ouvre le détail · l'info reste
+              accessible sans occuper le premier écran. */}
+          {compact && (
+            <button type="button" onClick={() => setHypDetail((v) => !v)} aria-expanded={hypDetail} style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN,
+              padding: '0 12px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>{hypDetail ? 'Réduire' : 'Détails'} <span aria-hidden style={{ marginLeft: 5, color: 'var(--muted)' }}>{hypDetail ? '▴' : '▾'}</span></button>
+          )}
           {/* Ce que la mesure a DÉJÀ tranché gagnant · nommé, et réappliquable d'un
               clic. Avant, l'outil disait « applique ce qui a gagné » sans jamais
               dire quoi · le gagnant vivait dans le cumul, l'écran ne le lisait pas. */}
-          {suggestion.gagnants.length > 0 && (
+          {detailVisible && suggestion.gagnants.length > 0 && (
             <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
               <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>GAGNANTS MESURÉS</span>
               {suggestion.gagnants.map((g) => (
                 <button key={g.variable + g.valeur} type="button" disabled={!ready}
                   onClick={() => appliquerGagnant(g)}
                   title={`Reprendre ${ESSAI_LABEL[g.variable].toLowerCase()} · gagnant sur ${g.essais} essais`}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999, border: '1px solid rgba(126,232,191,.4)', background: 'rgba(126,232,191,.08)', color: 'var(--ink)', fontSize: 11.5, fontWeight: 600, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .5 }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, padding: '5px 11px', borderRadius: 999, border: '1px solid rgba(126,232,191,.4)', background: 'rgba(126,232,191,.08)', color: 'var(--ink)', fontSize: 11.5, fontWeight: 600, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .5 }}>
                   <span style={{ color: 'var(--muted)' }}>{ESSAI_LABEL[g.variable]} ·</span>
                   <b style={{ color: '#7ee8bf' }}>{libelleGagnant(g)}</b>
                   <span style={{ color: 'var(--muted)', fontWeight: 700 }}>· appliquer</span>
@@ -1112,15 +1129,16 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               ))}
             </div>
           )}
-          {suggestion.variable && suggestion.variable !== essai && (
+          {detailVisible && suggestion.variable && suggestion.variable !== essai && (
             <button type="button" disabled={!ready} onClick={() => { setEssai(suggestion.variable!); setMode('brand'); setAssistant(true); setError(''); }} style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
-              padding: '11px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: ready ? 'pointer' : 'default',
-              background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
+              padding: '9px 16px', borderRadius: 999, border: `1px solid ${teinte}`, fontWeight: 800, fontSize: 13, cursor: ready ? 'pointer' : 'default',
+              background: 'transparent', color: teinte, opacity: ready ? 1 : .5, whiteSpace: 'nowrap',
             }}>Tester {ESSAI_LABEL[suggestion.variable].toLowerCase()} ›</button>
           )}
         </div>
-      )}
+        );
+      })()}
 
       <div ref={grille} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, scrollMarginTop: 16 }}>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Tes pubs {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
@@ -1161,7 +1179,12 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               why="Élargis la recherche ou efface les filtres pour retrouver tes pubs."
             />
           ) : (
-          <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          <>
+          {/* Grille fluide, adaptée à la taille réelle des cartes · ~4 colonnes
+              à 1440, 3 à 1280 (rail ouvert), 2 en tablette, 1 à 390. La borne
+              `min(270px, 100%)` empêche toute piste de dépasser la largeur
+              dispo (pas de défilement horizontal). */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))', gap: 20 }}>
           {pagedAds.map((a) => {
             // Le détail s'ouvre par ID sur la liste COMPLÈTE · filtrer la vue ne
             // déplace pas la navigation précédent/suivant.
