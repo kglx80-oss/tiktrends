@@ -14,6 +14,7 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const page = read('app/(app)/studio/ads/page.tsx');
 const studio = read('app/(app)/studio/ads/AdsStudio.tsx');
 const barre = read('components/BarreFiltresGalerie.tsx');
+const contexte = read('components/ContexteCreation.tsx');
 
 describe('Pubs IA · en-tête court, sans bandeau marketing', () => {
   it('titre court + explication « prochain test », pas de pastille marketing', () => {
@@ -39,6 +40,38 @@ describe('Pubs IA · galerie premium responsive', () => {
     // Mutation : remettre une piste fixe non bornée (ex. minmax(240px, 1fr))
     // fait retomber la responsivité et cette assertion.
     expect(studio).toContain('repeat(auto-fill, minmax(min(260px, 100%), 1fr))');
+  });
+});
+
+describe('Pubs IA · recette Codex passe1 · vue mobile réellement galerie', () => {
+  it('le premier écran mobile est compacté · en-tête conscient du seuil 768', () => {
+    // Mutation : retirer la conscience du seuil (compact) fait retomber la
+    // compaction mobile et cette assertion.
+    expect(studio, 'le studio n’est pas conscient du seuil mobile').toContain("useIsMobile('(max-width: 768px)')");
+    expect(studio).toContain('const compact =');
+  });
+
+  it('les réglages avancés · un contrôle sobre replié (pas de grosse carte), phrase masquée sur mobile', () => {
+    // Le chrome de carte (bordure, fond) n'apparaît qu'une fois DÉPLIÉ.
+    expect(studio, 'la carte volumineuse subsiste même repliée').toContain("border: avance ? '1px solid var(--line-2)' : 'none'");
+    // La phrase descriptive tombe sur mobile.
+    expect(studio, 'la phrase descriptive ne se replie pas sur mobile').toContain('{!compact && (');
+  });
+
+  it('l’hypothèse · résumé dépliable, action SECONDAIRE (un seul CTA rose dominant)', () => {
+    // L'action de l'hypothèse ne rivalise plus avec « Créer des pubs » · elle est
+    // à cadre sobre, fond transparent (pas de dégradé d'accent plein).
+    expect(studio, 'l’action de l’hypothèse reprend un fond d’accent plein').toContain('background: \'transparent\', color: teinte');
+    expect(studio, 'le détail de l’hypothèse ne se déplie pas').toContain('const detailVisible = !compact || hypDetail');
+  });
+
+  it('le contenu réserve une gouttière basse · le lanceur de support ne recouvre pas la galerie', () => {
+    expect(page, 'aucune gouttière basse pour le FAB de support').toContain('4vw, 32px) 96px');
+  });
+
+  it('le contexte détaillé passe derrière un accès « Contexte » sur mobile', () => {
+    expect(contexte, 'le contexte n’est pas conscient du seuil mobile').toContain("useIsMobile('(max-width: 768px)')");
+    expect(contexte, 'pas d’accès « Contexte » compact sur mobile').toContain('if (compact && !ouvert)');
   });
 });
 
