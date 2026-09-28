@@ -30,7 +30,9 @@ describe('S13 · erreurs via Bandeau (Inbox, Lots) et reset Veille', () => {
     // « critères actifs » (puces retirables) porte aussi la réinitialisation.
     const i = s.indexOf('{avances.length > 0 && (');
     expect(i, 'le reset n’est pas gardé par un critère actif').toBeGreaterThan(-1);
-    const bloc = s.slice(i, i + 900);
+    // Le bloc « critères actifs » (puces retirables + réinitialisation) · on lit
+    // jusqu'à sa fermeture pour couvrir le lien de reset après la boucle.
+    const bloc = s.slice(i, i + 1400);
     expect(bloc).toContain('<a href="/veille"');
     expect(bloc).toContain('Réinitialiser');
   });

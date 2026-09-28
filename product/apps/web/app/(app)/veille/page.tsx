@@ -16,6 +16,7 @@ import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
 import { Icon } from '../../../components/Icon';
 import { Empty } from '../../../components/Empty';
 import { SectionMarche } from '../jarvis/sections/SectionMarche';
+import { baseUrlRecette } from '../../../lib/veille-recette-base';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,10 +98,10 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   const platform: AdPlatform = sp.p === 'tiktok' || sp.p === 'google' ? sp.p : 'meta';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
   const apiKey = process.env.TRENDTRACK_API_KEY;
-  // Base de la source · surchargée par `TRENDTRACK_BASE_URL` (proxy auto-hébergé
-  // ou mock local de recette). Absente en production → l'intégration retombe sur
-  // l'URL par défaut · aucun changement de comportement.
-  const baseUrl = process.env.TRENDTRACK_BASE_URL || undefined;
+  // Base de source ALTERNATIVE réservée à la recette locale (mock loopback) ·
+  // refusée en production, opt-in explicite, hôte loopback uniquement. Hors
+  // recette → undefined → l'intégration garde son URL par défaut.
+  const baseUrl = baseUrlRecette();
 
   // Détection URL/domaine : si l'utilisateur tape une URL ou un domaine,
   // on bascule automatiquement en recherche par domaine (plus pertinent).
@@ -238,17 +239,21 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
   return (
     <main style={wrap}>
-      {/* En-tête sobre · observer pour préparer un test, pas une promesse. */}
+      {/* En-tête sobre · observer pour préparer un test, pas une promesse. La
+          phrase et la note honnête restent, resserrées · sur mobile elles ne
+          repoussent pas la première carte. */}
       <h1 style={h1}>Veille</h1>
-      <p style={{ color: 'var(--ink-2)', fontSize: 14, marginTop: 8, marginBottom: 6, maxWidth: 640, lineHeight: 1.5 }}>
+      <p style={{ color: 'var(--ink-2)', fontSize: 14, margin: '6px 0 3px', maxWidth: 640, lineHeight: 1.45 }}>
         Observe les publicités du marché pour préparer tes prochains tests.
       </p>
-      <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0, marginBottom: 16, maxWidth: 640, lineHeight: 1.5 }}>
+      <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 12px', maxWidth: 640, lineHeight: 1.45 }}>
         Durée de diffusion et portée sont des <b style={{ color: 'var(--ink-2)' }}>signaux d’observation</b>, pas des preuves de rentabilité.
       </p>
 
-      {/* Accès voisins compacts · l'observation approfondie et la mémoire, à côté. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+      {/* Accès voisins compacts · une seule rangée · sur mobile elle défile
+          horizontalement plutôt que de retomber sur deux lignes et repousser la
+          grille (aucun débordement de PAGE · le dépassement reste dans la bande). */}
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'nowrap', overflowX: 'auto', marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
         <LienSec href="/veille/scale" icon="trend">Ce qui scale</LienSec>
         <LienSec href="/radar" icon="radar">Radar produits</LienSec>
         <LienSec href="/saved" icon="bookmark">Sauvegardes</LienSec>
@@ -257,9 +262,10 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
       {/* Recherche + plateforme accessibles d'emblée · les 5 autres filtres
           repliés (mais dans le form · ils partent quand même à la soumission). */}
-      <form action="/veille" method="get" style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+      <form action="/veille" method="get" style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: '1 1 240px', minWidth: 0, ...inputBase }} />
+          {/* Recherche pleine largeur · plateforme + bouton sur la ligne suivante. */}
+          <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: '1 1 100%', minWidth: 0, ...inputBase }} />
           <select name="p" defaultValue={sp.p ?? 'meta'} aria-label="Plateforme" style={{ ...inputBase, padding: '8px 12px', fontSize: 13.5, cursor: 'pointer', flex: '0 0 auto' }}>
             {PLATFORMS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
@@ -271,11 +277,11 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
             {avances.map((a) => (
               <a key={a.cle} href={buildQS(sp, { [a.cle]: '', page: '1' })} title="Retirer ce critère"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, padding: '4px 10px', borderRadius: 999, border: '1px solid rgba(255,92,138,.4)', background: 'var(--paper)', color: 'var(--ink)', textDecoration: 'none' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, fontWeight: 600, padding: '2px 12px', borderRadius: 999, border: '1px solid rgba(255,92,138,.4)', background: 'var(--paper)', color: 'var(--ink)', textDecoration: 'none' }}>
                 {a.texte} <span aria-hidden style={{ color: 'var(--muted)' }}>✕</span>
               </a>
             ))}
-            <a href="/veille" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', textDecoration: 'none' }}>Réinitialiser</a>
+            <a href="/veille" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 6px', fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', textDecoration: 'none' }}>Réinitialiser</a>
           </div>
         )}
 
@@ -303,37 +309,40 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           </div>
         </details>
 
-        {/* Aide et explications techniques · à la demande. */}
-        <PageInfo title="chercher & sourcer des créas">
-          Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
-          (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
-          fait remonter les créas diffusées depuis longtemps. Clique <b>★</b> pour sauvegarder une
-          créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
-        </PageInfo>
       </form>
 
-      {/* Thématiques · révélation optionnelle, elles ne poussent pas la grille. */}
-      <details style={{ marginBottom: 16 }}>
-        <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 700, color: 'var(--muted)' }}>
-          <Icon name="sparkles" size={14} /> Suggestions de thématiques
-        </summary>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-          {CHIPS.map((c) => (
-            <a key={c} href={buildQS(sp, { q: c, page: '1' })} style={{ fontSize: 12, padding: '6px 13px', borderRadius: 999, border: '1px solid var(--line)', color: 'var(--ink-2)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>{c}</a>
-          ))}
+      {/* Suggestions + aide · une même rangée de révélations compactes · elles
+          ne repoussent pas la grille (repliées par défaut). */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 10 }}>
+        <details style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 700, color: 'var(--muted)' }}>
+            <Icon name="sparkles" size={14} /> Suggestions de thématiques
+          </summary>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+            {CHIPS.map((c) => (
+              <a key={c} href={buildQS(sp, { q: c, page: '1' })} style={{ fontSize: 12, padding: '6px 13px', borderRadius: 999, border: '1px solid var(--line)', color: 'var(--ink-2)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>{c}</a>
+            ))}
+          </div>
+        </details>
+        <div style={{ flex: '0 1 auto' }}>
+          <PageInfo title="Aide">
+            Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
+            (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
+            fait remonter les créas diffusées depuis longtemps. Clique <b>★</b> pour sauvegarder une
+            créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
+            Sans <b>catégorie de marque</b> renseignée, la sélection par défaut est générique · précise la catégorie pour cibler.
+          </PageInfo>
         </div>
-      </details>
+      </div>
 
       {/* Bandeau source/démo · TOUJOURS avant la grille. */}
       {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon réel. La source de données n'est pas encore configurée sur le serveur pour la recherche en direct.</Bandeau>}
       {error && <Bandeau ton="error">Erreur de la source de données : {error}</Bandeau>}
       {!sample && !error && !query && defaut && (
-        <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>
-          Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>pistes installées</b>
-          {defaut.parCategorie
-            ? <> dans ta catégorie <b style={{ color: 'var(--ink-2)' }}>« {defaut.seed} »</b></>
-            : <> <b style={{ color: '#ffcf8f' }}>hors de la catégorie{brand?.name ? <> de {brand.name}</> : null}</b> · échantillon général <b style={{ color: 'var(--ink-2)' }}>« {defaut.seed} »</b> · {brand?.name ? <>renseigne la catégorie de {brand.name}</> : <>renseigne la catégorie de la marque</>} pour cibler</>}
-          {' · '}lance une recherche ou choisis une thématique pour affiner.
+        // Une ligne factuelle · le « pourquoi » (hors catégorie, comment cibler)
+        // vit dans l'aide, à la demande · il n'allonge plus le préambule.
+        <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 12px', lineHeight: 1.4 }}>
+          Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>pistes installées</b> · échantillon <b style={{ color: defaut.parCategorie ? 'var(--ink-2)' : '#ffcf8f' }}>« {defaut.seed} »</b>{!defaut.parCategorie && <span style={{ color: 'var(--muted)' }}> · hors catégorie</span>}
         </p>
       )}
       {!sample && !error && !query && !defaut && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}
@@ -400,7 +409,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
 function LienSec({ href, icon, children }: { href: string; icon: string; children: ReactNode }) {
   return (
-    <a href={href} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: CIBLE_TACTILE_MIN, padding: '8px 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}>
+    <a href={href} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, whiteSpace: 'nowrap', minHeight: CIBLE_TACTILE_MIN, padding: '8px 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}>
       <span aria-hidden style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name={icon} size={15} /></span>
       {children}
     </a>
@@ -417,7 +426,7 @@ function Select({ name, def, opts }: { name: string; def?: string; opts: string[
 
 // Marge latérale fluide · 36px sur large écran, 16px sur mobile · le contenu ne
 // se colle plus aux bords du téléphone.
-const wrap = { padding: '32px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' } as const;
+const wrap = { padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' } as const;
 const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-.01em', color: 'var(--ink)' } as const;
 // minHeight: CIBLE_TACTILE_MIN · le champ de recherche ET les filtres <Select>
 // partagent inputBase · un seul endroit les porte tous deux à la cible tactile.
