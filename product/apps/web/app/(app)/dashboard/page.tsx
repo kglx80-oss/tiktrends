@@ -45,8 +45,8 @@ export default async function Dashboard() {
         brandName={brand?.name ?? null}
         brandId={brand?.id ?? null}
         aiReady={anthropicConfigured()}
-        prochaineEtape={<ProchaineEtape parcours={parcours} firstName={firstName} />}
-        exemple={<ApercuExemple rows={rows} />}
+        prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} />}
+        exemple={<ApercuExemple key="apercu-exemple" rows={rows} />}
       />
     </main>
   );

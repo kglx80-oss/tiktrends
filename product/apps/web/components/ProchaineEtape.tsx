@@ -15,14 +15,13 @@ import { Icon } from './Icon';
  * la Veille (observer le marché). Une étape d'installation n'est jamais
  * présentée comme une hypothèse analytique.
  */
-export function ProchaineEtape({ parcours, firstName }: {
+export function ProchaineEtape({ parcours }: {
   parcours: { journey: Journey; relance: Relance | null } | null;
-  firstName: string;
 }) {
   const mode = modeProchaineEtape({ parcoursPresent: !!parcours, journeyComplete: !!parcours?.journey.complete });
 
   if (mode === 'installation' && parcours) {
-    return <JourneyPanel j={parcours.journey} relance={parcours.relance} firstName={firstName} />;
+    return <JourneyPanel j={parcours.journey} relance={parcours.relance} />;
   }
 
   return (

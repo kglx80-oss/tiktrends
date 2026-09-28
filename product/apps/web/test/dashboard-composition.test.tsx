@@ -31,7 +31,7 @@ describe('Dashboard · règle de composition (noyau, pure)', () => {
 
 describe('Dashboard · la prochaine itération passe DEVANT (HTML rendu)', () => {
   it('sans parcours · « prépare ton itération » avec accès Adsmap + Veille, pas de KPI inventé', () => {
-    const h = renderToStaticMarkup(<ProchaineEtape parcours={null} firstName="Kévin" />);
+    const h = renderToStaticMarkup(<ProchaineEtape parcours={null} />);
     expect(h).toContain('Prépare ta prochaine itération');
     expect(h, 'l’accès Adsmap manque').toContain('href="/adsmap"');
     expect(h, 'l’accès Veille manque').toContain('href="/veille"');
@@ -40,9 +40,28 @@ describe('Dashboard · la prochaine itération passe DEVANT (HTML rendu)', () =>
   it('parcours en cours · le vrai parcours (une prochaine étape), pas la bascule itération', () => {
     const j = journey(new Set(), { canAdmin: true }); // rien fait, admin → non complet, une prochaine étape actionnable
     expect(j.complete).toBe(false);
-    const h = renderToStaticMarkup(<ProchaineEtape parcours={{ journey: j, relance: null }} firstName="Kévin" />);
+    const h = renderToStaticMarkup(<ProchaineEtape parcours={{ journey: j, relance: null }} />);
     expect(h, 'le parcours réel n’expose pas sa prochaine étape').toContain('Prochaine étape');
     expect(h, 'une étape d’installation est travestie en itération').not.toContain('Prépare ta prochaine itération');
+  });
+
+  // Point 2 · un membre sans droits d'admin, aucune étape actionnable · `next`
+  // est null SANS que le parcours soit complet. On énonce un état FACTUEL, on ne
+  // propose PAS d'action interdite, et on ne bascule pas en « itération » (qui
+  // dirait faussement « apprentissage acquis »).
+  it('membre non-admin sans action possible · état factuel, aucune action interdite, jamais « complet »', () => {
+    const j = journey(new Set(), { canAdmin: false });
+    expect(j.next, 'le préalable du test : aucune action autorisée').toBeNull();
+    expect(j.complete, 'le préalable du test : le parcours n’est pas complet').toBe(false);
+    const h = renderToStaticMarkup(<ProchaineEtape parcours={{ journey: j, relance: null }} />);
+    // Un état factuel est rendu (le bloc « En attente »), le panneau ne disparaît pas.
+    expect(h, 'l’état factuel d’attente n’est pas rendu').toContain('En attente');
+    expect(h, 'l’état factuel ne nomme pas qui doit agir').toContain('administrateur');
+    // Aucune action interdite : le bloc-action (le Link « Prochaine étape ») est absent.
+    expect(h, 'une action interdite est proposée (bloc « Prochaine étape »)').not.toContain('Prochaine étape');
+    // `next` null n’est pas traité comme « terminé » : ni bascule itération, ni « circuit complet ».
+    expect(h, 'absence de next travestie en itération').not.toContain('Prépare ta prochaine itération');
+    expect(h, 'absence de next travestie en circuit complet').not.toContain('circuit complet');
   });
 });
 
@@ -103,5 +122,14 @@ describe('Dashboard · shell + page', () => {
     expect(page).toContain('prochaineEtape={<ProchaineEtape');
     expect(page).toContain('exemple={<ApercuExemple');
     expect(page).toContain('maxWidth: 1200');
+  });
+
+  // Les slots injectés (créés par Dashboard, rendus parmi les enfants mixtes de
+  // AssistantHome) portent une `key` · sans elle, React 19 émet en dev un
+  // avertissement de clé (le badge « 1 Issue » de Next). Dev-only, sans effet en
+  // prod, mais il pollue la console · on cloue la clé pour qu'elle ne régresse pas.
+  it('les slots injectés portent une clé (pas d’avertissement de clé React)', () => {
+    expect(page, 'le slot prochaineEtape n’a pas de clé').toMatch(/<ProchaineEtape\s+key=/);
+    expect(page, 'le slot exemple n’a pas de clé').toMatch(/<ApercuExemple\s+key=/);
   });
 });
