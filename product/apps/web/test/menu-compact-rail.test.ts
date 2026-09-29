@@ -31,12 +31,25 @@ describe('menu compact · en-tête du rail', () => {
     expect(SRC).toContain("aria-haspopup=\"menu\" aria-expanded={wsMenuOpen}");
   });
 
-  it('la bascule Réduire/Développer a QUITTÉ l’en-tête · elle vit au pied, avec ses deux libellés', () => {
-    // Mutation : remettre le bouton « Replier la barre » collé à l'identité
-    // (l'ancien défaut) réintroduit l'écrasement. On exige les DEUX libellés de
-    // la commande de pied, et l'absence de l'ancien libellé d'en-tête.
-    expect(SRC, 'la commande de pied ne nomme pas ses deux états').toContain("collapsed ? 'Développer la barre' : 'Réduire la barre'");
-    expect(SRC, 'l’ancien bouton « Replier la barre » de l’en-tête subsiste').not.toContain('title="Replier la barre"');
+  it('la bascule Réduire vit en TÊTE, à côté de l’identité-accueil · plus au pied', () => {
+    // Kevin, 29/09 · l'ancien bouton de PIED « Réduire le menu » éloignait la
+    // commande du logo · elle redevient une petite icône EN TÊTE, à côté de
+    // l'identité, qui elle-même ramène à l'accueil.
+    //
+    // Mutation 1 : rendre l'identité muette (retirer le lien /dashboard de
+    // l'en-tête) fait tomber la 1re. Mutation 2 : remettre le bouton de pied
+    // « Réduire le menu » fait tomber les deux dernières.
+    const iLink = SRC.indexOf('aria-label="Accueil" title="Accueil"');
+    expect(iLink, 'le lien d’identité (accueil) est introuvable en tête').toBeGreaterThan(-1);
+    const enTete = SRC.slice(Math.max(0, iLink - 60), iLink + 900);
+    // L'identité (logo + mot « TikTrends ») ramène à l'accueil · un seul lien.
+    expect(enTete, 'l’identité ne ramène pas à l’accueil').toContain('href="/dashboard"');
+    expect(enTete, 'le mot TikTrends n’est pas dans le lien d’accueil').toContain('>TikTrends</span>');
+    // La bascule Réduire est là, en tête, juste à côté de l'identité.
+    expect(enTete, 'la bascule Réduire n’est pas en tête').toContain('aria-label="Réduire la barre"');
+    // L'ancien bouton de PIED a disparu.
+    expect(SRC, 'le bouton de pied « Réduire le menu » subsiste').not.toContain('Réduire le menu');
+    expect(SRC, 'le libellé à deux états du bouton de pied subsiste').not.toContain("collapsed ? 'Développer la barre' : 'Réduire la barre'");
   });
 });
 
@@ -52,5 +65,34 @@ describe('menu compact · cibles et discrétion', () => {
   it('le groupe « Observer » (et ses voisins) reste discret · 11 px', () => {
     // Le libellé de groupe est en 11 px (charte : 11–12), pas ré-agrandi.
     expect(SRC).toContain("fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase'");
+  });
+});
+
+/**
+ * Kevin, 29/09 · la recherche GLOBALE sort du rail vers une barre supérieure
+ * COMMUNE (loupe/commande + ⌘/Ctrl K conservé), et le logo ramène à l'accueil
+ * dans TOUS les états · en replié, l'expansion est une icône séparée.
+ */
+describe('shell · recherche globale hors rail + logo accueil tous états', () => {
+  // Le corps du rail, entre l'ouverture de l'<aside> et sa fermeture.
+  const aside = SRC.slice(SRC.indexOf('<aside'), SRC.indexOf('</aside>'));
+
+  it('la recherche globale a QUITTÉ le rail · plus d’ouverture de palette dans l’aside', () => {
+    // Mutation : remettre un lanceur de recherche (openCommandPalette) dans le
+    // rail fait tomber cette assertion.
+    expect(aside, 'la recherche est restée dans le rail').not.toContain('openCommandPalette');
+  });
+
+  it('la recherche globale vit dans la barre commune · lanceur + raccourci ⌘/Ctrl K', () => {
+    expect(SRC, 'aucun lanceur de recherche').toContain('aria-label="Rechercher"');
+    expect(SRC, 'le raccourci clavier n’est plus annoncé').toContain('aria-keyshortcuts="Meta+K Control+K"');
+    expect(SRC, 'le lanceur n’ouvre pas la palette').toContain('openCommandPalette');
+  });
+
+  it('replié · logo = lien accueil + icône d’expansion SÉPARÉE (deux cibles distinctes)', () => {
+    // Mutation : retirer le bouton « Développer la barre » (refusionner les deux
+    // gestes sur le logo) fait tomber la seconde.
+    expect(SRC, 'le logo replié n’est pas le lien accueil dédié').toContain('<LogoHome collapsed />');
+    expect(SRC, 'l’icône d’expansion séparée manque en replié').toContain('aria-label="Développer la barre"');
   });
 });
