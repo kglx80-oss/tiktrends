@@ -26,7 +26,7 @@ import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
 import { CarteConcurrent } from '../../../../components/CarteConcurrent';
-import { costFor, imageModelByKey, type DaVisuelleMarque } from '@tiktrends/core';
+import { costFor, imageModelByKey, connecteursBranches, type DaVisuelleMarque } from '@tiktrends/core';
 import { falConfigured } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -150,12 +150,11 @@ export default async function BrandDetailPage({ params, searchParams }: {
           { n: competitors.length, label: 'Concurrents', tab: 'competitors' },
         ];
         // Les outils RÉELLEMENT branchés · leurs logos officiels plutôt qu'un
-        // libellé. On ne liste QUE ce qui a une connexion en base (comptes pub,
-        // boutique Shopify) · jamais un connecteur qu'on n'a pas.
-        const connectes: Array<{ key: string; label: string }> = [
-          ...Array.from(new Set(adAccounts.map((a) => a.platform))).map((p) => ({ key: p, label: p === 'meta' ? 'Meta' : 'TikTok' })),
-          ...(b.shopifyDomain ? [{ key: 'shopify', label: 'Shopify' }] : []),
-        ];
+        // libellé. La connexion se prouve par un TOKEN présent, comme sur l'écran
+        // Connexions · pas par un domaine Shopify résiduel (qui survit à une
+        // déconnexion) ni par la table `ad_accounts` (que rien n'alimente en
+        // prod). La règle vit dans le noyau · `connecteursBranches`.
+        const connectes = connecteursBranches({ metaToken: b.metaToken, shopifyToken: b.shopifyToken });
         return (
         <div>
           {/* Parcours de démarrage guidé (schéma étape par étape) */}

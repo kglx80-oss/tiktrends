@@ -48,6 +48,38 @@ export function dejaDisponible(nom: string, disponibles: readonly string[]): boo
 }
 
 /**
+ * Les connecteurs RÉELLEMENT branchés d'une marque · pour la bande « Connecté »
+ * de l'aperçu. Un token présent, jamais un signal trompeur.
+ *
+ * ── Le défaut que cette fonction ferme ───────────────────────────────────────
+ *
+ * L'aperçu déduisait « connecté » de deux choses qui ne le prouvent pas ·
+ *  · la présence de la CHAÎNE `shopifyDomain`, qui survit à une déconnexion (le
+ *    `disconnect` met le TOKEN à null mais laisse le domaine · on lisait donc
+ *    « connecté » sur une boutique débranchée) ;
+ *  · des lignes de la table `ad_accounts`, que RIEN n'alimente dans le produit
+ *    (aucun insert · elle reste vide en prod) · un compte n'y apparaissait donc
+ *    que par un seed de test, pas par une vraie connexion.
+ *
+ * La seule vérité de connexion vit dans les tokens de la marque · c'est
+ * exactement ce que lit l'écran Connexions (`getConnectionState` · `meta.connected
+ * = !!metaToken`, `shopify.connected = !!shopifyToken`). On s'aligne dessus, à
+ * l'identique · un connecteur n'est « connecté » que si son token est présent.
+ *
+ * Pas de TikTok ici · il n'existe aucun token TikTok en base ni d'action de
+ * connexion TikTok (il est absent de `getConnectionState`) · on n'invente pas un
+ * connecteur qu'on n'a pas.
+ */
+export interface ConnecteurBranche { key: 'meta' | 'shopify'; label: string; }
+
+export function connecteursBranches(b: { metaToken?: string | null; shopifyToken?: string | null }): ConnecteurBranche[] {
+  const out: ConnecteurBranche[] = [];
+  if (b.metaToken) out.push({ key: 'meta', label: 'Meta' });
+  if (b.shopifyToken) out.push({ key: 'shopify', label: 'Shopify' });
+  return out;
+}
+
+/**
  * La PHASE d'un connecteur branché · « connecté » ne dit pas tout (CDC v7 · N09).
  * On distingue le compte relié, le compte à choisir (une agence a plusieurs
  * comptes pub), la connexion sans données remontées, et l'état opérationnel.
