@@ -58,13 +58,21 @@ export function CommandPalette({ commands }: { commands: Command[] }) {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener(CMDK_EVENT, onEvt); };
   }, []);
 
-  // Reset + focus à l'ouverture ; verrouille le scroll du fond.
+  // Reset + focus à l'ouverture ; verrouille le scroll du fond ; à la fermeture,
+  // REND le focus à l'élément qui a ouvert la palette (le lanceur de recherche,
+  // ou là où l'on était). Sans ça, après Échap le focus retombait sur <body> et
+  // la navigation clavier repartait du haut de page (le lanceur ayant quitté le
+  // rail pour la barre commune, ce retour compte).
   useEffect(() => {
     if (open) {
+      const opener = document.activeElement as HTMLElement | null;
       setQ(''); setIdx(0);
       const t = setTimeout(() => inputRef.current?.focus(), 20);
       const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
-      return () => { clearTimeout(t); document.body.style.overflow = prev; };
+      return () => {
+        clearTimeout(t); document.body.style.overflow = prev;
+        try { if (opener && opener !== document.body && document.contains(opener)) opener.focus(); } catch { /* focus indispo */ }
+      };
     }
   }, [open]);
 
