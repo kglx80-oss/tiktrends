@@ -113,15 +113,21 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
           <option value="all">Tous les angles</option>
           {anglePresent.map((k) => <option key={k} value={k}>{ANGLE_LABEL[k]}</option>)}
         </select>
-        {/* Le tri, à part · un séparateur et un libellé le distinguent des filtres. */}
-        <span aria-hidden style={{ alignSelf: 'stretch', width: 1, background: 'rgba(255,255,255,.12)', margin: '2px 2px' }} />
-        <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)' }}>Tri</span>
-        <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Trier les créas" style={selCible}>
-          <option value="growth">Croissance reach 30j</option>
-          <option value="reach">Reach</option>
-          <option value="duration">Durée de diffusion</option>
-          <option value="spend">Spend estimé</option>
-        </select>
+        {/* Le tri, à part · séparateur + libellé + select forment UN groupe
+            indivisible (nowrap dedans) · il passe à la ligne d'un bloc, jamais
+            le libellé seul d'un côté et le select de l'autre. Le séparateur ne
+            s'affiche que lorsque le groupe suit un filtre sur la même ligne
+            (marge nulle sinon) · sur mobile il reste collé à « Tri ». */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', flex: '0 0 auto', minWidth: 0 }}>
+          <span aria-hidden style={{ alignSelf: 'stretch', width: 1, background: 'rgba(255,255,255,.12)', margin: '2px 0' }} />
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', flexShrink: 0 }}>Tri</span>
+          <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Trier les créas" style={selCible}>
+            <option value="growth">Croissance reach 30j</option>
+            <option value="reach">Reach</option>
+            <option value="duration">Durée de diffusion</option>
+            <option value="spend">Spend estimé</option>
+          </select>
+        </div>
       </div>
 
       {/* Critères actifs · chaque puce retire SON critère ; le compteur et la
