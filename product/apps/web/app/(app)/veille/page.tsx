@@ -297,9 +297,18 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 12 }}>▾</span>
           </summary>
           <div style={{ padding: '4px 14px 14px' }}>
+            {/* Le TRI est détaché des filtres · il réordonne, il ne réduit pas.
+                Un libellé et un trait le séparent de la grille de filtres (Meta). */}
+            {platform === 'meta' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.12)' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink-2)' }}>Tri</span>
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                  <Select name="sort" def={sp.sort} opts={SORTS.map(([v, l]) => [v, l])} />
+                </div>
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
               <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
-              {platform === 'meta' && <Select name="sort" def={sp.sort} opts={SORTS.map(([v, l]) => [v, 'Tri : ' + l])} />}
               <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
               <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
               <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />

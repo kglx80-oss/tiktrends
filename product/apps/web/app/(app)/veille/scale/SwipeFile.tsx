@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
-import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, type AngleKey } from '@tiktrends/core';
+import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, CIBLE_TACTILE_MIN, type AngleKey } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
 import { Empty } from '../../../../components/Empty';
+import { Icon } from '../../../../components/Icon';
 
 export interface SwipeItem { ad: InspoAd; angle: AngleKey; saved: boolean; following: boolean }
 export interface SwipeStats { total: number; videos: number; advertisers: number; spendCumul: string; medianDuration: number; medianGrowth: number }
@@ -27,6 +28,21 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
   const [angle, setAngle] = useState<'all' | AngleKey>('all');
   const [sort, setSort] = useState<'growth' | 'reach' | 'duration' | 'spend'>('growth');
   const [qText, setQText] = useState('');
+
+  // Raccourci « / » · met le focus sur la recherche locale. On NE capture PAS la
+  // touche quand un champ a déjà le focus (input/textarea/select/contenteditable),
+  // sinon on volerait la frappe de l'utilisateur en plein mot.
+  const rechercheRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      const cible = e.target as HTMLElement | null;
+      const tag = cible?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || cible?.isContentEditable) return;
+      if (e.key === '/') { e.preventDefault(); rechercheRef.current?.focus(); }
+    };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, []);
 
   const anglePresent = useMemo(() => {
     const set = new Set(items.map((i) => i.angle));
@@ -52,6 +68,14 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
   const filtresActifs = type !== 'all' || adv !== 'all' || angle !== 'all' || qText.trim() !== '';
   const reinitialiser = () => { setType('all'); setAdv('all'); setAngle('all'); setQText(''); };
 
+  // Un critère actif = une puce retirable seule (le tri n'en est pas un · il
+  // réordonne, ne réduit pas). Retirer une puce relâche SON critère et rien d'autre.
+  const critsActifs: Array<{ cle: string; texte: string; retirer: () => void }> = [];
+  if (type !== 'all') critsActifs.push({ cle: 'type', texte: type === 'video' ? 'Vidéos' : 'Statiques', retirer: () => setType('all') });
+  if (adv !== 'all') critsActifs.push({ cle: 'adv', texte: adv, retirer: () => setAdv('all') });
+  if (angle !== 'all') critsActifs.push({ cle: 'angle', texte: ANGLE_LABEL[angle], retirer: () => setAngle('all') });
+  if (qText.trim()) critsActifs.push({ cle: 'q', texte: '« ' + qText.trim() + ' »', retirer: () => setQText('') });
+
   const prompts = buildPrompts(niche, country);
 
   return (
@@ -66,29 +90,50 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
         <Stat n={stats.medianDuration + ' j'} label="Durée médiane" />
       </div>
 
-      {/* Filtres */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 }}>
+      {/* Filtres · recherche locale à gauche, filtres principaux, puis le TRI
+          détaché à droite (séparateur + libellé) · le tri réordonne, il ne
+          filtre pas. Sur mobile la rangée s'enroule sans perdre un critère. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: critsActifs.length > 0 ? 8 : 18 }}>
+        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0 }}>
+          <input ref={rechercheRef} value={qText} onChange={(e) => setQText(e.target.value)} placeholder="Chercher dans le copy…" aria-label="Chercher dans le copy"
+            style={{ ...sel, width: '100%', paddingRight: 36, cursor: 'text', minHeight: CIBLE_TACTILE_MIN }} />
+          {/* Indice du raccourci · purement visuel, ne capte pas le clic. */}
+          <span aria-hidden style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: 'var(--muted)', border: '1px solid var(--line-2)', borderRadius: 6, padding: '1px 6px', pointerEvents: 'none' }}>/</span>
+        </div>
         <Seg value={type} set={setType} opts={[['all', 'Tout'], ['static', 'Statiques'], ['video', 'Vidéos']]} />
-        <select value={adv} onChange={(e) => setAdv(e.target.value)} style={sel}>
+        <select value={adv} onChange={(e) => setAdv(e.target.value)} aria-label="Annonceur" style={selCible}>
           <option value="all">Tous les annonceurs</option>
           {advertisers.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        <select value={angle} onChange={(e) => setAngle(e.target.value as 'all' | AngleKey)} style={sel}>
+        <select value={angle} onChange={(e) => setAngle(e.target.value as 'all' | AngleKey)} aria-label="Angle" style={selCible}>
           <option value="all">Tous les angles</option>
           {anglePresent.map((k) => <option key={k} value={k}>{ANGLE_LABEL[k]}</option>)}
         </select>
-        <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} style={sel}>
-          <option value="growth">Tri : croissance reach 30j</option>
-          <option value="reach">Tri : reach</option>
-          <option value="duration">Tri : durée de diffusion</option>
-          <option value="spend">Tri : spend estimé</option>
+        {/* Le tri, à part · un séparateur et un libellé le distinguent des filtres. */}
+        <span aria-hidden style={{ alignSelf: 'stretch', width: 1, background: 'rgba(255,255,255,.12)', margin: '2px 2px' }} />
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)' }}>Tri</span>
+        <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Trier les créas" style={selCible}>
+          <option value="growth">Croissance reach 30j</option>
+          <option value="reach">Reach</option>
+          <option value="duration">Durée de diffusion</option>
+          <option value="spend">Spend estimé</option>
         </select>
-        <input value={qText} onChange={(e) => setQText(e.target.value)} placeholder="Chercher dans le copy…" style={{ ...sel, flex: '1 1 180px', cursor: 'text' }} />
+      </div>
+
+      {/* Critères actifs · chaque puce retire SON critère ; le compteur et la
+          réinitialisation globale restent à droite. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 }}>
+        {critsActifs.map((c) => (
+          <button key={c.cle} type="button" onClick={c.retirer} title="Retirer ce critère" aria-label={'Retirer le critère · ' + c.texte}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, fontWeight: 600, padding: '2px 12px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
+            {c.texte} <span aria-hidden style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="x" size={12} /></span>
+          </button>
+        ))}
         <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
           {/* « X sur Y » quand un filtre réduit · sinon le total seul (R15). */}
           {shown.length}{filtresActifs ? ` sur ${items.length}` : ''} créa(s)
           {filtresActifs && (
-            <button type="button" onClick={reinitialiser} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Réinitialiser</button>
+            <button type="button" onClick={reinitialiser} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, minHeight: CIBLE_TACTILE_MIN }}>Réinitialiser</button>
           )}
         </span>
       </div>
@@ -246,7 +291,7 @@ function Seg<T extends string>({ value, set, opts }: { value: T; set: (v: T) => 
     <div style={{ display: 'inline-flex', border: '1px solid var(--line-2)', borderRadius: 999, overflow: 'hidden' }}>
       {opts.map(([v, label]) => (
         <button key={v} type="button" onClick={() => set(v)} style={{
-          padding: '8px 13px', fontSize: 12.5, fontWeight: value === v ? 800 : 600, cursor: 'pointer', border: 'none',
+          padding: '8px 13px', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: value === v ? 800 : 600, cursor: 'pointer', border: 'none',
           background: value === v ? 'var(--grad-accent)' : 'transparent', color: value === v ? 'var(--on-accent)' : 'var(--ink-2)',
         }}>{label}</button>
       ))}
@@ -267,3 +312,5 @@ function buildPrompts(niche: string, country: string): string[] {
 }
 
 const sel = { padding: '9px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, outline: 'none', cursor: 'pointer' } as const;
+// Les menus de filtre/tri partagent la cible tactile du noyau (≥ 44).
+const selCible = { ...sel, minHeight: CIBLE_TACTILE_MIN } as const;
