@@ -49,6 +49,9 @@ export function Radar() {
 
   const { state, findings, spend } = view;
   const restant = Math.max(0, spend.capUsd - spend.spentUsd);
+  // Armer est indisponible sans concurrent suivi (ou pendant une action) · le
+  // bouton doit alors LIRE comme désactivé, pas comme un CTA primaire à cliquer.
+  const armDisabled = busy || state.followed === 0;
 
   const basculer = (armed: boolean) => lance(async () => {
     const r = await setRadarAction({ armed, cap });
@@ -106,8 +109,14 @@ export function Radar() {
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
-            onClick={() => basculer(!state.armed)} disabled={busy || state.followed === 0}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 18px', borderRadius: 999, border: 'none', background: state.armed ? 'var(--line-2)' : 'var(--grad-accent)', color: state.armed ? 'var(--ink)' : 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'wait' : 'pointer' }}
+            onClick={() => basculer(!state.armed)} disabled={armDisabled}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 18px', borderRadius: 999,
+              // Désactivé (0 suivi) · fantôme sobre, pas le dégradé primaire · le
+              // contraste reste lisible et ne se confond pas avec un bouton actif.
+              border: (!state.armed && armDisabled) ? '1px solid var(--line-2)' : 'none',
+              background: state.armed ? 'var(--line-2)' : (armDisabled ? 'transparent' : 'var(--grad-accent)'),
+              color: state.armed ? 'var(--ink)' : (armDisabled ? 'var(--muted)' : 'var(--on-accent)'),
+              fontWeight: 800, fontSize: 12.5, cursor: busy ? 'wait' : (armDisabled ? 'not-allowed' : 'pointer') }}
           >
             {state.armed ? 'Éteindre le radar' : 'Armer le radar'}
           </button>
@@ -129,7 +138,7 @@ export function Radar() {
             Aucun concurrent suivi · le radar n’aurait rien à surveiller. Ajoute des marques depuis la veille avant de l’armer.
             {/* Le geste était nommé sans être cliquable · on mène à la veille,
                 là où l'on suit une marque. */}
-            {' '}<a href="/veille" style={{ fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Ouvrir la veille ›</a>
+            {' '}<a href="/veille" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Ouvrir la veille ›</a>
           </p>
         )}
 
@@ -239,13 +248,13 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={classer} disabled={classe || hypo.trim().length < 10}
-              style={{ padding: '8px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 12.5, cursor: classe ? 'wait' : 'pointer', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : 'var(--on-accent)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 12.5, cursor: classe ? 'wait' : 'pointer', background: hypo.trim().length < 10 ? 'var(--line-2)' : 'var(--grad-accent)', color: hypo.trim().length < 10 ? 'var(--muted)' : 'var(--on-accent)' }}
             >
               {classe ? 'Classement…' : 'Poser sur la carte'}
             </button>
             <button
               onClick={ecrire} disabled={redige}
-              style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
             >
               {redige ? 'Jarvis écrit…' : 'Réécrire'}
             </button>
@@ -257,7 +266,7 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             onClick={ecrire} disabled={redige}
-            style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: redige ? 'wait' : 'pointer' }}
           >
             {redige ? 'Jarvis écrit…' : 'Demander le concept à Jarvis'}
           </button>
