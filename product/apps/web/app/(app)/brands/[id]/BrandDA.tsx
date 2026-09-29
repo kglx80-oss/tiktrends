@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { importBrandDAAction, saveBrandDAAction, extractBrandVisualDaAction, saveBrandVisualDaAction } from '../../../actions/brand-detail';
 import { BrandGuidelines } from '../../../../components/BrandGuidelines';
+import { PaletteMarque } from './PaletteMarque';
 import { Icon } from '../../../../components/Icon';
 import { costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
 
@@ -153,20 +154,22 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
           <div>
             <div style={daLbl}>Logo</div>
             {da.logoUrl
-               
               ? <img src={da.logoUrl} alt="" style={{ height: 44, maxWidth: 160, objectFit: 'contain', background: 'rgba(255,255,255,.06)', borderRadius: 8, padding: 6 }} />
               : <span style={{ fontSize: 12, color: 'var(--muted)' }}>·</span>}
+            {/* Les variantes réelles du logo (clair, foncé, icône) déjà en base ·
+                de vraies miniatures qui aident à reconnaître chaque version, pas
+                une décoration. Affichées seulement s'il en existe plus d'une. */}
+            {logoList.length > 1 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                {logoList.map((u) => (
+                  <img key={u} src={u} alt="" style={{ height: 28, maxWidth: 92, objectFit: 'contain', background: 'rgba(255,255,255,.06)', borderRadius: 6, padding: 4, border: '1px solid rgba(255,255,255,.12)' }} />
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <div style={daLbl}>Couleurs</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {da.colors.length ? da.colors.map((c) => (
-                <span key={c} title={c} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                  <span style={{ width: 30, height: 30, borderRadius: 8, background: c, border: '1px solid var(--line-2)' }} />
-                  <span style={{ fontSize: 9, color: 'var(--muted)' }}>{c}</span>
-                </span>
-              )) : <span style={{ fontSize: 12, color: 'var(--muted)' }}>·</span>}
-            </div>
+            <PaletteMarque colors={da.colors} />
           </div>
           <div>
             <div style={daLbl}>Polices</div>

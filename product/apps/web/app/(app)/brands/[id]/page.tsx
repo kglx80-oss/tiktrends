@@ -13,6 +13,7 @@ import {
 } from '../../../actions/brand-detail';
 import { input, lbl, Msg, LARGEURS } from '../../../../components/ui';
 import { Icon } from '../../../../components/Icon';
+import { BrandTile } from '../../../../components/BrandIcons';
 import { AvatarSite } from '../../../../components/AvatarSite';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
 import { RenameMarque } from '../../../../components/RenameMarque';
@@ -148,6 +149,13 @@ export default async function BrandDetailPage({ params, searchParams }: {
           { n: products.length, label: 'Produits', tab: 'products' },
           { n: competitors.length, label: 'Concurrents', tab: 'competitors' },
         ];
+        // Les outils RÉELLEMENT branchés · leurs logos officiels plutôt qu'un
+        // libellé. On ne liste QUE ce qui a une connexion en base (comptes pub,
+        // boutique Shopify) · jamais un connecteur qu'on n'a pas.
+        const connectes: Array<{ key: string; label: string }> = [
+          ...Array.from(new Set(adAccounts.map((a) => a.platform))).map((p) => ({ key: p, label: p === 'meta' ? 'Meta' : 'TikTok' })),
+          ...(b.shopifyDomain ? [{ key: 'shopify', label: 'Shopify' }] : []),
+        ];
         return (
         <div>
           {/* Parcours de démarrage guidé (schéma étape par étape) */}
@@ -162,6 +170,20 @@ export default async function BrandDetailPage({ params, searchParams }: {
             </div>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>Plus le profil est complet, meilleures sont les créas générées.</span>
           </div>
+          {/* Outils branchés · logos officiels des plateformes réellement
+              connectées (comptes pub, boutique) · identité concrète, pas un mur
+              de chiffres. Masqué tant que rien n'est branché. */}
+          {connectes.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>Connecté</span>
+              {connectes.map((t) => (
+                <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px 6px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'var(--surface)' }}>
+                  <BrandTile name={t.label} tile={24} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{t.label}</span>
+                </span>
+              ))}
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 24 }}>
             {cards.map((c) => (
               <Link key={c.label} href={`/brands/${id}?tab=${c.tab}`} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px', textDecoration: 'none' }}>
