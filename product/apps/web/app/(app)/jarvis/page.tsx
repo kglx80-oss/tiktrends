@@ -47,9 +47,12 @@ export default async function JarvisPage() {
   }
 
   return (
-    // Écran conversationnel · colonne calme de 760 px (charte), pas la largeur
-    // « data » des tableaux · la conversation et l'accueil se lisent centrés.
-    <main style={{ padding: '24px clamp(16px, 4vw, 36px) 60px', maxWidth: 760, margin: '0 auto' }}>
+    // Écran conversationnel · le CADRE et le composeur s'alignent sur les bords
+    // de la Veille (maxWidth 1200, gouttières clamp(16,4vw,32)) · Kevin, 29/09 ·
+    // le plafond 760 rétrécissait toute la page. La largeur de LECTURE reste
+    // calée à la colonne « prose » (760) À L'INTÉRIEUR (cf. JarvisChat), pour que
+    // les longues réponses ne courent pas d'un bord à l'autre.
+    <main style={{ padding: '24px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' }}>
       {/* En-tête COMPACT · Jarvis + marque, sans sous-titre redondant ni
           séparateur · le seul titre dominant est la question, à l'accueil
           (l'emblème est centré au-dessus d'elle, pas ici). À droite, un accès

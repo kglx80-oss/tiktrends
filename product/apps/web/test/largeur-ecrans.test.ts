@@ -25,9 +25,10 @@ describe('largeurs de contenu · le standard', () => {
 describe('largeurs de contenu · les écrans data élargis', () => {
   // Chaque écran précédemment étroit doit porter la largeur standard sur son
   // conteneur principal, et ne plus porter son ancienne largeur bridée.
-  // Jarvis a QUITTÉ ce palier · c'est un écran CONVERSATIONNEL, pas un tableau
-  // de données · il tient une colonne calme de 760 px (charte validée, Codex ·
-  // 26/09/2026). Les vraies pages de données gardent la largeur standard.
+  // Jarvis a QUITTÉ ce palier · c'est un écran CONVERSATIONNEL · depuis B
+  // (Kevin, 29/09) son CADRE s'aligne sur les bords de la Veille (1200) et la
+  // largeur de LECTURE est bornée à la colonne prose (760) À L'INTÉRIEUR · voir
+  // l'assertion dédiée plus bas. Les vraies pages de données gardent 1180.
   const cas: Array<{ fichier: string; large: string; ancienne: string }> = [
     { fichier: 'brands/[id]/page.tsx', large: 'maxWidth: LARGEURS.data', ancienne: 'maxWidth: 940' },
     { fichier: 'studio/image/page.tsx', large: 'maxWidth: 1180', ancienne: 'maxWidth: 1000' },
@@ -42,9 +43,14 @@ describe('largeurs de contenu · les écrans data élargis', () => {
     });
   }
 
-  it('jarvis/page.tsx · écran conversationnel · colonne 760, pas la largeur data', () => {
+  // Kevin, 29/09 · B · Jarvis n'est PLUS bridé à 760 · son CADRE et son composeur
+  // s'alignent sur les bords de la Veille (1200). La largeur de LECTURE reste
+  // calée à la colonne prose (760) À L'INTÉRIEUR · voir jarvis-cadre-veille.
+  it('jarvis/page.tsx · cadre conversationnel aux bords Veille (1200), plus le plafond 760', () => {
     const src = lire('jarvis/page.tsx');
-    expect(src.includes('maxWidth: 760'), 'Jarvis doit tenir la colonne conversationnelle 760').toBe(true);
-    expect(src.includes('maxWidth: 1180'), 'Jarvis ne doit plus porter la largeur data 1180').toBe(false);
+    const iMain = src.lastIndexOf('<main style={{ padding:');
+    const cadre = src.slice(iMain, iMain + 170);
+    expect(cadre.includes('maxWidth: 1200'), 'le cadre conversationnel doit s’aligner à 1200 (Veille)').toBe(true);
+    expect(cadre.includes('maxWidth: 760'), 'le plafond 760 ne doit plus brider le cadre').toBe(false);
   });
 });

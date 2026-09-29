@@ -41,7 +41,9 @@ import { useIsMobile } from '../../../components/useIsMobile';
  */
 
 const bulle = (moi: boolean): CSSProperties => ({
-  maxWidth: '86%',
+  // Largeur de LECTURE bornée à la colonne « prose » (760, charte) à l'intérieur
+  // du cadre large · au-delà, une ligne trop longue fatigue la lecture.
+  maxWidth: 'min(760px, 86%)',
   alignSelf: moi ? 'flex-end' : 'flex-start',
   padding: '10px 14px',
   borderRadius: moi ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
@@ -59,7 +61,10 @@ const bulle = (moi: boolean): CSSProperties => ({
 // chaque réponse de Jarvis chargeait la lecture · un mur de cartes empilées.
 const reponse: CSSProperties = {
   alignSelf: 'flex-start',
-  maxWidth: '92%',
+  // Largeur de LECTURE des réponses bornée à la colonne « prose » (760, charte)
+  // à l'intérieur du cadre large · les longues réponses ne courent pas d'un bord
+  // à l'autre (Kevin, 29/09).
+  maxWidth: 'min(760px, 92%)',
   color: 'var(--ink)',
   fontSize: 14,
   lineHeight: 1.7,
@@ -173,7 +178,9 @@ export function JarvisChat() {
   // deux cibles 44x44. Généreux · padding 18 / texte 15 en desktop, padding 14 /
   // texte 16 en mobile (le 16 empêche le zoom iOS à la mise au point).
   const composeur = (
-    <div style={{ width: '100%', maxWidth: 760, margin: '0 auto' }}>
+    // Le composeur s'aligne sur les bords du cadre (comme la Veille) · plus de
+    // plafond 760 ici · Kevin, 29/09.
+    <div style={{ width: '100%' }}>
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 10,
         padding: isMobile ? 14 : 18,
@@ -289,7 +296,10 @@ export function JarvisChat() {
             </button>
           </div>
 
-          <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 760, margin: '0 auto', boxSizing: 'border-box' }}>
+          {/* Le fil occupe toute la largeur du cadre · la largeur de LECTURE des
+              messages est bornée à l'intérieur (voir `reponse` / `bulle`), pas
+              par un plafond du fil (Kevin, 29/09). */}
+          <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
             {thread.turns.map((t) => (
               <Tour key={t.id} turn={t} />
             ))}
