@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MODE_LABEL } from '@tiktrends/core';
-import { CarteSuite } from '../app/(app)/adsmap/suites/Suites';
+import { CarteSuite, sensDuSuite } from '../app/(app)/adsmap/suites/Suites';
 import type { IterationRow } from '../app/actions/adsmap-iterate';
 
 /**
@@ -147,5 +147,42 @@ describe('Suites · révélation ouverte/repliée + en-tête court + support anc
 
   it('le support est ANCRÉ sur /adsmap/suites · il ne recouvre plus cartes ni CTA', () => {
     expect(shell).toContain("pathname === '/adsmap/suites'");
+  });
+});
+
+describe('Suites · le sens du mode « Décliner » est conditionnel à la preuve (RÉSULTAT)', () => {
+  // Prod Klorea · une Décliner au parent NON prouvé affichait la réserve « pas de
+  // victoire prouvée → nouveau concept », puis « Elle a gagné · on garde ce qui a
+  // gagné » · contradiction. Le sens du mode suit désormais la preuve, sans toucher
+  // moteur/éligibilité/rationale.
+  const GAGNE = 'Elle a gagné · on garde ce qui a gagné et on multiplie.';
+
+  it('Décliner + parent PROUVÉ · garde le sens du noyau (« Elle a gagné »)', () => {
+    expect(sensDuSuite('more', GAGNE, true)).toBe(GAGNE);
+  });
+
+  it('Décliner + parent NON prouvé · neutralise, n’affirme aucune victoire', () => {
+    const v = sensDuSuite('more', GAGNE, false);
+    expect(v).not.toContain('gagné');
+    expect(v).toContain('n’est pas une victoire prouvée');
+  });
+
+  it('Corriger / Repartir · le sens du noyau passe tel quel (aucune affirmation de victoire)', () => {
+    expect(sensDuSuite('better', 'Elle a buté sur un point précis.', false)).toBe('Elle a buté sur un point précis.');
+    expect(sensDuSuite('new', 'Il ne reste rien à garder.', false)).toBe('Il ne reste rien à garder.');
+  });
+
+  it('la carte rendue ne contredit plus la réserve (HTML)', () => {
+    const nonProuve = renderToStaticMarkup(
+      <CarteSuite row={{ ...base, mode: 'more', modeLabel: MODE_LABEL.more, modeHint: GAGNE, edgeLegal: false }} ouvert={false} onToggle={noop} onCree={noop} />,
+    );
+    // La réserve est là, et le sens du mode ne dit plus « gagné ».
+    expect(nonProuve).toContain('nouveau concept, pas comme itération');
+    expect(nonProuve).not.toContain('Elle a gagné');
+    // Parent prouvé · le sens du noyau revient.
+    const prouve = renderToStaticMarkup(
+      <CarteSuite row={{ ...base, mode: 'more', modeLabel: MODE_LABEL.more, modeHint: GAGNE, edgeLegal: true }} ouvert={false} onToggle={noop} onCree={noop} />,
+    );
+    expect(prouve).toContain('Elle a gagné');
   });
 });

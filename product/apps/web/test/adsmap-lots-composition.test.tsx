@@ -64,6 +64,11 @@ describe('Lots · sur mobile la sélection passe avant le brief (source)', () =>
     expect(src.indexOf('{selecteur}', iRail)).toBeLessThan(src.indexOf('{vivier}', iRail));
   });
 
+  it('la copie ne dit plus « à droite » · sur mobile le vivier est en dessous', () => {
+    expect(src, '« à droite » ne vaut plus · le vivier passe sous le détail en mobile').not.toContain('vivier à droite');
+    expect(src).toContain('choisis-en dans le vivier.');
+  });
+
   it('aucune action perdue · sélection, création, ajout/retrait, préparer, lancer, copier restent', () => {
     for (const a of ['setChoisi(b.id)', 'onClick={creer}', 'basculer(', 'onClick={preparer}', 'onClick={lancer}', 'copier(']) {
       expect(src, `action perdue : ${a}`).toContain(a);
