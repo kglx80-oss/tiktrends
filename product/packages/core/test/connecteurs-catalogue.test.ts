@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { etatCatalogue, dejaDisponible, etatConnecteur, PHASE_CONNECTEUR_LABEL, resumeImportDrive, etatSyncDrive, LIBELLE_SYNC_DRIVE, derniereTentativeDriveEnEchec } from '../src/connecteurs-catalogue';
+import { etatCatalogue, dejaDisponible, etatConnecteur, PHASE_CONNECTEUR_LABEL, resumeImportDrive, etatSyncDrive, LIBELLE_SYNC_DRIVE, derniereTentativeDriveEnEchec, connecteursBranches } from '../src/connecteurs-catalogue';
 
 /**
  * CDC v7 · N09 · « disponible » et « en préparation » ne comptent jamais la
@@ -42,6 +42,40 @@ describe('resumeImportDrive · un dossier connecté explique son import (N09)', 
   it('déduit les erreurs · trouvé mais ni importé ni déjà présent = échec', () => {
     const m = resumeImportDrive({ found: 5, added: 3, skipped: 1 });
     expect(m).toContain('1 en erreur');
+  });
+});
+
+/**
+ * La bande « Connecté » de l'aperçu ne se déclare connectée que sur un TOKEN
+ * présent · jamais sur un domaine Shopify résiduel ni un ancien compte.
+ */
+describe('connecteursBranches · « connecté » = token présent, pas un signal résiduel', () => {
+  it('un token Meta présent → Meta listé', () => {
+    const c = connecteursBranches({ metaToken: 'enc:abc' });
+    expect(c).toEqual([{ key: 'meta', label: 'Meta' }]);
+  });
+
+  it('un token Shopify présent → Shopify listé', () => {
+    const c = connecteursBranches({ shopifyToken: 'enc:xyz' });
+    expect(c).toEqual([{ key: 'shopify', label: 'Shopify' }]);
+  });
+
+  it('les deux tokens présents → Meta puis Shopify', () => {
+    expect(connecteursBranches({ metaToken: 'e1', shopifyToken: 'e2' }).map((x) => x.key)).toEqual(['meta', 'shopify']);
+  });
+
+  // Le point du propriétaire · une déconnexion met le token à null mais laisse
+  // le domaine · la bande ne doit RIEN déclarer connecté dans ce cas.
+  it('un domaine Shopify sans token → RIEN de connecté', () => {
+    // `shopifyDomain` n'est même pas un paramètre · la décision ne peut pas s'y
+    // raccrocher. Sans token, la liste est vide.
+    expect(connecteursBranches({ shopifyToken: null })).toEqual([]);
+    expect(connecteursBranches({ shopifyToken: '' })).toEqual([]);
+  });
+
+  it('aucun token → aucune connexion (état par défaut d’une marque neuve)', () => {
+    expect(connecteursBranches({})).toEqual([]);
+    expect(connecteursBranches({ metaToken: null, shopifyToken: null })).toEqual([]);
   });
 });
 
