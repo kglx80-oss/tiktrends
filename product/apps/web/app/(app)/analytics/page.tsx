@@ -125,7 +125,7 @@ export default async function AnalyticsPage() {
       {/* Aperçu de démonstration : masqué dès que de vraies données Meta sont connectées. */}
       {!metaInsights && (<>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Aperçu créas</h2>
+        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Aperçu créas</h2>
         <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: '#f5b043', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', borderRadius: 999, padding: '2px 8px' }}>DÉMO</span>
         <span style={{ fontSize: 11, color: 'var(--muted)' }}>· exemple tant qu'aucun compte n'est branché</span>
       </div>
@@ -179,7 +179,7 @@ export default async function AnalyticsPage() {
       </div>
 
       {/* Top ROAS */}
-      <h2 style={{ ...h2, marginTop: 28, marginBottom: 12 }}>Top créas par ROAS</h2>
+      <h2 style={{ ...h2, fontSize: 19, marginTop: 28, marginBottom: 12 }}>Top créas par ROAS</h2>
       <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflowX: 'auto' }}>
         <div style={{ ...trow, background: 'var(--surface)', color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>
           <span>Créa</span><span>Plateforme</span><span style={{ textAlign: 'right' }}>Dépense</span><span style={{ textAlign: 'right' }}>CTR</span><span style={{ textAlign: 'right' }}>ROAS</span><span style={{ textAlign: 'center' }}>Reco</span>
@@ -210,7 +210,7 @@ export default async function AnalyticsPage() {
 
 const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1100, margin: '0 auto' } as const;
 const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;
-const h2 = { margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--ink)' } as const;
+const h2 = { margin: 0, fontSize: 15, fontWeight: 500, color: 'var(--ink)' } as const;
 const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
 const cardLabel = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 8 } as const;
 // minWidth · en dessous, les six colonnes se tassent et débordent · le tableau
