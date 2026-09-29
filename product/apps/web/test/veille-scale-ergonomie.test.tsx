@@ -96,3 +96,25 @@ describe('Scale · le raccourci « / » ne vole pas la frappe dans un champ', ()
     expect(document.activeElement, 'le focus a sauté sur la recherche').not.toBe(recherche);
   });
 });
+
+describe('Scale · réinitialiser depuis l’état « zéro résultat » rend le focus au champ', () => {
+  it('un reset qui vide les critères ramène le focus sur la recherche', () => {
+    monter(<SwipeFile items={ITEMS} stats={STATS} advertisers={['Alpha', 'Gamma']} niche="café" country="FR" />);
+    const recherche = parLabel('Chercher dans le copy') as HTMLInputElement;
+
+    // type = Statiques (a) ET annonceur = Gamma (n'a qu'une vidéo) → 0 résultat récupérable.
+    const btnStatiques = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Statiques')!;
+    act(() => btnStatiques.click());
+    const selAdv = parLabel('Annonceur') as HTMLSelectElement;
+    act(() => { selAdv.value = 'Gamma'; selAdv.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(container.textContent, 'l’état zéro résultat doit s’afficher').toContain('Aucune créa pour ces filtres');
+
+    // Le bouton de l’état vide réinitialise · le focus doit revenir au champ.
+    const btnReset = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Réinitialiser les filtres')!;
+    expect(btnReset, 'le bouton de reset de l’état vide est absent').toBeTruthy();
+    act(() => btnReset.click());
+
+    expect(compteur(), 'la liste doit être restaurée').toBe('3 créa(s)');
+    expect(document.activeElement, 'après reset le focus n’est pas revenu au champ').toBe(recherche);
+  });
+});

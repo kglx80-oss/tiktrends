@@ -66,7 +66,11 @@ export function SwipeFile({ items, stats, advertisers, niche, country }: {
   // Filtres qui RÉDUISENT la population (le tri ne réduit rien) · pour dire
   // « X sur Y », offrir « Réinitialiser », et distinguer les états vides (R15).
   const filtresActifs = type !== 'all' || adv !== 'all' || angle !== 'all' || qText.trim() !== '';
-  const reinitialiser = () => { setType('all'); setAdv('all'); setAngle('all'); setQText(''); };
+  // Réinitialiser vide TOUS les critères PUIS rend le focus au champ de recherche
+  // (le bouton de l'état « zéro résultat » disparaît en même temps que le vide ·
+  // sans ça le focus retomberait sur le <body>). Les deux entrées de reset
+  // (compteur + état vide) partagent ce geste.
+  const reinitialiser = () => { setType('all'); setAdv('all'); setAngle('all'); setQText(''); rechercheRef.current?.focus(); };
 
   // Un critère actif = une puce retirable seule (le tri n'en est pas un · il
   // réordonne, ne réduit pas). Retirer une puce relâche SON critère et rien d'autre.
