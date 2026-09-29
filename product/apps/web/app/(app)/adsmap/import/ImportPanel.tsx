@@ -156,7 +156,12 @@ function Chiffre({ label, v, fort }: { label: string; v: number; fort?: boolean 
   );
 }
 
-const panel: CSSProperties = { border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' };
+// `minWidth: 0` · la section est un item de grille (min-width:auto par défaut),
+// donc elle grandissait au min-content de la table d'aperçu (720 px) et faisait
+// déborder la PAGE à 390 · le conteneur `overflowX:auto` de la table n'était
+// jamais contraint. À 0, la section rétrécit à la piste et la table scrolle chez
+// elle. Desktop inchangé (la table tient dans les 900 px du contenu).
+const panel: CSSProperties = { minWidth: 0, border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' };
 const h2: CSSProperties = { margin: '0 0 4px', fontSize: 16, fontWeight: 800, color: 'var(--ink)' };
 const sub: CSSProperties = { color: 'var(--muted)', fontSize: 12.5, margin: '0 0 14px', lineHeight: 1.6, maxWidth: 660 };
 const bandeau: CSSProperties = { padding: '12px 15px', borderRadius: 12, border: '1px solid', fontSize: 13, lineHeight: 1.6 };
