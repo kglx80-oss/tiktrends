@@ -45,14 +45,11 @@ describe('Lots · budget PRÉVU, la contradiction du lot vide est levée (RÉSUL
 
 describe('Lots · sur mobile la sélection passe avant le brief (source)', () => {
   it('l’ordre mobile est sélecteur → détail → vivier', () => {
-    const iMobile = src.indexOf('{mobile ? (');
-    const bloc = src.slice(iMobile, src.indexOf(') : (', iMobile));
-    const iSel = bloc.indexOf('{selecteur}');
-    const iDet = bloc.indexOf('{detailBloc}');
-    const iViv = bloc.indexOf('{vivier}');
-    expect(iSel, 'le sélecteur manque au bloc mobile').toBeGreaterThan(-1);
-    expect(iSel).toBeLessThan(iDet);
-    expect(iDet).toBeLessThan(iViv);
+    // Le bloc mobile de layout empile {selecteur} {detailBloc} {vivier} · on le
+    // cible par cette séquence (le sélecteur porte désormais son propre `mobile ?`).
+    const iSel = src.indexOf('{selecteur}\n          {detailBloc}');
+    expect(iSel, 'ordre mobile sélecteur → détail manquant').toBeGreaterThan(-1);
+    expect(src.indexOf('{detailBloc}\n          {vivier}', iSel), 'ordre mobile détail → vivier manquant').toBeGreaterThan(iSel);
   });
 
   it('desktop garde deux colonnes · détail à gauche, sélecteur + vivier à droite', () => {
@@ -64,13 +61,38 @@ describe('Lots · sur mobile la sélection passe avant le brief (source)', () =>
     expect(src.indexOf('{selecteur}', iRail)).toBeLessThan(src.indexOf('{vivier}', iRail));
   });
 
+  it('mobile · le sélecteur est repliable, le lot courant reste visible, la liste borne sa hauteur', () => {
+    // 29 lots empilés poussaient le brief de deux écrans · sur mobile la liste
+    // complète se déplie à la demande, le lot courant reste toujours affiché.
+    expect(src).toContain('listeOuverte');
+    expect(src).toContain('aria-expanded={listeOuverte}');
+    expect(src).toContain('`Changer (${liste.length})`');
+    expect(src).toContain('lotCourant ? (');
+    // La liste dépliée borne sa hauteur (défilante), elle ne repousse plus le brief.
+    expect(src).toContain("maxHeight: '46vh'");
+  });
+
+  it('choisir un lot referme le panneau et donne le focus au brief (mobile)', () => {
+    expect(src).toContain('if (mobile) { setListeOuverte(false); setAFocaliser(true); }');
+    // Le focus attend le chargement du détail, puis va au titre du lot.
+    expect(src).toContain('detailRef.current.focus()');
+    expect(src).toContain('ref={detailRef} tabIndex={-1}');
+    // Les boutons de la liste passent par `choisir` (pas un setChoisi nu).
+    expect(src).toContain('onClick={() => choisir(b.id)}');
+  });
+
+  it('desktop garde la liste pleine (non repliée)', () => {
+    // La branche non-mobile rend la liste complète + la création, sans panneau.
+    expect(src).toContain('{listeLots(false)}');
+  });
+
   it('la copie ne dit plus « à droite » · sur mobile le vivier est en dessous', () => {
     expect(src, '« à droite » ne vaut plus · le vivier passe sous le détail en mobile').not.toContain('vivier à droite');
     expect(src).toContain('choisis-en dans le vivier.');
   });
 
   it('aucune action perdue · sélection, création, ajout/retrait, préparer, lancer, copier restent', () => {
-    for (const a of ['setChoisi(b.id)', 'onClick={creer}', 'basculer(', 'onClick={preparer}', 'onClick={lancer}', 'copier(']) {
+    for (const a of ['choisir(b.id)', 'onClick={creer}', 'basculer(', 'onClick={preparer}', 'onClick={lancer}', 'copier(']) {
       expect(src, `action perdue : ${a}`).toContain(a);
     }
   });
@@ -78,7 +100,8 @@ describe('Lots · sur mobile la sélection passe avant le brief (source)', () =>
 
 describe('Lots · charte, cibles tactiles et support ancré (source)', () => {
   it('les boutons de sélection de lot et du vivier portent la cible tactile', () => {
-    const iSelBtn = src.indexOf('setChoisi(b.id); setPrep(null);');
+    const iSelBtn = src.indexOf('onClick={() => choisir(b.id)}');
+    expect(iSelBtn, 'bouton de sélection introuvable').toBeGreaterThan(-1);
     expect(src.slice(iSelBtn, iSelBtn + 260)).toContain('minHeight: CIBLE_TACTILE_MIN');
     const iViv = src.indexOf('basculer(c.id, true)');
     expect(src.slice(iViv, iViv + 320)).toContain('minHeight: CIBLE_TACTILE_MIN');

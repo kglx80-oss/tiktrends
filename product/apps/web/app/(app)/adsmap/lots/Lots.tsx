@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import {
   batchDetailAction, candidatesAction, createBatchAction, setBatchAdAction,
@@ -45,7 +45,28 @@ export function Lots({ batches, brandName }: {
   const [prep, setPrep] = useState<PrepareResult | null>(null);
   const [nouveauBut, setNouveauBut] = useState('');
   const [copie, setCopie] = useState('');
+  // Mobile · le sélecteur est repliable (avec 29 lots, la liste complète repoussait
+  // le brief de deux écrans). Le lot courant reste visible ; ouvrir la liste ne
+  // sert qu'à changer de lot, et choisir referme + amène au brief.
+  const [listeOuverte, setListeOuverte] = useState(false);
+  const [aFocaliser, setAFocaliser] = useState(false);
+  const detailRef = useRef<HTMLHeadingElement>(null);
   const { toast } = useToast();
+
+  // Choisir un lot · sur mobile, referme le panneau et donne le focus au brief.
+  const choisir = useCallback((id: string) => {
+    setChoisi(id); setPrep(null);
+    if (mobile) { setListeOuverte(false); setAFocaliser(true); }
+  }, [mobile]);
+
+  // Le focus/scroll attend que le détail du lot choisi soit chargé.
+  useEffect(() => {
+    if (aFocaliser && detail && detailRef.current) {
+      detailRef.current.scrollIntoView({ block: 'start' });
+      detailRef.current.focus();
+      setAFocaliser(false);
+    }
+  }, [detail, aFocaliser]);
 
   const charger = useCallback(async () => {
     if (!choisi) { setDetail(null); return; }
@@ -65,7 +86,7 @@ export function Lots({ batches, brandName }: {
     setBusy(false);
     if (r.error) { setError(r.error); return; }
     setListe((l) => [{ id: r.id!, number: r.number!, status: 'planned', goal: nouveauBut || null, launchedAt: null, ads: 0 }, ...l]);
-    setNouveauBut(''); setChoisi(r.id!);
+    setNouveauBut(''); choisir(r.id!);
   }
 
   async function basculer(adId: string, inBatch: boolean) {
@@ -111,35 +132,78 @@ export function Lots({ batches, brandName }: {
   const bloquees = detail?.ads.filter((a) => a.blocking).length ?? 0;
   const lancable = !!detail && detail.ads.length > 0 && bloquees === 0 && detail.status !== 'testing' && detail.status !== 'analyzed';
 
-  // Le sélecteur de lot + création · sur mobile il passe AVANT le brief (on
-  // choisit le lot qu'on regarde avant de lire son détail).
+  const lotCourant = liste.find((b) => b.id === choisi) ?? null;
+
+  // La liste des lots · défilante sur mobile (bornée en hauteur) pour ne plus
+  // pousser le brief hors de l'écran ; pleine sur desktop.
+  const listeLots = (defilante: boolean) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...(defilante ? { maxHeight: '46vh', overflowY: 'auto' } : {}) }}>
+      {liste.map((b) => (
+        <button key={b.id} type="button" onClick={() => choisir(b.id)} aria-current={choisi === b.id ? 'true' : undefined} style={{
+          textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, padding: '8px 11px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
+          border: '1px solid ' + (choisi === b.id ? 'var(--accent-strong)' : 'var(--line-2)'),
+          background: choisi === b.id ? 'var(--accent-soft)' : 'var(--surface)', color: 'var(--ink)',
+        }}>
+          <strong>Lot {b.number}</strong> · {b.ads} ad(s)
+          <span style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
+            {STATUS_LABEL[b.status] ?? b.status}
+            {estLotImporte({ status: b.status, launchedAt: b.launchedAt }) && ' · importé'}
+            {b.goal ? ` · ${b.goal}` : ''}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+
+  // Création · accessible mais secondaire (la sélection prime).
+  const champCreation = (
+    <div style={{ display: 'flex', gap: 6 }}>
+      <input value={nouveauBut} onChange={(e) => setNouveauBut(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') void creer(); }}
+        aria-label="But du nouveau lot"
+        placeholder="But du lot · ex : tester 3 hooks" style={champ} />
+      <button type="button" onClick={creer} disabled={busy} aria-label="Créer un lot" style={{ ...boutonSecondaire, padding: '8px 15px' }}>+</button>
+    </div>
+  );
+
+  // Mobile · le lot courant reste visible, la liste complète se déplie à la demande
+  // (et se referme dès qu'on choisit). Desktop · liste pleine, inchangée.
   const selecteur = (
     <div>
       <h3 style={titreSection}>Lots de {brandName}</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {liste.map((b) => (
-          <button key={b.id} type="button" onClick={() => { setChoisi(b.id); setPrep(null); }} style={{
-            textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, padding: '8px 11px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
-            border: '1px solid ' + (choisi === b.id ? 'var(--accent-strong)' : 'var(--line-2)'),
-            background: choisi === b.id ? 'var(--accent-soft)' : 'var(--surface)', color: 'var(--ink)',
-          }}>
-            <strong>Lot {b.number}</strong> · {b.ads} ad(s)
-            <span style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
-              {STATUS_LABEL[b.status] ?? b.status}
-              {estLotImporte({ status: b.status, launchedAt: b.launchedAt }) && ' · importé'}
-              {b.goal ? ` · ${b.goal}` : ''}
-            </span>
-          </button>
-        ))}
-      </div>
-      {/* Création · accessible mais secondaire (la sélection prime). */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 9 }}>
-        <input value={nouveauBut} onChange={(e) => setNouveauBut(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') void creer(); }}
-          aria-label="But du nouveau lot"
-          placeholder="But du lot · ex : tester 3 hooks" style={champ} />
-        <button type="button" onClick={creer} disabled={busy} aria-label="Créer un lot" style={{ ...boutonSecondaire, padding: '8px 15px' }}>+</button>
-      </div>
+      {mobile ? (
+        <div style={{ display: 'grid', gap: 9 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, padding: '8px 11px', borderRadius: 10, border: '1px solid var(--accent-strong)', background: 'var(--accent-soft)', color: 'var(--ink)', fontSize: 12 }}>
+              {lotCourant ? (
+                <>
+                  <strong>Lot {lotCourant.number}</strong> · {lotCourant.ads} ad(s)
+                  <span style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {STATUS_LABEL[lotCourant.status] ?? lotCourant.status}
+                    {estLotImporte({ status: lotCourant.status, launchedAt: lotCourant.launchedAt }) && ' · importé'}
+                    {lotCourant.goal ? ` · ${lotCourant.goal}` : ''}
+                  </span>
+                </>
+              ) : <span style={{ color: 'var(--muted)' }}>Aucun lot sélectionné</span>}
+            </div>
+            <button type="button" onClick={() => setListeOuverte((o) => !o)} aria-expanded={listeOuverte} aria-controls="liste-lots"
+              style={{ ...boutonSecondaire, padding: '8px 14px', whiteSpace: 'nowrap' }}>
+              {listeOuverte ? 'Fermer' : `Changer (${liste.length})`}
+            </button>
+          </div>
+          {listeOuverte && (
+            <div id="liste-lots" style={{ display: 'grid', gap: 9 }}>
+              {listeLots(true)}
+              {champCreation}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 9 }}>
+          {listeLots(false)}
+          {champCreation}
+        </div>
+      )}
     </div>
   );
 
@@ -182,7 +246,7 @@ export function Lots({ batches, brandName }: {
   ) : (
     <>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Lot {detail.number}</h2>
+              <h2 ref={detailRef} tabIndex={-1} style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)', scrollMarginTop: 80, outline: 'none' }}>Lot {detail.number}</h2>
               <span style={badge}>{STATUS_LABEL[detail.status] ?? detail.status}</span>
               {/* La NATURE, à côté du statut · un « Analysé » importé n'est pas un
                   « Analysé » du parcours (CDC v8 · R04). */}
