@@ -6,6 +6,7 @@ import { listBatchesAction } from '../../../actions/adsmap';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Lots } from './Lots';
 import { effectiveAccess } from '../../../../lib/access';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,17 +32,16 @@ export default async function LotsPage() {
   const batches = await listBatchesAction();
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Lots de test</h1>
+    <main style={{ padding: '18px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '2px 0 4px' }}>
+        <h1 style={{ margin: 0, fontSize: 'clamp(26px, 4vw, 30px)', fontWeight: 500, color: 'var(--ink)' }}>Lots de test</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
       </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 20, maxWidth: 760, lineHeight: 1.6 }}>
-        Un lot, c’est une campagne dédiée, une fenêtre et un protocole. C’est ce qui rend les ads
-        comparables entre elles · sans lui, chaque test se juge seul et ne dit rien.
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 12, maxWidth: 760, lineHeight: 1.55 }}>
+        Un lot rend les ads comparables · une campagne dédiée, une fenêtre, un protocole.
       </p>
 
-      <PageInfo title="préparer un lot">
+      <PageInfo title="préparer un lot" minHeight={CIBLE_TACTILE_MIN} mb={16}>
         L’écran répond à une question : <b>ce lot peut-il partir, et si non pourquoi</b>. Il vérifie
         l’invariant de test sur chaque ad · hypothèse, variable, offre, page de destination · et
         <b> génère les noms attendus côté régie</b>, ceux que la mesure quotidienne saura relire pour
