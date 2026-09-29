@@ -111,21 +111,75 @@ export function Lots({ batches, brandName }: {
   const bloquees = detail?.ads.filter((a) => a.blocking).length ?? 0;
   const lancable = !!detail && detail.ads.length > 0 && bloquees === 0 && detail.status !== 'testing' && detail.status !== 'analyzed';
 
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 320px)', gap: 22, alignItems: 'start' }}>
-      <div style={{ minWidth: 0 }}>
-        {error && <Bandeau ton="error">{error}</Bandeau>}
+  // Le sélecteur de lot + création · sur mobile il passe AVANT le brief (on
+  // choisit le lot qu'on regarde avant de lire son détail).
+  const selecteur = (
+    <div>
+      <h3 style={titreSection}>Lots de {brandName}</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {liste.map((b) => (
+          <button key={b.id} type="button" onClick={() => { setChoisi(b.id); setPrep(null); }} style={{
+            textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, padding: '8px 11px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
+            border: '1px solid ' + (choisi === b.id ? 'var(--accent-strong)' : 'var(--line-2)'),
+            background: choisi === b.id ? 'var(--accent-soft)' : 'var(--surface)', color: 'var(--ink)',
+          }}>
+            <strong>Lot {b.number}</strong> · {b.ads} ad(s)
+            <span style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
+              {STATUS_LABEL[b.status] ?? b.status}
+              {estLotImporte({ status: b.status, launchedAt: b.launchedAt }) && ' · importé'}
+              {b.goal ? ` · ${b.goal}` : ''}
+            </span>
+          </button>
+        ))}
+      </div>
+      {/* Création · accessible mais secondaire (la sélection prime). */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 9 }}>
+        <input value={nouveauBut} onChange={(e) => setNouveauBut(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void creer(); }}
+          aria-label="But du nouveau lot"
+          placeholder="But du lot · ex : tester 3 hooks" style={champ} />
+        <button type="button" onClick={creer} disabled={busy} aria-label="Créer un lot" style={{ ...boutonSecondaire, padding: '8px 15px' }}>+</button>
+      </div>
+    </div>
+  );
 
-        {!detail ? (
-          <Empty
-            tone="todo" title="Aucun lot ouvert."
-            why="Un lot, c’est une campagne dédiée, une fenêtre, un protocole. C’est ce qui rend les ads comparables entre elles · sans lui, chaque test se juge seul et ne dit rien."
-            action={{ label: 'Ouvrir la carte', href: '/adsmap' }}
-          />
-        ) : (
-          <>
+  const vivier = detail && detail.status !== 'testing' && detail.status !== 'analyzed' ? (
+    <div>
+      <h3 style={titreSection}>Vivier ({candidats.length})</h3>
+      {candidats.length === 0 ? (
+        <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+          Aucune ad libre. Crée une itération depuis une gagnante, ou pousse une créa du Studio dans la carte.
+          {' '}<a href="/studio/ads" style={{ fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Ouvrir Pubs IA ›</a>
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: mobile ? 'none' : 420, overflowY: mobile ? 'visible' : 'auto' }}>
+          {candidats.map((c) => (
+            <button key={c.id} type="button" onClick={() => basculer(c.id, true)} disabled={busy}
+              title={c.blocking ?? 'Prête à être rangée dans le lot'}
+              style={{
+                textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, padding: '7px 10px', borderRadius: 9, cursor: 'pointer', fontSize: 11.5,
+                border: `1px ${c.blocking ? 'dashed' : 'solid'} ${c.blocking ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`,
+                background: 'var(--surface)', color: 'var(--ink-2)',
+              }}>
+              <strong style={{ color: 'var(--ink)' }}>{c.variantCode}</strong> · {c.concept}
+              {c.blocking && <span style={{ display: 'block', color: '#ffcf8f', fontSize: 10.5, marginTop: 1 }}>incomplète</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  const detailBloc = !detail ? (
+    <Empty
+      tone="todo" title="Aucun lot ouvert."
+      why="Un lot, c’est une campagne dédiée, une fenêtre, un protocole. C’est ce qui rend les ads comparables entre elles · sans lui, chaque test se juge seul et ne dit rien."
+      action={{ label: 'Ouvrir la carte', href: '/adsmap' }}
+    />
+  ) : (
+    <>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>Lot {detail.number}</h2>
+              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Lot {detail.number}</h2>
               <span style={badge}>{STATUS_LABEL[detail.status] ?? detail.status}</span>
               {/* La NATURE, à côté du statut · un « Analysé » importé n'est pas un
                   « Analysé » du parcours (CDC v8 · R04). */}
@@ -148,8 +202,14 @@ export function Lots({ batches, brandName }: {
               <Ligne label="Audience" valeur={detail.brief.audienceRule} />
               {/* Budget PRÉVU, pas engagé · ce lot est un brief à recopier dans
                   Meta, il ne dépense rien (CDC v6 · R04 · une dépense future
-                  n'est pas une dépense engagée). */}
-              <Ligne label="Budget" valeur={`${detail.brief.dailyBudgetPerAd} €/jour/ad · ${detail.brief.durationDays} jours · ${detail.brief.totalBudget} € prévus au total`} />
+                  n'est pas une dépense engagée).
+
+                  Le TOTAL prévu = budget/jour/ad × jours × nombre d'ads. Sur un lot
+                  vide il vaut donc 0 €, ce qui, à côté de la projection PAR AD de la
+                  conclusivité (« … 140 € par ad »), se lisait comme une
+                  contradiction. On ne touche PAS le calcul (il est juste) · on
+                  explicite que le total suit le nombre d'ads tant qu'il n'y en a pas. */}
+              <Ligne label="Budget" valeur={valeurBudget(detail.brief, detail.ads.length)} />
               <p style={{
                 margin: '10px 0 0', fontSize: 12, lineHeight: 1.55,
                 color: detail.brief.conclusiveness.startsWith('Attention') ? '#ffcf8f' : 'var(--muted)',
@@ -230,68 +290,50 @@ export function Lots({ batches, brandName }: {
               les {detail.brief.durationDays} jours et le rattachement des métriques.
             </p>
           </>
-        )}
-      </div>
+  );
 
-      {/* Colonne de droite : les lots, et le vivier */}
-      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <div>
-          <h3 style={titreSection}>Lots de {brandName}</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {liste.map((b) => (
-              <button key={b.id} type="button" onClick={() => { setChoisi(b.id); setPrep(null); }} style={{
-                textAlign: 'left', padding: '8px 11px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
-                border: '1px solid ' + (choisi === b.id ? 'var(--accent-strong)' : 'var(--line-2)'),
-                background: choisi === b.id ? 'var(--accent-soft)' : 'var(--surface)', color: 'var(--ink)',
-              }}>
-                <strong>Lot {b.number}</strong> · {b.ads} ad(s)
-                <span style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
-                  {STATUS_LABEL[b.status] ?? b.status}
-                  {estLotImporte({ status: b.status, launchedAt: b.launchedAt }) && ' · importé'}
-                  {b.goal ? ` · ${b.goal}` : ''}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 9 }}>
-            <input value={nouveauBut} onChange={(e) => setNouveauBut(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void creer(); }}
-              placeholder="But du lot · ex : tester 3 hooks" style={champ} />
-            <button type="button" onClick={creer} disabled={busy} style={{ ...bouton, padding: '8px 13px' }}>+</button>
-          </div>
+  // Mobile · on choisit le lot AVANT de lire son brief : sélecteur, puis détail,
+  // puis vivier. Desktop · deux colonnes conservées (détail | sélecteur+vivier),
+  // lisibles dès 1280×720.
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 320px)', gap: 22, alignItems: 'start' }}>
+      {error && <div style={{ gridColumn: '1 / -1' }}><Bandeau ton="error">{error}</Bandeau></div>}
+      {mobile ? (
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {selecteur}
+          {detailBloc}
+          {vivier}
         </div>
-
-        {detail && detail.status !== 'testing' && detail.status !== 'analyzed' && (
-          <div>
-            <h3 style={titreSection}>Vivier ({candidats.length})</h3>
-            {candidats.length === 0 ? (
-              <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
-                Aucune ad libre. Crée une itération depuis une gagnante, ou pousse une créa du Studio dans la carte.
-                {/* Le geste concret « pousser une créa du Studio » était nommé
-                    sans lien · on le rend cliquable, sortie vers Pubs IA. */}
-                {' '}<a href="/studio/ads" style={{ fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Ouvrir Pubs IA ›</a>
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 420, overflowY: 'auto' }}>
-                {candidats.map((c) => (
-                  <button key={c.id} type="button" onClick={() => basculer(c.id, true)} disabled={busy}
-                    title={c.blocking ?? 'Prête à être rangée dans le lot'}
-                    style={{
-                      textAlign: 'left', padding: '7px 10px', borderRadius: 9, cursor: 'pointer', fontSize: 11.5,
-                      border: `1px ${c.blocking ? 'dashed' : 'solid'} ${c.blocking ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`,
-                      background: 'var(--surface)', color: 'var(--ink-2)',
-                    }}>
-                    <strong style={{ color: 'var(--ink)' }}>{c.variantCode}</strong> · {c.concept}
-                    {c.blocking && <span style={{ display: 'block', color: '#ffcf8f', fontSize: 10.5, marginTop: 1 }}>incomplète</span>}
-                  </button>
-                ))}
-              </div>
-            )}
+      ) : (
+        <>
+          <div style={{ minWidth: 0 }}>{detailBloc}</div>
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {selecteur}
+            {vivier}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
+}
+
+/**
+ * La ligne « Budget » du brief · budget PRÉVU, jamais engagé.
+ *
+ * Le TOTAL prévu = budget/jour/ad × jours × nombre d'ads (calculé côté serveur,
+ * `adsmap-batch.ts`). Sur un lot vide il vaut 0 € · à côté de la projection PAR AD
+ * de la conclusivité (« … 140 € par ad »), ce 0 se lisait comme une contradiction.
+ * Le calcul est JUSTE · on n'y touche pas. On explicite seulement que le total
+ * suit le nombre d'ads tant qu'il n'y en a pas.
+ */
+export function valeurBudget(
+  brief: { dailyBudgetPerAd: number; durationDays: number; totalBudget: number },
+  adsCount: number,
+): string {
+  const tete = `${brief.dailyBudgetPerAd} €/jour/ad · ${brief.durationDays} jours`;
+  return adsCount === 0
+    ? `${tete} · 0 € prévus au total · le total suit le nombre d’ads (aucune pour l’instant)`
+    : `${tete} · ${brief.totalBudget} € prévus au total`;
 }
 
 function Ligne({ label, valeur, onCopy, copie }: { label: string; valeur: string; onCopy?: () => void; copie?: boolean }) {
