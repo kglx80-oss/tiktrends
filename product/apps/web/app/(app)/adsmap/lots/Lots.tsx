@@ -140,7 +140,10 @@ export function Lots({ batches, brandName }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...(defilante ? { maxHeight: '46vh', overflowY: 'auto' } : {}) }}>
       {liste.map((b) => (
         <button key={b.id} type="button" onClick={() => choisir(b.id)} aria-current={choisi === b.id ? 'true' : undefined} style={{
-          textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, padding: '8px 11px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
+          // `flexShrink: 0` · dans la liste défilante (colonne flex bornée à 46vh),
+          // sans lui le bouton se comprimait jusqu'à `minHeight` et coupait un but
+          // long DANS le bouton. Il garde sa hauteur de contenu, le conteneur défile.
+          textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, height: 'auto', flexShrink: 0, padding: '8px 11px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
           border: '1px solid ' + (choisi === b.id ? 'var(--accent-strong)' : 'var(--line-2)'),
           background: choisi === b.id ? 'var(--accent-soft)' : 'var(--surface)', color: 'var(--ink)',
         }}>

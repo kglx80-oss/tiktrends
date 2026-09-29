@@ -86,6 +86,20 @@ describe('Lots · sur mobile la sélection passe avant le brief (source)', () =>
     expect(src).toContain('{listeLots(false)}');
   });
 
+  it('un but long reste lisible dans la liste bornée · le bouton ne se comprime pas', () => {
+    // Dans la liste défilante (colonne flex bornée à 46vh), sans `flexShrink: 0` le
+    // bouton se comprimait jusqu'à `minHeight` et coupait un but de plusieurs lignes
+    // DANS le bouton. Il garde sa hauteur de contenu (`height: 'auto'`), plancher 44.
+    const iStyle = src.indexOf("textAlign: 'left', minHeight: CIBLE_TACTILE_MIN");
+    expect(iStyle, 'le style du bouton de lot est introuvable').toBeGreaterThan(-1);
+    const styleBtn = src.slice(iStyle, iStyle + 120);
+    expect(styleBtn, 'le bouton de lot peut se comprimer et couper le but').toContain('flexShrink: 0');
+    expect(styleBtn).toContain("height: 'auto'");
+    // Le but n'est pas tronqué (pas de nowrap/ellipsis sur la ligne du bouton de liste),
+    // contrairement au résumé compact du lot courant.
+    expect(src).toContain('{b.goal ? ` · ${b.goal}` : \'\'}');
+  });
+
   it('la copie ne dit plus « à droite » · sur mobile le vivier est en dessous', () => {
     expect(src, '« à droite » ne vaut plus · le vivier passe sous le détail en mobile').not.toContain('vivier à droite');
     expect(src).toContain('choisis-en dans le vivier.');
@@ -102,7 +116,7 @@ describe('Lots · charte, cibles tactiles et support ancré (source)', () => {
   it('les boutons de sélection de lot et du vivier portent la cible tactile', () => {
     const iSelBtn = src.indexOf('onClick={() => choisir(b.id)}');
     expect(iSelBtn, 'bouton de sélection introuvable').toBeGreaterThan(-1);
-    expect(src.slice(iSelBtn, iSelBtn + 260)).toContain('minHeight: CIBLE_TACTILE_MIN');
+    expect(src.slice(iSelBtn, iSelBtn + 500)).toContain('minHeight: CIBLE_TACTILE_MIN');
     const iViv = src.indexOf('basculer(c.id, true)');
     expect(src.slice(iViv, iViv + 320)).toContain('minHeight: CIBLE_TACTILE_MIN');
   });
