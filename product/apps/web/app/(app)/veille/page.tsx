@@ -271,6 +271,16 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           <select name="p" defaultValue={sp.p ?? 'meta'} aria-label="Plateforme" style={{ ...inputBase, padding: '8px 12px', fontSize: 13.5, cursor: 'pointer', flex: '0 0 auto' }}>
             {PLATFORMS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
+          {/* Le TRI vit dans la barre PRINCIPALE (hors disclosure) · accessible
+              filtres fermés · il réordonne, il ne filtre pas. Meta seul. */}
+          {platform === 'meta' && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flex: '0 0 auto', minHeight: CIBLE_TACTILE_MIN }}>
+              <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink-2)' }}>Tri</span>
+              <select name="sort" defaultValue={sp.sort} aria-label="Trier les créas" style={{ ...inputBase, padding: '8px 12px', fontSize: 13.5, cursor: 'pointer' }}>
+                {SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </label>
+          )}
           <button type="submit" style={searchBtn}>Rechercher</button>
         </div>
 
@@ -297,9 +307,10 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 12 }}>▾</span>
           </summary>
           <div style={{ padding: '4px 14px 14px' }}>
+            {/* Le tri a quitté ce panneau · il vit dans la barre principale,
+                accessible filtres fermés. Ici, seulement des filtres. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
               <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
-              {platform === 'meta' && <Select name="sort" def={sp.sort} opts={SORTS.map(([v, l]) => [v, 'Tri : ' + l])} />}
               <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
               <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
               <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
