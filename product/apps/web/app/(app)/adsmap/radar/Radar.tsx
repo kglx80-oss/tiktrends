@@ -49,6 +49,9 @@ export function Radar() {
 
   const { state, findings, spend } = view;
   const restant = Math.max(0, spend.capUsd - spend.spentUsd);
+  // Armer est indisponible sans concurrent suivi (ou pendant une action) · le
+  // bouton doit alors LIRE comme désactivé, pas comme un CTA primaire à cliquer.
+  const armDisabled = busy || state.followed === 0;
 
   const basculer = (armed: boolean) => lance(async () => {
     const r = await setRadarAction({ armed, cap });
@@ -106,8 +109,14 @@ export function Radar() {
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
-            onClick={() => basculer(!state.armed)} disabled={busy || state.followed === 0}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 18px', borderRadius: 999, border: 'none', background: state.armed ? 'var(--line-2)' : 'var(--grad-accent)', color: state.armed ? 'var(--ink)' : 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'wait' : 'pointer' }}
+            onClick={() => basculer(!state.armed)} disabled={armDisabled}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 18px', borderRadius: 999,
+              // Désactivé (0 suivi) · fantôme sobre, pas le dégradé primaire · le
+              // contraste reste lisible et ne se confond pas avec un bouton actif.
+              border: (!state.armed && armDisabled) ? '1px solid var(--line-2)' : 'none',
+              background: state.armed ? 'var(--line-2)' : (armDisabled ? 'transparent' : 'var(--grad-accent)'),
+              color: state.armed ? 'var(--ink)' : (armDisabled ? 'var(--muted)' : 'var(--on-accent)'),
+              fontWeight: 800, fontSize: 12.5, cursor: busy ? 'wait' : (armDisabled ? 'not-allowed' : 'pointer') }}
           >
             {state.armed ? 'Éteindre le radar' : 'Armer le radar'}
           </button>

@@ -53,6 +53,18 @@ describe('Radar · les actions du fil observer→itérer portent la cible tactil
   });
 });
 
+describe('Radar · « Armer » désactivé LIT comme désactivé (source)', () => {
+  it('à 0 concurrent suivi, le bouton n’est plus rendu en dégradé primaire', () => {
+    // armDisabled = busy || followed===0 · le fond passe en fantôme sobre
+    // (transparent + bordure), jamais le --grad-accent d’un CTA actif.
+    expect(src).toContain('const armDisabled = busy || state.followed === 0;');
+    expect(src).toContain("background: state.armed ? 'var(--line-2)' : (armDisabled ? 'transparent' : 'var(--grad-accent)')");
+    expect(src).toContain("cursor: busy ? 'wait' : (armDisabled ? 'not-allowed' : 'pointer')");
+    // La condition/les droits/le coût ne changent pas · toujours le même disabled.
+    expect(src).toContain('disabled={armDisabled}');
+  });
+});
+
 describe('Radar · le support est ANCRÉ (il ne recouvre plus le contenu)', () => {
   it('/adsmap/radar entre dans la liste des écrans à support ancré', () => {
     expect(shell, 'le support de /adsmap/radar flotte encore et recouvre le contenu')
