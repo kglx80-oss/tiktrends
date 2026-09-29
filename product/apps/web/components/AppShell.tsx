@@ -195,7 +195,7 @@ function AppShellInner(props: Props) {
   const pathname = usePathname();
   // Le support est ANCRÉ (zone de commandes en pied) sur les écrans denses en
   // commandes bas-de-page · ailleurs il reste flottant, /jarvis le masque.
-  const supportAncre = pathname === '/studio/ads' || pathname === '/dashboard' || pathname === '/veille' || pathname === '/adsmap' || pathname === '/adsmap/suites' || pathname === '/adsmap/lots' || pathname === '/adsmap/radar' || pathname === '/adsmap/tri' || pathname === '/adsmap/protocole' || pathname === '/adsmap/import';
+  const supportAncre = pathname === '/studio/ads' || pathname === '/dashboard' || pathname === '/veille' || pathname === '/adsmap' || pathname === '/adsmap/suites' || pathname === '/adsmap/lots' || pathname === '/adsmap/radar' || pathname === '/adsmap/tri' || pathname === '/adsmap/protocole' || pathname === '/adsmap/import' || pathname === '/analytics';
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
@@ -337,21 +337,43 @@ function AppShellInner(props: Props) {
           ? { position: 'fixed', left: 0, width: chrome.largeurRail, zIndex: 90, transform: chrome.railVisible ? 'none' : 'translateX(-100%)', transition: 'transform .22s ease', boxShadow: chrome.railVisible ? '0 0 40px rgba(0,0,0,.55)' : 'none' }
           : { position: 'sticky' }),
       }}>
-        {/* En-tête COMPACT (14 pouces) · l'identité, puis un sélecteur d'espace
-            DISTINCT, puis (plus bas) la marque et la recherche. Le bouton Réduire
-            a QUITTÉ cette ligne · il vit au pied du rail · ici, collé à l'identité,
-            il l'écrasait : « TikTrends » passait dessous et le nom d'espace se
-            rognait en « Ag… » sur un rail de 184 px. */}
+        {/* En-tête COMPACT (14 pouces) · l'identité (retour à l'accueil), la
+            bascule Réduire juste à côté, puis un sélecteur d'espace DISTINCT, puis
+            (plus bas) la marque et la recherche.
+
+            Kevin, 29/09 · la bascule Réduire REVIENT en tête, en petite icône à
+            côté du logo · l'ancien bouton de pied éloignait la commande de
+            l'identité. Le mot « TikTrends » ne se tronque pas et ne
+            chevauche pas l'icône · l'identité prend la place qu'il lui faut
+            (flex 0 1 auto, sans ellipse), un ressort la sépare de l'icône. */}
         {!collapsed ? (
-          // Identité · symbole 22 + nom 15, lisible, SANS gros carré décoratif ni
-          // bouton. Non interactive · pas de cible < 44 px ici · le retour à
-          // l'accueil reste au fil d'Ariane (« Accueil ») et à « Dashboard ».
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 4px', minHeight: 23 }}>
-            <span aria-hidden style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0, display: 'block' }} />
-            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>TikTrends</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 2px 0 4px', minHeight: CIBLE_TACTILE_MIN }}>
+            {/* Le logo ET le mot « TikTrends » ramènent à l'accueil · un seul lien. */}
+            <Link href="/dashboard" aria-label="Accueil" title="Accueil"
+              style={{ flex: '0 1 auto', minWidth: 0, display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, textDecoration: 'none' }}>
+              <span aria-hidden style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0, display: 'block' }} />
+              <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)', whiteSpace: 'nowrap' }}>TikTrends</span>
+            </Link>
+            <span style={{ flex: 1 }} />
+            {/* Petite icône Réduire · cible 44 réelle, infobulle + nom accessible,
+                état déplié annoncé. Discrète (sans fond ni bordure). */}
+            <button type="button" onClick={toggleCollapsed} title="Réduire la barre" aria-label="Réduire la barre" aria-expanded={!collapsed}
+              style={{ ...collapseBtn, flex: '0 0 auto', background: 'transparent', border: 'none', color: 'var(--muted)' }}>
+              <CollapseIcon dir="left" />
+            </button>
           </div>
         ) : (
-          <LogoHome collapsed={collapsed} onExpand={toggleCollapsed} />
+          // Replié (64 px) · Kevin 29/09 · le logo reste un lien ACCUEIL (comme
+          // déplié), et l'expansion de la barre est une icône SÉPARÉE, empilée
+          // dessous · deux cibles 44 distinctes, jamais deux gestes sur un même
+          // bouton.
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <LogoHome collapsed />
+            <button type="button" onClick={toggleCollapsed} title="Développer la barre" aria-label="Développer la barre" aria-expanded={false}
+              style={{ ...collapseBtn, background: 'transparent', border: 'none', color: 'var(--muted)' }}>
+              <CollapseIcon dir="right" />
+            </button>
+          </div>
         )}
 
         {/* Espace de travail · sélecteur DISTINCT de la marque, sur sa propre
@@ -394,22 +416,10 @@ function AppShellInner(props: Props) {
         {/* Sélecteur de marque (masqué en mode replié ou en mode ADMIN+) */}
         {!collapsed && !inAdmin && <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />}
 
-        {/* Recherche · ligne 44, texte « Rechercher », icône 16, UN seul indice
-            ⌘K discret (pas deux gros pavés) · le raccourci reste actif partout. */}
-        {collapsed ? (
-          <button type="button" onClick={openCommandPalette} title="Rechercher · ⌘K" aria-label="Rechercher" style={{ ...railIconBtn, marginTop: 8 }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-          </button>
-        ) : (
-          <button type="button" onClick={openCommandPalette} style={{
-            marginTop: 8, width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 10,
-            border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-            <span style={{ flex: 1, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Rechercher</span>
-            <kbd style={{ ...kbdRail, flexShrink: 0, minWidth: 26 }}>⌘K</kbd>
-          </button>
-        )}
+        {/* La recherche GLOBALE a quitté le rail · elle vit dans la barre
+            supérieure commune (voir le lanceur en tête du contenu). Le raccourci
+            ⌘/Ctrl K reste actif partout (CommandPalette). Ici, le rail passe
+            directement à la navigation · plus de pavé de recherche. */}
 
         {/* Navigation · rail client OU rail ADMIN+ (fondateur en coulisses) */}
         <nav style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 14), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
@@ -497,20 +507,9 @@ function AppShellInner(props: Props) {
             ))}
         </nav>
 
-        {/* Réduire / Développer · commande DISCRÈTE au pied du rail. Elle a quitté
-            l'en-tête, où, collée à l'identité, elle l'écrasait. Cible 44, libellé +
-            infobulle + clavier (bouton natif, Entrée/Espace). Le propriétaire n'est
-            jamais replié d'office · c'est SON geste. */}
-        <button type="button" onClick={toggleCollapsed}
-          title={collapsed ? 'Développer la barre' : 'Réduire la barre'}
-          aria-label={collapsed ? 'Développer la barre' : 'Réduire la barre'}
-          aria-expanded={!collapsed}
-          style={collapsed
-            ? { ...collapseBtn, background: 'transparent', border: 'none', color: 'var(--muted)', marginBottom: 8 }
-            : { width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 10, padding: '0 11px', marginBottom: 8, borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600 }}>
-          <CollapseIcon dir={collapsed ? 'right' : 'left'} />
-          {!collapsed && <span>Réduire le menu</span>}
-        </button>
+        {/* La bascule Réduire/Développer a REJOINT l'en-tête (petite icône à côté
+            de l'identité) · elle n'est plus au pied. En replié, c'est le logo qui
+            rouvre la barre (cf. LogoHome). */}
 
         {/* Crédits (solde réel) · visible en direct, clic = recharge / offre */}
         <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginBottom: 8 }}>
@@ -579,19 +578,36 @@ function AppShellInner(props: Props) {
       )}
 
       <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
-        {/* Barre du haut mobile · le rail est en tiroir, il faut un bouton pour
-            l'ouvrir · et le logo garde son retour à l'accueil. */}
-        {chrome.hamburger && (
-          <div style={{ position: 'sticky', top: 0, zIndex: 70, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--rail)', borderBottom: '1px solid var(--line)' }}>
-            <button ref={burgerRef} type="button" onClick={() => setDrawer((o) => !o)} aria-label={drawer ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={drawer} aria-controls="nav-rail" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
-            </button>
-            <Link href="/dashboard" aria-label="Accueil" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 8, textDecoration: 'none' }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--grad-accent)', display: 'block' }} />
-              <b style={{ fontSize: 15, color: 'var(--ink)' }}>TikTrends</b>
-            </Link>
-          </div>
-        )}
+        {/* Barre supérieure COMMUNE (desktop ET mobile) · Kevin 29/09 · la
+            recherche GLOBALE sort du rail et vit ici, atteignable quel que soit
+            l'état du rail (déplié, réduit, tiroir). Le raccourci ⌘/Ctrl K reste
+            actif partout. Sur mobile, la barre porte AUSSI le hamburger (le rail
+            est en tiroir) et l'identité-accueil · le hamburger reste distinct.
+            La cloche de notification flotte à droite (fixed, top:16 right:20) ·
+            on lui réserve la place à droite (paddingRight) pour ne pas la
+            chevaucher. */}
+        <header style={{ position: 'sticky', top: 0, zIndex: 70, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', paddingRight: 64, minHeight: 56, boxSizing: 'border-box', background: 'var(--rail)', borderBottom: '1px solid var(--line)' }}>
+          {chrome.hamburger && (
+            <>
+              <button ref={burgerRef} type="button" onClick={() => setDrawer((o) => !o)} aria-label={drawer ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={drawer} aria-controls="nav-rail" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+              </button>
+              <Link href="/dashboard" aria-label="Accueil" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 8, textDecoration: 'none', flexShrink: 0 }}>
+                <span aria-hidden style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--grad-accent)', display: 'block' }} />
+                <b style={{ fontSize: 15, color: 'var(--ink)' }}>TikTrends</b>
+              </Link>
+            </>
+          )}
+          {/* Recherche globale · loupe + « Rechercher » + indice ⌘K (desktop).
+              Ouvre la palette · le raccourci reste global. Aucune fonction
+              retirée · les recherches LOCALES (Veille, galerie) ne bougent pas. */}
+          <button type="button" onClick={openCommandPalette} aria-label="Rechercher" aria-keyshortcuts="Meta+K Control+K"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, flex: '0 1 340px', minWidth: 44 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+            <span style={{ flex: 1, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Rechercher</span>
+            {!mobile && <kbd style={{ ...kbdRail, flexShrink: 0, minWidth: 26 }}>⌘K</kbd>}
+          </button>
+        </header>
         <NotificationBell />
         {/* Le fil d'Ariane est posé ICI, une fois pour toutes · vingt et une pages
             portaient le leur, écrit à la main, et ils avaient divergé. */}

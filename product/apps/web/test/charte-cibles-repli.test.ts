@@ -59,10 +59,13 @@ describe('cibles tactiles · chrome partagé (rail, recherche, logo)', () => {
   it('le bouton « Replier la barre » atteint la cible', () => {
     expect(near(shell, 'const collapseBtn')).toContain('width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN');
   });
-  it('la recherche dépliée et le logo d’accueil portent la cible', () => {
+  it('la recherche globale (barre commune) et le logo d’accueil portent la cible', () => {
     expect(shell).toContain("aria-label=\"Accueil\" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN");
-    // Le bouton de recherche déplié (pleine largeur) porte la cible en hauteur.
-    expect(shell).toContain("marginTop: 8, width: '100%', minHeight: CIBLE_TACTILE_MIN");
+    // Kevin 29/09 · la recherche globale a quitté le rail pour la barre
+    // supérieure commune · son lanceur porte la cible en hauteur.
+    const iSearch = shell.indexOf('aria-label="Rechercher"');
+    expect(iSearch, 'le lanceur de recherche globale est introuvable').toBeGreaterThan(-1);
+    expect(shell.slice(iSearch, iSearch + 400), 'le lanceur de recherche sous la cible').toContain('minHeight: CIBLE_TACTILE_MIN');
   });
 });
 
