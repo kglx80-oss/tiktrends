@@ -33,7 +33,7 @@ export default async function SuitesPage() {
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 12, maxWidth: 760, lineHeight: 1.55 }}>
-        Le prochain test de chaque gagnante · décliner ce qui a gagné, corriger ce qui a lâché, ou repartir.
+        Choisis le prochain test à partir de tes résultats · décliner ce qui a gagné, corriger ce qui a lâché, ou repartir.
       </p>
 
       <PageInfo title="lire ces suites" minHeight={CIBLE_TACTILE_MIN} mb={16}>

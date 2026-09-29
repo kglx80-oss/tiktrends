@@ -130,9 +130,19 @@ describe('Suites · révélation ouverte/repliée + en-tête court + support anc
     expect(src).toMatch(/ouvert \? 'replier[^']*' : 'déplier/);
   });
 
-  it('l’en-tête est court · phrase orientée prochaine itération, aide repliée à cible tactile', () => {
-    expect(page).toContain('Le prochain test de chaque gagnante');
+  it('l’en-tête est court · phrase orientée résultats (sans qualifier tous les parents de gagnants), aide repliée à cible tactile', () => {
+    expect(page).toContain('Choisis le prochain test à partir de tes résultats');
+    // L'écran contient Corriger/Repartir et des parents non prouvés · l'intro ne
+    // doit pas prétendre que chaque suite part d'une gagnante.
+    expect(page, 'l’intro qualifie encore tous les parents de gagnants').not.toContain('chaque gagnante');
     expect(page).toContain('minHeight={CIBLE_TACTILE_MIN}');
+  });
+
+  it('« Tout revoir » (aucun-résultat de filtre) est une action isolée à cible tactile pleine', () => {
+    // Action seule, pas un lien noyé dans la phrase · elle porte la cible 44.
+    const i = src.indexOf('Tout revoir');
+    const style = src.slice(Math.max(0, i - 320), i);
+    expect(style).toContain('minHeight: CIBLE_TACTILE_MIN');
   });
 
   it('le support est ANCRÉ sur /adsmap/suites · il ne recouvre plus cartes ni CTA', () => {

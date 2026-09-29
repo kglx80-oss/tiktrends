@@ -113,12 +113,15 @@ export function Suites() {
       {/* Aucun résultat dans CE mode · distinct de « la marque n'a aucun verdict ».
           Les autres modes en portent, le filtre le dit plutôt que d'imiter le vide. */}
       {view.rows.length > 0 && !visibles.length && (
-        <div style={{ ...carte, borderStyle: 'dashed', color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.6 }}>
-          Aucune suite en « {MODE_LABEL[filtre as Mode]} » · {compte.all} suite(s) en tout,
-          réparties sur les autres modes. <button
-            onClick={() => setFiltre('all')}
-            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-strong)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}
-          >Tout revoir</button>.
+        <div style={{ ...carte, borderStyle: 'dashed', color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.6, gap: 10 }}>
+          <span>Aucune suite en « {MODE_LABEL[filtre as Mode]} » · {compte.all} suite(s) en tout, réparties sur les autres modes.</span>
+          {/* Action isolée · cible tactile pleine, pas un lien noyé dans la phrase. */}
+          <button
+            type="button" onClick={() => setFiltre('all')}
+            style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '6px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}
+          >
+            Tout revoir
+          </button>
         </div>
       )}
 
