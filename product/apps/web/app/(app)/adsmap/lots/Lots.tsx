@@ -228,7 +228,7 @@ export function Lots({ batches, brandName }: {
             <h3 style={{ ...titreSection, marginTop: 22 }}>Ads du lot ({detail.ads.length})</h3>
             {detail.ads.length === 0 ? (
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
-                Aucune ad · choisis-en dans le vivier à droite.
+                Aucune ad · choisis-en dans le vivier.
               </p>
             ) : (
               <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>

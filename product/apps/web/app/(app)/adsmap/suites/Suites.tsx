@@ -160,6 +160,24 @@ function Onglet({ actif, onClick, libelle, n, teinte }: {
 }
 
 /**
+ * Le sens du mode, aligné sur la preuve disponible.
+ *
+ * `MODE_HINT.more` affirme « Elle a gagné · on garde ce qui a gagné et on
+ * multiplie » · vrai seulement quand le parent est une victoire PROUVÉE
+ * (`edgeLegal`). Sur un parent non prouvé — une piste relative — cette phrase
+ * contredit la réserve affichée juste au-dessus (« pas de victoire prouvée →
+ * nouveau concept »). On la rend donc conditionnelle à la preuve, SANS toucher
+ * le moteur, l'éligibilité ni la rationale : le `modeHint` du noyau est conservé
+ * quand il dit vrai, neutralisé quand il affirmerait une victoire non démontrée.
+ */
+export function sensDuSuite(mode: Mode, modeHint: string, edgeLegal: boolean): string {
+  if (mode === 'more' && !edgeLegal) {
+    return 'On décline cette piste · le parent n’est pas une victoire prouvée, la suite part en nouveau concept.';
+  }
+  return modeHint;
+}
+
+/**
  * « Pourquoi cette suite » · la rationale du moteur, repliée.
  *
  * Native `<details>` pour le clavier · l'étiquette resterait figée sur
@@ -262,7 +280,7 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
         </p>
       )}
 
-      <Pourquoi hint={row.modeHint} rationale={row.rationale} />
+      <Pourquoi hint={sensDuSuite(row.mode, row.modeHint, row.edgeLegal)} rationale={row.rationale} />
 
       {brouillon && (
         <DraftCard view={brouillon}>
