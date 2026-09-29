@@ -147,10 +147,13 @@ export function Lots({ batches, brandName }: {
     <div>
       <h3 style={titreSection}>Vivier ({candidats.length})</h3>
       {candidats.length === 0 ? (
-        <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
-          Aucune ad libre. Crée une itération depuis une gagnante, ou pousse une créa du Studio dans la carte.
-          {' '}<a href="/studio/ads" style={{ fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Ouvrir Pubs IA ›</a>
-        </p>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            Aucune ad libre. Crée une itération depuis une gagnante, ou pousse une créa du Studio dans la carte.
+          </p>
+          {/* Lien d'action isolé · cible tactile pleine, pas noyé dans la phrase. */}
+          <a href="/studio/ads" style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontWeight: 800, fontSize: 12, color: 'var(--accent-strong)', textDecoration: 'none' }}>Ouvrir Pubs IA ›</a>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: mobile ? 'none' : 420, overflowY: mobile ? 'visible' : 'auto' }}>
           {candidats.map((c) => (

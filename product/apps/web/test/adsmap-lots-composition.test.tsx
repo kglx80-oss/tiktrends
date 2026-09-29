@@ -79,6 +79,13 @@ describe('Lots · charte, cibles tactiles et support ancré (source)', () => {
     expect(src.slice(iViv, iViv + 320)).toContain('minHeight: CIBLE_TACTILE_MIN');
   });
 
+  it('« Ouvrir Pubs IA » (lien isolé du vivier vide) porte la cible tactile', () => {
+    // Action seule dans le vivier vide · pas un lien noyé dans la phrase.
+    const i = src.indexOf('Ouvrir Pubs IA');
+    const style = src.slice(Math.max(0, i - 240), i);
+    expect(style).toContain('minHeight: CIBLE_TACTILE_MIN');
+  });
+
   it('l’en-tête suit la charte · titre 500, aide repliée à cible tactile', () => {
     expect(page).toContain('fontWeight: 500');
     expect(page).toContain('minHeight={CIBLE_TACTILE_MIN}');
