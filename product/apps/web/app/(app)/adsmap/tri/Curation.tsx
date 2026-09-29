@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useTransition, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from 'react';
 import { KIND_LABEL, isTrivialMerge, CIBLE_TACTILE_MIN, type MergePlan, type NodeKind } from '@tiktrends/core';
 import {
   curationViewAction, validateNodeAction, rejectNodeAction, validateManyAction,
@@ -63,6 +63,10 @@ export function Curation() {
   const [saisie, setSaisie] = useState('');
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(20);
+  // Le champ de recherche · réinitialiser lui REND le focus (le lien/bouton qui
+  // a servi disparaît, sinon le focus retombe sur l'en-tête et la frappe suivante
+  // est perdue).
+  const rechercheRef = useRef<HTMLInputElement>(null);
 
   const charger = useCallback(async () => {
     const r = await curationViewAction({ q, limit });
@@ -74,7 +78,10 @@ export function Curation() {
   useEffect(() => { void charger(); }, [charger]);
 
   const appliquer = () => { setLimit(20); setQ(saisie.trim()); };
-  const reinitialiser = () => { setSaisie(''); setLimit(20); setQ(''); };
+  // Les deux entrées « Réinitialiser » (bouton et lien du sans-résultat) partagent
+  // ce handler · le focus revient donc au champ dans les deux cas, la logique de
+  // recherche est inchangée.
+  const reinitialiser = () => { setSaisie(''); setLimit(20); setQ(''); rechercheRef.current?.focus(); };
 
   const toutValider = (kind: NodeKind) => agir(async () => {
     setNote(null);
@@ -115,6 +122,7 @@ export function Curation() {
           Appliquée à la demande (Entrée / Rechercher), pas à chaque frappe. */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <input
+          ref={rechercheRef}
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); appliquer(); } }}

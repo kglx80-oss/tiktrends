@@ -32,6 +32,23 @@ describe('Tri · cibles tactiles 44 (source)', () => {
   });
 });
 
+describe('Tri · réinitialiser rend le focus au champ de recherche (source)', () => {
+  it('les deux entrées « Réinitialiser » (bouton + lien) partagent le handler reinitialiser', () => {
+    // Un seul onClick={reinitialiser} sur le bouton ET le lien du sans-résultat.
+    expect((src.match(/onClick=\{reinitialiser\}/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('reinitialiser redonne le focus au champ (sinon il retombe sur l’en-tête)', () => {
+    expect(src).toContain('const rechercheRef = useRef<HTMLInputElement>(null);');
+    // Le handler vide la recherche PUIS refocalise le champ · logique de recherche inchangée.
+    expect(src).toContain("setSaisie(''); setLimit(20); setQ(''); rechercheRef.current?.focus();");
+    // Le ref est bien branché sur le champ de recherche.
+    const i = src.indexOf('ref={rechercheRef}');
+    expect(i, 'ref du champ de recherche absent').toBeGreaterThan(-1);
+    expect(src.slice(i, i + 400)).toContain('aria-label="Rechercher dans les propositions à trier"');
+  });
+});
+
 describe('Tri · le support est ANCRÉ (il ne recouvre plus le contenu)', () => {
   it('/adsmap/tri entre dans la liste des écrans à support ancré', () => {
     expect(shell, 'le support de /adsmap/tri flotte encore et recouvre le contenu au défilement')
