@@ -130,7 +130,7 @@ export function Curation() {
 
       {q && view.nodes.length === 0 && (
         <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
-          Aucun résultat pour « {q} » · <button onClick={reinitialiser} style={{ border: 'none', background: 'none', padding: 0, font: 'inherit', color: 'var(--accent-strong)', textDecoration: 'underline', cursor: 'pointer' }}>réinitialiser</button>
+          Aucun résultat pour « {q} » · <button onClick={reinitialiser} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, border: 'none', background: 'none', padding: 0, font: 'inherit', color: 'var(--accent-strong)', textDecoration: 'underline', cursor: 'pointer' }}>réinitialiser</button>
         </p>
       )}
 
