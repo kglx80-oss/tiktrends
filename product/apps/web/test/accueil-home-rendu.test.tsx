@@ -81,16 +81,18 @@ describe('Accueil · cartes des marques (Recent Projects)', () => {
     expect(html).toContain('src="data:image/png;base64,AAAA"');
   });
 
-  it('un logo se pose sur une assise CLAIRE et contourée · contraste des logos SOMBRES', () => {
-    // Défaut de recette (carte « Sombre Co » ≈ Klorea) · un logo SOMBRE posé sur
-    // l'assise sombre de la carte devenait illisible (dark-on-dark). Le plateau
-    // du logo est une assise CLAIRE fixe · les logos sombres et colorés s'y lisent.
-    // Un contour fin (ombre à décalage nul) détache aussi un logo CLAIR sur clair.
+  it('un logo se pose sur une assise NEUTRE · logos noirs ET blancs lisibles, sans contour', () => {
+    // Défaut de recette (carte « Sombre Co » ≈ Klorea) · un logo SOMBRE sur
+    // l'assise sombre de la carte était illisible (dark-on-dark) · un plateau
+    // clair rendait à l'inverse un logo CLAIR invisible. Le plateau est une
+    // assise NEUTRE intermédiaire (gris moyen ≈ luminance 0,18) · logo noir ET
+    // blanc y tiennent ≈ 4,6:1 SANS retoucher leur dessin. Pas de contour
+    // universel (le halo « en relief » refusé en recette ne doit pas revenir).
     const html = renderToStaticMarkup(
       <HomeMarques marques={[{ id: 'b-logo', name: 'Klorea', logoUrl: 'data:image/png;base64,AAAA' }]} activeId={null} />,
     );
-    expect(html, 'le logo n’est pas sur une assise claire (contraste des logos sombres)').toContain('#f5f6f8');
-    expect(html, 'le logo n’a pas de contour de lisibilité (logos clairs)').toMatch(/drop-shadow\(0 0 1\.5px/);
+    expect(html, 'le logo n’est pas sur l’assise neutre (contraste noir ET blanc)').toContain('#767676');
+    expect(html, 'un contour universel (drop-shadow) a été réintroduit sur le logo').not.toContain('drop-shadow');
   });
 
   it('un logo cassé RENDU SERVEUR retombe sur l’initiale · onError seul ne suffit pas', () => {
