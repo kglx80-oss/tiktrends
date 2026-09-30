@@ -78,6 +78,15 @@ function ContenuApercu({ logoUrl, name }: { logoUrl?: string | null; name: strin
         src={logoUrl}
         alt=""
         onError={() => setErreur(true)}
+        ref={(el) => {
+          // `onError` seul ne suffit PAS avec le rendu serveur · l'image est
+          // rendue avec son `src` dès le HTML, donc une URL cassée échoue AVANT
+          // l'hydratation, avant que `onError` soit attaché · l'événement est
+          // manqué et l'icône brisée reste (observé sur la carte « Cassée » ·
+          // aucun repli). On rattrape l'état « déjà cassée » à l'hydratation ·
+          // `complete` avec `naturalWidth` à 0 = chargée mais indécodable.
+          if (el && el.complete && el.naturalWidth === 0) setErreur(true);
+        }}
         style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
       />
     </div>

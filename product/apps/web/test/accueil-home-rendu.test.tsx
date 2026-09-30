@@ -80,6 +80,19 @@ describe('Accueil · cartes des marques (Recent Projects)', () => {
     expect(html, 'le logo n’a pas de marge autour').toMatch(/padding:13%/);
     expect(html).toContain('src="data:image/png;base64,AAAA"');
   });
+
+  it('un logo cassé RENDU SERVEUR retombe sur l’initiale · onError seul ne suffit pas', () => {
+    // Défaut SSR observé (carte « Cassée ») · l'image est rendue avec son `src`
+    // dès le HTML · une URL cassée échoue AVANT l'hydratation, avant que
+    // `onError` soit attaché · l'événement est manqué et l'icône brisée reste.
+    // Le composant rattrape l'état « déjà cassée » à l'hydratation (complete +
+    // naturalWidth 0). jsdom ne charge pas les images · on garde le CÂBLAGE en
+    // source (même raison que les gardes de câblage du rail). Le RÉSULTAT visible
+    // (initiale au repli) est prouvé par le rendu ci-dessus et la recette CDP.
+    const src = readFileSync(join(process.cwd(), 'components', 'HomeMarques.tsx'), 'utf8');
+    expect(src, 'le repli ne rattrape pas l’image déjà cassée à l’hydratation').toMatch(/naturalWidth === 0/);
+    expect(src, 'le rattrapage ne s’appuie pas sur complete').toContain('.complete');
+  });
 });
 
 describe('Accueil · hiérarchie · bandeau PUIS marques, avant le reste', () => {
