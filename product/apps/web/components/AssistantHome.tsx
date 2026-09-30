@@ -14,6 +14,10 @@ export interface AssistantHomeProps {
   brandName: string | null;
   brandId: string | null;
   aiReady: boolean;
+  /** Le bandeau visuel (hero de la Home) · rendu en tête, juste sous l'en-tête. */
+  bandeau?: ReactNode;
+  /** Les cartes des marques du compte · rendues sous le bandeau. */
+  marques?: ReactNode;
   /** La prochaine itération, DEVANT · rendue juste après l'en-tête. */
   prochaineEtape?: ReactNode;
   /** L'aperçu d'exemple, replié, en toute fin. */
@@ -55,29 +59,35 @@ const STUDIOS: Array<{ href: string; icon: string; titre: string; teinte: string
   { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', teinte: 'linear-gradient(135deg, #8a5a12, #d69a3a)' },
 ];
 
-export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, prochaineEtape, exemple }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple }: AssistantHomeProps) {
   const etatCredits = afficherCredits({ balance: credits, unlimited });
   return (
     <div style={{ marginBottom: 32 }}>
-      {/* En-tête sobre · pas de héros, halo ni grille de fond · un filet sépare.
-          Crédits discrets (information, pas action). */}
-      <div style={{ padding: '4px 0 20px', marginBottom: 24, borderBottom: '1px solid var(--line)' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>TikTrends</div>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.15 }}>
-          Bonjour {firstName}
-        </h1>
-        <p style={{ margin: '8px 0 0', fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 560 }}>
-          {brandName
-            ? <>Marque active · <b style={{ color: 'var(--ink)' }}>{brandName}</b>. Observe, teste, apprends de chaque itération.</>
-            : <>Choisis une marque et lance-toi · observe, teste, apprends de chaque itération.</>}
-        </p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'rgba(8,5,10,.35)', fontSize: 12.5, color: 'var(--ink-2)' }}>
-            <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name="coin" size={14} /></span>
+      {/* En-tête COMPACT · salutation + crédits sur UNE ligne (les crédits
+          restent présents · même vérité que la coquille, mais en ligne, pas en
+          pavé) · sans eyebrow ni filet, pour laisser la place au bandeau et
+          garder la première rangée de marques visible à 720. */}
+      <div style={{ padding: '2px 0 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+          <h1 style={{ margin: 0, fontSize: 'clamp(21px, 3vw, 25px)', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.2 }}>
+            Bonjour {firstName}
+          </h1>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-2)' }}>
+            <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name="coin" size={13} /></span>
             {texteCredits(etatCredits, (n) => n.toLocaleString('fr-FR'))}{etatCredits.mode === 'solde' ? ' crédits' : ''}
           </span>
         </div>
+        <p style={{ margin: '3px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+          {brandName
+            ? <>Marque active · <b style={{ color: 'var(--ink-2)' }}>{brandName}</b> · Observe, teste, apprends de chaque itération.</>
+            : <>Choisis une marque · Observe, teste, apprends de chaque itération.</>}
+        </p>
       </div>
+
+      {/* Le hero de la Home · bandeau à la une, PUIS les marques du compte
+          (hiérarchie demandée · Kevin 30/09), avant le reste. */}
+      {bandeau}
+      {marques}
 
       {/* DEVANT · la prochaine itération (parcours réel ou prépare l'itération). */}
       {prochaineEtape}
