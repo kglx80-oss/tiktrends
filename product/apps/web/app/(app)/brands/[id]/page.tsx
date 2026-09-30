@@ -4,7 +4,6 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
-import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { updateBrandAction } from '../../../actions/brands';
 import {
@@ -61,8 +60,9 @@ export default async function BrandDetailPage({ params, searchParams }: {
   if (!db) notFound();
   const [b0] = await db.select({ id: schema.brands.id }).from(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
   if (!b0) notFound();
-  // Enrichissement automatique (DA, produits, photos) · sans bouton, avant l'affichage.
-  await ensureBrandEnriched(id);
+  // Consulter la fiche ne modifie rien · l'enrichissement (DA, produits, photos)
+  // passe par ses gestes explicites : « Récupérer la DA », la synchronisation
+  // Shopify, la récupération des photos produit (voir lecture-seule.test).
   const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, id)).limit(1);
   if (!b) notFound();
 
