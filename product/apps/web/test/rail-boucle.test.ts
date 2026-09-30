@@ -14,21 +14,33 @@ import { railNav, RAIL_GROUP_LABEL, type Access } from '../lib/rbac';
  * sections comme un musée (Observatoire, Atelier, Laboratoire). On mène par la
  * boucle, et chaque section porte le VERBE de son étape.
  *
- * Ce garde vérifie le RÉSULTAT · la suite de sections qu'un compte complet voit,
- * une fois libellée, est exactement « Observer · Créer · Tester · Piloter »,
- * dans cet ordre. Il tombe si l'ordre repart en arrière ou si un libellé
- * redevient un nom de musée.
+ * Ce garde vérifie le RÉSULTAT · « Accueil » MÈNE le rail en entrée autonome
+ * (sans en-tête de section, façon Flora · Kevin 30/09), puis les sections
+ * libellées forment exactement « Observer · Créer · Tester · Piloter », dans cet
+ * ordre. Il tombe si Accueil ne mène plus, si l'ordre repart en arrière, ou si
+ * un libellé redevient un nom de musée.
  */
 
 const LAYOUT = readFileSync(join(process.cwd(), 'app/(app)/layout.tsx'), 'utf8');
 
-// Un compte complet voit les quatre sections du rail (aucune n'est masquée par
+// Un compte complet voit toutes les sections du rail (aucune n'est masquée par
 // le rôle ou le plan).
 const complet: Access = { role: 'admin', plan: 'business' };
 
-describe('le rail mène par la boucle', () => {
-  it('les sections, libellées, forment la boucle dans l’ordre', () => {
-    const sections = railNav(complet).map((g) => RAIL_GROUP_LABEL[g.group] ?? g.group);
+describe('le rail mène par l’Accueil, puis par la boucle', () => {
+  it('« Accueil » MÈNE le rail, en entrée AUTONOME (aucun en-tête de section)', () => {
+    const groupes = railNav(complet);
+    expect(groupes[0]!.group, 'Accueil doit ouvrir le rail').toBe('Accueil');
+    // Autonome · pas de libellé de section au-dessus (chaîne vide).
+    expect(RAIL_GROUP_LABEL['Accueil'], 'Accueil ne doit porter aucun en-tête de section').toBe('');
+    // Et c'est bien l'entrée « Accueil » (ex-Dashboard) qu'elle contient.
+    expect(groupes[0]!.items.map((i) => i.label)).toContain('Accueil');
+  });
+
+  it('les sections LIBELLÉES (hors Accueil autonome) forment la boucle dans l’ordre', () => {
+    const sections = railNav(complet)
+      .map((g) => RAIL_GROUP_LABEL[g.group] ?? g.group)
+      .filter((l) => l !== ''); // l'entrée autonome Accueil n'a pas d'en-tête
     expect(sections).toEqual(['Observer', 'Créer', 'Tester', 'Piloter']);
   });
 
@@ -37,9 +49,10 @@ describe('le rail mène par la boucle', () => {
     expect(sections.indexOf('Piloter')).toBeGreaterThan(sections.indexOf('Créer'));
   });
 
-  it('chaque section du rail porte un verbe, jamais un nom de musée', () => {
+  it('chaque section LIBELLÉE du rail porte un verbe, jamais un nom de musée', () => {
     for (const g of railNav(complet)) {
       const label = RAIL_GROUP_LABEL[g.group];
+      if (label === '') continue; // l'Accueil autonome n'a pas de libellé
       expect(label, `la section ${g.group} n’a pas de verbe`).toBeTruthy();
       expect(['Observatoire', 'Atelier', 'Laboratoire', 'Pilotage']).not.toContain(label);
     }

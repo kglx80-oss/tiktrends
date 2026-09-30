@@ -187,6 +187,23 @@ describe('le fil d’Ariane dit où l’on est', () => {
     expect(c.map((x) => x.label)).toEqual(['Accueil', 'Espace', 'Marques', 'TrueFords']);
   });
 
+  it('la fiche d’une marque nomme la marque CONSULTÉE, pas l’active', () => {
+    // Sur /brands/[id], le dernier maillon doit être la marque de l'URL. Avec une
+    // marque active DIFFÉRENTE (Neva) et une marque consultée (Klorea), le fil
+    // dit « Klorea » · le bug affichait « Neva ».
+    const c = breadcrumb('/brands/klorea-1', {
+      brandName: 'Neva',
+      resolveBrand: (id) => (id === 'klorea-1' ? 'Klorea' : null),
+    });
+    expect(c[c.length - 1]!.label).toBe('Klorea');
+    expect(c.map((x) => x.label)).not.toContain('Neva');
+  });
+
+  it('sans résolveur, la fiche retombe sur le nom d’active (jamais le motif [id])', () => {
+    const c = breadcrumb('/brands/abc-123', { brandName: 'TrueFords' });
+    expect(c[c.length - 1]!.label).toBe('TrueFords');
+  });
+
   it('un concurrent tire son nom de l’URL, décodé', () => {
     const c = breadcrumb('/brands/abc/competitors/Nike%20France', { brandName: 'TrueFords' });
     expect(c[c.length - 1]!.label).toBe('Nike France');

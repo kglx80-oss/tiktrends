@@ -43,7 +43,7 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
  * travaille : on regarde où on en est, on cherche, on crée, on teste et on
  * apprend.
  */
-export type NavGroup = 'Pilotage' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'account';
+export type NavGroup = 'Accueil' | 'Pilotage' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'account';
 /**
  * L'ordre du rail suit la BOUCLE de travail, pas l'ordre historique.
  *
@@ -53,14 +53,21 @@ export type NavGroup = 'Pilotage' | 'Observatoire' | 'Atelier' | 'Laboratoire' |
  * travail réel dessous. On mène par la boucle ; le pilotage, qu'on consulte,
  * vient après.
  */
-export const RAIL_GROUPS: NavGroup[] = ['Observatoire', 'Atelier', 'Laboratoire', 'Pilotage'];
+// « Accueil » MÈNE le rail, en entrée AUTONOME (façon Flora · Kevin 30/09) · une
+// tête seule, sans en-tête de section, avant la boucle. Puis on lit le rail comme
+// on travaille · observer → créer → tester, et « Piloter » (le regard en arrière)
+// ferme.
+export const RAIL_GROUPS: NavGroup[] = ['Accueil', 'Observatoire', 'Atelier', 'Laboratoire', 'Pilotage'];
 /**
  * Ce que le rail AFFICHE · le verbe de l'étape, pas le nom de musée. Les clés
  * internes ne bougent pas (elles servent aussi au fil d'Ariane) · seul le
  * libellé montré nomme le geste, pour qu'on lise le rail comme la boucle.
+ *
+ * « Accueil » n'a PAS de libellé de section (chaîne vide) · c'est une entrée
+ * autonome en tête, pas une rubrique · le rail ne pose aucun en-tête au-dessus.
  */
 export const RAIL_GROUP_LABEL: Record<string, string> = {
-  Observatoire: 'Observer', Atelier: 'Créer', Laboratoire: 'Tester', Pilotage: 'Piloter',
+  Accueil: '', Observatoire: 'Observer', Atelier: 'Créer', Laboratoire: 'Tester', Pilotage: 'Piloter',
 };
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
@@ -86,8 +93,13 @@ export interface Feature {
 }
 
 export const FEATURES: Feature[] = [
-  // ── Piloter · où on en est ────────────────────────────────────────────────
-  { key: 'dashboard', label: 'Dashboard',    href: '/dashboard',   icon: 'grid',   group: 'Pilotage',  minRole: 'client_viewer', minPlan: 'starter' },
+  // ── Accueil · l'entrée autonome en tête (façon Flora · Kevin 30/09) ────────
+  // « Accueil » (ex-« Dashboard ») MÈNE le rail, seul, sans en-tête de section.
+  // La cible reste /dashboard · c'est la vraie page d'accueil (distincte de
+  // l'analytique /analytics).
+  { key: 'dashboard', label: 'Accueil',      href: '/dashboard',   icon: 'grid',   group: 'Accueil',   minRole: 'client_viewer', minPlan: 'starter' },
+
+  // ── Piloter · le regard en arrière ────────────────────────────────────────
   { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Pilotage',  minRole: 'client_viewer', minPlan: 'starter' },
 
   // ── Trouver · ce que fait le marché ───────────────────────────────────────

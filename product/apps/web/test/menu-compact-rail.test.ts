@@ -54,12 +54,16 @@ describe('menu compact · en-tête du rail', () => {
 });
 
 describe('menu compact · cibles et discrétion', () => {
-  it('les entrées de navigation atteignent la cible 44 (le padding seul tombait à 41)', () => {
-    // Mutation : retirer ce minHeight fait retomber les items à 41 px (mesuré).
-    const i = SRC.indexOf("padding: it.isSub ? '8px 10px 8px 30px' : '10px 11px'");
-    expect(i, 'la tête de branche du rail est introuvable').toBeGreaterThan(-1);
-    const bloc = SRC.slice(i, i + 200);
-    expect(bloc, 'la tête de branche ne pose pas la cible 44').toContain('minHeight: CIBLE_TACTILE_MIN');
+  it('les rangées de nav tirent leur hauteur du noyau · 44 au doigt (H2 · densité par pointeur)', () => {
+    // La rangée ne pose plus un 44 figé · elle prend la hauteur DÉCIDÉE par le
+    // noyau selon le pointeur (44 au doigt, dense à la souris · voir
+    // packages/core · rail-densite). Le doigt reste à 44, garanti par le noyau.
+    // Mutation : remettre `minHeight: CIBLE_TACTILE_MIN` figé (sans densité) fait
+    // tomber cette paire ; retirer le branchement `hauteurRangeeRail(tactile)`
+    // aussi.
+    const i = SRC.indexOf('const hRangee = hauteurRangeeRail(tactile);');
+    expect(i, 'la rangée ne tire pas sa hauteur du noyau').toBeGreaterThan(-1);
+    expect(SRC, 'la rangée ne pose pas la hauteur décidée').toContain('minHeight: hRangee');
   });
 
   it('le groupe « Observer » (et ses voisins) reste discret · 11 px', () => {
