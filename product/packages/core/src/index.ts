@@ -17,6 +17,8 @@ export * from './brief-cache';
 export * from './proportion';
 export * from './cible-tactile';
 export * from './rail-densite';
+export * from './rail-marque';
+export * from './identite-marque';
 export * from './verrou-action';
 export * from './launch';
 export * from './briefs';

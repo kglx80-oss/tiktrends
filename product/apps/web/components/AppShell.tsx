@@ -14,7 +14,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, hauteurRangeeRail } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, hauteurRangeeRail, railEntreeActive, ancresDeclarees } from '@tiktrends/core';
 import { chromeCoquille } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -264,24 +264,59 @@ function AppShellInner(props: Props) {
   const onAdminPath = ADMIN_NAV.some((x) => pathname === x.href || pathname.startsWith(x.href + '/'));
   const inAdmin = isStaff && onAdminPath;
 
-  // État actif d'un item de nav : gère les routes imbriquées et l'onglet (?tab=) des marques.
+  // État actif d'un item de nav : gère les routes imbriquées, l'onglet (?tab=) et
+  // l'ANCRE (#…) des marques · trois entrées « Marque » visent la même route+onglet
+  // (Aperçu / Couleurs / Charte) et ne se départagent qu'à l'ancre.
   const currentTab = search.get('tab') || 'overview';
+  // L'ancre courante · absente de `usePathname`/`useSearchParams`, on la suit
+  // côté client. Elle part de '' (le rendu serveur n'a pas d'ancre · pas de
+  // désaccord d'hydratation), puis se synchronise au montage et à chaque
+  // `hashchange` (cliquer Couleurs↔Charte ne change QUE l'ancre) et à chaque
+  // navigation (changer d'onglet efface l'ancre).
+  const [currentHash, setCurrentHash] = useState('');
+  const searchStr = search.toString();
+  useEffect(() => {
+    const lire = () => setCurrentHash(typeof window !== 'undefined' ? window.location.hash : '');
+    lire();
+    // Un `<Link>` Next qui ne change QUE l'ancre passe par `history.pushState` ·
+    // AUCUN `hashchange` n'est émis (recette H4 · clic « Charte » au tiroir ·
+    // l'URL portait #charte mais « Aperçu » restait allumé). On prend donc l'ancre
+    // à la SOURCE · le lien cliqué (souris ou Entrée), en phase de capture, avant
+    // que Next n'empêche le comportement natif. `popstate` couvre précédent/suivant.
+    const surClic = (e: MouseEvent) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || (a.target && a.target !== '_self')) return;
+      const url = new URL(a.getAttribute('href') ?? '', window.location.href);
+      if (url.origin === window.location.origin) setCurrentHash(url.hash);
+      // Le tiroir mobile ne se refermait qu'au CHANGEMENT de route · un saut
+      // d'ancre sur la même page (Couleurs, Charte) le laissait ouvert, par-dessus
+      // la section atteinte (recette H4 · 390). Une entrée du rail cliquée le ferme.
+      if (a.closest('#nav-rail')) setDrawer(false);
+    };
+    window.addEventListener('hashchange', lire);
+    window.addEventListener('popstate', lire);
+    document.addEventListener('click', surClic, true);
+    return () => {
+      window.removeEventListener('hashchange', lire);
+      window.removeEventListener('popstate', lire);
+      document.removeEventListener('click', surClic, true);
+    };
+  }, [pathname, searchStr]);
+  // Les ancres que le rail DÉCLARE lui-même · seules celles-ci départagent
+  // l'entrée nue (« Aperçu ») de ses sœurs ancrées. Aucune valeur codée en dur.
+  const ancresRail = ancresDeclarees(nav.flatMap((g) => g.items.map((it) => it.href)));
   /**
    * « Je suis ICI » · exact, et un seul élément à la fois.
    *
    * Le parent d'une page ouverte était marqué actif lui aussi, avec le MÊME
    * fond que l'élément courant · deux entrées paraissaient sélectionnées, et on
    * ne savait plus laquelle on lisait. Contenir la page courante et être la page
-   * courante sont deux états différents · ils ont maintenant deux rendus.
+   * courante sont deux états différents · ils ont maintenant deux rendus. La
+   * règle (route + onglet + ancre) vit dans le noyau (`railEntreeActive`).
    */
-  const isNavActive = (href: string, _isSub: boolean): boolean => {
-    const [path, query] = href.split('?');
-    if (query) {
-      const tab = new URLSearchParams(query).get('tab') || 'overview';
-      return pathname === path && currentTab === tab;
-    }
-    return pathname === path;
-  };
+  const isNavActive = (href: string, _isSub: boolean): boolean =>
+    railEntreeActive(href, { pathname, tab: currentTab, hash: currentHash, ancres: ancresRail });
 
   /** « La branche où je suis » · le parent, sans lui voler la sélection. */
   const isNavInPath = (href: string): boolean => {

@@ -38,15 +38,27 @@ describe('H3 · l’identité visuelle · deux sections distinctes et ancrées',
     const out = html();
     const iCouleurs = out.indexOf('id="couleurs"');
     const iCharte = out.indexOf('id="charte"');
-    expect(iCouleurs, 'la section « Couleurs & typographie » (#couleurs) manque').toBeGreaterThan(-1);
-    expect(iCharte, 'la section « Charte & kit » (#charte) manque').toBeGreaterThan(-1);
+    expect(iCouleurs, 'la section « Styles » (#couleurs) manque').toBeGreaterThan(-1);
+    expect(iCharte, 'la section « Brand kits » (#charte) manque').toBeGreaterThan(-1);
     expect(iCouleurs, 'les deux ancres tombent au MÊME point · un seul repère pour deux libellés').not.toBe(iCharte);
   });
 
-  it('les deux sections portent des libellés DISTINCTS', () => {
+  it('les deux sections portent les libellés de Kevin · « Styles », « Brand kits », titre ET index', () => {
     const out = html();
-    expect(out, 'le libellé « Couleurs & typographie » manque').toContain('Couleurs &amp; typographie');
-    expect(out, 'le libellé « Charte &amp; kit » manque').toContain('Charte &amp; kit');
+    const sCoul = out.slice(out.indexOf('id="couleurs"'), out.indexOf('id="charte"'));
+    const sChart = out.slice(out.indexOf('id="charte"'));
+    expect(sCoul, 'la section #couleurs ne s’intitule pas « Styles »').toContain('Styles');
+    expect(sChart, 'la section #charte ne s’intitule pas « Brand kits »').toContain('Brand kits');
+    const index = out.slice(0, out.indexOf('id="couleurs"'));
+    expect(index, 'l’index ne propose pas « Styles »').toContain('Styles');
+    expect(index, 'l’index ne propose pas « Brand kits »').toContain('Brand kits');
+  });
+
+  it('chaque section dit ce qu’elle CONTIENT (sous-titre honnête, pas de capacité inventée)', () => {
+    const out = html();
+    expect(out, 'Styles ne dit pas qu’il s’agit des couleurs et de la typographie').toContain('Couleurs et typographie de la marque');
+    expect(out, 'Brand kits ne dit pas ce que contient le kit').toContain('logo, variantes et style déduit du site');
+    expect(out, 'le sous-titre promet plusieurs kits alors qu’il y en a un par marque').toContain('Le kit de cette marque');
   });
 
   it('l’index de sections a deux liens vers les DEUX ancres distinctes', () => {
@@ -87,11 +99,21 @@ describe('H3 · l’identité visuelle · deux sections distinctes et ancrées',
     expect(out, 'l’ancienne assise quasi transparente du logo (rgba .06) subsiste').not.toContain('rgba(255,255,255,.06)');
   });
 
-  it('les deux ancres portent scrollMarginTop (l’ancre ne cache pas le titre)', () => {
+  it('les deux ancres réservent en-tête + index (le titre tombe SOUS l’index collant)', () => {
     const out = html();
-    // 90px sur chaque section · une pour #couleurs, une pour #charte.
-    const scrolls = out.match(/scroll-margin-top:90px/g) ?? [];
-    expect(scrolls.length, 'une section au moins n’a pas de scrollMarginTop').toBeGreaterThanOrEqual(2);
+    // 65 (en-tête mesuré) + 57 (index + marges) + 12 · une pour chaque section.
+    const scrolls = out.match(/scroll-margin-top:134px/g) ?? [];
+    expect(scrolls.length, 'une section au moins ne réserve pas la place de l’en-tête ET de l’index').toBeGreaterThanOrEqual(2);
+  });
+
+  it('l’index est COLLANT sous l’en-tête, sur fond opaque · jamais glissé derrière après un saut', () => {
+    // Recette #710 · après un saut, l'index restait au-dessus de la section,
+    // donc SOUS l'en-tête collant, puces coupées.
+    const out = html();
+    const nav = out.slice(out.lastIndexOf('<nav', out.indexOf('href="#couleurs"')), out.indexOf('href="#couleurs"'));
+    expect(nav, 'l’index n’est plus collant · il repartira sous l’en-tête').toContain('position:sticky');
+    expect(nav, 'l’index ne se cale pas juste sous l’en-tête (65px)').toContain('top:65px');
+    expect(nav, 'l’index collant est transparent · le contenu défilerait à travers').toContain('background:var(--bg)');
   });
 
   it('l’état vide (ni couleur ni police) reste propre et garde le geste « Récupérer la DA »', () => {

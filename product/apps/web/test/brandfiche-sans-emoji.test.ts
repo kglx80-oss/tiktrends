@@ -27,7 +27,11 @@ describe('Fiche marque · plus aucun emoji d’interface', () => {
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
     expect(tout).toMatch(/<Icon name="sparkles"/);
-    expect(tout).toMatch(/<Icon name="palette"/);
+    // La palette des sections d'identité vient de la source partagée
+    // (`SECTIONS_IDENTITE`, H4) · BrandDA la rend par <Icon name={…icone}>.
+    const identite = readFileSync(join(process.cwd(), '../../packages/core/src/identite-marque.ts'), 'utf8');
+    expect(identite, 'la section Styles ne porte plus l’icône palette').toMatch(/id: 'couleurs'[^\n]*icone: 'palette'/);
+    expect(tout, 'BrandDA ne rend plus l’icône de section du jeu partagé').toMatch(/<Icon name=\{sectionDe\('couleurs'\)\.icone\}/);
     expect(tout).toMatch(/<Icon name="pen"/);
     expect(tout).toMatch(/<Icon name="link"/);
   });
