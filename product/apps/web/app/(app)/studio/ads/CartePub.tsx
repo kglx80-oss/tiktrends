@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, type ReactNode } from 'react';
-import { qualiteCarte, texteAttenduDansImage, type EtatVerdictCarte } from '@tiktrends/core';
+import { qualiteCarte, texteAttenduDansImage, lienAdsmapCarte, etatApresSuivi, type EtatVerdictCarte } from '@tiktrends/core';
 import { CarteCreative, type ActionCarte } from '../../../../components/CarteCreative';
 import { RatingControl } from '../../../../components/CreativeActions';
 import { trackGeneratedAdAction } from '../../../actions/adsmap-bridge';
@@ -36,6 +36,8 @@ export function CartePub({ ad, format, sousTitre, meta, note, vignetteUrl, fullU
   // performance, à l'endroit où le verdict tombera.
   const [suivi, setSuivi] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const [suiviNote, setSuiviNote] = useState('');
+  // L'ad créée par « Suivre » · le lien vers son test s'ouvre sans rechargement.
+  const [adSuivie, setAdSuivie] = useState<string | null>(null);
   const [enVerif, demarrerVerif] = useTransition();
   const [erreurVerif, setErreurVerif] = useState('');
 
@@ -56,18 +58,23 @@ export function CartePub({ ad, format, sousTitre, meta, note, vignetteUrl, fullU
     const r = await trackGeneratedAdAction(ad.id);
     if (r.error) { setSuivi('err'); setSuiviNote(r.error); return; }
     setSuivi('done');
+    setAdSuivie(r.adId ?? null);
     setSuiviNote(r.prelaunch ?? 'Ajoutée à la carte · complète son hypothèse avant de la lancer.');
   }
 
-  // Optimiste · une créa qu'on vient de suivre passe « en mesure » si elle n'avait
-  // pas encore de verdict · sinon on ne touche pas au verdict déjà connu.
-  const verdict: EtatVerdictCarte | null = suivi === 'done' && !ad.verdict ? 'en_mesure' : (ad.verdict ?? null);
+  // Optimiste · une créa qu'on vient de suivre entre dans Adsmap en BROUILLON ·
+  // elle n'est pas lancée, rien ne se mesure encore · « à lancer », jamais « en
+  // mesure » (I1). Un verdict déjà connu n'est pas touché.
+  const verdict: EtatVerdictCarte | null = suivi === 'done' ? etatApresSuivi(ad.verdict) : (ad.verdict ?? null);
+  // Le passage vers le test · seulement vers une ad CONNUE de la marque active,
+  // et seulement avec l'accès Adsmap (`trackable`).
+  const lien = lienAdsmapCarte({ adsmapAdId: ad.adsmapAdId ?? adSuivie, etat: verdict, acces: trackable });
 
   const secondaires: ActionCarte[] = [
     { cle: 'dl', label: `Télécharger`, icon: 'download', href: fullUrl, download: `pub-${ad.id}.png` },
     ...(trackable ? [{
       cle: 'suivre',
-      label: suivi === 'done' ? 'Suivie · en mesure' : suivi === 'busy' ? 'Suivi…' : suivi === 'err' ? 'Suivi · réessayer' : 'Suivre dans Adsmap',
+      label: suivi === 'done' ? 'Suivie · à lancer' : suivi === 'busy' ? 'Suivi…' : suivi === 'err' ? 'Suivi · réessayer' : 'Suivre dans Adsmap',
       icon: 'map',
       onClick: suivre,
       disabled: suivi === 'done' || suivi === 'busy',
@@ -87,7 +94,7 @@ export function CartePub({ ad, format, sousTitre, meta, note, vignetteUrl, fullU
       onApercu={onOpen}
       pertinence={<RatingControl genId={ad.id} rating={ad.rating} />}
       qualite={qualiteCarte({ ...(ad.controle ?? {}), faits: ad.faits ?? [], renduPorteTexte: texteAttenduDansImage(ad.mode), provenance: { date: (ad.createdAt ?? '').slice(0, 10) || null } })}
-      performance={{ verdict, prediction: typeof ad.score === 'number' ? ad.score : null }}
+      performance={{ verdict, prediction: typeof ad.score === 'number' ? ad.score : null, lien }}
       onVerifierFait={verifier}
       verifEnCours={enVerif}
       erreurVerif={erreurVerif}

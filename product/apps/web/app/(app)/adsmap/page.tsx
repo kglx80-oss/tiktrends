@@ -13,7 +13,8 @@ import { Views } from './Views';
 import { effectiveAccess } from '../../../lib/access';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, lireLienProfondAdsmap } from '@tiktrends/core';
+import { adsDeLaMarque } from '../../../lib/adsmap-marque';
 import { SectionEssais } from '../jarvis/sections/SectionEssais';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,7 @@ const feature = FEATURES.find((f) => f.key === 'adsmap')!;
  * avec le tableur. La Carte répond à ce qu'aucune ligne ne dira jamais : d'où
  * vient ce gagnant, et qu'est-ce qu'on n'a pas encore essayé.
  */
-export default async function AdsMapPage() {
+export default async function AdsMapPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
   if (!s) redirect('/login');
 
@@ -77,6 +78,15 @@ export default async function AdsMapPage() {
     : [];
   const peutMesurer = roleAtLeast(s.role, 'admin');
 
+  // Le lien profond d'une carte du Studio (I1) · `?ad=<id>&depuis=studio` ouvre
+  // le panneau de CE test. Lecture seule · l'ouvrir n'écrit rien. On ne l'ouvre
+  // que si l'ad appartient à la marque active · sinon on le dit, sans afficher
+  // le test d'une autre marque sous le nom de celle-ci.
+  const profond = lireLienProfondAdsmap(await searchParams);
+  const testProfond = profond.adId
+    ? { adId: profond.adId, depuisStudio: profond.depuisStudio, introuvable: !(await adsDeLaMarque(s.workspaceId, brand.id, [profond.adId])).has(profond.adId) }
+    : null;
+
   return (
     <main style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -112,7 +122,7 @@ export default async function AdsMapPage() {
         </PageInfo>
       </nav>
 
-      <Views batches={batches} canBuild={peutMesurer} />
+      <Views batches={batches} canBuild={peutMesurer} testProfond={testProfond} marque={brand.name} />
 
       {/* Ce que Jarvis a appris de ces tests · essais, Score Jarvis, relectures.
           Le cumul vit là où on lit les tests, plus sous la conversation. Self-porté

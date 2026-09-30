@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import Link from 'next/link';
 import { CIBLE_TACTILE_MIN, type QualiteCarte, type EtatVerdictCarte, type FaitControle } from '@tiktrends/core';
 import { AdMedia } from './AdMedia';
 import { VerdictBadge } from './VerdictBadge';
@@ -59,8 +60,9 @@ export interface CarteCreativeProps {
   pertinence?: ReactNode;
   /** La synthèse qualité · calculée au noyau. */
   qualite?: QualiteCarte | null;
-  /** La performance mesurée · verdict marché, et la prédiction (pronostic). */
-  performance?: { verdict?: EtatVerdictCarte | null; prediction?: number | null };
+  /** La performance mesurée · verdict marché, et la prédiction (pronostic).
+   *  `lien` mène au test qui la mesure (Adsmap) · lecture seule, dans l'app. */
+  performance?: { verdict?: EtatVerdictCarte | null; prediction?: number | null; lien?: { href: string; libelle: string; titre: string } | null };
   /** Vérifier un fait · enregistre une preuve à partir d'une source (N04-suite). */
   onVerifierFait?: (cle: string, source: string) => void;
   /** Une vérification est en cours · fige le formulaire. */
@@ -147,7 +149,7 @@ export function CarteCreative(props: CarteCreativeProps) {
             ne vaut pas une performance. */}
         <div style={{ display: 'grid', gap: 7, paddingTop: 2, borderTop: '1px solid var(--line)', marginTop: 1 }}>
           {qualite && <ZoneQualite q={qualite} initialOuvert={initial?.qualite} onVerifierFait={onVerifierFait} verifEnCours={verifEnCours} erreurVerif={erreurVerif} />}
-          <ZonePerformance verdict={performance?.verdict ?? null} />
+          <ZonePerformance verdict={performance?.verdict ?? null} lien={performance?.lien ?? null} titre={titre} />
           {pertinence && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
               <span style={labelZone}>Pertinence</span>
@@ -344,13 +346,25 @@ function LigneReserve({ texte, ton, icone }: { texte: string; ton: string; icone
   );
 }
 
-function ZonePerformance({ verdict }: { verdict?: EtatVerdictCarte | null }) {
+function ZonePerformance({ verdict, lien, titre }: { verdict?: EtatVerdictCarte | null; lien?: { href: string; libelle: string; titre: string } | null; titre: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
-      <span style={labelZone}>Performance</span>
-      {verdict
-        ? <VerdictBadge etat={verdict} />
-        : <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Performance inconnue</span>}
+    <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+        <span style={labelZone}>Performance</span>
+        {verdict
+          ? <VerdictBadge etat={verdict} />
+          : <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Performance inconnue</span>}
+      </div>
+      {/* Le passage vers le test qui mesure cette créa (I1) · un lien de lecture,
+          dans l'app, libellé d'après ce que la destination montre. */}
+      {lien && (
+        <Link href={lien.href} title={lien.titre} aria-label={`${lien.libelle} dans Adsmap · ${titre}`}
+          style={{ justifySelf: 'end', display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: CIBLE_TACTILE_MIN, maxWidth: '100%', padding: '0 2px', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>
+          <span aria-hidden style={{ display: 'inline-flex', flexShrink: 0 }}><Icon name="map" size={13} /></span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lien.libelle}</span>
+          <span aria-hidden>›</span>
+        </Link>
+      )}
     </div>
   );
 }

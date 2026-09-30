@@ -70,7 +70,7 @@ export function BarreFiltresGalerie({ criteres, onChange, formats, formatLabel, 
         <Choix label="Qualité" value={criteres.qualite} onChange={(v) => set({ qualite: v as CritereQualite })}
           options={[['toutes', 'Toute qualité'], ['prete', 'Prête à diffuser'], ['a_verifier', 'À vérifier'], ['a_revoir', 'À revoir'], ['non_verifiee', 'Non vérifiée']]} />
         <Choix label="Performance" value={criteres.performance} onChange={(v) => set({ performance: v as CriterePerf })}
-          options={[['toutes', 'Toute performance'], ['gagnante', 'Gagnante'], ['en_mesure', 'En mesure'], ['inconnue', 'Inconnue']]} />
+          options={[['toutes', 'Toute performance'], ['gagnante', 'Gagnante'], ['en_mesure', 'En mesure'], ['a_lancer', 'Suivie · à lancer'], ['inconnue', 'Inconnue']]} />
       </div>
 
       {actifs > 0 && (

@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import Link from 'next/link';
 import type { VerdictValue, TestedVariable } from '@tiktrends/core';
 import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille } from '@tiktrends/core';
 import {
@@ -9,6 +10,7 @@ import {
 } from '../../actions/adsmap-verdict';
 import { PartageGagnante } from './PartageGagnante';
 import { Portail } from '../../../components/Portail';
+import { usePiegeFocus } from '../../../components/use-piege-focus';
 
 /**
  * Panneau d'arbitrage d'un test.
@@ -46,7 +48,11 @@ const MODE_LABEL: Record<string, { titre: string; aide: string }> = {
 const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)} %`);
 const eur = (v: number | null) => (v === null ? '—' : `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} €`);
 
-export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { adId: string; onClose: () => void; onChanged: () => void; peutPartager?: boolean }) {
+export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retour }: {
+  adId: string; onClose: () => void; onChanged: () => void; peutPartager?: boolean;
+  /** Ouvert depuis une carte du Studio (I1) · le chemin de retour, visible en tête. */
+  retour?: { href: string; libelle: string };
+}) {
   const [d, setD] = useState<AdDetail | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -75,12 +81,11 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
 
   useEffect(() => { void charger(); }, [charger]);
 
-  // Échap ferme · un panneau plein écran sans sortie au clavier est une impasse.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Le piège à focus partagé · focus porté DANS le panneau à l'ouverture, Tab
+  // piégé, Échap ferme, focus rendu à la fermeture. Ouvert par un lien profond
+  // (carte du Studio · I1), le panneau laissait le clavier derrière lui.
+  const panneauRef = useRef<HTMLElement>(null);
+  usePiegeFocus(panneauRef, { actif: true, onFermer: onClose });
 
   async function valider() {
     if (busy || !d) return;
@@ -126,7 +131,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
   return (
     <Portail>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 60 }} />
-      <aside role="dialog" aria-modal="true" aria-labelledby="addrawer-titre" style={{
+      <aside role="dialog" aria-modal="true" aria-labelledby="addrawer-titre" ref={panneauRef} tabIndex={-1} style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(560px, 100vw)', zIndex: 70,
         background: 'var(--surface)', borderLeft: '1px solid var(--line)', overflowY: 'auto',
         boxShadow: '-20px 0 50px -20px rgba(0,0,0,.6)', padding: '22px 26px 60px',
@@ -163,6 +168,12 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false }: { a
             background: 'var(--paper)', color: 'var(--ink-2)', cursor: 'pointer', flexShrink: 0,
           }}>✕</button>
         </div>
+
+        {retour && (
+          <Link href={retour.href} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, marginTop: 8, padding: '0 12px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+            ‹ {retour.libelle}
+          </Link>
+        )}
 
         {error && (
           <p style={{ marginTop: 14, padding: '10px 13px', borderRadius: 10, background: 'rgba(254,44,85,.09)', border: '1px solid rgba(254,44,85,.3)', color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>

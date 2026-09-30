@@ -24,10 +24,18 @@
  *    provisoire s'affiche « en mesure », pas « a perdu » · annoncer une défaite
  *    qui n'est pas tranchée serait mentir, et dans le mauvais sens.
  *
- * 2. **Suivie sans verdict = en mesure, pas rien.** Une créa poussée dans la
- *    carte mais pas encore tranchée a un état à elle · c'est ce qui distingue
- *    « lancée, on attend » de « jamais suivie ». Non suivie ne rend aucun état ·
- *    la carte propose déjà de la suivre, inutile de le répéter en badge.
+ * 2. **Suivie sans verdict = en mesure SEULEMENT si elle est lancée.** Une créa
+ *    poussée dans la carte a un état à elle · c'est ce qui distingue « suivie »
+ *    de « jamais suivie ». Mais « En mesure » affirme qu'une mesure tourne ·
+ *    une ad restée brouillon (jamais diffusée, aucun chiffre) s'affichait ainsi
+ *    (recette I1) · l'absence de données n'est pas une mesure. Elle se dit
+ *    « à lancer ». Non suivie ne rend aucun état · la carte propose déjà de la
+ *    suivre, inutile de le répéter en badge.
+ *
+ * 3. **Un lien rompu se dit.** La génération garde l'identifiant de l'ad
+ *    Adsmap · si l'ad n'existe plus pour cette marque (supprimée, ou hors de la
+ *    marque active), la carte ne l'affiche pas « en mesure » · elle dit
+ *    « test introuvable », sans lien.
  *
  * Pur : ni base, ni horloge, ni modèle.
  */
@@ -42,7 +50,9 @@ export type EtatVerdictCarte =
   | 'perdante'
   | 'non_concluant'
   | 'diffusion_faible'
-  | 'en_mesure';
+  | 'en_mesure'
+  | 'a_lancer'
+  | 'introuvable';
 
 export interface EtatVerdictSource {
   /** La créa est-elle rattachée à une ad ADSMAP (un `adsmapAdId` a été posé). */
@@ -58,6 +68,13 @@ export interface EtatVerdictSource {
    * (CDC v7 · N02). Absent = non comparable · on ne suppose jamais le protocole.
    */
   comparable?: boolean;
+  /**
+   * L'ad a-t-elle été LANCÉE (diffusée) · `adLancee` (passage-studio). Obligatoire ·
+   * on ne suppose jamais une mesure en cours.
+   */
+  lancee: boolean;
+  /** L'ad liée n'existe plus pour cette marque · le lien est rompu. */
+  introuvable?: boolean;
 }
 
 /**
@@ -65,6 +82,9 @@ export interface EtatVerdictSource {
  */
 export function etatVerdictCarte(s: EtatVerdictSource): EtatVerdictCarte | null {
   if (!s.suivie) return null;
+  if (s.introuvable) return 'introuvable';
+  // Aucun verdict, même provisoire, et jamais diffusée · rien ne se mesure.
+  if (!s.verdict && !s.lancee) return 'a_lancer';
   // Suivie mais pas de verdict arbitré · on attend la mesure. Un `computed`
   // provisoire tombe ici aussi : il n'a pas tranché.
   if (!s.arbitre || !s.verdict) return 'en_mesure';
@@ -98,4 +118,7 @@ export const VERDICT_CARTE: Record<EtatVerdictCarte, { court: string; ton: TonVe
   non_concluant: { court: 'Non concluant', ton: 'neutre' },
   diffusion_faible: { court: 'Diffusion trop faible', ton: 'neutre' },
   en_mesure: { court: 'En mesure', ton: 'attente' },
+  // Suivie mais jamais diffusée · pas de chiffre, donc pas de mesure (I1).
+  a_lancer: { court: 'Suivie · à lancer', ton: 'attente', note: 'dans Adsmap, pas encore diffusée · aucun chiffre' },
+  introuvable: { court: 'Test introuvable', ton: 'neutre', note: 'le test lié n’existe plus dans Adsmap pour cette marque' },
 };
