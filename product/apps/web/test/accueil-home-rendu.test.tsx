@@ -66,6 +66,20 @@ describe('Accueil · cartes des marques (Recent Projects)', () => {
     // Aucune carte de marque fictive (pas de /brands/<id> autre que new).
     expect(html).not.toMatch(/\/brands\/b-/);
   });
+
+  it('un LOGO se pose ENTIER (contain + marge), jamais étiré en couverture (cover)', () => {
+    // Défaut prod (Klorea) · le vrai logo était en `object-fit: cover`, recadré ·
+    // on n'en voyait qu'un fragment. Un logo n'est pas une couverture · il se pose
+    // en `contain`, centré, avec de la marge, sur un fond assis.
+    const html = renderToStaticMarkup(
+      <HomeMarques marques={[{ id: 'b-logo', name: 'Klorea', logoUrl: 'data:image/png;base64,AAAA' }]} activeId={null} />,
+    );
+    expect(html, 'le logo doit être posé ENTIER (contain)').toContain('object-fit:contain');
+    expect(html, 'un logo ne doit jamais être recadré en couverture (cover)').not.toContain('object-fit:cover');
+    // Le logo a de la marge (padding %) autour · il ne colle pas aux bords.
+    expect(html, 'le logo n’a pas de marge autour').toMatch(/padding:13%/);
+    expect(html).toContain('src="data:image/png;base64,AAAA"');
+  });
 });
 
 describe('Accueil · hiérarchie · bandeau PUIS marques, avant le reste', () => {
