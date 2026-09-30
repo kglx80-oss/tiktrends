@@ -14,6 +14,7 @@ import { logoutAction } from '../actions/auth';
 import { isFounder } from '../../lib/founder';
 import { effectiveAccess } from '../../lib/access';
 import { unlimitedCredits } from '../../lib/credits';
+import { entreesMarque } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,19 +41,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const collapsedInitial = railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value);
 
   // Espace « Marque » (rail) : accès direct aux sections de la marque active.
-  // Le libellé de section est « Marque » (Kevin 30/09 · ex-« TA MARQUE ») · le
-  // CONTENU des sous-entrées (Aperçu/Assets/Éléments/Styles/Brand kits/Concurrents)
-  // est arbitré en H3 après audit des données réelles · ici, on garde les entrées
-  // RÉELLES existantes (aucun faux lien).
+  // Le libellé de section est « Marque » (Kevin 30/09 · ex-« TA MARQUE »). Les
+  // entrées sont DÉCIDÉES dans un module pur (`entreesMarque`, packages/core) ·
+  // Aperçu + les deux facettes d'identité ancrées de H3 (Couleurs `#couleurs`,
+  // Charte `#charte`) + Audience/Produits/Concurrents. Pas d'« Assets » en double ·
+  // le rail principal le porte déjà (même route, même marque active) · l'accès
+  // depuis la fiche suit `accesAssets`. L'état actif ancre-conscient vit dans la
+  // coquille (railEntreeActive).
   const bid = activeBrand?.id;
   const brandNav = roleAtLeast(s.role, 'admin') && bid ? [{
     group: 'Marque',
-    items: [
-      { key: 'm-home', label: 'Aperçu',      href: `/brands/${bid}?tab=overview`,    icon: 'store', locked: false, isSub: false },
-      { key: 'm-aud',  label: 'Audience',    href: `/brands/${bid}?tab=audience`,    icon: 'users', locked: false, isSub: true },
-      { key: 'm-prod', label: 'Produits',    href: `/brands/${bid}?tab=products`,    icon: 'store', locked: false, isSub: true },
-      { key: 'm-comp', label: 'Concurrents', href: `/brands/${bid}?tab=competitors`, icon: 'trend', locked: false, isSub: true },
-    ],
+    items: entreesMarque(bid),
   }] : [];
 
   return (

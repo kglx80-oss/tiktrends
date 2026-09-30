@@ -26,7 +26,8 @@ import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
 import { CarteConcurrent } from '../../../../components/CarteConcurrent';
-import { costFor, imageModelByKey, connecteursBranches, type DaVisuelleMarque } from '@tiktrends/core';
+import { costFor, imageModelByKey, connecteursBranches, accesAssets, type DaVisuelleMarque } from '@tiktrends/core';
+import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 
 export const dynamic = 'force-dynamic';
@@ -73,6 +74,9 @@ export default async function BrandDetailPage({ params, searchParams }: {
     db.select({ id: schema.generations.id }).from(schema.generations).where(eq(schema.generations.brandId, id)).limit(1),
   ]);
   const competitors = b.competitors ?? [];
+  // L'accès aux assets à portée EXPLICITE · la bibliothèque suit la marque ACTIVE ·
+  // on ne pose le lien que si la marque consultée EST l'active (cf. accesAssets).
+  const assets = accesAssets(b.id, await getActiveBrand(s.workspaceId));
   const aiReady = anthropicConfigured();
   const imgReady = falConfigured();
 
@@ -90,6 +94,17 @@ export default async function BrandDetailPage({ params, searchParams }: {
           <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[b.category || b.industry, b.url].filter(Boolean).join(' · ') || 'Profil à compléter'}</div>
         </div>
         <span style={{ flex: 1 }} />
+        {/* Assets · lien seulement quand la marque consultée EST l'active (la
+            bibliothèque suit l'active) · sinon on nomme la marque dont elle
+            dépend, sans lien, sans changer l'active en silence. */}
+        {assets.kind === 'lien' && (
+          <Link href={assets.href} title={assets.titre} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
+            <Icon name="folder" size={13} /> {assets.libelle}
+          </Link>
+        )}
+        {assets.kind === 'note' && (
+          <span style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={assets.texte}>{assets.texte}</span>
+        )}
         <Link href="/connections" style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>Connexions</Link>
       </div>
 
