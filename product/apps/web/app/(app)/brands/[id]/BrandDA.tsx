@@ -17,31 +17,90 @@ const SECTIONS = [
   { id: 'charte', label: 'Charte & kit', icon: 'layers' as const },
 ];
 
+// L'assise NEUTRE d'un logo · un gris moyen (luminance ≈ 0,18) où un logo NOIR
+// comme un logo BLANC tiennent ≈ 4,6:1, sans retoucher leur dessin (même choix
+// que la carte de marque de la Home · #708). L'ancien `rgba(255,255,255,.06)`,
+// quasi transparent sur la surface sombre, effaçait un logo sombre (ex. Klorea).
+const FOND_LOGO = '#767676';
+
 /**
- * L'index de sections · deux puces qui mènent aux deux ancres, avec un état
- * ACTIF cohérent · la puce de la section en vue est surlignée (IntersectionObserver
- * + hashchange). Purement client · le rendu statique montre l'état initial.
+ * La police est-elle RÉELLEMENT disponible pour un rendu fidèle ? On ne se fie PAS
+ * à `document.fonts.check` (généreux · il a renvoyé vrai pour « Playfair Display »
+ * absente, d'où un faux spécimen sans empattements). On MESURE · on dessine un
+ * texte dans la police candidate PUIS dans une police de repli neutre ; si la
+ * largeur diffère, la police a bien changé le rendu → elle est disponible. Sinon
+ * elle retombe sur le repli · aucun spécimen fidèle possible. Aucun chargement
+ * externe · on ne teste que ce que le navigateur a déjà.
  */
+function policeDisponible(nom: string): boolean {
+  try {
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return false;
+    const echantillon = 'mmmmmwwwwwiiiii0123';
+    const mesure = (famille: string) => { ctx.font = `28px ${famille}`; return ctx.measureText(echantillon).width; };
+    // Deux repères neutres · la police n'est disponible que si elle DÉPLACE la
+    // largeur par rapport aux DEUX (sinon elle coïncide avec un repli).
+    const base1 = mesure('monospace'), base2 = mesure('serif');
+    const t1 = mesure(`'${nom}', monospace`), t2 = mesure(`'${nom}', serif`);
+    return Math.abs(t1 - base1) > 0.5 && Math.abs(t2 - base2) > 0.5;
+  } catch { return false; }
+}
+
+/**
+ * L'aperçu d'une police · HONNÊTE. Un vrai spécimen n'est montré que si la police
+ * est prouvée disponible (mesure ci-dessus) · sinon on nomme la police et on dit
+ * que l'aperçu fidèle n'est pas disponible, plutôt que de simuler « Aa Bb Cc »
+ * dans une police de repli (ce qui mentait · Playfair Display sans empattements).
+ */
+function ApercuPolice({ nom }: { nom: string }) {
+  const [dispo, setDispo] = useState<boolean | null>(null);
+  useEffect(() => {
+    let vivant = true;
+    const teste = () => { if (vivant) setDispo(policeDisponible(nom)); };
+    teste();
+    // Les fontes peuvent finir de charger après le montage · on re-teste une fois.
+    (document.fonts?.ready ?? Promise.resolve()).then(teste);
+    return () => { vivant = false; };
+  }, [nom]);
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface-2, rgba(255,255,255,.03))' }}>
+      <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.15, minWidth: 0, wordBreak: 'break-word' }}>{nom}</span>
+      {dispo === true
+        // Police prouvée disponible · spécimen FIDÈLE, rendu dans sa fonte.
+        ? <span style={{ fontSize: 20, color: 'var(--ink-2)', fontFamily: `'${nom}', system-ui, sans-serif` }}>Aa Bb Cc</span>
+        // Non prouvée disponible · aucun faux spécimen · on le dit honnêtement.
+        : <span style={{ fontSize: 12, color: 'var(--muted)' }}>{dispo === false ? '· police de la marque · aperçu fidèle indisponible' : '· police de la marque'}</span>}
+    </div>
+  );
+}
+
+/**
+ * L'index de sections · deux puces qui mènent aux deux ancres, avec un état ACTIF
+ * COHÉRENT · la puce ACTIVE est la section sur laquelle on est posé. Balayage par
+ * le HAUT · la section active est la DERNIÈRE dont le haut a passé la ligne de
+ * seuil (sous la barre supérieure) · cliquer « Couleurs » y pose ET l'y surligne
+ * (un centre de fenêtre débordait sinon sur « Charte », d'où une puce incohérente).
+ */
+const SEUIL_HAUT = 120;
 function IndexSections() {
   const [actif, setActif] = useState<string>('couleurs');
   useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') return;
-    const els = SECTIONS.map((s) => document.getElementById(s.id)).filter((e): e is HTMLElement => !!e);
-    if (els.length === 0) return;
-    // Le hash explicite prime · un clic sur une puce cale l'état tout de suite.
-    const sync = () => {
-      const h = window.location.hash.replace('#', '');
-      if (SECTIONS.some((s) => s.id === h)) setActif(h);
+    const calcule = () => {
+      let courant = SECTIONS[0]?.id ?? 'couleurs';
+      for (const s of SECTIONS) {
+        const el = document.getElementById(s.id);
+        if (el && el.getBoundingClientRect().top <= SEUIL_HAUT) courant = s.id;
+      }
+      setActif(courant);
     };
-    sync();
-    window.addEventListener('hashchange', sync);
-    const io = new IntersectionObserver((entries) => {
-      const vu = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      const id = vu?.target?.id;
-      if (id && SECTIONS.some((s) => s.id === id)) setActif(id);
-    }, { rootMargin: '-45% 0px -45% 0px', threshold: [0, 0.5, 1] });
-    els.forEach((el) => io.observe(el));
-    return () => { io.disconnect(); window.removeEventListener('hashchange', sync); };
+    // Le hash explicite prime au clic · on cale tout de suite, le balayage suit.
+    const surHash = () => { const h = window.location.hash.replace('#', ''); if (SECTIONS.some((s) => s.id === h)) setActif(h); };
+    surHash();
+    calcule();
+    window.addEventListener('scroll', calcule, { passive: true });
+    window.addEventListener('resize', calcule);
+    window.addEventListener('hashchange', surHash);
+    return () => { window.removeEventListener('scroll', calcule); window.removeEventListener('resize', calcule); window.removeEventListener('hashchange', surHash); };
   }, []);
   return (
     <nav aria-label="Sections de l'identité visuelle" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -131,15 +190,10 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
             <div>
               <div style={daLbl}>Typographie</div>
               {da.fonts.length ? (
-                // Chaque police dans SA propre fonte, en grand · on reconnaît le
-                // caractère, pas seulement son nom. Repli système si non chargée.
+                // Le nom de chaque police · avec un spécimen FIDÈLE seulement si la
+                // fonte est réellement chargée (sinon on ne ment pas · cf. ApercuPolice).
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {da.fonts.map((f) => (
-                    <div key={f} style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface-2, rgba(255,255,255,.03))' }}>
-                      <span style={{ fontSize: 21, fontWeight: 600, color: 'var(--ink)', fontFamily: `'${f}', system-ui, sans-serif`, lineHeight: 1.15, minWidth: 0, wordBreak: 'break-word' }}>{f}</span>
-                      <span style={{ fontSize: 15, color: 'var(--muted)', fontFamily: `'${f}', system-ui, sans-serif` }}>Aa Bb Cc</span>
-                    </div>
-                  ))}
+                  {da.fonts.map((f) => <ApercuPolice key={f} nom={f} />)}
                 </div>
               ) : <span style={{ fontSize: 12, color: 'var(--muted)' }}>·</span>}
             </div>
@@ -243,7 +297,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
           <div style={{ marginTop: 16 }}>
             <div style={daLbl}>Logo</div>
             {da.logoUrl
-              ? <img src={da.logoUrl} alt="" style={{ height: 56, maxWidth: 200, objectFit: 'contain', background: 'rgba(255,255,255,.06)', borderRadius: 10, padding: 8 }} />
+              ? <img src={da.logoUrl} alt="" style={{ height: 56, maxWidth: 200, objectFit: 'contain', background: FOND_LOGO, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)', borderRadius: 10, padding: 8 }} />
               : <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Aucun logo · récupère la DA pour l'importer depuis le site.</span>}
             {/* Les variantes réelles du logo (clair, foncé, icône) déjà en base ·
                 de vraies miniatures qui aident à reconnaître chaque version, pas
@@ -251,7 +305,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
             {logoList.length > 1 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {logoList.map((u) => (
-                  <img key={u} src={u} alt="" style={{ height: 28, maxWidth: 92, objectFit: 'contain', background: 'rgba(255,255,255,.06)', borderRadius: 6, padding: 4, border: '1px solid rgba(255,255,255,.12)' }} />
+                  <img key={u} src={u} alt="" style={{ height: 28, maxWidth: 92, objectFit: 'contain', background: FOND_LOGO, borderRadius: 6, padding: 4, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)' }} />
                 ))}
               </div>
             )}

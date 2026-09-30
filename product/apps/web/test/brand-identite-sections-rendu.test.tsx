@@ -69,6 +69,24 @@ describe('H3 · l’identité visuelle · deux sections distinctes et ancrées',
     expect(out).toContain('Playfair Display');
   });
 
+  it('l’aperçu de police est HONNÊTE · pas de spécimen fidèle tant que la fonte n’est pas prouvée chargée', () => {
+    // Sans navigateur (rendu statique), aucune fonte n'est prouvée chargée ·
+    // « Aa Bb Cc » rendu dans une fonte non chargée MENT (Playfair sans
+    // empattements). L'aperçu ne montre alors PAS de spécimen · il nomme la
+    // police. Garde contre le retour d'un faux spécimen inconditionnel.
+    const out = html({ fonts: ['Playfair Display'] });
+    expect(out, 'un spécimen « Aa Bb Cc » est montré sans preuve que la fonte est chargée').not.toContain('Aa Bb Cc');
+    expect(out, 'l’aperçu non prouvé doit se nommer honnêtement, pas simuler la fonte').toContain('police de la marque');
+  });
+
+  it('le logo se pose sur une assise NEUTRE (contraste des logos sombres · même choix que #708)', () => {
+    // L'ancien `rgba(255,255,255,.06)`, quasi transparent sur la surface sombre,
+    // effaçait un logo sombre (ex. Klorea). L'assise neutre le rend lisible.
+    const out = html({ logoUrl: 'https://x/logo.png' });
+    expect(out, 'le logo n’est pas sur l’assise neutre #767676').toContain('background:#767676');
+    expect(out, 'l’ancienne assise quasi transparente du logo (rgba .06) subsiste').not.toContain('rgba(255,255,255,.06)');
+  });
+
   it('les deux ancres portent scrollMarginTop (l’ancre ne cache pas le titre)', () => {
     const out = html();
     // 90px sur chaque section · une pour #couleurs, une pour #charte.
