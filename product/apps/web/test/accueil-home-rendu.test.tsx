@@ -81,6 +81,18 @@ describe('Accueil · cartes des marques (Recent Projects)', () => {
     expect(html).toContain('src="data:image/png;base64,AAAA"');
   });
 
+  it('un logo se pose sur une assise CLAIRE et contourée · contraste des logos SOMBRES', () => {
+    // Défaut de recette (carte « Sombre Co » ≈ Klorea) · un logo SOMBRE posé sur
+    // l'assise sombre de la carte devenait illisible (dark-on-dark). Le plateau
+    // du logo est une assise CLAIRE fixe · les logos sombres et colorés s'y lisent.
+    // Un contour fin (ombre à décalage nul) détache aussi un logo CLAIR sur clair.
+    const html = renderToStaticMarkup(
+      <HomeMarques marques={[{ id: 'b-logo', name: 'Klorea', logoUrl: 'data:image/png;base64,AAAA' }]} activeId={null} />,
+    );
+    expect(html, 'le logo n’est pas sur une assise claire (contraste des logos sombres)').toContain('#f5f6f8');
+    expect(html, 'le logo n’a pas de contour de lisibilité (logos clairs)').toMatch(/drop-shadow\(0 0 1\.5px/);
+  });
+
   it('un logo cassé RENDU SERVEUR retombe sur l’initiale · onError seul ne suffit pas', () => {
     // Défaut SSR observé (carte « Cassée ») · l'image est rendue avec son `src`
     // dès le HTML · une URL cassée échoue AVANT l'hydratation, avant que

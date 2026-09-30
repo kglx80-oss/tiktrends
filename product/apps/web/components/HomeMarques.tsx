@@ -41,6 +41,15 @@ const pied = { padding: '11px 13px', minHeight: CIBLE_TACTILE_MIN, display: 'gri
 
 const fondAssise = 'radial-gradient(120% 120% at 30% 20%, rgba(254,44,85,.16), transparent 55%), linear-gradient(160deg, var(--paper), var(--surface))';
 
+/** Le fond derrière un LOGO · une assise CLAIRE, fixe (indépendante du thème).
+ *  Un logo est presque toujours dessiné pour un fond clair (favicon, kit presse,
+ *  fiche marketplace) · un logo SOMBRE (ex. Klorea) posé sur l'assise sombre de
+ *  la carte devenait illisible (dark-on-dark, observé en recette). Sur ce plateau
+ *  clair, les logos sombres ET colorés se lisent. Résidu qualifié · un logo
+ *  intégralement clair sur fond transparent (rare · fait pour fond sombre) y perd
+ *  du contraste · l'initiale de repli, elle, reste sur l'assise sombre. */
+const fondLogo = '#f5f6f8';
+
 /** Repli soigné · l'initiale de la marque sur un fond dégradé sobre, centrée et
  *  lisible · remplit toute la surface d'aperçu quand il n'y a pas d'image. */
 function ReplInitiale({ name }: { name: string }) {
@@ -73,7 +82,7 @@ function ContenuApercu({ logoUrl, name }: { logoUrl?: string | null; name: strin
   const [erreur, setErreur] = useState(false);
   if (!logoUrl || erreur) return <ReplInitiale name={name} />;
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: fondAssise, padding: '13%' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: fondLogo, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.06)', padding: '13%' }}>
       <img
         src={logoUrl}
         alt=""
@@ -87,7 +96,11 @@ function ContenuApercu({ logoUrl, name }: { logoUrl?: string | null; name: strin
           // `complete` avec `naturalWidth` à 0 = chargée mais indécodable.
           if (el && el.complete && el.naturalWidth === 0) setErreur(true);
         }}
-        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+        // Contour très fin (ombre portée à décalage nul = halo symétrique) ·
+        // détache un logo CLAIR sur le plateau clair, invisible derrière un logo
+        // sombre ou coloré (l'ombre se fond dans le trait). Les deux extrêmes se
+        // lisent · le résidu du plateau clair (logo clair effacé) est ainsi levé.
+        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,.5))' }}
       />
     </div>
   );
