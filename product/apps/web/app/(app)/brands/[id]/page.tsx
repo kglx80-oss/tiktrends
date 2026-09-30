@@ -205,11 +205,10 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} />
           </form>
 
-          {/* Ancres des étapes « Compléter le profil » / « Définir la charte » ·
-              scrollMarginTop pour ne pas coller la section sous le haut de page. */}
-          <div id="charte" style={{ scrollMarginTop: 90 }}>
-            <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} daVisuelle={(b.brandKit ?? null) as DaVisuelleMarque | null} />
-          </div>
+          {/* L'identité visuelle · BrandDA porte ses DEUX ancres de section
+              (#couleurs, #charte) et leur scrollMarginTop · l'étape « Définir la
+              charte » vise #charte, qui atterrit sur la section « Charte & kit ». */}
+          <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} daVisuelle={(b.brandKit ?? null) as DaVisuelleMarque | null} />
 
         <div id="profil" style={{ scrollMarginTop: 90 }}>
         <BrandOverviewForm init={{

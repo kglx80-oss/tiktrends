@@ -11,13 +11,18 @@ import { join } from 'node:path';
  * de vue. « Le bouton ne déclenche rien. »
  *
  * Correction · l'étape ancre vers la bonne section (`#profil` / `#charte`), et
- * la page porte ces ancres. On garde les DEUX bouts LIÉS · une ancre sans cible
- * ne défile nulle part, une cible sans ancre ne sert personne. On lit la source
- * de la page (composant serveur async · non rendable en jsdom sans base).
+ * la cible existe. On garde les DEUX bouts LIÉS · une ancre sans cible ne défile
+ * nulle part, une cible sans ancre ne sert personne. `#profil` vit dans la page,
+ * `#charte` vit désormais sur la section « Charte & kit » de BrandDA (rendu par
+ * la page) · on lit chaque source là où sa cible habite.
  */
 
 const page = readFileSync(
   join(__dirname, '..', 'app', '(app)', 'brands', '[id]', 'page.tsx'),
+  'utf8',
+);
+const brandDa = readFileSync(
+  join(__dirname, '..', 'app', '(app)', 'brands', '[id]', 'BrandDA.tsx'),
   'utf8',
 );
 
@@ -28,9 +33,11 @@ describe('démarrage · les étapes profil/charte mènent à leur section', () =
     expect(page, 'la page doit porter la cible id="profil"').toContain('id="profil"');
   });
 
-  it('l’étape « charte » ancre vers #charte, et la page porte cette ancre', () => {
+  it('l’étape « charte » ancre vers #charte, et BrandDA porte cette ancre', () => {
     const ligne = page.split('\n').find((l) => l.includes("key: 'charte'")) ?? '';
     expect(ligne, 'l’étape charte doit ancrer vers #charte').toContain('#charte');
-    expect(page, 'la page doit porter la cible id="charte"').toContain('id="charte"');
+    // La page RENDU la cible via BrandDA · le lien reste tenu bout à bout.
+    expect(page, 'la page doit rendre BrandDA (qui porte la cible)').toContain('<BrandDA');
+    expect(brandDa, 'la section « Charte & kit » doit porter la cible id="charte"').toContain('id="charte"');
   });
 });
