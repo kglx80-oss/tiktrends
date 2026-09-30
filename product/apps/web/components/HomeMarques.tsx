@@ -2,23 +2,23 @@
 
 import Link from 'next/link';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
-import { BrandTile } from './BrandIcons';
 
 /**
  * Les marques du compte, façon « Recent Projects » (Kevin, 30/09, inspiration
  * Flora) · on reprend vite une marque là où on l'a laissée.
  *
- * ── Ce qu'une carte montre, et rien de plus ──────────────────────────────────
+ * ── Une carte VISUELLE, pas une ligne de liste ───────────────────────────────
  *
- * Un visuel (le logo réel s'il existe, sinon la pastille d'initiale colorée ·
- * jamais un faux logo), le nom, et l'invite à reprendre. La marque ACTIVE passe
- * en tête (on la reprend le plus souvent) et se signale `aria-current`.
+ * Chaque carte a une SURFACE D'APERÇU substantielle en haut · le logo/l'image
+ * réelle de la marque si elle existe (couvre la surface), sinon un repli soigné
+ * (initiale sur un fond dégradé, jamais un faux logo). Sous l'aperçu · le nom et
+ * l'invite à reprendre. Grille en desktop, une colonne en mobile.
  *
  * ── Les états, tous réels ────────────────────────────────────────────────────
  *
- * Zéro marque · pas de fausse carte, une invite à en créer une. Une ou
- * plusieurs · la grille. Les noms longs sont tronqués (ellipsis) sans casser la
- * carte ni déborder.
+ * Zéro (invite à créer, aucune fausse carte), une, plusieurs. La marque ACTIVE
+ * passe en tête, porte un repère « Active » et `aria-current`. Noms longs
+ * tronqués (ellipsis) sans casser la carte.
  */
 export interface MarqueCarte {
   id: string;
@@ -27,12 +27,30 @@ export interface MarqueCarte {
 }
 
 const carte = {
-  display: 'flex', alignItems: 'center', gap: 12, minHeight: CIBLE_TACTILE_MIN,
-  padding: '12px 14px', textDecoration: 'none', minWidth: 0,
-  border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)',
+  display: 'flex', flexDirection: 'column', textDecoration: 'none', minWidth: 0,
+  border: '1px solid var(--line-2)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)',
 } as const;
 
-const tuile = { width: 40, height: 40, borderRadius: 10, flexShrink: 0 } as const;
+const apercu = {
+  position: 'relative', aspectRatio: '16 / 10', width: '100%',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+} as const;
+
+const pied = { padding: '11px 13px', minHeight: CIBLE_TACTILE_MIN, display: 'grid', gap: 2, alignContent: 'center', minWidth: 0 } as const;
+
+/** Repli soigné · l'initiale de la marque sur un fond dégradé sobre, centrée et
+ *  lisible · remplit toute la surface d'aperçu quand il n'y a pas d'image. */
+function ReplInitiale({ name }: { name: string }) {
+  const initiales = name.trim().replace(/\s+/g, ' ').split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase() || '·';
+  return (
+    <div style={{
+      ...apercu,
+      background: 'radial-gradient(120% 120% at 30% 20%, rgba(254,44,85,.16), transparent 55%), linear-gradient(160deg, var(--paper), var(--surface))',
+    }}>
+      <span aria-hidden style={{ fontSize: 'clamp(28px, 6vw, 40px)', fontWeight: 800, letterSpacing: '-.02em', color: 'var(--ink)', opacity: 0.9 }}>{initiales}</span>
+    </div>
+  );
+}
 
 export function HomeMarques({ marques, activeId }: { marques: MarqueCarte[]; activeId: string | null }) {
   // La marque active d'abord · le reste garde l'ordre reçu (récent en premier
@@ -50,34 +68,45 @@ export function HomeMarques({ marques, activeId }: { marques: MarqueCarte[]; act
 
       {marques.length === 0 ? (
         // État zéro · aucune fausse carte, on invite à créer la première marque.
-        <Link href="/brands/new" style={{ ...carte, color: 'var(--ink-2)' }}>
-          <span aria-hidden style={{ ...tuile, background: 'var(--paper)', border: '1px solid var(--line-2)', color: 'var(--accent-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 20 }}>+</span>
-          <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+        <Link href="/brands/new" style={{ ...carte, maxWidth: 300 }}>
+          <div style={{ ...apercu, background: 'linear-gradient(160deg, var(--paper), var(--surface))' }}>
+            <span aria-hidden style={{ fontSize: 34, fontWeight: 800, color: 'var(--accent-strong)' }}>+</span>
+          </div>
+          <div style={pied}>
             <b style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Crée ta première marque</b>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>Observe, teste, itère marque par marque</span>
-          </span>
+          </div>
         </Link>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
           {ordre.map((m) => {
             const actif = m.id === activeId;
             return (
               <Link key={m.id} href={`/brands/${m.id}`} aria-current={actif ? 'true' : undefined} style={carte}>
-                {m.logoUrl
-                  ? <img src={m.logoUrl} alt="" style={{ ...tuile, objectFit: 'cover', border: '1px solid var(--line-2)' }} />
-                  : <span aria-hidden style={{ display: 'inline-flex' }}><BrandTile name={m.name} tile={40} /></span>}
-                <span style={{ display: 'grid', gap: 2, minWidth: 0, flex: 1 }}>
+                <div style={apercu}>
+                  {m.logoUrl
+                    ? <img src={m.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <ReplInitiale name={m.name} />}
+                  {actif && (
+                    <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 9px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>Active</span>
+                  )}
+                </div>
+                <div style={pied}>
                   <b style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</b>
                   <span style={{ fontSize: 12, color: 'var(--muted)' }}>{actif ? 'Marque active · reprendre' : 'Ouvrir'}</span>
-                </span>
-                <span aria-hidden style={{ color: 'var(--muted)', fontWeight: 800, flexShrink: 0 }}>›</span>
+                </div>
               </Link>
             );
           })}
-          {/* Ajouter une marque · action réelle, en fin de grille. */}
-          <Link href="/brands/new" style={{ ...carte, color: 'var(--ink-2)', borderStyle: 'dashed' }}>
-            <span aria-hidden style={{ ...tuile, background: 'var(--paper)', border: '1px solid var(--line-2)', color: 'var(--accent-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 20 }}>+</span>
-            <span style={{ minWidth: 0 }}><b style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Nouvelle marque</b></span>
+          {/* Ajouter une marque · action réelle, même gabarit de carte. */}
+          <Link href="/brands/new" style={{ ...carte, borderStyle: 'dashed' }}>
+            <div style={{ ...apercu, background: 'linear-gradient(160deg, var(--paper), var(--surface))' }}>
+              <span aria-hidden style={{ fontSize: 30, fontWeight: 800, color: 'var(--accent-strong)' }}>+</span>
+            </div>
+            <div style={pied}>
+              <b style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Nouvelle marque</b>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>Ajouter au compte</span>
+            </div>
           </Link>
         </div>
       )}

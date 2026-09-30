@@ -17,17 +17,25 @@ const marques = [
   { id: 'b-trois', name: 'Klorea' },
 ];
 
-describe('Accueil · bandeau à la une (hero, CTA réel)', () => {
+describe('Accueil · bandeau à la une · analyse d’abord, fond calme', () => {
   const html = renderToStaticMarkup(
-    <HomeBandeau contenu={{ titre: 'Trouve ta prochaine créative winneuse', sous: 'Analyse, hypothèse, variantes.', ctaLabel: 'Créer une pub', href: '/studio/ads' }} />,
+    <HomeBandeau contenu={{ titre: 'Prépare ton prochain test', sous: 'Analyse tes résultats, choisis quoi tester ensuite.', ctaLabel: 'Voir mes tests', href: '/adsmap', ctaSecLabel: 'Créer une pub', hrefSec: '/studio/ads' }} />,
   );
-  it('affiche titre, sous-titre et un CTA vers une route réelle', () => {
-    expect(html).toContain('Trouve ta prochaine créative winneuse');
-    expect(html).toContain('Créer une pub');
-    expect(html).toContain('href="/studio/ads"');
+  it('copie orientée décision · pas de promesse « winneuse »', () => {
+    expect(html).toContain('Prépare ton prochain test');
+    expect(html, 'la copie « winneuse » doit avoir disparu').not.toContain('winneuse');
   });
-  it('est le hero de la Home (dégradé accent · l’exception hero de la Home)', () => {
-    expect(html).toContain('var(--grad-accent)');
+  it('CTA PRIMAIRE vers l’analyse, création en SECONDAIRE', () => {
+    // Primaire = analyse (Adsmap), et il précède le secondaire (création).
+    expect(html).toContain('Voir mes tests');
+    expect(html).toContain('href="/adsmap"');
+    expect(html).toContain('href="/studio/ads"');
+    expect(html.indexOf('/adsmap')).toBeLessThan(html.indexOf('/studio/ads'));
+  });
+  it('fond CALME (surface) avec accent rose CIBLÉ sur le CTA (pas un aplat)', () => {
+    // La surface sombre porte le fond ; l'accent rose est sur le CTA primaire.
+    expect(html, 'le fond n’est plus calme (surface)').toContain('var(--surface)');
+    expect(html, 'l’accent rose du CTA a disparu').toContain('var(--grad-accent)');
   });
 });
 

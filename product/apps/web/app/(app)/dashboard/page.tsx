@@ -34,22 +34,26 @@ export default async function Dashboard() {
   // Les marques du compte, pour les cartes « reprise » de la Home.
   const marques = s ? await listBrands(s.workspaceId) : [];
 
-  // Le bandeau à la une · contenu produit RÉEL, CTA vers une action existante.
-  // Avec une marque active → produire ; sans marque → en choisir/créer une.
-  // Aucun prix, promo ni partenariat fictif · l'emplacement accueillera une
-  // vraie campagne le moment venu (une seule source de contenu).
+  // Le bandeau à la une · copie orientée DÉCISION, priorité analyse → itération.
+  // Le CTA PRIMAIRE mène à l'analyse (les tests, le marché) ; la création reste
+  // accessible en SECONDAIRE. Aucun prix, promo ni partenariat fictif · une
+  // seule source de contenu, l'emplacement accueillera une vraie campagne.
   const bandeau: BandeauAccueil = brand
     ? {
-        titre: 'Trouve ta prochaine créative winneuse',
-        sous: 'Analyse tes tests, formule l’hypothèse suivante, produis les variantes · marque active ' + brand.name + '.',
-        ctaLabel: 'Créer une pub',
-        href: '/studio/ads',
+        titre: 'Prépare ton prochain test',
+        sous: 'Analyse tes résultats, choisis quoi tester ensuite, et itère vers ce qui marche.',
+        ctaLabel: 'Voir mes tests',
+        href: '/adsmap',
+        ctaSecLabel: 'Créer une pub',
+        hrefSec: '/studio/ads',
       }
     : {
-        titre: 'Crée des créatives qui gagnent',
-        sous: 'Choisis une marque pour observer le marché, tester des hypothèses et itérer vers ce qui scale.',
+        titre: 'Prépare ton prochain test',
+        sous: 'Choisis une marque pour analyser tes tests et décider quoi lancer ensuite.',
         ctaLabel: marques.length ? 'Choisir une marque' : 'Créer une marque',
         href: marques.length ? '/brands' : '/brands/new',
+        ctaSecLabel: 'Observer le marché',
+        hrefSec: '/veille',
       };
   const firstName = ((s?.user.name || s?.user.email || 'toi').trim().split(/\s+/)[0]) || 'toi';
   const creditsIllimites = unlimitedCredits(s?.user.email);
