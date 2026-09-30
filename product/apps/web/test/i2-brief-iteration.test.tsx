@@ -29,7 +29,7 @@ describe('I2 · le panneau montre d’où vient le brief, sans rien confondre', 
     expect(h).toContain('CPA 14 €');
   });
   it('les quatre natures sont nommées et séparées · mesuré, appris, repris, suggéré', () => {
-    for (const t of ['Mesuré', 'Appris', 'Repris dans le formulaire', 'Suggéré']) expect(h, `bloc « ${t} » absent`).toContain(t);
+    for (const t of ['Mesuré', 'Appris', 'Prérempli initial du test', 'Suggéré']) expect(h, `bloc « ${t} » absent`).toContain(t);
     expect(h, 'la suggestion ne se dit pas suggestion').toContain('à valider, rien n’est mesuré ici');
   });
   it('l’apprentissage est repris mot pour mot', () => {
@@ -54,13 +54,16 @@ describe('I2 · le panneau montre d’où vient le brief, sans rien confondre', 
     // dans le formulaire », elle se lisait comme préremplie.
     const blocs = h.split('Suggéré')[0]!;
     const mesure = blocs.slice(blocs.indexOf('Mesuré'), blocs.indexOf('Appris'));
-    const repris = blocs.slice(blocs.indexOf('Repris dans le formulaire'));
+    const repris = blocs.slice(blocs.indexOf('Prérempli initial du test'));
     expect(mesure).toContain('Ce test faisait varier · Hook = « Question choc »');
     expect(repris, 'la variable du test est encore présentée comme reprise').not.toContain('faisait varier');
-    expect(repris).toContain('angle et audience seulement');
+    expect(repris).toContain('angle et audience de départ');
+    // Recette Codex (ed972eb) · « Repris dans le formulaire » affichait les valeurs
+    // de départ sous des réglages déjà modifiés · le bloc dit ce qu'il montre.
+    expect(h).not.toContain('Repris dans le formulaire');
   });
   it('retour Codex #2 · le bloc prérempli mène aux vrais champs (bouton, jamais un lien de génération)', () => {
-    const repris = h.slice(h.indexOf('Repris dans le formulaire'), h.indexOf('Suggéré'));
+    const repris = h.slice(h.indexOf('Prérempli initial du test'), h.indexOf('Suggéré'));
     expect(repris).toMatch(/<button type="button"[^>]*>Modifier l’angle et l’audience ›<\/button>/);
   });
   it('retour Codex #2 · à 390 le titre garde la largeur · base 260, le lien passe dessous', () => {
@@ -79,7 +82,7 @@ describe('I2 · les cas sans brief', () => {
     const h = html({ etat: 'non_eligible', adId: AD, motif: 'Aucun apprentissage consigné sur ce test · l’itération part de ce qu’il a appris.' });
     expect(h).toContain('Pas de brief d’itération');
     expect(h).toContain('Aucun apprentissage consigné');
-    expect(h).not.toContain('Repris dans le formulaire');
+    expect(h).not.toContain('Prérempli initial du test');
   });
   it('refus (supprimé, autre marque, hors droits) · même message, ni lien ni détail', () => {
     const h = html({ etat: 'refuse' });

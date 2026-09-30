@@ -11,7 +11,7 @@ import { ModifierBrief } from './ModifierBrief';
  * préremplis dans le formulaire, modifiables · « Créer des pubs » reste le geste.
  *
  * Quatre natures, jamais confondues · mesuré (le test source · verdict arbitré,
- * chiffres, ce qu'il faisait varier), appris (consigné), repris (les DEUX seuls
+ * chiffres, ce qu'il faisait varier), appris (consigné), prérempli initial (les DEUX seuls
  * champs préremplis · angle, audience), suggéré (hypothèse, à valider).
  */
 export type EtatIteration =
@@ -71,7 +71,10 @@ export function PanneauIteration({ it, marque }: { it: EtatIteration; marque: st
             <p key={i} style={{ ...texte, overflowWrap: 'anywhere' }}>« {a.texte} » <span style={{ color: 'var(--muted)' }}>· confiance {a.confiance}/5</span></p>
           ))}
         </Bloc>
-        <Bloc titre="Repris dans le formulaire" note="angle et audience seulement, modifiables">
+        {/* Les valeurs de DÉPART, venues du test · une saisie reprise peut les
+            avoir remplacées dans les réglages (recette I2 · « Sportifs pressés »
+            ici, « Parents fatigués » dans le formulaire, sans le dire). */}
+        <Bloc titre="Prérempli initial du test" note="angle et audience de départ, modifiables dans les réglages">
           <p style={{ ...texte, overflowWrap: 'anywhere' }}>Angle · « {champs.angle.valeur} »</p>
           <p style={texte}>Audience · {champs.audience ? champs.audience.valeur : <span style={{ color: 'var(--muted)' }}>non renseignée sur le test</span>}</p>
           <ModifierBrief />

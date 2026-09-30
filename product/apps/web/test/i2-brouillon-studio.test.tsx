@@ -73,6 +73,9 @@ describe('I2 · le Studio garde et reprend les saisies du brief, et le dit', () 
     expect(angle()).toBe('Angle 1 · variante matin');
     expect(audience()).toBe('Parents fatigués');
     expect(avis()?.textContent).toContain('Tes modifications de ce brief sont reprises');
+    // Recette Codex · le bloc du brief garde les valeurs de DÉPART · l'avis dit
+    // que la saisie les remplace, sans quoi les deux se contredisent.
+    expect(avis()?.textContent).toContain('remplacent le prérempli initial du test');
     expect(avis()?.getAttribute('role')).toBe('status');
   });
 

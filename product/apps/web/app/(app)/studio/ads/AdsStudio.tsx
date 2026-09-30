@@ -688,7 +688,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       {reprisIteration && (
         <div role="status" data-brouillon-iteration="" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '-6px 0 18px', padding: '8px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--paper)' }}>
           <span style={{ flex: '1 1 260px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-            Tes modifications de ce brief sont reprises · angle et audience, gardées dans cet onglet seulement, rien n’est envoyé.
+            Tes modifications de ce brief sont reprises dans les réglages · elles remplacent le prérempli initial du test (angle, audience), gardées dans cet onglet seulement, rien n’est envoyé.
           </span>
           <button type="button" onClick={revenirAuPrerempli} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             Revenir au prérempli
