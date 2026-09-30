@@ -58,7 +58,7 @@ export async function SectionAttribution() {
           background: 'var(--surface)',
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
               Est-ce que ça marche mieux qu’avant ?
             </h3>
             <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>
@@ -90,7 +90,7 @@ export async function SectionAttribution() {
         background: 'var(--surface)',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
             Est-ce que Jarvis améliore vraiment les résultats ?
           </h3>
           <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)' }}>

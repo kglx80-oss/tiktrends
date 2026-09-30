@@ -41,7 +41,9 @@ import { useIsMobile } from '../../../components/useIsMobile';
  */
 
 const bulle = (moi: boolean): CSSProperties => ({
-  maxWidth: '86%',
+  // Largeur de LECTURE bornée à la colonne « prose » (760, charte) à l'intérieur
+  // du cadre large · au-delà, une ligne trop longue fatigue la lecture.
+  maxWidth: 'min(760px, 86%)',
   alignSelf: moi ? 'flex-end' : 'flex-start',
   padding: '10px 14px',
   borderRadius: moi ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
@@ -59,7 +61,10 @@ const bulle = (moi: boolean): CSSProperties => ({
 // chaque réponse de Jarvis chargeait la lecture · un mur de cartes empilées.
 const reponse: CSSProperties = {
   alignSelf: 'flex-start',
-  maxWidth: '92%',
+  // Largeur de LECTURE des réponses bornée à la colonne « prose » (760, charte)
+  // à l'intérieur du cadre large · les longues réponses ne courent pas d'un bord
+  // à l'autre (Kevin, 29/09).
+  maxWidth: 'min(760px, 92%)',
   color: 'var(--ink)',
   fontSize: 14,
   lineHeight: 1.7,
@@ -173,7 +178,9 @@ export function JarvisChat() {
   // deux cibles 44x44. Généreux · padding 18 / texte 15 en desktop, padding 14 /
   // texte 16 en mobile (le 16 empêche le zoom iOS à la mise au point).
   const composeur = (
-    <div style={{ width: '100%', maxWidth: 760, margin: '0 auto' }}>
+    // Le composeur s'aligne sur les bords du cadre (comme la Veille) · plus de
+    // plafond 760 ici · Kevin, 29/09.
+    <div style={{ width: '100%' }}>
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 10,
         padding: isMobile ? 14 : 18,
@@ -253,16 +260,26 @@ export function JarvisChat() {
         // ── Accueil · emblème centré AU-DESSUS de la question, un seul titre
         // dominant (32/28, graisse 500, interligne 1.2), une courte phrase, PUIS
         // le composeur, PUIS trois suggestions au plus.
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', maxWidth: 640, margin: '0 auto' }}>
-          <div style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name="brain" size={30} /></div>
-          <h2 style={{ margin: '14px 0 0', fontSize: isMobile ? 28 : 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
-            Quelle publicité améliorer en premier ?
-          </h2>
-          <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5, maxWidth: 520 }}>
-            Il cite tes chiffres, ou admet qu’il n’en a pas · et t’aide à décider quoi tester ensuite.
-          </p>
+        // Le titre, le sous-titre et les suggestions restent en colonne de
+        // LECTURE centrée (640/520) · le COMPOSEUR, lui, prend toute la largeur
+        // du cadre comme en conversation · la contrainte d'accueil ne doit plus
+        // le rétrécir en petite colonne (Codex, 30/09).
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', maxWidth: 640, margin: '0 auto' }}>
+            <div style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name="brain" size={30} /></div>
+            <h2 style={{ margin: '14px 0 0', fontSize: isMobile ? 28 : 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+              Quelle publicité améliorer en premier ?
+            </h2>
+            <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5, maxWidth: 520 }}>
+              Il cite tes chiffres, ou admet qu’il n’en a pas · et t’aide à décider quoi tester ensuite.
+            </p>
+          </div>
+          {/* Composeur PLEINE LARGEUR du cadre, hors de la colonne 640 · même
+              largeur qu'en conversation (Codex, 30/09). */}
           <div style={{ width: '100%', marginTop: isMobile ? 24 : 32 }}>{composeur}</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 18 }}>
+          {/* Suggestions en colonne de lecture centrée · elles proposent, elles
+              ne s'étalent pas d'un bord à l'autre du cadre. */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 640, margin: '18px auto 0' }}>
             {amorces.map((q) => (
               <button key={q} onClick={() => void envoyer(q)} style={{
                 display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
@@ -289,7 +306,10 @@ export function JarvisChat() {
             </button>
           </div>
 
-          <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 760, margin: '0 auto', boxSizing: 'border-box' }}>
+          {/* Le fil occupe toute la largeur du cadre · la largeur de LECTURE des
+              messages est bornée à l'intérieur (voir `reponse` / `bulle`), pas
+              par un plafond du fil (Kevin, 29/09). */}
+          <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
             {thread.turns.map((t) => (
               <Tour key={t.id} turn={t} />
             ))}

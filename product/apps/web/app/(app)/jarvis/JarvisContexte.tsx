@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import type { ChatContexte } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
+import { usePiegeFocus } from '../../../components/use-piege-focus';
 
 /**
  * Le contexte de marque, à la demande · ce sur quoi Jarvis s'appuie.
@@ -30,14 +31,13 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
   measuredAds: number;
   onClose: () => void;
 }) {
-  // Échap referme · au clavier, on n'est jamais coincé dans le panneau.
+  // Le piège à focus partagé, éprouvé une fois (`use-piege-focus`) · il porte le
+  // focus DANS le panneau à l'ouverture, garde le Tab piégé, ferme sur Échap, et
+  // surtout REND le focus au déclencheur (« Ajouter du contexte ») à la
+  // fermeture · sans ça, Échap referme mais le clavier repart sur <body> (défaut
+  // relevé à la recette, Codex 30/09).
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', surTouche);
-    ref.current?.querySelector<HTMLElement>('a,button')?.focus();
-    return () => document.removeEventListener('keydown', surTouche);
-  }, [onClose]);
+  usePiegeFocus(ref, { actif: true, onFermer: onClose });
 
   return (
     <div
@@ -45,6 +45,7 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
       role="dialog"
       aria-modal="true"
       aria-label={`Contexte de marque · ${brandName}`}
+      tabIndex={-1}
       style={{
         position: 'absolute', inset: 0, zIndex: 5, background: 'var(--paper)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
