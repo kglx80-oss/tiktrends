@@ -28,6 +28,8 @@
  * entrée s'allume), pas en constatant un appel.
  */
 
+import { SECTIONS_IDENTITE } from './identite-marque';
+
 /** Une entrée de rail · même forme que `NavItem` côté coquille. */
 export interface EntreeRailMarque {
   key: string;
@@ -41,20 +43,25 @@ export interface EntreeRailMarque {
 /**
  * Les entrées du groupe « Marque », toutes portées sur la marque ACTIVE (`bid`).
  *
- * Aperçu porte ses facettes d'onglet et d'ancre en sous-entrées. PAS d'entrée
- * « Assets » ici · le rail principal (groupe Atelier) en porte déjà une vers la
- * MÊME route `/assets`, cadrée sur la MÊME marque active · un doublon faisait
- * deux libellés identiques vers un seul repère, allumés ensemble sur `/assets`
- * (recette H4). L'accès aux assets depuis la fiche d'une marque suit
- * `accesAssets`, à portée explicite.
+ * Aperçu porte ses facettes en sous-entrées · « Styles » (`#couleurs`) et
+ * « Brand kits » (`#charte`), aux libellés de `SECTIONS_IDENTITE` · la même source
+ * que l'index et les titres de section de la fiche, ils ne peuvent pas diverger.
+ * « Assets » n'est PAS fabriqué ici · l'entrée existante du rail est DÉPLACÉE dans
+ * ce groupe par `placerAssets` (jamais dupliquée).
  */
 export function entreesMarque(bid: string): EntreeRailMarque[] {
   const base = `/brands/${bid}`;
   return [
     { key: 'm-home',   label: 'Aperçu',      href: `${base}?tab=overview`,          icon: 'store',   locked: false, isSub: false },
     // Les deux facettes d'identité (H3) · même onglet « overview », ancres DISTINCTES.
-    { key: 'm-coul',   label: 'Couleurs',    href: `${base}?tab=overview#couleurs`, icon: 'palette', locked: false, isSub: true },
-    { key: 'm-chart',  label: 'Charte',      href: `${base}?tab=overview#charte`,   icon: 'layers',  locked: false, isSub: true },
+    ...SECTIONS_IDENTITE.map((sec) => ({
+      key: sec.id === 'couleurs' ? 'm-coul' : 'm-chart',
+      label: sec.libelle,
+      href: `${base}?tab=overview#${sec.id}`,
+      icon: sec.icone,
+      locked: false,
+      isSub: true,
+    })),
     { key: 'm-aud',    label: 'Audience',    href: `${base}?tab=audience`,          icon: 'users',   locked: false, isSub: true },
     { key: 'm-prod',   label: 'Produits',    href: `${base}?tab=products`,          icon: 'store',   locked: false, isSub: true },
     { key: 'm-comp',   label: 'Concurrents', href: `${base}?tab=competitors`,       icon: 'trend',   locked: false, isSub: true },
@@ -127,4 +134,33 @@ export function accesAssets(consulteId: string, active: { id: string; name: stri
     return { kind: 'lien', href: '/assets', libelle: 'Assets de la marque', titre: `Bibliothèque d'assets de ${active.name}` };
   }
   return { kind: 'note', texte: `Assets · bibliothèque de la marque active (${active.name})` };
+}
+
+/**
+ * « Assets » vit dans le groupe « Marque » · on y DÉPLACE l'entrée existante du
+ * rail (celle de RBAC, avec sa route, son icône, son verrou d'offre) · on ne la
+ * recopie jamais. Elle y est une TÊTE (pas une sous-entrée d'Aperçu) · atteignable
+ * même quand la branche Aperçu est repliée.
+ *
+ * Sans groupe « Marque » (aucune marque active, ou rôle sous admin), l'entrée
+ * RESTE à sa place d'origine · Assets n'est jamais masqué faute de marque.
+ * Dans tous les cas, UNE seule entrée `/assets` dans tout le rail.
+ */
+export function placerAssets<I extends { href: string; isSub: boolean }, G extends { group: string; items: I[] }>(
+  groupes: G[],
+  marque: G | null,
+): G[] {
+  if (!marque) return groupes;
+  let assets: I | undefined;
+  const restes = groupes
+    .map((g) => {
+      const garde = g.items.filter((it) => {
+        if (it.href === '/assets' && !assets) { assets = it; return false; }
+        return true;
+      });
+      return { ...g, items: garde };
+    })
+    .filter((g) => g.items.length > 0);
+  const marqueItems = assets ? [...marque.items, { ...assets, isSub: false }] : marque.items;
+  return [...restes, { ...marque, items: marqueItems }];
 }

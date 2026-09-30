@@ -19,6 +19,11 @@ describe('H4 · le groupe « Marque » tire ses entrées du noyau', () => {
     expect(LAYOUT, 'le groupe marque n’est plus nommé « Marque »').toContain("group: 'Marque'");
     expect(LAYOUT, 'les entrées « Marque » ne viennent plus du module pur entreesMarque').toContain('items: entreesMarque(bid)');
   });
+
+  it('le rail passe par placerAssets · Assets DÉPLACÉ vers Marque, jamais dupliqué (règle éprouvée au noyau)', () => {
+    expect(LAYOUT, 'le layout ne déplace plus Assets vers Marque').toMatch(/const nav = placerAssets\(railNav\(access\)/);
+    expect(LAYOUT, 'le groupe Marque est encore ajouté À CÔTÉ de placerAssets · il serait doublé').not.toContain('...brandNav');
+  });
 });
 
 describe('H4 · l’état actif du rail est ancre-conscient', () => {

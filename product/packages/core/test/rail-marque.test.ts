@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { entreesMarque, ancresDeclarees, railEntreeActive, accesAssets } from '../src/index';
+import {
+  entreesMarque, ancresDeclarees, railEntreeActive, accesAssets, placerAssets,
+  SECTIONS_IDENTITE, HAUTEUR_ENTETE_APP, HAUTEUR_BARRE_INDEX, MARGE_ANCRE_SECTION, SEUIL_SECTION_ACTIVE,
+} from '../src/index';
 
 /**
  * H4 · le groupe « Marque » du rail · les deux facettes d'identité ancrées de H3
- * (Couleurs `#couleurs`, Charte `#charte`) + Assets, et un état actif ANCRE-
- * conscient · exactement une des trois entrées de même route s'allume par ancre.
+ * (« Styles » `#couleurs`, « Brand kits » `#charte`, les mots de Kevin), l'entrée
+ * Assets DÉPLACÉE depuis « Créer », et un état actif ANCRE-conscient · exactement
+ * une des trois entrées de même route s'allume par ancre.
  *
  * On vérifie le RÉSULTAT (les hrefs produits, quelle entrée s'allume), pas la
  * présence d'un appel.
@@ -24,22 +28,29 @@ describe('H4 · les entrées du groupe « Marque »', () => {
     expect(parCle.get('m-comp')?.href, 'Concurrents a changé de cible').toBe(`${OVERVIEW}?tab=competitors`);
   });
 
-  it('ajoute Couleurs et Charte, pointant les DEUX ancres DISTINCTES de H3', () => {
+  it('ajoute Styles et Brand kits, pointant les DEUX ancres DISTINCTES de H3', () => {
     const coul = parCle.get('m-coul');
     const chart = parCle.get('m-chart');
-    expect(coul?.href, 'Couleurs ne pointe pas #couleurs').toBe(`${OVERVIEW}?tab=overview#couleurs`);
-    expect(chart?.href, 'Charte ne pointe pas #charte').toBe(`${OVERVIEW}?tab=overview#charte`);
+    expect(coul?.href, 'Styles ne pointe pas #couleurs').toBe(`${OVERVIEW}?tab=overview#couleurs`);
+    expect(chart?.href, 'Brand kits ne pointe pas #charte').toBe(`${OVERVIEW}?tab=overview#charte`);
     expect(coul?.href, 'les deux facettes tombent sur la MÊME ancre').not.toBe(chart?.href);
-    // Libellés courts qui reprennent les titres de section (« Couleurs & typo »,
-    // « Charte & kit ») · pas de rail-libellé ≠ titre de destination.
-    expect(coul?.label).toBe('Couleurs');
-    expect(chart?.label).toBe('Charte');
+    // Les mots demandés par Kevin (recette #710) · « Styles », « Brand kits ».
+    expect(coul?.label, 'le rail ne dit plus « Styles »').toBe('Styles');
+    expect(chart?.label, 'le rail ne dit plus « Brand kits »').toBe('Brand kits');
   });
 
-  it('ne DOUBLE pas « Assets » · le rail principal le porte déjà (même route, même marque active)', () => {
-    // Recette H4 · un « Assets » dans le groupe Marque faisait deux libellés
-    // identiques vers /assets, allumés ENSEMBLE · deux entrées actives à la fois.
-    expect(items.some((it) => it.href === '/assets'), 'le groupe « Marque » redouble l’entrée Assets du rail principal').toBe(false);
+  it('le libellé du rail EST le titre de la section visée (une seule source)', () => {
+    // Recette #710 · un libellé de rail qui ne se retrouve pas en arrivant laisse
+    // deviner où l'on est. Rail, index et titre lisent SECTIONS_IDENTITE.
+    for (const sec of SECTIONS_IDENTITE) {
+      const entree = items.find((it) => it.href.endsWith(`#${sec.id}`));
+      expect(entree?.label, `l’entrée du rail vers #${sec.id} ne reprend pas le titre « ${sec.libelle} »`).toBe(sec.libelle);
+      expect(sec.sousTitre.length, `la section #${sec.id} n’explique pas ce qu’elle contient`).toBeGreaterThan(20);
+    }
+  });
+
+  it('le groupe lui-même ne fabrique PAS d’entrée Assets · elle est DÉPLACÉE, pas dupliquée', () => {
+    expect(items.some((it) => it.href === '/assets'), 'entreesMarque fabrique son propre Assets · il doublerait celui du rail').toBe(false);
   });
 
   it('n’a aucune clé en double · une entrée = une clé', () => {
@@ -113,5 +124,73 @@ describe('H4 · l’accès aux assets depuis la fiche · portée EXPLICITE', () 
 
   it('sans marque active → rien (/assets rendrait TOUT l’espace, jamais une marque)', () => {
     expect(accesAssets('neva', null).kind).toBe('aucun');
+  });
+});
+
+describe('H4 · Assets est DÉPLACÉ de « Créer » vers « Marque » (recette #710)', () => {
+  type It = { key: string; href: string; isSub: boolean; locked: boolean };
+  const creer = (assetsLocked = false): { group: string; items: It[] }[] => [
+    { group: 'Observer', items: [{ key: 'veille', href: '/veille', isSub: false, locked: false }] },
+    { group: 'Créer', items: [
+      { key: 'jarvis', href: '/jarvis', isSub: false, locked: false },
+      { key: 'assets', href: '/assets', isSub: false, locked: assetsLocked },
+    ] },
+  ];
+  const marque = { group: 'Marque', items: entreesMarque(BID).map((it) => ({ key: it.key, href: it.href, isSub: it.isSub, locked: it.locked })) };
+  const tous = (gs: { items: It[] }[]) => gs.flatMap((g) => g.items);
+
+  it('avec un groupe Marque · UNE seule entrée /assets, dans Marque, plus dans Créer', () => {
+    const out = placerAssets(creer(), marque);
+    expect(tous(out).filter((it) => it.href === '/assets').length, 'Assets est dupliqué ou perdu').toBe(1);
+    expect(out.find((g) => g.group === 'Créer')!.items.some((it) => it.href === '/assets'), 'Assets est resté dans Créer').toBe(false);
+    const m = out.find((g) => g.group === 'Marque')!;
+    expect(m.items.some((it) => it.href === '/assets'), 'Assets n’a pas rejoint Marque').toBe(true);
+  });
+
+  it('Assets est une TÊTE de branche · visible même quand « Aperçu » est replié', () => {
+    const m = placerAssets(creer(), marque).find((g) => g.group === 'Marque')!;
+    const a = m.items.find((it) => it.href === '/assets')!;
+    expect(a.isSub, 'Assets est rangé sous Aperçu · replier Aperçu le cacherait').toBe(false);
+    expect(m.items.at(-1)?.href, 'Assets doit venir APRÈS la branche Aperçu, pas s’y glisser').toBe('/assets');
+  });
+
+  it('garde la route, la clé et le verrou d’origine (droits inchangés)', () => {
+    const a = tous(placerAssets(creer(true), marque)).find((it) => it.href === '/assets')!;
+    expect(a.key).toBe('assets');
+    expect(a.locked, 'le déplacement a levé le verrou de l’entrée Assets').toBe(true);
+  });
+
+  it('sans groupe Marque (aucune marque active) · Assets reste dans Créer, jamais masqué', () => {
+    const avant = creer();
+    const out = placerAssets(avant, null);
+    expect(out, 'sans marque active, le rail a été modifié').toEqual(avant);
+    expect(out.find((g) => g.group === 'Créer')!.items.some((it) => it.href === '/assets')).toBe(true);
+  });
+
+  it('un groupe vidé par le déplacement disparaît (pas de titre orphelin)', () => {
+    const seul = [{ group: 'Créer', items: [{ key: 'assets', href: '/assets', isSub: false, locked: false }] }];
+    const out = placerAssets(seul, marque);
+    expect(out.some((g) => g.group === 'Créer'), 'le titre « Créer » reste sans entrée').toBe(false);
+  });
+
+  it('une seule entrée active sur /assets (celle de Marque)', () => {
+    const out = placerAssets(creer(), marque);
+    const ancres = ancresDeclarees(tous(out).map((it) => it.href));
+    const actives = tous(out).filter((it) => railEntreeActive(it.href, { pathname: '/assets', tab: 'overview', hash: '', ancres }));
+    expect(actives.map((it) => it.key)).toEqual(['assets']);
+  });
+});
+
+describe('H4 · l’ancrage après saut · index entier sous l’en-tête (recette #710)', () => {
+  it('la marge d’ancrage couvre l’en-tête ET la barre d’index collante', () => {
+    expect(MARGE_ANCRE_SECTION, 'le titre de section retombe sous l’index ou l’en-tête').toBeGreaterThanOrEqual(HAUTEUR_ENTETE_APP + HAUTEUR_BARRE_INDEX);
+  });
+
+  it('la barre d’index tient une ligne de puces MESURÉE (36,8 px) avec ses marges', () => {
+    expect(HAUTEUR_BARRE_INDEX, 'la barre d’index réservée est plus basse que les puces mesurées').toBeGreaterThanOrEqual(37);
+  });
+
+  it('un saut vers une section l’allume · seuil actif ≥ marge d’ancrage', () => {
+    expect(SEUIL_SECTION_ACTIVE, 'après un saut, la section atteinte ne s’allumerait pas dans l’index').toBeGreaterThanOrEqual(MARGE_ANCRE_SECTION);
   });
 });

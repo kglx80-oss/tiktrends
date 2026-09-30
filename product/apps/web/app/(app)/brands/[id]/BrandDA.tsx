@@ -6,16 +6,16 @@ import { importBrandDAAction, saveBrandDAAction, extractBrandVisualDaAction, sav
 import { BrandGuidelines } from '../../../../components/BrandGuidelines';
 import { PaletteMarque } from './PaletteMarque';
 import { Icon } from '../../../../components/Icon';
-import { costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
+import { costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, SECTIONS_IDENTITE, HAUTEUR_ENTETE_APP, MARGE_BARRE_INDEX, MARGE_ANCRE_SECTION, SEUIL_SECTION_ACTIVE, type DaVisuelleMarque } from '@tiktrends/core';
 
 // L'identité visuelle se lit en DEUX sections distinctes · les tokens bruts
 // (couleurs + typographie) d'un côté, le kit (logo + style déduit + actions) de
 // l'autre. Chaque section porte sa propre ancre · JAMAIS deux libellés vers le
 // même point. L'index en tête surligne la section en vue.
-const SECTIONS = [
-  { id: 'couleurs', label: 'Couleurs & typographie', icon: 'palette' as const },
-  { id: 'charte', label: 'Charte & kit', icon: 'layers' as const },
-];
+// Libellés, sous-titres et ancres · la MÊME source que le rail « Marque »
+// (packages/core · identite-marque) · « Styles » / « Brand kits ».
+const SECTIONS = SECTIONS_IDENTITE;
+const sectionDe = (id: 'couleurs' | 'charte') => SECTIONS.find((s) => s.id === id)!;
 
 // L'assise NEUTRE d'un logo · un gris moyen (luminance ≈ 0,18) où un logo NOIR
 // comme un logo BLANC tiennent ≈ 4,6:1, sans retoucher leur dessin (même choix
@@ -76,12 +76,15 @@ function ApercuPolice({ nom }: { nom: string }) {
 
 /**
  * L'index de sections · deux puces qui mènent aux deux ancres, avec un état ACTIF
- * COHÉRENT · la puce ACTIVE est la section sur laquelle on est posé. Balayage par
- * le HAUT · la section active est la DERNIÈRE dont le haut a passé la ligne de
- * seuil (sous la barre supérieure) · cliquer « Couleurs » y pose ET l'y surligne
- * (un centre de fenêtre débordait sinon sur « Charte », d'où une puce incohérente).
+ * COHÉRENT · la puce active est la section sur laquelle on est posé. Balayage par
+ * le HAUT · la section active est la DERNIÈRE dont le haut a atteint sa position
+ * d'ancrage (`SEUIL_SECTION_ACTIVE`, dérivé de la marge d'ancrage mesurée).
+ *
+ * L'index est COLLANT, juste sous l'en-tête de l'app · après un saut d'ancre il
+ * restait au-dessus de la section atteinte, donc glissé sous l'en-tête, puces
+ * coupées (recette #710). Collé, il reste entier à l'écran · fond de page opaque
+ * pour que le contenu passe dessous proprement.
  */
-const SEUIL_HAUT = 120;
 function IndexSections() {
   const [actif, setActif] = useState<string>('couleurs');
   useEffect(() => {
@@ -89,7 +92,7 @@ function IndexSections() {
       let courant = SECTIONS[0]?.id ?? 'couleurs';
       for (const s of SECTIONS) {
         const el = document.getElementById(s.id);
-        if (el && el.getBoundingClientRect().top <= SEUIL_HAUT) courant = s.id;
+        if (el && el.getBoundingClientRect().top <= SEUIL_SECTION_ACTIVE) courant = s.id;
       }
       setActif(courant);
     };
@@ -103,7 +106,7 @@ function IndexSections() {
     return () => { window.removeEventListener('scroll', calcule); window.removeEventListener('resize', calcule); window.removeEventListener('hashchange', surHash); };
   }, []);
   return (
-    <nav aria-label="Sections de l'identité visuelle" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+    <nav aria-label="Sections de l'identité visuelle" style={{ position: 'sticky', top: HAUTEUR_ENTETE_APP, zIndex: 5, display: 'flex', gap: 8, flexWrap: 'wrap', padding: `${MARGE_BARRE_INDEX}px 0`, marginBottom: 4, background: 'var(--bg)' }}>
       {SECTIONS.map((s) => {
         const on = actif === s.id;
         return (
@@ -114,7 +117,7 @@ function IndexSections() {
             background: on ? 'rgba(254,44,85,.10)' : 'transparent',
             color: on ? 'var(--accent-strong)' : 'var(--ink-2)',
           }}>
-            <Icon name={s.icon} size={13} /> {s.label}
+            <Icon name={s.icone} size={13} /> {s.libelle}
           </a>
         );
       })}
@@ -177,10 +180,10 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
     <div style={{ margin: '4px 0 22px' }}>
       <IndexSections />
 
-      {/* ── Couleurs & typographie · les tokens bruts de la marque ───────────── */}
-      <section id="couleurs" style={{ ...sectionCard, scrollMarginTop: 90 }}>
-        <div style={sectionTitre}><Icon name="palette" size={15} /> Couleurs & typographie</div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Les couleurs et polices de la marque · appliquées à chaque créa générée.</div>
+      {/* ── Styles · les tokens bruts de la marque (couleurs + typographie) ──── */}
+      <section id="couleurs" style={{ ...sectionCard, scrollMarginTop: MARGE_ANCRE_SECTION }}>
+        <div style={sectionTitre}><Icon name={sectionDe('couleurs').icone} size={15} /> {sectionDe('couleurs').libelle}</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>{sectionDe('couleurs').sousTitre}</div>
         {(da.colors.length > 0 || da.fonts.length > 0) ? (
           <div style={{ display: 'grid', gap: 20, marginTop: 16 }}>
             <div>
@@ -203,12 +206,12 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
         )}
       </section>
 
-      {/* ── Charte & kit · logo, style déduit et actions de DA ───────────────── */}
-      <section id="charte" style={{ ...sectionCard, scrollMarginTop: 90 }}>
+      {/* ── Brand kits · le kit de la marque (logo, variantes, style déduit) ──── */}
+      <section id="charte" style={{ ...sectionCard, scrollMarginTop: MARGE_ANCRE_SECTION }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={sectionTitre}><Icon name="layers" size={15} /> Charte & kit</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Logo et style déduit du site · appliqués automatiquement à tes pubs.</div>
+            <div style={sectionTitre}><Icon name={sectionDe('charte').icone} size={15} /> {sectionDe('charte').libelle}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>{sectionDe('charte').sousTitre}</div>
           </div>
           <button type="button" onClick={() => setEditing((v) => !v)} disabled={busy} style={{ padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: 'transparent', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
             {editing ? 'Annuler' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="pen" size={13} /> Éditer</span>}

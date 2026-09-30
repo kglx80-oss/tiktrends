@@ -14,7 +14,7 @@ import { logoutAction } from '../actions/auth';
 import { isFounder } from '../../lib/founder';
 import { effectiveAccess } from '../../lib/access';
 import { unlimitedCredits } from '../../lib/credits';
-import { entreesMarque } from '@tiktrends/core';
+import { entreesMarque, placerAssets } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,20 +43,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Espace « Marque » (rail) : accès direct aux sections de la marque active.
   // Le libellé de section est « Marque » (Kevin 30/09 · ex-« TA MARQUE »). Les
   // entrées sont DÉCIDÉES dans un module pur (`entreesMarque`, packages/core) ·
-  // Aperçu + les deux facettes d'identité ancrées de H3 (Couleurs `#couleurs`,
-  // Charte `#charte`) + Audience/Produits/Concurrents. Pas d'« Assets » en double ·
-  // le rail principal le porte déjà (même route, même marque active) · l'accès
-  // depuis la fiche suit `accesAssets`. L'état actif ancre-conscient vit dans la
-  // coquille (railEntreeActive).
+  // Aperçu + ses facettes d'identité ancrées « Styles » (`#couleurs`) et « Brand
+  // kits » (`#charte`) + Audience/Produits/Concurrents. « Assets » y est DÉPLACÉ
+  // depuis le rail principal (`placerAssets` · jamais dupliqué) · sans groupe
+  // Marque (pas de marque active, rôle sous admin), il reste à sa place. L'état
+  // actif ancre-conscient vit dans la coquille (railEntreeActive).
   const bid = activeBrand?.id;
-  const brandNav = roleAtLeast(s.role, 'admin') && bid ? [{
-    group: 'Marque',
-    items: entreesMarque(bid),
-  }] : [];
+  const marque = roleAtLeast(s.role, 'admin') && bid ? { group: 'Marque', items: entreesMarque(bid) } : null;
+  const nav = placerAssets(railNav(access).map((g) => ({ ...g, group: RAIL_GROUP_LABEL[g.group] ?? g.group })), marque);
 
   return (
     <AppShell
-      nav={[...railNav(access).map((g) => ({ ...g, group: RAIL_GROUP_LABEL[g.group] ?? g.group })), ...brandNav]}
+      nav={nav}
       accountGroups={accountSections(access)}
       isStaff={isFounder(s.user.email)}
       showUpgrade={roleAtLeast(s.role, 'admin') && !planAtLeast(access.plan, 'business')}
