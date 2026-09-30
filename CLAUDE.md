@@ -20,8 +20,16 @@ pas lancé (`AI_SPEND_CAP_USD`). Toute dépense passe par `sousPlafond`
 Annoncer le prix AVANT le clic, jamais après.
 
 **Un seul sujet à la fois.** Consigne du propriétaire : « on ne passe à rien
-d'autre tant que ce n'est pas viable ». Le sujet courant est la **qualité et
-l'utilisabilité de Pubs IA**. Ne pas ouvrir de chantier à côté sans son accord.
+d'autre tant que ce n'est pas viable ». Le sujet courant, direction explicite de
+Kevin du 30/09 (elle remplace les arbitrages de navigation antérieurs), est le
+lot **H puis I** · refonte **Home + navigation (façon Flora) + section Marque**,
+puis **découverte/itération (façon Atria)**. Réfs regardées par Codex :
+`app.flora.ai/home`, `app.tryatria.com` (aucun fichier de référence uploadé · le
+blocage de permission tient). En lots bornés, chaque PR UI attendant la recette
+Codex avant fusion. Le détail vit dans les tâches H (#121) et I (#122). Ne pas
+rouvrir l'ancien brief « Pubs IA » ni ouvrir de chantier à côté sans accord ·
+aucune fonction supprimée, aucun moteur/migration/connecteur/prix/Canvas/
+protection changé.
 
 **Une modification = une PR**, créée ET mergée (squash), sur sa propre branche
 partie de `main` · pas d'empilement, pas de PR fourre-tout.
