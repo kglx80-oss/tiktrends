@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { VerdictValue, TestedVariable } from '@tiktrends/core';
-import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -122,6 +122,15 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
   // Ce que chaque section a le droit de dire, selon l'état RÉEL du test (noyau ·
   // presentationTest). Préparer un lot et « Mesurer maintenant » sont réservés
   // aux administrateurs · les mêmes que ceux qui partagent (`peutPartager`).
+  // I2 · une gagnante ARBITRÉE avec apprentissage ouvre le Studio sur un brief
+  // d'itération prérempli (même règle que le Studio · briefDepuisTest).
+  const iterationStudio = d ? briefDepuisTest({
+    adId: d.id, variantCode: d.variantCode, concept: d.concept, angle: d.angle, persona: d.persona, personaId: d.personaId,
+    verdictStatus: d.verdictStatus, validated: d.validated, comparable: d.comparable,
+    testedVariable: d.testedVariable, variableValue: d.variableValue,
+    metrics: { cpa: d.metrics.cpa, hookRate: d.metrics.hookRate, ctr: d.metrics.ctr },
+    learnings: d.learnings,
+  }).eligible : false;
   const pres = d ? presentationTest(
     { status: d.status, launchedAt: d.launchedAt, computed: d.computed, verdictStatus: d.verdictStatus, batchNumber: d.batchNumber, apprentissages: d.learnings.length },
     { peutPreparer: peutPartager, peutMesurer: peutPartager },
@@ -343,9 +352,18 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                   </a>
                 </>
               ) : !ouvrirIteration ? (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* Préparer la créa de l'itération dans le Studio · lecture seule,
+                    le Studio s'ouvre sur un brief prérempli, rien n'est généré. */}
+                {iterationStudio && d && (
+                  <Link href={lienIterationStudio(d.id)} style={{ ...boutonSecondaire, display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+                    Préparer l’itération dans le Studio ›
+                  </Link>
+                )}
                 <button type="button" onClick={() => setOuvrirIteration(true)} style={boutonSecondaire}>
                   Créer l’itération
                 </button>
+                </div>
               ) : (
                 <>
                   <Label>Mode</Label>

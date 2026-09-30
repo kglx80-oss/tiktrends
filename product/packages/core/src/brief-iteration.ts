@@ -124,3 +124,141 @@ export function exigeNouvelleVersion(avant?: Partial<BriefIteration> | null, apr
 export function briefFige(opts: { aUneCreationMesuree: boolean }): boolean {
   return !!opts.aUneCreationMesuree;
 }
+
+// ── Du test au brief (lot I2) ────────────────────────────────────────────────
+//
+// Un test arbitré GAGNANT, avec ce que l'équipe en a appris, ouvre le Studio sur
+// un brief d'itération prérempli. Rien n'est généré ni enregistré à l'ouverture ·
+// le brief pré-remplit le formulaire, et « Créer des pubs » reste le geste.
+//
+// Trois natures, jamais confondues à l'écran :
+//   - MESURÉ · le verdict arbitré et ses chiffres (la régie a tranché) ;
+//   - CONSIGNÉ · l'apprentissage écrit par l'équipe à l'arbitrage, et ce que le
+//     test faisait varier (repris tel quel) ;
+//   - SUGGÉRÉ · ce que l'outil propose pour la suite (hypothèse), à valider.
+//
+// Seuls l'angle et l'audience ont un champ de génération dans le Studio · ils
+// sont préremplis, modifiables. L'hypothèse et la variable restent du contexte
+// affiché (le Studio ne les transmet pas encore à la génération ni au suivi).
+
+import { estGagnanteValidee, LIBELLE_VERDICT } from './adsmap/verdict-libelle';
+import type { VerdictValue } from './adsmap/types';
+
+/** Ce que le panneau d'un test sait déjà · lu par l'action existante, sans écrire. */
+export interface TestSource {
+  adId: string;
+  variantCode: string;
+  concept: string;
+  angle: string | null;
+  persona: string | null;
+  personaId: string | null;
+  verdictStatus: 'computed' | 'validated' | null;
+  validated: VerdictValue | null;
+  comparable: boolean;
+  testedVariable: string | null;
+  variableValue: string | null;
+  metrics: { cpa: number | null; hookRate: number | null; ctr: number | null };
+  learnings: Array<{ statement: string; confidence: number; scope: string }>;
+}
+
+export type NatureChamp = 'mesure' | 'consigne' | 'suggestion' | 'a_choisir';
+
+export type BriefDepuisTest =
+  | { eligible: false; motif: string }
+  | {
+      eligible: true;
+      /** D'où vient le brief · lisible tel quel. */
+      provenance: { titre: string; verdict: string; chiffres: string[] };
+      apprentissages: Array<{ texte: string; confiance: number; portee: string }>;
+      /** Les champs, chacun avec sa nature. */
+      champs: {
+        angle: { valeur: string; nature: 'consigne' };
+        audience: { valeur: string; nature: 'consigne' } | null;
+        variableTestee: { valeur: string; nature: 'consigne' } | null;
+        hypothese: { valeur: string; nature: 'suggestion' };
+        variableSuivante: { valeur: string; nature: 'a_choisir' };
+      };
+      /** Ce qui pré-remplit le formulaire du Studio (champs de génération existants). */
+      prefill: { angle: string; personaId: string | null };
+      /** Le brief au contrat commun · ce qui reste à compléter se lit par `champsManquants`. */
+      brief: BriefIteration;
+    };
+
+/** Les variables testables d'Adsmap, en clair (mêmes mots que le panneau du test). */
+export const LIBELLE_VARIABLE_TEST: Record<string, string> = {
+  hook: 'Hook', opening_visual: 'Visuel d’ouverture', body: 'Corps', length: 'Durée', cta: 'CTA',
+  format: 'Format', offer: 'Offre', landing: 'Landing', avatar_on_screen: 'Personne à l’écran',
+  proof: 'Preuve', audio: 'Audio', angle: 'Angle', desire: 'Désir', none_control: 'Témoin',
+};
+
+const pct = (v: number | null) => (v === null ? null : `${(v * 100).toFixed(1)} %`);
+const eur = (v: number | null) => (v === null ? null : `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} €`);
+
+/**
+ * Le brief d'itération qu'un test ouvre dans le Studio, ou le motif pour lequel
+ * il n'en ouvre pas. On n'itère que sur une gagnante ARBITRÉE et comparable
+ * (règle d'itération d'Adsmap), et seulement si l'équipe a consigné ce qu'elle
+ * en a appris · sans apprentissage, une « itération » ne partirait de rien.
+ */
+export function briefDepuisTest(t: TestSource): BriefDepuisTest {
+  if (t.verdictStatus !== 'validated' || !t.validated) {
+    return { eligible: false, motif: 'Ce test n’a pas de verdict arbitré · l’itération se décide sur le verdict.' };
+  }
+  if (!estGagnanteValidee(t.validated, t.comparable)) {
+    return { eligible: false, motif: 'On n’itère que sur une gagnante arbitrée au protocole · ce test repart en nouveau concept, sans descendance.' };
+  }
+  const apprentissages = t.learnings
+    .map((l) => ({ texte: (l.statement ?? '').trim(), confiance: l.confidence, portee: l.scope }))
+    .filter((l) => l.texte);
+  if (!apprentissages.length) {
+    return { eligible: false, motif: 'Aucun apprentissage consigné sur ce test · l’itération part de ce qu’il a appris.' };
+  }
+
+  const angle = (t.angle ?? '').trim() || t.concept.trim();
+  const chiffres = [
+    eur(t.metrics.cpa) && `CPA ${eur(t.metrics.cpa)}`,
+    pct(t.metrics.hookRate) && `accroche ${pct(t.metrics.hookRate)}`,
+    pct(t.metrics.ctr) && `clic ${pct(t.metrics.ctr)}`,
+  ].filter((x): x is string => !!x);
+  const variableTestee = t.testedVariable
+    ? `${LIBELLE_VARIABLE_TEST[t.testedVariable] ?? t.testedVariable}${t.variableValue?.trim() ? ` = « ${t.variableValue.trim()} »` : ''}`
+    : null;
+  const hypothese = `Garder ce qui a gagné (« ${apprentissages[0]!.texte} ») et ne faire varier qu’une seule variable.`;
+  const titre = `Itération de ${t.variantCode} · ${t.concept}`;
+
+  return {
+    eligible: true,
+    provenance: { titre, verdict: `${LIBELLE_VERDICT[t.validated].court} · verdict arbitré`, chiffres },
+    apprentissages,
+    champs: {
+      angle: { valeur: angle, nature: 'consigne' },
+      audience: t.persona ? { valeur: t.persona, nature: 'consigne' } : null,
+      variableTestee: variableTestee ? { valeur: variableTestee, nature: 'consigne' } : null,
+      hypothese: { valeur: hypothese, nature: 'suggestion' },
+      variableSuivante: { valeur: 'À choisir · une seule, les autres restent fixes', nature: 'a_choisir' },
+    },
+    prefill: { angle, personaId: t.personaId },
+    brief: normaliserBrief({
+      sources: [titre],
+      hypothese,
+      variable: '',
+      audience: t.persona ?? '',
+    }),
+  };
+}
+
+/** Paramètre d'URL du Studio qui ouvre un brief d'itération. */
+export const PARAM_ITERATION = 'iter';
+
+const UUID_ITER = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** L'identifiant de test demandé par `?iter=` · retenu seulement bien formé. */
+export function lireIterationDemandee(sp: Record<string, string | string[] | undefined>): string | null {
+  const v = sp[PARAM_ITERATION];
+  const brut = (Array.isArray(v) ? v[0] : v)?.trim() ?? '';
+  return UUID_ITER.test(brut) ? brut.toLowerCase() : null;
+}
+
+/** Le lien du panneau d'un test vers le Studio, brief d'itération prérempli. */
+export function lienIterationStudio(adId: string): string {
+  return `/studio/ads?${PARAM_ITERATION}=${encodeURIComponent(adId)}`;
+}

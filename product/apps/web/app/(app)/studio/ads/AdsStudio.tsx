@@ -73,13 +73,15 @@ const TPL_LABEL: Record<AdTemplate, string> = {
 };
 
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialRef = '', initialSource = null, adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialPersonaId = '', initialRef = '', initialSource = null, adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean; photoUrl?: string | null }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
   assets?: Array<{ id: string; name: string; url: string; thumbUrl?: string | null; isTemplate?: boolean }>;
   initialMode?: 'brand' | 'clone';
   initialAngle?: string;
+  /** Audience préremplie par un brief d'itération (I2) · vide sinon. */
+  initialPersonaId?: string;
   /** Pub de veille pré-sélectionnée comme référence de clone · vient de `?ref=`. */
   initialRef?: string;
   /**
@@ -118,7 +120,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   const [bulkMsg, setBulkMsg] = useState('');
   const [bulkOk, setBulkOk] = useState(true);
   const prodImgInput = useRef<HTMLInputElement>(null);
-  const [personaId, setPersonaId] = useState('');
+  const [personaId, setPersonaId] = useState(initialPersonaId);
   const [objective, setObjective] = useState('Ventes');
   const [offer, setOffer] = useState('');
   const [templates, setTemplates] = useState<AdTemplate[]>([]);
