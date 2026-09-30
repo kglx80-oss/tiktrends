@@ -119,6 +119,7 @@ export * from './exemple-direction';
 export * from './conseil-moteur';
 export * from './essai';
 export * from './brief-iteration';
+export * from './brouillon-iteration';
 export * from './carte-creative';
 export * from './sauvegardes-onglets';
 export * from './apercu-format';

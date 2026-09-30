@@ -49,6 +49,24 @@ describe('I2 · le panneau montre d’où vient le brief, sans rien confondre', 
     expect(section).toContain('display:grid');
     expect(section).not.toMatch(/flex-direction:column[^"]*flex-wrap:wrap|flex-wrap:wrap[^"]*flex-direction:column/);
   });
+  it('retour Codex #1 · ce que le test faisait varier est son HISTORIQUE, pas un champ prérempli', () => {
+    // La variable n'est pas transmise à la génération · rangée sous « Repris
+    // dans le formulaire », elle se lisait comme préremplie.
+    const blocs = h.split('Suggéré')[0]!;
+    const mesure = blocs.slice(blocs.indexOf('Mesuré'), blocs.indexOf('Appris'));
+    const repris = blocs.slice(blocs.indexOf('Repris dans le formulaire'));
+    expect(mesure).toContain('Ce test faisait varier · Hook = « Question choc »');
+    expect(repris, 'la variable du test est encore présentée comme reprise').not.toContain('faisait varier');
+    expect(repris).toContain('angle et audience seulement');
+  });
+  it('retour Codex #2 · le bloc prérempli mène aux vrais champs (bouton, jamais un lien de génération)', () => {
+    const repris = h.slice(h.indexOf('Repris dans le formulaire'), h.indexOf('Suggéré'));
+    expect(repris).toMatch(/<button type="button"[^>]*>Modifier l’angle et l’audience ›<\/button>/);
+  });
+  it('retour Codex #2 · à 390 le titre garde la largeur · base 260, le lien passe dessous', () => {
+    const titre = /<h2 id="brief-iteration-titre" style="([^"]*)"/.exec(h)?.[1] ?? '';
+    expect(titre).toContain('flex:1 1 260px');
+  });
   it('nom long · titre et apprentissage reviennent à la ligne, sans débordement', () => {
     const long = { ...src, concept: 'Un concept au nom vraiment très long qui ne doit jamais faire déborder le panneau du brief' };
     const b = briefDepuisTest(long); if (!b.eligible) throw new Error();

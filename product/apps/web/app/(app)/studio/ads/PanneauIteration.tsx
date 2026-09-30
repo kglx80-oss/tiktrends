@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { CIBLE_TACTILE_MIN, type BriefDepuisTest } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
+import { ModifierBrief } from './ModifierBrief';
 
 /**
  * Le brief d'itération, en tête du Studio (lot I2) · ouvert depuis le panneau
@@ -9,8 +10,9 @@ import { Icon } from '../../../../components/Icon';
  * rien n'est généré ni enregistré à l'ouverture. L'angle et l'audience sont
  * préremplis dans le formulaire, modifiables · « Créer des pubs » reste le geste.
  *
- * Trois natures, jamais confondues · mesuré (verdict arbitré, chiffres), consigné
- * (apprentissage, ce que le test faisait varier), suggéré (hypothèse, à valider).
+ * Quatre natures, jamais confondues · mesuré (le test source · verdict arbitré,
+ * chiffres, ce qu'il faisait varier), appris (consigné), repris (les DEUX seuls
+ * champs préremplis · angle, audience), suggéré (hypothèse, à valider).
  */
 export type EtatIteration =
   | { etat: 'refuse' }
@@ -50,25 +52,29 @@ export function PanneauIteration({ it, marque }: { it: EtatIteration; marque: st
     <section aria-labelledby="brief-iteration-titre" style={{ ...cadre, display: 'grid', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="map" size={16} /></span>
-        <h2 id="brief-iteration-titre" style={{ margin: 0, flex: 1, minWidth: 0, fontSize: 15, fontWeight: 700, color: 'var(--ink)', overflowWrap: 'anywhere' }}>
+        {/* Base 260 · à 390 le lien ne tient plus à côté, il passe DESSOUS et le
+            titre garde toute la largeur (il s'empilait sur une colonne étroite). */}
+        <h2 id="brief-iteration-titre" style={{ margin: 0, flex: '1 1 260px', minWidth: 0, fontSize: 15, fontWeight: 700, color: 'var(--ink)', overflowWrap: 'anywhere' }}>
           Brief d’itération · {provenance.titre}
         </h2>
         <Link href={retourTest(it.adId)} style={lienSecondaire}>‹ Retour au test</Link>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 10 }}>
-        <Bloc titre="Mesuré" note="la régie a tranché">
+        <Bloc titre="Mesuré" note="le test source, tranché par la régie">
           <p style={texte}><b>{provenance.verdict}</b>{provenance.chiffres.length ? <> · {provenance.chiffres.join(' · ')}</> : null}</p>
+          {/* Historique du test source · ni prérempli ni transmis à la génération. */}
+          {provenance.variableTestee && <p style={{ ...texte, color: 'var(--muted)', overflowWrap: 'anywhere' }}>Ce test faisait varier · {provenance.variableTestee}</p>}
         </Bloc>
         <Bloc titre="Appris" note="consigné par l’équipe à l’arbitrage">
           {apprentissages.map((a, i) => (
             <p key={i} style={{ ...texte, overflowWrap: 'anywhere' }}>« {a.texte} » <span style={{ color: 'var(--muted)' }}>· confiance {a.confiance}/5</span></p>
           ))}
         </Bloc>
-        <Bloc titre="Repris dans le formulaire" note="prérempli, modifiable ci-dessous">
+        <Bloc titre="Repris dans le formulaire" note="angle et audience seulement, modifiables">
           <p style={{ ...texte, overflowWrap: 'anywhere' }}>Angle · « {champs.angle.valeur} »</p>
           <p style={texte}>Audience · {champs.audience ? champs.audience.valeur : <span style={{ color: 'var(--muted)' }}>non renseignée sur le test</span>}</p>
-          {champs.variableTestee && <p style={{ ...texte, overflowWrap: 'anywhere' }}>Ce test faisait varier · {champs.variableTestee.valeur}</p>}
+          <ModifierBrief />
         </Bloc>
         <Bloc titre="Suggéré" note="à valider, rien n’est mesuré ici">
           <p style={{ ...texte, overflowWrap: 'anywhere' }}>{champs.hypothese.valeur}</p>

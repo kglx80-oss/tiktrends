@@ -168,13 +168,20 @@ export type BriefDepuisTest =
   | {
       eligible: true;
       /** D'où vient le brief · lisible tel quel. */
-      provenance: { titre: string; verdict: string; chiffres: string[] };
+      provenance: {
+        titre: string; verdict: string; chiffres: string[];
+        /**
+         * Ce que le test source faisait varier · HISTORIQUE du test, jamais un
+         * champ du formulaire (rien ne le transmet à la génération). Montré avec
+         * la provenance pour ne pas se lire comme « prérempli ».
+         */
+        variableTestee: string | null;
+      };
       apprentissages: Array<{ texte: string; confiance: number; portee: string }>;
       /** Les champs, chacun avec sa nature. */
       champs: {
         angle: { valeur: string; nature: 'consigne' };
         audience: { valeur: string; nature: 'consigne' } | null;
-        variableTestee: { valeur: string; nature: 'consigne' } | null;
         hypothese: { valeur: string; nature: 'suggestion' };
         variableSuivante: { valeur: string; nature: 'a_choisir' };
       };
@@ -228,12 +235,11 @@ export function briefDepuisTest(t: TestSource): BriefDepuisTest {
 
   return {
     eligible: true,
-    provenance: { titre, verdict: `${LIBELLE_VERDICT[t.validated].court} · verdict arbitré`, chiffres },
+    provenance: { titre, verdict: `${LIBELLE_VERDICT[t.validated].court} · verdict arbitré`, chiffres, variableTestee },
     apprentissages,
     champs: {
       angle: { valeur: angle, nature: 'consigne' },
       audience: t.persona ? { valeur: t.persona, nature: 'consigne' } : null,
-      variableTestee: variableTestee ? { valeur: variableTestee, nature: 'consigne' } : null,
       hypothese: { valeur: hypothese, nature: 'suggestion' },
       variableSuivante: { valeur: 'À choisir · une seule, les autres restent fixes', nature: 'a_choisir' },
     },

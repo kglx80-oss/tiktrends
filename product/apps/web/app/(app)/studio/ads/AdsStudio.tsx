@@ -1,12 +1,12 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { generateAdsAction, cloneAdAction, suggestAnglesAction, archiveAdAction, getAdTextAction, updateAdTextAction, scoreCreativeAction, declineAdAction, type AdItem, type SavedAdRef, type AdText } from '../../../actions/ads';
 import { demarrerGeneration, terminerGeneration } from '../../../../lib/generation-store';
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, texteAttenduDansImage, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN, lienSourceVeille, type SourceVeille, bucketPerfCarte } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, texteAttenduDansImage, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN, lienSourceVeille, type SourceVeille, bucketPerfCarte, brouillonAEcrire, reprendreBrouillon, EVT_MODIFIER_BRIEF } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { useIsMobile } from '../../../../components/useIsMobile';
@@ -73,7 +73,7 @@ const TPL_LABEL: Record<AdTemplate, string> = {
 };
 
 
-export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialPersonaId = '', initialRef = '', initialSource = null, adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
+export function AdsStudio({ ready, aiReady, brandName, initial, products, personas, savedRefs, assets = [], initialMode = 'brand', initialAngle = '', initialPersonaId = '', iteration = null, initialRef = '', initialSource = null, adsmap = false, suggestion = null, budget = null, conseilMoteurs, conseilModes }: {
   ready: boolean; aiReady: boolean; brandName: string | null; initial: AdItem[];
   products: Array<{ id: string; name: string; hasImage: boolean; photoUrl?: string | null }>; personas: Array<{ id: string; name: string }>;
   savedRefs: SavedAdRef[];
@@ -82,6 +82,11 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   initialAngle?: string;
   /** Audience préremplie par un brief d'itération (I2) · vide sinon. */
   initialPersonaId?: string;
+  /**
+   * Le brief d'itération ouvert (I2) · la clé d'onglet où ses saisies sont
+   * gardées. `null` sans brief · rien n'est lu ni gardé.
+   */
+  iteration?: { cle: string } | null;
   /** Pub de veille pré-sélectionnée comme référence de clone · vient de `?ref=`. */
   initialRef?: string;
   /**
@@ -211,6 +216,53 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
    * charger une photo produit, rappeler une scène enregistrée.
    */
   const [avance, setAvance] = useState(false);
+  /**
+   * Brief d'itération (I2) · les saisies d'angle et d'audience sont gardées DANS
+   * L'ONGLET, par marque et par test, et reprises au retour sur ce brief · sans
+   * quoi un retour navigateur les effaçait sans un mot (mesuré). Rien ne part au
+   * serveur. La règle (quoi garder, quoi reprendre) vit au noyau.
+   */
+  const prefillIteration = useRef({ angle: initialAngle, personaId: initialPersonaId }).current;
+  const [reprisIteration, setReprisIteration] = useState(false);
+  const brouillonLu = useRef(false);
+  // Écriture AVANT lecture dans l'ordre des effets · au montage, l'écriture se
+  // tait (brouillon pas encore lu), sinon le prérempli effacerait la saisie gardée.
+  const cleIteration = iteration?.cle ?? null;
+  useEffect(() => {
+    if (!cleIteration || !brouillonLu.current) return;
+    const v = brouillonAEcrire({ angle, personaId }, prefillIteration);
+    try {
+      if (v) window.sessionStorage.setItem(cleIteration, v);
+      else window.sessionStorage.removeItem(cleIteration);
+    } catch { /* stockage indisponible (navigation privée) · rien de gardé, rien d'annoncé */ }
+  }, [cleIteration, angle, personaId, prefillIteration]);
+  useEffect(() => {
+    if (!cleIteration) return;
+    let brut: string | null = null;
+    try { brut = window.sessionStorage.getItem(cleIteration); } catch { brut = null; }
+    const r = reprendreBrouillon(brut, prefillIteration, personas.map((p) => p.id));
+    if (r.repris) { setAngle(r.champs.angle); setPersonaId(r.champs.personaId); setReprisIteration(true); }
+    brouillonLu.current = true;
+    // Lecture unique au montage · le Studio est remonté quand le test change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const revenirAuPrerempli = () => {
+    setAngle(prefillIteration.angle); setPersonaId(prefillIteration.personaId); setReprisIteration(false);
+  };
+  // « Modifier l'angle et l'audience » (panneau du brief) · ouvre les réglages,
+  // mode marque, puis focus sur l'angle une fois le panneau rendu. Rien n'est généré.
+  const [focusAngle, setFocusAngle] = useState(false);
+  useEffect(() => {
+    const ouvrir = () => { setMode('brand'); setAvance(true); setFocusAngle(true); };
+    window.addEventListener(EVT_MODIFIER_BRIEF, ouvrir);
+    return () => window.removeEventListener(EVT_MODIFIER_BRIEF, ouvrir);
+  }, []);
+  useEffect(() => {
+    if (!focusAngle || !avance) return;
+    const zone = composeur.current?.querySelector('textarea');
+    if (zone) { zone.scrollIntoView({ block: 'center' }); zone.focus(); }
+    setFocusAngle(false);
+  }, [focusAngle, avance]);
   /**
    * L'assistant · une décision par écran.
    *
@@ -630,6 +682,19 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         budget={budget}
         onGenerer={() => { void run('brand').then((out) => { if (producedSomething(out)) setAssistant(false); }); }}
       />
+
+      {/* Brief d'itération · des saisies gardées ont remplacé le prérempli · on le
+          DIT, et on offre d'y revenir. Rien n'est envoyé. */}
+      {reprisIteration && (
+        <div role="status" data-brouillon-iteration="" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '-6px 0 18px', padding: '8px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--paper)' }}>
+          <span style={{ flex: '1 1 260px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            Tes modifications de ce brief sont reprises · angle et audience, gardées dans cet onglet seulement, rien n’est envoyé.
+          </span>
+          <button type="button" onClick={revenirAuPrerempli} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Revenir au prérempli
+          </button>
+        </div>
+      )}
 
       {/* Barre de création · UNE action dominante (l'assistant, le flux
           existant), le clone en secondaire. Pas de gros bandeau marketing ·

@@ -15,7 +15,7 @@ import { ContexteCreation } from '../../../../components/ContexteCreation';
 import { effectiveAccess } from '../../../../lib/access';
 import { spendStatus } from '../../../../lib/spend-guard';
 import { bilanCopieAction } from '../../../actions/adsmap-attribution';
-import { conseilMoteur, conseilMode, sourceVeilleDepuisRef, lireIterationDemandee, briefDepuisTest } from '@tiktrends/core';
+import { conseilMoteur, conseilMode, sourceVeilleDepuisRef, lireIterationDemandee, briefDepuisTest, cleMontageStudio, cleBrouillonIteration } from '@tiktrends/core';
 import { adDetailAction } from '../../../actions/adsmap-verdict';
 import { adsDeLaMarque } from '../../../../lib/adsmap-marque';
 import { PanneauIteration, type EtatIteration } from './PanneauIteration';
@@ -177,10 +177,12 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
           ses états semés une fois depuis les props (galerie `ads`, `prods`,
           `productId`, sélection…) restent ceux de la marque précédente jusqu'à un
           rechargement complet. La clé par marque force le remontage · TOUT le
-          contexte client se ré-ensemence ensemble depuis les nouvelles props. */}
+          contexte client se ré-ensemence ensemble depuis les nouvelles props.
+          Depuis I2, elle porte aussi le test du brief demandé (`cleMontageStudio`) ·
+          mesuré, ?iter=A → ?iter=B gardait les champs de A sous le brief de B. */}
       {iteration && <PanneauIteration it={iteration} marque={brand?.name ?? null} />}
 
-      <AdsStudio key={brand?.id ?? 'aucune-marque'} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={angleInitial} initialPersonaId={personaInitial} initialRef={initialRef} initialSource={initialSource} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
+      <AdsStudio key={cleMontageStudio(brand?.id ?? null, iterDemande)} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={angleInitial} initialPersonaId={personaInitial} iteration={iteration?.etat === 'ok' && brand ? { cle: cleBrouillonIteration(brand.id, iteration.adId) } : null} initialRef={initialRef} initialSource={initialSource} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
     </main>
   );
 }

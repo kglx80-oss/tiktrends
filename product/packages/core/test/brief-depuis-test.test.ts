@@ -54,7 +54,9 @@ describe('briefDepuisTest · provenance et natures', () => {
   it('l’hypothèse est une SUGGESTION, la variable suivante reste À CHOISIR · rien n’est inventé comme fait', () => {
     expect(r.champs.hypothese.nature).toBe('suggestion');
     expect(r.champs.variableSuivante.nature).toBe('a_choisir');
-    expect(r.champs.variableTestee).toEqual({ valeur: 'Hook = « Question choc »', nature: 'consigne' });
+    // Historique du test source, pas un champ repris · la génération ne le reçoit pas.
+    expect(r.provenance.variableTestee).toBe('Hook = « Question choc »');
+    expect(r.champs).not.toHaveProperty('variableTestee');
     expect(r.brief.variable, 'une variable suivante est inventée').toBe('');
     expect(champsManquants(r.brief)).toContain('variable');
   });
