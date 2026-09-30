@@ -8,7 +8,7 @@ import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { generateAdConcepts, cloneAdFromReference, suggestAdAngles, scoreCreative, controlePubEntiere, rewriteAdCopy, AD_TEMPLATES, VISUAL_UNIVERSES, type AdTemplate, type AdConcept, type CloneRefImage, type AdAngle, type CreativeScore } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, ESSAI_LABEL, prixEssai, verifieEssai, essaiVisibleEnMode, type EssaiVariable, type SceneLight, type CumulEssais, estMode, PRODUCTION_LABEL, promptPubEntiere, palettePourPrompt, contrainteDaPourPrompt, type DaVisuelleMarque, ancrageProduit, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection, texteAdModifie, sansMesure } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, layoutsForBatchFavori, appliquerEssais, layoutFor, layoutsFor, copyBudgetLine, layoutForCopy, imageTimeoutMs, conseilDelai, sceneFraming, sceneFramingPolyvalent, AD_LAYOUTS, type AdLayout, explainProposal, type StatRow, type HookEntry, type ImageModelSpec, STUDIO_LABEL, prixDeclinaison, miseSuivante, verifieDeclinaison, type StudioVariable, type DeclinaisonSnapshot, verdictDefauts, plafonner, STUDIO_VARIABLES, empechement, universSuivant, ESSAI_VARIABLES, ESSAI_LABEL, prixEssai, verifieEssai, essaiVisibleEnMode, type EssaiVariable, type SceneLight, type CumulEssais, estMode, PRODUCTION_LABEL, promptPubEntiere, palettePourPrompt, contrainteDaPourPrompt, type DaVisuelleMarque, ancrageProduit, exemplesParDirection, texteAttenduDansImage, verifieCopie, chainesImposees, type VerdictCopie, type ProductionMode, AD_DIRECTIONS, directionByKey, directionScenePrompt, budgetReprises, imagesAReserver, indicesARattraper, reprisePreferable, directionsBiais, durcirEntiere, bilanHypotheses, consigneAnglesGagnants, etatVerdictCarte, perfParAngle, consigneAnglesMarche, type CreaLancee, type EtatVerdictCarte, type AdDirection, texteAdModifie, sansMesure, adLancee } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { jarvisFullMemory, jarvisMemoryWithUse, jarvisStats, jarvisHooks } from '../../lib/jarvis-memory';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -22,6 +22,7 @@ import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { imageJointe } from '../../lib/image-jointe';
 import { chargerValidationsActives, faitsAvecEtat } from '../../lib/faits-preuve';
+import { adsDeLaMarque } from '../../lib/adsmap-marque';
 import type { FaitControle, SourceVeille } from '@tiktrends/core';
 
 export interface AdItem {
@@ -73,6 +74,12 @@ export interface AdItem {
    * verdict n'est arbitré. C'est le seul signal qui répond à « laquelle a gagné ».
    */
   verdict?: EtatVerdictCarte | null;
+  /**
+   * L'ad Adsmap qui mesure cette créa · posée SEULEMENT quand elle existe dans
+   * la marque active (sinon le lien est rompu, `verdict` = « introuvable »). Sert
+   * au lien de la carte vers son test (I1).
+   */
+  adsmapAdId?: string | null;
   /**
    * L'identifiant du LOT qui a produit cette créa · commun à toutes les créas
    * d'un même appel de génération. Absent sur les créas d'avant son introduction.
@@ -1557,7 +1564,11 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
   // requête par carte. Seul un verdict ARBITRÉ (`validated`) tranche · un calcul
   // provisoire compte comme « en mesure », comme le fait déjà l'attribution.
   const parGen = gardees.map((r) => ({ id: r.id, createdAt: r.createdAt as Date, rec: (r.input ?? {}) as Partial<AdRecipe> & { rating?: import('./creatives').Rating; jarvisScore?: CreativeScore; adsmapAdId?: string; lot?: string; sourceVeille?: SourceVeille | null } }));
-  const adIds = [...new Set(parGen.map((g) => g.rec.adsmapAdId).filter((x): x is string => !!x))];
+  const adIdsPoses = [...new Set(parGen.map((g) => g.rec.adsmapAdId).filter((x): x is string => !!x))];
+  // L'ad existe-t-elle encore DANS cette marque, et a-t-elle été lancée · sans
+  // ça, une ad brouillon passait « en mesure » et un lien rompu aussi (I1).
+  const adsConnues = await adsDeLaMarque(s.workspaceId, brand.id, adIdsPoses);
+  const adIds = adIdsPoses.filter((id) => adsConnues.has(id));
   const verdictParAd = new Map<string, { verdict: import('@tiktrends/core').VerdictValue | null; arbitre: boolean; comparable: boolean }>();
   if (adIds.length) {
     const vs = await db.select({ adId: schema.verdicts.adId, computed: schema.verdicts.computed, validated: schema.verdicts.validated, status: schema.verdicts.status, comparable: schema.verdicts.comparable })
@@ -1580,7 +1591,8 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
 
   return parGen.map(({ id, createdAt, rec }) => {
     const suivie = !!rec.adsmapAdId;
-    const v = rec.adsmapAdId ? verdictParAd.get(rec.adsmapAdId) : undefined;
+    const connue = rec.adsmapAdId ? adsConnues.get(rec.adsmapAdId) : undefined;
+    const v = connue ? verdictParAd.get(rec.adsmapAdId!) : undefined;
     return {
       id, template: (rec.template ?? 'problem_solution') as AdTemplate, headline: rec.headline ?? '',
       url: adUrl(id, rec), createdAt: createdAt.toISOString(),
@@ -1596,7 +1608,11 @@ export async function listBrandAds(opts?: { archived?: boolean }): Promise<AdIte
       // porteur ne peut plus être oublié en route (les clés hors sujet sont
       // ignorées par le noyau).
       faits: faitsAvecEtat(rec, validationsParGen.get(id)),
-      verdict: etatVerdictCarte({ suivie, verdict: v?.verdict ?? null, arbitre: !!v?.arbitre, comparable: !!v?.comparable }),
+      verdict: etatVerdictCarte({
+        suivie, introuvable: suivie && !connue, lancee: !!connue && adLancee(connue),
+        verdict: v?.verdict ?? null, arbitre: !!v?.arbitre, comparable: !!v?.comparable,
+      }),
+      adsmapAdId: connue ? rec.adsmapAdId! : null,
       lot: rec.lot,
       mode: rec.mode ?? undefined,
       // La provenance de veille, relue depuis la génération · elle survit ainsi au

@@ -34,6 +34,7 @@ export {
 } from './adsmap/stats';
 export * from './adsmap/verdict';
 export * from './adsmap/verdict-carte';
+export * from './adsmap/passage-studio';
 export * from './adsmap/verdict-libelle';
 export * from './adsmap/fait-preuve';
 export * from './carte-homonymes';

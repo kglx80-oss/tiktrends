@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { useRef, useState, type CSSProperties } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { CIBLE_TACTILE_MIN, RETOUR_STUDIO } from '@tiktrends/core';
+import { AdDrawer } from './AdDrawer';
 import dynamic from 'next/dynamic';
 import { AdsMapTable } from './AdsMapTable';
 import { Inbox } from './Inbox';
@@ -25,8 +28,28 @@ const Canvas = dynamic(() => import('./Canvas').then((m) => m.Canvas), {
   loading: () => <p style={{ color: 'var(--muted)', fontSize: 13 }}>Chargement de la carte…</p>,
 });
 
-export function Views({ batches, canBuild = false }: { batches: Array<{ id: string; number: number; status: string; ads: number }>; canBuild?: boolean }) {
+export function Views({ batches, canBuild = false, testProfond = null, marque = '' }: {
+  batches: Array<{ id: string; number: number; status: string; ads: number }>;
+  canBuild?: boolean;
+  /** Le test visé par un lien profond (carte du Studio · I1), déjà vérifié dans la marque active. */
+  testProfond?: { adId: string; depuisStudio: boolean; introuvable: boolean } | null;
+  marque?: string;
+}) {
+  const router = useRouter();
   const [vue, setVue] = useState<'decider' | 'table' | 'carte'>('decider');
+  // Le panneau du lien profond · ouvert d'office, refermé en retirant le
+  // paramètre (un rechargement ne le rouvre pas, le retour navigateur si).
+  const [profondOuvert, setProfondOuvert] = useState(!!testProfond && !testProfond.introuvable);
+  const retour = testProfond?.depuisStudio ? RETOUR_STUDIO : undefined;
+  // À la fermeture, le focus revient au début du contenu Adsmap (le premier
+  // onglet) · ouvert par lien profond, le panneau n'a pas de déclencheur dans
+  // la page à qui le rendre, et le clavier repartirait du haut du document.
+  const premierOnglet = useRef<HTMLButtonElement>(null);
+  const fermerProfond = () => {
+    setProfondOuvert(false);
+    router.replace('/adsmap', { scroll: false });
+    setTimeout(() => premierOnglet.current?.focus(), 0);
+  };
   // Onglets déjà ouverts · la Table n'est montée qu'à la première visite, puis
   // gardée. Muter pendant le rendu serait un effet de bord · on passe par l'état.
   const [ouverts, setOuverts] = useState<string[]>(['decider']);
@@ -37,8 +60,19 @@ export function Views({ batches, canBuild = false }: { batches: Array<{ id: stri
 
   return (
     <>
+      {/* Lien profond vers un test qui n'est pas dans la marque active · on le
+          dit et on rend la main, sans ouvrir le test d'une autre marque. */}
+      {testProfond?.introuvable && (
+        <div role="status" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 13px', margin: '0 0 10px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+          <span style={{ flex: 1, minWidth: 200 }}>Ce test est introuvable dans Adsmap pour {marque || 'la marque active'} · il a pu être supprimé, ou appartient à une autre marque.</span>
+          {retour && <Link href={retour.href} style={lienRetour}>‹ {retour.libelle}</Link>}
+        </div>
+      )}
+      {testProfond && !testProfond.introuvable && profondOuvert && (
+        <AdDrawer adId={testProfond.adId} onClose={fermerProfond} onChanged={() => router.refresh()} peutPartager={canBuild} retour={retour} />
+      )}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        <button type="button" onClick={() => aller('decider')} style={onglet(vue === 'decider')}>À décider</button>
+        <button type="button" ref={premierOnglet} onClick={() => aller('decider')} style={onglet(vue === 'decider')}>À décider</button>
         <button type="button" onClick={() => aller('table')} style={onglet(vue === 'table')}>Table</button>
         <button type="button" onClick={() => aller('carte')} style={onglet(vue === 'carte')}>Carte</button>
       </div>
@@ -65,6 +99,11 @@ export function Views({ batches, canBuild = false }: { batches: Array<{ id: stri
     </>
   );
 }
+
+const lienRetour: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 13px', borderRadius: 999,
+  border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontSize: 12, fontWeight: 700, textDecoration: 'none',
+};
 
 const onglet = (actif: boolean): CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,

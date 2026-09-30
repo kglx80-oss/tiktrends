@@ -13,7 +13,7 @@
  */
 
 export type CritereQualite = 'toutes' | 'prete' | 'a_verifier' | 'a_revoir' | 'non_verifiee';
-export type CriterePerf = 'toutes' | 'gagnante' | 'en_mesure' | 'inconnue';
+export type CriterePerf = 'toutes' | 'gagnante' | 'en_mesure' | 'a_lancer' | 'inconnue';
 export type CritereTri = 'recent' | 'ancien' | 'titre';
 
 export interface CriteresGalerie {
@@ -87,7 +87,7 @@ const QUALITE_LABEL: Record<Exclude<CritereQualite, 'toutes'>, string> = {
   prete: 'Prête à diffuser', a_verifier: 'À vérifier', a_revoir: 'À revoir', non_verifiee: 'Non vérifiée',
 };
 const PERF_LABEL: Record<Exclude<CriterePerf, 'toutes'>, string> = {
-  gagnante: 'Gagnante', en_mesure: 'En mesure', inconnue: 'Performance inconnue',
+  gagnante: 'Gagnante', en_mesure: 'En mesure', a_lancer: 'Suivie · à lancer', inconnue: 'Performance inconnue',
 };
 const TRI_LABEL: Record<CritereTri, string> = {
   recent: 'Plus récentes', ancien: 'Plus anciennes', titre: 'Titre (A→Z)',

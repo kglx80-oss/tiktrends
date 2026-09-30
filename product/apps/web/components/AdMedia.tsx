@@ -20,6 +20,11 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
   interactive?: boolean;
 }) {
   const [playing, setPlaying] = useState(false);
+  // L'image n'a pas pu se charger (adresse expirée, rendu refusé) · on montre le
+  // repli plutôt que l'icône d'image cassée du navigateur et son cadre natif.
+  // `complete` + `naturalWidth` 0 attrape l'échec survenu AVANT l'hydratation,
+  // quand `onError` n'était pas encore branché (même garde que HomeMarques).
+  const [rate, setRate] = useState(false);
   const canPlay = isVideo && !!mediaUrl;
   // Un statique porte son image dans `mediaUrl` · sans ça il montrait « Aperçu
   // indisponible » alors que l'image existe.
@@ -36,9 +41,10 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
 
   const inner = (
     <>
-      {poster
-
-        ? <img src={poster} alt="" style={{ width: '100%', height: '100%', objectFit: fit }} />
+      {poster && !rate
+        ? <img src={poster} alt="" onError={() => setRate(true)}
+            ref={(el) => { if (el && el.complete && el.naturalWidth === 0) setRate(true); }}
+            style={{ width: '100%', height: '100%', objectFit: fit }} />
         : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
       {daysRunning != null && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>{daysRunning} j actifs</span>}
       {canPlay && (

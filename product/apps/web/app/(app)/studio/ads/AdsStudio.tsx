@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, texteAttenduDansImage, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type EtatVerdictCarte, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN, lienSourceVeille, type SourceVeille } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, texteAttenduDansImage, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN, lienSourceVeille, type SourceVeille, bucketPerfCarte } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { useIsMobile } from '../../../../components/useIsMobile';
@@ -221,8 +221,8 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // connaît pas `AdItem`), on filtre/trie, puis on rétablit les cartes dans
   // l'ordre. Le détail, lui, s'ouvre PAR ID sur la liste complète · filtrer la
   // vue ne casse pas la navigation précédent/suivant.
-  const bucketPerf = (v?: EtatVerdictCarte | null): 'gagnante' | 'en_mesure' | 'inconnue' | 'autre' =>
-    v == null ? 'inconnue' : v === 'en_mesure' ? 'en_mesure' : (v === 'gagnante' || v === 'petite_gagnante') ? 'gagnante' : 'autre';
+  // Le rangement vit au noyau · « à lancer » a son filtre, jamais « en mesure » (I1).
+  const bucketPerf = bucketPerfCarte;
   const bucketQualite = (a: AdItem) => {
     const q = qualiteCarte({ ...(a.controle ?? {}), faits: a.faits ?? [], renduPorteTexte: texteAttenduDansImage(a.mode) });
     return !q.verifie ? 'non_verifiee' as const : q.pretADiffuser ? 'prete' as const : q.niveau === 'bloquant' ? 'a_revoir' as const : 'a_verifier' as const;
