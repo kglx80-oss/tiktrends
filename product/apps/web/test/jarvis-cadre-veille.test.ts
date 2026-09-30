@@ -36,6 +36,31 @@ describe('Jarvis · cadre + composeur aux bords Veille, lecture bornée à l’i
     expect(chat, 'un plafond 760 subsiste sur le composeur ou le fil').not.toContain('maxWidth: 760,');
   });
 
+  it('à l’accueil (fil vide), le composeur prend toute la largeur du cadre · pas la colonne 640', () => {
+    // Codex, 30/09 · l'accueil garde le TITRE, le sous-titre et les suggestions en
+    // colonne de lecture (640), mais le COMPOSEUR en SORT · il suit les bords du
+    // cadre comme en conversation. Une mesure `main = 1200` ne prouvait pas la
+    // largeur du composeur · on cloue ici sa structure.
+    const iA = chat.indexOf('vide && !enCours ? (');
+    const iB = chat.indexOf(') : (', iA);
+    expect(iA, 'le bloc d’accueil est introuvable').toBeGreaterThan(-1);
+    const accueil = chat.slice(iA, iB);
+    const iComp = accueil.indexOf('{composeur}');
+    expect(iComp, 'le composeur d’accueil est introuvable').toBeGreaterThan(-1);
+    // L'enveloppe DIRECTE du composeur est pleine largeur, sans plafond.
+    const openIdx = accueil.lastIndexOf('<div style', iComp);
+    const wrap = accueil.slice(openIdx, iComp);
+    expect(wrap, 'le composeur d’accueil n’est pas pleine largeur').toContain("width: '100%'");
+    expect(wrap, 'le composeur d’accueil est bridé par un maxWidth').not.toContain('maxWidth');
+    // La colonne de lecture (640) DOIT être fermée AVANT le composeur · sinon il
+    // est nesté dedans et rétréci. Mutation : remettre {composeur} dans la colonne
+    // 640 supprime le </div> intermédiaire et fait tomber.
+    const i640 = accueil.indexOf('maxWidth: 640');
+    expect(i640, 'la colonne de lecture 640 est introuvable').toBeGreaterThan(-1);
+    expect(i640, 'la colonne 640 doit précéder le composeur').toBeLessThan(iComp);
+    expect(accueil.slice(i640, iComp).includes('</div>'), 'la colonne 640 n’est pas fermée avant le composeur (composeur nesté → rétréci)').toBe(true);
+  });
+
   it('la largeur de LECTURE reste bornée à la colonne prose (760) à l’intérieur', () => {
     expect(chat, 'les réponses ne bornent plus la lecture').toContain("maxWidth: 'min(760px, 92%)'");
     expect(chat, 'les bulles utilisateur ne bornent plus la lecture').toContain("maxWidth: 'min(760px, 86%)'");

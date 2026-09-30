@@ -260,16 +260,26 @@ export function JarvisChat() {
         // ── Accueil · emblème centré AU-DESSUS de la question, un seul titre
         // dominant (32/28, graisse 500, interligne 1.2), une courte phrase, PUIS
         // le composeur, PUIS trois suggestions au plus.
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', maxWidth: 640, margin: '0 auto' }}>
-          <div style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name="brain" size={30} /></div>
-          <h2 style={{ margin: '14px 0 0', fontSize: isMobile ? 28 : 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
-            Quelle publicité améliorer en premier ?
-          </h2>
-          <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5, maxWidth: 520 }}>
-            Il cite tes chiffres, ou admet qu’il n’en a pas · et t’aide à décider quoi tester ensuite.
-          </p>
+        // Le titre, le sous-titre et les suggestions restent en colonne de
+        // LECTURE centrée (640/520) · le COMPOSEUR, lui, prend toute la largeur
+        // du cadre comme en conversation · la contrainte d'accueil ne doit plus
+        // le rétrécir en petite colonne (Codex, 30/09).
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', maxWidth: 640, margin: '0 auto' }}>
+            <div style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name="brain" size={30} /></div>
+            <h2 style={{ margin: '14px 0 0', fontSize: isMobile ? 28 : 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+              Quelle publicité améliorer en premier ?
+            </h2>
+            <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5, maxWidth: 520 }}>
+              Il cite tes chiffres, ou admet qu’il n’en a pas · et t’aide à décider quoi tester ensuite.
+            </p>
+          </div>
+          {/* Composeur PLEINE LARGEUR du cadre, hors de la colonne 640 · même
+              largeur qu'en conversation (Codex, 30/09). */}
           <div style={{ width: '100%', marginTop: isMobile ? 24 : 32 }}>{composeur}</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 18 }}>
+          {/* Suggestions en colonne de lecture centrée · elles proposent, elles
+              ne s'étalent pas d'un bord à l'autre du cadre. */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 640, margin: '18px auto 0' }}>
             {amorces.map((q) => (
               <button key={q} onClick={() => void envoyer(q)} style={{
                 display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
