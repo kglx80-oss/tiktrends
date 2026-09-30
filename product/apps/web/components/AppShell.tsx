@@ -14,7 +14,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, hauteurRangeeRail } from '@tiktrends/core';
 import { chromeCoquille } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -78,18 +78,27 @@ interface Props {
   children: ReactNode;
 }
 
-function NavLink({ it, active, inPath = false, onClick }: {
+function NavLink({ it, active, inPath = false, onClick, tactile = true }: {
   it: NavItem; active: boolean;
   /** Contient la page courante, sans l'être · rendu plus sobre, jamais le fond plein. */
   inPath?: boolean;
   onClick?: () => void;
+  /** Pointeur grossier (mobile · tiroir) → rangée 44. Fin (desktop · souris) →
+   *  rangée dense (32-36) · c'est ce qui rend les têtes visibles à 720. */
+  tactile?: boolean;
 }) {
   const disabled = it.locked || it.soon;
+  // La hauteur de rangée DÉCIDÉE par le noyau (règle pure, éprouvée) · 44 au
+  // doigt, dense à la souris. Le padding suit, pour que la hauteur RÉELLE colle
+  // à la décision (au doigt, minHeight gouverne ; à la souris, un padding plus
+  // court laisse la rangée descendre à sa cible).
+  const hRangee = hauteurRangeeRail(tactile);
+  const padY = tactile ? (it.isSub ? 8 : 10) : (it.isSub ? 5 : 6);
   const inner = (
     <span style={{
-      display: 'flex', alignItems: 'center', gap: 11, padding: it.isSub ? '8px 10px 8px 30px' : '10px 11px', borderRadius: 10,
-      // Cible tactile réelle 44 · le padding seul tombait à 41 px (charte 44).
-      minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box',
+      display: 'flex', alignItems: 'center', gap: 11,
+      padding: it.isSub ? `${padY}px 10px ${padY}px 30px` : `${padY}px 11px`, borderRadius: 10,
+      minHeight: hRangee, boxSizing: 'border-box',
       fontSize: it.isSub ? 13 : 14, fontWeight: active || inPath ? 700 : 500,
       color: disabled ? 'var(--muted)' : active || inPath ? 'var(--ink)' : 'var(--ink-2)',
       // « Je suis ici » se dit d'un liséré accent + une teinte légère, pas d'un
@@ -110,7 +119,11 @@ function NavLink({ it, active, inPath = false, onClick }: {
     ? <div title={it.locked ? 'Nécessite un abonnement supérieur' : 'Bientôt disponible'}>{inner}</div>
     // Le lien actif s'annonce · un lecteur d'écran doit savoir « je suis ici »
     // autrement que par la teinte (CDC v7 · N08).
-    : <Link href={it.href} onClick={onClick} aria-current={active ? 'page' : undefined} style={{ textDecoration: 'none' }}>{inner}</Link>;
+    // `display: block` · une tête de branche est logée dans un conteneur flex et
+    // reste sinon `inline` · son anneau de focus (:focus-visible) ne s'y dessine
+    // pas en boîte pleine. En bloc, le lien épouse la rangée · l'anneau entoure
+    // toute l'entrée, tête comme feuille (recette focus · Aperçu).
+    : <Link href={it.href} onClick={onClick} aria-current={active ? 'page' : undefined} style={{ display: 'block', textDecoration: 'none' }}>{inner}</Link>;
 }
 
 interface Branch { head: NavItem; subs: NavItem[] }
@@ -139,16 +152,18 @@ function branchesOf(items: NavItem[]): Branch[] {
  * une navigation. La flèche garde le repli, pour qui veut fermer la branche
  * sans la quitter.
  */
-function NavBranch({ b, isActive, inPath, open, onToggle, onOpen }: {
+function NavBranch({ b, isActive, inPath, open, onToggle, onOpen, tactile = true }: {
   b: Branch;
   isActive: (href: string, isSub: boolean) => boolean;
   inPath: (href: string) => boolean;
   open: boolean;
   onToggle: () => void;
   onOpen: () => void;
+  /** Densité par pointeur · voir NavLink. */
+  tactile?: boolean;
 }) {
   const headActive = isActive(b.head.href, false);
-  if (!b.subs.length) return <NavLink it={b.head} active={headActive} />;
+  if (!b.subs.length) return <NavLink it={b.head} active={headActive} tactile={tactile} />;
 
   // Le parent contient la page courante · il le montre sobrement, sans lui
   // prendre la sélection.
@@ -158,10 +173,11 @@ function NavBranch({ b, isActive, inPath, open, onToggle, onOpen }: {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <NavLink it={b.head} active={headActive} inPath={headInPath} onClick={onOpen} />
+          <NavLink it={b.head} active={headActive} inPath={headInPath} onClick={onOpen} tactile={tactile} />
         </div>
         <button type="button" onClick={onToggle} aria-label={`${open ? 'Replier' : 'Déplier'} ${b.head.label}`} aria-expanded={open} style={{
-          width: 30, minHeight: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          // Le chevron suit la densité de sa rangée · 44 au doigt, dense à la souris.
+          width: 30, minHeight: hauteurRangeeRail(tactile), flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           border: 'none', background: 'transparent', color: headInPath || headActive ? 'var(--ink-2)' : 'var(--muted)', cursor: 'pointer', borderRadius: 8,
         }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 6l6 6-6 6" /></svg>
@@ -169,7 +185,7 @@ function NavBranch({ b, isActive, inPath, open, onToggle, onOpen }: {
       </div>
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginLeft: 4, borderLeft: '1px solid var(--line)', paddingLeft: 2 }}>
-          {b.subs.map((su) => <NavLink key={su.key} it={su} active={isActive(su.href, true)} />)}
+          {b.subs.map((su) => <NavLink key={su.key} it={su} active={isActive(su.href, true)} tactile={tactile} />)}
         </div>
       )}
     </div>
@@ -330,7 +346,7 @@ function AppShellInner(props: Props) {
         {...(chrome.railTiroir ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': 'Navigation' } : {})}
         style={{
         background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column',
-        padding: collapsed ? '16px 10px' : '12px 12px', top: 0, height: '100vh',
+        padding: collapsed ? '16px 10px' : '8px 12px', top: 0, height: '100vh',
         // Desktop : rail collé, inchangé. Mobile : tiroir hors-flux, glissé hors
         // écran quand fermé, au-dessus du contenu quand ouvert.
         ...(chrome.railTiroir
@@ -381,7 +397,7 @@ function AppShellInner(props: Props) {
             COMPLET se lit dans son menu (et dans l'infobulle). On ne supprime pas
             le changement d'espace. */}
         {!collapsed && (
-          <div style={{ position: 'relative', marginTop: 8 }}>
+          <div style={{ position: 'relative', marginTop: 6 }}>
             <button type="button" onClick={() => setWsMenuOpen((o) => !o)} aria-haspopup="menu" aria-expanded={wsMenuOpen} title={`Espace · ${workspaceName}`}
               style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 10, border: '1px solid var(--line)', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer' }}>
               <span aria-hidden style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0 }}>{(workspaceName || '?').trim().slice(0, 1).toUpperCase()}</span>
@@ -422,7 +438,7 @@ function AppShellInner(props: Props) {
             directement à la navigation · plus de pavé de recherche. */}
 
         {/* Navigation · rail client OU rail ADMIN+ (fondateur en coulisses) */}
-        <nav style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 14), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
+        <nav style={{ marginTop: 2, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
           {inAdmin ? (
             <>
               {/* Retour à la vue SaaS (app) */}
@@ -487,8 +503,10 @@ function AppShellInner(props: Props) {
                 );
               }))
             : nav.map((grp) => (
-              <div key={grp.group} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 10px 2px' }}>{grp.group}</div>
+              <div key={grp.group || 'accueil'} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {/* « Accueil » MÈNE le rail en entrée AUTONOME · son groupe n'a pas
+                    de libellé de section (chaîne vide), donc pas d'en-tête au-dessus. */}
+                {grp.group && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '1px 10px 1px' }}>{grp.group}</div>}
                 {branchesOf(grp.items).map((b) => {
                   // Une branche s'ouvre d'office quand on est dedans · sinon on
                   // arrive sur une page dont les voisines sont cachées.
@@ -498,6 +516,7 @@ function AppShellInner(props: Props) {
                   return (
                     <NavBranch
                       key={b.head.key} b={b} isActive={isNavActive} inPath={isNavInPath} open={open}
+                      tactile={mobile}
                       onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? dedans) }))}
                       onOpen={() => setExpanded((e) => ({ ...e, [b.head.key]: true }))}
                     />
@@ -512,7 +531,7 @@ function AppShellInner(props: Props) {
             rouvre la barre (cf. LogoHome). */}
 
         {/* Crédits (solde réel) · visible en direct, clic = recharge / offre */}
-        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginBottom: 8 }}>
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, marginBottom: 6 }}>
           <CreditsMenu balance={creditBalance} unlimited={creditsUnlimited} planLabel={planLabel} showUpgrade={showUpgrade} collapsed={collapsed} />
         </div>
 
@@ -611,7 +630,7 @@ function AppShellInner(props: Props) {
         <NotificationBell />
         {/* Le fil d'Ariane est posé ICI, une fois pour toutes · vingt et une pages
             portaient le leur, écrit à la main, et ils avaient divergé. */}
-        <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} />
+        <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} brands={brands} />
         {children}
         {/* Le lanceur de support (bulle flottante, coin bas-droit) est une
             fonction DISTINCTE de Jarvis. Sur l'écran de conversation `/jarvis`,

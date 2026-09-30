@@ -24,9 +24,16 @@ import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
  * La seule exception est un écran qui dépend de la marque : là, le fil dit de
  * quelle marque on parle, et cette information-là manque vraiment.
  */
-export function Breadcrumb({ brandName, brandId }: { brandName: string | null; brandId?: string | null }) {
+export function Breadcrumb({ brandName, brandId, brands = [] }: {
+  brandName: string | null;
+  brandId?: string | null;
+  /** Toutes les marques du compte · sert à nommer la marque CONSULTÉE sur sa
+   *  fiche (le fil doit dire la marque de l'URL, pas l'active). */
+  brands?: Array<{ id: string; name: string }>;
+}) {
   const pathname = usePathname() || '/';
-  const crumbs = breadcrumb(pathname, { brandName, brandId, brandScoped: isBrandScoped(pathname) });
+  const resolveBrand = (id: string) => brands.find((b) => b.id === id)?.name ?? null;
+  const crumbs = breadcrumb(pathname, { brandName, brandId, resolveBrand, brandScoped: isBrandScoped(pathname) });
   if (!crumbs.length) return null;
 
   return (

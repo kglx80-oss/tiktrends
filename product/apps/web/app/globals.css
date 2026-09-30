@@ -41,6 +41,16 @@ html {
   outline-offset: 2px;
 }
 
+/* Dans le rail de navigation, la zone défilante coupe l'horizontale
+   (`overflowX: hidden`) · un anneau EN DEHORS (offset positif) se ferait rogner
+   à droite. Sur les entrées du rail, l'anneau passe en INSET (offset négatif) ·
+   il se dessine à l'intérieur de la rangée, ENTIER sur les quatre côtés, quelle
+   que soit la position de défilement (H2 · recette focus 720). */
+#nav-rail a:focus-visible,
+#nav-rail button:focus-visible {
+  outline-offset: -2px;
+}
+
 /* Respecter « animations réduites » · on coupe l'animation sans casser l'état
    final (un rendu au repos visible, jamais figé à mi-transition). */
 @media (prefers-reduced-motion: reduce) {

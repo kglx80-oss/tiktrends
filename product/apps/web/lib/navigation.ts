@@ -60,7 +60,7 @@ export interface RouteNode {
 
 export const ROUTES: RouteNode[] = [
   // ── Analyse ────────────────────────────────────────────────────────────────
-  { path: '/dashboard', label: 'Dashboard', section: 'Pilotage' },
+  { path: '/dashboard', label: 'Accueil', section: 'Pilotage' },
   { path: '/analytics', label: 'Analytics', section: 'Pilotage' },
   { path: '/radar', label: 'Radar produits', section: 'Observatoire' },
   { path: '/tags', label: 'Tagging', parent: '/veille', section: 'Observatoire' },
@@ -177,14 +177,25 @@ export interface CrumbOptions {
    * marque depuis le fil.
    */
   brandId?: string | null;
+  /**
+   * Résout le nom d'une marque par son id · sert au maillon dynamique de la
+   * fiche `/brands/[id]`, qui doit nommer la marque CONSULTÉE (le segment de
+   * l'URL), pas la marque ACTIVE. Sans lui, ouvrir la fiche d'une autre marque
+   * que l'active affichait le nom de l'active · un écran qui décrit la mauvaise
+   * marque.
+   */
+  resolveBrand?: (id: string) => string | null;
 }
 
 /** Écrans dont le contenu dépend entièrement de la marque active. */
+// `/dashboard` n'y est PLUS · c'est l'Accueil, la vraie racine · un fil
+// « Accueil › Pilotage › Marque › Accueil » au-dessus de la page d'accueil ne dit
+// rien et se pointe lui-même. La Home montre déjà la marque active (ses cartes).
 const PAR_MARQUE = new Set([
   '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/protocole',
   '/adsmap/import', '/adsmap/radar', '/adsmap/tri',
   '/jarvis', '/studio', '/studio/ads', '/studio/image', '/studio/video',
-  '/studio/textes', '/assets', '/analytics', '/dashboard',
+  '/studio/textes', '/assets', '/analytics',
 ]);
 
 export function isBrandScoped(pathname: string): boolean {
@@ -248,7 +259,16 @@ export function breadcrumb(pathname: string, opts: CrumbOptions = {}): Crumb[] {
 }
 
 function libelle(n: RouteNode, parts: string[], opts: CrumbOptions): string {
-  if (n.dynamic === 'brand' && opts.brandName) return opts.brandName;
+  if (n.dynamic === 'brand') {
+    // Le segment `[id]` du motif · la marque CONSULTÉE. On la nomme par son id
+    // (résolu), pas par la marque active · sinon la fiche d'une autre marque
+    // s'annonçait sous le nom de l'active.
+    const motif = segments(n.path);
+    const i = motif.findIndex((m) => m.startsWith('['));
+    const id = i >= 0 ? parts[i] : undefined;
+    const nom = id && opts.resolveBrand ? opts.resolveBrand(id) : null;
+    return nom || opts.brandName || n.label;
+  }
   if (n.dynamic === 'segment') {
     // Le DERNIER segment dynamique · sur `/brands/[id]/competitors/[name]`,
     // c'est le concurrent qu'on nomme, pas la marque qui le contient.
