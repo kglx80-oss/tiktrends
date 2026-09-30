@@ -14,6 +14,10 @@ export interface AssistantHomeProps {
   brandName: string | null;
   brandId: string | null;
   aiReady: boolean;
+  /** Le bandeau visuel (hero de la Home) · rendu en tête, juste sous l'en-tête. */
+  bandeau?: ReactNode;
+  /** Les cartes des marques du compte · rendues sous le bandeau. */
+  marques?: ReactNode;
   /** La prochaine itération, DEVANT · rendue juste après l'en-tête. */
   prochaineEtape?: ReactNode;
   /** L'aperçu d'exemple, replié, en toute fin. */
@@ -55,7 +59,7 @@ const STUDIOS: Array<{ href: string; icon: string; titre: string; teinte: string
   { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', teinte: 'linear-gradient(135deg, #8a5a12, #d69a3a)' },
 ];
 
-export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, prochaineEtape, exemple }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple }: AssistantHomeProps) {
   const etatCredits = afficherCredits({ balance: credits, unlimited });
   return (
     <div style={{ marginBottom: 32 }}>
@@ -78,6 +82,11 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
           </span>
         </div>
       </div>
+
+      {/* Le hero de la Home · bandeau à la une, PUIS les marques du compte
+          (hiérarchie demandée · Kevin 30/09), avant le reste. */}
+      {bandeau}
+      {marques}
 
       {/* DEVANT · la prochaine itération (parcours réel ou prépare l'itération). */}
       {prochaineEtape}
