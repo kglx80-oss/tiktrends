@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CIBLE_TACTILE_MIN, RETOUR_STUDIO } from '@tiktrends/core';
@@ -41,7 +41,15 @@ export function Views({ batches, canBuild = false, testProfond = null, marque = 
   // paramètre (un rechargement ne le rouvre pas, le retour navigateur si).
   const [profondOuvert, setProfondOuvert] = useState(!!testProfond && !testProfond.introuvable);
   const retour = testProfond?.depuisStudio ? RETOUR_STUDIO : undefined;
-  const fermerProfond = () => { setProfondOuvert(false); router.replace('/adsmap', { scroll: false }); };
+  // À la fermeture, le focus revient au début du contenu Adsmap (le premier
+  // onglet) · ouvert par lien profond, le panneau n'a pas de déclencheur dans
+  // la page à qui le rendre, et le clavier repartirait du haut du document.
+  const premierOnglet = useRef<HTMLButtonElement>(null);
+  const fermerProfond = () => {
+    setProfondOuvert(false);
+    router.replace('/adsmap', { scroll: false });
+    setTimeout(() => premierOnglet.current?.focus(), 0);
+  };
   // Onglets déjà ouverts · la Table n'est montée qu'à la première visite, puis
   // gardée. Muter pendant le rendu serait un effet de bord · on passe par l'état.
   const [ouverts, setOuverts] = useState<string[]>(['decider']);
@@ -64,7 +72,7 @@ export function Views({ batches, canBuild = false, testProfond = null, marque = 
         <AdDrawer adId={testProfond.adId} onClose={fermerProfond} onChanged={() => router.refresh()} peutPartager={canBuild} retour={retour} />
       )}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        <button type="button" onClick={() => aller('decider')} style={onglet(vue === 'decider')}>À décider</button>
+        <button type="button" ref={premierOnglet} onClick={() => aller('decider')} style={onglet(vue === 'decider')}>À décider</button>
         <button type="button" onClick={() => aller('table')} style={onglet(vue === 'table')}>Table</button>
         <button type="button" onClick={() => aller('carte')} style={onglet(vue === 'carte')}>Carte</button>
       </div>

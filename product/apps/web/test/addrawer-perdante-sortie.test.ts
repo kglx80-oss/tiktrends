@@ -14,7 +14,8 @@ import { join } from 'node:path';
  * se rend pas seule. Adoption par la source, bornée à la branche `!gagnante`.
  */
 const src = readFileSync(join(process.cwd(), 'app/(app)/adsmap/AdDrawer.tsx'), 'utf8');
-const iStart = src.indexOf('{!gagnante ? (');
+// La branche suit désormais celle « pas encore de verdict » (I1) · `) : !gagnante ? (`.
+const iStart = src.indexOf('!gagnante ? (');
 const iEnd = src.indexOf(') : !ouvrirIteration ? (', iStart);
 const branche = src.slice(iStart, iEnd > iStart ? iEnd : undefined);
 

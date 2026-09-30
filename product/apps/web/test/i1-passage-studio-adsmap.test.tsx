@@ -121,6 +121,11 @@ describe('I1 · câblage serveur (lecture seule, marque active)', () => {
     expect(ADS, 'le lancement n’est plus lu · un brouillon repasserait « en mesure »').toContain('lancee: !!connue && adLancee(connue)');
     expect(ADS).toContain("adsmapAdId: connue ? rec.adsmapAdId! : null");
   });
+  it('fermer le panneau du lien profond rend le focus au contenu Adsmap (premier onglet)', () => {
+    const V = readFileSync(join(process.cwd(), 'app/(app)/adsmap/Views.tsx'), 'utf8');
+    expect(V, 'le focus n’est plus rendu au premier onglet à la fermeture').toContain('setTimeout(() => premierOnglet.current?.focus(), 0)');
+    expect(V).toContain('ref={premierOnglet}');
+  });
   it('Adsmap vérifie la marque avant d’ouvrir le lien profond', () => {
     expect(PAGE).toContain('lireLienProfondAdsmap(await searchParams)');
     expect(PAGE, 'le lien profond ouvre un test sans vérifier la marque active').toContain('adsDeLaMarque(s.workspaceId, brand.id, [profond.adId])');

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { VerdictValue, TestedVariable } from '@tiktrends/core';
-import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -119,6 +119,13 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
   }
 
   const arbitre = d?.verdictStatus === 'validated';
+  // Ce que chaque section a le droit de dire, selon l'état RÉEL du test (noyau ·
+  // presentationTest). Préparer un lot et « Mesurer maintenant » sont réservés
+  // aux administrateurs · les mêmes que ceux qui partagent (`peutPartager`).
+  const pres = d ? presentationTest(
+    { status: d.status, launchedAt: d.launchedAt, computed: d.computed, verdictStatus: d.verdictStatus, batchNumber: d.batchNumber, apprentissages: d.learnings.length },
+    { peutPreparer: peutPartager, peutMesurer: peutPartager },
+  ) : null;
   const ecart = !!d?.computed && value !== d.computed;
   // Une relative est prometteuse, pas gagnante (R01) · et un gagnant NON
   // comparable (importé/déclaré, hors protocole) ne l'est pas davantage (N02) ·
@@ -210,9 +217,18 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                   )}
                 </>
               ) : (
-                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
-                  Aucun verdict calculé. Lance « Mesurer maintenant » sur la carte · sans chiffre, il n’y a rien à arbitrer.
-                </p>
+                <>
+                  <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>{pres?.resultatVide}</p>
+                  {pres?.prochaineEtape && (
+                    <>
+                      <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>{pres.prochaineEtape.texte}</p>
+                      {/* Sur sa propre ligne · la cible de 44 px n'étire pas l'interligne du texte. */}
+                      {pres.prochaineEtape.lien && (
+                        <Link href={pres.prochaineEtape.lien.href} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>{pres.prochaineEtape.lien.libelle} ›</Link>
+                      )}
+                    </>
+                  )}
+                </>
               )}
               {d.hypothesis && (
                 <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
@@ -221,8 +237,10 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
               )}
             </Section>
 
-            {/* 2 · L'arbitrage */}
-            <Section titre={arbitre ? 'Arbitrage' : 'Arbitrer ce test'}>
+            {/* 2 · L'arbitrage · masqué tant qu'il n'y a rien à arbitrer ni
+                d'apprentissage à relire (test à lancer, ou lancé sans verdict). */}
+            {pres?.arbitrageVisible && (
+            <Section titre={arbitre ? 'Arbitrage' : d.computed ? 'Arbitrer ce test' : 'Apprentissages'}>
               {arbitre ? (
                 <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
                   Verdict retenu : <strong style={{ color: 'var(--ink)' }}>{labelVerdict(d.validated)}</strong>.
@@ -285,6 +303,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                 </ul>
               )}
             </Section>
+            )}
 
             {/* 3 · La suite */}
             <Section titre="La suite">
@@ -304,7 +323,10 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                 </ul>
               )}
 
-              {!gagnante ? (
+              {!pres?.suiteApresVerdict ? (
+                // Pas de verdict · la règle gagnante/perdante ne s'applique pas encore.
+                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>{pres?.suiteAttente}</p>
+              ) : !gagnante ? (
                 <>
                   <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
                     {REGLE_ITERATION} Reprends l’angle dans le Studio pour ouvrir une piste neuve.

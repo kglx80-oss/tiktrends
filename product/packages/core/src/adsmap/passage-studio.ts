@@ -122,3 +122,70 @@ export function bucketPerfCarte(v: EtatVerdictCarte | null | undefined): BucketP
   if (v === 'gagnante' || v === 'petite_gagnante') return 'gagnante';
   return 'autre';
 }
+
+// ── Le panneau d'un test, selon son état RÉEL (recette I1 #1) ────────────────
+//
+// Ouvert depuis une créa « à lancer », le panneau disait « Lance Mesurer
+// maintenant » à un test jamais diffusé, montrait une section d'arbitrage vide
+// et une règle d'itération (gagnante / perdante) sans verdict. On décide ici ce
+// que chaque section a le droit de dire · le panneau ne fait que l'afficher.
+
+/** La phase d'un test · ce qui décide de ce que le panneau peut dire. */
+export type PhaseTest = 'a_lancer' | 'en_mesure' | 'mesure';
+
+export interface PresentationTest {
+  phase: PhaseTest;
+  /** Le texte de « Ce que le test a donné » quand aucun verdict n'est calculé · `null` = montrer le verdict. */
+  resultatVide: string | null;
+  /** La prochaine étape EXISTANTE, et son lien quand le rôle le permet. */
+  prochaineEtape: { texte: string; lien: { href: string; libelle: string } | null } | null;
+  /** La section d'arbitrage a-t-elle quelque chose à montrer ou à faire. */
+  arbitrageVisible: boolean;
+  /** La règle d'itération (gagnante / perdante) ne vaut qu'après un verdict. */
+  suiteApresVerdict: boolean;
+  /** Ce que dit « La suite » avant tout verdict · `null` en phase mesurée. */
+  suiteAttente: string | null;
+}
+
+/** L'existant pour préparer et lancer un test · l'écran des lots (admin). */
+export const PREPARER_UN_TEST = { href: '/adsmap/lots', libelle: 'Préparer un test' } as const;
+
+export function presentationTest(
+  t: { status: string; launchedAt: string | null; computed: string | null; verdictStatus: 'computed' | 'validated' | null; batchNumber: number | null; apprentissages: number },
+  o: { peutPreparer: boolean; peutMesurer: boolean },
+): PresentationTest {
+  const arbitre = t.verdictStatus === 'validated';
+  if (t.computed || arbitre) {
+    return { phase: 'mesure', resultatVide: null, prochaineEtape: null, arbitrageVisible: true, suiteApresVerdict: true, suiteAttente: null };
+  }
+  const arbitrageVisible = t.apprentissages > 0;
+  if (adLancee(t)) {
+    return {
+      phase: 'en_mesure',
+      resultatVide: o.peutMesurer
+        ? 'Lancée · pas encore de verdict calculé. « Mesurer maintenant », en tête d’Adsmap, le calcule dès que les chiffres de la régie arrivent.'
+        : 'Lancée · pas encore de verdict calculé. La prochaine mesure le calculera dès que les chiffres de la régie arrivent.',
+      prochaineEtape: null,
+      arbitrageVisible,
+      suiteApresVerdict: false,
+      suiteAttente: 'L’itération se décide sur le verdict · rien à décider tant que la mesure n’a pas tranché.',
+    };
+  }
+  const lot = t.batchNumber;
+  const base = t.status === 'ready' && lot !== null
+    ? `Prête dans le lot ${lot} · il reste à lancer le lot · la mesure commence au lancement.`
+    : lot !== null
+      ? `Dans le lot ${lot} · à préparer puis lancer · la mesure commence au lancement.`
+      : 'Prochaine étape · la placer dans un lot de test, le préparer puis le lancer · la mesure commence au lancement.';
+  return {
+    phase: 'a_lancer',
+    resultatVide: 'Pas encore lancée · aucun chiffre à lire, donc rien à arbitrer.',
+    prochaineEtape: {
+      texte: o.peutPreparer ? base : `${base} Un administrateur de l’espace s’en charge.`,
+      lien: o.peutPreparer ? { ...PREPARER_UN_TEST } : null,
+    },
+    arbitrageVisible,
+    suiteApresVerdict: false,
+    suiteAttente: 'L’itération se décide sur le verdict · rien à décider tant que le test n’a pas tourné.',
+  };
+}

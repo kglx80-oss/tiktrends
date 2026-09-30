@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  adLancee, lienAdsmapCarte, etatApresSuivi, lireLienProfondAdsmap, bucketPerfCarte, RETOUR_STUDIO,
+  adLancee, lienAdsmapCarte, etatApresSuivi, presentationTest, lireLienProfondAdsmap, bucketPerfCarte, RETOUR_STUDIO,
   filtrerTriGalerie, CRITERES_DEFAUT, type EtatVerdictCarte,
 } from '../src/index';
 
@@ -91,5 +91,56 @@ describe('etatApresSuivi · juste après « Suivre », rien ne se mesure encore'
   it('un état déjà connu n’est pas écrasé', () => {
     expect(etatApresSuivi('perdante')).toBe('perdante');
     expect(etatApresSuivi('introuvable')).toBe('introuvable');
+  });
+});
+
+describe('presentationTest · le panneau dit l’état RÉEL du test (recette I1 #1)', () => {
+  const base = { status: 'draft', launchedAt: null, computed: null, verdictStatus: null, batchNumber: null, apprentissages: 0 } as const;
+  const admin = { peutPreparer: true, peutMesurer: true };
+
+  it('à lancer · ni « Mesurer maintenant » ni arbitrage vide ni règle gagnante/perdante', () => {
+    const p = presentationTest(base, admin);
+    expect(p.phase).toBe('a_lancer');
+    expect(p.resultatVide, 'un test jamais diffusé est invité à « Mesurer maintenant »').not.toMatch(/Mesurer maintenant/);
+    expect(p.resultatVide).toContain('Pas encore lancée');
+    expect(p.arbitrageVisible, 'la section d’arbitrage vide s’affiche pour un test à lancer').toBe(false);
+    expect(p.suiteApresVerdict, 'la règle gagnante/perdante s’affiche sans verdict').toBe(false);
+    expect(p.suiteAttente).toContain('rien à décider');
+  });
+
+  it('à lancer · la prochaine étape est l’EXISTANT (lots de test), lien seulement si le rôle le permet', () => {
+    expect(presentationTest(base, admin).prochaineEtape!.lien).toEqual({ href: '/adsmap/lots', libelle: 'Préparer un test' });
+    const membre = presentationTest(base, { peutPreparer: false, peutMesurer: false }).prochaineEtape!;
+    expect(membre.lien, 'un lien vers les lots est offert à qui ne peut pas y entrer').toBeNull();
+    expect(membre.texte).toContain('administrateur');
+  });
+
+  it('à lancer · dit où en est le lot quand l’ad y est déjà', () => {
+    expect(presentationTest({ ...base, status: 'ready', batchNumber: 3 }, admin).prochaineEtape!.texte).toContain('Prête dans le lot 3');
+    expect(presentationTest({ ...base, batchNumber: 3 }, admin).prochaineEtape!.texte).toContain('Dans le lot 3');
+  });
+
+  it('lancée sans verdict · en mesure, « Mesurer maintenant » pour qui peut mesurer, pas d’arbitrage vide', () => {
+    const p = presentationTest({ ...base, status: 'live', launchedAt: '2026-09-01' }, admin);
+    expect(p.phase).toBe('en_mesure');
+    expect(p.resultatVide).toContain('Lancée');
+    expect(p.resultatVide).toContain('Mesurer maintenant');
+    expect(presentationTest({ ...base, status: 'live' }, { peutPreparer: false, peutMesurer: false }).resultatVide, 'un bouton réservé est promis à un membre').not.toContain('Mesurer maintenant');
+    expect(p.arbitrageVisible).toBe(false);
+    expect(p.prochaineEtape).toBeNull();
+  });
+
+  it('un verdict calculé ou arbitré rend le panneau complet · comportement inchangé', () => {
+    for (const t of [{ ...base, status: 'live', computed: 'loser' }, { ...base, verdictStatus: 'validated' as const }]) {
+      const p = presentationTest(t, admin);
+      expect(p.phase).toBe('mesure');
+      expect(p.resultatVide).toBeNull();
+      expect(p.arbitrageVisible).toBe(true);
+      expect(p.suiteApresVerdict).toBe(true);
+    }
+  });
+
+  it('des apprentissages existants restent visibles, même sans verdict', () => {
+    expect(presentationTest({ ...base, apprentissages: 1 }, admin).arbitrageVisible).toBe(true);
   });
 });
