@@ -8,7 +8,6 @@ import { falConfigured } from '@tiktrends/integrations';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { listBrandAds, listSavedAdRefs } from '../../../actions/ads';
 import { listAssets } from '../../../actions/assets';
-import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { AdsStudio } from './AdsStudio';
 import { Icon } from '../../../../components/Icon';
 import { essaiSuivantAction } from '../../../actions/adsmap-attribution';
@@ -88,8 +87,8 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   }
 
   const brand = await getActiveBrand(s.workspaceId);
-  // Enrichissement automatique (DA, produits, photos) · sans bouton, avant l'affichage.
-  if (brand) await ensureBrandEnriched(brand.id);
+  // Ouvrir le Studio ne modifie rien et n'appelle aucun site · l'enrichissement
+  // passe par ses gestes explicites (voir lecture-seule.test).
   const [ads, savedRefs, allAssets] = await Promise.all([listBrandAds(), listSavedAdRefs(), listAssets({ kind: 'image', limit: 24 })]);
   const assetChoices = allAssets.map((a) => ({ id: a.id, name: a.name, url: a.url, thumbUrl: a.thumbUrl, isTemplate: a.isTemplate }));
   // `photoUrl` est la référence EXACTE que le moteur utilise (products.imageUrl,

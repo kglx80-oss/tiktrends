@@ -5,7 +5,6 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
 import { listBrandVideos, listAnimatableAssets } from '../../../actions/video';
 import { anthropicConfigured } from '../../../../lib/ai-status';
-import { ensureBrandEnriched } from '../../../../lib/enrich';
 import { VideoStudioFull } from './VideoStudioFull';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
@@ -34,7 +33,6 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
 
   const sp = await searchParams;
   const brand = await getActiveBrand(s.workspaceId);
-  if (brand) await ensureBrandEnriched(brand.id);
   const [videos, assets] = await Promise.all([listBrandVideos(), listAnimatableAssets()]);
   // Même accès que les pubs · la vidéo peut désormais être poussée en test dans
   // Adsmap (le pont accepte le format vidéo). On expose le bouton « Suivre »
