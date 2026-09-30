@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
@@ -38,16 +39,65 @@ const apercu = {
 
 const pied = { padding: '11px 13px', minHeight: CIBLE_TACTILE_MIN, display: 'grid', gap: 2, alignContent: 'center', minWidth: 0 } as const;
 
+const fondAssise = 'radial-gradient(120% 120% at 30% 20%, rgba(254,44,85,.16), transparent 55%), linear-gradient(160deg, var(--paper), var(--surface))';
+
+/** Le fond derrière un LOGO · une assise NEUTRE intermédiaire, fixe (indépendante
+ *  du thème). Un logo SOMBRE (ex. Klorea) sur l'assise sombre de la carte était
+ *  illisible (dark-on-dark) · un plateau clair rendait à l'inverse un logo CLAIR
+ *  invisible. Un gris moyen (luminance ≈ 0,18) est le neutre qui MAXIMISE le pire
+ *  contraste des deux extrêmes · logo noir ET logo blanc y tiennent ≈ 4,6:1 (AA)
+ *  SANS retoucher leur dessin (aucun contour universel). Les logos colorés et à
+ *  fond propre s'y posent aussi. L'initiale de repli reste sur l'assise sombre. */
+const fondLogo = '#767676';
+
 /** Repli soigné · l'initiale de la marque sur un fond dégradé sobre, centrée et
  *  lisible · remplit toute la surface d'aperçu quand il n'y a pas d'image. */
 function ReplInitiale({ name }: { name: string }) {
   const initiales = name.trim().replace(/\s+/g, ' ').split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase() || '·';
   return (
-    <div style={{
-      ...apercu,
-      background: 'radial-gradient(120% 120% at 30% 20%, rgba(254,44,85,.16), transparent 55%), linear-gradient(160deg, var(--paper), var(--surface))',
-    }}>
+    <div style={{ ...apercu, background: fondAssise }}>
       <span aria-hidden style={{ fontSize: 'clamp(28px, 6vw, 40px)', fontWeight: 800, letterSpacing: '-.02em', color: 'var(--ink)', opacity: 0.9 }}>{initiales}</span>
+    </div>
+  );
+}
+
+/**
+ * Le contenu de la surface d'aperçu · un LOGO n'est pas une COUVERTURE.
+ *
+ * ── Ce qui n'allait pas ──────────────────────────────────────────────────────
+ *
+ * Le vrai logo d'une marque était affiché en `object-fit: cover`, étiré pour
+ * remplir la surface 16/10 · un logo (souvent carré/large, avec transparence)
+ * s'y retrouvait agrandi et recadré · on n'en voyait qu'un fragment (observé en
+ * prod, marque Klorea). La fixture « LOGO » (une image de couverture large)
+ * masquait le défaut.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ * Le logo se pose ENTIER (`contain`), centré, avec de la marge (padding) sur un
+ * fond assis · large, haut ou transparent, il se lit en entier sans découpe. Si
+ * l'image ne charge pas, repli LOCAL sur l'initiale · aucune surface vide.
+ */
+function ContenuApercu({ logoUrl, name }: { logoUrl?: string | null; name: string }) {
+  const [erreur, setErreur] = useState(false);
+  if (!logoUrl || erreur) return <ReplInitiale name={name} />;
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: fondLogo, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.06)', padding: '13%' }}>
+      <img
+        src={logoUrl}
+        alt=""
+        onError={() => setErreur(true)}
+        ref={(el) => {
+          // `onError` seul ne suffit PAS avec le rendu serveur · l'image est
+          // rendue avec son `src` dès le HTML, donc une URL cassée échoue AVANT
+          // l'hydratation, avant que `onError` soit attaché · l'événement est
+          // manqué et l'icône brisée reste (observé sur la carte « Cassée » ·
+          // aucun repli). On rattrape l'état « déjà cassée » à l'hydratation ·
+          // `complete` avec `naturalWidth` à 0 = chargée mais indécodable.
+          if (el && el.complete && el.naturalWidth === 0) setErreur(true);
+        }}
+        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+      />
     </div>
   );
 }
@@ -84,9 +134,7 @@ export function HomeMarques({ marques, activeId }: { marques: MarqueCarte[]; act
             return (
               <Link key={m.id} href={`/brands/${m.id}`} aria-current={actif ? 'true' : undefined} style={carte}>
                 <div style={apercu}>
-                  {m.logoUrl
-                    ? <img src={m.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <ReplInitiale name={m.name} />}
+                  <ContenuApercu logoUrl={m.logoUrl} name={m.name} />
                   {actif && (
                     <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 9px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>Active</span>
                   )}

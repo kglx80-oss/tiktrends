@@ -66,6 +66,47 @@ describe('Accueil · cartes des marques (Recent Projects)', () => {
     // Aucune carte de marque fictive (pas de /brands/<id> autre que new).
     expect(html).not.toMatch(/\/brands\/b-/);
   });
+
+  it('un LOGO se pose ENTIER (contain + marge), jamais étiré en couverture (cover)', () => {
+    // Défaut prod (Klorea) · le vrai logo était en `object-fit: cover`, recadré ·
+    // on n'en voyait qu'un fragment. Un logo n'est pas une couverture · il se pose
+    // en `contain`, centré, avec de la marge, sur un fond assis.
+    const html = renderToStaticMarkup(
+      <HomeMarques marques={[{ id: 'b-logo', name: 'Klorea', logoUrl: 'data:image/png;base64,AAAA' }]} activeId={null} />,
+    );
+    expect(html, 'le logo doit être posé ENTIER (contain)').toContain('object-fit:contain');
+    expect(html, 'un logo ne doit jamais être recadré en couverture (cover)').not.toContain('object-fit:cover');
+    // Le logo a de la marge (padding %) autour · il ne colle pas aux bords.
+    expect(html, 'le logo n’a pas de marge autour').toMatch(/padding:13%/);
+    expect(html).toContain('src="data:image/png;base64,AAAA"');
+  });
+
+  it('un logo se pose sur une assise NEUTRE · logos noirs ET blancs lisibles, sans contour', () => {
+    // Défaut de recette (carte « Sombre Co » ≈ Klorea) · un logo SOMBRE sur
+    // l'assise sombre de la carte était illisible (dark-on-dark) · un plateau
+    // clair rendait à l'inverse un logo CLAIR invisible. Le plateau est une
+    // assise NEUTRE intermédiaire (gris moyen ≈ luminance 0,18) · logo noir ET
+    // blanc y tiennent ≈ 4,6:1 SANS retoucher leur dessin. Pas de contour
+    // universel (le halo « en relief » refusé en recette ne doit pas revenir).
+    const html = renderToStaticMarkup(
+      <HomeMarques marques={[{ id: 'b-logo', name: 'Klorea', logoUrl: 'data:image/png;base64,AAAA' }]} activeId={null} />,
+    );
+    expect(html, 'le logo n’est pas sur l’assise neutre (contraste noir ET blanc)').toContain('#767676');
+    expect(html, 'un contour universel (drop-shadow) a été réintroduit sur le logo').not.toContain('drop-shadow');
+  });
+
+  it('un logo cassé RENDU SERVEUR retombe sur l’initiale · onError seul ne suffit pas', () => {
+    // Défaut SSR observé (carte « Cassée ») · l'image est rendue avec son `src`
+    // dès le HTML · une URL cassée échoue AVANT l'hydratation, avant que
+    // `onError` soit attaché · l'événement est manqué et l'icône brisée reste.
+    // Le composant rattrape l'état « déjà cassée » à l'hydratation (complete +
+    // naturalWidth 0). jsdom ne charge pas les images · on garde le CÂBLAGE en
+    // source (même raison que les gardes de câblage du rail). Le RÉSULTAT visible
+    // (initiale au repli) est prouvé par le rendu ci-dessus et la recette CDP.
+    const src = readFileSync(join(process.cwd(), 'components', 'HomeMarques.tsx'), 'utf8');
+    expect(src, 'le repli ne rattrape pas l’image déjà cassée à l’hydratation').toMatch(/naturalWidth === 0/);
+    expect(src, 'le rattrapage ne s’appuie pas sur complete').toContain('.complete');
+  });
 });
 
 describe('Accueil · hiérarchie · bandeau PUIS marques, avant le reste', () => {
