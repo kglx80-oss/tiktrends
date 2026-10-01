@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { verrouAction, CIBLE_TACTILE_MIN, appliquerSuggestionSeuils } from '@tiktrends/core';
+import { verrouAction, CIBLE_TACTILE_MIN, appliquerSuggestionSeuils, LIBELLE_VERDICT } from '@tiktrends/core';
 import { saveSettingsAction, suggestSettingsAction, type SettingsBundle } from '../../../actions/adsmap-protocol';
 
 /**
@@ -141,7 +141,9 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
             <input type="number" min={1} step={1} value={s.verdict.targetCpa} disabled={!canEdit}
               onChange={(e) => setV('targetCpa', Number(e.target.value))} style={input} />
           </Champ>
-          <Champ label="Tolérance « naissante » (%)" aide="30 % : une ad jusqu’à 30 % au-dessus de la cible reste prometteuse, à itérer avant de scaler.">
+          {/* Le libellé du verdict vient du noyau · « prometteuse » désigne une
+              piste RELATIVE ailleurs, jamais ce verdict (recette #106). */}
+          <Champ label="Tolérance « naissante » (%)" aide={`30 % : une ad jusqu’à 30 % au-dessus de la cible est classée « ${LIBELLE_VERDICT.baby_winner.court} », à itérer avant de scaler.`}>
             {/* Saisi en % (R06 · sans conversion mentale) · stocké en fraction. */}
             <input type="number" min={0} max={100} step={5} value={Math.round(s.verdict.babyTolerance * 100)} disabled={!canEdit}
               onChange={(e) => setV('babyTolerance', Number(e.target.value) / 100)} style={input} />

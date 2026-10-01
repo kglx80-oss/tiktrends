@@ -184,7 +184,9 @@ export function Lots({ batches, brandName }: {
               {lotCourant ? (
                 <>
                   <strong>Lot {lotCourant.number}</strong> · {lotCourant.ads} ad(s)
-                  <span title={lotCourant.goal ?? undefined} style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {/* Le but complet, à la ligne · une ellipse ne se lit qu'au
+                      survol, ni au doigt ni au clavier (recette #106). */}
+                  <span style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1, overflowWrap: 'anywhere' }}>
                     {STATUS_LABEL[lotCourant.status] ?? lotCourant.status}
                     {estLotImporte({ status: lotCourant.status, launchedAt: lotCourant.launchedAt }) && ' · importé'}
                     {lotCourant.goal ? ` · ${lotCourant.goal}` : ''}
@@ -309,7 +311,7 @@ export function Lots({ batches, brandName }: {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                       <strong style={{ fontSize: 12.5, color: 'var(--ink)' }}>{a.variantCode}</strong>
-                      <span title={a.concept} style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.concept}</span>
+                      <span style={{ fontSize: 12, color: 'var(--ink-2)', flex: '1 1 160px', minWidth: 0, overflowWrap: 'anywhere' }}>{a.concept}</span>
                       <span style={{ fontSize: 11, color: 'var(--muted)' }}>{STATUS_LABEL[a.status] ?? a.status}</span>
                       {/* La fiche de CETTE ad (hypothèse, verdict, suite) · le lot ne
                           menait nulle part vers ses variantes. */}

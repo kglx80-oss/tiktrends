@@ -56,10 +56,13 @@ describe('Lots · lancer, noms longs, lien vers la variante', () => {
     const raison = document.getElementById(b.getAttribute('aria-describedby') ?? 'x');
     expect(raison?.textContent, 'la raison n’est dite qu’au survol').toContain('pas encore prête');
   });
-  it('concept long · coupé mais complet au survol ; la ligne mène à la fiche de l’ad', async () => {
+  it('concept long · ENTIER à l’écran (lisible au doigt et au clavier) ; la ligne mène à la fiche de l’ad', async () => {
     const h = await monter(<Lots batches={[{ id: 'l1', number: 7, status: 'planned', goal: null, launchedAt: null, ads: 1 }]} brandName="Neva" />);
     const c = [...h.querySelectorAll('span')].find((s) => s.textContent === LONG) as HTMLElement;
-    expect(c.getAttribute('title'), 'concept long sans nom complet').toBe(LONG);
+    expect(c, 'concept long absent').toBeTruthy();
+    expect(c.style.textOverflow, 'concept long coupé · lisible au seul survol').not.toBe('ellipsis');
+    expect(c.style.whiteSpace).not.toBe('nowrap');
+    expect(c.style.overflowWrap).toBe('anywhere');
     expect([...h.querySelectorAll('a')].some((a) => a.getAttribute('href') === '/adsmap?ad=a1'), 'aucun lien vers la fiche de la variante').toBe(true);
   });
 });
@@ -69,6 +72,12 @@ describe('Protocole · « Proposer des seuils » ne touche qu’aux seuils', () 
     protocol: { structure: 'abo_single_adset' as const, dailyBudgetPerAd: 12, durationDays: 10, audienceRule: 'Large FR 25-45', campaignNamePattern: 'NEVA_{lot}', budgetVarianceTolerance: 0.1 },
     verdict: { ...DEFAULT_VERDICT_CONFIG, targetCpa: 22 }, namingPattern: 'x', isDefault: false,
   };
+  it('la tolérance « naissante » parle du verdict du noyau, jamais de « prometteuse »', async () => {
+    const h = await monter(<ProtocolForm initial={initial} canEdit />);
+    const aide = [...h.querySelectorAll('*')].find((e) => e.children.length === 0 && /au-dessus de la cible/.test(e.textContent ?? ''))!.textContent!;
+    expect(aide, '« prometteuse » désigne une piste relative ailleurs').not.toContain('prometteuse');
+    expect(aide).toContain('« Gagnante naissante »');
+  });
   it('lecture seule · pas de bouton pour proposer ce qu’on ne peut pas enregistrer', async () => {
     const h = await monter(<ProtocolForm initial={initial} canEdit={false} />);
     expect(bouton(h, 'Proposer des seuils'), 'bouton visible en lecture seule').toBeUndefined();
