@@ -134,3 +134,4 @@ export * from './onboarding';
 export * from './accueil';
 export * from './assistant-pub';
 export * from './copie-client';
+export * from './veille-echantillon';
