@@ -70,12 +70,34 @@ export function etatFicheAdsmap(adId: string, vue: VueAdsmap): { ficheAdsmap: st
 }
 
 /**
+ * La fiche que porte l'entrée d'historique courante · l'état posé à
+ * l'ouverture, sinon le `?ad=` de l'URL.
+ *
+ * Mesuré (Chrome, 1280, recette #106) · une action serveur qui renvoie un arbre
+ * fait réécrire l'entrée courante par le routeur Next (15.5 ·
+ * `preserveCustomHistoryState = false`), SANS notre état · l'URL, elle, est
+ * conservée. Fermée ensuite, la fiche ne reconnaissait plus son entrée et
+ * laissait `?ad=` dans l'URL (2 cycles Échap/Avant sur une vingtaine).
+ */
+export function ficheDeLEntree(etat: unknown, recherche: string): string | null {
+  const e = etat && typeof etat === 'object' ? (etat as { ficheAdsmap?: unknown }) : null;
+  if (e && typeof e.ficheAdsmap === 'string' && e.ficheAdsmap) return e.ficheAdsmap;
+  const p = new URLSearchParams(recherche.startsWith('?') ? recherche.slice(1) : recherche);
+  return p.get(PARAM_TEST_ADSMAP) || null;
+}
+
+/**
  * Au retour sur une entrée d'historique (Avant, ou Retour vers une fiche),
  * la fiche que la vue `vue` doit rouvrir · seulement l'entrée posée par une
  * fiche de CETTE vue (une autre vue montée en arrière-plan ne rouvre rien).
+ * Entrée réécrite par le routeur (voir `ficheDeLEntree`) · l'URL décide, sauf
+ * un lien profond (`?depuis=`), que la page rouvre elle-même.
  */
-export function ficheARouvrir(etat: unknown, vue: VueAdsmap): string | null {
-  if (!etat || typeof etat !== 'object') return null;
-  const e = etat as { ficheAdsmap?: unknown; vueAdsmap?: unknown };
-  return typeof e.ficheAdsmap === 'string' && e.ficheAdsmap && e.vueAdsmap === vue ? e.ficheAdsmap : null;
+export function ficheARouvrir(etat: unknown, vue: VueAdsmap, recherche = ''): string | null {
+  const e = etat && typeof etat === 'object' ? (etat as { ficheAdsmap?: unknown; vueAdsmap?: unknown }) : null;
+  if (e && typeof e.ficheAdsmap === 'string' && e.ficheAdsmap) return e.vueAdsmap === vue ? e.ficheAdsmap : null;
+  const p = new URLSearchParams(recherche.startsWith('?') ? recherche.slice(1) : recherche);
+  const id = p.get(PARAM_TEST_ADSMAP);
+  if (!id || p.has(PARAM_DEPUIS)) return null;
+  return lireVueAdsmap(p.get(PARAM_VUE_ADSMAP)) === vue ? id : null;
 }

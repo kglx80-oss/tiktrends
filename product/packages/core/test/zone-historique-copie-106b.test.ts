@@ -97,4 +97,18 @@ describe('ficheARouvrir · Échap puis Avant rouvre la fiche de la bonne vue', (
     expect(ficheARouvrir(null, 'table')).toBeNull();
     expect(ficheARouvrir({ ficheAdsmap: 'ad-1' }, 'table'), 'entrée sans vue (ancienne) · rien à rouvrir').toBeNull();
   });
+
+  it('entrée réécrite par le routeur (sans notre état) · l’URL décide, jamais un lien profond', async () => {
+    const { ficheARouvrir, ficheDeLEntree } = await import('../src/adsmap/historique-fiche');
+    const nx = { __NA: true };
+    expect(ficheARouvrir(nx, 'table', '?vue=table&ad=ad-1')).toBe('ad-1');
+    expect(ficheARouvrir(nx, 'decider', '?ad=ad-1')).toBe('ad-1');
+    expect(ficheARouvrir(nx, 'decider', '?vue=table&ad=ad-1'), 'une autre vue rouvre la fiche').toBeNull();
+    expect(ficheARouvrir(nx, 'decider', '?ad=ad-1&depuis=studio'), 'le lien profond est rouvert par la page').toBeNull();
+    expect(ficheARouvrir(nx, 'table', '?vue=table')).toBeNull();
+    expect(ficheARouvrir({ ficheAdsmap: 'ad-2', vueAdsmap: 'carte' }, 'table', '?vue=table&ad=ad-1'), 'notre état prime sur l’URL').toBeNull();
+    expect(ficheDeLEntree({ ficheAdsmap: 'ad-2' }, '?ad=ad-1')).toBe('ad-2');
+    expect(ficheDeLEntree(nx, '?vue=table&ad=ad-1')).toBe('ad-1');
+    expect(ficheDeLEntree(null, '?vue=table')).toBeNull();
+  });
 });

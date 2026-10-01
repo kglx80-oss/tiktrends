@@ -117,6 +117,27 @@ describe('Échap puis Avant · la fiche se rouvre (recette #106)', () => {
     expect(decider!.getAttribute('data-ouverte'), 'une autre vue a rouvert la fiche').toBe('');
   });
 
+  it('entrée réécrite par le routeur (action serveur) · Avant rouvre d’après l’URL', async () => {
+    const h = await monter(<><Liste vue="table" /><Liste vue="decider" /></>);
+    // Next 15.5 réécrit l'entrée sans notre état · seule l'URL garde `?ad=`.
+    window.history.replaceState({ __NA: true }, '', `/adsmap?vue=table&ad=${ID}`);
+    await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: { __NA: true } })); });
+    const [table, decider] = [...h.querySelectorAll('p')];
+    expect(table!.getAttribute('data-ouverte'), 'entrée réécrite · Avant ne rouvre pas la fiche').toBe(ID);
+    expect(decider!.getAttribute('data-ouverte')).toBe('');
+  });
+
+  it('entrée réécrite par le routeur · fermer consomme quand même l’entrée, rouvrir n’en empile pas une seconde', async () => {
+    window.history.replaceState(null, '', '/adsmap?vue=table');
+    await monter(<AdDrawer adId={ID} onClose={() => {}} onChanged={() => {}} />);
+    window.history.replaceState({ __NA: true }, '', window.location.href);
+    await demonter(); await attendre();
+    expect(back, 'entrée réécrite · la fiche fermée laisse `?ad=` dans l’historique').toHaveBeenCalledTimes(1);
+    const avant = window.history.length;
+    await monter(<AdDrawer adId={ID} onClose={() => {}} onChanged={() => {}} />);
+    expect(window.history.length, 'rouverte sur son entrée réécrite, la fiche empile un doublon').toBe(avant);
+  });
+
   it('chaque liste (À décider, Table, Carte) rouvre ses fiches', () => {
     for (const [f, v] of [['Inbox', 'decider'], ['AdsMapTable', 'table'], ['Canvas', 'carte']]) {
       const src = readFileSync(join(process.cwd(), `app/(app)/adsmap/${f}.tsx`), 'utf8');

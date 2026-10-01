@@ -11,7 +11,7 @@ import { ficheARouvrir, type VueAdsmap } from '@tiktrends/core';
 export function useRouvrirFiche(vue: VueAdsmap, ouvrir: (adId: string) => void): void {
   useEffect(() => {
     const surHistorique = (e: PopStateEvent) => {
-      const id = ficheARouvrir(e.state ?? window.history.state, vue);
+      const id = ficheARouvrir(e.state ?? window.history.state, vue, window.location.search);
       if (id) ouvrir(id);
     };
     window.addEventListener('popstate', surHistorique);
