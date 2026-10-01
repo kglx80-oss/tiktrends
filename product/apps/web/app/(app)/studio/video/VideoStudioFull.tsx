@@ -93,7 +93,8 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
       if ((v.status !== 'processing' && v.status !== 'queued') || v.id.startsWith('tmp-')) return;
       const ageMin = (now - new Date(v.createdAt).getTime()) / 60000;
       // Trop vieux : on l'affiche en échec tout de suite (le serveur le confirmera aussi).
-      if (ageMin > 20) { setVideos((list) => list.map((x) => x.id === v.id ? { ...x, status: 'failed' } : x)); }
+      // Le badge « Échec » seul ne disait pas pourquoi · c'est le délai (lot 9).
+      if (ageMin > 20) { setVideos((list) => list.map((x) => x.id === v.id ? { ...x, status: 'failed', error: x.error ?? 'Sans résultat après 20 minutes · considérée comme échouée.' } : x)); }
       if (v.jobId) poll(v.id, v.jobId);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -455,7 +455,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                     {nt.resume && <div style={{ fontSize: 11, color: '#ff9db0', marginTop: 2, lineHeight: 1.4 }}>{nt.resume}</div>}
                   </div>
                 ); })()}
-                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                   {im.prompt && (
                     <button type="button" onClick={() => vary(im)} disabled={busy || !ready} title="3 variantes du même brief" style={{
                       flex: 1, minHeight: CIBLE_TACTILE_MIN, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,

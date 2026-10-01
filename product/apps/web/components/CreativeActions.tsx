@@ -34,7 +34,11 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    // `flexWrap` · dans une carte de 200 px (grille desktop), les six actions à
+    // 44 px ne tenaient pas sur une ligne · la carte (overflow:hidden) coupait
+    // « Suivre », « Archiver » / « Supprimer » à droite (lot 9, 1280 et 1440).
+    // Elles passent à la ligne, sans rétrécir ni disparaître.
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       {onOpen && (
         <button type="button" onClick={onOpen} style={actBtn} title="Ouvrir en grand" aria-label="Ouvrir">
           <Icon name="frame" size={14} />
