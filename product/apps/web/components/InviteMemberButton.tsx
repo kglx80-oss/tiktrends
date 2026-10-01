@@ -14,13 +14,13 @@ export function InviteMemberButton() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} style={{
+      <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} style={{
         padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13,
         cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)',
       }}>＋ Inviter un membre</button>
 
       <Modal open={open} onClose={() => setOpen(false)} icon={<Icon name="users" size={18} />} title="Inviter un membre"
-        subtitle="L'invité reçoit un lien pour définir son mot de passe et rejoindre l'espace avec le rôle choisi.">
+        subtitle="Un lien permet à l'invité de rejoindre l'espace avec le rôle choisi · par e-mail si l'envoi est configuré, sinon à copier depuis la liste.">
         <form action={createInviteAction} style={{ display: 'grid', gap: 14 }}>
           <label style={{ display: 'block' }}>
             <span style={lbl}>E-mail</span>

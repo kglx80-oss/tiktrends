@@ -5,13 +5,14 @@ import { Icon } from '../../../components/Icon';
 import { BarreValeur } from '../../../components/BarreValeur';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax } from '@tiktrends/core';
+import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax, partConsommeeCycle, libelleMotif } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { panel, Msg, cadrePage } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { trialStatus } from '../../../lib/trial';
 import { isFounder } from '../../../lib/founder';
+import { unlimitedCredits } from '../../../lib/credits';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,10 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
     ledger = await db.select().from(schema.creditLedger).where(eq(schema.creditLedger.workspaceId, s.workspaceId)).orderBy(desc(schema.creditLedger.createdAt)).limit(12);
   }
   const alloc = PLAN_CREDITS[s.plan as Plan] ?? 0;
-  const usedPct = alloc ? Math.min(100, Math.round(((alloc - balance) / alloc) * 100)) : 0;
+  // Illimité (fondateur, staff) · même vérité que /usage (∞), jamais « ◈ 0 ».
+  const illimite = unlimitedCredits(s.user.email);
+  // Borné, et jamais un 100 % fantôme sur un historique vide (`partConsommeeCycle`).
+  const conso = partConsommeeCycle({ allocation: alloc, solde: balance, illimite, mouvements: ledger.length });
 
   // Économie : coût réel fournisseur -> prix de revente (règle maison × markup).
   const markup = creditMarkup();
@@ -72,8 +76,8 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
       </p>
       <PageInfo title="comment marchent les crédits">
         Ton plan donne une <b>allocation mensuelle</b>. Chaque action IA débite des crédits selon un barème (ci-dessous),
-        avec une trace dans l'historique. Le propriétaire peut <b>recharger l'allocation</b> ou <b>ajuster</b> le solde
-        manuellement. Report partiel de 25&nbsp;% des crédits non utilisés en fin de cycle (règle CDC).
+        avec une trace dans l'historique. La recharge et l'ajustement du solde se font dans
+        {' '}<b>Formules &amp; crédits · pilotage</b> (lien ci-dessous).
       </PageInfo>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
@@ -98,14 +102,17 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
 
       {/* Solde + allocation */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
-        <div style={card}><div style={cl}>Solde actuel</div><div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--accent-strong)' }}>◈ {balance.toLocaleString('fr-FR')}</div></div>
+        <div style={card}><div style={cl}>Solde actuel</div><div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--accent-strong)' }}>{illimite ? '∞' : `◈ ${balance.toLocaleString('fr-FR')}`}</div>{illimite && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Illimité</div>}</div>
         <div style={card}><div style={cl}>Allocation ({PLAN_LABEL[s.plan]})</div><div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{alloc.toLocaleString('fr-FR')}</div><div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>par mois</div></div>
         <div style={card}>
           <div style={cl}>Consommé ce cycle</div>
-          <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{usedPct}%</div>
-          <div style={{ marginTop: 8 }}>
-            <BarreValeur part={partDeMax(usedPct, 100)} hauteur={8} piste="var(--bg)" />
-          </div>
+          <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{conso.pct === null ? '·' : `${conso.pct} %`}</div>
+          {conso.pct !== null && (
+            <div style={{ marginTop: 8 }}>
+              <BarreValeur part={partDeMax(conso.pct, 100)} hauteur={8} piste="var(--bg)" />
+            </div>
+          )}
+          {conso.note && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.45 }}>{conso.note}</div>}
         </div>
       </div>
 
@@ -320,8 +327,9 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
           <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
             {ledger.map((l) => (
               <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '6px 0', borderTop: '1px solid var(--line)' }}>
-                <div><div style={{ color: 'var(--ink)' }}>{l.reason}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{new Date(l.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</div></div>
-                <span style={{ fontWeight: 800, color: l.delta >= 0 ? 'var(--ok)' : '#ff9db0' }}>{l.delta >= 0 ? '+' : ''}{l.delta}</span>
+                {/* Même format que /usage · motif lisible, date et heure, milliers fr-FR. */}
+                <div style={{ minWidth: 0 }}><div style={{ color: 'var(--ink)', overflowWrap: 'anywhere' }}>{libelleMotif(l.reason)}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{new Date(l.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div></div>
+                <span style={{ fontWeight: 800, color: l.delta >= 0 ? 'var(--ok)' : '#ff9db0', whiteSpace: 'nowrap' }}>{l.delta >= 0 ? '+' : ''}{l.delta.toLocaleString('fr-FR')}</span>
               </div>
             ))}
           </div>

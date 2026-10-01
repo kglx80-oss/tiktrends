@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { redirect, notFound } from 'next/navigation';
 import { and, eq, asc } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
@@ -17,7 +19,7 @@ const STATUS: Record<string, { label: string; color: string }> = {
 };
 const stat = (k: string) => STATUS[k] ?? STATUS.open!;
 const OK: Record<string, string> = { created: 'Ticket ouvert.', reply: 'Réponse envoyée.', status: 'Statut mis à jour.' };
-const ERR: Record<string, string> = { empty: 'Écris un message.', forbidden: 'Action non autorisée.' };
+const ERR: Record<string, string> = { empty: 'Écris un message.', forbidden: 'Action non autorisée.', bad: 'Demande incomplète · réessaie.' };
 
 export default async function TicketThreadPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
@@ -44,13 +46,15 @@ export default async function TicketThreadPage({ params, searchParams }: {
 
   return (
     <main style={cadrePage}><div style={colonneLecture('fil')}>
+      {/* Retour à la liste · le fil n'en offrait aucun (recette #106). */}
+      <Link href="/support" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>‹ Tous les tickets</Link>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '10px 0 4px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>{TYPE_ICON[tk.type] ? <Icon name={TYPE_ICON[tk.type]!} size={13} /> : null}{TYPE_LABEL[tk.type] ?? tk.type}</span>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>{tk.title}</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--ink)', overflowWrap: 'anywhere', minWidth: 0 }}>{tk.title}</h1>
           </div>
-          <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>Ouvert par {tk.authorName} · {new Date(tk.createdAt as Date).toLocaleDateString('fr-FR')}</div>
+          <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>Ouvert par {tk.authorName || 'un membre'} · {new Date(tk.createdAt as Date).toLocaleDateString('fr-FR')}</div>
         </div>
         <span style={{ fontSize: 12, fontWeight: 800, padding: '5px 12px', borderRadius: 999, color: st.color, background: st.color + '22' }}>{st.label}</span>
       </div>
@@ -60,14 +64,14 @@ export default async function TicketThreadPage({ params, searchParams }: {
 
       {/* Statut (staff) */}
       {isAdmin && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Changer le statut :</span>
+        <div role="group" aria-labelledby="statut-ticket" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0', flexWrap: 'wrap' }}>
+          <span id="statut-ticket" style={{ fontSize: 12.5, color: 'var(--muted)' }}>Changer le statut :</span>
           {(['open', 'in_progress', 'resolved'] as const).map((v) => (
             <form key={v} action={setTicketStatusAction}>
               <input type="hidden" name="ticketId" value={tk.id} />
               <input type="hidden" name="status" value={v} />
-              <button type="submit" disabled={tk.status === v} style={{
-                fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999, cursor: tk.status === v ? 'default' : 'pointer',
+              <button type="submit" disabled={tk.status === v} aria-pressed={tk.status === v} style={{
+                minHeight: CIBLE_TACTILE_MIN, fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999, cursor: tk.status === v ? 'default' : 'pointer',
                 border: `1px solid ${tk.status === v ? 'transparent' : 'var(--line-2)'}`,
                 background: tk.status === v ? stat(v).color + '22' : 'transparent',
                 color: tk.status === v ? stat(v).color : 'var(--ink-2)',
@@ -91,7 +95,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
               <span style={{ flex: 1 }} />
               <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{new Date(m.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
             </div>
-            <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{m.body}</p>
+            <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.body}</p>
           </div>
         ))}
         {thread.length === 0 && <EmptyLine>Aucun message dans ce fil pour l'instant.</EmptyLine>}
@@ -100,12 +104,12 @@ export default async function TicketThreadPage({ params, searchParams }: {
       {/* Répondre */}
       {tk.status === 'resolved' && !isAdmin ? (
         <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 14, color: 'var(--muted)', fontSize: 13 }}>
-          Ce ticket est résolu. Réponds ci-dessous pour le rouvrir si besoin.
+          Ce ticket est résolu. Tu peux encore écrire ci-dessous · ton message s’ajoute au fil, et un admin de l’espace peut le rouvrir.
         </div>
       ) : null}
       <form action={replyTicketAction} style={{ marginTop: 8 }}>
         <input type="hidden" name="ticketId" value={tk.id} />
-        <textarea name="body" required placeholder={isAdmin ? 'Répondre au client…' : 'Ajouter un message…'} style={{ ...input, minHeight: 90, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
+        <textarea name="body" required aria-label={isAdmin ? 'Ta réponse dans le fil' : 'Ton message dans le fil'} placeholder={isAdmin ? 'Répondre au client…' : 'Ajouter un message…'} style={{ ...input, minHeight: 90, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
         <div style={{ marginTop: 10 }}>
           <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' }}>Envoyer la réponse</button>
         </div>

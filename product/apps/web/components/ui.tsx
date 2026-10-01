@@ -81,7 +81,7 @@ export const lbl: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', display
 export function Msg({ kind, children }: { kind: 'ok' | 'err'; children: React.ReactNode }) {
   const ok = kind === 'ok';
   return (
-    <div style={{
+    <div role={ok ? 'status' : 'alert'} style={{
       margin: '0 0 16px', padding: '10px 13px', borderRadius: 12, fontSize: 13,
       border: `1px solid ${ok ? 'rgba(24,204,140,.4)' : 'rgba(255,77,109,.4)'}`,
       background: ok ? 'rgba(24,204,140,.10)' : 'rgba(255,77,109,.10)',

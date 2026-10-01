@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { partDeMax, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { partDeMax, CIBLE_TACTILE_MIN, familleMouvement, libelleMotif, repartitionConsommation } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { unlimitedCredits } from '../../../lib/credits';
@@ -14,23 +14,8 @@ import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
-/** Regroupe les libellés du grand livre en familles lisibles par le client. */
-// `icon` est un NOM du jeu partagé (components/Icon), plus un emoji · rendu via
-// <Icon> côté affichage.
-function familyOf(reason: string): { label: string; icon: string } {
-  const r = reason.toLowerCase();
-  if (r.includes('recharge')) return { label: 'Recharge', icon: 'coin' };
-  if (r.includes('abonnement') || r.includes('formule') || r.includes('test')) return { label: 'Abonnement', icon: 'card' };
-  if (r.includes('pubs') || r.includes('clone')) return { label: 'Pubs IA', icon: 'sparkles' };
-  if (r.includes('vidéo')) return { label: 'Vidéo IA', icon: 'film' };
-  if (r.includes('image') || r.includes('visuel')) return { label: 'Image IA', icon: 'image' };
-  if (r.includes('assistant')) return { label: 'Assistant', icon: 'chat' };
-  if (r.includes('assets') || r.includes('tagging')) return { label: 'Assets', icon: 'layers' };
-  if (r.includes('jarvis')) return { label: 'Jarvis', icon: 'brain' };
-  if (r.includes('concurrent')) return { label: 'Veille', icon: 'search' };
-  if (r.includes('marque') || r.includes('profil') || r.includes('produits')) return { label: 'Marque', icon: 'tag' };
-  return { label: 'Autre', icon: 'file' };
-}
+// Familles, motifs lisibles et répartition · règles du noyau (`compte-vue`).
+const LIMITE_JOURNAL = 120;
 
 export default async function UsagePage() {
   const s = await getSession();
@@ -47,7 +32,7 @@ export default async function UsagePage() {
   if (db) {
     const [[w], list, agg] = await Promise.all([
       db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
-      db.select().from(schema.creditLedger).where(eq(schema.creditLedger.workspaceId, s.workspaceId)).orderBy(desc(schema.creditLedger.createdAt)).limit(120),
+      db.select().from(schema.creditLedger).where(eq(schema.creditLedger.workspaceId, s.workspaceId)).orderBy(desc(schema.creditLedger.createdAt)).limit(LIMITE_JOURNAL),
       db.select({
         spent: sql<number>`coalesce(-sum(case when ${schema.creditLedger.delta} < 0 then ${schema.creditLedger.delta} else 0 end), 0)`,
         added: sql<number>`coalesce(sum(case when ${schema.creditLedger.delta} > 0 then ${schema.creditLedger.delta} else 0 end), 0)`,
@@ -59,17 +44,11 @@ export default async function UsagePage() {
     added30 = Number(agg[0]?.added ?? 0);
   }
 
-  // Répartition de la consommation par famille (30 derniers jours).
-  const byFamily = new Map<string, { icon: string; total: number }>();
-  for (const r of rows) {
-    if (r.delta >= 0 || (r.createdAt as Date) < since) continue;
-    const f = familyOf(r.reason);
-    const cur = byFamily.get(f.label) ?? { icon: f.icon, total: 0 };
-    cur.total += -r.delta;
-    byFamily.set(f.label, cur);
-  }
-  const families = [...byFamily.entries()].sort((a, b) => b[1].total - a[1].total);
-  const maxFamily = families[0]?.[1].total || 1;
+  // Répartition de la consommation par famille (30 derniers jours) · calculée
+  // sur les lignes lues · si elles ne couvrent pas toute la fenêtre, on le dit.
+  const repartition = repartitionConsommation(rows.map((r) => ({ delta: r.delta, reason: r.reason, createdAt: r.createdAt as Date })), since, LIMITE_JOURNAL);
+  const families = repartition.familles;
+  const maxFamily = families[0]?.total || 1;
 
   const alloc = PLAN_CREDITS[plan] ?? 0;
   const fmt = (n: number) => n.toLocaleString('fr-FR');
@@ -94,19 +73,20 @@ export default async function UsagePage() {
 
       {/* Résumé */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 24 }}>
-        <Card label="Solde actuel" value={unlimited ? '∞' : fmt(balance)} sub={unlimited ? 'Illimité · fondateur' : `sur ${fmt(alloc)} / mois (${PLAN_LABEL[plan]})`} strong />
-        <Card label="Consommé (30 j)" value={fmt(spent30)} sub="crédits utilisés" />
-        <Card label="Ajouté (30 j)" value={fmt(added30)} sub="allocation + recharges" />
+        <Card label="Solde actuel" value={unlimited ? '∞' : fmt(balance)} sub={unlimited ? 'Illimité' : `sur ${fmt(alloc)} / mois (${PLAN_LABEL[plan]})`} strong />
+        {/* Les remboursements sont des AJOUTS · « Consommé » est brut, on le dit. */}
+        <Card label="Consommé (30 j)" value={fmt(spent30)} sub="crédits débités, avant remboursements" />
+        <Card label="Ajouté (30 j)" value={fmt(added30)} sub="allocation, recharges et remboursements" />
       </div>
 
       {/* Répartition par type d'action */}
       {families.length > 0 && (
         <section style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', marginBottom: 24 }}>
-          <h2 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Où partent tes crédits <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· 30 derniers jours</span></h2>
+          <h2 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Où partent tes crédits <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· {repartition.tronquee ? `${LIMITE_JOURNAL} derniers mouvements (une partie des 30 jours)` : '30 derniers jours'}</span></h2>
           <div style={{ display: 'grid', gap: 9 }}>
-            {families.map(([label, { icon, total }]) => (
+            {families.map(({ label, icon, total }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 130, fontSize: 12.5, color: 'var(--ink-2)' }}>{icon} {label}</span>
+                <span style={{ width: 130, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-2)' }}><Icon name={icon} size={14} /> {label}</span>
                 <div style={{ flex: 1 }}>
                   <BarreValeur part={partDeMax(total, maxFamily)} hauteur={10} piste="var(--paper)" />
                 </div>
@@ -128,13 +108,14 @@ export default async function UsagePage() {
       ) : (
         <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden' }}>
           {rows.map((r, i) => {
-            const f = familyOf(r.reason);
+            const f = familleMouvement(r.reason);
             const positive = r.delta > 0;
             return (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderTop: i === 0 ? 'none' : '1px solid var(--line)', background: 'var(--surface)' }}>
                 <span style={{ width: 22, display: 'inline-flex', justifyContent: 'center', color: 'var(--muted)' }}><Icon name={f.icon} size={15} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.reason}</div>
+                  {/* Motif en entier, à la ligne · lisible au doigt (pas d'ellipse au survol). */}
+                  <div style={{ fontSize: 13, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{libelleMotif(r.reason)}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{f.label}</div>
                 </div>
                 <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{when(r.createdAt as Date)}</span>
@@ -146,7 +127,7 @@ export default async function UsagePage() {
           })}
         </div>
       )}
-      {rows.length >= 120 && <p style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>120 mouvements les plus récents affichés.</p>}
+      {rows.length >= LIMITE_JOURNAL && <p style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>{LIMITE_JOURNAL} mouvements les plus récents affichés.</p>}
     </main>
   );
 }

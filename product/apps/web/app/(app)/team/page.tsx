@@ -8,16 +8,24 @@ import { btnGhost, panel, Msg, cadrePage } from '../../../components/ui';
 import { ADMIN_THEME } from '../../../lib/theme';
 import { PageInfo } from '../../../components/PageInfo';
 import { InviteMemberButton } from '../../../components/InviteMemberButton';
+import { CopierTexte } from '../../../components/CopierTexte';
+import { appUrl } from '../../../lib/mailer';
+import { etatInvitation } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
 const roleColor: Record<Role, string> = {
   owner: '#fe2c55', admin: '#7aa2ff', member: '#18cc8c', client_viewer: '#f5a623',
 };
-const OK: Record<string, string> = { invite: 'Invitation créée, copie le lien ci-dessous.', revoked: 'Invitation révoquée.' };
+const OK: Record<string, string> = {
+  invite: 'Invitation créée · aucun e-mail n’est parti (envoi non configuré) · copie le lien ci-dessous pour l’envoyer.',
+  invite_mail: 'Invitation créée · l’e-mail est parti, le lien reste aussi ci-dessous.',
+  revoked: 'Invitation révoquée.',
+};
 const ERR: Record<string, string> = {
   forbidden: 'Action réservée aux administrateurs.', email: 'Renseigne un e-mail.',
   role: 'Rôle invalide.', already: 'Cette personne a déjà un compte.', notfound: 'Invitation introuvable.',
+  bad: 'Demande incomplète · réessaie depuis la liste.',
 };
 
 export default async function TeamPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
@@ -25,7 +33,10 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   if (!s) redirect('/login');
   const { ok, e } = await searchParams;
   const isAdmin = roleAtLeast(s.role, 'admin');
-  const appUrl = process.env.APP_URL || '';
+  // Le même lien que l'e-mail (`appUrl` du mailer) · l'écran montrait un chemin
+  // relatif inutilisable hors de l'app quand APP_URL manquait (recette #106).
+  const lienBase = appUrl();
+  const maintenant = new Date();
 
   let members: Array<{ email: string; name: string | null; role: Role }> = [];
   let invites: Array<typeof schema.invites.$inferSelect> = [];
@@ -52,8 +63,8 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       </p>
 
       <PageInfo title="équipe & invitations">
-        Invite des membres par e-mail avec un <b>rôle</b> (Admin, Membre, Client lecture) : ils reçoivent un lien
-        pour définir leur mot de passe et rejoindre l'espace. Chaque rôle donne accès à un sous-ensemble du
+        Invite des membres avec un <b>rôle</b> (Admin, Membre, Client lecture) : un lien leur permet de définir leur
+        mot de passe et de rejoindre l'espace. Il part par e-mail quand l'envoi est configuré, sinon copie-le depuis la liste. Chaque rôle donne accès à un sous-ensemble du
         produit. Tu peux révoquer une invitation tant qu'elle n'a pas été acceptée.
       </PageInfo>
 
@@ -74,7 +85,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
             <div style={{ flex: 1, minWidth: 220 }}>
               <h2 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Inviter un membre</h2>
               <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>
-                L'invité reçoit un lien pour définir son mot de passe et rejoindre l'espace avec le rôle choisi.
+                Un lien permet à l'invité de rejoindre l'espace avec le rôle choisi · par e-mail si l'envoi est configuré, sinon à copier.
               </p>
             </div>
             <InviteMemberButton />
@@ -83,21 +94,30 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
           {invites.length > 0 && (
             <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
               <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Invitations en attente</div>
-              {invites.map((inv) => (
+              {invites.map((inv) => {
+                // Expirée · le lien ne mène plus nulle part (l'acceptation la refuse).
+                const expiree = etatInvitation(inv.expiresAt as Date | null, maintenant) === 'expiree';
+                const lien = `${lienBase}/invite/${inv.token}`;
+                return (
                 <div key={inv.id} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '10px 12px', background: 'var(--bg)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{inv.email}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 0, overflowWrap: 'anywhere' }}>{inv.email}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: roleColor[inv.role as Role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[inv.role as Role]}</span>
+                    {expiree && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: '#ffcf8f', background: 'rgba(245,166,35,.12)' }}>Expirée · lien inactif</span>}
                     <form action={revokeInviteAction} style={{ marginLeft: 'auto' }}>
                       <input type="hidden" name="id" value={inv.id} />
-                      <button type="submit" style={btnGhost}>Révoquer</button>
+                      <button type="submit" aria-label={`Révoquer l’invitation de ${inv.email}`} style={btnGhost}>Révoquer</button>
                     </form>
                   </div>
-                  <code style={{ display: 'block', marginTop: 8, fontSize: 11, color: 'var(--accent-strong)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>
-                    {appUrl}/invite/{inv.token}
-                  </code>
+                  {!expiree && (
+                    <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+                      <code style={{ display: 'block', fontSize: 11, color: 'var(--accent-strong)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>{lien}</code>
+                      <CopierTexte texte={lien} />
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -113,7 +133,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         </div>
         {members.map((m) => (
           <div key={m.email} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px', padding: '13px 16px', borderTop: '1px solid var(--line)' }}>
-            <span style={{ flex: '1 1 140px', minWidth: 0, fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{m.name || '(sans nom)'}</span>
+            <span style={{ flex: '1 1 140px', minWidth: 0, fontWeight: 600, color: 'var(--ink)', fontSize: 14, overflowWrap: 'anywhere' }}>{m.name || '(sans nom)'}</span>
             <span style={{ flex: '2 1 200px', minWidth: 0, color: 'var(--ink-2)', fontSize: 13, overflowWrap: 'anywhere' }}>{m.email}</span>
             <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, color: roleColor[m.role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[m.role]}</span>
           </div>

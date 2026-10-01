@@ -36,7 +36,7 @@ describe('Crédits · la barre « consommé ce cycle » passe par BarreValeur', 
   it('importe et utilise BarreValeur + partDeMax', () => {
     expect(credits).toContain("import { BarreValeur }");
     expect(credits).toContain('partDeMax');
-    expect(credits).toContain('<BarreValeur part={partDeMax(usedPct, 100)}');
+    expect(credits).toContain('<BarreValeur part={partDeMax(conso.pct, 100)}');
   });
   it('ne calcule plus aucune largeur de barre à la main', () => {
     expect(credits, 'largeur de barre écrite à la main').not.toMatch(LARGEUR_MAIN);
