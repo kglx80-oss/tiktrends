@@ -76,10 +76,13 @@ describe('Recette #106 · Studio Textes sans IA activée · copie client', () =>
     expect(jargonTechnique(texte(html)), `jargon technique affiché : ${texte(html)}`).toEqual([]);
     expect(html).not.toContain('<code>');
   });
-  it('dit ce qui manque, qui agit, et propose le support', () => {
+  // Lot 9 · fidèle au routage réel · un ticket du support reste dans l'espace,
+  // aucun bouton ne promet une activation que le support ne peut pas faire.
+  it('dit ce qui manque et le routage réel, sans promettre une équipe injoignable', () => {
     expect(texte(html)).toContain(TEXTES_IA_INACTIFS.constat);
-    expect(texte(html)).toMatch(/notre équipe l’active sur demande/);
-    expect(html).toMatch(/<a href="\/support"[^>]*>Demander l’activation au support<\/a>/);
+    expect(texte(html)).not.toMatch(/notre équipe l’active sur demande/);
+    expect(texte(html)).toMatch(/reste dans ton espace/);
+    expect(html, 'bouton vers un support qui ne peut pas activer').not.toMatch(/Demander l’activation au support/);
   });
   it('avec l’IA active, aucun message d’absence', () => {
     expect(renderToStaticMarkup(<StudioClient hasKey />)).not.toContain(TEXTES_IA_INACTIFS.constat);

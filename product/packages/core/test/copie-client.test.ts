@@ -55,9 +55,11 @@ describe('copie-client · chaque message est propre et dit quoi faire', () => {
   });
 
   it('Textes inactifs · dit qui agit, et qu’aucun crédit n’est débité', () => {
-    expect(TEXTES_IA_INACTIFS.suite).toMatch(/notre équipe/);
+    // Lot 9 · fidèle au routage réel · le support reste dans l'espace.
+    expect(TEXTES_IA_INACTIFS.suite, 'promet une équipe que le support ne joint pas').not.toMatch(/notre équipe/);
+    expect(TEXTES_IA_INACTIFS.suite).toMatch(/reste dans ton espace/);
     expect(TEXTES_IA_INACTIFS.suite).toMatch(/Aucun crédit/);
-    expect(TEXTES_IA_INACTIFS.action?.href).toBe('/support');
+    expect(TEXTES_IA_INACTIFS.action, 'bouton vers un support qui ne peut pas activer').toBeNull();
   });
 
   it('un code de retour connu est traduit, un inconnu a un repli · jamais le code brut', () => {

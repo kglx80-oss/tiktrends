@@ -65,12 +65,18 @@ export const DRIVE_SELECTEUR_INACTIF: MessageClient = {
 
 /**
  * La génération de textes (Studio Textes) n'est pas activée pour l'espace
- * (côté plateforme). Le client ne peut rien y régler · notre équipe l'active.
+ * (côté plateforme). Le client ne peut rien y régler.
+ *
+ * Lot 9 · la copie promettait « notre équipe l'active sur demande » avec un
+ * bouton vers le support. Or un ticket du support ne quitte pas l'espace · il
+ * est lu par ses admins, jamais par l'équipe de la plateforme (constat du
+ * lot 8). La copie dit ce routage réel, sans bouton qui mènerait à personne
+ * capable d'activer.
  */
 export const TEXTES_IA_INACTIFS: MessageClient = {
   constat: 'La génération de textes n’est pas encore activée pour ton espace.',
-  suite: 'Rien à régler de ton côté · notre équipe l’active sur demande. Aucun crédit n’est débité tant qu’elle est inactive.',
-  action: SUPPORT,
+  suite: 'Elle s’active côté plateforme · rien ne se règle depuis ton espace, et un ticket au support reste dans ton espace (seuls ses admins le lisent). Aucun crédit n’est débité tant qu’elle est inactive.',
+  action: null,
 };
 
 /** La portée de l'accès, dite sans nom de permission technique. */
