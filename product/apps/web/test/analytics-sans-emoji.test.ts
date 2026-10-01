@@ -14,7 +14,9 @@ describe('Analytics · plus aucun emoji d’interface', () => {
     const trouves = [...new Set(SRC.match(PICTO) ?? [])];
     expect(trouves, `pictogramme(s) encore dans analytics/page.tsx : ${trouves.join(' ')}`).toEqual([]);
   });
-  it('rend une icône du jeu', () => {
-    expect(SRC).toMatch(/<Icon name="chart"/);
+  it('rend le vrai logo de l’outil proposé', () => {
+    // Lot A (#120) · l'encart « Branche Meta Ads » porte la pastille Meta
+    // officielle (garde de rendu · logos-pages-proprietaire-rendu).
+    expect(SRC).toMatch(/<BrandTile name="Meta Ads"/);
   });
 });
