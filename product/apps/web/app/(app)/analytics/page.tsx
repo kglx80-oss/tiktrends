@@ -6,7 +6,7 @@ import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, type PhaseConnecteur } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { MetaKeyMetrics } from './MetaKeyMetrics';
 import { BrandTile } from '../../../components/BrandIcons';
@@ -29,13 +29,18 @@ export default async function AnalyticsPage() {
   // Données Meta réelles (si la marque active a connecté + synchronisé).
   let metaInsights: MetaAdsInsights | null = null;
   let syncedAt: string | null = null;
+  // La phase RÉELLE du connecteur · la même règle que l'écran Connexions
+  // (`etatConnecteur`) · l'encart n'invite plus à connecter un compte connecté.
+  let phaseMeta: PhaseConnecteur = 'a_brancher';
   const brand = await getActiveBrand(s.workspaceId);
   if (db && brand) {
     // La date de synchro MÉTA · pas la valeur partagée qu'une synchro Shopify
     // écrasait, faisant passer des KPI Meta anciens pour « à l'instant » (N09).
-    const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.metaSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.metaSyncedAt, token: schema.brands.metaToken, compte: schema.brands.metaAdAccountId, comptes: schema.brands.metaAdAccounts }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     if (b?.ads && (b.ads as MetaAdsInsights).window) metaInsights = b.ads as MetaAdsInsights;
     syncedAt = b?.syncedAt ? b.syncedAt.toISOString() : null;
+    const nbComptes = Array.isArray(b?.comptes) ? (b!.comptes as unknown[]).length : 0;
+    phaseMeta = etatConnecteur({ connecte: !!b?.token, compteRequisManquant: !!b?.token && nbComptes > 1 && !b?.compte, donnees: !!metaInsights });
   }
 
   // Intelligence créative maison : diversité + top tags, à partir de NOS générations et assets.
@@ -90,6 +95,8 @@ export default async function AnalyticsPage() {
     ['ROAS moyen', t.avgRoas.toFixed(2) + '×', `${t.eligible} créas éligibles`],
   ];
 
+  const encart = encartMetaAnalytics(phaseMeta);
+
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -109,14 +116,14 @@ export default async function AnalyticsPage() {
       {/* ===== Données Meta réelles (Key Metrics façon Atria) ===== */}
       {metaInsights ? (
         <MetaKeyMetrics insights={metaInsights} syncedAt={syncedAt} />
-      ) : (
+      ) : encart && (
         <div style={{ border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
           <BrandTile name="Meta Ads" />
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Branche Meta Ads pour tes vrais KPI</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Dépense, ROAS, CPA, panier moyen, CPC, CPM et tes top créas, avec les variations vs période précédente.</div>
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{encart.titre}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>{encart.texte}</div>
           </div>
-          <Link href="/connections" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>Connecter Meta Ads ›</Link>
+          <Link href="/connections" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>{encart.cta.libelle}</Link>
         </div>
       )}
 

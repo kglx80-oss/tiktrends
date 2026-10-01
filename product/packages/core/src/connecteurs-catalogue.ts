@@ -104,6 +104,27 @@ export function etatConnecteur(o: { connecte: boolean; compteRequisManquant?: bo
   return o.donnees ? 'operationnel' : 'connecte_sans_donnees';
 }
 
+/**
+ * L'encart Meta de l'écran Analytics · il suit la PHASE réelle du connecteur
+ * (recette #106b). Il invitait à « Connecter Meta Ads » un compte déjà connecté
+ * mais pas encore synchronisé (mesuré · Connexions disait « Connecté · à
+ * synchroniser »). Opérationnel → pas d'encart, les KPI s'affichent.
+ */
+export interface EncartMetaAnalytics { titre: string; texte: string; cta: { libelle: string; href: string } }
+
+export function encartMetaAnalytics(phase: PhaseConnecteur): EncartMetaAnalytics | null {
+  switch (phase) {
+    case 'a_brancher':
+      return { titre: 'Branche Meta Ads pour tes vrais KPI', texte: 'Dépense, ROAS, CPA, panier moyen, CPC, CPM et tes top créas, avec les variations vs période précédente.', cta: { libelle: 'Connecter Meta Ads ›', href: '/connections' } };
+    case 'compte_a_choisir':
+      return { titre: 'Meta Ads est connecté · choisis le compte pub', texte: 'Plusieurs comptes pub sont reliés · choisis celui de cette marque pour faire remonter ses KPI.', cta: { libelle: 'Choisir le compte ›', href: '/connections' } };
+    case 'connecte_sans_donnees':
+      return { titre: 'Meta Ads est connecté · première synchronisation en attente', texte: 'Lance la synchronisation depuis Connexions pour faire remonter dépense, ROAS, CPA et tes top créas.', cta: { libelle: 'Synchroniser Meta Ads ›', href: '/connections' } };
+    case 'operationnel':
+      return null;
+  }
+}
+
 const pluriel = (n: number) => (n > 1 ? 's' : '');
 
 /**
