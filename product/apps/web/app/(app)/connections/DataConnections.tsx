@@ -47,6 +47,26 @@ export function DataConnections({ initial, brandName, metaOAuth = false, shopify
   );
 }
 
+/**
+ * Un jeton d'accès se saisit MASQUÉ · recette A (#120), les deux champs de
+ * jeton s'affichaient en clair pendant la saisie. Présentation seule · la
+ * valeur, sa transmission et son stockage ne changent pas. « Afficher » permet
+ * de relire ce qu'on a collé ; le libellé du bouton dit l'action suivante.
+ */
+function ChampJeton({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (v: string) => void; placeholder: string }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+      <input id={id} type={visible ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        autoComplete="off" autoCapitalize="off" spellCheck={false} style={{ ...fld, flex: 1, minWidth: 0 }} />
+      <button type="button" onClick={() => setVisible((v) => !v)} aria-controls={id} aria-label={visible ? 'Masquer le token' : 'Afficher le token'}
+        style={{ ...ghost, flexShrink: 0, borderRadius: 10 }}>
+        {visible ? 'Masquer' : 'Afficher'}
+      </button>
+    </div>
+  );
+}
+
 function Wrap({ outil, title, badge, children }: { outil: string; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: 18 }}>
@@ -130,7 +150,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
               </div>
             </>
           )}
-          <div><label style={lbl} htmlFor="conn-shopify-token">Token Admin API <span style={{ color: 'var(--muted)' }}>· app perso (shpat_…)</span></label><input id="conn-shopify-token" value={token} onChange={(e) => setToken(e.target.value)} placeholder="shpat_••••••••" style={fld} /></div>
+          <div><label style={lbl} htmlFor="conn-shopify-token">Token Admin API <span style={{ color: 'var(--muted)' }}>· app perso (shpat_…)</span></label><ChampJeton id="conn-shopify-token" value={token} onChange={setToken} placeholder="shpat_••••••••" /></div>
           <button type="button" onClick={connect} disabled={!!busy} style={primary}>{busy === 'connect' ? 'Test…' : 'Connecter'}</button>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>Shopify → Paramètres → Applications et canaux de vente → Développer des applications → créer une app, scopes lecture (orders, products), installer, copier le token Admin API.</p>
         </div>
@@ -148,7 +168,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Top produits</div>
               {ins.topProducts.slice(0, 4).map((p) => (
-                <div key={p.title} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span title={p.title} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{p.title}</span><b style={{ color: 'var(--ink)', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{eur(p.revenue, ins.currency)}</b></div>
+                <div key={p.title} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span data-nom-complet style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{p.title}</span><b style={{ color: 'var(--ink)', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{eur(p.revenue, ins.currency)}</b></div>
               ))}
             </div>
           ) : null}
@@ -215,7 +235,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
             </>
           )}
           <div><label style={lbl} htmlFor="conn-meta-acct">ID compte publicitaire</label><input id="conn-meta-acct" value={acct} onChange={(e) => setAcct(e.target.value)} placeholder="act_1234567890" style={fld} /></div>
-          <div><label style={lbl} htmlFor="conn-meta-token">Token d'accès <span style={{ color: 'var(--muted)' }}>· System User (BM)</span></label><input id="conn-meta-token" value={token} onChange={(e) => setToken(e.target.value)} placeholder="EAAB••••••••" style={fld} /></div>
+          <div><label style={lbl} htmlFor="conn-meta-token">Token d'accès <span style={{ color: 'var(--muted)' }}>· System User (BM)</span></label><ChampJeton id="conn-meta-token" value={token} onChange={setToken} placeholder="EAAB••••••••" /></div>
           <button type="button" onClick={connect} disabled={!!busy} style={primary}>{busy === 'connect' ? 'Test…' : 'Connecter'}</button>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>Business Manager → Paramètres → Utilisateurs système → générer un token avec la permission ads_read, sur le compte publicitaire.</p>
         </div>
@@ -245,7 +265,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Top créas (ROAS)</div>
               {ins.topAds.slice(0, 4).map((a) => (
-                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span title={a.name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{a.name}</span><b style={{ color: '#7ee8bf', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{a.roas}×</b></div>
+                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span data-nom-complet style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{a.name}</span><b style={{ color: '#7ee8bf', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{a.roas}×</b></div>
               ))}
             </div>
           ) : null}

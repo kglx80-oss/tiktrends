@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
  * badge « CONNECTÉ · À SYNCHRONISER » débordait la carte Meta de 16 px (46 à
  * 360), le nom de produit tronqué n'était lisible nulle part et le montant
  * passait sur deux lignes. Le débordement se mesure au navigateur ; ici on lit
- * ce que le RENDU garantit · en-tête qui passe à la ligne, nom complet en titre,
+ * ce que le RENDU garantit · en-tête qui passe à la ligne, nom complet affiché,
  * montant insécable.
  */
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {}, refresh: () => {}, replace: () => {} }) }));
@@ -33,8 +33,15 @@ describe('Connexions · noms longs', () => {
     expect(entetes.length, 'en-têtes de connecteur introuvables').toBe(2);
     for (const st of entetes) expect(st, 'en-tête sans retour à la ligne · le badge déborde à 390').toContain('flex-wrap:wrap');
   });
-  it('le nom de produit tronqué reste lisible en entier (titre) et son montant ne se coupe pas', () => {
-    expect(html).toContain(`title="${LONG.replace(/’/g, '’')}"`);
+  it('le nom de produit est affiché EN ENTIER (à la ligne, jamais tronqué) · lisible au clavier et au doigt', () => {
+    // Recette Codex (a97ceda) · un title ne sert qu'au survol, absent au téléphone.
+    const m = html.match(/<span data-nom-complet="[^"]*" style="([^"]+)">([^<]+)<\/span>/);
+    expect(m, 'nom de produit introuvable').not.toBeNull();
+    expect(m![2]).toBe(LONG);
+    expect(m![1], 'nom tronqué').not.toMatch(/text-overflow:ellipsis|white-space:nowrap/);
+    expect(m![1]).toContain('overflow-wrap:anywhere');
+  });
+  it('son montant ne se coupe pas', () => {
     expect(html).toMatch(/white-space:nowrap;flex-shrink:0;margin-left:12px">420\s000/);
   });
 });
