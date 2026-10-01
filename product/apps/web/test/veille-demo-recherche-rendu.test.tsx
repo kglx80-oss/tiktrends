@@ -17,6 +17,8 @@ vi.mock('../lib/rbac', async (orig) => ({ ...(await orig<typeof import('../lib/r
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => null }));
 vi.mock('../lib/veille-recette-base', () => ({ baseUrlRecette: () => undefined, cleEffective: () => undefined }));
+// Un lien client se distingue d'une navigation complète dans le HTML rendu.
+vi.mock('next/link', () => ({ default: ({ href, children, ...p }: { href: string; children: React.ReactNode }) => <a data-lien-client href={href} {...p}>{children}</a> }));
 vi.mock('../app/(app)/jarvis/sections/SectionMarche', () => ({ SectionMarche: () => null }));
 vi.mock('../components/AdCard', () => ({
   AdCard: ({ ad }: { ad: { id: string; advertiserName?: string } }) => <article data-carte={ad.id}>{ad.advertiserName}</article>,
@@ -37,7 +39,14 @@ describe('Veille · démonstration · la recherche filtre vraiment l’échantil
     const html = await rendre({ q: 'zzzzzzzz' });
     expect(cartes(html), 'le mot-clé est ignoré en démonstration').toEqual([]);
     expect(html, 'l’état « aucun résultat » ne s’affiche pas').toContain('Aucune annonce de l’échantillon pour « zzzzzzzz »');
-    expect(html).toContain('href="/veille"');
+    // Recette #106 (4f2d2d2) · le bouton ne naviguait pas en lien client depuis
+    // `?q=…` · la remise à zéro est une navigation complète.
+    const reinit = [...html.matchAll(/<a([^>]*)>Réinitialiser<\/a>/g)].map((m) => m[1]);
+    expect(reinit.length, 'pas de Réinitialiser dans l’état vide').toBeGreaterThan(0);
+    for (const attrs of reinit) {
+      expect(attrs).toContain('href="/veille"');
+      expect(attrs, 'Réinitialiser est un lien client · il ne navigue pas depuis /veille?q=…').not.toContain('data-lien-client');
+    }
   });
 
   it('un mot-clé qui correspond ne garde que sa carte', async () => {

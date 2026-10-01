@@ -400,7 +400,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           tone="todo" icon="search"
           title={videDemo.titre}
           why={videDemo.pourquoi}
-          action={{ label: 'Réinitialiser', href: '/veille' }}
+          action={{ label: 'Réinitialiser', href: '/veille', rechargement: true }}
         />
       )}
 
