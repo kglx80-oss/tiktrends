@@ -43,3 +43,11 @@ describe('Fiche Marque · trois boutons à 44 px', () => {
     expect(styleDu(html, 'Générer maintenant')).toContain(h44);
   });
 });
+
+describe('Fiche Marque · copie client sans « clé serveur » (recette #106)', () => {
+  it('l’encart « Générer tout le profil » nomme le service, pas une clé', () => {
+    const page = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/page.tsx'), 'utf8');
+    expect(page, 'la fiche parle encore de clé serveur').not.toMatch(/clé IA serveur/);
+    expect(page).toContain("messageServiceInactif('ia_profil')");
+  });
+});

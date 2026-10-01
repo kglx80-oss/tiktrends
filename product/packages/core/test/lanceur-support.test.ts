@@ -8,6 +8,14 @@ describe('placementLanceurSupport', () => {
   it('Réglages ancre le lanceur · la bulle masquait le texte White-label à 390', () => {
     expect(placementLanceurSupport('/settings')).toBe('ancre');
   });
+  it('fiche Marque ancre le lanceur (champ « Site » recouvert à 390), pas la création ni les sous-pages', () => {
+    expect(placementLanceurSupport('/brands/a6132eb0-492c-40de-b73b-3d1644a014dc')).toBe('ancre');
+    expect(placementLanceurSupport('/brands/new')).toBe('flottant');
+    expect(placementLanceurSupport('/brands/x/competitors/Rival')).toBe('flottant');
+  });
+  it('Ce qui scale ancre le lanceur (Tri, Copier, ☆, + Suivre recouverts)', () => {
+    expect(placementLanceurSupport('/veille/scale')).toBe('ancre');
+  });
   it('les écrans déjà ancrés le restent', () => {
     for (const r of ['/studio/ads', '/dashboard', '/veille', '/adsmap', '/analytics']) expect(placementLanceurSupport(r), r).toBe('ancre');
   });
