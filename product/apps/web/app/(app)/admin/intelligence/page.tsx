@@ -7,6 +7,7 @@ import { COMPETITORS, AI_STACK, CAPABILITIES, GAPS, ADVANTAGES, type Cap } from 
 import { analyseSurvie, PROVEN_DAYS, bilanHypotheses, perfParAngle, type AnalyseSurvie, type BilanHypotheses, type PerfParAngle, type CreaLancee, type VerdictValue } from '@tiktrends/core';
 import { eq, inArray } from 'drizzle-orm';
 import { Icon } from '../../../../components/Icon';
+import { cadrePage } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,7 +84,7 @@ export default async function IntelligencePage() {
   }
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1080, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0 4px', flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Intelligence marché</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>

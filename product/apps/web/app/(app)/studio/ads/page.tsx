@@ -19,6 +19,7 @@ import { conseilMoteur, conseilMode, sourceVeilleDepuisRef, lireIterationDemande
 import { adDetailAction } from '../../../actions/adsmap-verdict';
 import { adsDeLaMarque } from '../../../../lib/adsmap-marque';
 import { PanneauIteration, type EtatIteration } from './PanneauIteration';
+import { cadrePage } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
@@ -190,5 +191,5 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
 // Le lanceur de support n'est plus une bulle FIXE sur cette route (il est ancré
 // en zone de commandes, sous le contenu, par le shell) · plus besoin de réserver
 // une gouttière basse contre une superposition flottante.
-const wrap = { padding: '32px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' } as const;
+const wrap = cadrePage;
 const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;

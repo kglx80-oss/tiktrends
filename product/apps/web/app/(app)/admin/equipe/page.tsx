@@ -5,6 +5,7 @@ import { accesTotal, ROLES_PLATEFORME, type RolePlateforme, type MatriceDroits }
 import { getSession } from '../../../../lib/auth';
 import { Icon } from '../../../../components/Icon';
 import { EcranEquipe } from './EcranEquipe';
+import { cadrePage } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export default async function AdminEquipePage({ searchParams }: { searchParams: 
   for (const r of rightsRows) matrice[r.role as RolePlateforme] = (r.rubriques as string[]) ?? [];
 
   return (
-    <main style={{ padding: '26px clamp(16px, 4vw, 32px) 60px', maxWidth: 1100, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(245,166,35,.3)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', flexShrink: 0 }}><Icon name="users" size={23} /></div>

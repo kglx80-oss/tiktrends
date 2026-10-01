@@ -15,6 +15,7 @@ import { BibliothequeVide } from '../../../components/BibliothequeVide';
 import { Empty } from '../../../components/Empty';
 import { ongletValide } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
+import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +59,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
   const toutVide = items.length === 0 && brands.length === 0 && trackerEvents.length === 0;
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Sauvegardes</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
         Tes créas gardées, les concurrents que tu suis et ce qu'ils sortent de neuf. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » un concurrent.

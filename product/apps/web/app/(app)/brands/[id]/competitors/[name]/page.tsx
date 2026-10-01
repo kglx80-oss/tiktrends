@@ -6,7 +6,7 @@ import { partDeMax } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
-import { Msg } from '../../../../../../components/ui';
+import { Msg, cadrePage } from '../../../../../../components/ui';
 import { Icon } from '../../../../../../components/Icon';
 import { BarreLabel } from '../../../../../../components/BarreLabel';
 import { AvatarSite } from '../../../../../../components/AvatarSite';
@@ -54,7 +54,7 @@ export default async function CompetitorPage({ params, searchParams }: {
   const site = report?.aggregates.landingDomains?.[0]?.label ?? name;
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <Link href={`/brands/${id}?tab=competitors`} style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ {b.name} · Concurrents</Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>

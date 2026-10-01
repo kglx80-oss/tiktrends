@@ -40,6 +40,6 @@ describe('aucune piste auto-fit ≥300px n’est laissée non bornée', () => {
   it('la coquille ADMIN+ a une marge latérale fluide (clamp)', () => {
     const admin = readFileSync(join(process.cwd(), 'app/(app)/admin/page.tsx'), 'utf8');
     expect(admin, 'la marge admin est figée · elle colle aux bords du téléphone').not.toMatch(/padding: '\d+px 32px/);
-    expect(admin).toContain("clamp(16px, 4vw, 32px)");
+    expect(admin).toMatch(/cadrePage/); // gouttière fluide du cadre commun (B2)
   });
 });

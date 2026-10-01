@@ -8,7 +8,7 @@ import { db, schema } from '@tiktrends/db';
 import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
-import { panel, Msg } from '../../../components/ui';
+import { panel, Msg, cadrePage } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { trialStatus } from '../../../lib/trial';
 import { isFounder } from '../../../lib/founder';
@@ -62,7 +62,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const risky = planRisk.filter((p) => !p.healthy);
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Crédits</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>

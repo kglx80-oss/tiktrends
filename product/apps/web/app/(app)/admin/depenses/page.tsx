@@ -6,6 +6,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { spendStatus, spendByAction } from '../../../../lib/spend-guard';
+import { cadrePage } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,7 @@ export default async function DepensesPage() {
   const alerte = pct >= 80;
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 960, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <h1 style={{ margin: '10px 0 4px', fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Dépense IA réelle</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22, maxWidth: 720, lineHeight: 1.6 }}>
         Les dollars qui partent vraiment chez Anthropic et fal, sur 30 jours glissants. À ne pas

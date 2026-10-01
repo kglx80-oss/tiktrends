@@ -7,6 +7,7 @@ import { DataConnections } from './DataConnections';
 import { PageInfo } from '../../../components/PageInfo';
 import { ConnecteurBientot, type ConnecteurAVenir } from '../../../components/ConnecteurBientot';
 import { etatCatalogue, dejaDisponible } from '@tiktrends/core';
+import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,7 +107,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const { ok, e } = await searchParams;
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1040, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Connexions</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
