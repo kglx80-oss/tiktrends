@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { generateAction, type StudioState } from '../../../actions/studio';
-import { costFor, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { costFor, CIBLE_TACTILE_MIN, TEXTES_IA_INACTIFS } from '@tiktrends/core';
 import type { CreativeOutput } from '@tiktrends/ai';
 import { Icon } from '../../../../components/Icon';
 import { useIsMobile } from '../../../../components/useIsMobile';
@@ -64,7 +64,21 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
         <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
           {costFor('script')} crédits · angles, hooks, script et légendes en un lot · non facturé si la génération échoue.
         </p>
-        {!hasKey && <p style={{ margin: 0, fontSize: 12, color: 'var(--warn)' }}>IA non configurée : ajoute <code>ANTHROPIC_API_KEY</code> sur le serveur.</p>}
+        {/* Copie CLIENT · ce qui manque, qui agit, quoi faire · jamais un nom de
+            variable ni de fournisseur (recette #106). La logique (bouton
+            désactivé sans IA) ne change pas. */}
+        {!hasKey && (
+          <div role="status" style={{ display: 'grid', gap: 8 }}>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--warn)', lineHeight: 1.5 }}>
+              <b>{TEXTES_IA_INACTIFS.constat}</b> {TEXTES_IA_INACTIFS.suite}
+            </p>
+            {TEXTES_IA_INACTIFS.action && (
+              <a href={TEXTES_IA_INACTIFS.action.href} style={{ display: 'inline-flex', alignItems: 'center', justifySelf: 'start', minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>
+                {TEXTES_IA_INACTIFS.action.libelle}
+              </a>
+            )}
+          </div>
+        )}
         {state.error && <p style={{ margin: 0, fontSize: 12, color: '#ff9db0' }}>{state.error}</p>}
       </form>
 
