@@ -9,7 +9,7 @@ import { Icon } from '../../../components/Icon';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { MiniatureAsset } from '../../../components/MiniatureAsset';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, lireFiltreAssets, ecrireFiltreAssets } from '@tiktrends/core';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -65,6 +65,16 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   const [driveKind, setDriveKind] = useState<AssetKind>('video');
   const [imp, setImp] = useState({ name: '', url: '', kind: 'video' as AssetKind });
   const [search, setSearch] = useState('');
+  // Type et recherche vivent dans l'URL (remplacée, jamais empilée) · le
+  // bouton Retour, depuis un autre écran, les retrouve (recette #106 ·
+  // `lireFiltreAssets` / `ecrireFiltreAssets`).
+  useEffect(() => {
+    const f = lireFiltreAssets(window.location.search);
+    if (f.type !== 'all') setFilter(f.type);
+    if (f.recherche) setSearch(f.recherche);
+  }, []);
+  const garderDansUrl = (type: AssetKind | 'all', recherche: string) =>
+    window.history.replaceState(null, '', `${window.location.pathname}${ecrireFiltreAssets(window.location.search, { type, recherche })}${window.location.hash}`);
   const [tagging, setTagging] = useState<string | 'bulk' | ''>('');
   const fileRef = useRef<HTMLInputElement>(null);
   // Déclencheurs des deux panneaux · Échap ferme le panneau ouvert et REND le
@@ -93,7 +103,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   // Un critère est actif dès qu'un filtre de type ou une recherche restreint la
   // vue · c'est ce qui déclenche « X sur Y » et le bouton Réinitialiser (CDC S13).
   const critereActif = filter !== 'all' || search.trim().length > 0;
-  const reinitialiser = () => { setFilter('all'); setSearch(''); setPage(0); };
+  const reinitialiser = () => { setFilter('all'); setSearch(''); setPage(0); garderDansUrl('all', ''); };
   const untagged = assets.filter((a) => a.kind === 'image' && (!a.tags || a.tags.length === 0)).length;
   const refresh = () => startTransition(() => router.refresh());
 
@@ -281,7 +291,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
 
       {/* Recherche + tagging IA */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input aria-label="Rechercher un asset par nom ou tag" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder="Rechercher par nom ou tag (IA)…"
+        <input aria-label="Rechercher un asset par nom ou tag" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); garderDansUrl(filter, e.target.value); }} placeholder="Rechercher par nom ou tag (IA)…"
           style={{ ...fld, flex: '1 1 260px', maxWidth: 420 }} />
         {untagged > 0 && (
           <button type="button" onClick={tagBulk} disabled={!!tagging} style={{ ...ghost, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)' }}>
@@ -297,7 +307,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
           const active = filter === k.key;
           const n = k.key === 'all' ? assets.length : assets.filter((a) => a.kind === k.key).length;
           return (
-            <button key={k.key} type="button" aria-pressed={active} onClick={() => { setFilter(k.key); setPage(0); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '7px 13px', borderRadius: 999, border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--ink-2)', fontWeight: active ? 800 : 600, fontSize: 12.5, cursor: 'pointer' }}>
+            <button key={k.key} type="button" aria-pressed={active} onClick={() => { setFilter(k.key); setPage(0); garderDansUrl(k.key, search); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '7px 13px', borderRadius: 999, border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--ink-2)', fontWeight: active ? 800 : 600, fontSize: 12.5, cursor: 'pointer' }}>
               {k.label} <span style={{ opacity: .7 }}>{n}</span>
             </button>
           );

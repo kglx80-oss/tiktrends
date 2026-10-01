@@ -44,7 +44,8 @@ const monter = async () => {
   });
   return hote;
 };
-afterEach(() => { act(() => root?.unmount()); hote?.remove(); root = null; hote = null; });
+// Les filtres vivent dans l'URL (recette #106) · chaque test repart d'une URL nue.
+afterEach(() => { act(() => root?.unmount()); hote?.remove(); root = null; hote = null; window.history.replaceState(null, '', '/assets'); });
 
 const bouton = (h: HTMLElement, t: string) => [...h.querySelectorAll('button')].find((b) => (b.textContent || '').trim().startsWith(t)) as HTMLButtonElement;
 const echap = (el: Element) => act(async () => { el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
@@ -107,4 +108,25 @@ describe('Recette #106 · Assets · panneaux d’import · état et Échap', () 
       expect(document.activeElement).toBe(b);
     });
   }
+});
+
+describe('Retour · type et recherche survivent (recette #106, filtres dans l’URL)', () => {
+  it('l’URL au montage rétablit le type et la recherche', async () => {
+    window.history.replaceState(null, '', '/assets?type=video&q=Rush');
+    const h = await monter();
+    expect(bouton(h, 'Vidéos').getAttribute('aria-pressed'), 'le type de l’URL n’est pas rétabli').toBe('true');
+    expect((h.querySelector('input[aria-label^="Rechercher un asset"]') as HTMLInputElement).value).toBe('Rush');
+    window.history.replaceState(null, '', '/assets');
+  });
+  it('choisir un type le remplace dans l’URL, sans empiler', async () => {
+    window.history.replaceState(null, '', '/assets?ok=drive');
+    const h = await monter();
+    const avant = window.history.length;
+    await act(async () => { bouton(h, 'Images').click(); });
+    expect(window.location.search, 'le type choisi n’est pas dans l’URL').toBe('?ok=drive&type=image');
+    expect(window.history.length, 'filtrer empile une entrée').toBe(avant);
+    await act(async () => { bouton(h, 'Tous').click(); });
+    expect(window.location.search).toBe('?ok=drive');
+    window.history.replaceState(null, '', '/assets');
+  });
 });

@@ -102,3 +102,11 @@ describe('Pubs IA · une barre, filtres à la demande', () => {
     }
   });
 });
+
+describe('Galerie Pubs IA · Retour garde recherche et filtres (recette #106)', () => {
+  it('le Studio relit les critères de l’URL au montage et la remplace à chaque changement', () => {
+    const studio = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
+    expect(studio).toMatch(/setCriteres\(lireCriteresGalerie\(window\.location\.search\)\)/);
+    expect(studio).toMatch(/replaceState\(null, '', `\$\{window\.location\.pathname\}\$\{ecrireCriteresGalerie\(window\.location\.search, c\)\}/);
+  });
+});

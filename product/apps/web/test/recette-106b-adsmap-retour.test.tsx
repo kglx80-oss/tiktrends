@@ -113,8 +113,8 @@ describe('Échap puis Avant · la fiche se rouvre (recette #106)', () => {
     const h = await monter(<><Liste vue="table" /><Liste vue="decider" /></>);
     await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: { ficheAdsmap: ID, vueAdsmap: 'table' } })); });
     const [table, decider] = [...h.querySelectorAll('p')];
-    expect(table.getAttribute('data-ouverte'), 'Avant ne rouvre pas la fiche').toBe(ID);
-    expect(decider.getAttribute('data-ouverte'), 'une autre vue a rouvert la fiche').toBe('');
+    expect(table!.getAttribute('data-ouverte'), 'Avant ne rouvre pas la fiche').toBe(ID);
+    expect(decider!.getAttribute('data-ouverte'), 'une autre vue a rouvert la fiche').toBe('');
   });
 
   it('chaque liste (À décider, Table, Carte) rouvre ses fiches', () => {
