@@ -65,13 +65,22 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
     setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
   };
 
+  const barreRef = useRef<HTMLDivElement>(null);
   const move = (it: SavedItem, folder: string | null) => {
     // Même troncature que côté serveur, pour que l'affichage corresponde après rechargement.
     const value = folder?.trim().slice(0, 60) || null;
+    // Rangée ailleurs, la créa QUITTE le board regardé, et son sélecteur avec
+    // elle · le focus tombait en haut de page (mesuré, recette #106 point 6).
+    // Il revient au board courant.
+    const quitteLaVue = tab !== BOARD_TOUS && (tab === BOARD_SANS ? value !== null : value !== tab);
+    if (quitteLaVue) setTimeout(() => barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus(), 0);
     setList((l) => {
       const next = l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: value } : x));
       // Board vidé de sa dernière créa : on revient sur « Toutes » (l'onglet disparaît).
-      if (tab !== BOARD_TOUS && tab !== BOARD_SANS && !next.some((x) => x.folder === tab)) { setTab(BOARD_TOUS); garderDansUrl(BOARD_TOUS, q); }
+      // « Sans dossier » vidé aussi · l'onglet disparaissait et la vue restait
+      // bloquée sur « Aucune créa pour cette recherche » sans recherche.
+      const vide = tab === BOARD_SANS ? !next.some((x) => !x.folder) : tab !== BOARD_TOUS && !next.some((x) => x.folder === tab);
+      if (vide) { setTab(BOARD_TOUS); garderDansUrl(BOARD_TOUS, q); }
       return next;
     });
     start(async () => { await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value }); });
@@ -111,7 +120,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
       </div>
 
       {/* Onglets des boards */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
+      <div ref={barreRef} role="group" aria-label="Boards" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
         <button type="button" aria-pressed={tab === BOARD_TOUS} onClick={() => choisirBoard(BOARD_TOUS)} style={tabBtn(BOARD_TOUS)}>Toutes · {countIn(BOARD_TOUS)}</button>
         {folders.map((f) => (
           <button key={f} type="button" aria-pressed={tab === f} title={f} onClick={() => choisirBoard(f)} style={tabBtn(f)}><Icon name="folder" size={13} /><span style={{ marginLeft: 5, overflow: 'hidden', textOverflow: 'ellipsis' }}>{f}</span><span style={{ flexShrink: 0 }}>&nbsp;· {countIn(f)}</span></button>

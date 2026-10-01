@@ -97,6 +97,33 @@ describe('Sélecteur de board · état et Échap', () => {
     expect(h.querySelector('input[placeholder="Nouveau board…"]'), 'Échap ne referme pas le sélecteur').toBeNull();
     expect(document.activeElement, 'le focus n’est pas rendu au bouton').toBe(b);
   });
+  it('rangée ailleurs, la créa quitte la vue · le focus revient au board courant, pas en haut de page', async () => {
+    pointeur(false);
+    window.history.replaceState(null, '', '/saved?board=sans');
+    const h = await monter(<SavedBoards items={items} followKeys={[]} />);
+    const sel = [...h.querySelectorAll('button[aria-expanded]')][0] as HTMLButtonElement;
+    sel.focus();
+    await act(async () => { sel.click(); });
+    const panneau = document.getElementById(sel.getAttribute('aria-controls')!)!;
+    const offres = [...panneau.querySelectorAll('button')].find((x) => x.textContent?.includes('Offres')) as HTMLButtonElement;
+    offres.focus();
+    await act(async () => { offres.click(); await new Promise((r) => setTimeout(r, 5)); });
+    // La seule créa « Sans dossier » est partie · le board s'est vidé, on revient sur « Toutes ».
+    expect(bouton(h, 'Toutes').getAttribute('aria-pressed'), '« Sans dossier » vidé · la vue reste bloquée dessus').toBe('true');
+    expect(window.location.search).toBe('');
+    expect(document.activeElement, 'le focus est perdu (corps de page)').toBe(bouton(h, 'Toutes'));
+  });
+  it('rangée ailleurs sans vider le board · le focus revient à ce board', async () => {
+    pointeur(false);
+    window.history.replaceState(null, '', '/saved?board=Offres');
+    const h = await monter(<SavedBoards items={[...items, item(4, 'Offres')]} followKeys={[]} />);
+    const sel = [...h.querySelectorAll('button[aria-expanded]')][0] as HTMLButtonElement;
+    sel.focus();
+    await act(async () => { sel.click(); });
+    const retirer = [...document.getElementById(sel.getAttribute('aria-controls')!)!.querySelectorAll('button')].find((x) => x.textContent?.includes('Retirer')) as HTMLButtonElement;
+    await act(async () => { retirer.click(); await new Promise((r) => setTimeout(r, 5)); });
+    expect(document.activeElement, 'le focus est perdu (corps de page)').toBe(bouton(h, 'Offres'));
+  });
   it('au doigt, sélecteur et cartes passent à 44 px · à la souris, densité gardée', async () => {
     pointeur(true);
     let h = await monter(<SavedBoards items={items} followKeys={[]} />);
