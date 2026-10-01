@@ -102,7 +102,12 @@ function ContenuApercu({ logoUrl, name }: { logoUrl?: string | null; name: strin
   );
 }
 
-export function HomeMarques({ marques, activeId }: { marques: MarqueCarte[]; activeId: string | null }) {
+/**
+ * `gererMarques` (lot 11) · le rôle ouvre-t-il les fiches et la création de
+ * marque (admins) ? Sinon, les marques restent visibles mais en cartes sans
+ * lien · un membre ou un client en lecture n'était renvoyé qu'à l'accueil.
+ */
+export function HomeMarques({ marques, activeId, gererMarques = true }: { marques: MarqueCarte[]; activeId: string | null; gererMarques?: boolean }) {
   // La marque active d'abord · le reste garde l'ordre reçu (récent en premier
   // côté serveur). Tri stable · on ne déplace QUE l'active en tête.
   const ordre = [...marques].sort((a, b) => (a.id === activeId ? -1 : b.id === activeId ? 1 : 0));
@@ -111,12 +116,17 @@ export function HomeMarques({ marques, activeId }: { marques: MarqueCarte[]; act
     <section aria-label="Tes marques" style={{ marginBottom: 26 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 500, color: 'var(--ink)', letterSpacing: '-.01em' }}>Tes marques</h2>
-        <Link href="/brands" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>
-          Toutes les marques ›
-        </Link>
+        {gererMarques && (
+          <Link href="/brands" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>
+            Toutes les marques ›
+          </Link>
+        )}
       </div>
 
-      {marques.length === 0 ? (
+      {marques.length === 0 && !gererMarques ? (
+        // État zéro sans droit de création · on le dit, sans lien mort.
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>Aucune marque dans cet espace pour l’instant · ce sont ses admins qui les ajoutent.</p>
+      ) : marques.length === 0 ? (
         // État zéro · aucune fausse carte, on invite à créer la première marque.
         <Link href="/brands/new" style={{ ...carte, maxWidth: 300 }}>
           <div style={{ ...apercu, background: 'linear-gradient(160deg, var(--paper), var(--surface))' }}>
@@ -131,8 +141,8 @@ export function HomeMarques({ marques, activeId }: { marques: MarqueCarte[]; act
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
           {ordre.map((m) => {
             const actif = m.id === activeId;
-            return (
-              <Link key={m.id} href={`/brands/${m.id}`} aria-current={actif ? 'true' : undefined} style={carte}>
+            const contenu = (
+              <>
                 <div style={apercu}>
                   <ContenuApercu logoUrl={m.logoUrl} name={m.name} />
                   {actif && (
@@ -141,13 +151,16 @@ export function HomeMarques({ marques, activeId }: { marques: MarqueCarte[]; act
                 </div>
                 <div style={pied}>
                   <b style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</b>
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{actif ? 'Marque active · reprendre' : 'Ouvrir'}</span>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{gererMarques ? (actif ? 'Marque active · reprendre' : 'Ouvrir') : (actif ? 'Marque active' : 'Marque de l’espace')}</span>
                 </div>
-              </Link>
+              </>
             );
+            return gererMarques
+              ? <Link key={m.id} href={`/brands/${m.id}`} aria-current={actif ? 'true' : undefined} style={carte}>{contenu}</Link>
+              : <div key={m.id} aria-current={actif ? 'true' : undefined} style={{ ...carte, cursor: 'default' }}>{contenu}</div>;
           })}
-          {/* Ajouter une marque · action réelle, même gabarit de carte. */}
-          <Link href="/brands/new" style={{ ...carte, borderStyle: 'dashed' }}>
+          {/* Ajouter une marque · action réelle, même gabarit de carte · seulement si le rôle l'ouvre. */}
+          {gererMarques && <Link href="/brands/new" style={{ ...carte, borderStyle: 'dashed' }}>
             <div style={{ ...apercu, background: 'linear-gradient(160deg, var(--paper), var(--surface))' }}>
               <span aria-hidden style={{ fontSize: 30, fontWeight: 800, color: 'var(--accent-strong)' }}>+</span>
             </div>
@@ -155,7 +168,7 @@ export function HomeMarques({ marques, activeId }: { marques: MarqueCarte[]; act
               <b style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Nouvelle marque</b>
               <span style={{ fontSize: 12, color: 'var(--muted)' }}>Ajouter au compte</span>
             </div>
-          </Link>
+          </Link>}
         </div>
       )}
     </section>

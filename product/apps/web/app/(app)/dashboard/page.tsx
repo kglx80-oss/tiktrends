@@ -3,11 +3,13 @@ import { db, schema } from '@tiktrends/db';
 import { buildDashboard } from '../../../lib/pipeline';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand, listBrands } from '../../../lib/brands';
-import { roleAtLeast } from '../../../lib/rbac';
+import { roleAtLeast, ouverturesParRole } from '../../../lib/rbac';
+import { effectiveAccess } from '../../../lib/access';
+import { bandeauAccueil, cheminOuvert, type RegleChemin } from '@tiktrends/core';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { unlimitedCredits } from '../../../lib/credits';
 import { AssistantHome } from '../../../components/AssistantHome';
-import { HomeBandeau, type BandeauAccueil } from '../../../components/HomeBandeau';
+import { HomeBandeau } from '../../../components/HomeBandeau';
 import { HomeMarques } from '../../../components/HomeMarques';
 import { ProchaineEtape } from '../../../components/ProchaineEtape';
 import { ApercuExemple } from '../../../components/ApercuExemple';
@@ -35,27 +37,16 @@ export default async function Dashboard() {
   // Les marques du compte, pour les cartes « reprise » de la Home.
   const marques = s ? await listBrands(s.workspaceId) : [];
 
-  // Le bandeau à la une · copie orientée DÉCISION, priorité analyse → itération.
-  // Le CTA PRIMAIRE mène à l'analyse (les tests, le marché) ; la création reste
-  // accessible en SECONDAIRE. Aucun prix, promo ni partenariat fictif · une
-  // seule source de contenu, l'emplacement accueillera une vraie campagne.
-  const bandeau: BandeauAccueil = brand
-    ? {
-        titre: 'Prépare ton prochain test',
-        sous: 'Analyse tes résultats, choisis quoi tester ensuite, et itère vers ce qui marche.',
-        ctaLabel: 'Voir mes tests',
-        href: '/adsmap',
-        ctaSecLabel: 'Créer une pub',
-        hrefSec: '/studio/ads',
-      }
-    : {
-        titre: 'Prépare ton prochain test',
-        sous: 'Choisis une marque pour analyser tes tests et décider quoi lancer ensuite.',
-        ctaLabel: marques.length ? 'Choisir une marque' : 'Créer une marque',
-        href: marques.length ? '/brands' : '/brands/new',
-        ctaSecLabel: 'Observer le marché',
-        hrefSec: '/veille',
-      };
+  // Ce que le RÔLE ouvre, rubrique par rubrique · la matrice existante, lue
+  // telle quelle (lot 11). Un verrou de formule n'est pas un refus de rôle · la
+  // rubrique reste proposée, sa page explique l'offre. Rien n'est protégé ici.
+  const regles: RegleChemin[] = s ? ouverturesParRole(effectiveAccess(s)) : [];
+  const ouvert = (href: string) => cheminOuvert(href, regles);
+
+  // Le bandeau à la une · copie orientée DÉCISION, priorité analyse → itération,
+  // création en SECONDAIRE (`bandeauAccueil`, noyau) · un geste fermé au rôle
+  // n'est plus proposé. Aucun prix, promo ni partenariat fictif.
+  const bandeau = bandeauAccueil({ aMarque: !!brand, nbMarques: marques.length, ouvert });
   const firstName = ((s?.user.name || s?.user.email || 'toi').trim().split(/\s+/)[0]) || 'toi';
   const creditsIllimites = unlimitedCredits(s?.user.email);
 
@@ -73,9 +64,10 @@ export default async function Dashboard() {
         brandName={brand?.name ?? null}
         brandId={brand?.id ?? null}
         aiReady={anthropicConfigured()}
-        bandeau={<HomeBandeau key="bandeau" contenu={bandeau} />}
-        marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} />}
-        prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} />}
+        regles={regles}
+        bandeau={bandeau ? <HomeBandeau key="bandeau" contenu={bandeau} /> : null}
+        marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} gererMarques={ouvert('/brands/new')} />}
+        prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} regles={regles} />}
         exemple={<ApercuExemple key="apercu-exemple" rows={rows} />}
       />
     </main>

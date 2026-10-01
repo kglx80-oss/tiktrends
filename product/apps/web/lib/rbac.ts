@@ -230,3 +230,13 @@ export function denyReason(a: Access, f: Feature): 'role' | 'plan' | null {
   if (!planAtLeast(a.plan, f.minPlan)) return 'plan';
   return null;
 }
+
+/**
+ * Lot 11 · pour chaque rubrique, le RÔLE l'ouvre-t-il ? Lu par l'accueil pour
+ * ne proposer que les gestes ouverts. Un verrou de FORMULE n'est pas un refus
+ * de rôle · la rubrique reste proposée et sa page explique l'offre. Ne protège
+ * rien · les pages et les actions gardent leurs propres contrôles.
+ */
+export function ouverturesParRole(a: Access): Array<{ href: string; ouvert: boolean }> {
+  return FEATURES.map((f) => ({ href: f.href, ouvert: denyReason(a, f) !== 'role' }));
+}
