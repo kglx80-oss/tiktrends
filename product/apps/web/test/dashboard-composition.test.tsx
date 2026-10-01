@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { modeProchaineEtape, journey } from '@tiktrends/core';
+import { placementLanceurSupport, modeProchaineEtape, journey } from '@tiktrends/core';
 import { ProchaineEtape } from '../components/ProchaineEtape';
 import { ApercuExemple } from '../components/ApercuExemple';
 
@@ -114,7 +114,7 @@ describe('Dashboard · l’ordre des sections (source)', () => {
 
 describe('Dashboard · shell + page', () => {
   it('le support est ANCRÉ sur /dashboard (réutilise #689), pas une bulle fixe', () => {
-    expect(shell).toContain("pathname === '/dashboard'");
+    expect(placementLanceurSupport('/dashboard')).toBe('ancre');
     expect(shell).toContain('supportAncre');
   });
 

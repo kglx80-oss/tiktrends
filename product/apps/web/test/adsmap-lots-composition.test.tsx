@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { valeurBudget } from '../app/(app)/adsmap/lots/Lots';
@@ -17,7 +18,6 @@ import { valeurBudget } from '../app/(app)/adsmap/lots/Lots';
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const src = read('app/(app)/adsmap/lots/Lots.tsx');
 const page = read('app/(app)/adsmap/lots/page.tsx');
-const shell = read('components/AppShell.tsx');
 
 describe('Lots · budget PRÉVU, la contradiction du lot vide est levée (RÉSULTAT)', () => {
   const brief = { dailyBudgetPerAd: 20, durationDays: 7, totalBudget: 140 };
@@ -134,7 +134,7 @@ describe('Lots · charte, cibles tactiles et support ancré (source)', () => {
   });
 
   it('le support est ANCRÉ sur /adsmap/lots · il ne recouvre aucun CTA', () => {
-    expect(shell).toContain("pathname === '/adsmap/lots'");
+    expect(placementLanceurSupport('/adsmap/lots')).toBe('ancre');
   });
 
   it('la page reste réservée aux admins (gate serveur)', () => {

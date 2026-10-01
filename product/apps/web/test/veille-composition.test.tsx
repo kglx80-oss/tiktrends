@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -93,7 +94,7 @@ describe('Veille · la page mène par l’observation (source)', () => {
 
 describe('Veille · shell', () => {
   it('le support est ANCRÉ sur /veille (comme Dashboard et Pubs)', () => {
-    expect(shell).toContain("pathname === '/veille'");
+    expect(placementLanceurSupport('/veille')).toBe('ancre');
     expect(shell).toContain('supportAncre');
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MODE_LABEL } from '@tiktrends/core';
+import { placementLanceurSupport, MODE_LABEL } from '@tiktrends/core';
 import { CarteSuite, sensDuSuite } from '../app/(app)/adsmap/suites/Suites';
 import type { IterationRow } from '../app/actions/adsmap-iterate';
 
@@ -20,7 +20,6 @@ import type { IterationRow } from '../app/actions/adsmap-iterate';
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const src = read('app/(app)/adsmap/suites/Suites.tsx');
 const page = read('app/(app)/adsmap/suites/page.tsx');
-const shell = read('components/AppShell.tsx');
 
 const base: IterationRow = {
   adId: 'ad-1', label: 'Concept 2 · v2', spend: 320,
@@ -146,7 +145,7 @@ describe('Suites · révélation ouverte/repliée + en-tête court + support anc
   });
 
   it('le support est ANCRÉ sur /adsmap/suites · il ne recouvre plus cartes ni CTA', () => {
-    expect(shell).toContain("pathname === '/adsmap/suites'");
+    expect(placementLanceurSupport('/adsmap/suites')).toBe('ancre');
   });
 });
 

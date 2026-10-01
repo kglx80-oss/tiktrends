@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -10,14 +11,12 @@ import { join } from 'node:path';
  */
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-const shell = read('components/AppShell.tsx');
 const form = read('app/(app)/adsmap/protocole/ProtocolForm.tsx');
 const page = read('app/(app)/adsmap/protocole/page.tsx');
 
 describe('Protocole · le support est ANCRÉ (il ne recouvre plus le contenu)', () => {
   it('/adsmap/protocole entre dans la liste des écrans à support ancré', () => {
-    expect(shell, 'le support de /adsmap/protocole flotte encore et recouvre le contenu au défilement')
-      .toContain("pathname === '/adsmap/protocole'");
+    expect(placementLanceurSupport('/adsmap/protocole'), 'le support de /adsmap/protocole flotte encore et recouvre le contenu au défilement').toBe('ancre');
   });
 });
 

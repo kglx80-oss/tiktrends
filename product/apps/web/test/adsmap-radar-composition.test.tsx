@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -16,7 +17,6 @@ import { join } from 'node:path';
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const src = read('app/(app)/adsmap/radar/Radar.tsx');
-const shell = read('components/AppShell.tsx');
 
 /** Le style qui suit un ancrage porte-t-il la cible tactile ? (fenêtre bornée) */
 const cibleAutour = (anchor: string, avant = 160, apres = 40) => {
@@ -67,7 +67,6 @@ describe('Radar · « Armer » désactivé LIT comme désactivé (source)', () =
 
 describe('Radar · le support est ANCRÉ (il ne recouvre plus le contenu)', () => {
   it('/adsmap/radar entre dans la liste des écrans à support ancré', () => {
-    expect(shell, 'le support de /adsmap/radar flotte encore et recouvre le contenu')
-      .toContain("pathname === '/adsmap/radar'");
+    expect(placementLanceurSupport('/adsmap/radar'), 'le support de /adsmap/radar flotte encore et recouvre le contenu').toBe('ancre');
   });
 });
