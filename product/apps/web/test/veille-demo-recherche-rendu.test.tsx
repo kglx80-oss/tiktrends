@@ -64,4 +64,11 @@ describe('Veille · démonstration · la recherche filtre vraiment l’échantil
     expect(html).toContain('Mode démonstration');
     expect(html).not.toMatch(/configur[ée]+ sur le serveur/);
   });
+
+  it('l’aide nomme l’action réelle de la carte et ne promet aucun résultat', async () => {
+    const html = await rendre({});
+    expect(html, 'l’aide promet un bouton qui n’existe pas').not.toContain('Générer une variante');
+    expect(html).toContain('Décline cette piste');
+    expect(html).toContain('pas un résultat garanti');
+  });
 });

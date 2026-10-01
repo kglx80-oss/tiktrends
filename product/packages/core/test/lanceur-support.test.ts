@@ -5,6 +5,9 @@ describe('placementLanceurSupport', () => {
   it('Connexions ancre le lanceur · la bulle fixe recouvrait « Afficher » et « Connecter » à 390', () => {
     expect(placementLanceurSupport('/connections')).toBe('ancre');
   });
+  it('Réglages ancre le lanceur · la bulle masquait le texte White-label à 390', () => {
+    expect(placementLanceurSupport('/settings')).toBe('ancre');
+  });
   it('les écrans déjà ancrés le restent', () => {
     for (const r of ['/studio/ads', '/dashboard', '/veille', '/adsmap', '/analytics']) expect(placementLanceurSupport(r), r).toBe('ancre');
   });

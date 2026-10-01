@@ -340,7 +340,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
             (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
             fait remonter les créas diffusées depuis longtemps. Clique <b>★</b> pour sauvegarder une
-            créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
+            créa, <b>+ Suivre</b> une marque, et <b>Décline cette piste</b> (ou <b>Génère ta version</b>) pour ouvrir
+            Pubs IA avec son angle comme point de départ · une piste à tester, pas un résultat garanti.
             Sans <b>catégorie de marque</b> renseignée, la sélection par défaut est générique · précise la catégorie pour cibler.
           </PageInfo>
         </div>

@@ -26,7 +26,7 @@ import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
 import { CarteConcurrent } from '../../../../components/CarteConcurrent';
-import { costFor, imageModelByKey, connecteursBranches, accesAssets, type DaVisuelleMarque } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, costFor, imageModelByKey, connecteursBranches, accesAssets, type DaVisuelleMarque } from '@tiktrends/core';
 import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 
@@ -206,7 +206,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
                 {aiReady ? <>L'IA lit <b>{b.url || 'le site'}</b> et remplit profil, USP, audience, personas, scénarios et concurrents. Ne remplace pas ce que tu as déjà saisi.</> : <>Nécessite la clé IA serveur.</>}
               </div>
             </div>
-            <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} />
+            <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} style={{ minHeight: CIBLE_TACTILE_MIN }} />
           </form>
 
           {/* L'identité visuelle · BrandDA porte ses DEUX ancres de section
