@@ -177,7 +177,9 @@ export function Lots({ batches, brandName }: {
   const selecteur = (
     <div>
       <h3 style={titreSection}>Lots de {brandName}</h3>
-      {mobile ? (
+      {/* Aucun lot · rien à choisir, la création s'affiche d'emblée (en 390,
+          elle se cachait derrière « Changer (0) », recette lot 8). */}
+      {mobile && liste.length === 0 ? champCreation : mobile ? (
         <div style={{ display: 'grid', gap: 9 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', minWidth: 0 }}>
             <div style={{ flex: 1, minWidth: 0, padding: '8px 11px', borderRadius: 10, border: '1px solid var(--accent-strong)', background: 'var(--accent-soft)', color: 'var(--ink)', fontSize: 12 }}>

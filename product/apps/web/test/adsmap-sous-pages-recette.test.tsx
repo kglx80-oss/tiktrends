@@ -56,6 +56,15 @@ describe('Lots · lancer, noms longs, lien vers la variante', () => {
     const raison = document.getElementById(b.getAttribute('aria-describedby') ?? 'x');
     expect(raison?.textContent, 'la raison n’est dite qu’au survol').toContain('pas encore prête');
   });
+  it('aucun lot, en mobile · la création est à l’écran, pas derrière « Changer (0) »', async () => {
+    const mm = window.matchMedia;
+    window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
+    try {
+      const h = await monter(<Lots batches={[]} brandName="Neva" />);
+      expect(h.querySelector('input[aria-label="But du nouveau lot"]'), 'le champ de création est caché').toBeTruthy();
+      expect(h.textContent).not.toContain('Changer (0)');
+    } finally { window.matchMedia = mm; }
+  });
   it('concept long · ENTIER à l’écran (lisible au doigt et au clavier) ; la ligne mène à la fiche de l’ad', async () => {
     const h = await monter(<Lots batches={[{ id: 'l1', number: 7, status: 'planned', goal: null, launchedAt: null, ads: 1 }]} brandName="Neva" />);
     const c = [...h.querySelectorAll('span')].find((s) => s.textContent === LONG) as HTMLElement;

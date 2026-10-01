@@ -108,4 +108,12 @@ describe('Suites · filtre, formulaire, création', () => {
     await pause();
     expect(h.querySelector('[role=alert]')?.textContent, 'l’erreur reste invisible').toContain('Plafond');
   });
+
+  it('vide · le message n’apparaît qu’une fois (pas de résumé en double de la carte)', async () => {
+    plan = [];
+    const h = await monter();
+    expect(h.textContent, 'le résumé répète la carte vide').not.toContain('résumé');
+    expect(h.textContent!.split('Rien à itérer').length - 1).toBe(1);
+    expect(bouton(h, 'Recalculer'), 'le recalcul manuel reste disponible').toBeTruthy();
+  });
 });

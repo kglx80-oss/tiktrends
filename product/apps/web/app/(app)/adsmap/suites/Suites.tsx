@@ -93,8 +93,9 @@ export function Suites() {
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {/* Vide · la carte « Rien à itérer » dit déjà la même chose · une seule fois (recette lot 8). */}
         <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', flex: 1, minWidth: 220, lineHeight: 1.55 }}>
-          {view.summary}
+          {view.rows.length > 0 ? view.summary : null}
         </p>
         <button
           onClick={recharger} disabled={charge}
