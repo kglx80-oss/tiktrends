@@ -50,11 +50,14 @@ export function DataConnections({ initial, brandName, metaOAuth = false, shopify
 function Wrap({ outil, title, badge, children }: { outil: string; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+      {/* Recette A (#120) · mesuré à 390 avec un nom long · le badge d'état
+          (« CONNECTÉ · À SYNCHRONISER ») débordait la carte de 16 px (46 à 360) ·
+          la ligne passe à la ligne, le badge descend sous le titre. */}
+      <div data-entete-connecteur style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         {/* La pastille commune à toutes les intégrations · logo officiel, décoratif ·
             le nom de l'outil est dans le titre juste à côté. */}
         <BrandTile name={outil} />
-        <b style={{ fontSize: 15, color: 'var(--ink)', flex: 1 }}>{title}</b>
+        <b style={{ fontSize: 15, color: 'var(--ink)', flex: '1 1 140px', minWidth: 0 }}>{title}</b>
         {badge}
       </div>
       {children}
@@ -145,7 +148,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Top produits</div>
               {ins.topProducts.slice(0, 4).map((p) => (
-                <div key={p.title} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span><b style={{ color: 'var(--ink)' }}>{eur(p.revenue, ins.currency)}</b></div>
+                <div key={p.title} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span title={p.title} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{p.title}</span><b style={{ color: 'var(--ink)', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{eur(p.revenue, ins.currency)}</b></div>
               ))}
             </div>
           ) : null}
@@ -242,7 +245,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Top créas (ROAS)</div>
               {ins.topAds.slice(0, 4).map((a) => (
-                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span><b style={{ color: '#7ee8bf' }}>{a.roas}×</b></div>
+                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span title={a.name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{a.name}</span><b style={{ color: '#7ee8bf', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{a.roas}×</b></div>
               ))}
             </div>
           ) : null}
