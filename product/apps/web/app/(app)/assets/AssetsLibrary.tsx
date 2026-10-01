@@ -67,13 +67,15 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   const [search, setSearch] = useState('');
   const [tagging, setTagging] = useState<string | 'bulk' | ''>('');
   const fileRef = useRef<HTMLInputElement>(null);
-  // Déclencheurs des deux panneaux · Échap ferme le panneau et REND le focus ici.
+  // Déclencheurs des deux panneaux · Échap ferme le panneau ouvert et REND le
+  // focus ici, que le focus soit dans le panneau OU encore sur son bouton
+  // (Entrée ouvre sans déplacer le focus · mesuré au navigateur, recette #106).
   const driveBtnRef = useRef<HTMLButtonElement>(null);
   const importBtnRef = useRef<HTMLButtonElement>(null);
-  const fermerPanneau = (e: React.KeyboardEvent, quel: 'drive' | 'import') => {
-    if (e.key !== 'Escape') return;
+  const fermerPanneau = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || (!showDrive && !showImport)) return;
     e.stopPropagation();
-    if (quel === 'drive') { setShowDrive(false); driveBtnRef.current?.focus(); } else { setShowImport(false); importBtnRef.current?.focus(); }
+    if (showDrive) { setShowDrive(false); driveBtnRef.current?.focus(); } else { setShowImport(false); importBtnRef.current?.focus(); }
   };
   const [, startTransition] = useTransition();
 
@@ -210,7 +212,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   }
 
   return (
-    <div>
+    <div onKeyDown={fermerPanneau}>
       {/* Barre d'actions */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
         <input ref={fileRef} type="file" accept={storageEnabled ? 'image/*,video/*,audio/*' : 'image/*'} multiple onChange={onFiles} style={{ display: 'none' }} />
@@ -238,7 +240,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
 
       {/* Google Drive · import de liens (fichiers ou dossier partagé) */}
       {showDrive && (
-        <div id="assets-panneau-drive" onKeyDown={(e) => fermerPanneau(e, 'drive')} style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
+        <div id="assets-panneau-drive" style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <GoogleDriveIcon size={18} />
             <b style={{ fontSize: 14, color: 'var(--ink)' }}>Importer depuis Google Drive</b>
@@ -263,7 +265,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
 
       {/* Import par lien */}
       {showImport && (
-        <div id="assets-panneau-lien" onKeyDown={(e) => fermerPanneau(e, 'import')} style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 16 }}>
+        <div id="assets-panneau-lien" style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: '2 1 300px' }}><label style={lbl}>URL (vidéo, audio, image, Google Drive…)</label><input value={imp.url} onChange={(e) => setImp((s) => ({ ...s, url: e.target.value }))} placeholder="https://…" style={fld} /></div>
             <div style={{ flex: '1 1 160px' }}><label style={lbl}>Nom</label><input value={imp.name} onChange={(e) => setImp((s) => ({ ...s, name: e.target.value }))} placeholder="Rush produit 01" style={fld} /></div>

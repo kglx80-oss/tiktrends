@@ -93,5 +93,18 @@ describe('Recette #106 · Assets · panneaux d’import · état et Échap', () 
       expect(b.getAttribute('aria-expanded')).toBe('false');
       expect(document.activeElement, 'le focus n’est pas rendu au bouton qui a ouvert le panneau').toBe(b);
     });
+
+    // Au navigateur, Entrée sur le bouton ouvre le panneau SANS déplacer le
+    // focus · Échap doit fermer aussi depuis le bouton lui-même.
+    it(`« ${nom} » · Échap ferme aussi quand le focus est resté sur le bouton`, async () => {
+      const h = await monter();
+      const b = bouton(h, nom);
+      b.focus();
+      await act(async () => { b.click(); });
+      expect(h.querySelector(champ)).toBeTruthy();
+      await echap(b);
+      expect(h.querySelector(champ), 'Échap depuis le bouton ne ferme pas le panneau').toBeNull();
+      expect(document.activeElement).toBe(b);
+    });
   }
 });
