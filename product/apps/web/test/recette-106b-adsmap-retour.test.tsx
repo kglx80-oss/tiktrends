@@ -26,6 +26,10 @@ vi.mock('../app/(app)/adsmap/BuildPanel', () => ({ BuildPanel: () => null }));
 
 import { AdDrawer } from '../app/(app)/adsmap/AdDrawer';
 import { Views } from '../app/(app)/adsmap/Views';
+import { useRouvrirFiche } from '../app/(app)/adsmap/useRouvrirFiche';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { useState } from 'react';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const ID = '11111111-2222-4333-8444-555555555555';
@@ -90,5 +94,33 @@ describe('Vues Adsmap · dans l’URL', () => {
     expect(window.history.length, 'changer d’onglet empile une entrée').toBe(avant);
     await act(async () => { onglet('À décider').click(); });
     expect(window.location.search).toBe('');
+  });
+});
+
+describe('Échap puis Avant · la fiche se rouvre (recette #106)', () => {
+  it('l’entrée de la fiche porte la vue qui l’a ouverte', async () => {
+    window.history.replaceState(null, '', '/adsmap?vue=table');
+    await monter(<AdDrawer adId={ID} onClose={() => {}} onChanged={() => {}} />);
+    expect(window.history.state, 'l’entrée ne dit pas quelle vue rouvrir').toMatchObject({ ficheAdsmap: ID, vueAdsmap: 'table' });
+  });
+
+  function Liste({ vue }: { vue: 'table' | 'decider' }) {
+    const [ouverte, setOuverte] = useState<string | null>(null);
+    useRouvrirFiche(vue, setOuverte);
+    return <p data-ouverte={ouverte ?? ''} />;
+  }
+  it('Avant vers cette entrée rouvre la fiche dans SA vue, pas dans une autre', async () => {
+    const h = await monter(<><Liste vue="table" /><Liste vue="decider" /></>);
+    await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: { ficheAdsmap: ID, vueAdsmap: 'table' } })); });
+    const [table, decider] = [...h.querySelectorAll('p')];
+    expect(table.getAttribute('data-ouverte'), 'Avant ne rouvre pas la fiche').toBe(ID);
+    expect(decider.getAttribute('data-ouverte'), 'une autre vue a rouvert la fiche').toBe('');
+  });
+
+  it('chaque liste (À décider, Table, Carte) rouvre ses fiches', () => {
+    for (const [f, v] of [['Inbox', 'decider'], ['AdsMapTable', 'table'], ['Canvas', 'carte']]) {
+      const src = readFileSync(join(process.cwd(), `app/(app)/adsmap/${f}.tsx`), 'utf8');
+      expect(src, `${f} ne rouvre pas ses fiches`).toContain(`useRouvrirFiche('${v}', setOuverte)`);
+    }
   });
 });

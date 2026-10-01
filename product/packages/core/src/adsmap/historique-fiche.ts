@@ -59,3 +59,23 @@ export type OrigineFiche = 'liste' | 'lien-profond';
 export function ficheEmpileHistorique(origine: OrigineFiche): boolean {
   return origine === 'liste';
 }
+
+/**
+ * L'état posé sur l'entrée d'historique d'une fiche ouverte depuis la liste ·
+ * l'identifiant ET la vue qui l'a ouverte (recette #106 · Échap puis Avant
+ * remettait `?ad=` dans l'URL sans rouvrir la fiche).
+ */
+export function etatFicheAdsmap(adId: string, vue: VueAdsmap): { ficheAdsmap: string; vueAdsmap: VueAdsmap } {
+  return { ficheAdsmap: adId, vueAdsmap: vue };
+}
+
+/**
+ * Au retour sur une entrée d'historique (Avant, ou Retour vers une fiche),
+ * la fiche que la vue `vue` doit rouvrir · seulement l'entrée posée par une
+ * fiche de CETTE vue (une autre vue montée en arrière-plan ne rouvre rien).
+ */
+export function ficheARouvrir(etat: unknown, vue: VueAdsmap): string | null {
+  if (!etat || typeof etat !== 'object') return null;
+  const e = etat as { ficheAdsmap?: unknown; vueAdsmap?: unknown };
+  return typeof e.ficheAdsmap === 'string' && e.ficheAdsmap && e.vueAdsmap === vue ? e.ficheAdsmap : null;
+}

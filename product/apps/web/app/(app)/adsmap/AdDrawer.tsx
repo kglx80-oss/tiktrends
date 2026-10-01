@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { VerdictValue, TestedVariable, OrigineFiche } from '@tiktrends/core';
-import { rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio } from '@tiktrends/core';
+import { etatFicheAdsmap, lireVueAdsmap, PARAM_VUE_ADSMAP, rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -104,7 +104,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
     const nOtre = () => (window.history.state as { ficheAdsmap?: string } | null)?.ficheAdsmap === adId;
     // État minimal · Next.js y recopie lui-même son état interne (pushState
     // natif intégré au routeur) et synchronise useSearchParams.
-    if (!nOtre()) window.history.pushState({ ficheAdsmap: adId }, '', `${window.location.pathname}${rechercheAdsmap(window.location.search, { fiche: adId })}`);
+    if (!nOtre()) window.history.pushState(etatFicheAdsmap(adId, lireVueAdsmap(new URLSearchParams(window.location.search).get(PARAM_VUE_ADSMAP))), '', `${window.location.pathname}${rechercheAdsmap(window.location.search, { fiche: adId })}`);
     let parRetour = false;
     const surRetour = () => { parRetour = true; fermerRef.current(); };
     window.addEventListener('popstate', surRetour);

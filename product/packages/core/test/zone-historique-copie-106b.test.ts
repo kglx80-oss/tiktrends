@@ -87,3 +87,14 @@ describe('copie-service · un client lit ce qui manque et qui agit, sans jargon'
     }
   });
 });
+
+describe('ficheARouvrir · Échap puis Avant rouvre la fiche de la bonne vue', () => {
+  it('l’entrée posée par une fiche de la vue est rouverte par cette vue seulement', async () => {
+    const { etatFicheAdsmap, ficheARouvrir } = await import('../src/adsmap/historique-fiche');
+    const e = etatFicheAdsmap('ad-1', 'table');
+    expect(ficheARouvrir(e, 'table')).toBe('ad-1');
+    expect(ficheARouvrir(e, 'decider')).toBeNull();
+    expect(ficheARouvrir(null, 'table')).toBeNull();
+    expect(ficheARouvrir({ ficheAdsmap: 'ad-1' }, 'table'), 'entrée sans vue (ancienne) · rien à rouvrir').toBeNull();
+  });
+});
