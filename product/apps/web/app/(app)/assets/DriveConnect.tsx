@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
-import { resumeImportDrive, etatSyncDrive, derniereTentativeDriveEnEchec, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, DRIVE_PORTEE_ACCES, CIBLE_TACTILE_MIN, type MessageClient } from '@tiktrends/core';
+import { resumeImportDrive, etatSyncDrive, derniereTentativeDriveEnEchec, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, DRIVE_PORTEE_ACCES, CIBLE_TACTILE_MIN, type MessageClient, BADGE_ESPACE_ADMIN } from '@tiktrends/core';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 
@@ -252,12 +252,14 @@ function MessageInactif({ m }: { m: MessageClient }) {
   );
 }
 
+// Le bloc Drive n'est rendu qu'aux admins de l'espace (assets/page · roleAtLeast
+// admin) · lot 12, plus « ADMIN+ », réservé au personnel de la plateforme.
 function Head({ brandName }: { brandName: string | null }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       <GoogleDriveIcon size={19} />
       <b style={{ fontSize: 14, color: 'var(--ink)' }}>Google Drive{brandName ? ` · ${brandName}` : ''}</b>
-      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 8px', borderRadius: 999, color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>ADMIN+</span>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 8px', borderRadius: 999, color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>{BADGE_ESPACE_ADMIN}</span>
     </div>
   );
 }

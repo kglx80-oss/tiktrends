@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { isFounder } from '../../../lib/founder';
-import { caseCreditsFormule, PIED_FACTURATION_SANS_PAIEMENT } from '@tiktrends/core';
+import { caseCreditsFormule, PIED_FACTURATION_SANS_PAIEMENT, introFacturation } from '@tiktrends/core';
 import { unlimitedCredits } from '../../../lib/credits';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
@@ -59,8 +59,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 6, marginBottom: 18, maxWidth: 760, lineHeight: 1.6 }}>
-        Formule de l'espace <b>{s.workspaceName}</b>. Chaque formule ouvre une allocation mensuelle de crédits :
-        les crédits se consomment à chaque génération (image, vidéo, analyse), selon l'action.
+        Formule de l'espace <b>{s.workspaceName}</b>. {introFacturation(unlimitedCredits(s.user.email))}
       </p>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}

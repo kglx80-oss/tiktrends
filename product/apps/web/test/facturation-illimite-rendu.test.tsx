@@ -34,6 +34,14 @@ describe('/billing · un compte illimité lit « Illimité »', () => {
     expect(caseCredits, 'illimité affiché comme un solde nul').not.toMatch(/◈ 0/);
     expect(caseCredits).toMatch(/Illimité · formule 24 000 \/ mois/);
   });
+  it('l’introduction ne promet plus de débit par génération à un compte illimité (lot 12)', async () => {
+    etat.illimite = true;
+    const t = await rendre(BillingPage);
+    expect(t).not.toContain('se consomment à chaque génération');
+    expect(t).toContain('tes propres générations ne la débitent pas');
+    etat.illimite = false;
+    expect(await rendre(BillingPage)).toContain('se consomment à chaque génération');
+  });
   it('un compte au barème garde son solde sur l’allocation', async () => {
     etat.illimite = false;
     const t = await rendre(BillingPage);

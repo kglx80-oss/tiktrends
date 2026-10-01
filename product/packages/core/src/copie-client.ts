@@ -94,6 +94,21 @@ export const TEXTES_IA_INACTIFS: MessageClient = {
   action: TICKET_INTERNE,
 };
 
+/**
+ * Le bouton de génération de Textes quand le service est inactif · lot 12. Il
+ * gardait « Générer la créative · 3 crédits » (désactivé mais d'aspect actif),
+ * un prix pour une action impossible. Il dit l'état, et l'explication le suit
+ * immédiatement. Aucune fonction n'est retirée · elle n'est pas disponible.
+ */
+export const BOUTON_TEXTES_INACTIF = 'Génération inactive pour ton espace';
+
+/**
+ * Le badge des blocs réservés aux admins de l'ESPACE · lot 12. « ADMIN+ »
+ * désigne le personnel de la plateforme ; un bloc ouvert aux admins d'un espace
+ * client ne le prétend pas.
+ */
+export const BADGE_ESPACE_ADMIN = 'ESPACE ADMIN';
+
 /** La portée de l'accès, dite sans nom de permission technique. */
 export const DRIVE_PORTEE_ACCES =
   'Accès limité aux fichiers et au dossier que tu choisis · aucune autre donnée de ton Drive n’est lue.';

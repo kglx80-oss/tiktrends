@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { generateAction, type StudioState } from '../../../actions/studio';
-import { costFor, CIBLE_TACTILE_MIN, TEXTES_IA_INACTIFS } from '@tiktrends/core';
+import { costFor, CIBLE_TACTILE_MIN, TEXTES_IA_INACTIFS, BOUTON_TEXTES_INACTIF } from '@tiktrends/core';
 import type { CreativeOutput } from '@tiktrends/ai';
 import { Icon } from '../../../../components/Icon';
 import { useIsMobile } from '../../../../components/useIsMobile';
@@ -56,19 +56,23 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
           </div>
         </div>
         <div><label htmlFor="studio-textes-inspiration" style={lbl}>Inspiration (piste repérée à réinterpréter)</label><textarea id="studio-textes-inspiration" name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
-        <button type="submit" disabled={pending || !hasKey} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '12px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending || !hasKey ? .6 : 1 }}>
-          {pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative · {costFor('script')} crédits</span>}
+        {/* Lot 12 · service inactif · le bouton dit l'état (plus « Générer · 3
+            crédits » d'aspect actif) et l'explication le suit immédiatement. */}
+        <button type="submit" disabled={pending || !hasKey} aria-describedby={hasKey ? undefined : 'studio-textes-inactif'} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '12px 18px', borderRadius: 999, border: hasKey ? 'none' : '1px dashed var(--line-2)', background: hasKey ? 'var(--grad-accent)' : 'transparent', color: hasKey ? 'var(--on-accent)' : 'var(--muted)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending ? .6 : 1 }}>
+          {!hasKey ? BOUTON_TEXTES_INACTIF : pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative · {costFor('script')} crédits</span>}
         </button>
         {/* Le coût se dit AVANT le clic · aucune génération payante sans prix connu
              (CDC S21). Ce que ça produit, et la politique d'échec, avec. */}
-        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
-          {costFor('script')} crédits · angles, hooks, script et légendes en un lot · non facturé si la génération échoue.
-        </p>
+        {hasKey && (
+          <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+            {costFor('script')} crédits · angles, hooks, script et légendes en un lot · non facturé si la génération échoue.
+          </p>
+        )}
         {/* Copie CLIENT · ce qui manque, qui agit, quoi faire · jamais un nom de
             variable ni de fournisseur (recette #106). La logique (bouton
             désactivé sans IA) ne change pas. */}
         {!hasKey && (
-          <div role="status" style={{ display: 'grid', gap: 8 }}>
+          <div role="status" id="studio-textes-inactif" style={{ display: 'grid', gap: 8 }}>
             <p style={{ margin: 0, fontSize: 12, color: 'var(--warn)', lineHeight: 1.5 }}>
               <b>{TEXTES_IA_INACTIFS.constat}</b> {TEXTES_IA_INACTIFS.suite}
             </p>

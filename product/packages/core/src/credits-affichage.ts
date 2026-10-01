@@ -87,3 +87,15 @@ export const PIED_FACTURATION_SANS_PAIEMENT = {
   titre: 'Paiement en préparation.',
   texte: 'Le règlement en ligne n’est pas encore ouvert · la formule ne se change pas encore depuis l’application, et un ticket au support reste dans ton espace (seuls ses admins le lisent).',
 } as const;
+
+/**
+ * L'introduction de /billing · lot 12. Elle disait à tout lecteur « les crédits
+ * se consomment à chaque génération », y compris à un compte illimité, que rien
+ * ne débite. L'allocation reste celle de l'ESPACE (les autres membres la
+ * consomment) · on dit les deux, sans changer aucune règle.
+ */
+export function introFacturation(illimite: boolean): string {
+  return illimite
+    ? 'Chaque formule ouvre une allocation mensuelle de crédits pour l’espace, consommée par les générations de ses membres. Ton accès est illimité · tes propres générations ne la débitent pas.'
+    : 'Chaque formule ouvre une allocation mensuelle de crédits : les crédits se consomment à chaque génération (image, vidéo, analyse), selon l’action.';
+}

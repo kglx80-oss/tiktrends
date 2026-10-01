@@ -92,3 +92,27 @@ describe('Recette #106 · Studio Textes sans IA activée · copie client', () =>
     expect(renderToStaticMarkup(<StudioClient hasKey />)).not.toContain(TEXTES_IA_INACTIFS.constat);
   });
 });
+
+describe('Lot 12 · badge Drive et bouton Textes', () => {
+  it('le bloc Drive (admins de l’espace) dit « ESPACE ADMIN », jamais « ADMIN+ »', () => {
+    for (const st of [etat({ available: false, pickerReady: false }), etat(), etat({ connected: true, folderId: 'f', folderName: 'Rushs' })]) {
+      const t = texte(renderToStaticMarkup(<DriveConnect state={st} />));
+      expect(t, 'badge du personnel de la plateforme sur un bloc d’espace').not.toContain('ADMIN+');
+      expect(t).toContain('ESPACE ADMIN');
+    }
+  });
+  it('Textes inactif · le bouton dit l’état, plus de prix pour une action impossible, explication reliée', () => {
+    const html = renderToStaticMarkup(<StudioClient hasKey={false} />);
+    const bouton = /<button type="submit"[^>]*>([\s\S]*?)<\/button>/.exec(html)!;
+    expect(texte(bouton[1]!)).toBe('Génération inactive pour ton espace');
+    expect(bouton[0]).toContain('disabled');
+    expect(bouton[0]).toContain('aria-describedby="studio-textes-inactif"');
+    expect(html).toContain('id="studio-textes-inactif"');
+    expect(texte(html), 'prix affiché pour une génération indisponible').not.toMatch(/Générer la créative|non facturé si la génération échoue/);
+  });
+  it('Textes actif · bouton et prix inchangés', () => {
+    const t = texte(renderToStaticMarkup(<StudioClient hasKey />));
+    expect(t).toMatch(/Générer la créative · \d+ crédits/);
+    expect(t).toContain('non facturé si la génération échoue');
+  });
+});
