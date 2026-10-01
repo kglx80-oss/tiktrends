@@ -9,7 +9,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { BRAND_COOKIE } from '../../lib/brands';
 import { generateBrandProfile, type BrandProfileDraft } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
-import { costFor, policeTechnique } from '@tiktrends/core';
+import { costFor, policeTechnique, messageServiceInactif } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { discoverShopify } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
@@ -48,7 +48,8 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
   if (!name) return { error: 'Indique au moins le nom de la marque.' };
 
   const client = guardedAnthropic({ action: 'brands' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur (clé manquante). Remplis le profil manuellement." };
+  // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
+  if (!client) return { error: messageServiceInactif('ia_profil') };
 
   const cost = costFor('brief');
   const unlimited = unlimitedCredits(s.user.email);

@@ -14,7 +14,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, hauteurRangeeRail, railEntreeActive, ancresDeclarees } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis } from '@tiktrends/core';
 import { chromeCoquille } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -288,6 +288,14 @@ function AppShellInner(props: Props) {
       const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
       if (!a || (a.target && a.target !== '_self')) return;
       const url = new URL(a.getAttribute('href') ?? '', window.location.href);
+      // Rail · même chemin, autre recherche (« Veille » depuis /veille?q=…) · le
+      // routeur client ne termine pas cette transition (mesuré, recette #106b) ·
+      // on confie la remise à zéro au navigateur (noyau `chargementCompletRequis`).
+      if (a.closest('#nav-rail') && chargementCompletRequis(window.location, url)) {
+        e.preventDefault();
+        window.location.assign(url.href);
+        return;
+      }
       if (url.origin === window.location.origin) setCurrentHash(url.hash);
       // Le tiroir mobile ne se refermait qu'au CHANGEMENT de route · un saut
       // d'ancre sur la même page (Couleurs, Charte) le laissait ouvert, par-dessus

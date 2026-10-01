@@ -137,3 +137,7 @@ export * from './assistant-pub';
 export * from './copie-client';
 export * from './veille-echantillon';
 export * from './logo-outil';
+export * from './zone-cible';
+export * from './adsmap/historique-fiche';
+export * from './copie-service';
+export * from './meme-chemin';
