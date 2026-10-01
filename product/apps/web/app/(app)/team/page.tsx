@@ -31,8 +31,12 @@ const ERR: Record<string, string> = {
 export default async function TeamPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
+  // Réservé aux propriétaires et admins de l'espace (autorisation Kevin, lot 9).
+  // La garde passe AVANT toute lecture · un membre ou un client en lecture qui
+  // tape l'URL ne reçoit ni les e-mails des membres, ni les liens d'invitation.
+  // Même règle que l'entrée « Membres » du menu (`minRole: 'admin'`, rbac.ts).
+  if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
   const { ok, e } = await searchParams;
-  const isAdmin = roleAtLeast(s.role, 'admin');
   // Le même lien que l'e-mail (`appUrl` du mailer) · l'écran montrait un chemin
   // relatif inutilisable hors de l'app quand APP_URL manquait (recette #106).
   const lienBase = appUrl();
@@ -46,10 +50,8 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       .from(schema.workspaceMembers)
       .innerJoin(schema.users, eq(schema.users.id, schema.workspaceMembers.userId))
       .where(eq(schema.workspaceMembers.workspaceId, s.workspaceId))) as typeof members;
-    if (isAdmin) {
-      invites = await db.select().from(schema.invites)
-        .where(and(eq(schema.invites.workspaceId, s.workspaceId), eq(schema.invites.status, 'pending')));
-    }
+    invites = await db.select().from(schema.invites)
+      .where(and(eq(schema.invites.workspaceId, s.workspaceId), eq(schema.invites.status, 'pending')));
   }
 
   return (
@@ -79,49 +81,47 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       </div>
 
       {/* Inviter (admin+) · en pop-up */}
-      {isAdmin && (
-        <div style={panel}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <h2 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Inviter un membre</h2>
-              <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>
-                Un lien permet à l'invité de rejoindre l'espace avec le rôle choisi · par e-mail si l'envoi est configuré, sinon à copier.
-              </p>
-            </div>
-            <InviteMemberButton />
+      <div style={panel}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Inviter un membre</h2>
+            <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>
+              Un lien permet à l'invité de rejoindre l'espace avec le rôle choisi · par e-mail si l'envoi est configuré, sinon à copier.
+            </p>
           </div>
-
-          {invites.length > 0 && (
-            <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
-              <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Invitations en attente</div>
-              {invites.map((inv) => {
-                // Expirée · le lien ne mène plus nulle part (l'acceptation la refuse).
-                const expiree = etatInvitation(inv.expiresAt as Date | null, maintenant) === 'expiree';
-                const lien = `${lienBase}/invite/${inv.token}`;
-                return (
-                <div key={inv.id} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '10px 12px', background: 'var(--bg)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 0, overflowWrap: 'anywhere' }}>{inv.email}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: roleColor[inv.role as Role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[inv.role as Role]}</span>
-                    {expiree && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: '#ffcf8f', background: 'rgba(245,166,35,.12)' }}>Expirée · lien inactif</span>}
-                    <form action={revokeInviteAction} style={{ marginLeft: 'auto' }}>
-                      <input type="hidden" name="id" value={inv.id} />
-                      <button type="submit" aria-label={`Révoquer l’invitation de ${inv.email}`} style={btnGhost}>Révoquer</button>
-                    </form>
-                  </div>
-                  {!expiree && (
-                    <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
-                      <code style={{ display: 'block', fontSize: 11, color: 'var(--accent-strong)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>{lien}</code>
-                      <CopierTexte texte={lien} />
-                    </div>
-                  )}
-                </div>
-                );
-              })}
-            </div>
-          )}
+          <InviteMemberButton />
         </div>
-      )}
+
+        {invites.length > 0 && (
+          <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Invitations en attente</div>
+            {invites.map((inv) => {
+              // Expirée · le lien ne mène plus nulle part (l'acceptation la refuse).
+              const expiree = etatInvitation(inv.expiresAt as Date | null, maintenant) === 'expiree';
+              const lien = `${lienBase}/invite/${inv.token}`;
+              return (
+              <div key={inv.id} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '10px 12px', background: 'var(--bg)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 0, overflowWrap: 'anywhere' }}>{inv.email}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: roleColor[inv.role as Role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[inv.role as Role]}</span>
+                  {expiree && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: '#ffcf8f', background: 'rgba(245,166,35,.12)' }}>Expirée · lien inactif</span>}
+                  <form action={revokeInviteAction} style={{ marginLeft: 'auto' }}>
+                    <input type="hidden" name="id" value={inv.id} />
+                    <button type="submit" aria-label={`Révoquer l’invitation de ${inv.email}`} style={btnGhost}>Révoquer</button>
+                  </form>
+                </div>
+                {!expiree && (
+                  <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+                    <code style={{ display: 'block', fontSize: 11, color: 'var(--accent-strong)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>{lien}</code>
+                    <CopierTexte texte={lien} />
+                  </div>
+                )}
+              </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Membres · liste ordinaire (nom, e-mail, rôle) · elle SE REPLIE sur mobile
           plutôt que de défiler à l'horizontale · le défilement est réservé aux
