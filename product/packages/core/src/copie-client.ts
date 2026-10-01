@@ -99,8 +99,43 @@ export const ERREURS_CONNEXION_DRIVE: Record<string, string> = {
 export const ERREUR_CONNEXION_DRIVE_REPLI =
   'La connexion à Google Drive n’a pas abouti. Réessaie · si ça persiste, écris au support.';
 
-/** Le message client d'un code de retour Drive (`?e=drive_…`). */
-export function messageErreurConnexionDrive(code: string): string {
+/**
+ * Ce que la page Assets montre de Drive À CE MOMENT · le message de retour doit
+ * parler de cet état et des gestes réellement affichés (recette #106 · le retour
+ * disait « Relance « Connecter Google Drive » » sous un bloc « connexion pas
+ * encore activée » qui ne propose ni ce bouton ni cette action).
+ * - `inactive` · connexion non activée pour l'espace · gestes : support, import par lien ;
+ * - `sans_marque` · aucune marque active · geste : choisir une marque ;
+ * - `a_connecter` · le bouton « Connecter Google Drive » est affiché ;
+ * - `connecte` · déjà connecté · pas de bouton de connexion ;
+ * - `hors_admin` · le bloc Drive n'est pas montré (réservé aux administrateurs).
+ */
+export type EtatConnexionDrive = 'inactive' | 'sans_marque' | 'a_connecter' | 'connecte' | 'hors_admin';
+
+export function etatConnexionDrive(s: { available: boolean; needBrand: boolean; connected: boolean } | null): EtatConnexionDrive {
+  if (!s) return 'hors_admin';
+  if (!s.available) return 'inactive';
+  if (s.needBrand) return 'sans_marque';
+  return s.connected ? 'connecte' : 'a_connecter';
+}
+
+/** Le libellé exact du bouton de connexion · un message ne le cite que s'il est affiché. */
+export const LIBELLE_CONNECTER_DRIVE = 'Connecter Google Drive';
+
+const RETOUR_DRIVE_SELON_ETAT: Record<Exclude<EtatConnexionDrive, 'a_connecter'>, string> = {
+  inactive: `La connexion à Google Drive n’a pas abouti · elle n’est pas encore activée pour ton espace. Demande l’activation au support, ou importe tes fichiers Drive par lien en attendant.`,
+  sans_marque: 'Choisis d’abord une marque active (sélecteur en haut) · le Drive se connecte marque par marque.',
+  connecte: 'La dernière tentative de connexion à Google Drive n’a pas abouti · la connexion déjà en place reste active.',
+  hors_admin: 'La connexion à Google Drive n’a pas abouti. Un administrateur de l’espace peut la relancer depuis cette page.',
+};
+
+/**
+ * Le message client d'un code de retour Drive (`?e=drive_…`), selon l'état
+ * affiché · le détail par code (et le bouton qu'il cite) ne vaut que lorsque le
+ * bouton de connexion est à l'écran.
+ */
+export function messageErreurConnexionDrive(code: string, etat: EtatConnexionDrive = 'a_connecter'): string {
+  if (etat !== 'a_connecter') return RETOUR_DRIVE_SELON_ETAT[etat];
   return Object.prototype.hasOwnProperty.call(ERREURS_CONNEXION_DRIVE, code)
     ? ERREURS_CONNEXION_DRIVE[code]!
     : ERREUR_CONNEXION_DRIVE_REPLI;

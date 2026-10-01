@@ -3,7 +3,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { storageConfigured } from '@tiktrends/integrations';
-import { messageErreurConnexionDrive } from '@tiktrends/core';
+import { messageErreurConnexionDrive, etatConnexionDrive } from '@tiktrends/core';
 import { listAssets } from '../../actions/assets';
 import { getDriveState } from '../../actions/drive';
 import { PageInfo } from '../../../components/PageInfo';
@@ -20,16 +20,16 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
 
   const sp = (await searchParams) ?? {};
   const okDrive = sp.ok === 'drive';
-  // Copie client du retour Google · aucun nom de variable ni de protocole
-  // (recette #106 · `messageErreurConnexionDrive`, garde copie-client).
-  const errDrive = typeof sp.e === 'string' && sp.e.startsWith('drive') ? messageErreurConnexionDrive(sp.e) : '';
-
   const isAdmin = roleAtLeast(s.role, 'admin');
   const [assets, brand, driveState] = await Promise.all([
     listAssets(),
     getActiveBrand(s.workspaceId),
     isAdmin ? getDriveState() : Promise.resolve(null),
   ]);
+  // Copie client du retour Google · aucun nom de variable ni de protocole, et
+  // jamais un geste absent de l'écran · le message suit l'état Drive AFFICHÉ
+  // (recette #106 · `messageErreurConnexionDrive`, garde assets-retour-drive).
+  const errDrive = typeof sp.e === 'string' && sp.e.startsWith('drive') ? messageErreurConnexionDrive(sp.e, etatConnexionDrive(driveState)) : '';
   const imgCount = assets.filter((a) => a.kind === 'image').length;
   const storageOn = storageConfigured();
 
