@@ -6,6 +6,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { FAMILY_LABEL, type ErrorFamily } from '../../../../lib/user-error';
+import { cadrePage } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +72,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
   const nomFamille = (f: string) => FAMILY_LABEL[f as ErrorFamily] ?? f;
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1040, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Incidents techniques</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>

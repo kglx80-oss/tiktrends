@@ -10,6 +10,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
 import { effectiveAccess } from '../../../lib/access';
+import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'radar')!;
@@ -167,5 +168,5 @@ export default async function RadarPage() {
   );
 }
 
-const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1100, margin: '0 auto' } as const;
+const wrap = cadrePage;
 const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;

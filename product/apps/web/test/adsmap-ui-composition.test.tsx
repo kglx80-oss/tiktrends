@@ -84,7 +84,7 @@ describe('Adsmap · la table est responsive sans rien perdre (source)', () => {
 
 describe('Adsmap · en-tête sobre + liens locaux + support ancré (source)', () => {
   it('la page tient la charte · max 1200, sous-titre court orienté tests', () => {
-    expect(page).toContain('maxWidth: 1200');
+    expect(page).toMatch(/cadrePage/);
     expect(page).toContain('son verdict');
     expect(page, 'la marge latérale figée est revenue').not.toMatch(/padding: '\d+px 36px/);
   });

@@ -6,7 +6,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { deleteBrandAction } from '../../actions/brands';
-import { Msg } from '../../../components/ui';
+import { Msg, cadrePage } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { NewBrandButton } from '../../../components/NewBrandButton';
 import { ConfirmButton } from '../../../components/ConfirmButton';
@@ -49,7 +49,7 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
   }
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 960, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Marques</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>

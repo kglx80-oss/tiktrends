@@ -17,6 +17,7 @@ import { Icon } from '../../../components/Icon';
 import { Empty } from '../../../components/Empty';
 import { SectionMarche } from '../jarvis/sections/SectionMarche';
 import { baseUrlRecette, cleEffective } from '../../../lib/veille-recette-base';
+import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -441,7 +442,7 @@ function Select({ name, def, opts }: { name: string; def?: string; opts: string[
 
 // Marge latérale fluide · 36px sur large écran, 16px sur mobile · le contenu ne
 // se colle plus aux bords du téléphone.
-const wrap = { padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' } as const;
+const wrap = cadrePage;
 const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-.01em', color: 'var(--ink)' } as const;
 // minHeight: CIBLE_TACTILE_MIN · le champ de recherche ET les filtres <Select>
 // partagent inputBase · un seul endroit les porte tous deux à la cible tactile.

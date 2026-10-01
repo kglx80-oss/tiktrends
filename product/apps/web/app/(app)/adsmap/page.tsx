@@ -16,6 +16,7 @@ import { Icon } from '../../../components/Icon';
 import { CIBLE_TACTILE_MIN, lireLienProfondAdsmap } from '@tiktrends/core';
 import { adsDeLaMarque } from '../../../lib/adsmap-marque';
 import { SectionEssais } from '../jarvis/sections/SectionEssais';
+import { cadrePage, colonneLecture } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,7 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
   if (!canAccess(effectiveAccess(s), feature)) {
     const why = denyReason(effectiveAccess(s), feature);
     return (
-      <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
+      <main style={cadrePage}><div style={colonneLecture('fil')}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
@@ -50,14 +51,14 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
             </Link>
           )}
         </div>
-      </main>
+      </div></main>
     );
   }
 
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) {
     return (
-      <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
+      <main style={cadrePage}><div style={colonneLecture('fil')}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Adsmap</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
@@ -66,7 +67,7 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
             action={{ label: 'Choisir une marque', href: '/brands' }}
           />
         </div>
-      </main>
+      </div></main>
     );
   }
 
@@ -88,7 +89,7 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
     : null;
 
   return (
-    <main style={{ padding: 'clamp(16px, 4vw, 32px) clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(26px, 4vw, 30px)', fontWeight: 500, color: 'var(--ink)' }}>Adsmap</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>

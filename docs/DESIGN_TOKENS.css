@@ -19,7 +19,7 @@
   --muted:         #9a8a98;   /* texte tertiaire / méta */
 
   /* Bordures (overlays clairs sur fond sombre) */
-  --line:          rgba(255,255,255,0.10);
+  --line:          rgba(255,255,255,0.12);
   --line-2:        rgba(255,255,255,0.20);
 
   /* Accent magenta (rôle « lime » historique) */

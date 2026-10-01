@@ -120,6 +120,7 @@ export * from './conseil-moteur';
 export * from './essai';
 export * from './brief-iteration';
 export * from './brouillon-iteration';
+export * from './cadre-page';
 export * from './carte-creative';
 export * from './sauvegardes-onglets';
 export * from './apercu-format';

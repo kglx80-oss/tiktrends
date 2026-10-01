@@ -20,12 +20,12 @@ describe('Jarvis · cadre + composeur aux bords Veille, lecture bornée à l’i
 
   it('le cadre conversationnel prend les bords Veille (1200), plus le plafond 760', () => {
     // La référence · Veille est à 1200. Si elle bouge, ce test le signale.
-    expect(veille, 'la référence Veille n’est plus à 1200').toContain('maxWidth: 1200');
+    expect(veille, 'la référence Veille n’est plus au cadre commun (1200)').toMatch(/const wrap = cadrePage;/);
     // Le <main> conversationnel (le DERNIER du fichier) suit ces bords.
-    const iMain = page.lastIndexOf('<main style={{ padding:');
+    const iMain = page.lastIndexOf('<main style=');
     expect(iMain, 'le cadre conversationnel est introuvable').toBeGreaterThan(-1);
     const cadre = page.slice(iMain, iMain + 170);
-    expect(cadre, 'le cadre conversationnel n’est pas aligné à 1200').toContain('maxWidth: 1200');
+    expect(cadre, 'le cadre conversationnel n’est pas aligné à 1200').toMatch(/^<main style=\{cadrePage\}>/);
     // Mutation : remettre `maxWidth: 760` sur le cadre fait tomber cette assertion.
     expect(cadre, 'le plafond 760 est revenu sur le cadre').not.toContain('maxWidth: 760');
   });

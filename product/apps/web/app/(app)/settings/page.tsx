@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL } from '../../../lib/rbac';
 import { updateWorkspaceAction } from '../../actions/admin';
-import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
+import { input, btn, panel, h1, h2, sub, lbl, Msg, cadrePage, colonneLecture } from '../../../components/ui';
 import { ADMIN_THEME } from '../../../lib/theme';
 import { PageInfo } from '../../../components/PageInfo';
 import { storageConfigured } from '@tiktrends/integrations';
@@ -20,7 +20,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const { ok, e } = await searchParams;
 
   return (
-    <main style={{ ...ADMIN_THEME, ...pageWrap }}>
+    <main style={{ ...ADMIN_THEME, ...cadrePage }}><div style={colonneLecture('formulaire')}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={h1}>Réglages de l'espace</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
@@ -95,6 +95,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <h2 style={h2}>White-label <span style={{ fontSize: 11, color: 'var(--warn)', fontWeight: 700 }}>Bientôt</span></h2>
         <p style={{ ...sub, marginBottom: 0 }}>Logo, couleurs et domaine personnalisés pour tes rapports clients (plan Business).</p>
       </div>
-    </main>
+    </div></main>
   );
 }

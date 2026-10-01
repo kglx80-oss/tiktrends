@@ -5,7 +5,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { EmptyLine } from '../../../../components/Empty';
 import { replyTicketAction, setTicketStatusAction } from '../../../actions/support';
-import { input, Msg } from '../../../../components/ui';
+import { input, Msg, cadrePage, colonneLecture } from '../../../../components/ui';
 import { Icon } from '../../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -43,7 +43,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
     : (tk.body ? [{ id: 'seed', author: tk.authorName ?? 'Utilisateur', body: tk.body, isStaff: false, at: tk.createdAt as Date }] : []);
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 760, margin: '0 auto' }}>
+    <main style={cadrePage}><div style={colonneLecture('fil')}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '10px 0 4px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -110,6 +110,6 @@ export default async function TicketThreadPage({ params, searchParams }: {
           <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' }}>Envoyer la réponse</button>
         </div>
       </form>
-    </main>
+    </div></main>
   );
 }

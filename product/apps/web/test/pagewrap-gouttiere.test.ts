@@ -13,15 +13,17 @@ import { pageWrap } from '../components/ui';
  */
 
 describe('pageWrap · gouttière fluide', () => {
-  it('les côtés utilisent clamp(16px, 4vw, 36px), pas une marge figée', () => {
+  // Depuis B2 (#118), `pageWrap` EST le cadre commun (`cadrePage`) · 1200,
+  // gouttières 32 desktop / 16 mobile (charte).
+  it('les côtés utilisent clamp(16px, 4vw, 32px), pas une marge figée', () => {
     const p = String(pageWrap.padding ?? '');
-    expect(p.includes('clamp(16px, 4vw, 36px)'), `padding fluide attendu, obtenu « ${p} »`).toBe(true);
+    expect(p.includes('clamp(16px, 4vw, 32px)'), `padding fluide attendu, obtenu « ${p} »`).toBe(true);
     // Garde-fou anti-régression : plus aucune gouttière latérale fixe.
-    expect(/\d+px\s+36px\s+\d+px/.test(p), 'plus de gouttière figée à 36px').toBe(false);
+    expect(/\d+px\s+3[26]px\s+\d+px/.test(p), 'plus de gouttière figée').toBe(false);
   });
 
   it('la largeur max et le centrage sont conservés', () => {
-    expect(pageWrap.maxWidth).toBe(860);
+    expect(pageWrap.maxWidth).toBe(1200);
     expect(pageWrap.margin).toBe('0 auto');
   });
 });

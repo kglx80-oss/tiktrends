@@ -6,7 +6,7 @@ import { getSession } from '../../../lib/auth';
 import { ROLE_LABEL, PLAN_LABEL, roleAtLeast } from '../../../lib/rbac';
 import { isFounder } from '../../../lib/founder';
 import { changePasswordAction } from '../../actions/admin';
-import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
+import { input, btn, panel, h1, h2, sub, lbl, Msg, cadrePage, colonneLecture } from '../../../components/ui';
 import { ProfileIdentity } from './ProfileIdentity';
 
 const OK: Record<string, string> = { '1': 'Profil mis à jour.', pw: 'Mot de passe modifié.' };
@@ -27,7 +27,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   }
 
   return (
-    <main style={pageWrap}>
+    <main style={cadrePage}><div style={colonneLecture('formulaire')}>
       <h1 style={h1}>Mon profil</h1>
       <p style={sub}>Rôle : <b>{ROLE_LABEL[s.role]}</b> · Espace : <b>{s.workspaceName}</b> · Abonnement : <b>{PLAN_LABEL[s.plan]}</b></p>
 
@@ -81,7 +81,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           </div>
         )}
       </div>
-    </main>
+    </div></main>
   );
 }
 

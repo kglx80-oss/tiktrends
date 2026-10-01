@@ -6,7 +6,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { EmptyLine } from '../../../components/Empty';
 import { createTicketAction } from '../../actions/support';
-import { input, btn, panel, pageWrap, h1, h2, sub, lbl, Msg } from '../../../components/ui';
+import { input, btn, panel, h1, h2, sub, lbl, Msg, cadrePage, colonneLecture } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { Icon } from '../../../components/Icon';
 
@@ -40,7 +40,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
   }
 
   return (
-    <main style={pageWrap}>
+    <main style={cadrePage}><div style={colonneLecture('formulaire')}>
       <h1 style={h1}>Support &amp; communication</h1>
       <p style={sub}>{isAdmin ? "Tous les tickets de ton espace : réponds, change le statut, garde le fil." : 'Signale un bug, propose une idée, pose une question. On te répond dans le fil.'}</p>
       <PageInfo title="comment ça marche">
@@ -92,6 +92,6 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
           );
         })}
       </div>
-    </main>
+    </div></main>
   );
 }

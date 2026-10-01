@@ -28,8 +28,8 @@ const PAGES = [
 describe('les surfaces denses ont une marge latérale fluide', () => {
   it.each(PAGES)('%s ne colle plus le contenu aux bords sur mobile', (p) => {
     const s = readFileSync(join(process.cwd(), p), 'utf8');
-    // Plancher 16px mobile obligatoire, borne haute 32 ou 36px (Pubs IA resserre à 32).
-    expect(s, 'la marge latérale fluide a disparu de cette page').toMatch(/clamp\(16px, 4vw, 3[26]px\)/);
+    // Depuis B2 (#118), la gouttière fluide (16 → 32) vient du cadre commun `cadrePage`.
+    expect(s, 'la marge latérale fluide a disparu de cette page').toMatch(/cadrePage/);
     expect(s, 'une marge latérale figée subsiste').not.toMatch(/padding: '\d+px 3[26]px/);
   });
 });

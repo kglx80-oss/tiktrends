@@ -12,6 +12,7 @@ import { HomeMarques } from '../../../components/HomeMarques';
 import { ProchaineEtape } from '../../../components/ProchaineEtape';
 import { ApercuExemple } from '../../../components/ApercuExemple';
 import { onboardingState } from '../../../lib/onboarding-state';
+import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,4 +82,4 @@ export default async function Dashboard() {
   );
 }
 
-const wrap = { minHeight: '100vh', padding: '32px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' } as const;
+const wrap = { ...cadrePage, minHeight: '100vh' };

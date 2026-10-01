@@ -6,7 +6,7 @@ import { isFounder } from '../../../lib/founder';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
 import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
-import { Msg } from '../../../components/ui';
+import { Msg, cadrePage } from '../../../components/ui';
 import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -49,7 +49,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const STATUS_FR: Record<string, string> = { active: 'Actif', trialing: 'Essai', past_due: 'Paiement en retard', canceled: 'Annulé' };
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1080, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Plans & Facturation</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>

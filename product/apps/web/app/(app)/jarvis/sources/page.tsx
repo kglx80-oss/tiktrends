@@ -19,6 +19,7 @@ import { JarvisTraining } from '../JarvisTraining';
 import { DescribePanel } from '../DescribePanel';
 import { Empty } from '../../../../components/Empty';
 import { BarreValeur } from '../../../../components/BarreValeur';
+import { cadrePage, colonneLecture } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +60,7 @@ export default async function JarvisPage() {
 
   if (!brand) {
     return (
-      <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
+      <main style={cadrePage}><div style={colonneLecture('fil')}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Sources de Jarvis</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
@@ -68,7 +69,7 @@ export default async function JarvisPage() {
             action={{ label: 'Choisir une marque', href: '/brands' }}
           />
         </div>
-      </main>
+      </div></main>
     );
   }
 
@@ -93,7 +94,7 @@ export default async function JarvisPage() {
   const deploiement = fondateur ? await currentDeployment() : null;
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1180, margin: '0 auto' }}>
+    <main style={cadrePage}>
       {/* On arrive ici depuis la conversation · on doit pouvoir y retourner d'un geste. */}
       <Link href="/jarvis" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none', marginBottom: 12 }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
