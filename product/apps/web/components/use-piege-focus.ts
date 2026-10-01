@@ -44,9 +44,18 @@ export function usePiegeFocus(
   // (un nœud retiré · le focus tombait sur <body>, mesuré sur l'invitation
   // d'Équipe, lot 8).
   const rendreARef = useRef<HTMLElement | null>(null);
-  if (actif && rendreARef.current === null && typeof document !== 'undefined') {
-    rendreARef.current = document.activeElement as HTMLElement | null;
+  const actifAvant = useRef(false);
+  if (actif && !actifAvant.current && typeof document !== 'undefined') {
+    // Fenêtres EMPILÉES (Pubs IA · détail puis aperçu) · la fenêtre du dessous
+    // se désactive le temps de l'aperçu, puis se réactive · à ce moment le focus
+    // est dans l'aperçu qui se ferme, un nœud promis à disparaître. On garde
+    // alors le déclencheur d'origine au lieu de l'écraser (lot 9 · le second
+    // Échap renvoyait le focus sur <body>).
+    const c = document.activeElement as HTMLElement | null;
+    const valable = !!c && c !== document.body && !c.closest?.('[role="dialog"],[aria-modal="true"]');
+    if (valable || rendreARef.current === null) rendreARef.current = c;
   }
+  actifAvant.current = actif;
 
   useEffect(() => {
     if (!actif) return;
@@ -100,11 +109,16 @@ export function usePiegeFocus(
     // tant que le panneau n'a pas le focus, une seconde au plus.
     let t: ReturnType<typeof setTimeout>;
     let essais = 0;
+    let pose = false;
+    // On SURVEILLE toute la seconde, même après un premier succès · le déplacement
+    // par le portail survient après, et le focus retombe alors sur <body>.
     const porter = () => {
       const panneau = ref.current;
-      if (panneau?.contains(document.activeElement)) return;
-      if (panneau) (focusables()[0] ?? panneau).focus();
-      if (!panneau?.contains(document.activeElement) && essais++ < 16) t = setTimeout(porter, 60);
+      const actifEl = document.activeElement;
+      const perdu = !actifEl || actifEl === document.body;
+      if (panneau && !panneau.contains(actifEl) && (!pose || perdu)) (focusables()[0] ?? panneau).focus();
+      if (panneau?.contains(document.activeElement)) pose = true;
+      if (essais++ < 16) t = setTimeout(porter, 60);
     };
     t = setTimeout(porter, 20);
 
@@ -113,8 +127,7 @@ export function usePiegeFocus(
       document.removeEventListener('focusin', onFocusIn);
       document.body.style.overflow = prev;
       clearTimeout(t);
-      rendreARef.current = null;
-      rendreA?.focus?.();
+      if (rendreA?.isConnected) rendreA.focus();
     };
     // Dépend de `actif` SEULEMENT · `onFermer` passe par la ref, `ref` est stable ·
     // l'abonnement ne se rejoue plus à chaque rendu.

@@ -247,5 +247,51 @@ describe('usePiegeFocus · le clavier ne quitte pas la fenêtre', () => {
     for (let i = 0; i < 10; i++) act(() => { vi.advanceTimersByTime(40); });
     expect(document.activeElement, 'le focus est resté sur la page').toBe(q('#tard'));
   });
+
+  // Lot 9 · tiroir Adsmap · le focus entrait, puis le portail recréait le nœud
+  // et le focus retombait sur <body>.
+  it('panneau RECRÉÉ après la pose du focus · le focus y revient', () => {
+    vi.useFakeTimers();
+    function Recree() {
+      const ref = useRef<HTMLDivElement>(null);
+      const [cle, setCle] = useState(1);
+      usePiegeFocus(ref, { actif: true, onFermer: () => {} });
+      useEffect(() => { const t = setTimeout(() => setCle(2), 200); return () => clearTimeout(t); }, []);
+      return <div key={cle} ref={ref} role="dialog" aria-modal="true" tabIndex={-1}><button id={`b${cle}`} type="button">B</button></div>;
+    }
+    monter(<Recree />);
+    for (let i = 0; i < 12; i++) act(() => { vi.advanceTimersByTime(40); });
+    expect(document.activeElement, 'le focus est tombé avec l’ancien nœud').toBe(q('#b2'));
+  });
+
+  // Lot 9 · Pubs IA · détail puis aperçu empilés · le second Échap renvoyait
+  // le focus sur <body> au lieu du bouton qui avait ouvert le détail.
+  it('fenêtres empilées · après les deux fermetures, le focus revient au déclencheur', () => {
+    vi.useFakeTimers();
+    function Empile() {
+      const [detail, setDetail] = useState(false);
+      const [apercu, setApercu] = useState(false);
+      const dRef = useRef<HTMLDivElement>(null); const aRef = useRef<HTMLDivElement>(null);
+      usePiegeFocus(aRef, { actif: apercu, onFermer: () => setApercu(false) });
+      usePiegeFocus(dRef, { actif: detail && !apercu, onFermer: () => setDetail(false) });
+      return (
+        <div>
+          <button id="ouvrir" type="button" onClick={() => setDetail(true)}>ouvrir</button>
+          {detail && <div ref={dRef} role="dialog" aria-modal="true" tabIndex={-1}><button id="zoom" type="button" onClick={() => setApercu(true)}>zoom</button></div>}
+          {apercu && <div ref={aRef} role="dialog" aria-modal="true" tabIndex={-1}><button id="fermer" type="button">x</button></div>}
+        </div>
+      );
+    }
+    monter(<Empile />);
+    const pas = () => { for (let i = 0; i < 4; i++) act(() => { vi.advanceTimersByTime(40); }); };
+    q('#ouvrir').focus();
+    act(() => { q<HTMLButtonElement>('#ouvrir').click(); }); pas();
+    act(() => { q<HTMLButtonElement>('#zoom').click(); }); pas();
+    expect(document.activeElement).toBe(q('#fermer'));
+    touche({ key: 'Escape' }); pas();
+    expect(document.activeElement, 'après l’aperçu, le focus n’est pas dans le détail').toBe(q('#zoom'));
+    touche({ key: 'Escape' }); pas();
+    expect(document.activeElement, 'le second Échap ne rend pas le focus au déclencheur').toBe(q('#ouvrir'));
+  });
 });
 

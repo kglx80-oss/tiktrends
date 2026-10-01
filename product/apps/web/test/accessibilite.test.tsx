@@ -73,7 +73,8 @@ describe('le piège à focus et la restitution existent', () => {
   });
 
   it('le focus est rendu à l’élément d’origine à la fermeture', () => {
-    expect(hook).toMatch(/rendreA\?\.focus/);
+    // Lot 9 · rendu seulement si le déclencheur existe encore (fenêtres empilées).
+    expect(hook).toMatch(/if \(rendreA\?\.isConnected\) rendreA\.focus\(\)/);
   });
 });
 
