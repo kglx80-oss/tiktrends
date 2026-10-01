@@ -175,7 +175,7 @@ describe('Nouveautés · le scan sans veille active', () => {
   });
 });
 
-describe('Radar produits · « Retravailler au Studio » (18 px mesurés)', () => {
+describe('Radar créatif · « Retravailler au Studio » (18 px mesurés)', () => {
   it('le lien d’action passe à 44 px au doigt, 24 à la souris, et la page l’utilise', async () => {
     const { LienCible } = await import('../components/LienCible');
     pointeur(true);

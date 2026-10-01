@@ -264,7 +264,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           grille (aucun débordement de PAGE · le dépassement reste dans la bande). */}
       <div style={{ display: 'flex', gap: 7, flexWrap: 'nowrap', overflowX: 'auto', marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
         <LienSec href="/veille/scale" icon="trend">Ce qui scale</LienSec>
-        <LienSec href="/radar" icon="radar">Radar produits</LienSec>
+        <LienSec href="/radar" icon="radar">Radar créatif</LienSec>
         <LienSec href="/saved" icon="bookmark">Sauvegardes</LienSec>
         {marcheDispo && <LienSec href="#lecture-marche" icon="brain">Lecture du marché ↓</LienSec>}
       </div>

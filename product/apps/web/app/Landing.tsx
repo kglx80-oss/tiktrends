@@ -328,7 +328,7 @@ export function Landing() {
           <div className="lp-card" style={{ padding: 28 }}>
             <div className="lp-mono" style={{ fontSize: 13, color: '#ff5c8a', fontWeight: 600, marginBottom: 14 }}>01 / hypothèse</div>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Formule une intuition</h3>
-            <p className="lp-muted" style={{ fontSize: 14 }}>« La preuve sociale bat le prix sur ce produit. » Tu pars de la Veille et du Radar produits pour choisir l'angle à tester.</p>
+            <p className="lp-muted" style={{ fontSize: 14 }}>« La preuve sociale bat le prix sur ce produit. » Tu pars de la Veille et du Radar créatif pour choisir l'angle à tester.</p>
           </div>
           <div className="lp-card" style={{ padding: 28 }}>
             <div className="lp-mono" style={{ fontSize: 13, color: '#ff5c8a', fontWeight: 600, marginBottom: 14 }}>02 / itération</div>
@@ -440,9 +440,9 @@ export function Landing() {
           <div>
             <div className="lp-eyebrow" style={{ marginBottom: 14 }}>Observatoire</div>
             <h2 className="lp-h2" style={{ marginBottom: 16 }}>Pars d'un signal, pas d'une page blanche</h2>
-            <p className="lp-ink2" style={{ fontSize: 16, marginBottom: 18 }}>La Veille te montre le mur des pubs qui tournent chez tes concurrents, filtré par ce qui scale réellement. Le Radar produits repère ceux qui montent · ton hypothèse démarre là.</p>
+            <p className="lp-ink2" style={{ fontSize: 16, marginBottom: 18 }}>La Veille te montre le mur des pubs qui tournent chez tes concurrents, filtré par ce qui scale réellement. Le Radar créatif repère tes créas à retravailler · ton hypothèse démarre là.</p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {['Mur des pubs', 'Ce qui scale', 'Radar produits', 'Sauvegardes', 'Tagging'].map((p) => <span key={p} className="lp-pill">{p}</span>)}
+              {['Mur des pubs', 'Ce qui scale', 'Radar créatif', 'Sauvegardes', 'Tagging'].map((p) => <span key={p} className="lp-pill">{p}</span>)}
             </div>
           </div>
         </div>

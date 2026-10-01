@@ -28,8 +28,10 @@ describe('placementLanceurSupport', () => {
     expect(placementLanceurSupport('/assets')).toBe('ancre');
     expect(placementLanceurSupport('/radar')).toBe('ancre');
   });
-  it('Sauvegardes ancre le lanceur (★, « Site ↗ », « + Suivre » recouverts une fois remplie) · Tagging garde la bulle', () => {
+  it('Sauvegardes ancre le lanceur (★, « Site ↗ », « + Suivre » recouverts une fois remplie)', () => {
     expect(placementLanceurSupport('/saved')).toBe('ancre');
-    expect(placementLanceurSupport('/tags')).toBe('flottant');
+  });
+  it('Tagging ancre le lanceur · la bulle masquait la valeur et la barre de « Persona / Femme 30–45 » à 390', () => {
+    expect(placementLanceurSupport('/tags')).toBe('ancre');
   });
 });

@@ -6,7 +6,7 @@ import { useIsMobile } from './useIsMobile';
 
 /**
  * Un lien d'action AUTONOME (hors phrase) rendu depuis une page serveur · 44 px
- * au doigt, densité gardée à la souris (`cibleSelonPointeur`). Radar produits ·
+ * au doigt, densité gardée à la souris (`cibleSelonPointeur`). Radar créatif ·
  * « Retravailler au Studio » mesurait 18 px (recette #106, point 6).
  */
 export function LienCible({ href, style, children }: { href: string; style?: CSSProperties; children: ReactNode }) {

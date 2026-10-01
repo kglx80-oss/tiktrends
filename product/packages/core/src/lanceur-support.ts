@@ -10,16 +10,18 @@
  * Ce qui scale · elle recouvrait « Tri » (15 %) et « Copier » (53 %) à 1280,
  * l'étoile (91 %), « + Suivre » (54 %) et « Copier » (82 %) à 390.
  * Assets · la puce « Audio » (32 %) et la ligne « 1 crédit/image » à 390.
- * Radar produits · « Retravailler au Studio » (29 % à 390, 18 % à 1280).
+ * Radar créatif · « Retravailler au Studio » (29 % à 390, 18 % à 1280).
  * Sauvegardes, remplie (390) · ★ (100 %), « Site ↗ » (75 %), « + Suivre » (70 %),
  * « ✓ Suivi » (62 %) ; Nouveautés · ☆ (100 %). Vide, rien n'était recouvert.
+ * Tagging (390) · la valeur et la barre de « Persona / Femme 30–45 » · les
+ * chiffres comptent autant que les contrôles (relevé par Codex sur capture).
  * Ces écrans ancrent le lanceur · l'assistance reste là, rien n'est recouvert.
  * `/jarvis` (conversation) n'a pas de lanceur · il recouvrait « Envoyer ».
  */
 export const ROUTES_LANCEUR_SUPPORT_ANCRE: readonly string[] = [
   '/studio/ads', '/dashboard', '/veille', '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/radar',
   '/adsmap/tri', '/adsmap/protocole', '/adsmap/import', '/analytics', '/connections', '/settings', '/veille/scale',
-  '/assets', '/radar', '/saved',
+  '/assets', '/radar', '/saved', '/tags',
 ];
 
 export type PlacementLanceurSupport = 'ancre' | 'flottant' | 'aucun';

@@ -17,15 +17,16 @@ export default function Tags() {
         Analyse par ingrédient créatif (métrique cible : ROAS, pondérée par le spend). La combinaison gagnante persona × hook en un coup d'œil.
       </p>
 
-      {/* Toute cette page est calculée sur un échantillon · rien ne le disait, et
-          aucune sortie n'était offerte. On le nomme, et on montre la porte. */}
-      <Bandeau ton="demo" titre="Mode démonstration" sortie={{ href: '/connections', label: 'Brancher un compte' }}>
-        Ces tags portent sur un échantillon. Branche un compte pour analyser tes vraies créas.
+      {/* Toute cette page est calculée sur un échantillon FIXE · aucun compte
+          branché ne l'alimente (la page ne lit que `fixtures.tagged`). On ne
+          promet donc pas qu'une connexion active l'analyse (recette #106). */}
+      <Bandeau ton="demo" titre="Mode démonstration">
+        Ces tags portent sur un échantillon d’exemple. L’analyse de tes propres créas n’est pas encore disponible ici.
       </Bandeau>
 
       <PageInfo title="lire tes tags créatifs">
-        Le Tagging décompose tes créas en ingrédients (type de hook, persona, angle, émotion) et mesure leur
-        performance moyenne pondérée par la dépense. La matrice <b>persona × hook</b> révèle les combinaisons qui
+        Le Tagging décompose des créas en ingrédients (type de hook, persona, angle, émotion) et mesure leur
+        performance moyenne pondérée par la dépense · ici sur un échantillon d’exemple. La matrice <b>persona × hook</b> révèle les combinaisons qui
         convertissent le mieux, pour orienter tes prochains briefs.
       </PageInfo>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>

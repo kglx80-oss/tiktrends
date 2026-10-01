@@ -80,7 +80,7 @@ export default async function RadarPage() {
     const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={wrap}>
-        <h1 style={h1}>Radar</h1>
+        <h1 style={h1}>Radar créatif</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, marginTop: 10 }}>{why === 'plan' ? 'Le Radar est inclus à partir du plan Core.' : 'Accès réservé.'}</p>
@@ -110,7 +110,7 @@ export default async function RadarPage() {
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={h1}>Radar</h1>
+        <h1 style={h1}>Radar créatif</h1>
         <span style={{ fontSize: 12, color: isLive ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
           {isLive ? `Meta Ads · live${syncedAt ? ' · maj ' + new Date(syncedAt).toLocaleDateString('fr-FR') : ''}` : 'scoring prescriptif · démo'}
         </span>

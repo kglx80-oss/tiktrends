@@ -107,9 +107,11 @@ export const FEATURES: Feature[] = [
   { key: 'scale',     label: 'Ce qui scale', href: '/veille/scale', icon: 'trend',  group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Observatoire', parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
-  // « Radar produits » et non « Radar » · le module Adsmap en a un autre, et
+  // « Radar créatif » et non « Radar » · le module Adsmap en a un autre, et
   // deux entrées du même nom obligent à cliquer pour savoir laquelle est laquelle.
-  { key: 'radar',     label: 'Radar produits', href: '/radar',     icon: 'radar',  group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
+  // Pas « Radar produits » · la page note des CRÉAS (Hook/Hold/CTR/Conv), elle
+  // ne repère aucun produit (recette #106 · promesse erronée).
+  { key: 'radar',     label: 'Radar créatif', href: '/radar',     icon: 'radar',  group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
 
   // ── Créer · Jarvis d'abord, c'est par lui qu'on entre ─────────────────────
   // Le rail le montre à partir de `core` : l'état des couches et les actions de

@@ -46,7 +46,7 @@ const ANALYSER: Array<{ href: string; icon: string; titre: string; sous: string 
   { href: '/adsmap', icon: 'map', titre: 'Adsmap', sous: 'Tes tests et leurs verdicts' },
   { href: '/analytics', icon: 'chart', titre: 'Analytics', sous: 'Les KPI agrégés de tes campagnes' },
   { href: '/veille', icon: 'search', titre: 'Veille', sous: 'Observe les concurrents et ce qui scale' },
-  { href: '/radar', icon: 'radar', titre: 'Radar produits', sous: 'Les produits qui montent' },
+  { href: '/radar', icon: 'radar', titre: 'Radar créatif', sous: 'Repérer les créas à retravailler' },
   { href: '/jarvis', icon: 'brain', titre: 'Ce que Jarvis sait', sous: 'La mémoire de ta catégorie' },
 ];
 
