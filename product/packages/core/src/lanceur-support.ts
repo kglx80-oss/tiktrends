@@ -19,6 +19,9 @@
  * (28 % à 390) ; Crédits · les montants du tableau (100 % à 1280 et 390) ;
  * Usage · les montants du journal (35 % à 1280, 66 % à 390) ; Support · le nom
  * de l'auteur d'un ticket (100 % à 390). Un ticket seul (`/support/<id>`) : 0.
+ * Studio (lot 9, rempli de données synthétiques) · à 390 « Archiver » (100 %),
+ * « Supprimer » (96 %), « Ouvrir › » du hub (89 %), « copier » des textes (79 %) ;
+ * à 1280×720 « copier » (34 %).
  * Ces écrans ancrent le lanceur · l'assistance reste là, rien n'est recouvert.
  * `/jarvis` (conversation) n'a pas de lanceur · il recouvrait « Envoyer ».
  */
@@ -26,6 +29,7 @@ export const ROUTES_LANCEUR_SUPPORT_ANCRE: readonly string[] = [
   '/studio/ads', '/dashboard', '/veille', '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/radar',
   '/adsmap/tri', '/adsmap/protocole', '/adsmap/import', '/analytics', '/connections', '/settings', '/veille/scale',
   '/assets', '/radar', '/saved', '/tags', '/team', '/usage', '/credits', '/support',
+  '/studio', '/studio/image', '/studio/video', '/studio/textes',
 ];
 
 export type PlacementLanceurSupport = 'ancre' | 'flottant' | 'aucun';

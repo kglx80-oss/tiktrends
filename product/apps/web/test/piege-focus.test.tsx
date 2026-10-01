@@ -187,4 +187,26 @@ describe('usePiegeFocus · le clavier ne quitte pas la fenêtre', () => {
     touche({ key: 'Escape' });
     expect(document.activeElement, 'à la fermeture, le focus revient au déclencheur, pas à <body>').toBe(q('#declencheur'));
   });
+
+  // Lot 9 · assistant image · un <details> fermait la fenêtre · son <summary>
+  // était le dernier arrêt du Tab sans être compté, le Tab suivant sortait.
+  it('un <summary> en dernière position · Tab revient au premier, sans sortir', () => {
+    vi.useFakeTimers();
+    function DialogueDetails() {
+      const ref = useRef<HTMLDivElement>(null);
+      usePiegeFocus(ref, { actif: true, onFermer: () => {} });
+      return (
+        <div ref={ref} role="dialog" aria-modal="true" tabIndex={-1}>
+          <button id="premier" type="button">A</button>
+          <details><summary id="resume">ou coller un lien</summary></details>
+        </div>
+      );
+    }
+    monter(<DialogueDetails />);
+    act(() => { vi.advanceTimersByTime(30); });
+    q('#resume').focus();
+    touche({ key: 'Tab' });
+    expect(document.activeElement, 'Tab depuis le <summary> sort de la fenêtre').toBe(q('#premier'));
+  });
 });
+

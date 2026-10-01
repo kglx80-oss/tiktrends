@@ -54,7 +54,10 @@ export function usePiegeFocus(
 
     const focusables = () => Array.from(
       ref.current?.querySelectorAll<HTMLElement>(
-        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
+        // `summary` · un <details> en fin de fenêtre était le dernier arrêt du Tab
+        // sans être compté · le Tab suivant sortait de la fenêtre (assistant
+        // image, lot 9).
+        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),summary,[tabindex]:not([tabindex="-1"])',
       ) ?? [],
     ).filter((el) => el.offsetParent !== null);
 
