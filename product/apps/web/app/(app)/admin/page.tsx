@@ -5,6 +5,7 @@ import { roleAtLeast, ROLE_LABEL, PLAN_LABEL, PLAN_PRICE, type Plan } from '../.
 import { isFounder } from '../../../lib/founder';
 import { computePlatformMetrics } from '../../../lib/platform-metrics';
 import { Icon } from '../../../components/Icon';
+import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +50,7 @@ export default async function AdminBackstage() {
   ];
 
   return (
-    <main style={{ padding: '26px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' }}>
+    <main style={cadrePage}>
       {/* Héro */}
       <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(245,166,35,.3)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>

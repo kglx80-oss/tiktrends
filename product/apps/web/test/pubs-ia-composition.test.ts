@@ -24,7 +24,7 @@ describe('Pubs IA · en-tête court, sans bandeau marketing', () => {
     expect(page, 'la pastille marketing subsiste').not.toContain('CONCEPT · SCÈNE · DESIGN');
   });
   it('le contenu principal est borné à 1200, centré', () => {
-    expect(page).toContain('maxWidth: 1200');
+    expect(page).toMatch(/cadrePage/);
   });
   it('le GROS bandeau héros « DÉMARRAGE RAPIDE » a disparu (galerie dans le premier écran)', () => {
     // Mutation : réintroduire le hero (le libellé ou son dégradé) fait tomber.

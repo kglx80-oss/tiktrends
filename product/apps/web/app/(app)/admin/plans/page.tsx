@@ -9,7 +9,7 @@ import { unlimitedCredits } from '../../../../lib/credits';
 import { afficherCredits, texteCredits } from '@tiktrends/core';
 import { changePlanAction } from '../../../actions/billing';
 import { grantCreditsAction, rechargeAllocationAction } from '../../../actions/credits';
-import { input, btn, btnGhost, panel, lbl, Msg } from '../../../../components/ui';
+import { input, btn, btnGhost, panel, lbl, Msg, cadrePage } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +51,7 @@ export default async function AdminPlansPage({ searchParams }: { searchParams: P
   const soldeAffiche = texteCredits(afficherCredits({ balance, unlimited: unlimitedCredits(s.user.email) }), fmt);
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Formules & crédits · pilotage</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>

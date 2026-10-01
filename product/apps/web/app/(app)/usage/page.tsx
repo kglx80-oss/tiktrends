@@ -10,6 +10,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
 import { BarreValeur } from '../../../components/BarreValeur';
+import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,7 @@ export default async function UsagePage() {
   const when = (d: Date) => new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 980, margin: '0 auto' }}>
+    <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Utilisation des crédits</h1>
         <span style={{ flex: 1 }} />

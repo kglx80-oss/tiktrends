@@ -11,7 +11,7 @@ import { getPlanConfig } from '../../../lib/settings';
 import { updatePlanConfigAction } from '../../actions/platform';
 import { grantTestPackAction, revokeTrialAction } from '../../actions/beta';
 import { trialStatus, TRIAL_DEFAULT_CREDITS, TRIAL_DEFAULT_DAYS } from '../../../lib/trial';
-import { input, Msg } from '../../../components/ui';
+import { input, Msg, cadrePage } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { DiagnosticDeploiement } from '../../../components/DiagnosticDeploiement';
 import { currentDeployment } from '../../../lib/deployment';
@@ -82,7 +82,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
   const now = Date.now();
 
   return (
-    <main style={{ ...ADMIN_THEME, padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1120, margin: '0 auto' }}>
+    <main style={{ ...ADMIN_THEME, ...cadrePage }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>ADMIN+</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>CONSOLE</span>

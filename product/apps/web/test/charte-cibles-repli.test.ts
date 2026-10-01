@@ -28,7 +28,7 @@ const near = (src: string, ancre: string, fenetre = 260) => {
 describe('cibles tactiles · jetons de bouton partagés à la cible', () => {
   const ui = read('components/ui.tsx');
   it('ui.btn et ui.btnGhost portent minHeight CIBLE_TACTILE_MIN', () => {
-    expect(ui).toContain("CIBLE_TACTILE_MIN } from '@tiktrends/core'");
+    expect(ui).toMatch(/import \{[^}]*\bCIBLE_TACTILE_MIN\b[^}]*\} from '@tiktrends\/core'/);
     expect(near(ui, 'export const btn:'), 'ui.btn sous la cible').toContain('minHeight: CIBLE_TACTILE_MIN');
     expect(near(ui, 'export const btnGhost:'), 'ui.btnGhost sous la cible').toContain('minHeight: CIBLE_TACTILE_MIN');
   });

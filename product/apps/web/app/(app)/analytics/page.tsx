@@ -12,6 +12,7 @@ import { Icon } from '../../../components/Icon';
 import { MetaKeyMetrics } from './MetaKeyMetrics';
 import { CreativeIntel, type CreativeStats } from './CreativeIntel';
 import { SectionAttribution } from '../jarvis/sections/SectionAttribution';
+import { cadrePage } from '../../../components/ui';
 
 const TPL_LABEL: Record<string, string> = { problem_solution: 'Problème/solution', before_after: 'Avant/après', testimonial: 'Témoignage', benefits: 'Bénéfices', ugc: 'UGC', stat: 'Stat', offer: 'Offre' };
 
@@ -208,7 +209,7 @@ export default async function AnalyticsPage() {
   );
 }
 
-const wrap = { padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 1100, margin: '0 auto' } as const;
+const wrap = cadrePage;
 const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;
 const h2 = { margin: 0, fontSize: 15, fontWeight: 500, color: 'var(--ink)' } as const;
 const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;

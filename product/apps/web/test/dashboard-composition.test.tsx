@@ -121,7 +121,7 @@ describe('Dashboard · shell + page', () => {
   it('la page passe la prochaine étape et l’exemple, bornée à 1200', () => {
     expect(page).toContain('prochaineEtape={<ProchaineEtape');
     expect(page).toContain('exemple={<ApercuExemple');
-    expect(page).toContain('maxWidth: 1200');
+    expect(page).toMatch(/cadrePage/);
   });
 
   // Les slots injectés (créés par Dashboard, rendus parmi les enfants mixtes de

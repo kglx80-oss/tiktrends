@@ -6,6 +6,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { Icon } from '../../../components/Icon';
 import { JarvisChat } from './JarvisChat';
 import { Empty } from '../../../components/Empty';
+import { cadrePage, colonneLecture } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export default async function JarvisPage() {
 
   if (!brand) {
     return (
-      <main style={{ padding: '30px clamp(16px, 4vw, 36px) 60px', maxWidth: 700, margin: '0 auto' }}>
+      <main style={cadrePage}><div style={colonneLecture('fil')}>
         <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Jarvis</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
@@ -42,7 +43,7 @@ export default async function JarvisPage() {
             action={{ label: 'Choisir une marque', href: '/brands' }}
           />
         </div>
-      </main>
+      </div></main>
     );
   }
 
@@ -52,7 +53,7 @@ export default async function JarvisPage() {
     // le plafond 760 rétrécissait toute la page. La largeur de LECTURE reste
     // calée à la colonne « prose » (760) À L'INTÉRIEUR (cf. JarvisChat), pour que
     // les longues réponses ne courent pas d'un bord à l'autre.
-    <main style={{ padding: '24px clamp(16px, 4vw, 32px) 60px', maxWidth: 1200, margin: '0 auto' }}>
+    <main style={cadrePage}>
       {/* En-tête COMPACT · Jarvis + marque, sans sous-titre redondant ni
           séparateur · le seul titre dominant est la question, à l'accueil
           (l'emblème est centré au-dessus d'elle, pas ici). À droite, un accès
