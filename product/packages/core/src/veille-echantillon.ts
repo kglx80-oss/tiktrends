@@ -1,3 +1,7 @@
+import { perimetreVeille } from './veille-perimetre';
+// Le périmètre de recherche s'exporte avec l'échantillon · pas de ligne de
+// plus dans l'index (recette #106b).
+export * from './veille-perimetre';
 /**
  * La Veille en mode démonstration · la recherche et les filtres s'appliquent
  * VRAIMENT à l'échantillon local (recette #106, constat Codex).
@@ -11,7 +15,7 @@
  * silencieusement ignoré »), et l'état « aucun résultat » était inatteignable.
  *
  * Ici, chaque critère que l'écran propose filtre l'échantillon, sans réseau ·
- * mot-clé (annonceur, texte, domaine · ou le seul champ choisi par « Dans : »),
+ * mot-clé (dans le champ choisi par « Dans : », texte de l'annonce par défaut),
  * plateforme, média, statut, pays. Un échantillon vidé par les critères est un
  * résultat honnête · l'écran dit « aucune annonce » au lieu de mentir.
  *
@@ -47,11 +51,15 @@ export function normaliserRecherche(t: string | null | undefined): string {
   return (t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// Le champ cherché · le MÊME périmètre que la source réelle · absent →
+// texte de l'annonce (défaut du connecteur), jamais « partout » · un lien sans
+// `searchIn` et le formulaire au défaut ont le même sens (recette #106b ·
+// `perimetreVeille`).
 function champs(a: AnnonceEchantillon, searchIn?: string): string[] {
-  if (searchIn === 'brand') return [a.advertiserName ?? ''];
-  if (searchIn === 'domain') return [a.landingDomain ?? ''];
-  if (searchIn === 'ad_copy') return [a.body ?? ''];
-  return [a.advertiserName ?? '', a.body ?? '', a.landingDomain ?? ''];
+  const p = perimetreVeille(searchIn);
+  if (p === 'brand') return [a.advertiserName ?? ''];
+  if (p === 'domain') return [a.landingDomain ?? ''];
+  return [a.body ?? ''];
 }
 
 /**
@@ -69,13 +77,4 @@ export function filtrerEchantillonVeille<T extends AnnonceEchantillon>(ads: read
     if (q && !champs(a, c.searchIn).some((f) => normaliserRecherche(f).includes(q))) return false;
     return true;
   });
-}
-
-/** La copie de l'état vide en démonstration · dit que la recherche porte sur l'échantillon. */
-export function videEchantillonVeille(q: string | null | undefined): { titre: string; pourquoi: string } {
-  const terme = (q ?? '').trim();
-  return {
-    titre: terme ? `Aucune annonce de l’échantillon pour « ${terme} ».` : 'Aucune annonce de l’échantillon ne correspond à ces filtres.',
-    pourquoi: 'En démonstration, la recherche et les filtres portent sur l’échantillon affiché · élargis le terme, ou réinitialise les filtres.',
-  };
 }

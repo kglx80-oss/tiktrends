@@ -38,7 +38,7 @@ describe('Veille · démonstration · la recherche filtre vraiment l’échantil
   it('un mot-clé sans correspondance montre l’état vide, plus aucune carte', async () => {
     const html = await rendre({ q: 'zzzzzzzz' });
     expect(cartes(html), 'le mot-clé est ignoré en démonstration').toEqual([]);
-    expect(html, 'l’état « aucun résultat » ne s’affiche pas').toContain('Aucune annonce de l’échantillon pour « zzzzzzzz »');
+    expect(html, 'l’état « aucun résultat » ne s’affiche pas').toContain('Aucune annonce dont le texte de l’annonce contient « zzzzzzzz »');
     // Recette #106 (4f2d2d2) · le bouton ne naviguait pas en lien client depuis
     // `?q=…` · la remise à zéro est une navigation complète.
     const reinit = [...html.matchAll(/<a([^>]*)>Réinitialiser<\/a>/g)].map((m) => m[1]);
@@ -49,10 +49,10 @@ describe('Veille · démonstration · la recherche filtre vraiment l’échantil
     }
   });
 
-  it('un mot-clé qui correspond ne garde que sa carte', async () => {
-    const html = await rendre({ q: 'neutrogena' });
+  it('un mot-clé qui correspond ne garde que sa carte (dans le périmètre choisi)', async () => {
+    const html = await rendre({ q: 'neutrogena', searchIn: 'brand' });
     expect(cartes(html)).toEqual(['sample_neutrogena']);
-    expect(html).not.toContain('Aucune annonce de l’échantillon');
+    expect(html).not.toContain('Aucune annonce dont');
   });
 
   it('un filtre posé s’applique aussi (média image · aucun visuel dans l’échantillon)', async () => {

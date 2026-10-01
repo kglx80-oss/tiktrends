@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filtrerEchantillonVeille, normaliserRecherche, videEchantillonVeille, jargonTechnique } from '../src';
+import { filtrerEchantillonVeille, normaliserRecherche } from '../src';
 
 /**
  * Recette #106 · constat Codex · en démonstration, la Veille ignorait le
@@ -21,17 +21,21 @@ describe('Veille démo · le mot-clé filtre vraiment l’échantillon', () => {
     expect(ids({})).toEqual(['a', 'b', 'c']);
     expect(ids({ q: '   ' })).toEqual(['a', 'b', 'c']);
   });
-  it('annonceur, texte ou domaine · insensible à la casse et aux accents', () => {
-    expect(ids({ q: 'neutrogena' })).toEqual(['b']);
+  // Recette #106b · sans « Dans : », le périmètre est celui de la source réelle
+  // (texte de l'annonce), jamais « partout » · lien et formulaire ont le même sens.
+  it('sans « Dans : », on cherche dans le texte de l’annonce · insensible à la casse et aux accents', () => {
     expect(ids({ q: 'COCONUT' })).toEqual(['a']);
-    expect(ids({ q: 'amazon.de' })).toEqual(['b']);
-    expect(ids({ q: 'beaute' })).toEqual(['c']);
+    expect(ids({ q: 'serum eclat' })).toEqual(['c']);
+    expect(ids({ q: 'neutrogena' }), 'un lien sans périmètre cherche partout').toEqual([]);
+    expect(ids({ q: 'amazon.de' })).toEqual([]);
+    expect(ids({ q: 'neutrogena' })).toEqual(ids({ q: 'neutrogena', searchIn: 'ad_copy' }));
     expect(normaliserRecherche(' Crème  Beauté ')).toBe('creme beaute');
   });
   it('« Dans : » restreint le champ cherché', () => {
     expect(ids({ q: 'neutrogena', searchIn: 'ad_copy' })).toEqual([]);
     expect(ids({ q: 'neutrogena', searchIn: 'brand' })).toEqual(['b']);
     expect(ids({ q: 'amazon', searchIn: 'domain' })).toEqual(['b']);
+    expect(ids({ q: 'beaute', searchIn: 'brand' })).toEqual(['c']);
   });
 });
 
@@ -41,14 +45,4 @@ describe('Veille démo · chaque filtre proposé s’applique', () => {
   it('statut actif', () => { expect(ids({ status: 'active' })).toEqual(['a', 'b']); expect(ids({ status: 'all' })).toEqual(['a', 'b', 'c']); });
   it('pays', () => { expect(ids({ country: 'fr' })).toEqual(['c']); expect(ids({ country: 'US' })).toEqual([]); });
   it('les critères se cumulent', () => { expect(ids({ q: 'aqua', status: 'active', country: 'DE' })).toEqual(['b']); expect(ids({ q: 'aqua', country: 'FR' })).toEqual([]); });
-});
-
-describe('Veille démo · l’état vide le dit, sans jargon', () => {
-  it('nomme le terme et l’échantillon', () => {
-    const v = videEchantillonVeille('zzzzzzzz');
-    expect(v.titre).toContain('« zzzzzzzz »');
-    expect(v.pourquoi).toMatch(/échantillon/);
-    expect(jargonTechnique(v.titre + ' ' + v.pourquoi)).toEqual([]);
-    expect(videEchantillonVeille('').titre).toMatch(/filtres/);
-  });
 });

@@ -12,7 +12,8 @@ import { PageInfo } from '../../../components/PageInfo';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
-import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, videEchantillonVeille } from '@tiktrends/core';
+import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, type PerimetreVeille } from '@tiktrends/core';
+import { ChampRechercheVeille } from '../../../components/ChampRechercheVeille';
 import { Icon } from '../../../components/Icon';
 import { Empty } from '../../../components/Empty';
 import { SectionMarche } from '../jarvis/sections/SectionMarche';
@@ -53,11 +54,6 @@ type SP = {
 };
 
 const PLATFORMS: [AdPlatform, string][] = [['meta', 'Meta'], ['tiktok', 'TikTok'], ['google', 'Google']];
-// Libellés des filtres avancés · servent aux puces « critères actifs » sans
-// redéclarer les listes deux fois.
-const SEARCHIN_LABEL: Record<string, string> = { ad_copy: 'copy', brand: 'marque', domain: 'domaine' };
-const SORT_LABEL: Record<string, string> = Object.fromEntries(SORTS);
-const MEDIA_LABEL: Record<string, string> = { video: 'Vidéo', image: 'Image' };
 
 function buildQS(sp: SP, over: Partial<SP>): string {
   const merged = { ...sp, ...over };
@@ -110,7 +106,10 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   // on bascule automatiquement en recherche par domaine (plus pertinent).
   const urlLike = /^https?:\/\//i.test(query) || /^[a-z0-9-]+(\.[a-z0-9-]+){1,}(\/|$)/i.test(query);
   let effSearch = query;
-  let effSearchIn = (sp.searchIn as 'ad_copy' | 'brand' | 'domain') || undefined;
+  // Le périmètre · absent → celui de la source (texte de l'annonce) · un lien
+  // sans `searchIn` et le formulaire au défaut ont le même sens, en démo comme
+  // en direct (recette #106b · noyau `perimetreVeille`).
+  let effSearchIn: PerimetreVeille = perimetreVeille(sp.searchIn);
   let autoDomain = false;
   if (urlLike) {
     try {
@@ -233,7 +232,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
   const totalPages = Math.min(Math.ceil(total / LIMIT) || 1, 417);
   // Démonstration vidée par les critères · un état vide qui le dit.
-  const videDemo = sample && ads.length === 0 ? videEchantillonVeille(query) : null;
+  // État vide · nomme le périmètre et propose « Marque » (démo comme direct).
+  const vide = ads.length === 0 && !error && (sample || query) ? videRechercheVeille(query, effSearchIn, sample) : null;
 
   // La « Lecture du marché » n'a de destination que si la section peut rendre
   // (offre Plus + marque active) · sinon on ne propose pas d'ancrage vide.
@@ -241,12 +241,9 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
   // Critères avancés actifs · pour l'étiquette « Filtres (N) » et les puces des
   // critères actifs. On ne compte jamais un filtre que la source n'honore pas.
-  const avances: Array<{ cle: keyof SP; texte: string }> = [];
-  if (sp.searchIn) avances.push({ cle: 'searchIn', texte: 'Dans : ' + (SEARCHIN_LABEL[sp.searchIn] ?? sp.searchIn) });
-  if (platform === 'meta' && sp.sort) avances.push({ cle: 'sort', texte: 'Tri : ' + (SORT_LABEL[sp.sort] ?? sp.sort) });
-  if (sp.media && MEDIA_LABEL[sp.media]) avances.push({ cle: 'media', texte: MEDIA_LABEL[sp.media]! });
-  if (sp.status === 'active') avances.push({ cle: 'status', texte: 'Actives' });
-  if (sp.country) avances.push({ cle: 'country', texte: 'Pays : ' + sp.country });
+  // Seul ce qui s'écarte du défaut compte · le tri n'est pas un filtre (il
+  // s'affiche à part) · le périmètre par défaut ne fait pas de puce (#106b).
+  const avances = filtresActifsVeille(sp, platform);
 
   return (
     <main style={wrap}>
@@ -276,7 +273,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       <form action="/veille" method="get" style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {/* Recherche pleine largeur · plateforme + bouton sur la ligne suivante. */}
-          <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: '1 1 100%', minWidth: 0, ...inputBase }} />
+          {/* Le champ et son périmètre, côte à côte · l'exemple suit le périmètre. */}
+          <ChampRechercheVeille q={query} perimetre={autoDomain ? 'domain' : effSearchIn} perimetreVisible={platform === 'meta'} styleChamp={inputBase} />
           <select name="p" defaultValue={sp.p ?? 'meta'} aria-label="Plateforme" style={{ ...inputBase, padding: '8px 12px', fontSize: 13.5, cursor: 'pointer', flex: '0 0 auto' }}>
             {PLATFORMS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
@@ -319,7 +317,6 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             {/* Le tri a quitté ce panneau · il vit dans la barre principale,
                 accessible filtres fermés. Ici, seulement des filtres. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
-              <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
               <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
               <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
               <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
@@ -386,22 +383,25 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {/* Une recherche sans résultat rendait une grille VIDE, sans un mot ·
           l'écran se lisait comme cassé. On dit ce qui s'est passé et on donne
           une sortie · repartir des pistes installées (efface la recherche). */}
-      {!sample && !error && ads.length === 0 && (
+      {vide && (
         <Empty
           tone="todo" icon="search"
-          title={query ? `Aucune annonce pour « ${query} ».` : 'Aucune annonce à afficher pour l’instant.'}
-          why="Élargis le terme, change de plateforme, ou repars des pistes installées dans ta catégorie."
-          action={{ label: 'Voir les pistes installées', href: '/veille' }}
-        />
+          title={vide.titre}
+          why={vide.pourquoi}
+          action={vide.essayerMarque && platform === 'meta'
+            ? { label: 'Chercher dans « Marque »', href: buildQS(sp, { searchIn: 'brand', page: '1' }), rechargement: true }
+            : sample ? { label: 'Réinitialiser', href: '/veille', rechargement: true } : { label: 'Voir les pistes installées', href: '/veille' }}
+        >
+          {/* « Marque » proposé · la remise à zéro reste à portée (navigation complète). */}
+          {vide.essayerMarque && platform === 'meta' && (
+            <div style={{ textAlign: 'center' }}>
+              <a href="/veille" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 10px', fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', textDecoration: 'none' }}>Réinitialiser</a>
+            </div>
+          )}
+        </Empty>
       )}
-
-      {videDemo && (
-        <Empty
-          tone="todo" icon="search"
-          title={videDemo.titre}
-          why={videDemo.pourquoi}
-          action={{ label: 'Réinitialiser', href: '/veille', rechargement: true }}
-        />
+      {!sample && !error && !query && ads.length === 0 && (
+        <Empty tone="todo" icon="search" title="Aucune annonce à afficher pour l’instant." why="Élargis le terme, change de plateforme, ou repars des pistes installées dans ta catégorie." action={{ label: 'Voir les pistes installées', href: '/veille' }} />
       )}
 
       {/* Pagination */}
