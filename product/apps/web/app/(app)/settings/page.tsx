@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL } from '../../../lib/rbac';
@@ -28,7 +29,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <p style={sub}>Administration de <b>{s.workspaceName}</b>.</p>
 
       <PageInfo title="réglages de l'espace">
-        Configure ici le <b>nom de l'espace</b> et les intégrations serveur. Le changement
+        Configure ici le <b>nom de l'espace</b> et vois les services activés. Le changement
         d'abonnement se fait dans <b>Abonnement & factures</b>, avec paiement sécurisé.
       </PageInfo>
 
@@ -54,23 +55,26 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       </div>
 
       <div style={panel}>
-        <h2 style={h2}>Intégrations serveur</h2>
-        <p style={sub}>Ce qui est branché côté serveur. Les clés se posent dans les variables d'environnement (jamais visibles ici).</p>
+        <h2 style={h2}>Services activés</h2>
+        <p style={sub}>Ce qui est activé pour ton espace. Un service à activer se demande à notre équipe, depuis le <Link href="/support" style={{ color: 'var(--accent-strong)' }}>support</Link>.</p>
         <div style={{ display: 'grid', gap: 8 }}>
           {[
-            { label: 'IA · Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', on: !!process.env.ANTHROPIC_API_KEY, unlocks: 'Studio, assistant, pré-remplissage marque, analyse concurrent' },
+            // Copie CLIENT (recette #106) · on nomme la CAPACITÉ, jamais la
+            // variable d'environnement ni le fournisseur · `env` ne sert plus
+            // que de clé React et n'atteint pas l'écran.
+            { label: 'IA · rédaction et analyse', env: 'ANTHROPIC_API_KEY', on: !!process.env.ANTHROPIC_API_KEY, unlocks: 'Studio, assistant, pré-remplissage marque, analyse concurrent' },
             // Marque blanche · on nomme la CAPACITÉ, jamais le fournisseur
             // (« Trendtrack » n'apparaît jamais à l'écran, même sur cette surface
             // opérateur · c'est le produit dont on est le marque blanche). La
             // variable d'environnement garde son nom, elle n'atteint pas l'écran.
             { label: 'Bibliothèque pub concurrentielle', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Veille, suivis, analyse concurrent' },
-            { label: 'Image & Vidéo IA · Fal.ai', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studio Image (Nano Banana, GPT Image) et Vidéo (Kling 2.5)' },
-            { label: 'Stockage objet · S3 / OVH', env: 'S3_BUCKET', on: !!(process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY && process.env.S3_ENDPOINT), unlocks: 'Upload direct des gros fichiers (rushs vidéo) dans Assets' },
-            { label: 'Vidéo IA · Higgsfield (option)', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Alternative vidéo (contrôles caméra)' },
-            { label: 'E-mails transactionnels · SMTP', env: 'SMTP_URL', on: !!process.env.SMTP_URL, unlocks: 'Bienvenue, invitation, réinitialisation de mot de passe' },
-            { label: 'Marketing · Klaviyo', env: 'KLAVIYO_API_KEY', on: !!process.env.KLAVIYO_API_KEY, unlocks: 'Synchro des inscrits en profils + flows marketing (bienvenue, essai, relances)' },
-            { label: 'Paiement · Stripe', env: 'STRIPE_SECRET_KEY', on: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET), unlocks: 'Abonnements, portail client et facturation (Checkout + webhook)' },
-            { label: 'Slack', env: 'SLACK_BOT_TOKEN', on: !!process.env.SLACK_BOT_TOKEN, unlocks: 'Résumés et @TikTrends dans Slack (à venir)' },
+            { label: 'Image & vidéo IA', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studio Image (Nano Banana, GPT Image) et Vidéo (Kling 2.5)' },
+            { label: 'Stockage des fichiers lourds', env: 'S3_BUCKET', on: !!(process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY && process.env.S3_ENDPOINT), unlocks: 'Upload direct des gros fichiers (rushs vidéo) dans Assets' },
+            { label: 'Vidéo IA · moteur alternatif (option)', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Alternative vidéo (contrôles caméra)' },
+            { label: 'E-mails transactionnels', env: 'SMTP_URL', on: !!process.env.SMTP_URL, unlocks: 'Bienvenue, invitation, réinitialisation de mot de passe' },
+            { label: 'E-mails marketing', env: 'KLAVIYO_API_KEY', on: !!process.env.KLAVIYO_API_KEY, unlocks: 'Synchro des inscrits en profils + flows marketing (bienvenue, essai, relances)' },
+            { label: 'Paiement en ligne', env: 'STRIPE_SECRET_KEY', on: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET), unlocks: 'Abonnements, portail client et facturation' },
+            { label: 'Messagerie d’équipe', env: 'SLACK_BOT_TOKEN', on: !!process.env.SLACK_BOT_TOKEN, unlocks: 'Résumés et @TikTrends dans Slack (à venir)' },
           ].map((it) => (
             <div key={it.env} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 14px', flexWrap: 'wrap' }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: it.on ? '#18cc8c' : 'var(--line-2)', flexShrink: 0, boxShadow: it.on ? '0 0 0 3px rgba(24,204,140,.15)' : 'none' }} />
@@ -79,7 +83,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: it.on ? '#18cc8c' : 'var(--muted)', background: it.on ? 'rgba(24,204,140,.14)' : 'var(--line)' }}>
                 {it.on ? 'BRANCHÉ' : 'À BRANCHER'}
               </span>
-              <code style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{it.env}</code>
             </div>
           ))}
         </div>

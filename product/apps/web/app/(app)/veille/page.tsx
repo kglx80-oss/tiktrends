@@ -12,7 +12,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
-import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
+import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, videEchantillonVeille } from '@tiktrends/core';
 import { Icon } from '../../../components/Icon';
 import { Empty } from '../../../components/Empty';
 import { SectionMarche } from '../jarvis/sections/SectionMarche';
@@ -133,7 +133,13 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   let defaut: { seed: string; parCategorie: boolean } | null = null;
 
   if (!apiKey) {
-    ads = SAMPLE_INSPO_ADS;
+    // Démonstration · le mot-clé et les filtres s'appliquent VRAIMENT à
+    // l'échantillon local, sans réseau (R14 · jamais un critère ignoré en
+    // silence · recette #106, `filtrerEchantillonVeille`).
+    ads = filtrerEchantillonVeille(SAMPLE_INSPO_ADS, {
+      q: effSearch, p: platform, searchIn: effSearchIn,
+      media: sp.media, status: sp.status, country: sp.country,
+    });
     sample = true;
   } else if (query) {
     const media = sp.media === 'video' || sp.media === 'image' ? sp.media : undefined;
@@ -226,6 +232,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   }
 
   const totalPages = Math.min(Math.ceil(total / LIMIT) || 1, 417);
+  // Démonstration vidée par les critères · un état vide qui le dit.
+  const videDemo = sample && ads.length === 0 ? videEchantillonVeille(query) : null;
 
   // La « Lecture du marché » n'a de destination que si la section peut rendre
   // (offre Plus + marque active) · sinon on ne propose pas d'ancrage vide.
@@ -352,7 +360,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* Bandeau source/démo · TOUJOURS avant la grille. */}
-      {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon réel. La source de données n'est pas encore configurée sur le serveur pour la recherche en direct.</Bandeau>}
+      {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon réel · la recherche en direct n’est pas encore activée pour ton espace. Ta recherche et tes filtres s’appliquent à cet échantillon.</Bandeau>}
       {error && <Bandeau ton="error">Erreur de la source de données : {error}</Bandeau>}
       {!sample && !error && !query && defaut && (
         // Une ligne factuelle · le « pourquoi » (hors catégorie, comment cibler)
@@ -384,6 +392,15 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           title={query ? `Aucune annonce pour « ${query} ».` : 'Aucune annonce à afficher pour l’instant.'}
           why="Élargis le terme, change de plateforme, ou repars des pistes installées dans ta catégorie."
           action={{ label: 'Voir les pistes installées', href: '/veille' }}
+        />
+      )}
+
+      {videDemo && (
+        <Empty
+          tone="todo" icon="search"
+          title={videDemo.titre}
+          why={videDemo.pourquoi}
+          action={{ label: 'Réinitialiser', href: '/veille' }}
         />
       )}
 

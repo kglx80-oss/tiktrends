@@ -61,7 +61,10 @@ export default async function JarvisPage() {
           · la carte pleine largeur d'avant reproduisait mal la référence. */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-          <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Jarvis</span>
+          {/* Le seul titre de page de l'écran en conversation · un vrai <h1>
+              (recette #106 · sans lui, l'écran n'avait AUCUN titre une fois le fil
+              entamé), même apparence compacte. */}
+          <h1 style={{ margin: 0, fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Jarvis</h1>
           <span style={{ fontSize: 13, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {brand.name}</span>
         </div>
         <Link
