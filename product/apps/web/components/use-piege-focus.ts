@@ -59,7 +59,10 @@ export function usePiegeFocus(
         // image, lot 9).
         'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),summary,[tabindex]:not([tabindex="-1"])',
       ) ?? [],
-    ).filter((el) => el.offsetParent !== null);
+    ).filter((el) => el.offsetParent !== null
+      // Un champ dans un <details> fermé garde un offsetParent dans Chromium ·
+      // compté visible, il devenait le « dernier » et le Tab sortait (lot 9).
+      && (typeof el.checkVisibility !== 'function' || el.checkVisibility()));
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { onFermerRef.current(); return; }
@@ -77,6 +80,16 @@ export function usePiegeFocus(
       }
     };
     window.addEventListener('keydown', onKey);
+    // Filet · si le focus atterrit HORS de la fenêtre malgré tout (un arrêt de
+    // Tab que le décompte n'a pas prévu), on le ramène dedans.
+    const onFocusIn = (e: FocusEvent) => {
+      const cible = e.target as Node | null;
+      if (!ref.current || !cible || ref.current.contains(cible)) return;
+      // Une autre fenêtre (imbriquée, rendue en portail) garde son focus.
+      if (cible instanceof Element && cible.closest('[role="dialog"],[aria-modal="true"]')) return;
+      (focusables()[0] ?? ref.current).focus();
+    };
+    document.addEventListener('focusin', onFocusIn);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     // Porter le focus dans la fenêtre à l'ouverture · le champ `autoFocus` s'il
@@ -88,6 +101,7 @@ export function usePiegeFocus(
 
     return () => {
       window.removeEventListener('keydown', onKey);
+      document.removeEventListener('focusin', onFocusIn);
       document.body.style.overflow = prev;
       clearTimeout(t);
       rendreARef.current = null;

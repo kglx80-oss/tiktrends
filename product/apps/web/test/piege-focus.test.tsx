@@ -208,5 +208,27 @@ describe('usePiegeFocus · le clavier ne quitte pas la fenêtre', () => {
     touche({ key: 'Tab' });
     expect(document.activeElement, 'Tab depuis le <summary> sort de la fenêtre').toBe(q('#premier'));
   });
+
+  // Lot 9 · filet · un arrêt de Tab non prévu par le décompte (champ d'un
+  // <details> fermé compté visible) faisait sortir le focus de la fenêtre.
+  it('un focus qui atterrit hors de la fenêtre y est ramené', () => {
+    vi.useFakeTimers();
+    monter(<Dialogue actif onFermer={() => {}} />);
+    act(() => { vi.advanceTimersByTime(30); });
+    act(() => { q('#dehors').focus(); });
+    expect(document.activeElement, 'le focus est resté derrière la fenêtre').toBe(q('#a'));
+  });
+
+  it('une fenêtre imbriquée (portail) garde son focus · le filet ne la vole pas', () => {
+    vi.useFakeTimers();
+    monter(<Dialogue actif onFermer={() => {}} />);
+    act(() => { vi.advanceTimersByTime(30); });
+    const autre = document.createElement('div'); autre.setAttribute('role', 'dialog');
+    const champ = document.createElement('input'); autre.appendChild(champ); document.body.appendChild(autre);
+    try {
+      act(() => { champ.focus(); });
+      expect(document.activeElement, 'le filet a volé le focus d’une fenêtre imbriquée').toBe(champ);
+    } finally { autre.remove(); }
+  });
 });
 
