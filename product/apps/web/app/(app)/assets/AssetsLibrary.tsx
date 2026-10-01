@@ -10,6 +10,7 @@ import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { MiniatureAsset } from '../../../components/MiniatureAsset';
 import { CIBLE_TACTILE_MIN, lireFiltreAssets, ecrireFiltreAssets } from '@tiktrends/core';
+import { remplacerRecherche } from '../../../lib/url-client';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -74,7 +75,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
     if (f.recherche) setSearch(f.recherche);
   }, []);
   const garderDansUrl = (type: AssetKind | 'all', recherche: string) =>
-    window.history.replaceState(null, '', `${window.location.pathname}${ecrireFiltreAssets(window.location.search, { type, recherche })}${window.location.hash}`);
+    remplacerRecherche(ecrireFiltreAssets(window.location.search, { type, recherche }));
   const [tagging, setTagging] = useState<string | 'bulk' | ''>('');
   const fileRef = useRef<HTMLInputElement>(null);
   // Déclencheurs des deux panneaux · Échap ferme le panneau ouvert et REND le

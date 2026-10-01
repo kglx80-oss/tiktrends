@@ -16,10 +16,18 @@ const lignes = (): IterationRow[] => iterationPlan([
 let plan = lignes();
 vi.mock('../app/actions/adsmap-iterate', () => ({
   iterationPlanAction: async () => ({ view: { rows: plan, examined: 2, summary: 'résumé' } }),
-  createIterationAction: async (i: { parentAdId: string }) => { plan = plan.filter((r) => r.adId !== i.parentAdId); return { adId: 'enfant-9', asIteration: true }; },
+  createIterationAction: async (i: { parentAdId: string }) => {
+    plan = plan.filter((r) => r.adId !== i.parentAdId);
+    // Ce que fait le routeur Next après une action qui revalide · l'URL est
+    // réécrite sans nos paramètres, APRÈS la relecture du plan (mesuré).
+    setTimeout(() => routeur?.reecrire(), 5);
+    return { adId: 'enfant-9', asIteration: true };
+  },
 }));
 vi.mock('../app/actions/adsmap-draft', () => ({ draftConceptAction: async () => ({ error: 'Plafond de dépense atteint.' }) }));
 vi.mock('../components/DraftCard', () => ({ DraftCard: () => null }));
+import { installerModeleRouteurNext } from './modele-routeur-next';
+let routeur: ReturnType<typeof installerModeleRouteurNext> | null = null;
 import { Suites } from '../app/(app)/adsmap/suites/Suites';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -79,6 +87,19 @@ describe('Suites · filtre, formulaire, création', () => {
     expect(statut?.textContent, 'la confirmation disparaît avec la carte').toContain(libelle);
     expect([...h.querySelectorAll('strong')].map((x) => x.textContent), 'le parent créé reste dans le plan (mock)').not.toContain(libelle);
     expect(statut!.querySelector('a')!.getAttribute('href'), 'le lien ne mène pas à la suite créée').toBe('/adsmap?ad=enfant-9');
+  });
+
+  it('après création (URL réécrite par le routeur Next), le filtre reste dans l’URL', async () => {
+    window.history.replaceState({ __NA: true }, '', '/adsmap/suites');
+    routeur = installerModeleRouteurNext();
+    const h = await monter();
+    await act(async () => { bouton(h, MODE_LABEL.better).click(); });
+    await act(async () => { bouton(h, 'Créer la suite').click(); });
+    await taper(h.querySelector('textarea') as HTMLTextAreaElement, 'En changeant le CTA, j’attends plus de clics.');
+    await act(async () => { bouton(h, 'Créer').click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+    routeur.desinstaller(); routeur = null;
+    expect(window.location.search, 'le routeur ignore le filtre · sa réécriture l’efface (Retour → « Tous »)').toBe('?mode=better');
   });
 
   it('l’erreur de Jarvis s’affiche carte fermée', async () => {

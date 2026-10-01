@@ -6,6 +6,7 @@ import { iterationPlanAction, createIterationAction, type IterationPlanView, typ
 import { Empty } from '../../../../components/Empty';
 import { DraftCard } from '../../../../components/DraftCard';
 import { draftConceptAction, type DraftView } from '../../../actions/adsmap-draft';
+import { remplacerRecherche } from '../../../../lib/url-client';
 
 /**
  * Le plan d'itération, et le geste qui le transforme en test.
@@ -56,11 +57,9 @@ export function Suites() {
   const [creee, setCreee] = useState<{ adId: string; asIteration: boolean; label: string } | null>(null);
   // Le filtre vit dans l'URL (remplacement) · le Retour le retrouve.
   useEffect(() => { setFiltreEtat(lireFiltreSuites(window.location.search)); }, []);
-  const setFiltre = (f: Filtre) => {
-    setFiltreEtat(f);
-    const { pathname, search, hash } = window.location;
-    window.history.replaceState(window.history.state, '', `${pathname}${ecrireFiltreSuites(search, f)}${hash}`);
-  };
+  // `remplacerRecherche` synchronise le routeur Next · sans quoi la création
+  // d'une suite (action qui revalide) effaçait `?mode=` (recette #106).
+  const setFiltre = (f: Filtre) => { setFiltreEtat(f); remplacerRecherche(ecrireFiltreSuites(window.location.search, f)); };
 
   useEffect(() => {
     void (async () => {

@@ -10,6 +10,7 @@ import { AdCard } from './AdCard';
 import { setSavedAdFolder } from '../app/actions/inspo';
 import { Empty } from './Empty';
 import { useToast } from './Toast';
+import { remplacerRecherche } from '../lib/url-client';
 
 export interface SavedItem { id: string; ad: InspoAd; folder: string | null; externalId: string; platform: string }
 
@@ -41,8 +42,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
     setTab(c.board); setQ(c.recherche);
   }, []);
   const garderDansUrl = (board: string, recherche: string) => {
-    const { pathname, search, hash } = window.location;
-    window.history.replaceState(window.history.state, '', `${pathname}${ecrireCriteresSauvegardes(search, { board, recherche })}${hash}`);
+    remplacerRecherche(ecrireCriteresSauvegardes(window.location.search, { board, recherche }));
   };
   const choisirBoard = (b: string) => { setTab(b); garderDansUrl(b, q); };
   const chercher = (v: string) => { setQ(v); garderDansUrl(tab, v); };

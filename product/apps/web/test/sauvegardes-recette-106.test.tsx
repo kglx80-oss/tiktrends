@@ -81,6 +81,19 @@ describe('Créations · board et recherche dans l’URL, état annoncé', () => 
   });
 });
 
+describe('Créations · le routeur Next connaît le board et la recherche', () => {
+  it('choisir un board synchronise le routeur (un changement d’onglet ne le perd plus)', async () => {
+    const { installerModeleRouteurNext } = await import('./modele-routeur-next');
+    pointeur(false);
+    window.history.replaceState({ __NA: true }, '', '/saved?onglet=creations');
+    const routeur = installerModeleRouteurNext();
+    const h = await monter(<SavedBoards items={items} followKeys={[]} />);
+    await act(async () => { bouton(h, 'Offres').click(); });
+    routeur.desinstaller();
+    expect(routeur.canonique(), 'le routeur ignore le board · sa prochaine écriture l’efface').toBe('/saved?onglet=creations&board=Offres');
+  });
+});
+
 describe('Sélecteur de board · état et Échap', () => {
   it('aria-expanded suit l’ouverture · Échap referme et rend le focus au bouton', async () => {
     pointeur(false);
