@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import {
   ETAPES_VIDEO, ETAPE_VIDEO_TITRE, ETAPE_VIDEO_ROLE,
   manqueVideo, etapeVideoComplete, etapeVideoSuivante, etapeVideoPrecedente,
@@ -51,14 +52,12 @@ const Label = ({ children, htmlFor }: { children: ReactNode; htmlFor?: string })
 
 export function AssistantVideo(p: Props) {
   const [etape, setEtape] = useState<EtapeVideo>('depart');
-  // Échap ferme · pendant clavier du clic sur le fond.
-  const { ouvert, onFermer } = p;
-  useEffect(() => {
-    if (!ouvert) return;
-    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onFermer(); };
-    window.addEventListener('keydown', surTouche);
-    return () => window.removeEventListener('keydown', surTouche);
-  }, [ouvert, onFermer]);
+  // Le piège à focus partagé · focus entrant, Tab gardé dans la fenêtre, Échap,
+  // retour au déclencheur. L'écouteur maison se réabonnait à chaque rendu de la
+  // page et ratait Échap (mesuré au navigateur, lot 9 · focus resté sur
+  // « Assistant guidé », Tab sorti 11 fois sur 14).
+  const boiteRef = useRef<HTMLDivElement>(null);
+  usePiegeFocus(boiteRef, { actif: p.ouvert, onFermer: p.onFermer });
   if (!p.ouvert) return null;
 
   const bloquant = manqueVideo(etape, p.etat);
@@ -71,7 +70,7 @@ export function AssistantVideo(p: Props) {
   return (
     <Portail>
     <div style={fond} onClick={p.onFermer}>
-      <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-video-titre">
+      <div ref={boiteRef} tabIndex={-1} style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-video-titre">
         <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
             {ETAPES_VIDEO.map((e, i) => {

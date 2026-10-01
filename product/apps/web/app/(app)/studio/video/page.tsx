@@ -10,6 +10,7 @@ import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { effectiveAccess } from '../../../../lib/access';
 import { cadrePage } from '../../../../components/ui';
+import { costFor } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'video')!;
@@ -53,7 +54,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
         Stratégie cohérente avec Pubs IA : <b>Image → Vidéo</b> anime directement <b>ton produit ou une pub déjà générée</b>
         (mouvement de caméra, micro-animations), pendant que <b>Texte → Vidéo</b> part d'une description. Le bouton
         <b> Suggérer un mouvement</b> propose une consigne ancrée sur ta marque. Format 9:16 pour TikTok, rendu ~1 à 3 min,
-        20 crédits par vidéo.
+        {costFor('video')} crédits par tranche de 5 s · le prix exact s'affiche sur le bouton avant le clic.
       </PageInfo>
 
       <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} adsmap={adsmapOpen} />

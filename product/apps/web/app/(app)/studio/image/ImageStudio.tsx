@@ -18,6 +18,7 @@ import { Composer } from '../../../../components/Composer';
 import { usePreflight } from '../../../../components/usePreflight';
 import { useScenes } from '../../../../components/useScenes';
 import { AssistantImage } from './AssistantImage';
+import { usePiegeFocus } from '../../../../components/use-piege-focus';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
 const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
@@ -97,6 +98,10 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   const [images, setImages] = useState<BrandImage[]>(initial);
   const [imgPage, setImgPage] = useState(0);
   const [preview, setPreview] = useState<string | null>(null);
+  // La visionneuse est une fenêtre · Échap la ferme, le focus y entre et revient
+  // à la vignette (lot 9 · c'était un simple calque sans rôle ni clavier).
+  const apercuRef = useRef<HTMLDivElement>(null);
+  usePiegeFocus(apercuRef, { actif: !!preview, onFermer: () => setPreview(null) });
   const [suggesting, startSuggest] = useTransition();
   const [saving, startSave] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -256,7 +261,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           </p>
           <details style={{ marginTop: 8 }}>
             <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien direct vers l'image</summary>
-            <input value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setUploadedUri(''); }} disabled={!ready || busy} placeholder="https://…/produit.jpg" style={{ ...fld, marginTop: 8 }} />
+            <input value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setUploadedUri(''); }} disabled={!ready || busy} placeholder="https://…/produit.jpg" aria-label="Lien direct vers la photo produit" style={{ ...fld, marginTop: 8 }} />
             <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)' }}>Lien direct vers le fichier image, pas la page produit (clic droit → « Copier l'adresse de l'image »).</p>
           </details>
         </div>
@@ -279,7 +284,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           {([['i2i', 'Mise en scène produit'], ['t2i', 'Texte → Image']] as const).map(([k, label]) => (
-            <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
+            <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} aria-pressed={mode === k} style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
               fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
@@ -429,7 +434,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           {images.slice(imgPage * PAGE_SIZE, (imgPage + 1) * PAGE_SIZE).map((im) => (
             <div key={im.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
               {im.url && (
-                <button type="button" onClick={() => setPreview(im.url)} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
+                <button type="button" onClick={() => setPreview(im.url)} aria-label={`Agrandir le visuel · ${im.prompt.slice(0, 80)}`} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
                   { }
                   <img src={im.url} alt="" loading="lazy" decoding="async" style={{ width: '100%', display: 'block', aspectRatio: '1/1', objectFit: 'cover' }} />
                 </button>
@@ -453,14 +458,14 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                   {im.prompt && (
                     <button type="button" onClick={() => vary(im)} disabled={busy || !ready} title="3 variantes du même brief" style={{
-                      flex: 1, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
+                      flex: 1, minHeight: CIBLE_TACTILE_MIN, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
                       border: '1px solid rgba(254,44,85,.3)', background: 'transparent', color: 'var(--accent-strong)',
                       cursor: busy || !ready ? 'default' : 'pointer', opacity: busy || !ready ? .5 : 1,
                     }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> Varier (3) · {modelSpec.credits * 3} cr.</span></button>
                   )}
                   {im.url && aiReady && (
                     <button type="button" onClick={() => noter(im)} disabled={noting === im.id || !ready} title="Relecture IA · note et ratés du visuel" style={{
-                      flex: 1, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
+                      flex: 1, minHeight: CIBLE_TACTILE_MIN, padding: '6px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 700,
                       border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)',
                       cursor: noting === im.id || !ready ? 'default' : 'pointer', opacity: !ready ? .5 : 1,
                     }}>{noting === im.id ? 'Relecture…' : `Noter (IA) · ${costFor('score')} cr.`}</button>
@@ -500,9 +505,9 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
       />
 
       {preview && (
-        <Portail><div onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+        <Portail><div ref={apercuRef} role="dialog" aria-modal="true" aria-label="Aperçu du visuel" tabIndex={-1} onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
           <img src={preview} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 12, boxShadow: '0 30px 80px -20px rgba(0,0,0,.8)' }} />
-          <button type="button" onClick={() => setPreview(null)} aria-label="Fermer" style={{ position: 'fixed', top: 18, right: 20, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
+          <button type="button" onClick={() => setPreview(null)} aria-label="Fermer l’aperçu" style={{ position: 'fixed', top: 18, right: 20, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div></Portail>
       )}
     </div>

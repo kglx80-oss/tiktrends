@@ -187,7 +187,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
         )}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           {([['t2v', 'Texte → Vidéo'], ['i2v', 'Image → Vidéo']] as const).map(([k, label]) => (
-            <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} style={{
+            <button key={k} type="button" disabled={!ready} onClick={() => setMode(k)} aria-pressed={mode === k} style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 13, fontWeight: mode === k ? 800 : 600, padding: '9px 15px', borderRadius: 12, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
               border: `1px solid ${mode === k ? 'transparent' : 'var(--line-2)'}`,
               background: mode === k ? 'var(--grad-accent)' : 'transparent', color: mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
@@ -297,12 +297,12 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
                       </>
                     ) : (
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                        {pending && v.jobId && <button type="button" onClick={() => recheck(v)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Vérifier</button>}
+                        {pending && v.jobId && <button type="button" onClick={() => recheck(v)} style={{ minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Vérifier</button>}
                         {v.status === 'failed' && v.prompt && (
-                          <button type="button" onClick={() => { setPrompt(v.prompt); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Reprendre ce brief</button>
+                          <button type="button" onClick={() => { setPrompt(v.prompt); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Reprendre ce brief</button>
                         )}
                         <span style={{ flex: 1 }} />
-                        <button type="button" onClick={() => removeVideo(v.id)} title="Supprimer" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Supprimer ✕</button>
+                        <button type="button" onClick={() => removeVideo(v.id)} title="Supprimer" style={{ minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Supprimer ✕</button>
                       </div>
                     )}
                   </div>

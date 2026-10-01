@@ -24,7 +24,7 @@ describe('Cibles tactiles · seconde passe', () => {
   it('la croix de l’aperçu plein écran (studio Image) atteint la cible', () => {
     const s = read('app/(app)/studio/image/ImageStudio.tsx');
     expect(s).toContain('CIBLE_TACTILE_MIN');
-    const i = s.indexOf("onClick={() => setPreview(null)} aria-label=\"Fermer\"");
+    const i = s.indexOf("onClick={() => setPreview(null)} aria-label=\"Fermer l’aperçu\"");
     expect(i, 'la croix de l’aperçu est introuvable').toBeGreaterThan(-1);
     expect(s.slice(i, i + 220), 'la croix de l’aperçu est sous la cible').toContain('width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN');
   });
