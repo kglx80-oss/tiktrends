@@ -39,6 +39,7 @@ describe('Accueil · ne propose que ce que le rôle ouvre', () => {
     expect(a.texte).not.toContain('Créer une pub');
     expect(a.texte).not.toContain('Nouvelle marque');
     expect(a.liens).toContain('/analytics');
+    expect(a.liens, 'brancher un compte est réservé aux admins').not.toContain('/connections');
     expect(a.texte, 'la raison n’est pas dite').toContain('Ton rôle dans cet espace ne comprend pas la création');
     expect(a.texte, 'les marques de l’espace disparaissent').toContain('Orée');
   });
@@ -46,14 +47,17 @@ describe('Accueil · ne propose que ce que le rôle ouvre', () => {
     const a = await accueil('member');
     expect(a.liens).toContain('/studio/ads');
     expect(a.liens).toContain('/adsmap');
-    // La section Marques de l'accueil · le panneau de parcours (étapes cochées)
-    // a ses propres règles, hors de ce lot (registre).
+    // La section Marques de l'accueil.
     const marques = liens(a.html.slice(a.html.indexOf('aria-label="Tes marques"'), a.html.indexOf('</section>', a.html.indexOf('aria-label="Tes marques"'))));
     expect(marques, 'fiche de marque réservée aux admins').not.toContain('/brands/b1');
     expect(marques).not.toContain('/brands/new');
     expect(marques).not.toContain('/brands');
     expect(a.texte).not.toContain('Nouvelle marque');
     expect(a.texte).toContain('ne comprend pas la gestion des marques');
+    // Partout sur l'accueil, y compris le parcours (étapes cochées) et l'exemple.
+    for (const admin of ['/brands/new', '/brands', '/adsmap/import', '/adsmap/lots', '/connections']) {
+      expect(a.liens, `lien admin ${admin} proposé au membre`).not.toContain(admin);
+    }
   });
   it('propriétaire · tout reste proposé, aucune note', async () => {
     const a = await accueil('owner');

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useId, useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, type Journey, type JourneyStep, type Relance } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, cheminOuvert, type Journey, type JourneyStep, type Relance, type RegleChemin } from '@tiktrends/core';
 import { Icon } from './Icon';
 
 /**
@@ -41,7 +41,12 @@ const puce: CSSProperties = {
   fontSize: 10, fontWeight: 800,
 };
 
-export function JourneyPanel({ j, relance = null }: { j: Journey; relance?: Relance | null }) {
+/**
+ * `regles` (lot 11) · ce que le rôle ouvre. Une étape cochée qui mène à un
+ * écran fermé au rôle (« Créer ta marque » pour un membre) reste affichée,
+ * sans lien · elle renvoyait sinon à l'accueil. Absent = tout ouvert.
+ */
+export function JourneyPanel({ j, relance = null, regles = [] }: { j: Journey; relance?: Relance | null; regles?: RegleChemin[] }) {
   // `ouvert` ne pilote QUE le reste du parcours (la liste des étapes) · l'action
   // dominante, elle, reste TOUJOURS visible. Replié par défaut · la liste des
   // étapes ne doit pas repousser le reste de l'écran hors de vue.
@@ -117,7 +122,7 @@ export function JourneyPanel({ j, relance = null }: { j: Journey; relance?: Rela
 
       <div id={listeId} hidden={!ouvert} style={{ marginTop: 8 }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          {requises.map((s) => <Ligne key={s.key} s={s} />)}
+          {requises.map((s) => <Ligne key={s.key} s={s} lien={cheminOuvert(s.href, regles)} />)}
         </div>
         {optionnelles.length > 0 && (
           <>
@@ -125,7 +130,7 @@ export function JourneyPanel({ j, relance = null }: { j: Journey; relance?: Rela
               Quand tu veux · ça améliore les résultats sans bloquer la suite
             </p>
             <div style={{ display: 'grid', gap: 4 }}>
-              {optionnelles.map((s) => <Ligne key={s.key} s={s} />)}
+              {optionnelles.map((s) => <Ligne key={s.key} s={s} lien={cheminOuvert(s.href, regles)} />)}
             </div>
           </>
         )}
@@ -134,7 +139,7 @@ export function JourneyPanel({ j, relance = null }: { j: Journey; relance?: Rela
   );
 }
 
-function Ligne({ s }: { s: JourneyStep }) {
+function Ligne({ s, lien }: { s: JourneyStep; lien: boolean }) {
   const t = TON[s.status];
   const contenu = (
     <>
@@ -175,8 +180,9 @@ function Ligne({ s }: { s: JourneyStep }) {
   };
 
   // On ne lie pas une étape bloquée · y envoyer quelqu'un le ferait arriver
-  // devant un écran qu'il ne peut pas encore remplir.
-  return s.status === 'blocked'
+  // devant un écran qu'il ne peut pas encore remplir. Ni une étape dont
+  // l'écran est fermé au rôle (lot 11).
+  return s.status === 'blocked' || !lien
     ? <div style={style}>{contenu}</div>
     : <Link href={s.href} style={style}>{contenu}</Link>;
 }

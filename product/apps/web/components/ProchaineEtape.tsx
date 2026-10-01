@@ -28,7 +28,7 @@ export function ProchaineEtape({ parcours, regles = [] }: {
   const mode = modeProchaineEtape({ parcoursPresent: !!parcours, journeyComplete: !!parcours?.journey.complete });
 
   if (mode === 'installation' && parcours) {
-    return <JourneyPanel j={parcours.journey} relance={parcours.relance} />;
+    return <JourneyPanel j={parcours.journey} relance={parcours.relance} regles={regles} />;
   }
 
   const liens = liensOuverts(LIENS_ITERATION, (h) => cheminOuvert(h, regles));

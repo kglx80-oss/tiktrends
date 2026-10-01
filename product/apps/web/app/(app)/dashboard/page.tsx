@@ -68,7 +68,7 @@ export default async function Dashboard() {
         bandeau={bandeau ? <HomeBandeau key="bandeau" contenu={bandeau} /> : null}
         marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} gererMarques={ouvert('/brands/new')} />}
         prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} regles={regles} />}
-        exemple={<ApercuExemple key="apercu-exemple" rows={rows} />}
+        exemple={<ApercuExemple key="apercu-exemple" rows={rows} brancher={ouvert('/connections')} />}
       />
     </main>
   );
