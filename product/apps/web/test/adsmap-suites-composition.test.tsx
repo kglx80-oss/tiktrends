@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { placementLanceurSupport, MODE_LABEL } from '@tiktrends/core';
+import { placementLanceurSupport, MODE_LABEL, MODE_HINT, VARIABLE_LABEL, STAGE_LABEL, iterationPlan } from '@tiktrends/core';
 import { CarteSuite, sensDuSuite } from '../app/(app)/adsmap/suites/Suites';
 import type { IterationRow } from '../app/actions/adsmap-iterate';
 
@@ -21,14 +21,17 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const src = read('app/(app)/adsmap/suites/Suites.tsx');
 const page = read('app/(app)/adsmap/suites/page.tsx');
 
+// Fixture tirée du NOYAU (#108) · une gagnante PROUVÉE au protocole, telle que
+// `iterationPlan` la propose · mode, variable, gel et rationale cohérents par
+// construction (l'ancienne fixture changeait « hook » en Décliner, gelait
+// l'offre et le landing, et prêtait au cas prouvé une rationale arbitraire).
+const [tache] = iterationPlan([{ adId: 'ad-1', label: 'Concept 2 · v2', verdict: 'winner', comparable: true, failedStage: null, spend: 320 }]);
 const base: IterationRow = {
-  adId: 'ad-1', label: 'Concept 2 · v2', spend: 320,
-  mode: 'more', changedVariable: 'hook', stageTargeted: null,
-  freeze: ['offer', 'landing'], rationale: 'Rationale du moteur · longue et répétée d’une carte à l’autre.',
-  priority: 0, edgeLegal: true,
-  modeLabel: MODE_LABEL.more, modeHint: 'Elle a gagné · on garde ce qui a gagné et on multiplie.',
-  variableLabel: 'le visuel d’ouverture', stageLabel: null,
-  freezeLabels: ['l’accroche', 'l’offre'], conceptTitle: 'Concept 2', parentVerdict: 'winner',
+  ...tache!,
+  modeLabel: MODE_LABEL[tache!.mode], modeHint: MODE_HINT[tache!.mode],
+  variableLabel: VARIABLE_LABEL[tache!.changedVariable], stageLabel: tache!.stageTargeted ? STAGE_LABEL[tache!.stageTargeted] : null,
+  freezeLabels: tache!.freeze.map((v) => VARIABLE_LABEL[v]), conceptTitle: 'Concept 2',
+  parentVerdict: 'winner', parentComparable: true, parentEtapeLachee: null,
 };
 const noop = () => {};
 
@@ -70,7 +73,7 @@ describe('Suites · la carte compacte mène par le mode et la variable (HTML ren
     expect(h).toContain('Pourquoi cette suite');
     expect(h).toContain('déplier'); // fermée par défaut
     // La rationale est rendue (accessible), pas supprimée.
-    expect(h).toContain('Rationale du moteur');
+    expect(h).toContain('Résultat conforme au protocole · décline-la');
   });
 
   it('le formulaire d’hypothèse garde sa validation ≥10 caractères (bouton désactivé à vide)', () => {
@@ -108,8 +111,9 @@ describe('Suites · le filtre par mode est un tri d’affichage (source)', () =>
   });
 
   it('aucun-résultat-de-filtre est DISTINCT de la marque-sans-verdict', () => {
-    // Marque sans verdict · l'Empty « Rien à itérer ».
-    expect(src).toContain('Rien à itérer pour l’instant.');
+    // Marque sans suite · l'Empty du noyau (`videSuites`), qui distingue
+    // « aucun verdict arbitré » de « arbitrés, rien à itérer ».
+    expect(src).toContain('videSuites(view.examined)');
     // Filtre sans résultat alors que d'autres modes en portent · message à part.
     expect(src).toContain('Aucune suite en');
     expect(src).toContain('réparties sur les autres modes');
@@ -183,5 +187,20 @@ describe('Suites · le sens du mode « Décliner » est conditionnel à la preuv
       <CarteSuite row={{ ...base, mode: 'more', modeLabel: MODE_LABEL.more, modeHint: GAGNE, edgeLegal: true }} ouvert={false} onToggle={noop} onCree={noop} />,
     );
     expect(prouve).toContain('Elle a gagné');
+  });
+});
+
+describe('Suites · analyse → itération lisible (recette #106)', () => {
+  it('la carte dit le résultat du test d’origine, verdict effectif et étape', () => {
+    const prouve = renderToStaticMarkup(<CarteSuite row={base} ouvert={false} onToggle={noop} onCree={noop} />);
+    expect(prouve, 'le résultat du parent n’est pas affiché').toContain('Résultat du test · Gagnante');
+    const perdante = renderToStaticMarkup(<CarteSuite row={{ ...base, parentVerdict: 'loser', parentEtapeLachee: 'le clic', edgeLegal: false }} ouvert={false} onToggle={noop} onCree={noop} />);
+    expect(perdante).toContain('Perdante · a lâché sur le clic');
+    const importe = renderToStaticMarkup(<CarteSuite row={{ ...base, parentComparable: false, edgeLegal: false }} ouvert={false} onToggle={noop} onCree={noop} />);
+    expect(importe, 'un gagnant non comparable passe pour prouvé').toContain('Prometteuse · relatif');
+  });
+  it('le lien vers la suite créée ouvre SA fiche (`?ad=`), plus jamais /adsmap nu', () => {
+    expect(src).toContain('href={lienFicheAdsmap(creee.adId)}');
+    expect(src, 'un lien vers la carte nue subsiste').not.toContain('href="/adsmap"');
   });
 });

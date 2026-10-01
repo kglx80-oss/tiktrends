@@ -11,7 +11,7 @@ import { Empty } from '../../../../components/Empty';
 import { Bandeau } from '../../../../components/Bandeau';
 import { useToast } from '../../../../components/Toast';
 import { useIsMobile } from '../../../../components/useIsMobile';
-import { estLotImporte } from '@tiktrends/core';
+import { estLotImporte, etatLancementLot, lienFicheAdsmap } from '@tiktrends/core';
 import { BadgeNatureLot, ReserveNatureLot } from './NatureLot';
 
 /**
@@ -130,7 +130,10 @@ export function Lots({ batches, brandName }: {
   }
 
   const bloquees = detail?.ads.filter((a) => a.blocking).length ?? 0;
-  const lancable = !!detail && detail.ads.length > 0 && bloquees === 0 && detail.status !== 'testing' && detail.status !== 'analyzed';
+  // Même règle que le serveur · toutes les ads prêtes (recette #106 · le bouton
+  // restait cliquable avant « Préparer », pour échouer ensuite).
+  const lancement = detail ? etatLancementLot({ statutLot: detail.status, ads: detail.ads }) : { lancable: false, raison: null };
+  const lancable = lancement.lancable && bloquees === 0;
 
   const lotCourant = liste.find((b) => b.id === choisi) ?? null;
 
@@ -181,7 +184,7 @@ export function Lots({ batches, brandName }: {
               {lotCourant ? (
                 <>
                   <strong>Lot {lotCourant.number}</strong> · {lotCourant.ads} ad(s)
-                  <span style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span title={lotCourant.goal ?? undefined} style={{ display: 'block', fontSize: 10.5, color: 'var(--muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {STATUS_LABEL[lotCourant.status] ?? lotCourant.status}
                     {estLotImporte({ status: lotCourant.status, launchedAt: lotCourant.launchedAt }) && ' · importé'}
                     {lotCourant.goal ? ` · ${lotCourant.goal}` : ''}
@@ -306,8 +309,11 @@ export function Lots({ batches, brandName }: {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                       <strong style={{ fontSize: 12.5, color: 'var(--ink)' }}>{a.variantCode}</strong>
-                      <span style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.concept}</span>
+                      <span title={a.concept} style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.concept}</span>
                       <span style={{ fontSize: 11, color: 'var(--muted)' }}>{STATUS_LABEL[a.status] ?? a.status}</span>
+                      {/* La fiche de CETTE ad (hypothèse, verdict, suite) · le lot ne
+                          menait nulle part vers ses variantes. */}
+                      <a href={lienFicheAdsmap(a.id)} style={{ ...petitBouton, display: 'inline-flex', alignItems: 'center', textDecoration: 'none', color: 'var(--accent-strong)' }}>fiche ›</a>
                       {detail.status !== 'testing' && detail.status !== 'analyzed' && (
                         <button type="button" onClick={() => basculer(a.id, false)} disabled={busy} style={petitBouton}>retirer</button>
                       )}
@@ -350,10 +356,13 @@ export function Lots({ batches, brandName }: {
               <button type="button" onClick={preparer} disabled={busy || !detail.ads.length} style={{ ...bouton, opacity: busy || !detail.ads.length ? 0.5 : 1 }}>
                 {busy ? '…' : 'Préparer le lot'}
               </button>
-              <button type="button" onClick={lancer} disabled={busy || !lancable} title={lancable ? undefined : 'Toutes les ads doivent être prêtes'} style={{ ...boutonSecondaire, opacity: busy || !lancable ? 0.5 : 1 }}>
+              <button type="button" onClick={lancer} disabled={busy || !lancable} aria-describedby={lancement.raison ? 'lot-raison-lancement' : undefined} style={{ ...boutonSecondaire, opacity: busy || !lancable ? 0.5 : 1 }}>
                 Marquer comme lancé
               </button>
             </div>
+            {lancement.raison && (
+              <p id="lot-raison-lancement" style={{ margin: '8px 0 0', fontSize: 12, color: '#ffcf8f', lineHeight: 1.5 }}>{lancement.raison}</p>
+            )}
             <p style={{ margin: '9px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55, maxWidth: 620 }}>
               « Préparer » génère les noms attendus côté régie et passe en prêt ce qui peut l’être.
               « Marquer comme lancé » ouvre la fenêtre d’évaluation · c’est de cette date que partent

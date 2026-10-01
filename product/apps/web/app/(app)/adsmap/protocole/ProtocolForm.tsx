@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { verrouAction, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { verrouAction, CIBLE_TACTILE_MIN, appliquerSuggestionSeuils } from '@tiktrends/core';
 import { saveSettingsAction, suggestSettingsAction, type SettingsBundle } from '../../../actions/adsmap-protocol';
 
 /**
@@ -34,7 +34,9 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
     try {
       const r = await suggestSettingsAction();
       if (r.error || !r.suggestion) { setMsg({ kind: 'err', text: r.error ?? 'Proposition impossible.' }); return; }
-      setS((x) => ({ ...x, protocol: r.suggestion!.protocol, verdict: r.suggestion!.verdict }));
+      // Seuls les seuils MESURÉS changent · structure, nom de campagne, audience
+      // et durée saisis restent (recette #106 · tout était remis au défaut).
+      setS((x) => ({ ...x, ...appliquerSuggestionSeuils({ protocol: x.protocol, verdict: x.verdict }, r.suggestion!) }));
       setNotes(r.suggestion.notes);
       setFromReal(r.suggestion.fromRealData);
     } finally {
@@ -66,13 +68,15 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* En lecture seule, proposer des seuils qu'on ne peut pas enregistrer n'a
+          pas de sens · le bouton n'est montré qu'à qui peut modifier. */}
+      {canEdit && <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" onClick={proposer} disabled={busy}
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 17px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
           {busy ? 'Analyse…' : 'Proposer des seuils depuis mes 30 derniers jours'}
         </button>
-        {fromReal === false && <span style={{ fontSize: 12.5, color: '#ffcf8f' }}>Sans données Meta · valeurs génériques</span>}
-      </div>
+        {fromReal === false && <span style={{ fontSize: 12.5, color: '#ffcf8f' }}>Sans données Meta · rien n’a été modifié</span>}
+      </div>}
 
       {notes.length > 0 && (
         <ul style={{ margin: 0, padding: '12px 16px 12px 30px', borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)', display: 'grid', gap: 5 }}>

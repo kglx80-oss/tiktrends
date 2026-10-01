@@ -206,6 +206,16 @@ const champ: CSSProperties = {
  */
 function Fusion({ onFait }: { onFait: () => Promise<void> }) {
   const [ouvert, setOuvert] = useState(false);
+  // Ouvert · le focus passe dans le panneau ; refermé · il revient au bouton
+  // (recette #106 · aucun état annoncé, le focus restait derrière).
+  const ouvrirRef = useRef<HTMLButtonElement>(null);
+  const fermerRef = useRef<HTMLButtonElement>(null);
+  const dejaOuvert = useRef(false);
+  useEffect(() => {
+    if (ouvert && !dejaOuvert.current) fermerRef.current?.focus();
+    if (!ouvert && dejaOuvert.current) ouvrirRef.current?.focus();
+    dejaOuvert.current = ouvert;
+  }, [ouvert]);
   const [personas, setPersonas] = useState<MergeCandidate[] | null>(null);
   const [source, setSource] = useState('');
   const [cible, setCible] = useState('');
@@ -249,7 +259,7 @@ function Fusion({ onFait }: { onFait: () => Promise<void> }) {
   if (!ouvert) {
     return (
       <div>
-        <button onClick={() => setOuvert(true)} style={btn('neutre')}>Fusionner deux personas</button>
+        <button ref={ouvrirRef} aria-expanded={false} onClick={() => setOuvert(true)} style={btn('neutre')}>Fusionner deux personas</button>
       </div>
     );
   }
@@ -257,11 +267,11 @@ function Fusion({ onFait }: { onFait: () => Promise<void> }) {
   const nom = (p: MergeCandidate) => `${p.name} · ${p.desires} désir(s)${p.status === 'proposed' ? ' · proposé' : ''}`;
 
   return (
-    <div style={{ ...carte, gap: 12 }}>
+    <div style={{ ...carte, gap: 12 }} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOuvert(false); } }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Fusionner deux personas</h2>
         <span style={{ flex: 1 }} />
-        <button onClick={() => setOuvert(false)} style={btn('neutre')}>Fermer</button>
+        <button ref={fermerRef} aria-expanded onClick={() => setOuvert(false)} style={btn('neutre')}>Fermer</button>
       </div>
 
       <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
@@ -279,12 +289,12 @@ function Fusion({ onFait }: { onFait: () => Promise<void> }) {
 
       {personas !== null && personas.length >= 2 && (
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <select value={source} onChange={(e) => setSource(e.target.value)} style={champ}>
+          <select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Persona qui disparaît (archivé)" style={champ}>
             <option value="">Persona qui disparaît…</option>
             {personas.map((p) => <option key={p.id} value={p.id}>{nom(p)}</option>)}
           </select>
           <span style={{ fontSize: 16, color: 'var(--muted)' }}>→</span>
-          <select value={cible} onChange={(e) => setCible(e.target.value)} style={champ}>
+          <select value={cible} onChange={(e) => setCible(e.target.value)} aria-label="Persona qui reçoit ses désirs" style={champ}>
             <option value="">Persona qui reçoit…</option>
             {personas.filter((p) => p.id !== source).map((p) => <option key={p.id} value={p.id}>{nom(p)}</option>)}
           </select>
@@ -351,7 +361,7 @@ function Ligne({ node, onFait }: { node: ProposedNode; onFait: () => Promise<voi
         {/* Le nom est éditable en place · demander de renommer sur un autre
             écran ferait perdre le contexte qui permet justement de nommer. */}
         <input
-          value={nom} onChange={(e) => setNom(e.target.value)}
+          value={nom} onChange={(e) => setNom(e.target.value)} aria-label={`Nom ${KIND_LABEL[node.kind].toLowerCase()} · modifiable avant de valider`}
           style={{
             flex: '1 1 260px', minWidth: 200, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '8px 11px', borderRadius: 10,
             border: `1px solid ${node.rename ? 'rgba(245,166,35,.5)' : 'var(--line-2)'}`,

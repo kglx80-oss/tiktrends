@@ -84,3 +84,16 @@ export function ecrireCriteresSauvegardes(recherche: string, c: CriteresSauvegar
   const board = c.board === BOARD_TOUS ? null : c.board === BOARD_SANS ? 'sans' : c.board;
   return fusionner(recherche, { board, q: c.recherche.trim() ? c.recherche : null });
 }
+
+/**
+ * Adsmap · Suites · le filtre de mode (Décliner / Corriger / Repartir) ·
+ * il était en état local et se perdait au Retour (recette #106).
+ */
+export type FiltreSuites = 'all' | 'more' | 'better' | 'new';
+const MODES_SUITES: readonly FiltreSuites[] = ['all', 'more', 'better', 'new'];
+export function lireFiltreSuites(recherche: string): FiltreSuites {
+  return parmi(lire(recherche).get('mode'), MODES_SUITES, 'all');
+}
+export function ecrireFiltreSuites(recherche: string, f: FiltreSuites): string {
+  return fusionner(recherche, { mode: f !== 'all' ? f : null });
+}

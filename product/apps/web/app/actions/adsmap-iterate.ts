@@ -50,6 +50,10 @@ export interface IterationRow extends IterationTask {
   freezeLabels: string[];
   conceptTitle: string;
   parentVerdict: VerdictValue;
+  /** Le verdict du parent a-t-il été évalué au protocole ? (non comparable = piste relative) */
+  parentComparable: boolean;
+  /** L'étape du tunnel où le parent a lâché, en clair · null s'il n'a pas lâché. */
+  parentEtapeLachee: string | null;
 }
 
 export interface IterationPlanView {
@@ -116,7 +120,7 @@ export async function iterationPlanAction(): Promise<{ view?: IterationPlanView;
     const dejaItere = new Set(arcs.map((a) => a.parentAdId));
 
     const entrees: IterationInput[] = [];
-    const contexte = new Map<string, { conceptTitle: string; verdict: VerdictValue }>();
+    const contexte = new Map<string, { conceptTitle: string; verdict: VerdictValue; comparable: boolean; failedStage: FunnelStage | null }>();
 
     for (const r of utiles) {
       const verdict = r.validated as VerdictValue;
@@ -139,7 +143,7 @@ export async function iterationPlanAction(): Promise<{ view?: IterationPlanView;
         lineageChanged: changed,
         spend: typeof agg.spend === 'number' ? agg.spend : null,
       });
-      contexte.set(r.adId, { conceptTitle: r.conceptTitle, verdict });
+      contexte.set(r.adId, { conceptTitle: r.conceptTitle, verdict, comparable: !!r.comparable, failedStage: (r.failedStage ?? null) as FunnelStage | null });
     }
 
     const plan = iterationPlan(entrees).slice(0, 30);
@@ -154,6 +158,8 @@ export async function iterationPlanAction(): Promise<{ view?: IterationPlanView;
         freezeLabels: t.freeze.map((v) => VARIABLE_LABEL[v]),
         conceptTitle: c.conceptTitle,
         parentVerdict: c.verdict,
+        parentComparable: c.comparable,
+        parentEtapeLachee: c.failedStage ? STAGE_LABEL[c.failedStage] : null,
       };
     });
 
