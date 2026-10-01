@@ -106,7 +106,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         <div style={card}><div style={cl}>Allocation ({PLAN_LABEL[s.plan]})</div><div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{alloc.toLocaleString('fr-FR')}</div><div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>par mois</div></div>
         <div style={card}>
           <div style={cl}>Consommé ce cycle</div>
-          <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{conso.pct === null ? '·' : `${conso.pct} %`}</div>
+          <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>{conso.pct === null ? <span style={{ fontSize: 17, color: 'var(--muted)' }}>Sans objet</span> : `${conso.pct} %`}</div>
           {conso.pct !== null && (
             <div style={{ marginTop: 8 }}>
               <BarreValeur part={partDeMax(conso.pct, 100)} hauteur={8} piste="var(--bg)" />

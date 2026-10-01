@@ -38,10 +38,19 @@ export function usePiegeFocus(
   const onFermerRef = useRef(onFermer);
   onFermerRef.current = onFermer;
 
+  // Qui avait le focus avant l'ouverture · lu au RENDU qui ouvre la fenêtre.
+  // Un effet arrive trop tard : un champ `autoFocus` de la fenêtre a déjà pris
+  // le focus pendant le commit, et c'est lui qu'on « rendait » à la fermeture
+  // (un nœud retiré · le focus tombait sur <body>, mesuré sur l'invitation
+  // d'Équipe, lot 8).
+  const rendreARef = useRef<HTMLElement | null>(null);
+  if (actif && rendreARef.current === null && typeof document !== 'undefined') {
+    rendreARef.current = document.activeElement as HTMLElement | null;
+  }
+
   useEffect(() => {
     if (!actif) return;
-    // Qui avait le focus avant l'ouverture · on le lui rend à la fermeture.
-    const rendreA = document.activeElement as HTMLElement | null;
+    const rendreA = rendreARef.current;
 
     const focusables = () => Array.from(
       ref.current?.querySelectorAll<HTMLElement>(
@@ -67,14 +76,18 @@ export function usePiegeFocus(
     window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    // Porter le focus dans la fenêtre à l'ouverture · premier champ utile, sinon
-    // le panneau lui-même (il est `tabIndex=-1`).
-    const t = setTimeout(() => { (focusables()[0] ?? ref.current)?.focus(); }, 20);
+    // Porter le focus dans la fenêtre à l'ouverture · le champ `autoFocus` s'il
+    // l'a déjà pris, sinon le premier focusable, sinon le panneau (`tabIndex=-1`).
+    const t = setTimeout(() => {
+      if (ref.current?.contains(document.activeElement)) return;
+      (focusables()[0] ?? ref.current)?.focus();
+    }, 20);
 
     return () => {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
       clearTimeout(t);
+      rendreARef.current = null;
       rendreA?.focus?.();
     };
     // Dépend de `actif` SEULEMENT · `onFermer` passe par la ref, `ref` est stable ·

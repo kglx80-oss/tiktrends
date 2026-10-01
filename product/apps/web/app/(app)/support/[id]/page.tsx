@@ -111,7 +111,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
         <input type="hidden" name="ticketId" value={tk.id} />
         <textarea name="body" required aria-label={isAdmin ? 'Ta réponse dans le fil' : 'Ton message dans le fil'} placeholder={isAdmin ? 'Répondre au client…' : 'Ajouter un message…'} style={{ ...input, minHeight: 90, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
         <div style={{ marginTop: 10 }}>
-          <button type="submit" style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' }}>Envoyer la réponse</button>
+          <button type="submit" style={{ minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' }}>Envoyer la réponse</button>
         </div>
       </form>
     </div></main>

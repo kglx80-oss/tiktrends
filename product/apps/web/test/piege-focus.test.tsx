@@ -153,4 +153,38 @@ describe('usePiegeFocus · le clavier ne quitte pas la fenêtre', () => {
     touche({ key: 'Escape' });
     expect(document.activeElement, 'à la fermeture, le focus revient au déclencheur').toBe(q('#declencheur'));
   });
+
+  // Lot 8 · l'invitation d'Équipe porte un champ `autoFocus`. Le champ prenait le
+  // focus au commit, AVANT l'effet du hook · le hook mémorisait ce champ comme
+  // « déclencheur », et à la fermeture le focus tombait sur <body>.
+  it('un champ autoFocus garde le focus à l’ouverture, et la fermeture rend le focus au vrai déclencheur', () => {
+    vi.useFakeTimers();
+    function DialogueChamp({ actif, onFermer }: { actif: boolean; onFermer: () => void }) {
+      const ref = useRef<HTMLDivElement>(null);
+      usePiegeFocus(ref, { actif, onFermer });
+      if (!actif) return null;
+      return (
+        <div ref={ref} role="dialog" aria-modal="true" tabIndex={-1}>
+          <button id="fermer" type="button">Fermer</button>
+          <input id="champ" autoFocus />
+        </div>
+      );
+    }
+    function PiloteChamp() {
+      const [actif, setActif] = useState(false);
+      return (
+        <div>
+          <button id="declencheur" type="button" onClick={() => setActif(true)}>ouvrir</button>
+          <DialogueChamp actif={actif} onFermer={() => setActif(false)} />
+        </div>
+      );
+    }
+    monter(<PiloteChamp />);
+    q('#declencheur').focus();
+    act(() => { q<HTMLButtonElement>('#declencheur').click(); });
+    act(() => { vi.advanceTimersByTime(30); });
+    expect(document.activeElement, 'le champ autoFocus doit garder le focus').toBe(q('#champ'));
+    touche({ key: 'Escape' });
+    expect(document.activeElement, 'à la fermeture, le focus revient au déclencheur, pas à <body>').toBe(q('#declencheur'));
+  });
 });

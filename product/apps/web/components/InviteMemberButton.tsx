@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { createInviteAction } from '../app/actions/invites';
 import { Modal } from './Modal';
 import { SubmitButton } from './SubmitButton';
@@ -15,7 +16,7 @@ export function InviteMemberButton() {
   return (
     <>
       <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} style={{
-        padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13,
+        minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13,
         cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)',
       }}>＋ Inviter un membre</button>
 

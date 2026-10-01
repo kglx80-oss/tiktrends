@@ -15,13 +15,17 @@
  * « ✓ Suivi » (62 %) ; Nouveautés · ☆ (100 %). Vide, rien n'était recouvert.
  * Tagging (390) · la valeur et la barre de « Persona / Femme 30–45 » · les
  * chiffres comptent autant que les contrôles (relevé par Codex sur capture).
+ * Compte (lot 8, remplis) · Équipe « Rôle » (100 % à 1280 et 390), « Révoquer »
+ * (28 % à 390) ; Crédits · les montants du tableau (100 % à 1280 et 390) ;
+ * Usage · les montants du journal (35 % à 1280, 66 % à 390) ; Support · le nom
+ * de l'auteur d'un ticket (100 % à 390). Un ticket seul (`/support/<id>`) : 0.
  * Ces écrans ancrent le lanceur · l'assistance reste là, rien n'est recouvert.
  * `/jarvis` (conversation) n'a pas de lanceur · il recouvrait « Envoyer ».
  */
 export const ROUTES_LANCEUR_SUPPORT_ANCRE: readonly string[] = [
   '/studio/ads', '/dashboard', '/veille', '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/radar',
   '/adsmap/tri', '/adsmap/protocole', '/adsmap/import', '/analytics', '/connections', '/settings', '/veille/scale',
-  '/assets', '/radar', '/saved', '/tags',
+  '/assets', '/radar', '/saved', '/tags', '/team', '/usage', '/credits', '/support',
 ];
 
 export type PlacementLanceurSupport = 'ancre' | 'flottant' | 'aucun';

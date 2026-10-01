@@ -38,6 +38,11 @@ describe('Équipe · le lien d’invitation se copie, l’état est annoncé', (
     await act(async () => { b.click(); });
     expect(b.getAttribute('aria-expanded'), 'l’ouverture n’est pas annoncée').toBe('true');
   });
+  it('le déclencheur d’invitation est une cible tactile (44 px mesurés à 40 en 390)', async () => {
+    const h = await monter(<InviteMemberButton />);
+    const b = [...h.querySelectorAll('button')].find((x) => x.textContent?.includes('Inviter'))!;
+    expect(b.style.minHeight, 'cible sous 44 px au toucher').toBe('44px');
+  });
   it('les messages de retour sont annoncés (succès · status, erreur · alert)', async () => {
     const h = await monter(<><Msg kind="ok">ok</Msg><Msg kind="err">non</Msg></>);
     expect([...h.querySelectorAll('[role]')].map((x) => x.getAttribute('role'))).toEqual(['status', 'alert']);
@@ -72,6 +77,8 @@ describe('Usage et Crédits · chiffres et motifs', () => {
     expect(s, 'promesse de report jamais appliquée').not.toContain('Report partiel de 25');
     expect(s).toContain('partConsommeeCycle({ allocation: alloc, solde: balance, illimite, mouvements: ledger.length })');
     expect(s).toContain("{illimite ? '∞'");
+    expect(s, 'un « · » seul tenait lieu de valeur quand la part ne se mesure pas').not.toContain("conso.pct === null ? '·'");
+    expect(s).toContain('>Sans objet</span>');
     expect(s).toContain('libelleMotif(l.reason)');
   });
 });
@@ -89,6 +96,7 @@ describe('Support · promesses tenues, fil accessible', () => {
     expect(s).toContain('href="/support"');
     expect(s).toContain("aria-label={isAdmin ? 'Ta réponse dans le fil' : 'Ton message dans le fil'}");
     expect(s).toContain('aria-pressed={tk.status === v}');
+    expect(s, '« Envoyer la réponse » mesuré à 40 px en 390').toMatch(/minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px'[^>]*>Envoyer la réponse/);
     expect(s, 'promet une réouverture que le serveur ne fait pas').not.toContain('Réponds ci-dessous pour le rouvrir');
   });
 });

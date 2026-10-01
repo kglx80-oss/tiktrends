@@ -22,7 +22,7 @@ describe('placementLanceurSupport', () => {
   it('la conversation Jarvis n’a pas de lanceur, les autres routes gardent la bulle', () => {
     expect(placementLanceurSupport('/jarvis')).toBe('aucun');
     expect(placementLanceurSupport('/jarvis/sources')).toBe('flottant');
-    expect(placementLanceurSupport('/team')).toBe('flottant');
+    expect(placementLanceurSupport('/brands/new')).toBe('flottant');
   });
   it('Assets et Radar produits ancrent le lanceur (puce « Audio », « Retravailler au Studio » recouverts)', () => {
     expect(placementLanceurSupport('/assets')).toBe('ancre');
@@ -33,5 +33,8 @@ describe('placementLanceurSupport', () => {
   });
   it('Tagging ancre le lanceur · la bulle masquait la valeur et la barre de « Persona / Femme 30–45 » à 390', () => {
     expect(placementLanceurSupport('/tags')).toBe('ancre');
+    // Lot 8 · mesuré au recouvrement des textes et chiffres, écrans remplis.
+    for (const r of ['/team', '/usage', '/credits', '/support']) expect(placementLanceurSupport(r), r).toBe('ancre');
+    expect(placementLanceurSupport('/support/un-ticket'), 'un ticket seul ne recouvrait rien').toBe('flottant');
   });
 });
