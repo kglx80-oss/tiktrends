@@ -28,4 +28,8 @@ describe('placementLanceurSupport', () => {
     expect(placementLanceurSupport('/assets')).toBe('ancre');
     expect(placementLanceurSupport('/radar')).toBe('ancre');
   });
+  it('Sauvegardes ancre le lanceur (★, « Site ↗ », « + Suivre » recouverts une fois remplie) · Tagging garde la bulle', () => {
+    expect(placementLanceurSupport('/saved')).toBe('ancre');
+    expect(placementLanceurSupport('/tags')).toBe('flottant');
+  });
 });

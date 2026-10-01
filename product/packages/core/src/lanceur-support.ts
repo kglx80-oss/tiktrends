@@ -11,13 +11,15 @@
  * l'étoile (91 %), « + Suivre » (54 %) et « Copier » (82 %) à 390.
  * Assets · la puce « Audio » (32 %) et la ligne « 1 crédit/image » à 390.
  * Radar produits · « Retravailler au Studio » (29 % à 390, 18 % à 1280).
+ * Sauvegardes, remplie (390) · ★ (100 %), « Site ↗ » (75 %), « + Suivre » (70 %),
+ * « ✓ Suivi » (62 %) ; Nouveautés · ☆ (100 %). Vide, rien n'était recouvert.
  * Ces écrans ancrent le lanceur · l'assistance reste là, rien n'est recouvert.
  * `/jarvis` (conversation) n'a pas de lanceur · il recouvrait « Envoyer ».
  */
 export const ROUTES_LANCEUR_SUPPORT_ANCRE: readonly string[] = [
   '/studio/ads', '/dashboard', '/veille', '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/radar',
   '/adsmap/tri', '/adsmap/protocole', '/adsmap/import', '/analytics', '/connections', '/settings', '/veille/scale',
-  '/assets', '/radar',
+  '/assets', '/radar', '/saved',
 ];
 
 export type PlacementLanceurSupport = 'ancre' | 'flottant' | 'aucun';
