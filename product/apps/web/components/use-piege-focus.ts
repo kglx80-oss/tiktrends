@@ -94,10 +94,19 @@ export function usePiegeFocus(
     document.body.style.overflow = 'hidden';
     // Porter le focus dans la fenêtre à l'ouverture · le champ `autoFocus` s'il
     // l'a déjà pris, sinon le premier focusable, sinon le panneau (`tabIndex=-1`).
-    const t = setTimeout(() => {
-      if (ref.current?.contains(document.activeElement)) return;
-      (focusables()[0] ?? ref.current)?.focus();
-    }, 20);
+    // Tenace · un panneau rendu par `Portail` est monté EN PLACE puis déplacé sur
+    // <body> (nœud recréé) · ouvert par lien profond, le focus posé tombait avec
+    // l'ancien nœud et restait sur la page (tiroir Adsmap, lot 9). On réessaie
+    // tant que le panneau n'a pas le focus, une seconde au plus.
+    let t: ReturnType<typeof setTimeout>;
+    let essais = 0;
+    const porter = () => {
+      const panneau = ref.current;
+      if (panneau?.contains(document.activeElement)) return;
+      if (panneau) (focusables()[0] ?? panneau).focus();
+      if (!panneau?.contains(document.activeElement) && essais++ < 16) t = setTimeout(porter, 60);
+    };
+    t = setTimeout(porter, 20);
 
     return () => {
       window.removeEventListener('keydown', onKey);

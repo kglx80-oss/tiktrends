@@ -230,5 +230,22 @@ describe('usePiegeFocus · le clavier ne quitte pas la fenêtre', () => {
       expect(document.activeElement, 'le filet a volé le focus d’une fenêtre imbriquée').toBe(champ);
     } finally { autre.remove(); }
   });
+
+  // Lot 9 · tiroir Adsmap ouvert par lien profond · le panneau n'existait pas
+  // encore (ou était recréé par le portail) quand le focus était posé.
+  it('panneau monté APRÈS l’ouverture · le focus finit dedans', () => {
+    vi.useFakeTimers();
+    function Tardif() {
+      const ref = useRef<HTMLDivElement>(null);
+      const [pret, setPret] = useState(false);
+      usePiegeFocus(ref, { actif: true, onFermer: () => {} });
+      useEffect(() => { const t = setTimeout(() => setPret(true), 150); return () => clearTimeout(t); }, []);
+      return pret ? <div ref={ref} role="dialog" aria-modal="true" tabIndex={-1}><button id="tard" type="button">T</button></div> : null;
+    }
+    monter(<Tardif />);
+    // Pas de 40 ms, chacun rendu · comme le navigateur entre deux tâches.
+    for (let i = 0; i < 10; i++) act(() => { vi.advanceTimersByTime(40); });
+    expect(document.activeElement, 'le focus est resté sur la page').toBe(q('#tard'));
+  });
 });
 
