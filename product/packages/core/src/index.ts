@@ -141,3 +141,4 @@ export * from './zone-cible';
 export * from './adsmap/historique-fiche';
 export * from './copie-service';
 export * from './meme-chemin';
+export * from './lanceur-support';

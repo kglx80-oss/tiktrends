@@ -14,7 +14,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, placementLanceurSupport, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis } from '@tiktrends/core';
 import { chromeCoquille } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -211,7 +211,9 @@ function AppShellInner(props: Props) {
   const pathname = usePathname();
   // Le support est ANCRÉ (zone de commandes en pied) sur les écrans denses en
   // commandes bas-de-page · ailleurs il reste flottant, /jarvis le masque.
-  const supportAncre = pathname === '/studio/ads' || pathname === '/dashboard' || pathname === '/veille' || pathname === '/adsmap' || pathname === '/adsmap/suites' || pathname === '/adsmap/lots' || pathname === '/adsmap/radar' || pathname === '/adsmap/tri' || pathname === '/adsmap/protocole' || pathname === '/adsmap/import' || pathname === '/analytics';
+  // Où vit le lanceur de support · règle au noyau (`placementLanceurSupport`).
+  const lanceurSupport = placementLanceurSupport(pathname);
+  const supportAncre = lanceurSupport === 'ancre';
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
@@ -690,7 +692,7 @@ function AppShellInner(props: Props) {
           <div style={{ display: 'flex', justifyContent: 'center', padding: '4px clamp(16px, 4vw, 32px) 28px' }}>
             <SupportWidget anchored firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
           </div>
-        ) : pathname !== '/jarvis' ? (
+        ) : lanceurSupport === 'flottant' ? (
           <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
         ) : null}
       </div>
