@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { ONGLETS_SAUVEGARDES, defOnglet, type OngletSauvegardes } from '@tiktrends/core';
+import { ONGLETS_SAUVEGARDES, defOnglet, ongletVoisin, cibleSelonPointeur, type OngletSauvegardes } from '@tiktrends/core';
+import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 
 /**
@@ -17,18 +18,32 @@ import { Icon } from './Icon';
 
 export type Compteurs = Partial<Record<OngletSauvegardes, number>>;
 
-/** La barre d'onglets · sans routeur, pour être rendue et vérifiée en test. */
+/**
+ * La barre d'onglets · sans routeur, pour être rendue et vérifiée en test.
+ * Motif ARIA « tabs » · un seul arrêt Tab (l'onglet actif), ← → Début Fin
+ * passent d'un onglet à l'autre (`ongletVoisin`) · 44 px au doigt, densité
+ * gardée à la souris (`cibleSelonPointeur`).
+ */
 export function BarreOnglets({ actif, onChange, compteurs }: {
   actif: OngletSauvegardes; onChange: (cle: OngletSauvegardes) => void; compteurs: Compteurs;
 }) {
+  const tactile = useIsMobile('(pointer: coarse), (max-width: 768px)');
+  const cles = ONGLETS_SAUVEGARDES.map((o) => o.cle);
+  const surTouche = (e: KeyboardEvent<HTMLDivElement>) => {
+    const suivant = ongletVoisin(cles, actif, e.key);
+    if (!suivant) return;
+    e.preventDefault();
+    onChange(suivant);
+    document.getElementById(`onglet-${suivant}`)?.focus();
+  };
   return (
-    <div role="tablist" aria-label="Espaces des sauvegardes" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+    <div role="tablist" aria-label="Espaces des sauvegardes" onKeyDown={surTouche} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
       {ONGLETS_SAUVEGARDES.map((o) => {
         const on = o.cle === actif;
         const n = compteurs[o.cle];
         return (
           <button key={o.cle} type="button" role="tab" id={`onglet-${o.cle}`} aria-controls={`panneau-${o.cle}`} aria-selected={on}
-            onClick={() => onChange(o.cle)} style={ongletBtn(on)}>
+            tabIndex={on ? 0 : -1} onClick={() => onChange(o.cle)} style={{ ...ongletBtn(on), minHeight: Math.max(40, cibleSelonPointeur(tactile)) }}>
             <span aria-hidden style={{ display: 'inline-flex' }}><Icon name={o.icone} size={15} /></span>
             <span>{o.label}</span>
             {typeof n === 'number' && (

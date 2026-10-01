@@ -1,3 +1,5 @@
+import { messageServiceInactif } from './copie-service';
+
 /**
  * Sauvegardes · l'organisation de la page autour de son usage principal.
  *
@@ -69,4 +71,33 @@ export function correspondSauvegarde(c: CreaCherchable, requete: string): boolea
 
 function normaliser(s: string): string {
   return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/**
+ * Le clavier d'une barre d'onglets (motif ARIA « tabs ») · ← et → passent à
+ * l'onglet voisin en bouclant, Début et Fin aux extrémités · toute autre touche
+ * ne fait rien (null). Mesuré (Chrome, recette #106 point 6) · → laissait le
+ * focus sur le premier onglet, et les trois onglets étaient chacun un arrêt Tab.
+ */
+export function ongletVoisin<T extends string>(cles: readonly T[], actuel: T, touche: string): T | null {
+  const i = cles.indexOf(actuel);
+  if (i < 0 || cles.length === 0) return null;
+  if (touche === 'ArrowRight') return cles[(i + 1) % cles.length]!;
+  if (touche === 'ArrowLeft') return cles[(i - 1 + cles.length) % cles.length]!;
+  if (touche === 'Home') return cles[0]!;
+  if (touche === 'End') return cles[cles.length - 1]!;
+  return null;
+}
+
+/**
+ * « Scanner maintenant » (Nouveautés) · le scan interroge la bibliothèque de
+ * pubs · sans elle côté serveur, il revenait « 0 marque scannée » et l'écran
+ * affichait « Aucune marque suivie à scanner » alors que des marques étaient
+ * suivies (mesuré en local, recette #106 point 6). Le bouton dit pourquoi il
+ * est inactif, au lieu de promettre un scan qui n'a pas lieu.
+ */
+export function etatScanNouveautes(e: { veilleActive: boolean; marquesSuivies: number }): { actif: boolean; raison: string | null } {
+  if (!e.veilleActive) return { actif: false, raison: messageServiceInactif('veille') };
+  if (e.marquesSuivies === 0) return { actif: false, raison: 'Suis d’abord des marques dans la Veille.' };
+  return { actif: true, raison: null };
 }

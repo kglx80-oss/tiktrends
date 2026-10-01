@@ -64,3 +64,23 @@ export function lireFiltreAssets(recherche: string): FiltreAssets {
 export function ecrireFiltreAssets(recherche: string, f: FiltreAssets): string {
   return fusionner(recherche, { type: f.type !== 'all' ? f.type : null, q: f.recherche.trim() ? f.recherche : null });
 }
+
+/**
+ * Sauvegardes · Créations · la recherche et le board choisi (recette #106,
+ * point 6 · revenir du Studio ou d'un autre écran les perdait). `board` vaut
+ * le nom du board, `sans` pour « Sans dossier », absent pour « Toutes ».
+ */
+export const BOARD_TOUS = '__all';
+export const BOARD_SANS = '__none';
+export interface CriteresSauvegardes { board: string; recherche: string }
+
+export function lireCriteresSauvegardes(recherche: string): CriteresSauvegardes {
+  const p = lire(recherche);
+  const b = p.get('board');
+  return { board: !b ? BOARD_TOUS : b === 'sans' ? BOARD_SANS : b, recherche: p.get('q') ?? '' };
+}
+
+export function ecrireCriteresSauvegardes(recherche: string, c: CriteresSauvegardes): string {
+  const board = c.board === BOARD_TOUS ? null : c.board === BOARD_SANS ? 'sans' : c.board;
+  return fusionner(recherche, { board, q: c.recherche.trim() ? c.recherche : null });
+}

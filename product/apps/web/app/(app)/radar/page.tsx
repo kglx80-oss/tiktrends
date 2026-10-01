@@ -9,6 +9,7 @@ import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
 import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
+import { LienCible } from '../../../components/LienCible';
 import { effectiveAccess } from '../../../lib/access';
 import { cadrePage } from '../../../components/ui';
 
@@ -66,7 +67,7 @@ function Row({ r }: { r: AnalysisRow }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-2)' }}>
         {r.diagnosis.map((d, i) => <span key={i} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, padding: '4px 9px' }}>→ {d}</span>)}
-        <a href={studioHref} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Icon name="sparkles" size={12} />{ACTION_CTA[r.bucket] ?? 'Retravailler au Studio'} ›</a>
+        <LienCible href={studioHref} style={{ marginLeft: 'auto', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Icon name="sparkles" size={12} />{ACTION_CTA[r.bucket] ?? 'Retravailler au Studio'} ›</LienCible>
       </div>
     </div>
   );

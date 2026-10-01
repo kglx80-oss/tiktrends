@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react';
 import { Icon } from './Icon';
 import { useRouter } from 'next/navigation';
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, evenementsConcurrent, EVENEMENT_LABEL, EVENEMENT_RAISON, type EvenementConcurrent } from '@tiktrends/core';
+import { estGagnantVeille, evenementsConcurrent, etatScanNouveautes, cibleSelonPointeur, EVENEMENT_LABEL, EVENEMENT_RAISON, type EvenementConcurrent } from '@tiktrends/core';
+import { useIsMobile } from './useIsMobile';
 import { AdCard } from './AdCard';
 import { scanTrackerAction, markTrackerSeenAction } from '../app/actions/tracker';
 import { Empty } from './Empty';
@@ -22,6 +23,11 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const unseen = events.filter((e) => e.unseen).length;
+  // Sans bibliothèque de pubs côté serveur, pas de scan · le bouton le dit au
+  // lieu d'annoncer « aucune marque suivie » (recette #106, point 6).
+  const etatScan = etatScanNouveautes({ veilleActive: trackingEnabled, marquesSuivies: followedCount });
+  const tactile = useIsMobile('(pointer: coarse), (max-width: 768px)');
+  const cible = Math.max(40, cibleSelonPointeur(tactile));
   // Les GAGNANTS d'abord · parmi les nouveautés détectées, celles qui sont
   // éprouvées (tiennent, ou montent) remontent en tête · on clone ce qui est
   // prouvé, pas le énième lancement. À égalité, la plus ancienne (donc la plus
@@ -50,18 +56,18 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
           {unseen > 0 && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 8px' }}>{unseen} nouveau{unseen > 1 ? 'x' : ''}</span>}
         </h2>
         <span style={{ flex: 1 }} />
-        {unseen > 0 && <button type="button" onClick={markSeen} disabled={busy} style={ghostBtn}>Tout marquer vu</button>}
-        <button type="button" onClick={scan} disabled={busy || !followedCount} title={!followedCount ? 'Suis d\'abord des marques dans la Veille' : undefined} style={{
-          padding: '9px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy || !followedCount ? 'default' : 'pointer',
-          background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy || !followedCount ? .6 : 1,
+        {unseen > 0 && <button type="button" onClick={markSeen} disabled={busy} style={{ ...ghostBtn, minHeight: cible }}>Tout marquer vu</button>}
+        <button type="button" onClick={scan} disabled={busy || !etatScan.actif} title={etatScan.raison ?? undefined} aria-describedby={etatScan.raison ? 'scan-raison' : undefined} style={{
+          minHeight: cible, padding: '9px 16px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy || !etatScan.actif ? 'default' : 'pointer',
+          background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy || !etatScan.actif ? .6 : 1,
         }}>{busy ? 'Scan en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="radar" size={14} /> Scanner maintenant</span>}</button>
       </div>
 
       {msg && <div style={{ marginBottom: 12, padding: '9px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{msg}</div>}
 
-      {!trackingEnabled && (
-        <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 12px' }}>
-          La veille auto s'active dès que la bibliothèque de pubs est branchée côté serveur.
+      {etatScan.raison && followedCount > 0 && (
+        <p id="scan-raison" style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 12px' }}>
+          Scan indisponible · {etatScan.raison}
         </p>
       )}
 
@@ -89,7 +95,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
                     {evenements.map((ev) => <BadgeEvenement key={ev} evenement={ev} />)}
                   </div>
                 )}
-                <AdCard ad={e.ad} />
+                <AdCard ad={e.ad} cibles44={tactile} />
               </div>
             );
           })}
