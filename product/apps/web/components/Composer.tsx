@@ -261,8 +261,13 @@ export function Composer(props: ComposerProps) {
                 aria-pressed={o.value === c.value}
                 style={{ ...ligneMenu, color: o.value === c.value ? 'var(--accent-strong)' : 'var(--ink-2)' }}
               >
-                {/* La sélection ne passe pas par la couleur seule. */}
-                {o.value === c.value && <span aria-hidden>✓ </span>}{o.label}
+                {/* La sélection ne passe pas par la couleur seule · coche et valeur
+                    sur UNE ligne (la ligne de menu est une colonne flex, prévue
+                    pour les scènes à deux lignes · la coche passait au-dessus). */}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span aria-hidden style={{ display: 'inline-block', width: 12 }}>{o.value === c.value ? '✓' : ''}</span>
+                  {o.label}
+                </span>
               </button>
             ))}
           </Menu>

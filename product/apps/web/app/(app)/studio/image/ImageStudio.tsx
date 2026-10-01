@@ -430,7 +430,8 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           why="Décris ce que tu veux voir dans le champ ci-dessus · les visuels générés s’empilent ici."
         />
       ) : (
-        <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+        <>{/* 224 px · la barre d’actions doit loger 4 cases de 44 px + 3 écarts (194 px) DANS la carte (marges et bord déduits), avec de la marge. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(224px, 1fr))', gap: 14 }}>
           {images.slice(imgPage * PAGE_SIZE, (imgPage + 1) * PAGE_SIZE).map((im) => (
             <div key={im.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
               {im.url && (

@@ -267,7 +267,8 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
           why="Génère la première ci-dessus · les vidéos produites s’empilent ici."
         />
       ) : (
-        <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
+        <>{/* 224 px · la barre d’actions doit loger 4 cases de 44 px + 3 écarts (194 px) DANS la carte (marges et bord déduits), avec de la marge. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(224px, 1fr))', gap: 14 }}>
           {videos.slice(vidPage * PAGE_SIZE, (vidPage + 1) * PAGE_SIZE).map((v) => {
             const st = STATUS_LABEL[v.status] ?? STATUS_LABEL.processing!;
             const pending = v.status === 'processing' || v.status === 'queued';
