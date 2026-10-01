@@ -69,7 +69,9 @@ const jargon = (t: string) => JARGON.filter((m) => m.test(t)).map(String);
 describe('copie-service · un client lit ce qui manque et qui agit, sans jargon', () => {
   it.each(Object.entries(MESSAGES_SERVICE_INACTIF))('%s', (_k, t) => {
     expect(jargon(t), `jargon dans « ${t} »`).toEqual([]);
-    expect(t, 'qui agit n’est pas dit').toMatch(/notre équipe l’active sur demande/);
+    // Lot 11 · qui agit = la plateforme ; plus « notre équipe … depuis le support » (un ticket reste dans l'espace).
+    expect(t, 'qui agit n’est pas dit').toMatch(/côté plateforme, pas depuis ton espace/);
+    expect(t, 'promet une équipe que le support ne joint pas').not.toMatch(/notre équipe|depuis le support/);
   });
   it('le bandeau de démonstration de la veille', () => {
     expect(jargon(BANDEAU_DEMO_VEILLE)).toEqual([]);

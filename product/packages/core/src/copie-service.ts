@@ -12,15 +12,21 @@
  * ouverts au client (membre ou administrateur de SON espace), pas seulement à
  * l'équipe de la plateforme · un client ne règle pas un serveur.
  *
- * Chaque message dit ce qui n'est pas activé, que notre équipe l'active sur
- * demande (le support), et ce qu'on peut faire en attendant quand il existe un
- * repli. Aucun nom de variable, de clé, de fournisseur ni de « serveur ».
+ * Chaque message dit ce qui n'est pas activé, que l'activation se fait côté
+ * plateforme, et ce qu'on peut faire en attendant quand il existe un repli.
+ * Lot 11 · il disait « notre équipe l'active sur demande, depuis le support » ·
+ * or un ticket reste dans l'espace (lu par ses admins), il n'atteint personne
+ * qui active. Aucun nom de variable, de clé, de fournisseur ni de « serveur ».
  *
  * Pur · ni base ni réseau. La logique (refus, état de démonstration) ne bouge
  * pas · seuls les mots changent.
  */
 
-const QUI = 'notre équipe l’active sur demande, depuis le support';
+import { ACTIVATION_PLATEFORME } from './copie-client';
+
+const QUI = ACTIVATION_PLATEFORME;
+/** Un service activé qui répond mal · même interlocuteur, sans promesse. */
+const QUI_REGLAGE = 'le réglage se fait côté plateforme, pas depuis ton espace';
 
 /** Les services absents qu'un écran client peut rencontrer. */
 export type ServiceInactif =
@@ -72,15 +78,15 @@ export const COPIE_STOCKAGE: { client: CopieStockage; operateur: CopieStockage }
   client: {
     titre: 'Stockage des fichiers lourds',
     badge: (actif) => (actif ? 'ACTIVÉ' : 'À ACTIVER'),
-    intro: 'Les rushs vidéo se téléversent directement dans Assets une fois le stockage activé · c’est notre équipe qui l’active.',
+    intro: `Les rushs vidéo se téléversent directement dans Assets une fois le stockage activé · ${QUI}.`,
     inactif: `Le stockage des fichiers lourds (rushs vidéo) n’est pas encore activé pour ton espace · ${QUI}. En attendant, importe tes vidéos par lien dans Assets.`,
     configurer: 'Préparer le stockage',
     deplacer: 'Ranger 25 images',
     migrationTitre: (n, mo) => `${n} image(s) à ranger dans le stockage · environ ${mo} Mo`,
     migrationTexte: 'Elles s’affichent déjà correctement · les ranger allège ton espace, par lots de 25, sans rien perdre.',
     testOk: 'Stockage opérationnel · tu peux téléverser des rushs dans Assets.',
-    testLecture: `Le stockage accepte les fichiers mais ne les affiche pas encore · ${QUI}.`,
-    testEcriture: `Le stockage ne répond pas comme prévu · ${QUI}.`,
+    testLecture: `Le stockage accepte les fichiers mais ne les affiche pas encore · ${QUI_REGLAGE}.`,
+    testEcriture: `Le stockage ne répond pas comme prévu · ${QUI_REGLAGE}.`,
   },
   operateur: {
     titre: 'Stockage objet',

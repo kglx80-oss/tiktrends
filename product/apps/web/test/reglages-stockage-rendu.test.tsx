@@ -31,7 +31,8 @@ describe('Réglages · panneau Stockage', () => {
     const t = await panneau();
     expect(t, 'le panneau client n’est pas rendu').toMatch(/^Stockage des fichiers lourds À ACTIVER/);
     expect(jargonEcran(t), `jargon à l’écran : ${t}`).toEqual([]);
-    expect(t).toMatch(/notre équipe/);
+    expect(t).toMatch(/côté plateforme/);
+    expect(t, 'promet une équipe que le support ne joint pas').not.toMatch(/notre équipe/);
   });
   it('équipe de la plateforme · garde ses consignes techniques', async () => {
     fondateur = true;

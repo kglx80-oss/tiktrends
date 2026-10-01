@@ -102,6 +102,9 @@ describe('Support · promesses tenues, fil accessible', () => {
       expect(s, `${p} · promesse non tenue`).not.toMatch(/On te répond|on te répond vite|on répond vite|Notre équipe te répond/);
     }
     expect(src('app/(app)/support/page.tsx')).toContain('il n\'est pas transmis automatiquement à l\'équipe TikTrends');
+    // Lot 11 · Réglages promettait « un service à activer se demande à notre équipe, depuis le support ».
+    expect(src('app/(app)/settings/page.tsx'), 'Réglages · promesse non tenue').not.toMatch(/se demande à notre équipe/);
+    expect(src('app/(app)/settings/page.tsx')).toContain('(seuls ses admins le lisent)');
   });
   it('ticket · retour à la liste, réponse nommée, statuts annoncés, « rouvrir » fidèle', () => {
     const s = src('app/(app)/support/[id]/page.tsx');

@@ -13,7 +13,8 @@
  *
  * Chaque message dit désormais trois choses, dans les mots du client ·
  *  · CE QUI MANQUE (la connexion n'est pas activée, la session a expiré…) ;
- *  · QUI PEUT AGIR (lui-même, ou notre équipe via le support) ;
+ *  · QUI PEUT AGIR (lui-même, ou la plateforme · jamais une équipe que le
+ *    support ne joint pas, lot 11) ;
  *  · QUOI FAIRE (relancer, se reconnecter, demander l'activation, importer par
  *    lien en attendant).
  *
@@ -37,7 +38,21 @@ export interface MessageClient {
   action: ActionClient | null;
 }
 
-const SUPPORT: ActionClient = { libelle: 'Demander l’activation au support', href: '/support' };
+/**
+ * Lot 11 · le geste vers le support, nommé pour ce qu'il FAIT. Un ticket ne
+ * quitte pas l'espace · ses admins le lisent, l'équipe de la plateforme non
+ * (constat du lot 8). « Demander l'activation au support » promettait une
+ * activation que personne au bout ne peut faire ; le lot 9 avait retiré le
+ * bouton de Textes, mais c'était un accès réel au support · on le garde, avec
+ * son vrai nom, et la phrase qui dit le routage.
+ */
+export const TICKET_INTERNE: ActionClient = { libelle: 'Ouvrir un ticket interne', href: '/support' };
+
+/** Ce que devient un ticket · dit à côté de chaque bouton `TICKET_INTERNE`. */
+export const ROUTAGE_TICKET = 'Un ticket au support reste dans ton espace · seuls ses admins le lisent, il n’active rien.';
+
+/** Qui active · la plateforme, pas l'espace. Sans promesse de délai ni de contact. */
+export const ACTIVATION_PLATEFORME = 'l’activation se fait côté plateforme, pas depuis ton espace';
 
 /** Le repli disponible tant que la connexion automatique n'est pas activée. */
 export const REPLI_IMPORT_PAR_LIEN =
@@ -45,12 +60,12 @@ export const REPLI_IMPORT_PAR_LIEN =
 
 /**
  * La connexion automatique n'est pas activée pour l'espace (côté plateforme).
- * Le client n'a rien à régler · c'est notre équipe qui l'active.
+ * Le client n'a rien à régler · l'activation se fait côté plateforme.
  */
 export const DRIVE_CONNEXION_INACTIVE: MessageClient = {
   constat: 'La connexion automatique à Google Drive n’est pas encore activée pour ton espace.',
-  suite: `Rien à régler de ton côté · notre équipe l’active sur demande. ${REPLI_IMPORT_PAR_LIEN}`,
-  action: SUPPORT,
+  suite: `Rien à régler de ton côté · ${ACTIVATION_PLATEFORME}. ${REPLI_IMPORT_PAR_LIEN} ${ROUTAGE_TICKET}`,
+  action: TICKET_INTERNE,
 };
 
 /**
@@ -59,8 +74,8 @@ export const DRIVE_CONNEXION_INACTIVE: MessageClient = {
  */
 export const DRIVE_SELECTEUR_INACTIF: MessageClient = {
   constat: 'Ton Drive est bien connecté, mais le choix des fichiers n’est pas encore activé pour ton espace.',
-  suite: `Rien à régler de ton côté · notre équipe l’active sur demande. ${REPLI_IMPORT_PAR_LIEN}`,
-  action: SUPPORT,
+  suite: `Rien à régler de ton côté · ${ACTIVATION_PLATEFORME}. ${REPLI_IMPORT_PAR_LIEN} ${ROUTAGE_TICKET}`,
+  action: TICKET_INTERNE,
 };
 
 /**
@@ -70,13 +85,13 @@ export const DRIVE_SELECTEUR_INACTIF: MessageClient = {
  * Lot 9 · la copie promettait « notre équipe l'active sur demande » avec un
  * bouton vers le support. Or un ticket du support ne quitte pas l'espace · il
  * est lu par ses admins, jamais par l'équipe de la plateforme (constat du
- * lot 8). La copie dit ce routage réel, sans bouton qui mènerait à personne
- * capable d'activer.
+ * lot 8). Lot 11 · le bouton revient, nommé pour ce qu'il fait (ticket
+ * interne), avec la phrase qui dit ce routage.
  */
 export const TEXTES_IA_INACTIFS: MessageClient = {
   constat: 'La génération de textes n’est pas encore activée pour ton espace.',
-  suite: 'Elle s’active côté plateforme · rien ne se règle depuis ton espace, et un ticket au support reste dans ton espace (seuls ses admins le lisent). Aucun crédit n’est débité tant qu’elle est inactive.',
-  action: null,
+  suite: `Elle s’active côté plateforme · rien ne se règle depuis ton espace. Aucun crédit n’est débité tant qu’elle est inactive. ${ROUTAGE_TICKET}`,
+  action: TICKET_INTERNE,
 };
 
 /** La portée de l'accès, dite sans nom de permission technique. */
@@ -94,7 +109,7 @@ export function texteMessageClient(m: MessageClient): string {
  * montre jamais le code brut.
  */
 export const ERREURS_CONNEXION_DRIVE: Record<string, string> = {
-  drive_config: `${DRIVE_CONNEXION_INACTIVE.constat} Notre équipe l’active sur demande · écris au support. L’import par lien reste disponible.`,
+  drive_config: `${DRIVE_CONNEXION_INACTIVE.constat} L’activation se fait côté plateforme, pas depuis ton espace · l’import par lien reste disponible.`,
   drive_state: 'La connexion à Google Drive a été interrompue avant la fin. Relance « Connecter Google Drive ».',
   drive_session: 'Ta session a expiré pendant la connexion. Reconnecte-toi, puis relance « Connecter Google Drive ».',
   drive_norefresh: 'Google n’a pas confirmé l’accès. Dans ton compte Google, retire l’accès accordé à l’application, puis relance « Connecter Google Drive ».',
@@ -110,7 +125,7 @@ export const ERREUR_CONNEXION_DRIVE_REPLI =
  * parler de cet état et des gestes réellement affichés (recette #106 · le retour
  * disait « Relance « Connecter Google Drive » » sous un bloc « connexion pas
  * encore activée » qui ne propose ni ce bouton ni cette action).
- * - `inactive` · connexion non activée pour l'espace · gestes : support, import par lien ;
+ * - `inactive` · connexion non activée pour l'espace · gestes : ticket interne, import par lien ;
  * - `sans_marque` · aucune marque active · geste : choisir une marque ;
  * - `a_connecter` · le bouton « Connecter Google Drive » est affiché ;
  * - `connecte` · déjà connecté · pas de bouton de connexion ;
@@ -129,7 +144,7 @@ export function etatConnexionDrive(s: { available: boolean; needBrand: boolean; 
 export const LIBELLE_CONNECTER_DRIVE = 'Connecter Google Drive';
 
 const RETOUR_DRIVE_SELON_ETAT: Record<Exclude<EtatConnexionDrive, 'a_connecter'>, string> = {
-  inactive: `La connexion à Google Drive n’a pas abouti · elle n’est pas encore activée pour ton espace. Demande l’activation au support, ou importe tes fichiers Drive par lien en attendant.`,
+  inactive: `La connexion à Google Drive n’a pas abouti · elle n’est pas encore activée pour ton espace, et ${ACTIVATION_PLATEFORME}. Importe tes fichiers Drive par lien en attendant.`,
   sans_marque: 'Choisis d’abord une marque active (sélecteur en haut) · le Drive se connecte marque par marque.',
   connecte: 'La dernière tentative de connexion à Google Drive n’a pas abouti · la connexion déjà en place reste active.',
   hors_admin: 'La connexion à Google Drive n’a pas abouti. Un administrateur de l’espace peut la relancer depuis cette page.',

@@ -83,8 +83,10 @@ describe('Réglages · panneau Stockage · copie client (recette #106b)', () => 
   it('client, stockage pas activé · ce qui manque, qui agit, aucun terme d’infrastructure', () => {
     const html = renderToStaticMarkup(<StorageConfigurator enabled={false} />);
     expect(jargonEcran(texteVisible(html)), `jargon : ${texteVisible(html)}`).toEqual([]);
-    expect(texteVisible(html)).toMatch(/notre équipe l’active sur demande/);
-    expect(html).toContain('href="/support"');
+    expect(texteVisible(html)).toMatch(/côté plateforme, pas depuis ton espace/);
+    // Lot 11 · le lien dit ce qu'il fait · un ticket interne, lu par les admins de l'espace.
+    expect(html).toMatch(/<a [^>]*href="\/support"[^>]*>Ouvrir un ticket interne<\/a>/);
+    expect(texteVisible(html)).toContain('seuls ses admins le lisent');
   });
   it('client, stockage activé · boutons nommés sans bucket ni CORS', () => {
     const html = renderToStaticMarkup(<StorageConfigurator enabled />);

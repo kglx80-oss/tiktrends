@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
-import { COPIE_STOCKAGE } from '@tiktrends/core';
+import { COPIE_STOCKAGE, TICKET_INTERNE, ROUTAGE_TICKET } from '@tiktrends/core';
 import {
   configureBucketAction, testStorageAction,
   embeddedImagesStatusAction, migrateEmbeddedImagesAction, type MigrationEtat,
@@ -68,8 +68,9 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
   if (!enabled && !operateur) {
     return (
       <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
-        {COPIE_STOCKAGE.client.inactif}{' '}
-        <Link href="/support" style={{ color: 'var(--accent-strong)', fontWeight: 700 }}>Écrire au support</Link>
+        {/* Lot 11 · le lien dit ce qu'il fait (ticket interne), et ce que devient le ticket. */}
+        {COPIE_STOCKAGE.client.inactif} {ROUTAGE_TICKET}{' '}
+        <Link href={TICKET_INTERNE.href} style={{ color: 'var(--accent-strong)', fontWeight: 700 }}>{TICKET_INTERNE.libelle}</Link>
       </div>
     );
   }

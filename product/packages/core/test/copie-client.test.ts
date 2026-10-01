@@ -3,6 +3,7 @@ import {
   DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, DRIVE_PORTEE_ACCES,
   ERREURS_CONNEXION_DRIVE, ERREUR_CONNEXION_DRIVE_REPLI, messageErreurConnexionDrive,
   jargonTechnique, texteMessageClient, resumeImportDrive, TEXTES_IA_INACTIFS,
+  TICKET_INTERNE, ROUTAGE_TICKET,
 } from '../src';
 
 /**
@@ -48,9 +49,13 @@ describe('copie-client · chaque message est propre et dit quoi faire', () => {
 
   it('les deux états non activés nomment qui agit et le repli disponible', () => {
     for (const m of [DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF]) {
-      expect(m.suite, 'qui agit n’est pas dit').toMatch(/notre équipe/);
+      // Lot 11 · qui agit = la plateforme ; le ticket reste dans l'espace, dit à côté du bouton.
+      expect(m.suite, 'qui agit n’est pas dit').toMatch(/côté plateforme/);
+      expect(m.suite, 'promet une équipe que le support ne joint pas').not.toMatch(/notre équipe/);
+      expect(m.suite, 'le routage du ticket n’est pas dit').toContain(ROUTAGE_TICKET);
       expect(m.suite, 'le repli par lien n’est pas proposé').toMatch(/importer tes fichiers Drive par lien/);
-      expect(m.action, 'aucun geste proposé').toEqual({ libelle: expect.stringMatching(/support/), href: '/support' });
+      expect(m.action, 'aucun geste proposé').toEqual(TICKET_INTERNE);
+      expect(m.action!.libelle, 'le bouton promet une activation').not.toMatch(/activation/i);
     }
   });
 
@@ -59,7 +64,9 @@ describe('copie-client · chaque message est propre et dit quoi faire', () => {
     expect(TEXTES_IA_INACTIFS.suite, 'promet une équipe que le support ne joint pas').not.toMatch(/notre équipe/);
     expect(TEXTES_IA_INACTIFS.suite).toMatch(/reste dans ton espace/);
     expect(TEXTES_IA_INACTIFS.suite).toMatch(/Aucun crédit/);
-    expect(TEXTES_IA_INACTIFS.action, 'bouton vers un support qui ne peut pas activer').toBeNull();
+    // Lot 11 · l'accès au support revient, nommé pour ce qu'il fait.
+    expect(TEXTES_IA_INACTIFS.action, 'accès au support retiré').toEqual(TICKET_INTERNE);
+    expect(TEXTES_IA_INACTIFS.suite).toContain(ROUTAGE_TICKET);
   });
 
   it('un code de retour connu est traduit, un inconnu a un repli · jamais le code brut', () => {

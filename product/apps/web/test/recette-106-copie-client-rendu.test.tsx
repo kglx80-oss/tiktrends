@@ -8,7 +8,7 @@ import { jargonTechnique, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, TEX
  * On REND l'encadré Google Drive de l'écran Assets et le Studio Textes, et on
  * lit le texte affiché · aucun nom de variable, de clé, de permission ou de
  * fournisseur interne n'atteint l'écran, et le message dit ce qui manque, qui
- * agit (notre équipe) et quoi faire (support, import par lien en attendant).
+ * agit (la plateforme · lot 11) et quoi faire (ticket interne, import par lien en attendant).
  */
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }) }));
@@ -45,10 +45,12 @@ describe('Recette #106 · encadré Google Drive (Assets) · copie client', () =>
   it('connexion pas activée · dit ce qui manque, qui agit, quoi faire', () => {
     const t = texte(renderToStaticMarkup(<DriveConnect state={etat({ available: false, pickerReady: false })} />));
     expect(t).toContain(DRIVE_CONNEXION_INACTIVE.constat);
-    expect(t, 'qui agit n’est pas dit').toMatch(/notre équipe l’active sur demande/);
+    expect(t, 'qui agit n’est pas dit').toMatch(/côté plateforme, pas depuis ton espace/);
+    expect(t, 'le routage du ticket n’est pas dit').toContain('seuls ses admins le lisent');
     expect(t, 'le repli par lien n’est pas proposé').toMatch(/importer tes fichiers Drive par lien/);
     const html = renderToStaticMarkup(<DriveConnect state={etat({ available: false, pickerReady: false })} />);
-    expect(html, 'aucun geste vers le support').toMatch(/<a href="\/support"[^>]*>Demander l’activation au support<\/a>/);
+    expect(html, 'aucun geste vers le support').toMatch(/<a href="\/support"[^>]*>Ouvrir un ticket interne<\/a>/);
+    expect(html, 'le bouton promet une activation').not.toMatch(/Demander l’activation/);
   });
 
   it('connecté sans sélecteur · même interlocuteur, et Déconnecter reste là', () => {
@@ -78,11 +80,13 @@ describe('Recette #106 · Studio Textes sans IA activée · copie client', () =>
   });
   // Lot 9 · fidèle au routage réel · un ticket du support reste dans l'espace,
   // aucun bouton ne promet une activation que le support ne peut pas faire.
+  // Lot 11 · l'accès au support revient, nommé « ticket interne ».
   it('dit ce qui manque et le routage réel, sans promettre une équipe injoignable', () => {
     expect(texte(html)).toContain(TEXTES_IA_INACTIFS.constat);
     expect(texte(html)).not.toMatch(/notre équipe l’active sur demande/);
     expect(texte(html)).toMatch(/reste dans ton espace/);
     expect(html, 'bouton vers un support qui ne peut pas activer').not.toMatch(/Demander l’activation au support/);
+    expect(html, 'accès au support retiré').toMatch(/<a href="\/support"[^>]*>Ouvrir un ticket interne<\/a>/);
   });
   it('avec l’IA active, aucun message d’absence', () => {
     expect(renderToStaticMarkup(<StudioClient hasKey />)).not.toContain(TEXTES_IA_INACTIFS.constat);

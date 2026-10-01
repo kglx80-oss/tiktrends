@@ -60,7 +60,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       <div style={panel}>
         <h2 style={h2}>Services activés</h2>
-        <p style={sub}>Ce qui est activé pour ton espace. Un service à activer se demande à notre équipe, depuis le <Link href="/support" style={{ color: 'var(--accent-strong)' }}>support</Link>.</p>
+        <p style={sub}>Ce qui est activé pour ton espace. Un service à activer s’active côté plateforme, pas depuis ton espace · un ticket au <Link href="/support" style={{ color: 'var(--accent-strong)' }}>support</Link> reste dans ton espace (seuls ses admins le lisent).</p>
         <div style={{ display: 'grid', gap: 8 }}>
           {[
             // Copie CLIENT (recette #106) · on nomme la CAPACITÉ, jamais la

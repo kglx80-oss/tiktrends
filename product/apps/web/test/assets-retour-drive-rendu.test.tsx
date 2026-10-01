@@ -56,7 +56,7 @@ describe('Assets · le retour Drive parle de l’état affiché', () => {
         }
         if (nom === 'inactive') {
           expect(message).toMatch(/pas encore activée/);
-          expect(boutonPresent(html, 'Demander l’activation au support')).toBe(true);
+          expect(boutonPresent(html, 'Ouvrir un ticket interne')).toBe(true);
           expect(boutonPresent(html, 'Importer par lien')).toBe(true);
         }
       });
