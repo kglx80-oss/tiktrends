@@ -39,3 +39,51 @@ export function afficherCredits(e: { balance: number; unlimited: boolean; exempt
 export function texteCredits(a: AffichageCredits, formatNombre: (n: number) => string): string {
   return a.mode === 'solde' ? formatNombre(a.valeur) : LIBELLE_CREDITS[a.mode];
 }
+
+/**
+ * La case « Crédits » du résumé de formule (/billing) · lot 11.
+ *
+ * Le rail disait « Illimité » et le centre « ◈ 0 / 24 000 » pour le même
+ * compte · l'allocation de la formule servait de dénominateur à un solde qui
+ * n'existe pas. En illimité, la case dit « Illimité » et cite l'allocation à
+ * part, comme ce qu'elle est · la dotation mensuelle de l'espace. Aucun quota
+ * ni aucune règle ne change, seulement ce qui est montré.
+ */
+export function caseCreditsFormule(
+  e: { balance: number; unlimited: boolean; allocation: number },
+  formatNombre: (n: number) => string,
+): { valeur: string; detail: string } {
+  const a = afficherCredits({ balance: e.balance, unlimited: e.unlimited });
+  if (a.mode !== 'solde') return { valeur: LIBELLE_CREDITS[a.mode], detail: ` · formule ${formatNombre(e.allocation)} / mois` };
+  return { valeur: `◈ ${formatNombre(a.valeur)}`, detail: ` / ${formatNombre(e.allocation)}` };
+}
+
+/**
+ * L'historique de crédits vide (/credits) · lot 11. Il promettait « tes crédits
+ * se dépensent à chaque génération » à un compte illimité, dont les générations
+ * ne débitent rien (`unlimitedCredits` · ni vérification ni débit). L'historique
+ * est celui de l'ESPACE · il trace encore les recharges, les ajustements et
+ * les dépenses des autres membres, ce que la copie dit.
+ */
+export function videHistoriqueCredits(illimite: boolean): { titre: string; pourquoi: string } {
+  return illimite
+    ? {
+        titre: 'Aucun mouvement pour l’instant.',
+        pourquoi: 'Ton accès est illimité · tes générations ne débitent pas de crédits. Les recharges, les ajustements et les dépenses des autres membres de l’espace s’afficheront ici.',
+      }
+    : {
+        titre: 'Aucun mouvement pour l’instant.',
+        pourquoi: 'Tes crédits se dépensent à chaque génération · lance une première créa et le détail s’affiche ici.',
+      };
+}
+
+/**
+ * Le pied de /billing quand le paiement en ligne n'est pas branché · lot 11.
+ * Il disait « écris-nous depuis le Support pour faire évoluer ta formule » · or
+ * un ticket du support reste dans l'espace et n'est lu que par ses admins (ceux
+ * qui lisent déjà cette page). Aucun contact n'est inventé · on dit l'état.
+ */
+export const PIED_FACTURATION_SANS_PAIEMENT = {
+  titre: 'Paiement en préparation.',
+  texte: 'Le règlement en ligne n’est pas encore ouvert · la formule ne se change pas encore depuis l’application, et un ticket au support reste dans ton espace (seuls ses admins le lisent).',
+} as const;

@@ -5,7 +5,7 @@ import { Icon } from '../../../components/Icon';
 import { BarreValeur } from '../../../components/BarreValeur';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax, partConsommeeCycle, libelleMotif, LIBELLE_ACTION_CREDIT } from '@tiktrends/core';
+import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax, partConsommeeCycle, libelleMotif, LIBELLE_ACTION_CREDIT, videHistoriqueCredits } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { panel, Msg, cadrePage } from '../../../components/ui';
@@ -313,8 +313,8 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
             <div style={{ marginTop: 10 }}>
               <Empty
                 tone="todo"
-                title="Aucun mouvement pour l'instant."
-                why="Tes crédits se dépensent à chaque génération · lance une première créa et le détail s'affiche ici."
+                title={videHistoriqueCredits(illimite).titre}
+                why={videHistoriqueCredits(illimite).pourquoi}
                 action={{ label: 'Ouvrir le Studio', href: '/studio' }}
               />
             </div>

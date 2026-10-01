@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { isFounder } from '../../../lib/founder';
+import { caseCreditsFormule, PIED_FACTURATION_SANS_PAIEMENT } from '@tiktrends/core';
+import { unlimitedCredits } from '../../../lib/credits';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
 import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
@@ -78,7 +80,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <span style={{ width: 1, height: 34, background: 'var(--line)' }} />
         <div>
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)' }}>Crédits</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent-strong)' }}>◈ {balance.toLocaleString('fr-FR')}<span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}> / {PLAN_CREDITS[current].toLocaleString('fr-FR')}</span></div>
+          {/* Même vérité que le rail · « Illimité », jamais « ◈ 0 / 24 000 ». */}
+          {(() => { const c = caseCreditsFormule({ balance, unlimited: unlimitedCredits(s.user.email), allocation: PLAN_CREDITS[current] }, (n) => n.toLocaleString('fr-FR')); return (
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent-strong)' }}>{c.valeur}<span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{c.detail}</span></div>
+          ); })()}
         </div>
       </div>
 
@@ -165,7 +170,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         {stripeOn ? (
           <><b style={{ color: 'var(--ink)' }}><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="lock" size={13} /></span>Paiement sécurisé par Stripe.</b> Carte bancaire, factures automatiques et TVA gérées par Stripe · aucune donnée de carte ne transite par TikTrends. Le changement de formule et la résiliation se font dans <b>« Gérer mon abonnement »</b>.</>
         ) : (
-          <><b style={{ color: 'var(--ink)' }}>Paiement en préparation.</b> Le règlement en ligne n'est pas encore activé sur ce serveur · écris-nous depuis le Support pour faire évoluer ta formule en attendant.{canPilotPlan && <> <a href="/admin/plans" style={{ color: 'var(--accent-strong)' }}>Pilotage interne (ADMIN+) ›</a></>}</>
+          <><b style={{ color: 'var(--ink)' }}>{PIED_FACTURATION_SANS_PAIEMENT.titre}</b> {PIED_FACTURATION_SANS_PAIEMENT.texte}{canPilotPlan && <> <a href="/admin/plans" style={{ color: 'var(--accent-strong)' }}>Pilotage interne (ADMIN+) ›</a></>}</>
         )}
       </div>
     </main>
