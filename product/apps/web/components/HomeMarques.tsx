@@ -150,7 +150,7 @@ export function HomeMarques({ marques, activeId, gererMarques = true }: { marque
                   )}
                 </div>
                 <div style={pied}>
-                  <b style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</b>
+                  <b style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.name}>{m.name}</b>
                   <span style={{ fontSize: 12, color: 'var(--muted)' }}>{gererMarques ? (actif ? 'Marque active · reprendre' : 'Ouvrir') : (actif ? 'Marque active' : 'Marque de l’espace')}</span>
                 </div>
               </>

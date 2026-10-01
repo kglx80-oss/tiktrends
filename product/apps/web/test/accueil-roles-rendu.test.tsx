@@ -42,6 +42,8 @@ describe('Accueil · ne propose que ce que le rôle ouvre', () => {
     expect(a.liens, 'brancher un compte est réservé aux admins').not.toContain('/connections');
     expect(a.texte, 'la raison n’est pas dite').toContain('Ton rôle dans cet espace ne comprend pas la création');
     expect(a.texte, 'les marques de l’espace disparaissent').toContain('Orée');
+    // Lot 12 · un nom tronqué reste lisible en entier (survol, lecteur d'écran).
+    expect(a.html, 'nom de marque tronqué sans nom complet').toMatch(/<b [^>]*title="Orée"/);
   });
   it('membre · crée des pubs, ne gère pas les marques', async () => {
     const a = await accueil('member');
