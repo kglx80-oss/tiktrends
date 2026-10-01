@@ -22,6 +22,10 @@ describe('placementLanceurSupport', () => {
   it('la conversation Jarvis n’a pas de lanceur, les autres routes gardent la bulle', () => {
     expect(placementLanceurSupport('/jarvis')).toBe('aucun');
     expect(placementLanceurSupport('/jarvis/sources')).toBe('flottant');
-    expect(placementLanceurSupport('/assets')).toBe('flottant');
+    expect(placementLanceurSupport('/team')).toBe('flottant');
+  });
+  it('Assets et Radar produits ancrent le lanceur (puce « Audio », « Retravailler au Studio » recouverts)', () => {
+    expect(placementLanceurSupport('/assets')).toBe('ancre');
+    expect(placementLanceurSupport('/radar')).toBe('ancre');
   });
 });
