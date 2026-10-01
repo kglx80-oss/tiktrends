@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Icon } from './Icon';
+import { COPIE_STOCKAGE } from '@tiktrends/core';
 import {
   configureBucketAction, testStorageAction,
   embeddedImagesStatusAction, migrateEmbeddedImagesAction, type MigrationEtat,
@@ -9,7 +11,14 @@ import {
 
 type Step = { label: string; ok: boolean; detail: string };
 
-export function StorageConfigurator({ enabled }: { enabled: boolean }) {
+/**
+ * `operateur` · l'équipe de la plateforme (fondateurs) lit les consignes
+ * techniques (fichier de déploiement, clés, bucket). Un administrateur d'espace
+ * est un CLIENT · il lit la même chose en mots de client (recette #106b ·
+ * `COPIE_STOCKAGE`). Les fonctions et les droits ne changent pas.
+ */
+export function StorageConfigurator({ enabled, operateur = false }: { enabled: boolean; operateur?: boolean }) {
+  const c = operateur ? COPIE_STOCKAGE.operateur : COPIE_STOCKAGE.client;
   const [busy, setBusy] = useState<'' | 'config' | 'test'>('');
   const [steps, setSteps] = useState<Step[]>([]);
   const [test, setTest] = useState<{ put?: boolean; publicRead?: boolean; deleted?: boolean } | null>(null);
@@ -56,6 +65,15 @@ export function StorageConfigurator({ enabled }: { enabled: boolean }) {
     setTest({ put: r.put, publicRead: r.publicRead, deleted: r.deleted });
   }
 
+  if (!enabled && !operateur) {
+    return (
+      <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+        {COPIE_STOCKAGE.client.inactif}{' '}
+        <Link href="/support" style={{ color: 'var(--accent-strong)', fontWeight: 700 }}>Écrire au support</Link>
+      </div>
+    );
+  }
+
   if (!enabled) {
     return (
       <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
@@ -70,7 +88,7 @@ export function StorageConfigurator({ enabled }: { enabled: boolean }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button type="button" onClick={configure} disabled={!!busy} style={primary}>{busy === 'config' ? 'Configuration…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="gear" size={14} /> Configurer le bucket (public + CORS)</span>}</button>
+        <button type="button" onClick={configure} disabled={!!busy} style={primary}>{busy === 'config' ? 'Configuration…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="gear" size={14} /> {c.configurer}</span>}</button>
         <button type="button" onClick={runTest} disabled={!!busy} style={ghost}>{busy === 'test' ? 'Test…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={14} /> Tester le stockage</span>}</button>
       </div>
 
@@ -94,16 +112,13 @@ export function StorageConfigurator({ enabled }: { enabled: boolean }) {
       {etat && etat.restantes > 0 && (
         <div style={{ marginTop: 16, border: '1px solid rgba(245,166,35,.35)', background: 'rgba(245,166,35,.07)', borderRadius: 12, padding: '13px 15px' }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>
-            {etat.restantes} image(s) vivent encore dans la base · environ {etat.poidsMo} Mo
+            {c.migrationTitre(etat.restantes, etat.poidsMo)}
           </div>
           <p style={{ margin: '6px 0 10px', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6 }}>
-            Elles s’affichent correctement (elles passent par le proxy), mais leurs octets alourdissent la
-            base, chaque sauvegarde, et chaque requête qui touche la table. Les déplacer vers le bucket les
-            sort définitivement · par lots de 25, sans rien perdre : le fichier est écrit avant que la ligne
-            change.
+            {c.migrationTexte}
           </p>
           <button type="button" onClick={deplacer} disabled={migre} style={ghost}>
-            {migre ? 'Déplacement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="box" size={14} /> Déplacer 25 images vers le bucket</span>}
+            {migre ? 'Déplacement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="box" size={14} /> {c.deplacer}</span>}
           </button>
           {note && <p style={{ margin: '10px 0 0', fontSize: 12, color: '#9fe6b3' }}>{note}</p>}
         </div>
@@ -119,9 +134,7 @@ export function StorageConfigurator({ enabled }: { enabled: boolean }) {
           <Row label="Lecture publique de l'objet" ok={!!test.publicRead} />
           <Row label="Suppression du témoin" ok={!!test.deleted} />
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>
-            {test.put && test.publicRead ? 'Stockage opérationnel · tu peux téléverser des rushs dans Assets.'
-              : test.put && !test.publicRead ? 'Écriture OK mais lecture publique KO : relance « Configurer le bucket » (policy) ou renseigne S3_PUBLIC_BASE_URL.'
-              : 'Écriture KO : vérifie les clés S3, le nom du bucket et la région.'}
+            {test.put && test.publicRead ? c.testOk : test.put && !test.publicRead ? c.testLecture : c.testEcriture}
           </p>
         </div>
       )}

@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CIBLE_TACTILE_MIN, RETOUR_STUDIO } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, RETOUR_STUDIO, lireVueAdsmap, rechercheAdsmap, PARAM_VUE_ADSMAP, type VueAdsmap } from '@tiktrends/core';
 import { AdDrawer } from './AdDrawer';
 import dynamic from 'next/dynamic';
 import { AdsMapTable } from './AdsMapTable';
@@ -36,7 +36,10 @@ export function Views({ batches, canBuild = false, testProfond = null, marque = 
   marque?: string;
 }) {
   const router = useRouter();
-  const [vue, setVue] = useState<'decider' | 'table' | 'carte'>('decider');
+  // La vue vit dans l'URL (`?vue=`) · lue au montage côté navigateur (le
+  // rendu serveur part de « À décider »), puis REMPLACÉE à chaque changement
+  // d'onglet · Retour depuis une fiche retrouve la vue (recette #106b).
+  const [vue, setVue] = useState<VueAdsmap>('decider');
   // Le panneau du lien profond · ouvert d'office, refermé en retirant le
   // paramètre (un rechargement ne le rouvre pas, le retour navigateur si).
   const [profondOuvert, setProfondOuvert] = useState(!!testProfond && !testProfond.introuvable);
@@ -47,16 +50,27 @@ export function Views({ batches, canBuild = false, testProfond = null, marque = 
   const premierOnglet = useRef<HTMLButtonElement>(null);
   const fermerProfond = () => {
     setProfondOuvert(false);
-    router.replace('/adsmap', { scroll: false });
+    // La vue choisie survit à la fermeture du lien profond, et l'URL perd
+    // `?ad=` par l'API native (synchronisée par Next) · un `router.replace`
+    // vers le même chemin ne se terminait pas (recette #106b · même-chemin).
+    window.history.replaceState(null, '', `${window.location.pathname}${rechercheAdsmap(window.location.search, { fiche: null })}`);
     setTimeout(() => premierOnglet.current?.focus(), 0);
   };
   // Onglets déjà ouverts · la Table n'est montée qu'à la première visite, puis
   // gardée. Muter pendant le rendu serait un effet de bord · on passe par l'état.
   const [ouverts, setOuverts] = useState<string[]>(['decider']);
-  const aller = (v: 'decider' | 'table' | 'carte') => {
+  const montrer = (v: VueAdsmap) => {
     setVue(v);
     setOuverts((o) => (o.includes(v) ? o : [...o, v]));
   };
+  const aller = (v: VueAdsmap) => {
+    montrer(v);
+    window.history.replaceState(null, '', `${window.location.pathname}${rechercheAdsmap(window.location.search, { vue: v })}`);
+  };
+  useEffect(() => {
+    const v = lireVueAdsmap(new URLSearchParams(window.location.search).get(PARAM_VUE_ADSMAP));
+    if (v !== 'decider') montrer(v);
+  }, []);
 
   return (
     <>
@@ -69,12 +83,12 @@ export function Views({ batches, canBuild = false, testProfond = null, marque = 
         </div>
       )}
       {testProfond && !testProfond.introuvable && profondOuvert && (
-        <AdDrawer adId={testProfond.adId} onClose={fermerProfond} onChanged={() => router.refresh()} peutPartager={canBuild} retour={retour} />
+        <AdDrawer adId={testProfond.adId} onClose={fermerProfond} onChanged={() => router.refresh()} peutPartager={canBuild} retour={retour} origine="lien-profond" />
       )}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        <button type="button" ref={premierOnglet} onClick={() => aller('decider')} style={onglet(vue === 'decider')}>À décider</button>
-        <button type="button" onClick={() => aller('table')} style={onglet(vue === 'table')}>Table</button>
-        <button type="button" onClick={() => aller('carte')} style={onglet(vue === 'carte')}>Carte</button>
+        <button type="button" ref={premierOnglet} onClick={() => aller('decider')} aria-pressed={vue === 'decider'} style={onglet(vue === 'decider')}>À décider</button>
+        <button type="button" onClick={() => aller('table')} aria-pressed={vue === 'table'} style={onglet(vue === 'table')}>Table</button>
+        <button type="button" onClick={() => aller('carte')} aria-pressed={vue === 'carte'} style={onglet(vue === 'carte')}>Carte</button>
       </div>
 
       {vue === 'decider' && <Inbox peutPartager={canBuild} />}

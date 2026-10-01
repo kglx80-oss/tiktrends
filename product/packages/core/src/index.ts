@@ -134,3 +134,7 @@ export * from './creative-presets';
 export * from './onboarding';
 export * from './accueil';
 export * from './assistant-pub';
+export * from './zone-cible';
+export * from './adsmap/historique-fiche';
+export * from './copie-service';
+export * from './meme-chemin';
