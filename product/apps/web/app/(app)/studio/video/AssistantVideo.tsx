@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import {
   ETAPES_VIDEO, ETAPE_VIDEO_TITRE, ETAPE_VIDEO_ROLE,
@@ -58,6 +58,15 @@ export function AssistantVideo(p: Props) {
   // « Assistant guidé », Tab sorti 11 fois sur 14).
   const boiteRef = useRef<HTMLDivElement>(null);
   usePiegeFocus(boiteRef, { actif: p.ouvert, onFermer: p.onFermer });
+  // Lot 11 · changer d'étape peut DÉSACTIVER le bouton qui a le focus (« Retour »
+  // revenu à la première étape) · le focus tombait hors de la fenêtre (mesuré
+  // au navigateur). On le rend à la fenêtre, jamais à un bouton inerte.
+  useEffect(() => {
+    const b = boiteRef.current;
+    if (!b) return;
+    const a = document.activeElement as HTMLButtonElement | null;
+    if (!a || !b.contains(a) || a.disabled) b.focus();
+  }, [etape]);
   if (!p.ouvert) return null;
 
   const bloquant = manqueVideo(etape, p.etat);

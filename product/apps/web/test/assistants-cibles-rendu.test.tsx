@@ -49,3 +49,29 @@ describe('Assistants guidés · chaque bouton atteint 44 px, à chaque étape', 
       coutParVisuel={4} duree="quelques secondes" busy={false} onGenerer={noop} />, 4), 'boutons sous 44 px').toEqual([]);
   });
 });
+
+describe('Assistants guidés · « Retour » à la première étape garde le focus dans la fenêtre', () => {
+  const cas: Array<[string, React.ReactNode]> = [
+    ['Vidéo', <AssistantVideo key="v" ouvert onFermer={noop} etat={{ mode: 't2v', imagePrete: false, description: 'Exemple', ratio: '9:16', duree: 5 }}
+      onMode={noop} slotDepart={null} onDescription={noop} onRatio={noop} onDuree={noop} ratios={['9:16']} durees={[5]} coutParVideo={20} busy={false} onGenerer={noop} />],
+    ['Image', <AssistantImage key="i" ouvert onFermer={noop} etat={{ mode: 't2i', aPhotoProduit: false, description: 'Exemple', direction: '', ratio: '1:1', nombre: 1, moteur: 'm' }}
+      produits={[]} productId="" aiReady onMode={noop} onProduit={noop} slotPhoto={null} onDescription={noop} onDirection={noop}
+      onRatio={noop} onNombre={noop} onMoteur={noop} ratios={['1:1']} moteurs={[{ key: 'm', label: 'Moteur' }]} directions={[]}
+      coutParVisuel={4} duree="quelques secondes" busy={false} onGenerer={noop} />],
+  ];
+  for (const [nom, n] of cas) {
+    it(nom, () => {
+      el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el);
+      act(() => { root!.render(n); });
+      const bouton = (re: RegExp) => [...document.querySelectorAll<HTMLButtonElement>('[role=dialog] button')].find((b) => re.test(b.textContent || ''))!;
+      act(() => { bouton(/Suivant/).click(); });
+      const retour = bouton(/Retour/);
+      expect(retour.disabled).toBe(false);
+      retour.focus();
+      act(() => { retour.click(); });
+      const a = document.activeElement as HTMLButtonElement;
+      expect(document.querySelector('[role=dialog]')!.contains(a), 'focus hors de la fenêtre').toBe(true);
+      expect(a.disabled, 'focus laissé sur un bouton désactivé').toBeFalsy();
+    });
+  }
+});
