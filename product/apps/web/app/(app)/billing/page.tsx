@@ -52,7 +52,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Plans & Facturation</h1>
-        <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
+        {/* « ADMIN+ » désigne le personnel de la plateforme · cette page sert aux
+            admins de l'espace (roleAtLeast admin), comme Équipe (lot 9). */}
+        <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 6, marginBottom: 18, maxWidth: 760, lineHeight: 1.6 }}>
         Formule de l'espace <b>{s.workspaceName}</b>. Chaque formule ouvre une allocation mensuelle de crédits :

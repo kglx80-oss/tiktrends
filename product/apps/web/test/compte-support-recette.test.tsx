@@ -77,6 +77,11 @@ describe('Usage et Crédits · chiffres et motifs', () => {
     expect(s, 'promesse contredite par la limite de 120 lignes').not.toContain('Rien n\'est facturé sans apparaître ici');
     expect(s).toContain('les {LIMITE_JOURNAL} plus récents sont listés ici');
   });
+  it('Abonnement · badge d’espace, pas « ADMIN+ » (réservé au personnel de la plateforme)', () => {
+    const s = src('app/(app)/billing/page.tsx');
+    expect(s, 'badge ADMIN+ sur une page d’admin d’espace').not.toMatch(/>ADMIN\+<\/span>/);
+    expect(s).toContain('>ESPACE ADMIN</span>');
+  });
   it('Crédits · plus de report de 25 % promis, consommé borné, illimité = ∞', () => {
     const s = src('app/(app)/credits/page.tsx');
     expect(s, 'promesse de report jamais appliquée').not.toContain('Report partiel de 25');

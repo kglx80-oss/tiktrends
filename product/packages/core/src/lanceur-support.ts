@@ -22,6 +22,8 @@
  * Studio (lot 9, rempli de données synthétiques) · à 390 « Archiver » (100 %),
  * « Supprimer » (96 %), « Ouvrir › » du hub (89 %), « copier » des textes (79 %) ;
  * à 1280×720 « copier » (34 %).
+ * Abonnement (`/billing`, lot 9) · la bulle couvrait le badge « Populaire » et
+ * le haut d'une formule à 390 (capture relevée par Codex).
  * Ces écrans ancrent le lanceur · l'assistance reste là, rien n'est recouvert.
  * `/jarvis` (conversation) n'a pas de lanceur · il recouvrait « Envoyer ».
  */
@@ -29,7 +31,7 @@ export const ROUTES_LANCEUR_SUPPORT_ANCRE: readonly string[] = [
   '/studio/ads', '/dashboard', '/veille', '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/radar',
   '/adsmap/tri', '/adsmap/protocole', '/adsmap/import', '/analytics', '/connections', '/settings', '/veille/scale',
   '/assets', '/radar', '/saved', '/tags', '/team', '/usage', '/credits', '/support',
-  '/studio', '/studio/image', '/studio/video', '/studio/textes',
+  '/studio', '/studio/image', '/studio/video', '/studio/textes', '/billing',
 ];
 
 export type PlacementLanceurSupport = 'ancre' | 'flottant' | 'aucun';

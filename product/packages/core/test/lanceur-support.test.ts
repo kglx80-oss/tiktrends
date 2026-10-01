@@ -38,5 +38,6 @@ describe('placementLanceurSupport', () => {
     expect(placementLanceurSupport('/support/un-ticket'), 'un ticket seul ne recouvrait rien').toBe('flottant');
     // Lot 9 · Studio rempli, mesuré à 390 et 1280×720.
     for (const r of ['/studio', '/studio/image', '/studio/video', '/studio/textes']) expect(placementLanceurSupport(r), r).toBe('ancre');
+    expect(placementLanceurSupport('/billing'), 'la bulle couvrait « Populaire » à 390').toBe('ancre');
   });
 });
