@@ -15,6 +15,7 @@ import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veill
 import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, type PerimetreVeille } from '@tiktrends/core';
 import { ChampRechercheVeille } from '../../../components/ChampRechercheVeille';
 import { Icon } from '../../../components/Icon';
+import { DepliableEchap } from '../../../components/DepliableEchap';
 import { Empty } from '../../../components/Empty';
 import { SectionMarche } from '../jarvis/sections/SectionMarche';
 import { baseUrlRecette, cleEffective } from '../../../lib/veille-recette-base';
@@ -307,7 +308,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         {/* Filtres avancés · repliés par défaut, ne repoussent pas les résultats.
             En <details> natif · les <select> restent dans le DOM et se soumettent
             même fermés · valeurs et réinitialisation préservées via l'URL. */}
-        <details style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)' }}>
+        <DepliableEchap style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)' }}>
           <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', fontSize: 13, fontWeight: 700, color: 'var(--ink-2)' }}>
             <span aria-hidden style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="gauge" size={15} /></span>
             Filtres{avances.length > 0 ? ` · ${avances.length} actif${avances.length > 1 ? 's' : ''}` : ''}
@@ -326,7 +327,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
               Filtres langue, reach minimum et ancienneté minimum · non disponibles depuis la source pour l'instant. Ils reviendront une fois pris en charge côté fournisseur.
             </p>
           </div>
-        </details>
+        </DepliableEchap>
 
       </form>
 

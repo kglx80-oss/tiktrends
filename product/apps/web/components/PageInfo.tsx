@@ -1,4 +1,9 @@
+'use client';
+
 import type { ReactNode } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { DepliableEchap } from './DepliableEchap';
+import { useIsMobile } from './useIsMobile';
 
 /**
  * Le mode d'emploi de la page · un « chip » repérable qui déplie une courte
@@ -7,6 +12,10 @@ import type { ReactNode } from 'react';
  * Il existait déjà sur 26 pages, mais si discret (gris muet, minuscule) que le
  * propriétaire ne l'avait jamais vu. On le rend visible : une pastille bordée,
  * un « i » en accent, un libellé lisible · sans crier, mais on le trouve.
+ *
+ * Recette #106 · Échap le referme et rend le focus au chip (`DepliableEchap`) ;
+ * au doigt (tactile ou écran étroit) le chip fait 44 px, à la souris il garde
+ * sa taille compacte (31 px mesurés).
  */
 export function PageInfo({ children, title = 'Mode d’emploi', minHeight, mb }: {
   children: ReactNode; title?: string;
@@ -17,12 +26,14 @@ export function PageInfo({ children, title = 'Mode d’emploi', minHeight, mb }:
    *  absente ailleurs, les 26 autres usages gardent leur marge de 14. */
   mb?: number;
 }) {
+  const tactile = useIsMobile('(pointer: coarse), (max-width: 768px)');
+  const hauteur = minHeight ?? (tactile ? CIBLE_TACTILE_MIN : undefined);
   return (
-    <details style={{ position: 'relative', display: 'inline-block', marginBottom: mb ?? 14 }}>
+    <DepliableEchap style={{ position: 'relative', display: 'inline-block', marginBottom: mb ?? 14 }}>
       <summary style={{
         listStyle: 'none', cursor: 'pointer', userSelect: 'none',
         display: 'inline-flex', alignItems: 'center', gap: 7,
-        ...(minHeight ? { minHeight } : null),
+        ...(hauteur ? { minHeight: hauteur } : null),
         padding: '5px 12px 5px 7px', borderRadius: 999,
         border: '1px solid var(--line-2)', background: 'var(--surface)',
         fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)',
@@ -42,6 +53,6 @@ export function PageInfo({ children, title = 'Mode d’emploi', minHeight, mb }:
       }}>
         {children}
       </div>
-    </details>
+    </DepliableEchap>
   );
 }
