@@ -55,7 +55,7 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
             <select name="platform" defaultValue="tiktok" style={{ ...input, cursor: 'pointer' }}><option value="tiktok">TikTok</option><option value="meta">Meta</option></select>
           </div>
         </div>
-        <div><label style={lbl}>Inspiration (créa gagnante à réinterpréter)</label><textarea name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
+        <div><label style={lbl}>Inspiration (piste repérée à réinterpréter)</label><textarea name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
         <button type="submit" disabled={pending || !hasKey} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '12px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending || !hasKey ? .6 : 1 }}>
           {pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative · {costFor('script')} crédits</span>}
         </button>
@@ -86,7 +86,7 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
       <div style={{ display: 'grid', gap: 16 }}>
         {!out && !pending && (
           <div style={{ ...card, color: 'var(--muted)', fontSize: 14 }}>
-            Remplis le brief à gauche et lance la génération. Astuce : depuis la <b>Veille</b>, le bouton « Générer » pré-remplit l'inspiration avec une créa gagnante.
+            Remplis le brief à gauche et lance la génération. Astuce : colle dans « Inspiration » le texte d’une annonce repérée dans la <b>Veille</b> · c’est une piste à réinterpréter, pas une preuve de résultat.
           </div>
         )}
         {pending && <div style={{ ...card, color: 'var(--muted)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="sparkles" size={15} /> Le Studio compose angles, hooks, script et textes…</div>}

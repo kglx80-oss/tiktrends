@@ -77,8 +77,8 @@ export default async function TextesPage({ searchParams }: { searchParams: Promi
         Remplis le brief à gauche (produit, cible, angle, ton, plateforme) et lance la génération : tu obtiens des
         <b> angles</b>, des <b>accroches</b>, un <b>script</b> seconde par seconde, des <b>textes d’annonce</b> et des
         <b> légendes</b>, chacun copiable. Un angle se transforme en pub complète d’un clic vers <b>Pubs IA</b>.
-        Astuce : depuis la <b>Veille</b>, «&nbsp;Générer&nbsp;» pré-remplit l’inspiration avec une créa gagnante
-        repérée chez un concurrent.
+        Astuce : colle dans «&nbsp;Inspiration&nbsp;» le texte d’une annonce repérée dans la <b>Veille</b> · une
+        piste à réinterpréter, pas une preuve de résultat.
       </PageInfo>
 
       <StudioClient hasKey={hasKey} prefillProduct={sp.brand} prefillInspiration={sp.inspo} initialOutput={initialOutput} />
