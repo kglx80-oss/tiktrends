@@ -136,3 +136,4 @@ export * from './accueil';
 export * from './assistant-pub';
 export * from './copie-client';
 export * from './veille-echantillon';
+export * from './logo-outil';
