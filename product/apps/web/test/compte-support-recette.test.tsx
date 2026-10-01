@@ -79,6 +79,8 @@ describe('Usage et Crédits · chiffres et motifs', () => {
     expect(s).toContain("{illimite ? '∞'");
     expect(s, 'un « · » seul tenait lieu de valeur quand la part ne se mesure pas').not.toContain("conso.pct === null ? '·'");
     expect(s).toContain('>Sans objet</span>');
+    expect(s, 'six actions s’affichaient en clé brute (« chat », « asset_analysis »)').not.toContain('ACTION_FR[k] || k');
+    expect(s).toContain('LIBELLE_ACTION_CREDIT[k');
     expect(s).toContain('libelleMotif(l.reason)');
   });
 });

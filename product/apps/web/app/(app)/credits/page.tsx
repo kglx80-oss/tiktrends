@@ -5,7 +5,7 @@ import { Icon } from '../../../components/Icon';
 import { BarreValeur } from '../../../components/BarreValeur';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax, partConsommeeCycle, libelleMotif } from '@tiktrends/core';
+import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax, partConsommeeCycle, libelleMotif, LIBELLE_ACTION_CREDIT } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { panel, Msg, cadrePage } from '../../../components/ui';
@@ -19,11 +19,6 @@ export const dynamic = 'force-dynamic';
 const OK: Record<string, string> = { grant: 'Crédits mis à jour.', recharge: "Allocation mensuelle rechargée." };
 const ERR: Record<string, string> = { forbidden: 'Réservé au propriétaire.', amount: 'Montant invalide.' };
 
-const ACTION_FR: Record<string, string> = {
-  tag_video: 'Tag vidéo (IA)', tag_image: 'Tag image (IA)', transcription_min: 'Transcription (par min)',
-  script: 'Script (Studio)', brief: 'Brief', image: 'Génération image', review_mining: "Analyse d'avis",
-  report: 'Rapport', clone_image: 'Clone image',
-};
 
 export default async function CreditsPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const s = await getSession();
@@ -304,7 +299,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
           <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
             {Object.entries(CREDIT_COSTS).map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '5px 0', borderTop: '1px solid var(--line)' }}>
-                <span style={{ color: 'var(--ink-2)' }}>{ACTION_FR[k] || k}</span>
+                <span style={{ color: 'var(--ink-2)' }}>{LIBELLE_ACTION_CREDIT[k as keyof typeof LIBELLE_ACTION_CREDIT]}</span>
                 <span style={{ color: 'var(--ink)', fontWeight: 700 }}>◈ {v}</span>
               </div>
             ))}

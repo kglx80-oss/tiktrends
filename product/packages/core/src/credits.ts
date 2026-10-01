@@ -17,6 +17,19 @@ export const CREDIT_COSTS: Record<CreditAction, number> = {
   map_proposal: 5,
 };
 
+/**
+ * Le nom à l'écran de chaque action facturée. Typé sur `CreditAction` · une
+ * action ajoutée sans libellé ne compile pas. L'écran Crédits affichait la clé
+ * brute (« chat », « asset_analysis ») pour six actions sur quinze (lot 8).
+ */
+export const LIBELLE_ACTION_CREDIT: Record<CreditAction, string> = {
+  tag_video: 'Tag vidéo (IA)', tag_image: 'Tag image (IA)', transcription_min: 'Transcription (par min)',
+  script: 'Script vidéo', brief: 'Brief créatif', image: 'Génération image', review_mining: 'Analyse d’avis',
+  report: 'Rapport', clone_image: 'Clone de pub', chat: 'Assistant (message)', video: 'Vidéo IA',
+  suggest: 'Suggestion IA', score: 'Score Jarvis', asset_analysis: 'Analyse d’asset (Adsmap)',
+  map_proposal: 'Propositions de carte (Adsmap)',
+};
+
 export function costFor(action: CreditAction, units = 1): number {
   return CREDIT_COSTS[action] * Math.max(1, Math.ceil(units));
 }
