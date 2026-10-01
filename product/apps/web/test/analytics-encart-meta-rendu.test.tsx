@@ -35,6 +35,7 @@ describe('Analytics · l’encart Meta suit la phase du connecteur', () => {
     const t = await texte();
     expect(t).toContain('Branche Meta Ads pour tes vrais KPI');
     expect(t).toContain('Connecter Meta Ads ›');
+    expect(t).toContain('aucun compte n’est branché');
   });
   it('connecté sans données · invite à synchroniser, jamais à connecter', async () => {
     marque = { token: 'jeton-factice', compte: 'act_1', ads: null, syncedAt: null };
@@ -42,6 +43,11 @@ describe('Analytics · l’encart Meta suit la phase du connecteur', () => {
     expect(t, 'on invite à connecter un compte déjà connecté').not.toContain('Connecter Meta Ads');
     expect(t).toContain('première synchronisation en attente');
     expect(t).toContain('Synchroniser Meta Ads ›');
+    // Recette A / 106b · l'aperçu reste DÉMO, mais il ne prétend plus « aucun
+    // compte branché » quand Meta est connecté.
+    expect(t).toContain('DÉMO');
+    expect(t, 'la note démo dit « aucun compte branché » avec Meta connecté').not.toMatch(/aucun compte n.est branché|Branche un compte/);
+    expect(t).toContain('aucune donnée Meta n’est synchronisée');
   });
   it('connecté, plusieurs comptes, aucun choisi · invite à choisir le compte', async () => {
     marque = { token: 'jeton-factice', compte: null, comptes: [{ id: 'act_1' }, { id: 'act_2' }], ads: null };

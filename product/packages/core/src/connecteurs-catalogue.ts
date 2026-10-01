@@ -112,6 +112,17 @@ export function etatConnecteur(o: { connecte: boolean; compteRequisManquant?: bo
  */
 export interface EncartMetaAnalytics { titre: string; texte: string; cta: { libelle: string; href: string } }
 
+/**
+ * Analytics sans données Meta · l'aperçu reste marqué DÉMO (jamais présenté
+ * comme des performances synchronisées), mais la phrase dit POURQUOI selon
+ * l'état réel · « aucun compte branché » était faux une fois Meta connecté
+ * en attente de synchro (recette A / 106b, mesuré au navigateur).
+ */
+export function phrasesApercuAnalytics(phase: PhaseConnecteur): { intro: string; noteDemo: string } {
+  if (phase === 'a_brancher') return { intro: 'Branche un compte pour des données live.', noteDemo: 'exemple tant qu’aucun compte n’est branché' };
+  return { intro: 'Synchronise Meta Ads pour remplacer l’aperçu par tes données live.', noteDemo: 'exemple tant qu’aucune donnée Meta n’est synchronisée' };
+}
+
 export function encartMetaAnalytics(phase: PhaseConnecteur): EncartMetaAnalytics | null {
   switch (phase) {
     case 'a_brancher':

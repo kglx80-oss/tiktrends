@@ -6,7 +6,7 @@ import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
-import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, type PhaseConnecteur } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, phrasesApercuAnalytics, type PhaseConnecteur } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { MetaKeyMetrics } from './MetaKeyMetrics';
 import { BrandTile } from '../../../components/BrandIcons';
@@ -96,6 +96,7 @@ export default async function AnalyticsPage() {
   ];
 
   const encart = encartMetaAnalytics(phaseMeta);
+  const phrases = phrasesApercuAnalytics(phaseMeta);
 
   return (
     <main style={wrap}>
@@ -104,7 +105,7 @@ export default async function AnalyticsPage() {
         <span style={{ fontSize: 12, color: metaInsights ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{metaInsights ? 'Meta Ads · live' : 'aperçu démo'}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
-        Vue agrégée de tes créas : dépense, portée, efficacité, et répartition Radar. Branche un compte pour des données live.
+        Vue agrégée de tes créas : dépense, portée, efficacité, et répartition Radar. {phrases.intro}
       </p>
 
       <PageInfo title="lire tes KPI">
@@ -135,7 +136,7 @@ export default async function AnalyticsPage() {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Aperçu créas</h2>
         <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: '#f5b043', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', borderRadius: 999, padding: '2px 8px' }}>DÉMO</span>
-        <span style={{ fontSize: 11, color: 'var(--muted)' }}>· exemple tant qu'aucun compte n'est branché</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>· {phrases.noteDemo}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 26 }}>
         {kpis.map(([label, value, sub]) => (
