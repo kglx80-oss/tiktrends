@@ -160,7 +160,7 @@ export function AssistantImage(p: Props) {
                 const on = p.etat.direction === d.key;
                 return (
                   <button key={d.key || 'variees'} type="button" onClick={() => p.onDirection(d.key)} aria-pressed={on} style={{
-                    display: 'grid', gap: 3, padding: '10px 12px', borderRadius: 12, textAlign: 'left',
+                    display: 'grid', gap: 3, minHeight: CIBLE_TACTILE_MIN, padding: '10px 12px', borderRadius: 12, textAlign: 'left',
                     border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'rgba(254,44,85,.06)' : 'transparent', cursor: 'pointer',
                   }}>
                     <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>{d.label}</span>
