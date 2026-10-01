@@ -1,6 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { chatSystemPrompt, trimThread, personnalisationAccueil, type ChatMessage } from '@tiktrends/core';
+import { chatSystemPrompt, trimThread, personnalisationAccueil, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../lib/rbac';
@@ -49,7 +49,8 @@ export async function POST(req: Request) {
   if (!question) return json({ error: 'Message vide.' }, 400);
 
   const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'jarvis-chat' });
-  if (!client) return json({ error: 'L’IA n’est pas configurée sur le serveur.' }, 503);
+  // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
+  if (!client) return json({ error: messageServiceInactif('jarvis') }, 503);
 
   try {
     // Le fil tel qu'il est en base, PUIS la question du tour · on n'écrit la

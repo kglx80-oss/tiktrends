@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { driveRefreshTokenFor } from '../../lib/drive-token';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, avecTemplate, estTemplateAsset, tagsVisibles } from '@tiktrends/core';
+import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -289,7 +289,8 @@ export async function presignAssetUploadAction(input: { filename: string; conten
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
   const cfg = storageFromEnv();
-  if (!cfg) return { error: 'Stockage objet non configuré sur le serveur.' };
+  // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
+  if (!cfg) return { error: messageServiceInactif('stockage') };
   if (!input.filename || !input.contentType) return { error: 'Fichier invalide.' };
   if (input.sizeBytes > MAX_UPLOAD_BYTES) return { error: 'Fichier trop lourd (max 1 Go).' };
   const key = newAssetKey(s.workspaceId, input.filename);

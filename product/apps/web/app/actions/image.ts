@@ -6,7 +6,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
 import { enhanceImagePrompt, suggestImageBrief, scoreCreative } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS, promptImage, noteImage, type NoteImage } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS, promptImage, noteImage, type NoteImage, messageServiceInactif } from '@tiktrends/core';
 import { imageJointe } from '../../lib/image-jointe';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -307,7 +307,8 @@ export async function scoreImageAction(input: { url: string; prompt?: string }):
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
   const client = guardedAnthropic({ action: 'image:score', workspaceId: s.workspaceId });
-  if (!client) return { error: "La relecture IA n'est pas configurée sur le serveur." };
+  // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
+  if (!client) return { error: messageServiceInactif('relecture_image') };
   const img = await imageJointe(input.url);
   if (!img) return { error: 'Visuel illisible · impossible de le relire.' };
 

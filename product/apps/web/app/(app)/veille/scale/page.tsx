@@ -7,7 +7,7 @@ import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { Bandeau } from '../../../../components/Bandeau';
 import { getActiveBrand } from '../../../../lib/brands';
 import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
-import { classifyAngle, capPerBrand, median } from '@tiktrends/core';
+import { classifyAngle, capPerBrand, median, BANDEAU_DEMO_VEILLE } from '@tiktrends/core';
 import { getVeilleCache, isFresh, setVeilleCache, refreshAllowed } from '../../../../lib/veille-cache';
 import { Empty } from '../../../../components/Empty';
 import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
@@ -163,7 +163,7 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
         ))}
       </div>
 
-      {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon. La source de données n'est pas configurée sur le serveur.</Bandeau>}
+      {sample && <Bandeau ton="demo" titre="Mode démonstration">{BANDEAU_DEMO_VEILLE}</Bandeau>}
       {error && <Bandeau ton="error">Erreur de la source : {error}{curated.length > 0 && ' · affichage du dernier résultat en cache.'}</Bandeau>}
       {mono && !sample && !error && (
         <Bandeau ton="info" titre="Analyse d'une marque">
