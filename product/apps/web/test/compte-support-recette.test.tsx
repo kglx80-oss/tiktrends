@@ -72,6 +72,11 @@ describe('Usage et Crédits · chiffres et motifs', () => {
     expect(s, 'motif coupé en ellipse').not.toMatch(/textOverflow: 'ellipsis' }}>\{r\.reason\}/);
     expect(s, '« fondateur » affiché aussi pour le staff').not.toContain('Illimité · fondateur');
   });
+  it('Usage · plus de promesse d’exhaustivité · la limite du journal est dite', () => {
+    const s = src('app/(app)/usage/page.tsx');
+    expect(s, 'promesse contredite par la limite de 120 lignes').not.toContain('Rien n\'est facturé sans apparaître ici');
+    expect(s).toContain('les {LIMITE_JOURNAL} plus récents sont listés ici');
+  });
   it('Crédits · plus de report de 25 % promis, consommé borné, illimité = ∞', () => {
     const s = src('app/(app)/credits/page.tsx');
     expect(s, 'promesse de report jamais appliquée').not.toContain('Report partiel de 25');

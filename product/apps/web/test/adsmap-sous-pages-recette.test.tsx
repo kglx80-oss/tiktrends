@@ -32,7 +32,8 @@ vi.mock('../app/actions/adsmap-curation', () => ({
   mergeCandidatesAction: async () => ({ personas: [{ id: 'p1', name: 'Femme 30-45', status: 'validated', desires: 2 }, { id: 'p2', name: 'Maman pressée', status: 'proposed', desires: 1 }] }),
   mergePlanAction: async () => ({}), mergePersonasAction: async () => ({}),
 }));
-vi.mock('../app/actions/adsmap-import', () => ({ previewImportAction: async () => ({}), applyImportAction: async () => ({}) }));
+const apercuImport = { current: {} as Record<string, unknown> };
+vi.mock('../app/actions/adsmap-import', () => ({ previewImportAction: async () => apercuImport.current, applyImportAction: async () => ({}) }));
 vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }) }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 
@@ -119,6 +120,24 @@ describe('Tri · Fusion · état annoncé, champs nommés, Échap', () => {
 });
 
 describe('Import · fichier au clavier, copie fidèle', () => {
+  it('aperçu · statut et verdict en mots (valeur intacte), tableau atteignable au clavier', async () => {
+    apercuImport.current = { report: { rowsRead: 1, ads: 1, concepts: 1, angles: 1, desires: 1, batches: 1, verdicts: 1, learnings: 0, conceptsMerged: 0, datesRepaired: 0, datesRejected: 0, warnings: [] }, sample: [{ concept: 'C', angle: 'A', desire: 'D', variant: 'v1', status: 'draft', verdict: 'winner', date: null }] };
+    try {
+      const h = await monter(<ImportPanel brandName="Neva" />);
+      const f = h.querySelector('input[type=file]') as HTMLInputElement;
+      const fichier = new File(['x'], 'a.csv', { type: 'text/csv' });
+      Object.defineProperty(f, 'files', { value: [fichier] });
+      await act(async () => { f.dispatchEvent(new Event('change', { bubbles: true })); });
+      for (let i = 0; i < 20 && !h.querySelector('tbody td'); i++) await pause();
+      const cellules = [...h.querySelectorAll('tbody td')].map((td) => td.textContent);
+      expect(cellules, 'le statut brut « draft » s’affiche').not.toContain('draft');
+      expect(cellules).toContain('Brouillon');
+      expect(cellules).toContain('Gagnante');
+      expect(cellules.join(' '), 'tiret cadratin à l’écran').not.toContain('—');
+      const region = h.querySelector('[role=region][aria-label^="Aperçu"]') as HTMLElement;
+      expect(region?.tabIndex, 'les colonnes masquées ne défilent pas au clavier').toBe(0);
+    } finally { apercuImport.current = {}; }
+  });
   it('le champ fichier est dans l’ordre de tabulation (pas display:none)', async () => {
     const h = await monter(<ImportPanel brandName="Neva" />);
     const f = h.querySelector('input[type=file]') as HTMLInputElement;

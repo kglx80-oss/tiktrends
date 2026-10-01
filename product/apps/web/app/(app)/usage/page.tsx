@@ -62,7 +62,7 @@ export default async function UsagePage() {
         <Link href="/billing" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Abonnement &amp; factures ›</Link>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
-        Le détail de ce que ton espace a consommé, action par action. Rien n'est facturé sans apparaître ici.
+        Les mouvements de crédits de ton espace, action par action · les {LIMITE_JOURNAL} plus récents sont listés ici, les totaux des cartes couvrent les 30 derniers jours.
       </p>
 
       <PageInfo title="lire ta consommation">

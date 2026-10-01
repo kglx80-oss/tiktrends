@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_STATUT_AD, LIBELLE_VERDICT, type AdStatus, type VerdictValue } from '@tiktrends/core';
 import { previewImportAction, applyImportAction, type PreviewResult } from '../../../actions/adsmap-import';
 
 /**
@@ -106,8 +106,10 @@ export function ImportPanel({ brandName }: { brandName: string }) {
           {prev?.sample && prev.sample.length > 0 && (
             <section style={panel}>
               <h2 style={h2}>Aperçu</h2>
-              <p style={sub}>Les douze premières lignes, telles qu’elles seront enregistrées.</p>
-              <div style={{ overflowX: 'auto' }}>
+              <p style={sub}>Les douze premières lignes, telles qu’elles seront enregistrées. Le tableau défile de côté pour montrer Statut, Verdict et Date.</p>
+              {/* Région focusable · au clavier, les flèches font défiler les
+                  colonnes masquées à 390 (sinon seul le toucher y accède). */}
+              <div role="region" aria-label="Aperçu de l’import · défile horizontalement" tabIndex={0} style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 720 }}>
                   <thead><tr>{['Concept', 'Angle', 'Désir', 'Variante', 'Statut', 'Verdict', 'Date'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
                   <tbody>
@@ -117,9 +119,9 @@ export function ImportPanel({ brandName }: { brandName: string }) {
                         <td style={{ ...td, color: 'var(--ink-2)' }}>{r.angle}</td>
                         <td style={{ ...td, color: 'var(--ink-2)' }}>{r.desire}</td>
                         <td style={{ ...td, fontFamily: 'ui-monospace, monospace', color: 'var(--accent-strong)' }}>{r.variant}</td>
-                        <td style={td}>{r.status}</td>
-                        <td style={td}>{r.verdict ?? '—'}</td>
-                        <td style={{ ...td, color: 'var(--muted)' }}>{r.date ?? '—'}</td>
+                        <td style={td}>{LIBELLE_STATUT_AD[r.status as AdStatus] ?? r.status}</td>
+                        <td style={td}>{r.verdict ? (LIBELLE_VERDICT[r.verdict as VerdictValue]?.court ?? r.verdict) : 'Aucun'}</td>
+                        <td style={{ ...td, color: 'var(--muted)' }}>{r.date ?? 'Aucune'}</td>
                       </tr>
                     ))}
                   </tbody>
