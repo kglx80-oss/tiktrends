@@ -8,6 +8,8 @@ import { ADMIN_THEME } from '../../../lib/theme';
 import { PageInfo } from '../../../components/PageInfo';
 import { storageConfigured } from '@tiktrends/integrations';
 import { StorageConfigurator } from '../../../components/StorageConfigurator';
+import { isFounder } from '../../../lib/founder';
+import { COPIE_STOCKAGE } from '@tiktrends/core';
 
 const OK: Record<string, string> = { '1': 'Espace mis à jour.' };
 const ERR: Record<string, string> = { forbidden: "Action réservée à l'administrateur." };
@@ -19,6 +21,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard'); // garde : accès admin+ uniquement
   const { ok, e } = await searchParams;
+  const operateur = isFounder(s.user.email);
+  const stockage = operateur ? COPIE_STOCKAGE.operateur : COPIE_STOCKAGE.client;
 
   return (
     <main style={{ ...ADMIN_THEME, ...cadrePage }}><div style={colonneLecture('formulaire')}>
@@ -89,9 +93,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       </div>
 
       <div style={panel}>
-        <h2 style={h2}>Stockage objet <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '2px 8px', borderRadius: 999, color: storageConfigured() ? '#18cc8c' : 'var(--muted)', background: storageConfigured() ? 'rgba(24,204,140,.14)' : 'var(--line)' }}>{storageConfigured() ? 'CLÉS DÉTECTÉES' : 'CLÉS ABSENTES'}</span></h2>
-        <p style={sub}>Une fois les clés S3 posées dans <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>.env.deploy</code>, configure la lecture publique + le CORS et teste, sans passer par la ligne de commande.</p>
-        <StorageConfigurator enabled={storageConfigured()} />
+        {/* Les Réglages s'ouvrent à l'administrateur de l'espace · un CLIENT. Il
+            lit le stockage en mots de client ; l'équipe de la plateforme garde
+            ses consignes techniques (recette #106b · `COPIE_STOCKAGE`). Les
+            fonctions et les droits ne changent pas. */}
+        <h2 style={h2}>{stockage.titre} <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap', color: storageConfigured() ? '#18cc8c' : 'var(--muted)', background: storageConfigured() ? 'rgba(24,204,140,.14)' : 'var(--line)' }}>{stockage.badge(storageConfigured())}</span></h2>
+        <p style={sub}>{stockage.intro}</p>
+        <StorageConfigurator enabled={storageConfigured()} operateur={operateur} />
       </div>
 
       <div style={panel}>

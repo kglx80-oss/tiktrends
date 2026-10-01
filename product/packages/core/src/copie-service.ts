@@ -53,6 +53,10 @@ export function messageServiceInactif(service: ServiceInactif): string {
  * mêmes états en mots de client. Aucun bouton n'apparaît ni ne disparaît.
  */
 export interface CopieStockage {
+  /** Titre du panneau, son badge d'état et sa phrase d'introduction. */
+  titre: string;
+  badge: (actif: boolean) => string;
+  intro: string;
   /** Stockage pas encore activé (client seulement · l'opérateur lit les consignes). */
   inactif: string;
   configurer: string;
@@ -66,6 +70,9 @@ export interface CopieStockage {
 
 export const COPIE_STOCKAGE: { client: CopieStockage; operateur: CopieStockage } = {
   client: {
+    titre: 'Stockage des fichiers lourds',
+    badge: (actif) => (actif ? 'ACTIVÉ' : 'À ACTIVER'),
+    intro: 'Les rushs vidéo se téléversent directement dans Assets une fois le stockage activé · c’est notre équipe qui l’active.',
     inactif: `Le stockage des fichiers lourds (rushs vidéo) n’est pas encore activé pour ton espace · ${QUI}. En attendant, importe tes vidéos par lien dans Assets.`,
     configurer: 'Préparer le stockage',
     deplacer: 'Ranger 25 images',
@@ -76,6 +83,9 @@ export const COPIE_STOCKAGE: { client: CopieStockage; operateur: CopieStockage }
     testEcriture: `Le stockage ne répond pas comme prévu · ${QUI}.`,
   },
   operateur: {
+    titre: 'Stockage objet',
+    badge: (actif) => (actif ? 'CLÉS DÉTECTÉES' : 'CLÉS ABSENTES'),
+    intro: 'Une fois les clés S3 posées dans .env.deploy, configure la lecture publique + le CORS et teste, sans passer par la ligne de commande.',
     inactif: '',
     configurer: 'Configurer le bucket (public + CORS)',
     deplacer: 'Déplacer 25 images vers le bucket',
