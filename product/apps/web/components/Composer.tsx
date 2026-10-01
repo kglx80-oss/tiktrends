@@ -146,11 +146,17 @@ export function Composer(props: ComposerProps) {
 
   // La zone grandit avec le texte · une description de six lignes dans un champ
   // de deux lignes se relit mal, et on ne relit pas ce qu'on ne voit pas.
-  useEffect(() => {
-    const el = zone.current;
-    if (!el) return;
+  // Masquée (réglages repliés du Studio), elle mesure 0 · figer « 0px » la
+  // laissait à ~10 px une fois dépliée, texte rogné par son cadre (recette I2,
+  // 390). On ne fige rien tant qu'elle est masquée, on remesure au focus, et le
+  // style garde un plancher de deux lignes.
+  const ajuster = (el: HTMLTextAreaElement) => {
+    if (el.scrollHeight === 0) { el.style.height = ''; return; }
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+  };
+  useEffect(() => {
+    if (zone.current) ajuster(zone.current);
   }, [value]);
 
   const pret = !disabled && !busy && !blocage && (!requireText || value.trim().length > 0);
@@ -206,8 +212,9 @@ export function Composer(props: ComposerProps) {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && pret) { e.preventDefault(); onGenerate(); }
           }}
           rows={2}
+          onFocus={(e) => ajuster(e.currentTarget)}
           style={{
-            flex: 1, minWidth: 0, border: 'none', outline: 'none', resize: 'none',
+            flex: 1, minWidth: 0, minHeight: 'calc(3.1em + 10px)', border: 'none', outline: 'none', resize: 'none',
             background: 'transparent', color: 'var(--ink)', fontSize: 15, lineHeight: 1.55,
             fontFamily: 'inherit', padding: '5px 0',
           }}

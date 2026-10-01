@@ -15,12 +15,15 @@ import { ContexteCreation } from '../../../../components/ContexteCreation';
 import { effectiveAccess } from '../../../../lib/access';
 import { spendStatus } from '../../../../lib/spend-guard';
 import { bilanCopieAction } from '../../../actions/adsmap-attribution';
-import { conseilMoteur, conseilMode, sourceVeilleDepuisRef } from '@tiktrends/core';
+import { conseilMoteur, conseilMode, sourceVeilleDepuisRef, lireIterationDemandee, briefDepuisTest, cleMontageStudio, cleBrouillonIteration } from '@tiktrends/core';
+import { adDetailAction } from '../../../actions/adsmap-verdict';
+import { adsDeLaMarque } from '../../../../lib/adsmap-marque';
+import { PanneauIteration, type EtatIteration } from './PanneauIteration';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
 
-export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string; ref?: string; src?: string; srcnom?: string }> }) {
+export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string; ref?: string; src?: string; srcnom?: string; iter?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   const sp = await searchParams;
@@ -115,6 +118,34 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
   // qu'une marque active peut la recevoir.
   const adsmapOpen = !!brand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
 
+  // I2 · brief d'itération demandé par `?iter=<test>` (panneau d'un test Adsmap).
+  // LECTURE SEULE · rien n'est généré ni enregistré à l'ouverture. Le test doit
+  // être lisible (accès Adsmap) ET appartenir à la marque active · sinon un refus
+  // sans détail (test supprimé, d'une autre marque ou hors droits : même message).
+  const iterDemande = lireIterationDemandee(sp as Record<string, string | undefined>);
+  let iteration: EtatIteration | null = null;
+  if (iterDemande) {
+    const dansMarque = adsmapOpen && brand ? (await adsDeLaMarque(s.workspaceId, brand.id, [iterDemande])).has(iterDemande) : false;
+    const lu = dansMarque ? await adDetailAction(iterDemande) : null;
+    const d = lu?.detail;
+    if (!d) iteration = { etat: 'refuse' };
+    else {
+      const b = briefDepuisTest({
+        adId: d.id, variantCode: d.variantCode, concept: d.concept, angle: d.angle, persona: d.persona, personaId: d.personaId,
+        verdictStatus: d.verdictStatus, validated: d.validated, comparable: d.comparable,
+        testedVariable: d.testedVariable, variableValue: d.variableValue,
+        metrics: { cpa: d.metrics.cpa, hookRate: d.metrics.hookRate, ctr: d.metrics.ctr },
+        learnings: d.learnings.map((l) => ({ statement: l.statement, confidence: l.confidence, scope: l.scope })),
+      });
+      iteration = b.eligible ? { etat: 'ok', adId: d.id, ...b } : { etat: 'non_eligible', adId: d.id, motif: b.motif };
+    }
+  }
+  // Le préremplissage · l'angle du test remplace `?angle=` ; l'audience n'est
+  // reprise que si le persona existe bien dans la marque active.
+  const angleInitial = iteration?.etat === 'ok' ? iteration.prefill.angle.slice(0, 300) : initialAngle;
+  const personaInitial = iteration?.etat === 'ok' && iteration.prefill.personaId && personas.some((p) => p.id === iteration.prefill.personaId)
+    ? iteration.prefill.personaId : '';
+
   return (
     <main style={wrap}>
       {/* En-tête court · pas de gros bandeau marketing ni de pastille. La
@@ -146,8 +177,12 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
           ses états semés une fois depuis les props (galerie `ads`, `prods`,
           `productId`, sélection…) restent ceux de la marque précédente jusqu'à un
           rechargement complet. La clé par marque force le remontage · TOUT le
-          contexte client se ré-ensemence ensemble depuis les nouvelles props. */}
-      <AdsStudio key={brand?.id ?? 'aucune-marque'} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={initialAngle} initialRef={initialRef} initialSource={initialSource} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
+          contexte client se ré-ensemence ensemble depuis les nouvelles props.
+          Depuis I2, elle porte aussi le test du brief demandé (`cleMontageStudio`) ·
+          mesuré, ?iter=A → ?iter=B gardait les champs de A sous le brief de B. */}
+      {iteration && <PanneauIteration it={iteration} marque={brand?.name ?? null} />}
+
+      <AdsStudio key={cleMontageStudio(brand?.id ?? null, iterDemande)} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={angleInitial} initialPersonaId={personaInitial} iteration={iteration?.etat === 'ok' && brand ? { cle: cleBrouillonIteration(brand.id, iteration.adId) } : null} initialRef={initialRef} initialSource={initialSource} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
     </main>
   );
 }

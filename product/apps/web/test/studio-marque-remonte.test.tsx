@@ -80,6 +80,7 @@ describe('F01 · le remontage par marque ré-ensemence la galerie et le produit'
   it('adoption · la page de Pubs IA monte AdsStudio avec une clé liée à la marque', () => {
     const here = dirname(fileURLToPath(import.meta.url));
     const page = readFileSync(join(here, '../app/(app)/studio/ads/page.tsx'), 'utf8');
-    expect(page).toMatch(/<AdsStudio\s+key=\{brand\?\.id/);
+    // La clé porte la marque (F01) ET, depuis I2, le test d'un brief d'itération.
+    expect(page).toMatch(/<AdsStudio\s+key=\{cleMontageStudio\(brand\?\.id/);
   });
 });

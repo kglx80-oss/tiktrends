@@ -30,7 +30,7 @@ beforeAll(() => {
 afterAll(() => { if (desc) Object.defineProperty(window.HTMLElement.prototype, 'offsetParent', desc); });
 
 const detail = (o: Partial<AdDetail> = {}): AdDetail => ({
-  id: 'a', concept: 'Concept 1', conceptId: 'c', angle: 'Angle 1', desire: null, persona: null, variantCode: 'v1',
+  id: 'a', concept: 'Concept 1', conceptId: 'c', angle: 'Angle 1', desire: null, persona: null, personaId: null, variantCode: 'v1',
   status: 'draft', adType: 'ideation', format: 'static', hypothesis: 'Une preuve chiffrée fait cliquer.', testedVariable: null, variableValue: null,
   launchedAt: null, batchNumber: null, protocolSummary: null, computed: null, validated: null, verdictStatus: null, comparable: true,
   failedStage: null, killFlag: null, reason: null, computedAt: null,
@@ -139,3 +139,20 @@ describe('AdDrawer · ce que dit le panneau selon l’état RÉEL du test', () =
     await fermer();
   });
 });
+
+describe('AdDrawer · I2 · une gagnante arbitrée avec apprentissage ouvre le brief d’itération au Studio', () => {
+  const gagnante = { status: 'live', launchedAt: '2026-09-20T00:00:00Z', computed: 'winner' as const, validated: 'winner' as const, verdictStatus: 'validated' as const, comparable: true };
+  it('gagnante arbitrée + apprentissage → « Préparer l’itération dans le Studio »', async () => {
+    reponse = { detail: detail({ ...gagnante, learnings: [{ id: 'l1', statement: 'Le chiffré tient mieux.', confidence: 4, status: 'validated', scope: 'ad' }] }) };
+    const { dialogue, fermer } = await ouvrir();
+    expect(dialogue.querySelector('a[href="/studio/ads?iter=a"]')?.textContent, 'le lien vers le brief d’itération manque').toContain('Préparer l’itération dans le Studio');
+    await fermer();
+  });
+  it('gagnante SANS apprentissage · pas de lien (aucune fausse itération)', async () => {
+    reponse = { detail: detail({ ...gagnante, learnings: [] }) };
+    const { dialogue, fermer } = await ouvrir();
+    expect(dialogue.querySelector('a[href^="/studio/ads?iter="]'), 'une gagnante sans apprentissage ouvre un brief').toBeNull();
+    await fermer();
+  });
+});
+

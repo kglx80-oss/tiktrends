@@ -39,6 +39,8 @@ export interface AdDetail {
   angle: string | null;
   desire: string | null;
   persona: string | null;
+  /** Le persona du graphe (même table que le Studio) · préremplit l'audience d'une itération (I2). */
+  personaId: string | null;
   variantCode: string;
   status: string;
   adType: string;
@@ -86,6 +88,7 @@ export async function adDetailAction(adId: string): Promise<{ detail?: AdDetail;
       angleLabel: schema.angles.label,
       desireLabel: schema.desires.label,
       personaName: schema.personas.name,
+      personaId: schema.personas.id,
       batchNumber: schema.batches.number,
       protocolCheck: schema.batches.protocolCheck,
       verdict: schema.verdicts,
@@ -163,6 +166,7 @@ export async function adDetailAction(adId: string): Promise<{ detail?: AdDetail;
         angle: row.angleLabel ?? null,
         desire: row.desireLabel ?? null,
         persona: row.personaName ?? null,
+        personaId: row.personaId ?? null,
         variantCode: row.ad.variantCode,
         status: row.ad.status,
         adType: row.ad.adType,
