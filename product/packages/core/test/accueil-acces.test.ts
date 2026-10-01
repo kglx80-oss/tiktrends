@@ -43,3 +43,13 @@ describe('accueil · accès par rôle', () => {
     expect(noteAccesAccueil((h) => h === '/analytics')).toBe('Ton rôle dans cet espace ne comprend pas la création (pubs, images, vidéos, textes), la gestion des marques ni l’analyse des tests et du marché · ces accès n’apparaissent donc pas ici.');
   });
 });
+
+import { commandesOuvertes, regleDuChemin } from '../src/accueil-acces';
+describe('palette · commandes ouvertes (lot 12)', () => {
+  const r = [{ href: '/studio', ouvert: true, verrou: true }, { href: '/brands', ouvert: false }];
+  it('requête ignorée, rubrique fermée retirée, verrou de formule = cadenas, action locale gardée', () => {
+    expect(regleDuChemin('/studio/ads?mode=clone', r)?.href).toBe('/studio');
+    expect(commandesOuvertes([{ href: '/studio/ads?mode=clone' }, { href: '/brands/new' }, { href: undefined }, { href: '/support' }], r))
+      .toEqual([{ href: '/studio/ads?mode=clone', locked: true }, { href: undefined }, { href: '/support' }]);
+  });
+});

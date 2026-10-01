@@ -21,6 +21,18 @@
 export interface RegleChemin {
   href: string;
   ouvert: boolean;
+  /** Ouverte au rôle mais verrouillée par la FORMULE · la page explique l'offre (lot 12). */
+  verrou?: boolean;
+}
+
+/** La rubrique la plus précise qui couvre ce chemin (requête et ancre ignorées), ou `null`. */
+export function regleDuChemin(href: string, regles: readonly RegleChemin[]): RegleChemin | null {
+  const chemin = href.split(/[?#]/)[0]!;
+  let meilleure: RegleChemin | null = null;
+  for (const r of regles) {
+    if ((chemin === r.href || chemin.startsWith(`${r.href}/`)) && (!meilleure || r.href.length > meilleure.href.length)) meilleure = r;
+  }
+  return meilleure;
 }
 
 /**
@@ -30,11 +42,12 @@ export interface RegleChemin {
  * aucun refus.
  */
 export function cheminOuvert(href: string, regles: readonly RegleChemin[]): boolean {
-  let meilleure: RegleChemin | null = null;
-  for (const r of regles) {
-    if ((href === r.href || href.startsWith(`${r.href}/`)) && (!meilleure || r.href.length > meilleure.href.length)) meilleure = r;
-  }
-  return meilleure ? meilleure.ouvert : true;
+  return regleDuChemin(href, regles)?.ouvert ?? true;
+}
+
+/** Ouvert au rôle mais verrouillé par la formule (cadenas dans la palette). */
+export function cheminVerrouille(href: string, regles: readonly RegleChemin[]): boolean {
+  return !!regleDuChemin(href, regles)?.verrou;
 }
 
 /** Le bandeau à la une de l'accueil. */
@@ -109,4 +122,17 @@ export function noteAccesAccueil(ouvert: (href: string) => boolean): string | nu
   if (!fermees.length) return null;
   const liste = fermees.length === 1 ? fermees[0] : `${fermees.slice(0, -1).join(', ')} ni ${fermees[fermees.length - 1]}`;
   return `Ton rôle dans cet espace ne comprend pas ${liste} · ces accès n’apparaissent donc pas ici.`;
+}
+
+/**
+ * Les commandes d'une liste (palette ⌘K) que le rôle ouvre · lot 12. Une
+ * commande fermée au rôle disparaît (elle menait à « Accès réservé » ou à un
+ * renvoi silencieux vers l'accueil) ; une commande verrouillée par la formule
+ * reste, avec son cadenas, comme l'entrée de navigation équivalente.
+ */
+export function commandesOuvertes<T extends { href?: string; locked?: boolean }>(cmds: readonly T[], regles: readonly RegleChemin[]): T[] {
+  // Une commande sans lien (une action locale) n'est pas une rubrique · gardée.
+  return cmds
+    .filter((c) => !c.href || cheminOuvert(c.href, regles))
+    .map((c) => (c.href && cheminVerrouille(c.href, regles) ? { ...c, locked: true } : c));
 }

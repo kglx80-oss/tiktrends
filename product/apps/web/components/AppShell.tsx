@@ -14,7 +14,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, placementLanceurSupport, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, placementLanceurSupport, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, type RegleChemin } from '@tiktrends/core';
 import { chromeCoquille } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -57,6 +57,8 @@ interface AccountGroup { section: string; items: NavItem[] }
 interface Props {
   nav: Group[];
   accountGroups: AccountGroup[];
+  /** Ce que le rôle ouvre, rubrique par rubrique (lot 12) · filtre la palette. Absent = tout ouvert. */
+  ouvertures?: RegleChemin[];
   isStaff: boolean;
   showUpgrade: boolean;
   brands: Brand[];
@@ -202,7 +204,7 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, collapsedInitial, logout, children } = props;
+  const { nav, accountGroups, ouvertures = [], isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, collapsedInitial, logout, children } = props;
   // Menu profil : « Compte » (personnel) + « Espace de travail » (marques, membres,
   // connexions, abonnement, réglages). Les coulisses plateforme (ADMIN+) restent
   // réservées au fondateur/staff.
@@ -347,7 +349,9 @@ function AppShellInner(props: Props) {
   const commands: Command[] = [...recentCommands];
   for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });
   // Verbes d'action : lancer une tâche directement depuis ⌘K (pas seulement naviguer).
-  commands.push(
+  // Lot 12 · filtrés comme le rail (`commandesOuvertes`) · un client en lecture
+  // ne se voit plus proposer de générer, ni un membre de créer une marque.
+  commands.push(...commandesOuvertes<Command>([
     { id: 'do-home', label: 'Accueil', group: 'Actions', href: '/dashboard', icon: 'grid', keywords: 'accueil dashboard maison home retour tableau de bord' },
     { id: 'do-ads', label: 'Générer des pubs IA', group: 'Actions', href: '/studio/ads', icon: 'sparkles', keywords: 'créer pub génération ads publicité' },
     { id: 'do-clone', label: 'Cloner une pub qui tient', group: 'Actions', href: '/studio/ads?mode=clone', icon: 'layers', keywords: 'cloner copier pub concurrent référence' },
@@ -357,9 +361,9 @@ function AppShellInner(props: Props) {
     { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/veille', icon: 'search', keywords: 'veille concurrent recherche pub' },
     { id: 'do-scale', label: 'Voir ce qui scale', group: 'Actions', href: '/veille/scale', icon: 'trend', keywords: 'scale tendance croissance winner' },
     { id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', icon: 'plus', keywords: 'créer marque ajouter' },
-  );
-  // Sauter à une marque de l'espace.
-  for (const b of brands) commands.push({ id: 'brand-' + b.id, label: b.name, group: 'Marques', href: `/brands/${b.id}`, icon: 'tag', keywords: 'marque ' + b.name });
+  ], ouvertures));
+  // Sauter à une marque de l'espace · la fiche est réservée aux admins (lot 12).
+  if (canManageBrands) for (const b of brands) commands.push({ id: 'brand-' + b.id, label: b.name, group: 'Marques', href: `/brands/${b.id}`, icon: 'tag', keywords: 'marque ' + b.name });
   commands.push({ id: 'act-profile', label: 'Mon profil', group: 'Compte', href: '/profile', icon: 'user', keywords: 'profil compte photo' });
   for (const it of personalItems) commands.push({ id: 'acc-' + it.key, label: it.label, group: 'Compte', href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });
   for (const it of workspaceItems) commands.push({ id: 'ws-' + it.key, label: it.label, group: 'Espace de travail', href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });

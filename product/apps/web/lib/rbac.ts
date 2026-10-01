@@ -237,6 +237,19 @@ export function denyReason(a: Access, f: Feature): 'role' | 'plan' | null {
  * de rôle · la rubrique reste proposée et sa page explique l'offre. Ne protège
  * rien · les pages et les actions gardent leurs propres contrôles.
  */
-export function ouverturesParRole(a: Access): Array<{ href: string; ouvert: boolean }> {
-  return FEATURES.map((f) => ({ href: f.href, ouvert: denyReason(a, f) !== 'role' }));
+export function ouverturesParRole(a: Access): Array<{ href: string; ouvert: boolean; verrou: boolean }> {
+  return FEATURES.map((f) => { const d = denyReason(a, f); return { href: f.href, ouvert: d !== 'role', verrou: d === 'plan' }; });
+}
+
+/**
+ * Lot 12 · le menu de compte suit la garde RÉELLE des pages « Espace »
+ * (roleAtLeast admin · brands, team, connections, usage, billing, réglages).
+ * La face équipe plateforme (matrice) les montrait à un membre de l'équipe
+ * dont le rôle d'ESPACE est inférieur · chaque page le renvoyait à l'accueil.
+ * N'élargit rien, ne protège rien · les pages gardent leurs contrôles.
+ */
+export function sectionsCompteOuvertes(a: Access): Array<{ section: AccountSection; items: NavItem[] }> {
+  return accountSections(a)
+    .map((g) => (g.section === 'Espace' && !roleAtLeast(a.role, 'admin') ? { ...g, items: [] } : g))
+    .filter((g) => g.items.length > 0);
 }
