@@ -5,7 +5,7 @@ import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { FEATURES, canAccess } from '../../lib/rbac';
 import { generateCreative, type CreativeOutput } from '@tiktrends/ai';
-import { costFor } from '@tiktrends/core';
+import { costFor, TEXTES_IA_INACTIFS, texteMessageClient } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { effectiveAccess } from '../../lib/access';
@@ -31,7 +31,8 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
   if (!product) return { error: 'Indique au moins un produit ou une marque.' };
 
   const client = guardedAnthropic({ action: 'studio' });
-  if (!client) return { error: "L'IA n'est pas configurée sur le serveur (ANTHROPIC_API_KEY manquante)." };
+  // Copie client · aucun nom de variable n'atteint l'écran (recette #106).
+  if (!client) return { error: texteMessageClient(TEXTES_IA_INACTIFS) };
 
   // Débit atomique AVANT la génération : un seul UPDATE conditionnel, donc deux
   // requêtes lancées en même temps ne peuvent pas passer la même vérification de

@@ -114,7 +114,7 @@ const pluriel = (n: number) => (n > 1 ? 's' : '');
  */
 export function resumeImportDrive(o: { found: number; added: number; skipped: number }): string {
   if (o.found <= 0) {
-    return 'Dossier connecté vide · aucun fichier média trouvé, rien à importer. Google (scope drive.file) ne renvoie que ce que tu as sélectionné · re-sélectionne le dossier, ou choisis un sous-dossier qui contient directement des images/vidéos.';
+    return 'Dossier connecté vide · aucun fichier média trouvé, rien à importer. Google ne nous montre que les fichiers que tu as choisis toi-même · re-sélectionne le dossier, ou choisis un sous-dossier qui contient directement des images/vidéos.';
   }
   const erreurs = Math.max(0, o.found - o.added - o.skipped);
   const bouts = [`${o.found} trouvé${pluriel(o.found)}`, `${o.added} importé${pluriel(o.added)}`];
