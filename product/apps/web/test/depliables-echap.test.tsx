@@ -28,6 +28,26 @@ describe('Aide repliable · Échap et cible', () => {
     expect(d.open, 'Échap ne referme pas l’aide').toBe(false);
     expect(document.activeElement, 'le focus n’est pas rendu au chip').toBe(h.querySelector('summary'));
   });
+  it('le focus clavier qui quitte l’aide la referme · sans voler le focus', () => {
+    pointeur(false);
+    const h = monter(<><PageInfo title="Aide">texte seul</PageInfo><button type="button">après</button></>);
+    const d = h.querySelector('details')!; const titre = h.querySelector('summary')!; const apres = h.querySelector('button')!;
+    titre.focus(); d.open = true;
+    act(() => { apres.focus(); });
+    expect(d.open, 'Tab hors de l’aide · la bulle reste ouverte sur la page').toBe(false);
+    expect(document.activeElement, 'le focus est détourné').toBe(apres);
+  });
+  it('le focus qui reste DANS l’aide ne la referme pas', () => {
+    pointeur(false);
+    const h = monter(<PageInfo title="Aide"><a href="#x">lien</a></PageInfo>);
+    const d = h.querySelector('details')!; h.querySelector('summary')!.focus(); d.open = true;
+    act(() => { h.querySelector('a')!.focus(); });
+    expect(d.open, 'aller au lien de l’aide la referme').toBe(true);
+  });
+  it('les Filtres de la Veille (dans le flux) ne se referment pas en sortant', () => {
+    const src = readFileSync(join(process.cwd(), 'app/(app)/veille/page.tsx'), 'utf8');
+    expect(src).toContain("<DepliableEchap style={{ border: '1px solid var(--line)'");
+  });
   it('44 px au doigt, taille compacte à la souris', () => {
     pointeur(true);
     let h = monter(<PageInfo>texte</PageInfo>);

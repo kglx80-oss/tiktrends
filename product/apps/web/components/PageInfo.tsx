@@ -15,7 +15,8 @@ import { useIsMobile } from './useIsMobile';
  *
  * Recette #106 · Échap le referme et rend le focus au chip (`DepliableEchap`) ;
  * au doigt (tactile ou écran étroit) le chip fait 44 px, à la souris il garde
- * sa taille compacte (31 px mesurés).
+ * sa taille compacte (31 px mesurés). Posée par-dessus la page, elle se
+ * referme quand le focus clavier la quitte (`fermerEnSortant`).
  */
 export function PageInfo({ children, title = 'Mode d’emploi', minHeight, mb }: {
   children: ReactNode; title?: string;
@@ -29,7 +30,7 @@ export function PageInfo({ children, title = 'Mode d’emploi', minHeight, mb }:
   const tactile = useIsMobile('(pointer: coarse), (max-width: 768px)');
   const hauteur = minHeight ?? (tactile ? CIBLE_TACTILE_MIN : undefined);
   return (
-    <DepliableEchap style={{ position: 'relative', display: 'inline-block', marginBottom: mb ?? 14 }}>
+    <DepliableEchap fermerEnSortant style={{ position: 'relative', display: 'inline-block', marginBottom: mb ?? 14 }}>
       <summary style={{
         listStyle: 'none', cursor: 'pointer', userSelect: 'none',
         display: 'inline-flex', alignItems: 'center', gap: 7,
