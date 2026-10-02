@@ -35,3 +35,20 @@ describe('Retour de focus · attendre la disposition finale de la coquille', () 
     expect(cibleRetourFocus({ mediaEtroit: false, coquilleEtroite: false, selecteurALecran: false })).toBe('menu');
   });
 });
+
+describe('Saisies en cours · confirmation avant de changer de marque', () => {
+  it('ne retient que les champs non vides, sans doublon, sans la valeur', async () => {
+    const { saisiesAProteger, texteConfirmationBascule } = await import('../src/bascule-marque');
+    const l = saisiesAProteger([
+      { libelle: 'Message à Jarvis', valeur: 'Analyse ma dernière pub' },
+      { libelle: 'Message à Jarvis', valeur: 'doublon' },
+      { libelle: 'Prompt', valeur: '   ' },
+      { libelle: '', valeur: 'secret' },
+    ]);
+    expect(l, 'un champ vidé ou en double est compté').toEqual(['Message à Jarvis', 'Champ sans nom']);
+    const t = texteConfirmationBascule(['Message à Jarvis'], 'Orée');
+    expect(t).toContain('« Message à Jarvis »');
+    expect(t).not.toContain('Analyse ma dernière pub');
+    expect(texteConfirmationBascule(l, 'Orée')).toContain('2 champs');
+  });
+});

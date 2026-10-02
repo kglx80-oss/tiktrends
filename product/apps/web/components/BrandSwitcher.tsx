@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {
   CIBLE_TACTILE_MIN, basculeMarqueNecessaire, CLE_FOCUS_BASCULE_MARQUE,
   BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE, nomSelecteurMarque, rectangleALecran, cibleRetourFocus,
+  saisiesAProteger, texteConfirmationBascule, TITRE_CONFIRMATION_BASCULE, GARDER_SAISIE, CHANGER_ET_EFFACER,
 } from '@tiktrends/core';
 import { useEffect, useRef, useState } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
@@ -12,6 +13,7 @@ import { SubmitButton } from './SubmitButton';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
 import { useIsMobile, MEDIA_ETROIT } from './useIsMobile';
+import { suivreSaisies, saisiesEnCours } from './saisiesEnCours';
 
 interface Brand { id: string; name: string; logoUrl?: string | null; url?: string | null }
 
@@ -26,6 +28,9 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
   const [quick, setQuick] = useState(false);
   const [enCours, setEnCours] = useState(false);
   const [echec, setEchec] = useState(false);
+  // Lot 15 · une saisie en cours dans la page · on demande avant d'effacer.
+  const [confirmation, setConfirmation] = useState<{ id: string; libelles: string[] } | null>(null);
+  const focusApresConfirmation = useRef(false);
   const declencheur = useRef<HTMLButtonElement>(null);
   const active = brands.find((b) => b.id === activeId) || null;
 
@@ -50,6 +55,13 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
     } catch { /* stockage indisponible · le focus reste au document */ }
   }, [etroit]);
 
+  useEffect(() => { suivreSaisies(); }, []);
+  // « Garder ma saisie » · rien n'a changé (ni cookie, ni marque, ni texte) ·
+  // la main revient au sélecteur (l'option cliquée a disparu avec la liste).
+  useEffect(() => {
+    if (!confirmation && focusApresConfirmation.current) { focusApresConfirmation.current = false; declencheur.current?.focus(); }
+  }, [confirmation]);
+
   // Après un échec, la main revient au sélecteur · une fois RÉACTIVÉ (un
   // bouton encore désactivé refuse le focus).
   useEffect(() => { if (echec) declencheur.current?.focus(); }, [echec]);
@@ -62,6 +74,19 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
   const pick = async (id: string) => {
     setOpen(false);
     if (!basculeMarqueNecessaire(id, activeId)) { declencheur.current?.focus(); return; }
+    const libelles = saisiesAProteger(saisiesEnCours());
+    if (libelles.length) { setConfirmation({ id, libelles }); return; }
+    await basculer(id);
+  };
+
+  const garder = () => { focusApresConfirmation.current = true; setConfirmation(null); };
+  const confirmer = async () => {
+    const id = confirmation?.id;
+    setConfirmation(null);
+    if (id !== undefined) await basculer(id);
+  };
+
+  const basculer = async (id: string) => {
     setEchec(false);
     setEnCours(true);
     try {
@@ -125,6 +150,25 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
           </div>
         </>
       )}
+
+      <Modal open={!!confirmation} onClose={garder} title={TITRE_CONFIRMATION_BASCULE}>
+        {confirmation && (
+          <div style={{ display: 'grid', gap: 14 }}>
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: 'var(--ink-2)' }}>
+              {texteConfirmationBascule(confirmation.libelles, (confirmation.id ? (brands.find((b) => b.id === confirmation.id)?.name ?? 'cette marque') : 'toutes les marques'))}
+            </p>
+            {confirmation.libelles.length > 1 && (
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+                {confirmation.libelles.map((l) => <li key={l}>{l}</li>)}
+              </ul>
+            )}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={garder} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{GARDER_SAISIE}</button>
+              <button type="button" onClick={confirmer} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid rgba(255,90,120,.45)', background: 'transparent', color: '#ff9db0', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{CHANGER_ET_EFFACER}</button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Création rapide en pop-up · le parcours détaillé (5 étapes) reste accessible. */}
       <Modal open={quick} onClose={() => setQuick(false)} icon={<Icon name="tag" size={18} />} title="Nouvelle marque"

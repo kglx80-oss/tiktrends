@@ -23,6 +23,7 @@ vi.mock('../app/actions/brands', () => ({
 }));
 
 const { BrandSwitcher, navigateur } = await import('../components/BrandSwitcher');
+const { oublierSaisies } = await import('../components/saisiesEnCours');
 
 const LONG = 'Maison Lumière des Herboristes Associés · Collection Printemps-Été Édition Limitée';
 const MARQUES = [{ id: 'neva', name: 'Neva' }, { id: 'long', name: LONG }, { id: 'oree', name: 'Orée Cosmétiques' }];
@@ -127,5 +128,57 @@ describe('Sélecteur de marque · nom complet (n° 23)', () => {
     const visibles = [...declencheur().childNodes].filter((n) => !(n as HTMLElement).getAttribute?.('aria-hidden')).map((n) => n.textContent).join('');
     expect(visibles).toBe('Neva');
     expect(option('Neva').getAttribute('aria-current')).toBe('true');
+  });
+});
+
+describe('Changer de marque avec une saisie en cours (lot 15)', () => {
+  let main: HTMLElement | null = null;
+  const champ = (prerempli = '') => {
+    main = document.createElement('main'); document.body.appendChild(main);
+    const t = document.createElement('textarea'); t.setAttribute('aria-label', 'Message à Jarvis'); t.value = prerempli; main.appendChild(t);
+    return t;
+  };
+  const taper = (t: HTMLTextAreaElement, v: string) => { t.value = v; t.dispatchEvent(new Event('input', { bubbles: true })); };
+  const dialogue = () => document.querySelector('[role="dialog"]') as HTMLElement | null;
+  const bouton = (txt: string) => [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent === txt) as HTMLButtonElement;
+  afterEach(() => { main?.remove(); main = null; oublierSaisies(); });
+
+  it('une saisie tapée demande avant de changer · « Garder » ne touche ni au texte, ni au cookie, ni à la marque', async () => {
+    const t = champ(); monter('neva'); taper(t, 'Analyse ma dernière pub');
+    ouvrir();
+    await act(async () => { option('Orée Cosmétiques').click(); });
+    expect(dialogue(), 'la saisie est effacée sans prévenir').toBeTruthy();
+    expect(setActiveBrand, 'le cookie change avant la réponse').not.toHaveBeenCalled();
+    expect(recharger).not.toHaveBeenCalled();
+    expect(dialogue()!.textContent).toContain('« Message à Jarvis »');
+    expect(dialogue()!.textContent, 'la valeur saisie est affichée').not.toContain('Analyse ma dernière pub');
+    await act(async () => { bouton('Garder ma saisie').click(); });
+    expect(dialogue()).toBeNull();
+    expect(t.value).toBe('Analyse ma dernière pub');
+    expect(setActiveBrand).not.toHaveBeenCalled();
+    expect(recharger).not.toHaveBeenCalled();
+    expect(declencheur().getAttribute('aria-label')).toBe('Marque active : Neva · changer de marque');
+    expect(document.activeElement, 'la main ne revient pas au sélecteur').toBe(declencheur());
+  });
+
+  it('« Changer de marque et effacer » bascule, cookie d’abord, puis rechargement', async () => {
+    setActiveBrand.mockResolvedValue(undefined);
+    const t = champ(); monter('neva'); taper(t, 'brouillon');
+    ouvrir();
+    await act(async () => { option('Orée Cosmétiques').click(); });
+    await act(async () => { bouton('Changer de marque et effacer').click(); });
+    expect(setActiveBrand).toHaveBeenCalledWith('oree');
+    expect(recharger).toHaveBeenCalledTimes(1);
+  });
+
+  it('un champ prérempli par la page ou vidé par l’utilisateur ne bloque rien', async () => {
+    setActiveBrand.mockResolvedValue(undefined);
+    champ('texte prérempli par la page');
+    const vide = document.createElement('input'); vide.setAttribute('aria-label', 'Recherche'); main!.appendChild(vide);
+    monter('neva'); taper(vide as unknown as HTMLTextAreaElement, 'x'); taper(vide as unknown as HTMLTextAreaElement, '');
+    ouvrir();
+    await act(async () => { option('Orée Cosmétiques').click(); });
+    expect(dialogue(), 'une confirmation pour un champ vide ou prérempli').toBeNull();
+    expect(recharger).toHaveBeenCalledTimes(1);
   });
 });

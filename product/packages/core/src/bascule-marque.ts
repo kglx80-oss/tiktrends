@@ -84,3 +84,35 @@ export function cibleRetourFocus(e: { mediaEtroit: boolean; coquilleEtroite: boo
   if (e.mediaEtroit) return 'menu';
   return e.selecteurALecran ? 'selecteur' : 'menu';
 }
+
+/**
+ * Saisies en cours (lot 15) · changer de marque recharge la page, ce qui
+ * effaçait sans le dire un message Jarvis ou un prompt non envoyé. Avant de
+ * changer, on liste les champs que l'utilisateur a VRAIMENT remplis (frappe
+ * réelle, valeur non vide) et on demande. On ne garde ni n'affiche jamais la
+ * VALEUR · seulement le nom du champ · un mot de passe n'en sort pas.
+ */
+export interface SaisieEnCours { libelle: string; valeur: string }
+
+/** Les noms des champs non vides, dédoublonnés, dans l'ordre de la page. */
+export function saisiesAProteger(champs: SaisieEnCours[]): string[] {
+  const vus = new Set<string>();
+  const out: string[] = [];
+  for (const c of champs) {
+    if (!c.valeur.trim()) continue;
+    const l = (c.libelle.trim() || 'Champ sans nom').replace(/\s+/g, ' ').slice(0, 60);
+    if (vus.has(l)) continue;
+    vus.add(l);
+    out.push(l);
+  }
+  return out;
+}
+
+export const TITRE_CONFIRMATION_BASCULE = 'Ta saisie sera effacée';
+export const GARDER_SAISIE = 'Garder ma saisie';
+export const CHANGER_ET_EFFACER = 'Changer de marque et effacer';
+
+export function texteConfirmationBascule(libelles: string[], marqueCible: string): string {
+  const champs = libelles.length === 1 ? `le champ « ${libelles[0]} »` : `${libelles.length} champs`;
+  return `Tu as commencé à écrire dans ${champs}. Passer à ${marqueCible} recharge la page et efface ce texte · il n’est gardé nulle part.`;
+}
