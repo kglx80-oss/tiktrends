@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
-import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import {
+  CIBLE_TACTILE_MIN, basculeMarqueNecessaire, CLE_FOCUS_BASCULE_MARQUE,
+  BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE,
+} from '@tiktrends/core';
+import { useEffect, useRef, useState } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
 import { Modal } from './Modal';
 import { SubmitButton } from './SubmitButton';
@@ -12,42 +14,84 @@ import { AvatarSite } from './AvatarSite';
 
 interface Brand { id: string; name: string; logoUrl?: string | null; url?: string | null }
 
+/**
+ * Le rechargement complet, isolé pour que le test le remplace · `window.location`
+ * n'est pas redéfinissable dans jsdom.
+ */
+export const navigateur = { recharger: () => window.location.reload() };
+
 export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]; activeId: string | null; canManage: boolean }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [quick, setQuick] = useState(false);
-  const [, start] = useTransition();
+  const [enCours, setEnCours] = useState(false);
+  const [echec, setEchec] = useState(false);
+  const declencheur = useRef<HTMLButtonElement>(null);
   const active = brands.find((b) => b.id === activeId) || null;
 
-  const pick = (id: string) => {
+  // Retour d'un changement de marque · le focus revient au sélecteur, là où
+  // l'utilisateur l'avait laissé (cf. noyau `bascule-marque`).
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE)) {
+        sessionStorage.removeItem(CLE_FOCUS_BASCULE_MARQUE);
+        declencheur.current?.focus();
+      }
+    } catch { /* stockage indisponible · le focus reste au document */ }
+  }, []);
+
+  // Après un échec, la main revient au sélecteur · une fois RÉACTIVÉ (un
+  // bouton encore désactivé refuse le focus).
+  useEffect(() => { if (echec) declencheur.current?.focus(); }, [echec]);
+
+  const fermer = () => { setOpen(false); declencheur.current?.focus(); };
+
+  // Lot 14 · n° 29 · le rafraîchissement souple du routeur calait une fois sur
+  // deux (mesures dans le noyau `bascule-marque`). Le cookie posé, la page est
+  // rechargée en entier · rail, contenu et cookie sortent du même rendu.
+  const pick = async (id: string) => {
     setOpen(false);
-    start(async () => { await setActiveBrand(id); router.refresh(); });
+    if (!basculeMarqueNecessaire(id, activeId)) { declencheur.current?.focus(); return; }
+    setEchec(false);
+    setEnCours(true);
+    try {
+      await setActiveBrand(id);
+    } catch {
+      setEnCours(false);
+      setEchec(true);
+      return;
+    }
+    try { sessionStorage.setItem(CLE_FOCUS_BASCULE_MARQUE, '1'); } catch { /* sans stockage, pas de retour de focus */ }
+    navigateur.recharger();
   };
 
   return (
-    <div style={{ position: 'relative', margin: '8px 0 0' }}>
-      <button type="button" onClick={() => setOpen((o) => !o)} style={{
-        width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 10,
-        border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer',
-      }}>
+    <div style={{ position: 'relative', margin: '8px 0 0' }}
+      onKeyDown={(e) => { if (open && e.key === 'Escape') { e.stopPropagation(); fermer(); } }}>
+      <button ref={declencheur} type="button" onClick={() => setOpen((o) => !o)} disabled={enCours}
+        aria-expanded={open} aria-controls="selecteur-marque-liste" aria-busy={enCours || undefined}
+        style={{
+          width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 10,
+          border: '1px solid var(--line)', background: 'var(--surface)', cursor: enCours ? 'progress' : 'pointer', opacity: enCours ? 0.7 : 1,
+        }}>
         {/* La favicon de la marque active · identité reconnaissable d'un coup d'œil.
             « Toutes les marques » n'a pas de site propre · on garde le pavé neutre. */}
         {active
           ? <AvatarSite nom={active.name} site={active.url} taille={20} rayon={6} />
           : <span style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', flexShrink: 0 }} />}
         <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {active ? active.name : 'Toutes les marques'}
+          {enCours ? BASCULE_MARQUE_EN_COURS : (active ? active.name : 'Toutes les marques')}
         </span>
         <span style={{ color: 'var(--muted)', fontSize: 11 }}>▾</span>
       </button>
+      {echec && <p role="alert" style={{ margin: '6px 2px 0', fontSize: 12, lineHeight: 1.4, color: 'var(--ink-2)' }}>{ECHEC_BASCULE_MARQUE}</p>}
 
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-          <div style={{ position: 'absolute', zIndex: 30, top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}>
-            <button type="button" onClick={() => pick('')} style={row(!activeId)}>Toutes les marques</button>
+          <div id="selecteur-marque-liste" style={{ position: 'absolute', zIndex: 30, top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}>
+            <button type="button" onClick={() => pick('')} aria-current={!activeId || undefined} style={row(!activeId)}>Toutes les marques</button>
             {brands.map((b) => (
-              <button key={b.id} type="button" onClick={() => pick(b.id)} style={row(b.id === activeId)}>
+              <button key={b.id} type="button" onClick={() => pick(b.id)} aria-current={b.id === activeId || undefined} style={row(b.id === activeId)}>
                 <AvatarSite nom={b.name} site={b.url} taille={16} rayon={5} />
                 <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</span>
               </button>

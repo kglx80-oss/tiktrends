@@ -145,6 +145,7 @@ export * from './copie-service';
 export * from './accueil-acces';
 export * from './galerie-pagination';
 export * from './meme-chemin';
+export * from './bascule-marque';
 export * from './lanceur-support';
 export * from './filtres-url';
 export * from './compte-vue';
