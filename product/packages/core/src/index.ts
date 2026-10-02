@@ -143,6 +143,7 @@ export * from './zone-cible';
 export * from './adsmap/historique-fiche';
 export * from './copie-service';
 export * from './accueil-acces';
+export * from './galerie-pagination';
 export * from './meme-chemin';
 export * from './lanceur-support';
 export * from './filtres-url';

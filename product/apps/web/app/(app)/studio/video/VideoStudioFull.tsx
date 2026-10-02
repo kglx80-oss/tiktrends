@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, type BrandVideo, type AnimatableAsset } from '../../../actions/video';
-import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, costFor, CIBLE_TACTILE_MIN, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
+import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, pageVideosMarque, type BrandVideo, type PageVideos, type AnimatableAsset } from '../../../actions/video';
+import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, costFor, CIBLE_TACTILE_MIN, compteurGalerie, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
-import { Pager, PAGE_SIZE } from '../../../../components/Pager';
+import { Pager } from '../../../../components/Pager';
+import { useGaleriePaginee } from '../../../../components/useGaleriePaginee';
+import { focusApresRetrait } from '../../../../components/focusApresRetrait';
 import { DropZone } from '../../../../components/DropZone';
 import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
@@ -24,7 +26,7 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
 const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
 
 export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, initialPrompt, assets, adsmap = false }: {
-  ready: boolean; aiReady?: boolean; brandName: string | null; initialVideos: BrandVideo[]; initialPrompt?: string; assets: AnimatableAsset[];
+  ready: boolean; aiReady?: boolean; brandName: string | null; initialVideos: PageVideos; initialPrompt?: string; assets: AnimatableAsset[];
   /** L'utilisateur a l'atelier de test · affiche « Suivre dans Adsmap » sur chaque vidéo. */
   adsmap?: boolean;
 }) {
@@ -55,7 +57,13 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [suggesting, startSuggest] = useTransition();
-  const [videos, setVideos] = useState<BrandVideo[]>(initialVideos);
+  // Lot 13 · une page à la fois, lue sur le serveur (toutes les générations,
+  // ordre stable) · plus les 24 dernières paginées côté client.
+  const galerie = useGaleriePaginee<BrandVideo, PageVideos>(initialVideos, pageVideosMarque);
+  const videos = galerie.etat.items;
+  const setVideos = galerie.setItems;
+  const grilleRef = useRef<HTMLDivElement>(null);
+  const titreGalerieRef = useRef<HTMLHeadingElement>(null);
   // La scène reprise · consignée à la génération, c'est ce qui lui bâtit un
   // bilan. Toute frappe la libère : un texte retouché n'est plus la scène.
   const [sceneId, setSceneId] = useState('');
@@ -64,7 +72,6 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   // c'est-à-dire après l'avoir fabriquée. Ici, il économise les deux.
   const preflight = usePreflight(prompt);
   const { scenes, enregistrer, erreur: sceneErreur, conseil } = useScenes('video');
-  const [vidPage, setVidPage] = useState(0);
   const [assistantOuvert, setAssistantOuvert] = useState(false);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
@@ -79,26 +86,35 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   }
 
   async function removeVideo(id: string) {
+    const rang = videos.findIndex((v) => v.id === id);
     setVideos((list) => list.filter((v) => v.id !== id));
     if (!id.startsWith('tmp-')) await deleteVideoAction(id);
+    // La page se recomble depuis la suivante · compteurs exacts.
+    await galerie.recharger();
+    focusApresRetrait(grilleRef.current, Math.max(0, rang), titreGalerieRef.current);
   }
 
   // Nettoyage des timers au démontage.
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
-  // Au chargement : reprendre le suivi des vidéos encore « en cours » (sinon le spinner ne bouge jamais).
+  // À chaque page lue : reprendre le suivi des vidéos encore « en cours » de
+  // CETTE page (sinon le spinner ne bouge jamais), une seule fois par vidéo.
+  const suivies = useRef(new Set<string>());
   useEffect(() => {
     const now = Date.now();
-    initialVideos.forEach((v) => {
+    const perimees: string[] = [];
+    videos.forEach((v) => {
       if ((v.status !== 'processing' && v.status !== 'queued') || v.id.startsWith('tmp-')) return;
       const ageMin = (now - new Date(v.createdAt).getTime()) / 60000;
       // Trop vieux : on l'affiche en échec tout de suite (le serveur le confirmera aussi).
       // Le badge « Échec » seul ne disait pas pourquoi · c'est le délai (lot 9).
-      if (ageMin > 20) { setVideos((list) => list.map((x) => x.id === v.id ? { ...x, status: 'failed', error: x.error ?? 'Sans résultat après 20 minutes · considérée comme échouée.' } : x)); }
-      if (v.jobId) poll(v.id, v.jobId);
+      if (ageMin > 20) perimees.push(v.id);
+      if (v.jobId && !suivies.current.has(v.id)) { suivies.current.add(v.id); poll(v.id, v.jobId); }
     });
+    // Ne réécrit que s'il y a quelque chose à changer · pas de boucle.
+    if (perimees.length) setVideos((list) => list.map((x) => perimees.includes(x.id) ? { ...x, status: 'failed', error: x.error ?? 'Sans résultat après 20 minutes · considérée comme échouée.' } : x));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [videos]);
 
   function poll(id: string, jobId: string, tries = 0) {
     const t = setTimeout(async () => {
@@ -128,7 +144,10 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
       const id = res.generationId ?? `tmp-${res.jobId}`;
       const fresh: BrandVideo = { id, prompt: prompt.trim() || '(image animée)', mode, status: 'processing', jobId: res.jobId, videoUrl: null, createdAt: new Date().toISOString() };
       setVideos((list) => [fresh, ...list]);
+      suivies.current.add(id);
       poll(id, res.jobId);
+      // Relire la première page sous une nouvelle borne · compteurs exacts.
+      void galerie.depuisLeDebut();
       if (mode === 't2v') setPrompt('');
     }
   }
@@ -257,19 +276,20 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
 
       {/* Galerie */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Tes vidéos {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
-        <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{videos.length}</span>
+        <h2 ref={titreGalerieRef} tabIndex={-1} style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)', outline: 'none' }}>Tes vidéos {brandName ? <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>· {brandName}</span> : null}</h2>
+        {/* Lot 13 · compteur EXACT de toutes les générations, et des vidéos prêtes. */}
+        <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{compteurGalerie({ generations: galerie.etat.generations, sorties: galerie.etat.sorties, genre: 'video' })}</span>
       </div>
 
-      {videos.length === 0 ? (
+      {galerie.etat.generations === 0 && videos.length === 0 ? (
         <Empty
           tone="wait" title="Aucune vidéo pour l’instant."
           why="Génère la première ci-dessus · les vidéos produites s’empilent ici."
         />
       ) : (
         <>{/* 224 px · la barre d’actions doit loger 4 cases de 44 px + 3 écarts (194 px) DANS la carte (marges et bord déduits), avec de la marge. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(224px, 1fr))', gap: 14 }}>
-          {videos.slice(vidPage * PAGE_SIZE, (vidPage + 1) * PAGE_SIZE).map((v) => {
+        <div ref={grilleRef} aria-busy={galerie.chargement} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(224px, 1fr))', gap: 14, opacity: galerie.chargement ? 0.6 : 1 }}>
+          {videos.map((v) => {
             const st = STATUS_LABEL[v.status] ?? STATUS_LABEL.processing!;
             const pending = v.status === 'processing' || v.status === 'queued';
             return (
@@ -313,7 +333,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
             );
           })}
         </div>
-        <Pager page={vidPage} total={videos.length} onPage={setVidPage} /></>
+        <Pager page={galerie.etat.page} total={galerie.etat.generations} onPage={(p) => { void galerie.aller(p); }} /></>
       )}
       <AssistantVideo
         ouvert={assistantOuvert}

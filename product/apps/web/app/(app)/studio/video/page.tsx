@@ -3,7 +3,7 @@ import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
-import { listBrandVideos, listAnimatableAssets } from '../../../actions/video';
+import { pageVideosMarque, listAnimatableAssets } from '../../../actions/video';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { VideoStudioFull } from './VideoStudioFull';
 import { PageInfo } from '../../../../components/PageInfo';
@@ -35,7 +35,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
 
   const sp = await searchParams;
   const brand = await getActiveBrand(s.workspaceId);
-  const [videos, assets] = await Promise.all([listBrandVideos(), listAnimatableAssets()]);
+  const [videos, assets] = await Promise.all([pageVideosMarque(), listAnimatableAssets()]);
   // Même accès que les pubs · la vidéo peut désormais être poussée en test dans
   // Adsmap (le pont accepte le format vidéo). On expose le bouton « Suivre »
   // seulement à qui a l'atelier de test, comme le studio Pubs IA.
@@ -57,7 +57,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
         {costFor('video')} crédits par tranche de 5 s · le prix exact s'affiche sur le bouton avant le clic.
       </PageInfo>
 
-      <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} adsmap={adsmapOpen} />
+      <VideoStudioFull key={brand?.id ?? 'sans-marque'} ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} adsmap={adsmapOpen} />
     </main>
   );
 }

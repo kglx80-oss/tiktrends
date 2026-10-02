@@ -1,12 +1,12 @@
 'use server';
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
 import { enhanceImagePrompt, suggestImageBrief, scoreCreative } from '@tiktrends/ai';
-import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS, promptImage, noteImage, type NoteImage, messageServiceInactif } from '@tiktrends/core';
+import { costFor, imageModelByKey, falModelFor, UNIVERSE_PREVIEW_STATUS, fenetrePage, borneConsultation, TAILLE_PAGE_GALERIE, promptImage, noteImage, type NoteImage, messageServiceInactif } from '@tiktrends/core';
 import { imageJointe } from '../../lib/image-jointe';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { listBrandAssetImageUrls, resolveAssetImageUrls } from './assets';
@@ -271,28 +271,63 @@ export async function importAllProductImagesAction(): Promise<{ updated: number;
   return { updated: updatedIds.length, total: rows.length, updatedIds, note };
 }
 
-export async function listBrandImages(): Promise<BrandImage[]> {
+/** Une page de la galerie Image · lot 13 (voir core/galerie-pagination). */
+export interface PageImages {
+  items: BrandImage[];
+  page: number;
+  pages: number;
+  de: number;
+  a: number;
+  /** Visuels produits (une génération Image en produit plusieurs). */
+  sorties: number;
+  /** Générations ayant produit au moins un visuel. */
+  generations: number;
+  /** Notes sur TOUTES les sorties (débrief), pas seulement la page. */
+  notes: { up: number; down: number };
+  /** Borne de la consultation (ISO) · à renvoyer pour paginer sans décalage. */
+  jusqua: string;
+}
+
+const PAGE_IMAGES_VIDE = (jusqua: string): PageImages => ({ items: [], page: 0, pages: 1, de: 0, a: 0, sorties: 0, generations: 0, notes: { up: 0, down: 0 }, jusqua });
+
+/**
+ * Une page de la galerie Image de la marque active · lecture seule.
+ *
+ * Lot 13 · on chargeait les 24 dernières générations puis on paginait ce
+ * reliquat côté client · les plus anciennes devenaient inaccessibles. Ici, la
+ * pagination porte sur TOUTES les sorties (une ligne par visuel, `unnest` avec
+ * son rang), triées de façon stable (date ↓, id ↓, rang ↑), sous la borne de
+ * consultation · jamais plus de TAILLE_PAGE_GALERIE lignes chargées.
+ */
+export async function pageImagesMarque(p: { page?: number; jusqua?: string } = {}): Promise<PageImages> {
+  const borne = borneConsultation(p.jusqua, new Date());
+  const iso = borne.toISOString();
   const s = await getSession();
-  if (!s || !db) return [];
+  if (!s || !db) return PAGE_IMAGES_VIDE(iso);
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return [];
-  const rows = await db.select({
-    id: schema.generations.id, input: schema.generations.input,
-    assetUrls: schema.generations.assetUrls, status: schema.generations.status,
-    createdAt: schema.generations.createdAt,
-  }).from(schema.generations)
-    .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'image')))
-    .orderBy(desc(schema.generations.createdAt)).limit(24);
-  const out: BrandImage[] = [];
-  for (const g of rows) {
-    if (g.status === 'archived') continue; // masquer les rendus archivés
-    // Les aperçus d'univers vivent dans la même table · ils n'ont jamais été
-    // demandés ici et n'ont rien à faire dans la galerie de la marque.
-    if (g.status === UNIVERSE_PREVIEW_STATUS) continue;
-    const input = (g.input ?? {}) as { prompt?: string; rating?: import('./creatives').Rating };
-    for (const url of g.assetUrls ?? []) out.push({ id: g.id + ':' + url, prompt: input.prompt || '', url, createdAt: (g.createdAt as Date).toISOString(), rating: input.rating ?? null });
-  }
-  return out;
+  if (!brand) return PAGE_IMAGES_VIDE(iso);
+  const g = schema.generations;
+  // Mêmes exclusions qu'avant (archivés, aperçus d'univers), APPLIQUÉES AVANT le
+  // découpage · elles l'étaient après le `limit(24)`.
+  const visible = sql`${g.brandId} = ${brand.id} and ${g.kind} = 'image' and coalesce(${g.status}, '') not in ('archived', ${UNIVERSE_PREVIEW_STATUS}) and ${g.createdAt} <= ${iso}`;
+  const [c] = (await db.execute(sql`
+    select count(*)::int as sorties, count(distinct ${g.id})::int as generations,
+      count(*) filter (where ${g.input}->>'rating' = 'up')::int as up,
+      count(*) filter (where ${g.input}->>'rating' = 'down')::int as down
+    from ${g} cross join lateral unnest(${g.assetUrls}) as u(url)
+    where ${visible}`)) as unknown as Array<{ sorties: number; generations: number; up: number; down: number }>;
+  const f = fenetrePage(c?.sorties ?? 0, p.page ?? 0, TAILLE_PAGE_GALERIE);
+  const rows = (await db.execute(sql`
+    select ${g.id} as id, ${g.input} as input, ${g.createdAt} as created_at, u.url as url, u.ord as ord
+    from ${g} cross join lateral unnest(${g.assetUrls}) with ordinality as u(url, ord)
+    where ${visible}
+    order by ${g.createdAt} desc, ${g.id} desc, u.ord asc
+    limit ${TAILLE_PAGE_GALERIE} offset ${f.offset}`)) as unknown as Array<{ id: string; input: unknown; created_at: Date | string; url: string; ord: number }>;
+  const items: BrandImage[] = rows.map((r) => {
+    const input = (r.input ?? {}) as { prompt?: string; rating?: import('./creatives').Rating };
+    return { id: r.id + ':' + r.url, prompt: input.prompt || '', url: r.url, createdAt: new Date(r.created_at).toISOString(), rating: input.rating ?? null };
+  });
+  return { items, page: f.page, pages: f.pages, de: f.de, a: f.a, sorties: c?.sorties ?? 0, generations: c?.generations ?? 0, notes: { up: c?.up ?? 0, down: c?.down ?? 0 }, jusqua: iso };
 }
 
 /**

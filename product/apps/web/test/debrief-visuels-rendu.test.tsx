@@ -26,6 +26,8 @@ describe('le studio Image branche le débrief', () => {
   it('agrège les notes des visuels et rend la bande', () => {
     expect(STUDIO).toContain('debriefVisuels(');
     expect(STUDIO).toContain('<DebriefVisuelsStrip');
-    expect(STUDIO).toMatch(/im\.rating \?\? null/);
+    // Lot 13 · les notes viennent du compte serveur de TOUTES les sorties, pas de la seule page affichée.
+    expect(STUDIO).toContain('galerie.etat.notes.up');
+    expect(STUDIO).toContain('galerie.etat.notes.down');
   });
 });

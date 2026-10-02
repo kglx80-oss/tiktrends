@@ -43,7 +43,7 @@ describe('Cartes Image et Vidéo · actions en grille', () => {
   for (const p of ['app/(app)/studio/image/ImageStudio.tsx', 'app/(app)/studio/video/VideoStudioFull.tsx']) {
     it(`${p.split('/').pop()} · la carte loge quatre cases sur une ligne`, () => {
       const s = src(p);
-      const min = Number(/repeat\(auto-fill, minmax\((\d+)px, 1fr\)\)', gap: 14 \}\}>/.exec(s)?.[1]);
+      const min = Number(/repeat\(auto-fill, minmax\((\d+)px, 1fr\)\)', gap: 14[ ,]/.exec(s)?.[1]);
       // Bord 2 × 1 px, marge intérieure 2 × 12 px au plus (Image 11, Vidéo 12).
       const interieur = min - 2 - 24;
       expect(interieur, `carte de ${min} px · ${interieur} px utiles, il en faut ${4 * CIBLE_TACTILE_MIN + 18}`).toBeGreaterThanOrEqual(4 * CIBLE_TACTILE_MIN + 3 * 6);
