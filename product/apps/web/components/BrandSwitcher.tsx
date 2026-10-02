@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   CIBLE_TACTILE_MIN, basculeMarqueNecessaire, CLE_FOCUS_BASCULE_MARQUE,
-  BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE, nomSelecteurMarque,
+  BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE, nomSelecteurMarque, rectangleALecran,
 } from '@tiktrends/core';
 import { useEffect, useRef, useState } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
@@ -34,7 +34,11 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
     try {
       if (sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE)) {
         sessionStorage.removeItem(CLE_FOCUS_BASCULE_MARQUE);
-        declencheur.current?.focus();
+        const b = declencheur.current;
+        // À 390 px le sélecteur est dans le tiroir fermé · le focus va alors au
+        // bouton qui ouvre ce tiroir, pas hors de l'écran.
+        if (b && rectangleALecran(b.getBoundingClientRect(), window.innerWidth, window.innerHeight)) b.focus();
+        else document.querySelector<HTMLButtonElement>('button[aria-controls="nav-rail"]')?.focus();
       }
     } catch { /* stockage indisponible · le focus reste au document */ }
   }, []);

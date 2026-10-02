@@ -61,3 +61,13 @@ export const ECHEC_BASCULE_MARQUE = 'Le changement de marque n’a pas abouti ·
 export function nomSelecteurMarque(active: string | null): string {
   return `Marque active : ${active ?? 'toutes les marques'} · changer de marque`;
 }
+
+/**
+ * Le sélecteur est-il à l'écran ? À 390 px il vit dans le tiroir de navigation,
+ * fermé après le rechargement (translaté hors champ, mesuré x = −172) · y
+ * rendre le focus le perdrait hors de l'écran. Dans ce cas, le focus va au
+ * bouton qui ouvre ce tiroir.
+ */
+export function rectangleALecran(r: { left: number; right: number; top: number; bottom: number; width: number; height: number }, largeur: number, hauteur: number): boolean {
+  return r.width > 0 && r.height > 0 && r.right > 0 && r.left < largeur && r.bottom > 0 && r.top < hauteur;
+}

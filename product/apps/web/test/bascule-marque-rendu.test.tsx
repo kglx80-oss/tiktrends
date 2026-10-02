@@ -76,9 +76,21 @@ describe('Sélecteur de marque · bascule par rechargement complet', () => {
 
   it('au retour du rechargement, le focus revient au sélecteur, une seule fois', () => {
     sessionStorage.setItem(CLE_FOCUS_BASCULE_MARQUE, '1');
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left: 12, top: 110, right: 172, bottom: 154, width: 160, height: 44, x: 12, y: 110, toJSON: () => ({}) } as DOMRect);
     monter('oree');
+    rect.mockRestore();
     expect(document.activeElement, 'le focus est perdu au document après la bascule').toBe(declencheur());
     expect(sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE)).toBeNull();
+  });
+
+  it('à 390, sélecteur dans le tiroir fermé · le focus va au bouton du menu, pas hors de l’écran', () => {
+    sessionStorage.setItem(CLE_FOCUS_BASCULE_MARQUE, '1');
+    const menu = document.createElement('button'); menu.setAttribute('aria-controls', 'nav-rail'); menu.textContent = 'Ouvrir le menu'; document.body.appendChild(menu);
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left: -172, top: 110, right: -12, bottom: 154, width: 160, height: 44, x: -172, y: 110, toJSON: () => ({}) } as DOMRect);
+    monter('oree');
+    rect.mockRestore();
+    expect(document.activeElement, 'le focus part hors de l’écran, dans le tiroir fermé').toBe(menu);
+    menu.remove();
   });
 
   it('Échap ferme la liste et rend le focus au sélecteur', () => {
