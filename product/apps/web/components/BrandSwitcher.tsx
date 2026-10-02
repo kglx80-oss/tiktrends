@@ -102,7 +102,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
 
   return (
     <div style={{ position: 'relative', margin: '8px 0 0' }}
-      onKeyDown={(e) => { if (open && e.key === 'Escape') { e.stopPropagation(); fermer(); } }}>
+      onKeyDown={(e) => { if (open && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fermer(); } }}>
       <button ref={declencheur} type="button" onClick={() => setOpen((o) => !o)} disabled={enCours}
         aria-label={enCours ? BASCULE_MARQUE_EN_COURS : nomSelecteurMarque(active ? active.name : null)}
         aria-expanded={open} aria-controls="selecteur-marque-liste" aria-busy={enCours || undefined}

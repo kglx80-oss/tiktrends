@@ -31,6 +31,12 @@ export interface Chrome {
   voile: boolean;
   /** Largeur du rail, en pixels. */
   largeurRail: number;
+  /**
+   * Lot 15 · le tiroir FERMÉ sort de l'ordre de tabulation et de l'arbre
+   * d'accessibilité (`inert`) · mesuré à 390, 17 à 19 arrêts Tab tombaient hors
+   * écran avant le contenu.
+   */
+  railInerte: boolean;
 }
 
 /**
@@ -44,7 +50,16 @@ export const RAIL_REDUIT = 64;
 export function chromeCoquille({ mobile, collapsed, drawerOuvert }: EtatChrome): Chrome {
   const largeurRail = collapsed ? RAIL_REDUIT : RAIL_DEVELOPPE;
   if (!mobile) {
-    return { colonnes: `${largeurRail}px minmax(0,1fr)`, railTiroir: false, railVisible: true, hamburger: false, voile: false, largeurRail };
+    return { colonnes: `${largeurRail}px minmax(0,1fr)`, railTiroir: false, railVisible: true, hamburger: false, voile: false, largeurRail, railInerte: false };
   }
-  return { colonnes: '1fr', railTiroir: true, railVisible: drawerOuvert, hamburger: true, voile: drawerOuvert, largeurRail };
+  return { colonnes: '1fr', railTiroir: true, railVisible: drawerOuvert, hamburger: true, voile: drawerOuvert, largeurRail, railInerte: !drawerOuvert };
+}
+
+/**
+ * Échap en couches (lot 15) · la touche ferme d'abord la couche INTERNE (liste
+ * de marques, qui marque l'événement comme traité, ou une autre fenêtre de
+ * dialogue ouverte par-dessus) · le tiroir ne se ferme qu'au Échap suivant.
+ */
+export function echapFermeTiroir(e: { touche: string; dejaTraite: boolean; dansAutreDialogue: boolean }): boolean {
+  return e.touche === 'Escape' && !e.dejaTraite && !e.dansAutreDialogue;
 }

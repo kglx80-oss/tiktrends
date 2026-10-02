@@ -15,7 +15,7 @@ import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
 import { CIBLE_TACTILE_MIN, placementLanceurSupport, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, type RegleChemin } from '@tiktrends/core';
-import { chromeCoquille } from '../lib/chrome-coquille';
+import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
@@ -245,7 +245,10 @@ function AppShellInner(props: Props) {
   // entre dans le panneau · au clavier seul, on n'est jamais coincé au bouton.
   useEffect(() => {
     if (!drawer) return;
-    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') fermerTiroir(); };
+    const surTouche = (e: KeyboardEvent) => {
+      const dialogue = (e.target as Element | null)?.closest?.('[role="dialog"]');
+      if (echapFermeTiroir({ touche: e.key, dejaTraite: e.defaultPrevented, dansAutreDialogue: !!dialogue && dialogue !== railRef.current })) fermerTiroir();
+    };
     document.addEventListener('keydown', surTouche);
     railRef.current?.querySelector<HTMLElement>('a,button')?.focus();
     return () => document.removeEventListener('keydown', surTouche);
@@ -389,7 +392,7 @@ function AppShellInner(props: Props) {
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
-      <aside ref={railRef} id="nav-rail"
+      <aside ref={railRef} id="nav-rail" inert={chrome.railInerte || undefined}
         // En tiroir (mobile), le rail est une fenêtre modale nommée · le lecteur
         // d'écran l'annonce comme telle et sait qu'elle recouvre la page.
         {...(chrome.railTiroir ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': 'Navigation' } : {})}
