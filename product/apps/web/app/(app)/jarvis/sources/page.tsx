@@ -11,7 +11,7 @@ import { jarvisStats, jarvisMeasuredMemory } from '../../../../lib/jarvis-memory
 import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../../lib/jarvis-state';
 import { spendStatus } from '../../../../lib/spend-guard';
 import { currentDeployment } from '../../../../lib/deployment';
-import { partDeMax, libelleTauxFraction } from '@tiktrends/core';
+import { partDeMax, libelleTauxFraction, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { JarvisRules } from '../JarvisRules';
@@ -96,7 +96,7 @@ export default async function JarvisPage() {
   return (
     <main style={cadrePage}>
       {/* On arrive ici depuis la conversation · on doit pouvoir y retourner d'un geste. */}
-      <Link href="/jarvis" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none', marginBottom: 12 }}>
+      <Link href="/jarvis" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 7, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none', marginBottom: 12 }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
         Retour à la conversation
       </Link>
@@ -151,7 +151,7 @@ export default async function JarvisPage() {
             de tes propres tests · les chiffres, les accroches qui ont gagné, et la vérification qu’il
             améliore vraiment les résultats.
           </p>
-          <Link href="/billing" style={{ display: 'inline-block', marginTop: 12, padding: '9px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none' }}>
+          <Link href="/billing" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', marginTop: 12, padding: '9px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, textDecoration: 'none' }}>
             Voir les formules ›
           </Link>
         </div>
@@ -181,7 +181,7 @@ export default async function JarvisPage() {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Ce que Jarvis coûte</h2>
             <span style={{ flex: 1 }} />
-            <Link href="/admin/depenses" style={{ fontSize: 12, color: 'var(--muted)', textDecoration: 'none' }}>Détail ›</Link>
+            <Link href="/admin/depenses" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12, color: 'var(--muted)', textDecoration: 'none' }}>Détail ›</Link>
           </div>
           <p style={{ margin: '7px 0 0', fontSize: 12.5, color: depense.blocked ? '#ff8095' : 'var(--ink-2)', lineHeight: 1.55 }}>
             {depense.summary} Aucun appel ne part sans passer par ce plafond · y compris les tiens.
@@ -251,7 +251,7 @@ function Layer({ l }: { l: JarvisLayer }) {
       <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>{l.what}</div>
       <div style={{ fontSize: 11.5, color: t.fg === 'var(--muted)' ? 'var(--muted)' : t.fg, fontWeight: 600 }}>{l.detail}</div>
       {l.fix && (
-        <Link href={l.fix.href} style={{ fontSize: 11.5, color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>
+        <Link href={l.fix.href} style={{ display: 'flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none' }}>
           {l.fix.label} ›
         </Link>
       )}
@@ -356,7 +356,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
           </div>
           {memoire && (
             <details style={{ marginTop: 16 }}>
-              <summary style={{ fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer' }}>Voir la mémoire de performance utilisée pour la génération</summary>
+              <summary style={{ display: 'list-item', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '12px 0', fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer' }}>Voir la mémoire de performance utilisée pour la génération</summary>
               <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
                 Part MESURÉE du contexte, injectée telle quelle · les autres éléments (usages du marché, accroches, préférences d’angles) ne sont pas affichés ici.
               </p>
