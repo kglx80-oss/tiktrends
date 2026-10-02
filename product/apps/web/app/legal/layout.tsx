@@ -1,6 +1,11 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { LEGAL_NAV } from '../../lib/legal';
+
+// Recette N · les six liens de l'en-tête mesuraient 26 à 31 px de haut à 390 ·
+// une navigation visée au doigt. La zone passe à 44 px, le texte ne change pas.
+const cible = { display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN } as const;
 
 export const dynamic = 'force-dynamic';
 
@@ -8,13 +13,13 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg, #0d070c)', color: 'var(--ink, #eee)' }}>
       <header style={{ borderBottom: '1px solid var(--line)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+        <Link href="/" style={{ ...cible, gap: 10, textDecoration: 'none' }}>
           <span style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--grad-accent)' }} />
           <b style={{ fontSize: 15, color: 'var(--ink)' }}>TikTrends</b>
         </Link>
         <nav style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginLeft: 'auto' }}>
           {LEGAL_NAV.map((l) => (
-            <Link key={l.href} href={l.href} style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', textDecoration: 'none', padding: '6px 10px', borderRadius: 8 }}>{l.label}</Link>
+            <Link key={l.href} href={l.href} style={{ ...cible, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', textDecoration: 'none', padding: '6px 10px', borderRadius: 8 }}>{l.label}</Link>
           ))}
         </nav>
       </header>
