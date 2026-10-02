@@ -52,8 +52,12 @@ describe('Sélecteur de marque · bascule par rechargement complet', () => {
     expect(recharger, 'la page est rechargée avant que le cookie soit posé').not.toHaveBeenCalled();
     expect(declencheur().getAttribute('aria-busy'), 'aucun état « en cours » pendant la pose').toBe('true');
     expect(declencheur().disabled, 'un second clic reste possible pendant la bascule').toBe(true);
+    const haut = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     await act(async () => { poser(); });
     expect(recharger, 'la bascule ne recharge pas la page (le routeur souple calait)').toHaveBeenCalledTimes(1);
+    expect(haut, 'la page rechargée garde l’ancienne position · le titre est coupé').toHaveBeenCalledWith(0, 0);
+    expect(window.history.scrollRestoration).toBe('manual');
+    haut.mockRestore(); window.history.scrollRestoration = 'auto';
     expect(sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE), 'le retour de focus n’est pas préparé').toBe('1');
   });
 

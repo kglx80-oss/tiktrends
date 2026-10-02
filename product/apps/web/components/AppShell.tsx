@@ -490,7 +490,10 @@ function AppShellInner(props: Props) {
             directement à la navigation · plus de pavé de recherche. */}
 
         {/* Navigation · rail client OU rail ADMIN+ (fondateur en coulisses) */}
-        <nav style={{ marginTop: 2, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
+        {/* Lot 15 · `minHeight: 0` · sans lui, l'élément flex refuse de rétrécir
+            sous son contenu · avec un nom de marque long (sélecteur haut) les
+            rubriques du bas sortaient du rail, hors d'atteinte. La liste défile. */}
+        <nav aria-label="Navigation principale" style={{ marginTop: 2, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
           {inAdmin ? (
             <>
               {/* Retour à la vue SaaS (app) */}

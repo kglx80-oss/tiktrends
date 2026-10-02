@@ -97,6 +97,9 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
       return;
     }
     try { sessionStorage.setItem(CLE_FOCUS_BASCULE_MARQUE, '1'); } catch { /* sans stockage, pas de retour de focus */ }
+    // Lot 15 · nouveau contexte, la page repart du haut · sinon le navigateur
+    // restaure l'ancienne position et coupe le titre (mesuré sur Image, 1280).
+    try { window.history.scrollRestoration = 'manual'; window.scrollTo(0, 0); } catch { /* sans effet */ }
     navigateur.recharger();
   };
 
