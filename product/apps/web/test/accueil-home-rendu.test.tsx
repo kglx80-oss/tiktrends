@@ -53,10 +53,12 @@ describe('Accueil · cartes des marques (Recent Projects)', () => {
     expect(html).toContain('Nouvelle marque');
   });
 
-  it('nom long tronqué (ellipsis, nowrap), sans casser la carte', () => {
+  // Lot 13 · l'ellipse rendait le nom complet inaccessible au doigt et au
+  // clavier (survol seul) · le nom passe à la ligne, sans casser la carte.
+  it('nom long lisible en entier (retour à la ligne), sans casser la carte', () => {
     const html = renderToStaticMarkup(<HomeMarques marques={marques} activeId={null} />);
-    expect(html).toContain('text-overflow:ellipsis');
-    expect(html).toContain('white-space:nowrap');
+    expect(html).toContain('overflow-wrap:anywhere');
+    expect(html).not.toMatch(/<b [^>]*text-overflow:ellipsis/);
   });
 
   it('zéro marque · invite à créer, aucune fausse carte de marque', () => {

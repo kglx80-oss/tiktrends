@@ -42,8 +42,11 @@ describe('Accueil · ne propose que ce que le rôle ouvre', () => {
     expect(a.liens, 'brancher un compte est réservé aux admins').not.toContain('/connections');
     expect(a.texte, 'la raison n’est pas dite').toContain('Ton rôle dans cet espace ne comprend pas la création');
     expect(a.texte, 'les marques de l’espace disparaissent').toContain('Orée');
-    // Lot 12 · un nom tronqué reste lisible en entier (survol, lecteur d'écran).
-    expect(a.html, 'nom de marque tronqué sans nom complet').toMatch(/<b [^>]*title="Orée"/);
+    // Lot 13 · le nom complet se lit sans survol · il passe à la ligne, jamais d'ellipse.
+    const nom = /<b style="([^"]*)"[^>]*>Orée<\/b>/.exec(a.html);
+    expect(nom, 'nom de marque absent de sa carte').toBeTruthy();
+    expect(nom![1], 'nom tronqué par une ellipse').not.toMatch(/text-overflow:ellipsis|white-space:nowrap/);
+    expect(nom![1]).toContain('overflow-wrap:anywhere');
   });
   it('membre · crée des pubs, ne gère pas les marques', async () => {
     const a = await accueil('member');
