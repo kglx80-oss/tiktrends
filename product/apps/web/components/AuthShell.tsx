@@ -1,4 +1,5 @@
 import type { ReactNode, CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 export const field: CSSProperties = {
   width: '100%', padding: '11px 13px', borderRadius: 12,
@@ -9,6 +10,14 @@ export const primaryBtn: CSSProperties = {
   marginTop: 4, padding: '12px 18px', borderRadius: 999, border: 'none',
   background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
 };
+/**
+ * Un lien SEUL sur sa ligne (« Oublié ? », « ← Retour à la connexion ») · c'est
+ * une cible qu'on vise au doigt, pas un lien dans une phrase. Recette N · ils
+ * mesuraient 15 à 18 px de haut à 390 · la zone passe à 44 px sans changer la
+ * taille du texte.
+ */
+export const lienSeul: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN };
+
 export function errorBox(msg: string) {
   return (
     <div style={{
