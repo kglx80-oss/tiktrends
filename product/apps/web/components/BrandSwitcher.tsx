@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   CIBLE_TACTILE_MIN, basculeMarqueNecessaire, CLE_FOCUS_BASCULE_MARQUE,
-  BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE, nomSelecteurMarque, rectangleALecran,
+  BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE, nomSelecteurMarque, rectangleALecran, cibleRetourFocus,
 } from '@tiktrends/core';
 import { useEffect, useRef, useState } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
@@ -11,6 +11,7 @@ import { Modal } from './Modal';
 import { SubmitButton } from './SubmitButton';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
+import { useIsMobile, MEDIA_ETROIT } from './useIsMobile';
 
 interface Brand { id: string; name: string; logoUrl?: string | null; url?: string | null }
 
@@ -29,19 +30,25 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
   const active = brands.find((b) => b.id === activeId) || null;
 
   // Retour d'un changement de marque · le focus revient au sélecteur, là où
-  // l'utilisateur l'avait laissé (cf. noyau `bascule-marque`).
+  // l'utilisateur l'avait laissé, ou au bouton du menu quand le sélecteur est
+  // dans le tiroir fermé (390). On attend que la coquille ait pris sa
+  // disposition finale (noyau `cibleRetourFocus`).
+  const etroit = useIsMobile();
   useEffect(() => {
     try {
-      if (sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE)) {
-        sessionStorage.removeItem(CLE_FOCUS_BASCULE_MARQUE);
-        const b = declencheur.current;
-        // À 390 px le sélecteur est dans le tiroir fermé · le focus va alors au
-        // bouton qui ouvre ce tiroir, pas hors de l'écran.
-        if (b && rectangleALecran(b.getBoundingClientRect(), window.innerWidth, window.innerHeight)) b.focus();
-        else document.querySelector<HTMLButtonElement>('button[aria-controls="nav-rail"]')?.focus();
-      }
+      if (!sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE)) return;
+      const b = declencheur.current;
+      const cible = cibleRetourFocus({
+        mediaEtroit: !!window.matchMedia?.(MEDIA_ETROIT).matches,
+        coquilleEtroite: etroit,
+        selecteurALecran: !!b && rectangleALecran(b.getBoundingClientRect(), window.innerWidth, window.innerHeight),
+      });
+      if (cible === 'attendre') return;
+      sessionStorage.removeItem(CLE_FOCUS_BASCULE_MARQUE);
+      if (cible === 'selecteur') b?.focus();
+      else document.querySelector<HTMLButtonElement>('button[aria-controls="nav-rail"]')?.focus();
     } catch { /* stockage indisponible · le focus reste au document */ }
-  }, []);
+  }, [etroit]);
 
   // Après un échec, la main revient au sélecteur · une fois RÉACTIVÉ (un
   // bouton encore désactivé refuse le focus).

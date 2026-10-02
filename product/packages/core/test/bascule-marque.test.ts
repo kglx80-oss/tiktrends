@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { basculeMarqueNecessaire, nomSelecteurMarque, rectangleALecran } from '../src/bascule-marque';
+import { basculeMarqueNecessaire, cibleRetourFocus, nomSelecteurMarque, rectangleALecran } from '../src/bascule-marque';
 
 describe('Bascule de marque · quand recharger, et le nom du sélecteur', () => {
   it('recharge seulement si la marque choisie diffère de l’active', () => {
@@ -21,4 +21,17 @@ describe('Retour de focus · le sélecteur doit être à l’écran', () => {
   it('dans le rail ouvert · à l’écran', () => { expect(rectangleALecran(r(12, 110), 1280, 720)).toBe(true); });
   it('dans le tiroir fermé à 390 (mesuré x = −172) · hors écran', () => { expect(rectangleALecran(r(-172, 110, 160), 390, 844)).toBe(false); });
   it('non rendu (0 × 0) · hors écran', () => { expect(rectangleALecran(r(0, 0, 0, 0), 390, 844)).toBe(false); });
+});
+
+describe('Retour de focus · attendre la disposition finale de la coquille', () => {
+  it('écran étroit, coquille encore en bureau (premier montage) · attendre', () => {
+    expect(cibleRetourFocus({ mediaEtroit: true, coquilleEtroite: false, selecteurALecran: true }), 'le focus part au sélecteur aussitôt caché dans le tiroir').toBe('attendre');
+  });
+  it('écran étroit, tiroir en place · le bouton du menu', () => {
+    expect(cibleRetourFocus({ mediaEtroit: true, coquilleEtroite: true, selecteurALecran: false })).toBe('menu');
+  });
+  it('bureau · le sélecteur s’il est à l’écran, sinon le menu', () => {
+    expect(cibleRetourFocus({ mediaEtroit: false, coquilleEtroite: false, selecteurALecran: true })).toBe('selecteur');
+    expect(cibleRetourFocus({ mediaEtroit: false, coquilleEtroite: false, selecteurALecran: false })).toBe('menu');
+  });
 });

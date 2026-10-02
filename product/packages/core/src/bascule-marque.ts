@@ -71,3 +71,16 @@ export function nomSelecteurMarque(active: string | null): string {
 export function rectangleALecran(r: { left: number; right: number; top: number; bottom: number; width: number; height: number }, largeur: number, hauteur: number): boolean {
   return r.width > 0 && r.height > 0 && r.right > 0 && r.left < largeur && r.bottom > 0 && r.top < hauteur;
 }
+
+/**
+ * Où rendre le focus au retour d'un changement de marque ? La coquille démarre
+ * en disposition bureau puis passe en tiroir sur écran étroit (`useIsMobile`
+ * corrige APRÈS le montage) · décider au montage visait un sélecteur encore
+ * visible, aussitôt caché dans le tiroir (mesuré à 390 sur 959b554). On attend
+ * donc que l'état de la coquille rejoigne le média, puis on choisit.
+ */
+export function cibleRetourFocus(e: { mediaEtroit: boolean; coquilleEtroite: boolean; selecteurALecran: boolean }): 'attendre' | 'selecteur' | 'menu' {
+  if (e.mediaEtroit !== e.coquilleEtroite) return 'attendre';
+  if (e.mediaEtroit) return 'menu';
+  return e.selecteurALecran ? 'selecteur' : 'menu';
+}

@@ -83,13 +83,19 @@ describe('Sélecteur de marque · bascule par rechargement complet', () => {
     expect(sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE)).toBeNull();
   });
 
-  it('à 390, sélecteur dans le tiroir fermé · le focus va au bouton du menu, pas hors de l’écran', () => {
+  it('à 390 · la coquille passe en tiroir après le montage · le focus va au bouton du menu, pas au sélecteur caché', () => {
     sessionStorage.setItem(CLE_FOCUS_BASCULE_MARQUE, '1');
     const menu = document.createElement('button'); menu.setAttribute('aria-controls', 'nav-rail'); menu.textContent = 'Ouvrir le menu'; document.body.appendChild(menu);
-    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left: -172, top: 110, right: -12, bottom: 154, width: 160, height: 44, x: -172, y: 110, toJSON: () => ({}) } as DOMRect);
+    const mm = vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }));
+    (window as unknown as { matchMedia: unknown }).matchMedia = mm;
+    // Au premier montage, la coquille est encore en disposition bureau · le
+    // sélecteur EST à l'écran (comme mesuré sur 959b554) · il ne faut pas s'y fier.
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left: 12, top: 110, right: 172, bottom: 154, width: 160, height: 44, x: 12, y: 110, toJSON: () => ({}) } as DOMRect);
     monter('oree');
     rect.mockRestore();
-    expect(document.activeElement, 'le focus part hors de l’écran, dans le tiroir fermé').toBe(menu);
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+    expect(document.activeElement, 'le focus part au sélecteur, aussitôt caché dans le tiroir fermé').toBe(menu);
+    expect(sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE)).toBeNull();
     menu.remove();
   });
 
