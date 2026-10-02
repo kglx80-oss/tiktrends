@@ -45,10 +45,12 @@ describe('la pastille d’un connecteur · logo réel si connu, sinon monogramme
   });
 
   it('un outil sans logo rend un monogramme teinté de sa couleur officielle', () => {
-    const html = renderToStaticMarkup(<BrandTile name="Snowflake" color="#29B5E8" glyph="SN" />);
-    expect(html, 'le monogramme doit être rendu').toContain('SN');
+    // Triple Whale · aucun tracé officiel embarqué (Snowflake, l'exemple d'avant,
+    // a reçu son logo au lot A · #120).
+    const html = renderToStaticMarkup(<BrandTile name="Triple Whale" color="#0EA5E9" glyph="TW" />);
+    expect(html, 'le monogramme doit être rendu').toContain('TW');
     // La pastille prend la teinte officielle de l'outil · pas un gris générique.
-    expect(html, 'la couleur officielle doit teinter la pastille').toContain('#29B5E8');
+    expect(html, 'la couleur officielle doit teinter la pastille').toContain('#0EA5E9');
     expect(html).not.toContain('<svg');
   });
 });

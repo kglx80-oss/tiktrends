@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, connectMetaAction, syncMetaAction, disconnectMetaAction, selectMetaAccountAction, type ConnectionState } from '../../actions/connections';
-import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
+import { BrandTile } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
@@ -47,11 +47,13 @@ export function DataConnections({ initial, brandName, metaOAuth = false, shopify
   );
 }
 
-function Wrap({ icon, title, badge, children }: { icon: React.ReactNode; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+function Wrap({ outil, title, badge, children }: { outil: string; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <span style={{ width: 34, height: 34, borderRadius: 9, background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,.18)' }}>{icon}</span>
+        {/* La pastille commune à toutes les intégrations · logo officiel, décoratif ·
+            le nom de l'outil est dans le titre juste à côté. */}
+        <BrandTile name={outil} />
         <b style={{ fontSize: 15, color: 'var(--ink)', flex: 1 }}>{title}</b>
         {badge}
       </div>
@@ -104,7 +106,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
   const ins = sh?.insights;
   const phase = etatConnecteur({ connecte: !!sh?.connected, donnees: !!ins });
   return (
-    <Wrap icon={<ShopifyIcon size={21} />} title="Shopify · ventes" badge={<BadgePhase phase={phase} />}>
+    <Wrap outil="Shopify" title="Shopify · ventes" badge={<BadgePhase phase={phase} />}>
       {!sh?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           <div><label style={lbl} htmlFor="conn-shopify-domaine">Domaine de la boutique</label><input id="conn-shopify-domaine" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
@@ -198,7 +200,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
   const compteRequisManquant = !!mt?.connected && (mt.accounts?.length ?? 0) > 1 && !mt.adAccountId;
   const phase = etatConnecteur({ connecte: !!mt?.connected, compteRequisManquant, donnees: !!ins });
   return (
-    <Wrap icon={<MetaIcon size={22} />} title="Meta Ads · performance" badge={<BadgePhase phase={phase} />}>
+    <Wrap outil="Meta Ads" title="Meta Ads · performance" badge={<BadgePhase phase={phase} />}>
       {!mt?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           {oauth && (
