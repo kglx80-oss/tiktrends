@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   CIBLE_TACTILE_MIN, basculeMarqueNecessaire, CLE_FOCUS_BASCULE_MARQUE,
-  BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE,
+  BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE, nomSelecteurMarque,
 } from '@tiktrends/core';
 import { useEffect, useRef, useState } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
@@ -68,6 +68,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
     <div style={{ position: 'relative', margin: '8px 0 0' }}
       onKeyDown={(e) => { if (open && e.key === 'Escape') { e.stopPropagation(); fermer(); } }}>
       <button ref={declencheur} type="button" onClick={() => setOpen((o) => !o)} disabled={enCours}
+        aria-label={enCours ? BASCULE_MARQUE_EN_COURS : nomSelecteurMarque(active ? active.name : null)}
         aria-expanded={open} aria-controls="selecteur-marque-liste" aria-busy={enCours || undefined}
         style={{
           width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 10,
@@ -75,13 +76,16 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
         }}>
         {/* La favicon de la marque active · identité reconnaissable d'un coup d'œil.
             « Toutes les marques » n'a pas de site propre · on garde le pavé neutre. */}
-        {active
-          ? <AvatarSite nom={active.name} site={active.url} taille={20} rayon={6} />
-          : <span style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', flexShrink: 0 }} />}
-        <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span aria-hidden style={{ display: 'inline-flex', flexShrink: 0 }}>
+          {active
+            ? <AvatarSite nom={active.name} site={active.url} taille={20} rayon={6} />
+            : <span style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', flexShrink: 0 }} />}
+        </span>
+        {/* n° 23 · le nom se lit EN ENTIER · retour à la ligne, jamais d'ellipse. */}
+        <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflowWrap: 'anywhere', lineHeight: 1.3 }}>
           {enCours ? BASCULE_MARQUE_EN_COURS : (active ? active.name : 'Toutes les marques')}
         </span>
-        <span style={{ color: 'var(--muted)', fontSize: 11 }}>▾</span>
+        <span aria-hidden style={{ color: 'var(--muted)', fontSize: 11 }}>▾</span>
       </button>
       {echec && <p role="alert" style={{ margin: '6px 2px 0', fontSize: 12, lineHeight: 1.4, color: 'var(--ink-2)' }}>{ECHEC_BASCULE_MARQUE}</p>}
 
@@ -92,8 +96,8 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
             <button type="button" onClick={() => pick('')} aria-current={!activeId || undefined} style={row(!activeId)}>Toutes les marques</button>
             {brands.map((b) => (
               <button key={b.id} type="button" onClick={() => pick(b.id)} aria-current={b.id === activeId || undefined} style={row(b.id === activeId)}>
-                <AvatarSite nom={b.name} site={b.url} taille={16} rayon={5} />
-                <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</span>
+                <span aria-hidden style={{ display: 'inline-flex', flexShrink: 0 }}><AvatarSite nom={b.name} site={b.url} taille={16} rayon={5} /></span>
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left', overflowWrap: 'anywhere', lineHeight: 1.3 }}>{b.name}</span>
               </button>
             ))}
             {brands.length === 0 && <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--muted)' }}>Aucune marque pour l'instant.</div>}
@@ -162,7 +166,7 @@ const quickField = { padding: '11px 13px', borderRadius: 12, border: '1px solid 
 
 function row(active: boolean) {
   return {
-    width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px',
+    width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px',
     border: 'none', background: active ? 'var(--accent-soft)' : 'transparent',
     color: active ? 'var(--accent-strong)' : 'var(--ink-2)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer',
   } as const;

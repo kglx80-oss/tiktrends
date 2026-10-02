@@ -5,14 +5,14 @@ import { createRoot, type Root } from 'react-dom/client';
 import { CLE_FOCUS_BASCULE_MARQUE, ECHEC_BASCULE_MARQUE } from '@tiktrends/core';
 
 /**
- * Lot 14 · registre n° 29 · la bascule de marque ne s'appliquait pas une fois
- * sur deux.
+ * Lot 14 · registre n° 29 (la bascule de marque ne s'appliquait pas une fois
+ * sur deux) et n° 23 (nom de marque tronqué dans le rail).
  *
  * Le défaut vivait dans la transition du routeur client (mesures dans le noyau
  * `bascule-marque`) · on ne peut pas le rejouer dans jsdom. On garde donc ce
  * que le correctif PRODUIT : la page n'est rechargée qu'APRÈS la pose du
  * cookie, jamais sur la marque déjà active, jamais après un échec, et le focus
- * revient au sélecteur au retour.
+ * revient au sélecteur au retour. Le nom se lit en entier, sans ellipse.
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -24,7 +24,8 @@ vi.mock('../app/actions/brands', () => ({
 
 const { BrandSwitcher, navigateur } = await import('../components/BrandSwitcher');
 
-const MARQUES = [{ id: 'neva', name: 'Neva' }, { id: 'oree', name: 'Orée Cosmétiques' }];
+const LONG = 'Maison Lumière des Herboristes Associés · Collection Printemps-Été Édition Limitée';
+const MARQUES = [{ id: 'neva', name: 'Neva' }, { id: 'long', name: LONG }, { id: 'oree', name: 'Orée Cosmétiques' }];
 
 let root: Root | null = null; let el: HTMLDivElement | null = null;
 const recharger = vi.fn();
@@ -86,5 +87,27 @@ describe('Sélecteur de marque · bascule par rechargement complet', () => {
     act(() => { option('Orée Cosmétiques').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
     expect(el!.querySelector('#selecteur-marque-liste')).toBeNull();
     expect(document.activeElement).toBe(declencheur());
+  });
+});
+
+describe('Sélecteur de marque · nom complet (n° 23)', () => {
+  it('le nom long se lit en entier dans le rail et dans la liste, sans ellipse', () => {
+    monter('long'); ouvrir();
+    const nom = [...declencheur().querySelectorAll('span')].find((s) => s.textContent === LONG)!;
+    expect(nom, 'le nom complet n’est pas rendu dans le sélecteur').toBeTruthy();
+    for (const s of [nom.getAttribute('style') ?? '', (option(LONG).querySelector(':scope > span:last-child') as HTMLElement).getAttribute('style') ?? '']) {
+      expect(s, 'nom tronqué par une ellipse').not.toMatch(/text-overflow:\s*ellipsis|white-space:\s*nowrap/);
+      expect(s).toMatch(/overflow-wrap:\s*anywhere/);
+    }
+    expect(declencheur().getAttribute('aria-label'), 'le nom accessible ne porte pas le nom complet').toBe(`Marque active : ${LONG} · changer de marque`);
+  });
+  it('les décorations (initiales, flèche) sont cachées aux lecteurs d’écran et chaque option fait 44 px', () => {
+    monter('neva'); ouvrir();
+    for (const b of el!.querySelectorAll('#selecteur-marque-liste button')) {
+      expect((b as HTMLElement).style.minHeight, `option sous 44 px : ${b.textContent}`).toBe('44px');
+    }
+    const visibles = [...declencheur().childNodes].filter((n) => !(n as HTMLElement).getAttribute?.('aria-hidden')).map((n) => n.textContent).join('');
+    expect(visibles).toBe('Neva');
+    expect(option('Neva').getAttribute('aria-current')).toBe('true');
   });
 });
