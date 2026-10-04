@@ -164,7 +164,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
     learnings: d.learnings,
   }).eligible : false;
   const pres = d ? presentationTest(
-    { status: d.status, launchedAt: d.launchedAt, computed: d.computed, verdictStatus: d.verdictStatus, batchNumber: d.batchNumber, apprentissages: d.learnings.length },
+    { status: d.status, launchedAt: d.launchedAt, computed: d.computed, verdictStatus: d.verdictStatus, batchNumber: d.batchNumber, apprentissages: d.learnings.length, manques: d.manques },
     { peutPreparer: peutPartager, peutMesurer: peutPartager },
   ) : null;
   const ecart = !!d?.computed && value !== d.computed;
