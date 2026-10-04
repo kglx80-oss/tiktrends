@@ -72,3 +72,30 @@ export function messageEchecEnregistrement(erreur: string | null | undefined): s
 export function echecRetraitSuivi(nom: string): string {
   return `Le retrait de « ${nom} » n’a pas abouti · ce concurrent est toujours suivi. Tu peux réessayer.`;
 }
+
+/**
+ * Focus après le VIDAGE de la bibliothèque (lot 16, revue Codex). Retirer le
+ * dernier concurrent d'une bibliothèque sans rien d'autre fait basculer la page
+ * serveur sur « Ta bibliothèque est encore vide » (structure N05, conservée) ·
+ * l'onglet qui portait le focus disparaît, le focus tombait sur <body>.
+ *
+ * Mesuré en local (`7a075cec`, 1280×720, 12 souris + 12 clavier) · focus sur
+ * <body> 24/24 ; le rendu serveur arrive soit tout de suite, soit ~21 s après le
+ * dernier retrait (7/24 · transition calée relancée par la cloche, cycle 25 s) :
+ *
+ * | Arrivée du rendu vide après le dernier ✕ | Essais |
+ * | ---------------------------------------- | ------ |
+ * | ≤ 0,7 s                                  | 17/24  |
+ * | 20,8 à 21,8 s                            | 7/24   |
+ *
+ * D'où la fenêtre · 45 s (le pire mesuré, doublé, au-delà d'un cycle de 25 s).
+ * La reprise n'a lieu QUE si elle a été demandée par un retrait récent ET que le
+ * focus est perdu · une simple visite de la page vide ne déplace rien.
+ */
+export const DELAI_FOCUS_APRES_VIDAGE_MS = 45_000;
+
+export function focusApresVidage(e: { demandeA: number | null; maintenant: number; focusPerdu: boolean }): boolean {
+  if (e.demandeA === null || !e.focusPerdu) return false;
+  const age = e.maintenant - e.demandeA;
+  return age >= 0 && age <= DELAI_FOCUS_APRES_VIDAGE_MS;
+}

@@ -41,6 +41,8 @@ const { SavedTabs } = await import('../components/SavedTabs');
 const { MarquesSuivies } = await import('../components/MarquesSuivies');
 const { TrackerFeed } = await import('../components/TrackerFeed');
 const { ScenarioCard } = await import('../components/ScenarioCard');
+const { BibliothequeVide } = await import('../components/BibliothequeVide');
+const { prendreFocusApresVidage } = await import('../components/focusVidage');
 const { railNav, accountSections, ouverturesParRole } = await import('../lib/rbac');
 
 let root: Root | null = null;
@@ -229,5 +231,41 @@ describe('Fiche marque › Scénario · l’échec rend le focus et s’annonce 
     expect(document.querySelector('[role=alert]')?.textContent).toBe('Crédits insuffisants (4 requis).');
     expect(document.activeElement, 'le focus tombe sur <body> après l’échec').toBe(bouton(/Générer le visuel/));
     expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('Bibliothèque entièrement vide · le focus revient après la bascule serveur (lot 16, revue Codex)', () => {
+  beforeEach(() => { prendreFocusApresVidage(); }); // aucune demande en attente d'un test à l'autre
+  const region = () => document.querySelector('section[aria-label="Ta bibliothèque est encore vide"]');
+
+  it('dernier concurrent retiré, puis le rendu serveur remplace les onglets · le focus va à l’état vide (il tombait sur <body>)', async () => {
+    actions.unfollowBrand.mockResolvedValue(undefined);
+    sauvegardes('marques');
+    for (const n of ['Orée Cosmétiques', 'Maison Verte', 'Atelier Botanique']) await clic(document.querySelector(`button[aria-label="Ne plus suivre ${n}"]`));
+    // La page serveur (N05) rend l'état vide À LA PLACE des onglets · l'onglet focalisé disparaît.
+    act(() => { root!.render(<main><BibliothequeVide /></main>); });
+    await attendre();
+    expect(region(), 'état vide introuvable').toBeTruthy();
+    expect(document.activeElement, 'le focus tombe sur <body> après la bascule').toBe(region());
+  });
+
+  it('simple visite de la bibliothèque vide · le focus ne bouge pas', async () => {
+    act(() => { root!.render(<main><BibliothequeVide /></main>); });
+    await attendre();
+    expect(region()).toBeTruthy();
+    expect(document.activeElement, 'une simple visite déplace le focus').toBe(document.body);
+  });
+
+  it('focus déjà posé ailleurs par l’utilisateur · il n’est pas volé', async () => {
+    actions.unfollowBrand.mockResolvedValue(undefined);
+    sauvegardes('marques');
+    for (const n of ['Orée Cosmétiques', 'Maison Verte', 'Atelier Botanique']) await clic(document.querySelector(`button[aria-label="Ne plus suivre ${n}"]`));
+    // L'utilisateur est déjà ailleurs AVANT que l'état vide n'arrive.
+    act(() => { root!.render(<main><button type="button">Ailleurs</button></main>); });
+    act(() => { bouton('Ailleurs')!.focus(); });
+    act(() => { root!.render(<main><button type="button">Ailleurs</button><BibliothequeVide /></main>); });
+    await attendre();
+    expect(region()).toBeTruthy();
+    expect(document.activeElement).toBe(bouton('Ailleurs'));
   });
 });

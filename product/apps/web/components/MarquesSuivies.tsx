@@ -8,6 +8,7 @@ import { BrandRemoveButton } from './InspoButtons';
 import { briefMarqueAction } from '../app/actions/brief-marque';
 import { useRetraitsOnglet } from './SavedTabs';
 import { focusApresRetrait } from './focusApresRetrait';
+import { demanderFocusApresVidage } from './focusVidage';
 
 interface MarqueLite { id: string; platform: string; name: string; logoUrl?: string | null; domain?: string | null }
 
@@ -44,6 +45,9 @@ export function MarquesSuivies({ brands, vide }: { brands: MarqueLite[]; vide?: 
       setRetirees((s) => new Set(s).add(b.id));
       if (ouvert === b.id) setOuvert(null);
       rangFocus.current = rang;
+      // Le dernier visible part · si toute la bibliothèque est vide, le rendu
+      // serveur remplacera les onglets (N05) · l'état vide reprendra le focus.
+      if (visibles.length === 1) demanderFocusApresVidage();
     } else {
       setRetirees((s) => { const n = new Set(s); n.delete(b.id); return n; });
       setEchecRetrait(echecRetraitSuivi(b.name));
