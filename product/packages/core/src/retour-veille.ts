@@ -39,6 +39,11 @@ const ORDRE = ['q', 'p', 'searchIn', 'media', 'sort', 'status', 'country', 'page
 
 const ANCRE = /^ad-[a-z]{2,10}-[A-Za-z0-9_-]{1,80}$/;
 
+/** Une ancre de carte de Veille bien formée · rien d'autre ne déclenche de défilement. */
+export function estAncreCarteVeille(h: string | null | undefined): boolean {
+  return typeof h === 'string' && ANCRE.test(h);
+}
+
 /** L'identifiant d'ancre d'une carte de Veille · stable, sans caractère hors liste. */
 export function ancreCarteVeille(ad: { platform?: string | null; id?: string | null }): string | null {
   const plateforme = (ad.platform ?? 'meta').toLowerCase().replace(/[^a-z]/g, '').slice(0, 10) || 'meta';

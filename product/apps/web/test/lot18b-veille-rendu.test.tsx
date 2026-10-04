@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
@@ -10,6 +12,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 vi.mock('../components/InspoButtons', () => ({ SaveButton: () => <button type="button">★</button>, FollowButton: () => <button type="button">+ Suivre</button> }));
 const { AdCard } = await import('../components/AdCard');
 const { RetourVeille } = await import('../components/RetourVeille');
+const { DefileAncreVeille } = await import('../components/DefileAncreVeille');
 
 const AD = { id: 'mock-044', platform: 'meta', status: 'active', daysRunning: 34, advertiserName: 'Brume & Sel', body: 'Routine du soir', landingDomain: 'annonceur3.exemple.test' } as never;
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
@@ -48,5 +51,30 @@ describe('Retour à la recherche (lot 18B)', () => {
     const d = dom(renderToStaticMarkup(<RetourVeille rv="//evil.example/x" />));
     expect(d.querySelector('a')?.getAttribute('href')).toBe('/veille');
     expect(renderToStaticMarkup(<RetourVeille rv={undefined} />)).toBe('');
+  });
+});
+
+describe('Retour sur la carte d’origine (lot 18B)', () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const monter = (hash: string) => {
+    window.history.replaceState(null, '', `/veille?q=routine${hash}`);
+    document.body.innerHTML = '<main><a href="/">haut</a><div id="ad-meta-mock-044"><a href="/studio/ads">Décline</a></div><div id="autre"></div></main><div id="r"></div>';
+    const vues: string[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) { vues.push(this.id); };
+    const root = createRoot(document.getElementById('r')!);
+    act(() => { root.render(<DefileAncreVeille />); });
+    return { vues, root };
+  };
+  it('l’ancre d’une carte · la carte est recentrée et reçoit le focus', () => {
+    const { vues, root } = monter('#ad-meta-mock-044');
+    expect(vues, 'le retour laisse la carte hors de l’écran').toEqual(['ad-meta-mock-044']);
+    expect(document.activeElement?.id, 'au clavier, la tabulation repart du haut de page').toBe('ad-meta-mock-044');
+    act(() => root.unmount());
+  });
+  it('une ancre qui n’est pas une carte · rien ne bouge', () => {
+    const { vues, root } = monter('#autre');
+    expect(vues).toEqual([]);
+    expect(document.activeElement).toBe(document.body);
+    act(() => root.unmount());
   });
 });

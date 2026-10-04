@@ -14,6 +14,7 @@ import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
 import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, contexteVeille, PARAM_RETOUR_VEILLE, type PerimetreVeille } from '@tiktrends/core';
 import { RetourVeille } from '../../../components/RetourVeille';
+import { DefileAncreVeille } from '../../../components/DefileAncreVeille';
 import { ChampRechercheVeille } from '../../../components/ChampRechercheVeille';
 import { Icon } from '../../../components/Icon';
 import { DepliableEchap } from '../../../components/DepliableEchap';
@@ -392,6 +393,9 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}
       </div>
+
+      {/* Lot 18B · retour par une URL qui vise une carte · on la recentre. */}
+      {ads.length > 0 && <DefileAncreVeille />}
 
       {/* Une recherche sans résultat rendait une grille VIDE, sans un mot ·
           l'écran se lisait comme cassé. On dit ce qui s'est passé et on donne
