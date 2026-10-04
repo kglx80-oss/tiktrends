@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { messageEchecEnregistrement } from '@tiktrends/core';
 import { saveProfileAction } from '../app/actions/admin';
 import { avatarToDataUri } from '../lib/avatar';
 import { Modal } from './Modal';
@@ -10,11 +10,19 @@ import { Icon } from './Icon';
 import { input, lbl } from './ui';
 
 interface Init { name: string; email: string; avatarUrl: string; hidePersonalInfo: boolean }
+export interface ProfilEnregistre { name: string; avatarUrl: string; hidePersonalInfo: boolean }
 
-/** Édition rapide du profil en pop-up (photo, nom, confidentialité) · sans quitter la page. */
-export function ProfileModal({ open, onClose, init }: { open: boolean; onClose: () => void; init: Init }) {
-  const router = useRouter();
-  const [state, formAction, pending] = useActionState(saveProfileAction, null);
+/**
+ * Édition rapide du profil en pop-up (photo, nom, confidentialité) · sans quitter la page.
+ *
+ * Lot 16 · même défaut et même correctif que les Réglages rapides · le résultat
+ * est lu au retour de l'action (plus par `useActionState`, qui restait `ok` et
+ * refermait la fenêtre à la réouverture, mesuré), et le profil enregistré
+ * remonte à la coquille (`onSaved`) qui l'affiche sans attendre le serveur.
+ */
+export function ProfileModal({ open, onClose, onSaved, init }: { open: boolean; onClose: () => void; onSaved?: (p: ProfilEnregistre) => void; init: Init }) {
+  const [pending, setPending] = useState(false);
+  const [erreurEnregistrement, setErreurEnregistrement] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState(init.avatarUrl);
   const [hide, setHide] = useState(init.hidePersonalInfo);
   const [busy, setBusy] = useState(false);
@@ -23,9 +31,27 @@ export function ProfileModal({ open, onClose, init }: { open: boolean; onClose: 
   const initial = (init.name || init.email).slice(0, 1).toUpperCase();
 
   // À l'ouverture, on repart des valeurs courantes.
-  useEffect(() => { if (open) { setAvatarUrl(init.avatarUrl); setHide(init.hidePersonalInfo); setErr(''); } }, [open, init.avatarUrl, init.hidePersonalInfo]);
-  // Enregistré : on rafraîchit et on ferme.
-  useEffect(() => { if (state?.ok) { router.refresh(); onClose(); } }, [state, router, onClose]);
+  useEffect(() => { if (open) { setAvatarUrl(init.avatarUrl); setHide(init.hidePersonalInfo); setErr(''); setErreurEnregistrement(null); } }, [open, init.avatarUrl, init.hidePersonalInfo]);
+
+  // Enregistré · on remonte le profil à la coquille et on ferme. L'action
+  // revalide déjà le gabarit · aucun `router.refresh()` de plus.
+  async function enregistrer(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const fd = new FormData(e.currentTarget);
+    setPending(true); setErreurEnregistrement(null);
+    try {
+      const r = await saveProfileAction(null, fd);
+      if (r?.ok) {
+        onSaved?.({ name: String(fd.get('name') ?? '').trim(), avatarUrl: String(fd.get('avatarUrl') ?? '').trim(), hidePersonalInfo: fd.get('hidePersonalInfo') != null });
+        onClose();
+      } else setErreurEnregistrement(messageEchecEnregistrement(r?.error));
+    } catch {
+      setErreurEnregistrement(messageEchecEnregistrement(null));
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -40,7 +66,7 @@ export function ProfileModal({ open, onClose, init }: { open: boolean; onClose: 
 
   return (
     <Modal open={open} onClose={onClose} icon={<Icon name="user" size={18} />} title="Mon profil" subtitle="Ta photo, ton nom et la confidentialité de tes informations.">
-      <form action={formAction} style={{ display: 'grid', gap: 16 }}>
+      <form onSubmit={enregistrer} style={{ display: 'grid', gap: 16 }}>
         {/* Photo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -83,9 +109,11 @@ export function ProfileModal({ open, onClose, init }: { open: boolean; onClose: 
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Masquer mes informations personnelles<span style={{ display: 'block', fontSize: 11.5, fontWeight: 400, color: 'var(--muted)' }}>Cache nom et e-mail dans les vues partagées.</span></span>
         </label>
 
+        {erreurEnregistrement && <div role="alert" style={{ fontSize: 12, color: '#ff9db0' }}>{erreurEnregistrement}</div>}
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <Link href="/profile" onClick={onClose} style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>Sécurité & options ›</Link>
-          <button type="submit" disabled={pending} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: pending ? .6 : 1 }}>
+          <button type="submit" disabled={pending} aria-busy={pending || undefined} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: pending ? .6 : 1 }}>
             {pending ? 'Enregistrement…' : 'Enregistrer'}
           </button>
         </div>

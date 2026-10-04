@@ -7,14 +7,14 @@ import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
 import { CommandPalette, openCommandPalette, type Command } from './CommandPalette';
-import { ProfileModal } from './ProfileModal';
+import { ProfileModal, type ProfilEnregistre } from './ProfileModal';
 import { QuickSettingsModal } from './QuickSettingsModal';
 import { CreditsMenu } from './CreditsMenu';
 import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, placementLanceurSupport, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, type RegleChemin } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, type RegleChemin } from '@tiktrends/core';
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -204,7 +204,28 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, ouvertures = [], isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, collapsedInitial, logout, children } = props;
+  const { nav, accountGroups, ouvertures = [], isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName: userNameServeur, userEmail, avatarUrl: avatarUrlServeur, hidePersonalInfo: hideServeur, roleLabel, planLabel, workspaceName: workspaceNameServeur, collapsedInitial, logout, children } = props;
+  // Lot 16 · ce que l'utilisateur vient d'enregistrer (profil, nom d'espace)
+  // s'affiche TOUT DE SUITE, sans attendre le rendu serveur · la transition du
+  // routeur qui l'apporte peut caler (lot 14). Dès que le serveur renvoie
+  // autre chose que ce qu'il montrait à l'enregistrement, il fait foi
+  // (`valeurAffichee`, noyau).
+  const [profilLocal, setProfilLocal] = useState<{ name: Enregistre<string>; avatarUrl: Enregistre<string>; hide: Enregistre<boolean> } | null>(null);
+  const [espaceLocal, setEspaceLocal] = useState<Enregistre<string> | null>(null);
+  const userName = valeurAffichee(userNameServeur, profilLocal?.name);
+  const avatarUrl = valeurAffichee(avatarUrlServeur ?? '', profilLocal?.avatarUrl) || undefined;
+  const hidePersonalInfo = valeurAffichee(!!hideServeur, profilLocal?.hide);
+  const workspaceName = valeurAffichee(workspaceNameServeur, espaceLocal);
+  const profilEnregistre = (p: ProfilEnregistre) => setProfilLocal({
+    name: { valeur: p.name, serveurAvant: userNameServeur },
+    avatarUrl: { valeur: p.avatarUrl, serveurAvant: avatarUrlServeur ?? '' },
+    hide: { valeur: p.hidePersonalInfo, serveurAvant: !!hideServeur },
+  });
+  // Les fenêtres rendent le focus à ce qui l'avait à l'ouverture · l'entrée de
+  // menu cliquée disparaît avec le menu (focus sur <body>, mesuré au lot 16).
+  // On le pose d'abord sur le bouton qui ouvre ce menu.
+  const compteBtnRef = useRef<HTMLButtonElement>(null);
+  const espaceBtnRef = useRef<HTMLButtonElement>(null);
   // Menu profil : « Compte » (personnel) + « Espace de travail » (marques, membres,
   // connexions, abonnement, réglages). Les coulisses plateforme (ADMIN+) restent
   // réservées au fondateur/staff.
@@ -390,8 +411,8 @@ function AppShellInner(props: Props) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: chrome.colonnes, minHeight: '100vh' }}>
       <CommandPalette commands={commands} />
-      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
-      <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} onSaved={profilEnregistre} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
+      <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onSaved={(nom) => setEspaceLocal({ valeur: nom, serveurAvant: workspaceNameServeur })} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
       <aside ref={railRef} id="nav-rail" inert={chrome.railInerte || undefined}
         // En tiroir (mobile), le rail est une fenêtre modale nommée · le lecteur
         // d'écran l'annonce comme telle et sait qu'elle recouvre la page.
@@ -450,7 +471,7 @@ function AppShellInner(props: Props) {
             le changement d'espace. */}
         {!collapsed && (
           <div style={{ position: 'relative', marginTop: 6 }}>
-            <button type="button" onClick={() => setWsMenuOpen((o) => !o)} aria-haspopup="menu" aria-expanded={wsMenuOpen} title={`Espace · ${workspaceName}`}
+            <button ref={espaceBtnRef} type="button" onClick={() => setWsMenuOpen((o) => !o)} aria-haspopup="menu" aria-expanded={wsMenuOpen} title={`Espace · ${workspaceName}`}
               style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 10, border: '1px solid var(--line)', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer' }}>
               <span aria-hidden style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0 }}>{(workspaceName || '?').trim().slice(0, 1).toUpperCase()}</span>
               <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</span>
@@ -471,7 +492,7 @@ function AppShellInner(props: Props) {
                     {workspaceItems.length > 0 && <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />}
                     {workspaceItems.map((it) => {
                       if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItemIcon, color: 'var(--muted)', opacity: .6, cursor: 'default' }}><Icon name={it.icon} />{it.label}{it.soon && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
-                      if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { setWsMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name={it.icon} />{it.label}</button>;
+                      if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { espaceBtnRef.current?.focus(); setWsMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name={it.icon} />{it.label}</button>;
                       return <Link key={it.key} href={it.href} onClick={() => setWsMenuOpen(false)} style={menuItemIcon}><Icon name={it.icon} />{it.label}</Link>;
                     })}
                   </div>
@@ -601,7 +622,7 @@ function AppShellInner(props: Props) {
                   <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
                 </div>
                 <div style={{ padding: 6 }}>
-                  <button type="button" onClick={() => { setMenuOpen(false); setProfileOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name="user" />Mon profil</button>
+                  <button type="button" onClick={() => { compteBtnRef.current?.focus(); setMenuOpen(false); setProfileOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name="user" />Mon profil</button>
                   {personalItems.map((it) => (it.locked || it.soon)
                     ? <div key={it.key} style={{ ...menuItemIcon, color: 'var(--muted)', opacity: .6, cursor: 'default' }}><Icon name={it.icon} />{it.label}{it.soon && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
                     : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItemIcon}><Icon name={it.icon} />{it.label}</Link>)}
@@ -626,7 +647,7 @@ function AppShellInner(props: Props) {
               </div>
             </>
           )}
-          <button type="button" onClick={() => setMenuOpen((o) => !o)} title={collapsed ? (userName || userEmail) : undefined} style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+          <button ref={compteBtnRef} type="button" onClick={() => setMenuOpen((o) => !o)} title={collapsed ? (userName || userEmail) : undefined} style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
             <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
               {avatarUrl
                  
