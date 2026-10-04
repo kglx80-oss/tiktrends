@@ -18,6 +18,7 @@ import { bilanCopieAction } from '../../../actions/adsmap-attribution';
 import { conseilMoteur, conseilMode, sourceVeilleDepuisRef, lireIterationDemandee, briefDepuisTest, cleMontageStudio, cleBrouillonIteration } from '@tiktrends/core';
 import { adDetailAction } from '../../../actions/adsmap-verdict';
 import { adsDeLaMarque } from '../../../../lib/adsmap-marque';
+import { RepriseIteration } from './RepriseIteration';
 import { PanneauIteration, type EtatIteration } from './PanneauIteration';
 import { cadrePage } from '../../../../components/ui';
 
@@ -185,7 +186,10 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
           rechargement.
           Depuis I2, elle porte aussi le test du brief demandé (`cleMontageStudio`) ·
           mesuré, ?iter=A → ?iter=B gardait les champs de A sous le brief de B. */}
-      {iteration && <PanneauIteration it={iteration} marque={brand?.name ?? null} />}
+      {iteration && <PanneauIteration it={iteration} marque={brand?.name ?? null} brandId={brand?.id ?? null} />}
+      {/* Lot 17 · revenu sur Pubs IA sans `?iter` (changement d'onglet) · on
+          propose de reprendre le brief ouvert dans cet onglet, pour cette marque. */}
+      {!iterDemande && brand && <RepriseIteration brandId={brand.id} />}
 
       <AdsStudio key={cleMontageStudio(brand?.id ?? null, iterDemande)} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={angleInitial} initialPersonaId={personaInitial} iteration={iteration?.etat === 'ok' && brand ? { cle: cleBrouillonIteration(brand.id, iteration.adId) } : null} initialRef={initialRef} initialSource={initialSource} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
     </main>

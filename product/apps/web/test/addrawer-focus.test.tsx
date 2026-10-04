@@ -35,7 +35,7 @@ const detail = (o: Partial<AdDetail> = {}): AdDetail => ({
   launchedAt: null, batchNumber: null, protocolSummary: null, computed: null, validated: null, verdictStatus: null, comparable: true,
   failedStage: null, killFlag: null, reason: null, computedAt: null,
   metrics: { spend: null, impressions: null, purchases: null, cpa: null, cpaHi: null, hookRate: null, holdRate: null, ctr: null },
-  learnings: [], parent: null, children: [], sourceVeille: null, ...o,
+  learnings: [], parent: null, children: [], sourceVeille: null, manques: [], ...o,
 });
 
 // Nettoyage quelle que soit l'issue du test · un panneau resté monté après un
@@ -94,6 +94,16 @@ describe('AdDrawer · focus', () => {
 });
 
 describe('AdDrawer · ce que dit le panneau selon l’état RÉEL du test', () => {
+  it('lot 17 · ad incomplète · dit ce qui manque, et ne renvoie plus vers « Préparer un test » (boucle Lots ↔ fiche)', async () => {
+    reponse = { detail: detail({ manques: ['l’offre', 'la page de destination'] }) };
+    const { dialogue, fermer } = await ouvrir();
+    const t = dialogue.textContent ?? '';
+    expect(t, 'ce qui manque n’est pas dit').toContain('À compléter avant tout test · l’offre et la page de destination');
+    expect(t).toContain('ne se saisissent pas encore dans l’outil');
+    expect(dialogue.querySelector('a[href="/adsmap/lots"]'), 'la fiche renvoie encore vers les Lots, qui renvoient vers la fiche').toBeNull();
+    await fermer();
+  });
+
   it('à lancer · pas de « Mesurer maintenant », pas d’arbitrage vide, pas de règle gagnante/perdante, prochaine étape existante', async () => {
     reponse = { detail: detail() };
     const { dialogue, fermer } = await ouvrir();

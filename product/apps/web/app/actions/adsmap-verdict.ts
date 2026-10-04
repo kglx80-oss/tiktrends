@@ -4,8 +4,7 @@ import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   checkIteration, checkVerdictValidation, checkVerdictComparability,
-  formatViolations, type VerdictValue, type TestedVariable, type SourceVeille,
-} from '@tiktrends/core';
+  formatViolations, type VerdictValue, type TestedVariable, type SourceVeille, manquesAvantTest } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
@@ -47,6 +46,8 @@ export interface AdDetail {
   format: string;
   hypothesis: string | null;
   testedVariable: string | null;
+  /** Lot 17 · ce qui manque pour partir en test (`manquesAvantTest`) · vide = complète. */
+  manques: string[];
   variableValue: string | null;
   launchedAt: string | null;
   batchNumber: number | null;
@@ -173,6 +174,7 @@ export async function adDetailAction(adId: string): Promise<{ detail?: AdDetail;
         format: row.ad.format,
         hypothesis: row.ad.hypothesis,
         testedVariable: row.ad.testedVariable,
+        manques: manquesAvantTest({ adType: row.ad.adType, hypothesis: row.ad.hypothesis, testedVariable: row.ad.testedVariable, offerId: row.ad.offerId, landingPageId: row.ad.landingPageId }),
         variableValue: row.ad.variableValue,
         launchedAt: row.ad.launchedAt ? (row.ad.launchedAt as Date).toISOString() : null,
         batchNumber: row.batchNumber ?? null,

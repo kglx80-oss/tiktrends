@@ -35,6 +35,7 @@ export {
 export * from './adsmap/verdict';
 export * from './adsmap/verdict-carte';
 export * from './adsmap/passage-studio';
+export * from './adsmap/reprise-adsmap';
 export * from './adsmap/verdict-libelle';
 export * from './adsmap/fait-preuve';
 export * from './carte-homonymes';

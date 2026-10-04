@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   buildUniqueNames, checkAdReady, formatViolations, resolveCampaignName,
-  DEFAULT_VERDICT_CONFIG, type VerdictConfig, type AdShape,
+  DEFAULT_VERDICT_CONFIG, type VerdictConfig, type AdShape, manquesAvantTest,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -213,7 +213,7 @@ export async function batchDetailAction(batchId: string): Promise<{ detail?: Bat
   }
 }
 
-export interface CandidateAd { id: string; concept: string; variantCode: string; status: string; blocking: string | null }
+export interface CandidateAd { id: string; concept: string; variantCode: string; status: string; blocking: string | null; /** Lot 17 · lisibles À L'ÉCRAN (le détail n'était qu'en infobulle). */ manques: string[] }
 
 /** Les ads qui n'appartiennent à aucun lot · le vivier dans lequel on compose. */
 export async function candidatesAction(): Promise<{ rows?: CandidateAd[]; error?: string }> {
@@ -237,6 +237,7 @@ export async function candidatesAction(): Promise<{ rows?: CandidateAd[]; error?
     return {
       rows: rows.map((r) => ({
         id: r.ad.id, concept: r.concept, variantCode: r.ad.variantCode, status: r.ad.status,
+        manques: manquesAvantTest({ adType: r.ad.adType, hypothesis: r.ad.hypothesis, testedVariable: r.ad.testedVariable, offerId: r.ad.offerId, landingPageId: r.ad.landingPageId }),
         blocking: formatViolations(checkAdReady({
           status: 'ready', adType: r.ad.adType, hypothesis: r.ad.hypothesis,
           testedVariable: r.ad.testedVariable, offerId: r.ad.offerId, landingPageId: r.ad.landingPageId,

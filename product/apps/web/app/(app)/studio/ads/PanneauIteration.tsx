@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, type BriefDepuisTest } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, FILIATION_NON_ENREGISTREE, type BriefDepuisTest } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
 import { ModifierBrief } from './ModifierBrief';
+import { MemoIteration } from './RepriseIteration';
 
 /**
  * Le brief d'itération, en tête du Studio (lot I2) · ouvert depuis le panneau
@@ -21,7 +22,7 @@ export type EtatIteration =
 
 const retourTest = (adId: string) => `/adsmap?ad=${encodeURIComponent(adId)}&depuis=studio`;
 
-export function PanneauIteration({ it, marque }: { it: EtatIteration; marque: string | null }) {
+export function PanneauIteration({ it, marque, brandId }: { it: EtatIteration; marque: string | null; brandId?: string | null }) {
   if (it.etat === 'refuse') {
     // Ni détail ni lien · un test supprimé, d'une autre marque ou hors droits ne
     // se distingue pas (aucune divulgation).
@@ -50,6 +51,7 @@ export function PanneauIteration({ it, marque }: { it: EtatIteration; marque: st
   // intrinsèque · mesuré à 1440 · 269 px de haut pour 128 px de contenu.
   return (
     <section aria-labelledby="brief-iteration-titre" style={{ ...cadre, display: 'grid', gap: 12 }}>
+      {brandId && <MemoIteration brandId={brandId} adId={it.adId} titre={provenance.titre} />}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="map" size={16} /></span>
         {/* Base 260 · à 390 le lien ne tient plus à côté, il passe DESSOUS et le
@@ -86,7 +88,7 @@ export function PanneauIteration({ it, marque }: { it: EtatIteration; marque: st
       </div>
 
       <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
-        Rien n’est généré ni enregistré à l’ouverture · « Créer des pubs » reste ton geste. L’hypothèse et la variable ne sont pas transmises à la génération : garde-les en tête en ajustant l’angle.
+        Rien n’est généré ni enregistré à l’ouverture · « Créer des pubs » reste ton geste. L’hypothèse et la variable ne sont pas transmises à la génération : garde-les en tête en ajustant l’angle. {FILIATION_NON_ENREGISTREE}
       </p>
     </section>
   );

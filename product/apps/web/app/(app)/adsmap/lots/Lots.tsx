@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, listeManques } from '@tiktrends/core';
 import {
   batchDetailAction, candidatesAction, createBatchAction, setBatchAdAction,
   prepareBatchAction, launchBatchAction,
@@ -239,7 +239,9 @@ export function Lots({ batches, brandName }: {
                 background: 'var(--surface)', color: 'var(--ink-2)',
               }}>
               <strong style={{ color: 'var(--ink)' }}>{c.variantCode}</strong> · {c.concept}
-              {c.blocking && <span style={{ display: 'block', color: '#ffcf8f', fontSize: 10.5, marginTop: 1 }}>incomplète</span>}
+              {/* Lot 17 · le détail se lit À L'ÉCRAN · il n'était qu'en infobulle
+                  (invisible au doigt et au clavier). */}
+              {c.blocking && <span style={{ display: 'block', color: '#ffcf8f', fontSize: 10.5, marginTop: 1, overflowWrap: 'anywhere' }}>incomplète{c.manques?.length ? <> · manque {listeManques(c.manques)}</> : null}</span>}
             </button>
           ))}
         </div>

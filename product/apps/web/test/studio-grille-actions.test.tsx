@@ -29,7 +29,7 @@ const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
 describe('Cartes Image et Vidéo · actions en grille', () => {
   it('grille de cases ≥ 44 px, pouces sur deux cases, ordre clavier inchangé', () => {
-    const h = monter(<CreativeActions genId="g" onOpen={() => {}} downloadUrl="https://exemple.test/a.png" onArchive={() => {}} trackable />);
+    const h = monter(<CreativeActions genId="f1700000-0000-4000-8000-0000000000a1:https://exemple.test/a.png" onOpen={() => {}} downloadUrl="https://exemple.test/a.png" onArchive={() => {}} trackable />);
     const g = h.firstElementChild as HTMLElement;
     expect(g.style.display, 'la barre n’est pas une grille').toBe('grid');
     expect(g.style.gridTemplateColumns).toBe(`repeat(auto-fill, minmax(${CIBLE_TACTILE_MIN}px, 1fr))`);
