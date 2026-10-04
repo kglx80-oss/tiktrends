@@ -49,6 +49,15 @@ describe('Studio Image › « Suivre dans Adsmap » · identifiant composite (lo
     expect(document.activeElement, 'le focus tombe sur <body>').toBe(lien);
   });
 
+  it('seconde image d’une génération déjà suivie · dit « Déjà suivie », jamais « Ajoutée »', async () => {
+    actions.track.mockResolvedValue({ ok: true, adId: 'ada00000-0000-4000-8000-0000000000f9', dejaSuivie: true });
+    await monter(<CreativeActions genId={`${G}:data:image/svg+xml;base64,BBB`} trackable />);
+    await act(async () => { suivre()!.click(); }); await attendre();
+    const statut = document.querySelector('[role=status]')?.textContent ?? '';
+    expect(statut, 'la seconde image annonce une ajout qui n’a pas eu lieu').toContain('Déjà suivie');
+    expect(statut).not.toContain('Ajoutée');
+  });
+
   it('échec · le message se lit À L’ÉCRAN (pas seulement en infobulle) et le focus revient au bouton', async () => {
     actions.track.mockResolvedValue({ error: 'Créa introuvable dans cette marque.' });
     await monter(<CreativeActions genId={G} trackable />);

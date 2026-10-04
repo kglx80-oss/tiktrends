@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   idGenerationSuivable, manquesAvantTest, listeManques, texteAdIncomplete, COMPLETUDE_HORS_OUTIL,
-  repriseIteration, FILIATION_NON_ENREGISTREE, presentationTest, PREPARER_UN_TEST,
+  repriseIteration, FILIATION_NON_ENREGISTREE, presentationTest, PREPARER_UN_TEST, DEJA_SUIVIE,
 } from '../src';
 
 const G = 'f1700000-0000-4000-8000-0000000000a2';
@@ -11,6 +11,10 @@ describe('Studio Image › Suivre dans Adsmap · l’identifiant de génération
     expect(idGenerationSuivable(`${G}:https://cdn.exemple.test/a.png`)).toBe(G);
     expect(idGenerationSuivable(`${G}:data:image/svg+xml;base64,AAA`)).toBe(G);
     expect(idGenerationSuivable(G)).toBe(G);
+  });
+  it('une image déjà suivie (même génération) le dit · jamais « Ajoutée »', () => {
+    expect(DEJA_SUIVIE).toMatch(/^Déjà suivie/);
+    expect(DEJA_SUIVIE).not.toMatch(/Ajoutée/);
   });
   it('rien à suivre sans identifiant de génération (image fraîche `new-…`, vidéo `tmp-…`)', () => {
     expect(idGenerationSuivable('new-0-https://cdn.exemple.test/a.png')).toBeNull();

@@ -23,7 +23,7 @@ import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
 
 const guard = adsmapGuard;
 
-export interface BridgeResult { ok?: true; adId?: string; conceptId?: string; prelaunch?: string; error?: string }
+export interface BridgeResult { ok?: true; adId?: string; conceptId?: string; prelaunch?: string; error?: string; /** La génération était déjà suivie · fiche existante renvoyée (lot 17). */ dejaSuivie?: true }
 
 /**
  * Studio → ADSMAP · une créa générée devient une ad suivie.
@@ -53,7 +53,7 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
       personaId?: string; objective?: string; adsmapAdId?: string; prompt?: string;
     };
     // Déjà suivie : on renvoie vers l'existant plutôt que de créer un doublon.
-    if (r.adsmapAdId) return { ok: true, adId: r.adsmapAdId, error: undefined };
+    if (r.adsmapAdId) return { ok: true, adId: r.adsmapAdId, dejaSuivie: true, error: undefined };
 
     // La vidéo et l'image décrivent leur créa par un `prompt`, pas un `headline` ·
     // on l'utilise comme titre plutôt qu'un « Créa Studio » anonyme.

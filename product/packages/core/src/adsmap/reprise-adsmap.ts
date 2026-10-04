@@ -35,6 +35,13 @@ export function idGenerationSuivable(idCarte: string | null | undefined): string
   return UUID.test(id) ? id.toLowerCase() : null;
 }
 
+/**
+ * Deuxième image d'une même génération · la passerelle suit une GÉNÉRATION
+ * (une fiche), pas chaque image · elle renvoie la fiche existante. L'écran
+ * disait « Ajoutée à la carte » (mesuré, lot 17) · on dit ce qui se passe.
+ */
+export const DEJA_SUIVIE = 'Déjà suivie · cette génération n’a qu’une fiche dans Adsmap, partagée par ses images.';
+
 // ── Complétude d'une ad avant test ──────────────────────────────────────────
 
 const LIBELLE_MANQUE: Record<string, string> = {

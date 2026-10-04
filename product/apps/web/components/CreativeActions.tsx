@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition, type CSSProperties } from '
 import { rateCreativeAction, type Rating } from '../app/actions/creatives';
 import { trackGeneratedAdAction } from '../app/actions/adsmap-bridge';
 import { Icon } from './Icon';
-import { idGenerationSuivable, lienFicheAdsmap, PARAM_DEPUIS, DEPUIS_STUDIO, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { idGenerationSuivable, lienFicheAdsmap, PARAM_DEPUIS, DEPUIS_STUDIO, DEJA_SUIVIE, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * Barre d'actions d'une créa (Pubs / Image / Vidéo IA) : vrais boutons + raccourcis.
@@ -44,7 +44,7 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
     const r = await trackGeneratedAdAction(generation);
     if (r.error || !r.adId) { setSuivi('err'); setNote(r.error ?? 'Le rattachement à la carte n’a pas abouti. Réessaie.'); return; }
     setAdId(r.adId);
-    setNote(r.prelaunch ?? 'Ajoutée à la carte · complète son hypothèse avant de la lancer.');
+    setNote(r.dejaSuivie ? DEJA_SUIVIE : r.prelaunch ?? 'Ajoutée à la carte · complète son hypothèse avant de la lancer.');
     setSuivi('done');
   }
 
