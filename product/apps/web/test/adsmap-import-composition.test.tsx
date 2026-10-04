@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -20,7 +21,6 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const panel = read('app/(app)/adsmap/import/ImportPanel.tsx');
 const page = read('app/(app)/adsmap/import/page.tsx');
 const action = read('app/actions/adsmap-import.ts');
-const shell = read('components/AppShell.tsx');
 
 describe('Import · la table d’aperçu scrolle chez elle (la page ne déborde plus à 390)', () => {
   it('la section (item de grille) porte min-width:0, sinon elle grandit au min-content de la table', () => {
@@ -37,8 +37,7 @@ describe('Import · la table d’aperçu scrolle chez elle (la page ne déborde 
 
 describe('Import · le support est ANCRÉ (il ne recouvre plus la légende)', () => {
   it('/adsmap/import entre dans la liste des écrans à support ancré', () => {
-    expect(shell, 'le support de /adsmap/import flotte encore et recouvre le contenu au défilement')
-      .toContain("pathname === '/adsmap/import'");
+    expect(placementLanceurSupport('/adsmap/import'), 'le support de /adsmap/import flotte encore et recouvre le contenu au défilement').toBe('ancre');
   });
 });
 

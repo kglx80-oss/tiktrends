@@ -52,7 +52,18 @@ interface Base {
   children?: ReactNode;
 }
 
-interface Action { label: string; href: string }
+interface Action {
+  label: string;
+  href: string;
+  /**
+   * Navigation complète (`<a>`) au lieu du lien client. Mesuré en recette #106 ·
+   * depuis `/veille?q=…`, un lien client vers `/veille` (même chemin, sans
+   * paramètres) charge la page mais l'URL et l'écran ne bougent pas · le bouton
+   * « Réinitialiser » ne réinitialisait rien. Pour une remise à zéro des
+   * critères d'URL, on recharge.
+   */
+  rechargement?: boolean;
+}
 
 export type EmptyProps =
   // Sur `todo`, un geste est obligatoire · un manque sans issue est une impasse.
@@ -73,6 +84,13 @@ const TON: Record<EmptyProps['tone'], { bord: string; fg: string; trait: string 
   wait: { bord: 'var(--line)', fg: 'var(--ink-2)', trait: 'solid' },
   // Un `good` se voit · c'est une réussite, pas un manque.
   good: { bord: 'rgba(126,232,191,.4)', fg: '#7ee8bf', trait: 'solid' },
+};
+
+const bouton: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  minHeight: CIBLE_TACTILE_MIN, marginTop: 16, padding: '9px 18px', borderRadius: 999,
+  background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5,
+  textDecoration: 'none',
 };
 
 const bloc = (t: (typeof TON)[EmptyProps['tone']]): CSSProperties => ({
@@ -108,19 +126,9 @@ export function Empty(props: EmptyProps) {
         </p>
       )}
 
-      {action && (
-        <Link
-          href={action.href}
-          style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            minHeight: CIBLE_TACTILE_MIN, marginTop: 16, padding: '9px 18px', borderRadius: 999,
-            background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5,
-            textDecoration: 'none',
-          }}
-        >
-          {action.label}
-        </Link>
-      )}
+      {action && (action.rechargement
+        ? <a href={action.href} style={bouton}>{action.label}</a>
+        : <Link href={action.href} style={bouton}>{action.label}</Link>)}
 
       {/* Le texte est centré · un formulaire posé dessous ne l'est pas · on rend l'alignement à gauche. */}
       {props.children && <div style={{ marginTop: 16, textAlign: 'left' }}>{props.children}</div>}

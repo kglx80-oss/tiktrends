@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, MODE_LABEL } from '@tiktrends/core';
+import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { CIBLE_TACTILE_MIN, MODE_LABEL, resultatParentSuite, videSuites, lienFicheAdsmap, lireFiltreSuites, ecrireFiltreSuites } from '@tiktrends/core';
 import { iterationPlanAction, createIterationAction, type IterationPlanView, type IterationRow } from '../../../actions/adsmap-iterate';
 import { Empty } from '../../../../components/Empty';
 import { DraftCard } from '../../../../components/DraftCard';
 import { draftConceptAction, type DraftView } from '../../../actions/adsmap-draft';
+import { remplacerRecherche } from '../../../../lib/url-client';
 
 /**
  * Le plan d'itération, et le geste qui le transforme en test.
@@ -48,8 +49,17 @@ export function Suites() {
   const [view, setView] = useState<IterationPlanView | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ouvert, setOuvert] = useState<string | null>(null);
-  const [filtre, setFiltre] = useState<Filtre>('all');
+  const [filtre, setFiltreEtat] = useState<Filtre>('all');
   const [charge, lance] = useTransition();
+  // La suite qu'on vient de créer · tenue au niveau de la PAGE · le parent peut
+  // quitter le plan au rechargement (déjà itéré), et sa carte avec lui · le
+  // message et le lien vers la fiche disparaissaient (recette #106).
+  const [creee, setCreee] = useState<{ adId: string; asIteration: boolean; label: string } | null>(null);
+  // Le filtre vit dans l'URL (remplacement) · le Retour le retrouve.
+  useEffect(() => { setFiltreEtat(lireFiltreSuites(window.location.search)); }, []);
+  // `remplacerRecherche` synchronise le routeur Next · sans quoi la création
+  // d'une suite (action qui revalide) effaçait `?mode=` (recette #106).
+  const setFiltre = (f: Filtre) => { setFiltreEtat(f); remplacerRecherche(ecrireFiltreSuites(window.location.search, f)); };
 
   useEffect(() => {
     void (async () => {
@@ -83,8 +93,9 @@ export function Suites() {
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {/* Vide · la carte « Rien à itérer » dit déjà la même chose · une seule fois (recette lot 8). */}
         <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', flex: 1, minWidth: 220, lineHeight: 1.55 }}>
-          {view.summary}
+          {view.rows.length > 0 ? view.summary : null}
         </p>
         <button
           onClick={recharger} disabled={charge}
@@ -103,12 +114,19 @@ export function Suites() {
         </div>
       )}
 
-      {!view.rows.length && (
-        <Empty
-          tone="wait" title="Rien à itérer pour l’instant."
-          why="Ce plan se remplit dès qu’un verdict est arbitré. Un verdict calculé ne suffit pas · engager une dépense sur une conclusion non prise, c’est parier sur un chiffre qui peut encore bouger."
-        />
+      {creee && (
+        <div role="status" style={{ ...carte, borderColor: 'rgba(126,232,191,.45)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 200, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, overflowWrap: 'anywhere' }}>
+            Suite de « {creee.label} » créée {creee.asIteration ? 'en itération · la filiation est enregistrée' : 'en nouveau concept · le parent n’a pas de victoire prouvée'}. Elle attend son brief.
+          </span>
+          <a href={lienFicheAdsmap(creee.adId)} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>Ouvrir sa fiche dans Adsmap ›</a>
+        </div>
       )}
+
+      {!view.rows.length && (() => {
+        const v = videSuites(view.examined);
+        return <Empty tone="wait" title={v.titre} why={v.pourquoi} />;
+      })()}
 
       {/* Aucun résultat dans CE mode · distinct de « la marque n'a aucun verdict ».
           Les autres modes en portent, le filtre le dit plutôt que d'imiter le vide. */}
@@ -125,15 +143,20 @@ export function Suites() {
         </div>
       )}
 
-      {visibles.map((r, i) => (
-        <CarteSuite
-          key={`${r.adId}-${r.changedVariable}-${i}`}
-          row={r}
-          ouvert={ouvert === `${r.adId}-${i}`}
-          onToggle={() => setOuvert(ouvert === `${r.adId}-${i}` ? null : `${r.adId}-${i}`)}
-          onCree={recharger}
-        />
-      ))}
+      {/* Clé STABLE (ad + variable) · indexée sur la liste filtrée, changer de
+          filtre ouvrait une autre carte et effaçait l'hypothèse en cours. */}
+      {visibles.map((r) => {
+        const cle = `${r.adId}-${r.changedVariable}`;
+        return (
+          <CarteSuite
+            key={cle}
+            row={r}
+            ouvert={ouvert === cle}
+            onToggle={() => setOuvert(ouvert === cle ? null : cle)}
+            onCree={(c) => { setOuvert(null); setCreee({ ...c, label: r.label }); recharger(); }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -209,8 +232,17 @@ const sommaire: CSSProperties = {
 };
 
 export function CarteSuite({ row, ouvert, onToggle, onCree }: {
-  row: IterationRow; ouvert: boolean; onToggle: () => void; onCree: () => void;
+  row: IterationRow; ouvert: boolean; onToggle: () => void; onCree: (c: { adId: string; asIteration: boolean }) => void;
 }) {
+  const ouvrirRef = useRef<HTMLButtonElement>(null);
+  const champRef = useRef<HTMLTextAreaElement>(null);
+  // Ouvert · le focus va au champ ; refermé (Annuler, Échap) · il revient au bouton.
+  const dejaOuvert = useRef(ouvert);
+  useEffect(() => {
+    if (ouvert && !dejaOuvert.current) champRef.current?.focus();
+    if (!ouvert && dejaOuvert.current) ouvrirRef.current?.focus();
+    dejaOuvert.current = ouvert;
+  }, [ouvert]);
   const [hypo, setHypo] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [envoi, lance] = useTransition();
@@ -236,12 +268,9 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
       changedVariable: row.changedVariable, stageTargeted: row.stageTargeted,
       hypothesis: hypo,
     });
-    if (r.error) { setMsg(r.error); return; }
-    setMsg(r.asIteration
-      ? 'Créée en itération · la filiation est enregistrée, l’ad attend son brief.'
-      : 'Créée en nouveau concept · le parent n’est pas gagnant, la filiation n’aurait rien voulu dire.');
+    if (r.error || !r.adId) { setMsg(r.error ?? 'Création impossible · réessaie.'); return; }
     setHypo('');
-    onCree();
+    onCree({ adId: r.adId, asIteration: !!r.asIteration });
   });
 
   return (
@@ -253,6 +282,12 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
         {row.spend !== null && row.spend > 0 && (
           <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>· {Math.round(row.spend)} € engagés</span>
         )}
+      </div>
+
+      {/* Le résultat du test d'origine · sans lui, « quoi changer » n'a pas de
+          raison lisible (le verdict était lu, jamais affiché · recette #106). */}
+      <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+        {resultatParentSuite({ verdict: row.parentVerdict, comparable: row.parentComparable, etapeLachee: row.parentEtapeLachee })}
       </div>
 
       {/* La variable à changer · mise en avant, c'est la décision de la carte. */}
@@ -294,9 +329,10 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
       )}
 
       {!ouvert ? (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Action principale · pleine. */}
           <button
+            ref={ouvrirRef} aria-expanded={false}
             onClick={onToggle}
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '8px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' }}
           >
@@ -311,13 +347,18 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
               {redige ? 'Jarvis écrit…' : 'Demander le concept à Jarvis'}
             </button>
           )}
+          {/* L'erreur de Jarvis s'affiche AUSSI carte fermée · elle n'était
+              rendue que dans le formulaire ouvert, donc jamais vue. */}
+          {msg && <span role="alert" style={{ fontSize: 12, color: '#ff8095' }}>{msg}</span>}
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          <label style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 700 }}>
+        <div style={{ display: 'grid', gap: 8 }}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onToggle(); } }}>
+          <label htmlFor={`hypo-${row.adId}-${row.changedVariable}`} style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 700 }}>
             Ce que ce test parie · sans hypothèse écrite, son résultat n’apprendra rien
           </label>
           <textarea
+            id={`hypo-${row.adId}-${row.changedVariable}`} ref={champRef}
             value={hypo} onChange={(e) => setHypo(e.target.value)} rows={2}
             placeholder={`En changeant ${row.variableLabel}, j’attends…`}
             style={{ width: '100%', padding: '9px 11px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }}
@@ -335,10 +376,7 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
             >
               Annuler
             </button>
-            {msg && <span style={{ fontSize: 12, color: msg.startsWith('Créée') ? '#7ee8bf' : '#ff8095' }}>{msg}</span>}
-            {msg?.startsWith('Créée') && (
-              <a href="/adsmap" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>Produire depuis la carte ›</a>
-            )}
+            {msg && <span role="alert" style={{ fontSize: 12, color: '#ff8095' }}>{msg}</span>}
           </div>
         </div>
       )}

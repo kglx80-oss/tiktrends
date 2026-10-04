@@ -14,8 +14,8 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, hauteurRangeeRail, railEntreeActive, ancresDeclarees } from '@tiktrends/core';
-import { chromeCoquille } from '../lib/chrome-coquille';
+import { CIBLE_TACTILE_MIN, placementLanceurSupport, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, type RegleChemin } from '@tiktrends/core';
+import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
@@ -57,6 +57,8 @@ interface AccountGroup { section: string; items: NavItem[] }
 interface Props {
   nav: Group[];
   accountGroups: AccountGroup[];
+  /** Ce que le rôle ouvre, rubrique par rubrique (lot 12) · filtre la palette. Absent = tout ouvert. */
+  ouvertures?: RegleChemin[];
   isStaff: boolean;
   showUpgrade: boolean;
   brands: Brand[];
@@ -202,7 +204,7 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, collapsedInitial, logout, children } = props;
+  const { nav, accountGroups, ouvertures = [], isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName, userEmail, avatarUrl, hidePersonalInfo, roleLabel, planLabel, workspaceName, collapsedInitial, logout, children } = props;
   // Menu profil : « Compte » (personnel) + « Espace de travail » (marques, membres,
   // connexions, abonnement, réglages). Les coulisses plateforme (ADMIN+) restent
   // réservées au fondateur/staff.
@@ -211,7 +213,9 @@ function AppShellInner(props: Props) {
   const pathname = usePathname();
   // Le support est ANCRÉ (zone de commandes en pied) sur les écrans denses en
   // commandes bas-de-page · ailleurs il reste flottant, /jarvis le masque.
-  const supportAncre = pathname === '/studio/ads' || pathname === '/dashboard' || pathname === '/veille' || pathname === '/adsmap' || pathname === '/adsmap/suites' || pathname === '/adsmap/lots' || pathname === '/adsmap/radar' || pathname === '/adsmap/tri' || pathname === '/adsmap/protocole' || pathname === '/adsmap/import' || pathname === '/analytics';
+  // Où vit le lanceur de support · règle au noyau (`placementLanceurSupport`).
+  const lanceurSupport = placementLanceurSupport(pathname);
+  const supportAncre = lanceurSupport === 'ancre';
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
@@ -241,7 +245,10 @@ function AppShellInner(props: Props) {
   // entre dans le panneau · au clavier seul, on n'est jamais coincé au bouton.
   useEffect(() => {
     if (!drawer) return;
-    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') fermerTiroir(); };
+    const surTouche = (e: KeyboardEvent) => {
+      const dialogue = (e.target as Element | null)?.closest?.('[role="dialog"]');
+      if (echapFermeTiroir({ touche: e.key, dejaTraite: e.defaultPrevented, dansAutreDialogue: !!dialogue && dialogue !== railRef.current })) fermerTiroir();
+    };
     document.addEventListener('keydown', surTouche);
     railRef.current?.querySelector<HTMLElement>('a,button')?.focus();
     return () => document.removeEventListener('keydown', surTouche);
@@ -288,6 +295,14 @@ function AppShellInner(props: Props) {
       const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
       if (!a || (a.target && a.target !== '_self')) return;
       const url = new URL(a.getAttribute('href') ?? '', window.location.href);
+      // Rail · même chemin, autre recherche (« Veille » depuis /veille?q=…) · le
+      // routeur client ne termine pas cette transition (mesuré, recette #106b) ·
+      // on confie la remise à zéro au navigateur (noyau `chargementCompletRequis`).
+      if (a.closest('#nav-rail') && chargementCompletRequis(window.location, url)) {
+        e.preventDefault();
+        window.location.assign(url.href);
+        return;
+      }
       if (url.origin === window.location.origin) setCurrentHash(url.hash);
       // Le tiroir mobile ne se refermait qu'au CHANGEMENT de route · un saut
       // d'ancre sur la même page (Couleurs, Charte) le laissait ouvert, par-dessus
@@ -337,7 +352,9 @@ function AppShellInner(props: Props) {
   const commands: Command[] = [...recentCommands];
   for (const g of nav) for (const it of g.items) commands.push({ id: 'nav-' + it.key, label: it.label, group: g.group, href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });
   // Verbes d'action : lancer une tâche directement depuis ⌘K (pas seulement naviguer).
-  commands.push(
+  // Lot 12 · filtrés comme le rail (`commandesOuvertes`) · un client en lecture
+  // ne se voit plus proposer de générer, ni un membre de créer une marque.
+  commands.push(...commandesOuvertes<Command>([
     { id: 'do-home', label: 'Accueil', group: 'Actions', href: '/dashboard', icon: 'grid', keywords: 'accueil dashboard maison home retour tableau de bord' },
     { id: 'do-ads', label: 'Générer des pubs IA', group: 'Actions', href: '/studio/ads', icon: 'sparkles', keywords: 'créer pub génération ads publicité' },
     { id: 'do-clone', label: 'Cloner une pub qui tient', group: 'Actions', href: '/studio/ads?mode=clone', icon: 'layers', keywords: 'cloner copier pub concurrent référence' },
@@ -347,9 +364,9 @@ function AppShellInner(props: Props) {
     { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/veille', icon: 'search', keywords: 'veille concurrent recherche pub' },
     { id: 'do-scale', label: 'Voir ce qui scale', group: 'Actions', href: '/veille/scale', icon: 'trend', keywords: 'scale tendance croissance winner' },
     { id: 'act-brand', label: 'Nouvelle marque', group: 'Actions', href: '/brands/new', icon: 'plus', keywords: 'créer marque ajouter' },
-  );
-  // Sauter à une marque de l'espace.
-  for (const b of brands) commands.push({ id: 'brand-' + b.id, label: b.name, group: 'Marques', href: `/brands/${b.id}`, icon: 'tag', keywords: 'marque ' + b.name });
+  ], ouvertures));
+  // Sauter à une marque de l'espace · la fiche est réservée aux admins (lot 12).
+  if (canManageBrands) for (const b of brands) commands.push({ id: 'brand-' + b.id, label: b.name, group: 'Marques', href: `/brands/${b.id}`, icon: 'tag', keywords: 'marque ' + b.name });
   commands.push({ id: 'act-profile', label: 'Mon profil', group: 'Compte', href: '/profile', icon: 'user', keywords: 'profil compte photo' });
   for (const it of personalItems) commands.push({ id: 'acc-' + it.key, label: it.label, group: 'Compte', href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });
   for (const it of workspaceItems) commands.push({ id: 'ws-' + it.key, label: it.label, group: 'Espace de travail', href: it.href, icon: it.icon, locked: it.locked, keywords: it.label });
@@ -375,7 +392,7 @@ function AppShellInner(props: Props) {
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
-      <aside ref={railRef} id="nav-rail"
+      <aside ref={railRef} id="nav-rail" inert={chrome.railInerte || undefined}
         // En tiroir (mobile), le rail est une fenêtre modale nommée · le lecteur
         // d'écran l'annonce comme telle et sait qu'elle recouvre la page.
         {...(chrome.railTiroir ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': 'Navigation' } : {})}
@@ -473,7 +490,10 @@ function AppShellInner(props: Props) {
             directement à la navigation · plus de pavé de recherche. */}
 
         {/* Navigation · rail client OU rail ADMIN+ (fondateur en coulisses) */}
-        <nav style={{ marginTop: 2, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
+        {/* Lot 15 · `minHeight: 0` · sans lui, l'élément flex refuse de rétrécir
+            sous son contenu · avec un nom de marque long (sélecteur haut) les
+            rubriques du bas sortaient du rail, hors d'atteinte. La liste défile. */}
+        <nav aria-label="Navigation principale" style={{ marginTop: 2, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
           {inAdmin ? (
             <>
               {/* Retour à la vue SaaS (app) */}
@@ -682,7 +702,7 @@ function AppShellInner(props: Props) {
           <div style={{ display: 'flex', justifyContent: 'center', padding: '4px clamp(16px, 4vw, 32px) 28px' }}>
             <SupportWidget anchored firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
           </div>
-        ) : pathname !== '/jarvis' ? (
+        ) : lanceurSupport === 'flottant' ? (
           <SupportWidget firstName={(userName || 'toi').trim().split(/\s+/)[0] || 'toi'} />
         ) : null}
       </div>

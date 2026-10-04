@@ -153,4 +153,145 @@ describe('usePiegeFocus · le clavier ne quitte pas la fenêtre', () => {
     touche({ key: 'Escape' });
     expect(document.activeElement, 'à la fermeture, le focus revient au déclencheur').toBe(q('#declencheur'));
   });
+
+  // Lot 8 · l'invitation d'Équipe porte un champ `autoFocus`. Le champ prenait le
+  // focus au commit, AVANT l'effet du hook · le hook mémorisait ce champ comme
+  // « déclencheur », et à la fermeture le focus tombait sur <body>.
+  it('un champ autoFocus garde le focus à l’ouverture, et la fermeture rend le focus au vrai déclencheur', () => {
+    vi.useFakeTimers();
+    function DialogueChamp({ actif, onFermer }: { actif: boolean; onFermer: () => void }) {
+      const ref = useRef<HTMLDivElement>(null);
+      usePiegeFocus(ref, { actif, onFermer });
+      if (!actif) return null;
+      return (
+        <div ref={ref} role="dialog" aria-modal="true" tabIndex={-1}>
+          <button id="fermer" type="button">Fermer</button>
+          <input id="champ" autoFocus />
+        </div>
+      );
+    }
+    function PiloteChamp() {
+      const [actif, setActif] = useState(false);
+      return (
+        <div>
+          <button id="declencheur" type="button" onClick={() => setActif(true)}>ouvrir</button>
+          <DialogueChamp actif={actif} onFermer={() => setActif(false)} />
+        </div>
+      );
+    }
+    monter(<PiloteChamp />);
+    q('#declencheur').focus();
+    act(() => { q<HTMLButtonElement>('#declencheur').click(); });
+    act(() => { vi.advanceTimersByTime(30); });
+    expect(document.activeElement, 'le champ autoFocus doit garder le focus').toBe(q('#champ'));
+    touche({ key: 'Escape' });
+    expect(document.activeElement, 'à la fermeture, le focus revient au déclencheur, pas à <body>').toBe(q('#declencheur'));
+  });
+
+  // Lot 9 · assistant image · un <details> fermait la fenêtre · son <summary>
+  // était le dernier arrêt du Tab sans être compté, le Tab suivant sortait.
+  it('un <summary> en dernière position · Tab revient au premier, sans sortir', () => {
+    vi.useFakeTimers();
+    function DialogueDetails() {
+      const ref = useRef<HTMLDivElement>(null);
+      usePiegeFocus(ref, { actif: true, onFermer: () => {} });
+      return (
+        <div ref={ref} role="dialog" aria-modal="true" tabIndex={-1}>
+          <button id="premier" type="button">A</button>
+          <details><summary id="resume">ou coller un lien</summary></details>
+        </div>
+      );
+    }
+    monter(<DialogueDetails />);
+    act(() => { vi.advanceTimersByTime(30); });
+    q('#resume').focus();
+    touche({ key: 'Tab' });
+    expect(document.activeElement, 'Tab depuis le <summary> sort de la fenêtre').toBe(q('#premier'));
+  });
+
+  // Lot 9 · filet · un arrêt de Tab non prévu par le décompte (champ d'un
+  // <details> fermé compté visible) faisait sortir le focus de la fenêtre.
+  it('un focus qui atterrit hors de la fenêtre y est ramené', () => {
+    vi.useFakeTimers();
+    monter(<Dialogue actif onFermer={() => {}} />);
+    act(() => { vi.advanceTimersByTime(30); });
+    act(() => { q('#dehors').focus(); });
+    expect(document.activeElement, 'le focus est resté derrière la fenêtre').toBe(q('#a'));
+  });
+
+  it('une fenêtre imbriquée (portail) garde son focus · le filet ne la vole pas', () => {
+    vi.useFakeTimers();
+    monter(<Dialogue actif onFermer={() => {}} />);
+    act(() => { vi.advanceTimersByTime(30); });
+    const autre = document.createElement('div'); autre.setAttribute('role', 'dialog');
+    const champ = document.createElement('input'); autre.appendChild(champ); document.body.appendChild(autre);
+    try {
+      act(() => { champ.focus(); });
+      expect(document.activeElement, 'le filet a volé le focus d’une fenêtre imbriquée').toBe(champ);
+    } finally { autre.remove(); }
+  });
+
+  // Lot 9 · tiroir Adsmap ouvert par lien profond · le panneau n'existait pas
+  // encore (ou était recréé par le portail) quand le focus était posé.
+  it('panneau monté APRÈS l’ouverture · le focus finit dedans', () => {
+    vi.useFakeTimers();
+    function Tardif() {
+      const ref = useRef<HTMLDivElement>(null);
+      const [pret, setPret] = useState(false);
+      usePiegeFocus(ref, { actif: true, onFermer: () => {} });
+      useEffect(() => { const t = setTimeout(() => setPret(true), 150); return () => clearTimeout(t); }, []);
+      return pret ? <div ref={ref} role="dialog" aria-modal="true" tabIndex={-1}><button id="tard" type="button">T</button></div> : null;
+    }
+    monter(<Tardif />);
+    // Pas de 40 ms, chacun rendu · comme le navigateur entre deux tâches.
+    for (let i = 0; i < 10; i++) act(() => { vi.advanceTimersByTime(40); });
+    expect(document.activeElement, 'le focus est resté sur la page').toBe(q('#tard'));
+  });
+
+  // Lot 9 · tiroir Adsmap · le focus entrait, puis le portail recréait le nœud
+  // et le focus retombait sur <body>.
+  it('panneau RECRÉÉ après la pose du focus · le focus y revient', () => {
+    vi.useFakeTimers();
+    function Recree() {
+      const ref = useRef<HTMLDivElement>(null);
+      const [cle, setCle] = useState(1);
+      usePiegeFocus(ref, { actif: true, onFermer: () => {} });
+      useEffect(() => { const t = setTimeout(() => setCle(2), 200); return () => clearTimeout(t); }, []);
+      return <div key={cle} ref={ref} role="dialog" aria-modal="true" tabIndex={-1}><button id={`b${cle}`} type="button">B</button></div>;
+    }
+    monter(<Recree />);
+    for (let i = 0; i < 12; i++) act(() => { vi.advanceTimersByTime(40); });
+    expect(document.activeElement, 'le focus est tombé avec l’ancien nœud').toBe(q('#b2'));
+  });
+
+  // Lot 9 · Pubs IA · détail puis aperçu empilés · le second Échap renvoyait
+  // le focus sur <body> au lieu du bouton qui avait ouvert le détail.
+  it('fenêtres empilées · après les deux fermetures, le focus revient au déclencheur', () => {
+    vi.useFakeTimers();
+    function Empile() {
+      const [detail, setDetail] = useState(false);
+      const [apercu, setApercu] = useState(false);
+      const dRef = useRef<HTMLDivElement>(null); const aRef = useRef<HTMLDivElement>(null);
+      usePiegeFocus(aRef, { actif: apercu, onFermer: () => setApercu(false) });
+      usePiegeFocus(dRef, { actif: detail && !apercu, onFermer: () => setDetail(false) });
+      return (
+        <div>
+          <button id="ouvrir" type="button" onClick={() => setDetail(true)}>ouvrir</button>
+          {detail && <div ref={dRef} role="dialog" aria-modal="true" tabIndex={-1}><button id="zoom" type="button" onClick={() => setApercu(true)}>zoom</button></div>}
+          {apercu && <div ref={aRef} role="dialog" aria-modal="true" tabIndex={-1}><button id="fermer" type="button">x</button></div>}
+        </div>
+      );
+    }
+    monter(<Empile />);
+    const pas = () => { for (let i = 0; i < 4; i++) act(() => { vi.advanceTimersByTime(40); }); };
+    q('#ouvrir').focus();
+    act(() => { q<HTMLButtonElement>('#ouvrir').click(); }); pas();
+    act(() => { q<HTMLButtonElement>('#zoom').click(); }); pas();
+    expect(document.activeElement).toBe(q('#fermer'));
+    touche({ key: 'Escape' }); pas();
+    expect(document.activeElement, 'après l’aperçu, le focus n’est pas dans le détail').toBe(q('#zoom'));
+    touche({ key: 'Escape' }); pas();
+    expect(document.activeElement, 'le second Échap ne rend pas le focus au déclencheur').toBe(q('#ouvrir'));
+  });
 });
+

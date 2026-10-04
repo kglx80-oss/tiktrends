@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { generateAction, type StudioState } from '../../../actions/studio';
-import { costFor, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { costFor, CIBLE_TACTILE_MIN, TEXTES_IA_INACTIFS, BOUTON_TEXTES_INACTIF } from '@tiktrends/core';
 import type { CreativeOutput } from '@tiktrends/ai';
 import { Icon } from '../../../../components/Icon';
 import { useIsMobile } from '../../../../components/useIsMobile';
@@ -46,36 +46,54 @@ export function StudioClient({ hasKey, prefillProduct, prefillInspiration, initi
     <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(300px, 380px) 1fr', gap: 22, alignItems: 'start' }}>
       {/* Brief */}
       <form action={formAction} style={{ ...card, display: 'grid', gap: 12, minWidth: 0, position: mobile ? 'static' : 'sticky', top: 20 }}>
-        <div><label style={lbl}>Produit / marque / offre *</label><input name="product" required defaultValue={prefillProduct} placeholder="Ex : sérum vitamine C bio" style={input} /></div>
-        <div><label style={lbl}>Cible</label><input name="audience" placeholder="Ex : femmes 25-40, peau sensible" style={input} /></div>
-        <div><label style={lbl}>Angle / promesse</label><input name="angle" placeholder="Ex : résultats visibles en 7 jours" style={input} /></div>
+        <div><label htmlFor="studio-textes-product" style={lbl}>Produit / marque / offre *</label><input id="studio-textes-product" name="product" required defaultValue={prefillProduct} placeholder="Ex : sérum vitamine C bio" style={input} /></div>
+        <div><label htmlFor="studio-textes-audience" style={lbl}>Cible</label><input id="studio-textes-audience" name="audience" placeholder="Ex : femmes 25-40, peau sensible" style={input} /></div>
+        <div><label htmlFor="studio-textes-angle" style={lbl}>Angle / promesse</label><input id="studio-textes-angle" name="angle" placeholder="Ex : résultats visibles en 7 jours" style={input} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ flex: 1 }}><label style={lbl}>Ton</label><input name="tone" placeholder="Ex : UGC spontané" style={input} /></div>
-          <div style={{ flex: 1 }}><label style={lbl}>Plateforme</label>
-            <select name="platform" defaultValue="tiktok" style={{ ...input, cursor: 'pointer' }}><option value="tiktok">TikTok</option><option value="meta">Meta</option></select>
+          <div style={{ flex: 1 }}><label htmlFor="studio-textes-tone" style={lbl}>Ton</label><input id="studio-textes-tone" name="tone" placeholder="Ex : UGC spontané" style={input} /></div>
+          <div style={{ flex: 1 }}><label htmlFor="studio-textes-platform" style={lbl}>Plateforme</label>
+            <select id="studio-textes-platform" name="platform" defaultValue="tiktok" style={{ ...input, cursor: 'pointer' }}><option value="tiktok">TikTok</option><option value="meta">Meta</option></select>
           </div>
         </div>
-        <div><label style={lbl}>Inspiration (créa gagnante à réinterpréter)</label><textarea name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
-        <button type="submit" disabled={pending || !hasKey} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '12px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending || !hasKey ? .6 : 1 }}>
-          {pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative · {costFor('script')} crédits</span>}
+        <div><label htmlFor="studio-textes-inspiration" style={lbl}>Inspiration (piste repérée à réinterpréter)</label><textarea id="studio-textes-inspiration" name="inspiration" rows={4} defaultValue={prefillInspiration} placeholder="Colle ici le copy d'une annonce repérée dans la Veille…" style={{ ...input, resize: 'vertical' }} /></div>
+        {/* Lot 12 · service inactif · le bouton dit l'état (plus « Générer · 3
+            crédits » d'aspect actif) et l'explication le suit immédiatement. */}
+        <button type="submit" disabled={pending || !hasKey} aria-describedby={hasKey ? undefined : 'studio-textes-inactif'} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '12px 18px', borderRadius: 999, border: hasKey ? 'none' : '1px dashed var(--line-2)', background: hasKey ? 'var(--grad-accent)' : 'transparent', color: hasKey ? 'var(--on-accent)' : 'var(--muted)', fontWeight: 700, fontSize: 14, cursor: pending || !hasKey ? 'default' : 'pointer', opacity: pending ? .6 : 1 }}>
+          {!hasKey ? BOUTON_TEXTES_INACTIF : pending ? 'Génération en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={15} /> Générer la créative · {costFor('script')} crédits</span>}
         </button>
         {/* Le coût se dit AVANT le clic · aucune génération payante sans prix connu
              (CDC S21). Ce que ça produit, et la politique d'échec, avec. */}
-        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
-          {costFor('script')} crédits · angles, hooks, script et légendes en un lot · non facturé si la génération échoue.
-        </p>
-        {!hasKey && <p style={{ margin: 0, fontSize: 12, color: 'var(--warn)' }}>IA non configurée : ajoute <code>ANTHROPIC_API_KEY</code> sur le serveur.</p>}
-        {state.error && <p style={{ margin: 0, fontSize: 12, color: '#ff9db0' }}>{state.error}</p>}
+        {hasKey && (
+          <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+            {costFor('script')} crédits · angles, hooks, script et légendes en un lot · non facturé si la génération échoue.
+          </p>
+        )}
+        {/* Copie CLIENT · ce qui manque, qui agit, quoi faire · jamais un nom de
+            variable ni de fournisseur (recette #106). La logique (bouton
+            désactivé sans IA) ne change pas. */}
+        {!hasKey && (
+          <div role="status" id="studio-textes-inactif" style={{ display: 'grid', gap: 8 }}>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--warn)', lineHeight: 1.5 }}>
+              <b>{TEXTES_IA_INACTIFS.constat}</b> {TEXTES_IA_INACTIFS.suite}
+            </p>
+            {TEXTES_IA_INACTIFS.action && (
+              <a href={TEXTES_IA_INACTIFS.action.href} style={{ display: 'inline-flex', alignItems: 'center', justifySelf: 'start', minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>
+                {TEXTES_IA_INACTIFS.action.libelle}
+              </a>
+            )}
+          </div>
+        )}
+        {state.error && <p role="alert" style={{ margin: 0, fontSize: 12, color: '#ff9db0' }}>{state.error}</p>}
       </form>
 
       {/* Résultats */}
       <div style={{ display: 'grid', gap: 16 }}>
         {!out && !pending && (
           <div style={{ ...card, color: 'var(--muted)', fontSize: 14 }}>
-            Remplis le brief à gauche et lance la génération. Astuce : depuis la <b>Veille</b>, le bouton « Générer » pré-remplit l'inspiration avec une créa gagnante.
+            Remplis le brief à gauche et lance la génération. Astuce : colle dans « Inspiration » le texte d’une annonce repérée dans la <b>Veille</b> · c’est une piste à réinterpréter, pas une preuve de résultat.
           </div>
         )}
-        {pending && <div style={{ ...card, color: 'var(--muted)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="sparkles" size={15} /> Le Studio compose angles, hooks, script et textes…</div>}
+        {pending && <div role="status" style={{ ...card, color: 'var(--muted)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="sparkles" size={15} /> Le Studio compose angles, hooks, script et textes…</div>}
 
         {out && (
           <>

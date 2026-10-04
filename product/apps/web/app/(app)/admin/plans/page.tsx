@@ -93,10 +93,14 @@ export default async function AdminPlansPage({ searchParams }: { searchParams: P
           Chaque mouvement est tracé au grand livre et apparaît dans l'historique du client.
         </p>
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <form action={grantCreditsAction} style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          {/* Recette N · à 390 les trois champs tenaient sur UNE ligne (130 + 230 + bouton) ·
+              le motif sortait de la carte et « Appliquer » partait hors écran. La ligne passe
+              à la ligne, chaque champ se borne à la largeur disponible, et chaque étiquette
+              nomme son champ (htmlFor/id). */}
+          <form action={grantCreditsAction} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', minWidth: 0, maxWidth: '100%' }}>
             <input type="hidden" name="back" value="admin" />
-            <div><label style={lbl}>Ajustement (+/−)</label><input name="amount" type="number" placeholder="ex : 500" style={{ ...input, width: 130 }} /></div>
-            <div><label style={lbl}>Motif</label><input name="reason" placeholder="Geste commercial, correction…" style={{ ...input, width: 230 }} /></div>
+            <div style={{ maxWidth: '100%' }}><label htmlFor="ajustement-montant" style={lbl}>Ajustement (+/−)</label><input id="ajustement-montant" name="amount" type="number" placeholder="ex : 500" style={{ ...input, width: 130, maxWidth: '100%' }} /></div>
+            <div style={{ maxWidth: '100%' }}><label htmlFor="ajustement-motif" style={lbl}>Motif</label><input id="ajustement-motif" name="reason" placeholder="Geste commercial, correction…" style={{ ...input, width: 230, maxWidth: '100%' }} /></div>
             <button type="submit" style={btn}>Appliquer</button>
           </form>
           <form action={rechargeAllocationAction}>

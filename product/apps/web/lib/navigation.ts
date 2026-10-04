@@ -62,7 +62,7 @@ export const ROUTES: RouteNode[] = [
   // ── Analyse ────────────────────────────────────────────────────────────────
   { path: '/dashboard', label: 'Accueil', section: 'Pilotage' },
   { path: '/analytics', label: 'Analytics', section: 'Pilotage' },
-  { path: '/radar', label: 'Radar produits', section: 'Observatoire' },
+  { path: '/radar', label: 'Radar créatif', section: 'Observatoire' },
   { path: '/tags', label: 'Tagging', parent: '/veille', section: 'Observatoire' },
 
   { path: '/adsmap', label: 'Adsmap', section: 'Laboratoire' },

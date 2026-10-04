@@ -6,7 +6,7 @@ import { demarrerGeneration, terminerGeneration } from '../../../../lib/generati
 import type { CreativeScore } from '@tiktrends/ai';
 import { setProductImagesAction, importAllProductImagesAction } from '../../../actions/image';
 import { type AdTemplate, type AdAngle } from '@tiktrends/ai';
-import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, texteAttenduDansImage, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, type CriteresGalerie, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN, lienSourceVeille, type SourceVeille, bucketPerfCarte, brouillonAEcrire, reprendreBrouillon, EVT_MODIFIER_BRIEF } from '@tiktrends/core';
+import { IMAGE_MODELS, imageModelByKey, TEMPLATE_LABEL, AD_LAYOUTS, LAYOUT_LABEL, LAYOUT_HINT, generationOutcome, producedSomething, withParam, STUDIO_LABEL, STUDIO_HINT, CHANGE, tenuConstant, prixDeclinaison, costFor, STUDIO_VARIABLES, empechement, lignee, verdictDefauts, PRODUCTION_MODES, PRODUCTION_LABEL, PRODUCTION_RESUME, garanties, reserves, texteAttenduDansImage, type ProductionMode, DEFECT_LABEL, DEFECT_FIX, ESSAI_VARIABLES, ESSAI_LABEL, hypotheseEssai, tenuDansEssai, imagesPourEssai, economieEssai, creditsAnnoncesLot, essaiVisibleEnMode, ETAT_COPIE_LABEL, debriefDepuisControles, budgetReprises, moteurRecommande, moteurParDefaut, libelleGagnant, niveauScore, COULEUR_NIVEAU, controleCasse, templatesDabord, formatApercu, idsHomonymes, qualiteCarte, filtrerTriGalerie, CRITERES_DEFAUT, lireCriteresGalerie, ecrireCriteresGalerie, type CriteresGalerie, type DebriefLot, type VerdictCopie, type ConseilMoteur, type ConseilMode, type Outcome, type StudioVariable, type EssaiVariable, type GagnantMesure, type Suggestion, CIBLE_TACTILE_MIN, lienSourceVeille, type SourceVeille, bucketPerfCarte, brouillonAEcrire, reprendreBrouillon, EVT_MODIFIER_BRIEF } from '@tiktrends/core';
 import { Pager, PAGE_SIZE } from '../../../../components/Pager';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { useIsMobile } from '../../../../components/useIsMobile';
@@ -201,6 +201,10 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
   // Les critères de la barre de filtres locale · N06 (tranche 2). Un changement
   // ramène à la première page · sinon on tombe sur une page vide du sous-ensemble.
   const [criteres, setCriteres] = useState<CriteresGalerie>(CRITERES_DEFAUT);
+  // Recherche et filtres de la galerie vivent dans l'URL (remplacée, jamais
+  // empilée) · Retour depuis un autre écran les retrouve (recette #106 ·
+  // `lireCriteresGalerie` / `ecrireCriteresGalerie`).
+  useEffect(() => { setCriteres(lireCriteresGalerie(window.location.search)); }, []);
   // La grille est en bas de page · on y amène le regard quand un lot arrive.
   const grille = useRef<HTMLDivElement>(null);
   const composeur = useRef<HTMLDivElement>(null);
@@ -1234,7 +1238,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         <>
           <BarreFiltresGalerie
             criteres={criteres}
-            onChange={(c) => { setCriteres(c); setAdsPage(0); }}
+            onChange={(c) => { setCriteres(c); setAdsPage(0); window.history.replaceState(null, '', `${window.location.pathname}${ecrireCriteresGalerie(window.location.search, c)}${window.location.hash}`); }}
             formats={formatsPresents}
             formatLabel={(f) => TPL_LABEL[f as keyof typeof TPL_LABEL] ?? f}
             nGarde={adsFiltrees.length}

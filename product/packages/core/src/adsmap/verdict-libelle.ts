@@ -22,7 +22,7 @@
  * Pur : ni base, ni horloge, ni modèle.
  */
 
-import { verdictEffectif, type VerdictValue } from './types';
+import { verdictEffectif, type VerdictValue, type AdStatus } from './types';
 import type { TonVerdictCarte } from './verdict-carte';
 
 export interface LibelleVerdict {
@@ -145,3 +145,13 @@ export function reussiteEstimee(pConclusiveWin: number): string {
   const pct = Math.round(Math.min(1, Math.max(0, pConclusiveWin)) * 100);
   return `${pct} % de réussite estimée au vu des tests passés`;
 }
+
+/**
+ * Le statut d'une ad à l'écran · la valeur en base reste la clé (`draft`…).
+ * L'aperçu d'import affichait « draft » brut (recette lot 8). Mêmes mots que
+ * l'écran Lots.
+ */
+export const LIBELLE_STATUT_AD: Record<AdStatus, string> = {
+  draft: 'Brouillon', proposed: 'Proposée', ready: 'Prête', live: 'En test', paused: 'En pause', done: 'Terminée',
+};
+

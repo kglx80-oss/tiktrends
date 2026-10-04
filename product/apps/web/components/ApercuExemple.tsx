@@ -30,7 +30,8 @@ const gcol: Record<string, string> = { A: '#18cc8c', B: '#7aa2ff', C: '#f5a623',
  * échantillon fixe, brancher un compte ne le remplace pas ici. La vraie mesure
  * vit dans Adsmap et Analytics, pas dans cet exemple.
  */
-export function ApercuExemple({ rows }: { rows: ExempleRow[] }) {
+/** `brancher` (lot 11) · le rôle ouvre-t-il /connections (admins) ? Sinon, la porte n'est pas proposée. */
+export function ApercuExemple({ rows, brancher = true }: { rows: ExempleRow[]; brancher?: boolean }) {
   const [ouvert, setOuvert] = useState(false);
   const panneauId = useId();
   const maxDepense = Math.max(0, ...rows.map((r) => r.spend));
@@ -53,10 +54,10 @@ export function ApercuExemple({ rows }: { rows: ExempleRow[] }) {
         {/* Une porte HONNÊTE · brancher un compte se fait à /connections (foyer
             unique). On ne dit pas que ça transforme CET exemple · ces cartes
             restent une démonstration. */}
-        <Link href="/connections" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, marginBottom: 16, fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>
+        {brancher && <Link href="/connections" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, marginBottom: 16, fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>
           Brancher un compte publicitaire <span aria-hidden>›</span>
           <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--muted)' }}>· pour suivre tes vraies campagnes</span>
-        </Link>
+        </Link>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(240px, 100%), 1fr))', gap: 16 }}>
           {rows.map((r) => (
             <div key={r.platform + r.fingerprint} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 16, boxShadow: 'var(--sh-card)' }}>

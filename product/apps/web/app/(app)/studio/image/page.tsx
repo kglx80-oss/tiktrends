@@ -6,13 +6,14 @@ import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 import { anthropicConfigured } from '../../../../lib/ai-status';
-import { listBrandImages } from '../../../actions/image';
+import { pageImagesMarque } from '../../../actions/image';
 import { listAssets } from '../../../actions/assets';
 import { ImageStudio } from './ImageStudio';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { effectiveAccess } from '../../../../lib/access';
 import { cadrePage } from '../../../../components/ui';
+import { fourchetteCreditsImage } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
@@ -35,7 +36,7 @@ export default async function ImageStudioPage() {
     );
   }
 
-  const [brand, images, assets] = await Promise.all([getActiveBrand(s.workspaceId), listBrandImages(), listAssets({ kind: 'image', limit: 24 })]);
+  const [brand, images, assets] = await Promise.all([getActiveBrand(s.workspaceId), pageImagesMarque(), listAssets({ kind: 'image', limit: 24 })]);
   // Même accès que les pubs · un visuel peut désormais être poussé en test dans
   // Adsmap (le pont accepte l'image en format static). Bouton « Suivre » exposé
   // seulement à qui a l'atelier de test.
@@ -63,10 +64,10 @@ export default async function ImageStudioPage() {
         packaging et ne recompose que le décor. Enregistre la photo une fois sur le produit, elle sera
         réutilisée. Le mode <b>Texte → Image</b> reste dispo pour des visuels d'ambiance sans produit. Coche
         <b>Texte lisible</b> pour une accroche écrite propre, et <b>Optimiser le prompt</b> pour qu'un
-        prompt de qualité pub soit rédigé pour toi. 4 crédits par image.
+        prompt de qualité pub soit rédigé pour toi. De {fourchetteCreditsImage().min} à {fourchetteCreditsImage().max} crédits par image selon le moteur · le prix exact s'affiche sur le bouton avant le clic.
       </PageInfo>
 
-      <ImageStudio ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} assets={assets.map((a) => ({ id: a.id, name: a.name, url: a.url, thumbUrl: a.thumbUrl }))} adsmap={adsmapOpen} />
+      <ImageStudio key={brand?.id ?? 'sans-marque'} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} assets={assets.map((a) => ({ id: a.id, name: a.name, url: a.url, thumbUrl: a.thumbUrl }))} adsmap={adsmapOpen} />
     </main>
   );
 }

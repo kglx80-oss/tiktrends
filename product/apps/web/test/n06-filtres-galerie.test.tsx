@@ -54,6 +54,7 @@ describe('N06 (tranche 2) · le câblage de la galerie (garde de source)', () =>
   });
 
   it('changer un filtre revient à la première page', () => {
-    expect(shell).toMatch(/onChange=\{\(c\) => \{ setCriteres\(c\); setAdsPage\(0\); \}\}/);
+    // Recette #106 · le même gestionnaire écrit aussi les critères dans l'URL.
+    expect(shell).toMatch(/onChange=\{\(c\) => \{ setCriteres\(c\); setAdsPage\(0\);/);
   });
 });

@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { input, lbl } from './ui';
 import { updateBrandAction } from '../app/actions/brands';
 
 const area = { ...input, minHeight: 74, resize: 'vertical' as const, lineHeight: 1.5, fontFamily: 'inherit' };
 const sectionH = { margin: '0 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' } as const;
-const addBtn = { padding: '11px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
+const addBtn = { minHeight: CIBLE_TACTILE_MIN, padding: '11px 20px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
 
 export interface BrandInitial {
   id: string; name: string; url: string; description: string; usp: string; audience: string;

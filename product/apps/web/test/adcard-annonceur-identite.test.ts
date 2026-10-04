@@ -30,6 +30,6 @@ describe('l’annonceur a une identité, avec ou sans logo', () => {
     // grille) et le nom (flex-item) doivent porter minWidth:0 pour que l'ellipsis
     // opère au lieu de déborder. AdCard tire des actions serveur → garde source.
     expect(src, 'la rangée annonceur ne peut pas rétrécir').toMatch(/gap: 8, minWidth: 0 \}\}>/);
-    expect(src, 'le nom ne peut pas s’ellipser').toContain('flex: 1, minWidth: 0');
+    expect(src, 'le nom ne peut pas rétrécir').toContain("flex: '1 1 120px', minWidth: 0");
   });
 });

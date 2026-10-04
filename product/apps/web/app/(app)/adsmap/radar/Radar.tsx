@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, lienFicheAdsmap } from '@tiktrends/core';
 import {
   radarViewAction, setRadarAction, runRadarNowAction, radarCostPreviewAction,
   conceptFromFindingAction,
@@ -142,7 +142,7 @@ export function Radar() {
           </p>
         )}
 
-        {msg && <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.6 }}>{msg}</p>}
+        {msg && <p role="status" style={{ margin: 0, fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.6 }}>{msg}</p>}
       </div>
 
       {!findings.length ? (
@@ -181,6 +181,7 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
   const [brouillon, setBrouillon] = useState<DraftView | null>(null);
   const [hypo, setHypo] = useState('');
   const [note, setNote] = useState<string | null>(null);
+  const [posee, setPosee] = useState<string | null>(null);
   const [redige, ecrit] = useTransition();
   const [classe, range] = useTransition();
 
@@ -211,6 +212,7 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
     });
     if (r.error) { setNote(r.error); return; }
     setNote('Concept posé sur la carte · il arrive « proposé », et l’ad attend son brief. Une trouvaille de veille ne décide pas de ta taxonomie.');
+    setPosee(r.adId ?? null);
     setBrouillon(null);
   });
 
@@ -278,11 +280,11 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
         </div>
       )}
 
-      {note && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink)', lineHeight: 1.55 }}>{note}</p>}
+      {note && <p role="status" style={{ margin: 0, fontSize: 12, color: 'var(--ink)', lineHeight: 1.55 }}>{note}</p>}
       {/* Concept posé, l'ad « attend son brief » · on aiguille vers la carte
           plutôt que de laisser deviner où le produire. */}
       {note?.startsWith('Concept posé') && (
-        <a href="/adsmap" style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Produire depuis la carte ›</a>
+        <a href={posee ? lienFicheAdsmap(posee) : '/adsmap'} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>{posee ? 'Ouvrir sa fiche dans Adsmap ›' : 'Produire depuis la carte ›'}</a>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Fragment } from 'react';
 import Link from 'next/link';
+import { CIBLE_TACTILE_MIN as CIBLE } from '@tiktrends/core';
 import { PLAN_PRICE, PLAN_CREDITS, planAtLeast, type Plan } from '../../lib/rbac';
 
 /**
@@ -55,7 +56,7 @@ html{scroll-behavior:smooth}
 .lp-dd-d{display:block;font-size:12px;color:var(--muted);margin-top:1px}
 .lp-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#fe2c55 0%,#ff2d8f 100%);color:#fff;border:0;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -8px rgba(254,44,85,0.6);transition:transform .2s ease,box-shadow .2s ease}
 .lp-btn:hover{transform:translateY(-2px);box-shadow:0 16px 40px -10px rgba(254,44,85,0.8)}
-.lp-btn.sm{padding:11px 20px;font-size:14px}
+.lp-btn.sm{padding:11px 20px;font-size:14px;min-height:44px}
 .lp-ghost{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:rgba(255,255,255,0.05);color:var(--ink);border:1px solid rgba(255,255,255,0.16);border-radius:999px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s ease,border-color .2s ease}
 .lp-ghost:hover{background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.28)}
 .lp-card{background:#1c121b;border:1px solid rgba(255,255,255,0.10);border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,0.40)}
@@ -70,6 +71,8 @@ html{scroll-behavior:smooth}
 .tp-save{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;color:#7fe3c0;background:rgba(24,204,140,0.12);border:1px solid rgba(24,204,140,0.3);padding:2px 8px;border-radius:999px}
 .tp-off{color:var(--muted)}
 #tp-annuel:checked ~ .tp-billrow .tp-toggle{background:linear-gradient(135deg,#fe2c55,#ff2d8f)}
+/* Recette N · la case est cachée (0×0) · au Tab, l'anneau se posait sur un point invisible. On le reporte sur la bascule VISIBLE. */
+#tp-annuel:focus-visible ~ .tp-billrow .tp-toggle{outline:2px solid #ff5c8a;outline-offset:3px}
 #tp-annuel:checked ~ .tp-billrow .tp-toggle .tp-knob{transform:translateX(21px)}
 #tp-annuel:checked ~ .tp-billrow .tp-lab-mo{color:var(--muted)}
 #tp-annuel:checked ~ .tp-billrow .tp-lab-yr{color:var(--ink)}
@@ -135,10 +138,13 @@ const TIER_PITCH: Record<Plan, string> = {
 };
 const TIER_FEATURES: Record<Plan, string[]> = {
   starter: ['Dashboard & Analytics', 'Veille en lecture', 'Tagging'],
-  core: ['Tout Starter', 'Studio IA complet', 'Jarvis · copie relue', 'Veille & Radar produits'],
+  core: ['Tout Starter', 'Studio IA complet', 'Jarvis · copie relue', 'Veille & Radar créatif'],
   plus: ['Tout Core', 'Adsmap complet', 'Suites & lots de test', 'Protocole & seuils'],
   business: ['Tout Plus', 'Marques & membres multiples', 'Le plus gros volume de crédits'],
 };
+
+// Recette N · à 390 les liens de la barre et du pied de page mesuraient 20 à 30 px de haut.
+const lienPied = { display: 'inline-flex', alignItems: 'center', minHeight: CIBLE } as const;
 
 function euro(n: number): string {
   return n.toLocaleString('fr-FR');
@@ -147,7 +153,7 @@ function euro(n: number): string {
 // Colonnes de fonctionnalités du tableau · les ✓ dérivent de minPlan.
 const TABLE: { group: string; rows: { label: string; min: Plan }[] }[] = [
   { group: 'Piloter', rows: [{ label: 'Dashboard & Analytics', min: 'starter' }, { label: 'Tagging', min: 'starter' }] },
-  { group: 'Observer', rows: [{ label: 'Veille & Ce qui scale', min: 'core' }, { label: 'Radar produits', min: 'core' }, { label: 'Sauvegardes', min: 'core' }] },
+  { group: 'Observer', rows: [{ label: 'Veille & Ce qui scale', min: 'core' }, { label: 'Radar créatif', min: 'core' }, { label: 'Sauvegardes', min: 'core' }] },
   { group: 'Créer', rows: [{ label: 'Studio IA · Pubs, Image, Vidéo, Textes', min: 'core' }, { label: 'Jarvis · copie relue', min: 'core' }, { label: 'Assets', min: 'core' }] },
   { group: 'Tester', rows: [{ label: 'Adsmap · suites, lots, tri', min: 'plus' }, { label: 'Protocole & seuils', min: 'plus' }, { label: 'Import de campagnes', min: 'plus' }] },
   { group: 'Espace', rows: [{ label: 'Marques & membres multiples', min: 'starter' }, { label: 'Connexions & facturation', min: 'starter' }] },
@@ -210,13 +216,13 @@ export default function TarifsPage() {
       {/* NAV */}
       <nav className="lp-nav">
         <div className="lp-wrap lp-navrow">
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 11, minHeight: CIBLE }}>
             <Logo />
             <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.02em' }}>TikTrends</span>
           </Link>
           <NavLinks />
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Link href="/login" style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink2)' }}>Connexion</Link>
+            <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE, fontSize: 15, fontWeight: 500, color: 'var(--ink2)' }}>Connexion</Link>
             <Link href="/signup" className="lp-btn sm">Démarrer</Link>
           </div>
         </div>
@@ -345,16 +351,16 @@ export default function TarifsPage() {
       {/* FOOTER */}
       <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: '#0d070c' }}>
         <div className="lp-wrap" style={{ padding: 40, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE }}>
             <Logo size={26} />
             <span style={{ fontSize: 19, fontWeight: 500 }}>TikTrends</span>
           </Link>
-          <div style={{ display: 'flex', gap: 26, color: 'var(--muted)', fontSize: 13, flexWrap: 'wrap' }}>
-            <Link href="/#galerie">Créatives</Link>
-            <Link href="/#methode">Méthode</Link>
-            <Link href="/#adsmap">Adsmap</Link>
-            <Link href="/tarifs">Tarifs</Link>
-            <Link href="/legal/mentions-legales">Mentions légales</Link>
+          <div style={{ display: 'flex', gap: '0 26px', color: 'var(--muted)', fontSize: 13, flexWrap: 'wrap' }}>
+            <Link href="/#galerie" style={lienPied}>Créatives</Link>
+            <Link href="/#methode" style={lienPied}>Méthode</Link>
+            <Link href="/#adsmap" style={lienPied}>Adsmap</Link>
+            <Link href="/tarifs" style={lienPied}>Tarifs</Link>
+            <Link href="/legal/mentions-legales" style={lienPied}>Mentions légales</Link>
           </div>
           <div className="lp-muted" style={{ fontSize: 12 }}>© 2026 TikTrends</div>
         </div>

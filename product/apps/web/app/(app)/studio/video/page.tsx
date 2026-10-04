@@ -3,13 +3,14 @@ import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
-import { listBrandVideos, listAnimatableAssets } from '../../../actions/video';
+import { pageVideosMarque, listAnimatableAssets } from '../../../actions/video';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { VideoStudioFull } from './VideoStudioFull';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { effectiveAccess } from '../../../../lib/access';
 import { cadrePage } from '../../../../components/ui';
+import { costFor } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'video')!;
@@ -34,7 +35,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
 
   const sp = await searchParams;
   const brand = await getActiveBrand(s.workspaceId);
-  const [videos, assets] = await Promise.all([listBrandVideos(), listAnimatableAssets()]);
+  const [videos, assets] = await Promise.all([pageVideosMarque(), listAnimatableAssets()]);
   // Même accès que les pubs · la vidéo peut désormais être poussée en test dans
   // Adsmap (le pont accepte le format vidéo). On expose le bouton « Suivre »
   // seulement à qui a l'atelier de test, comme le studio Pubs IA.
@@ -53,10 +54,10 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
         Stratégie cohérente avec Pubs IA : <b>Image → Vidéo</b> anime directement <b>ton produit ou une pub déjà générée</b>
         (mouvement de caméra, micro-animations), pendant que <b>Texte → Vidéo</b> part d'une description. Le bouton
         <b> Suggérer un mouvement</b> propose une consigne ancrée sur ta marque. Format 9:16 pour TikTok, rendu ~1 à 3 min,
-        20 crédits par vidéo.
+        {costFor('video')} crédits par tranche de 5 s · le prix exact s'affiche sur le bouton avant le clic.
       </PageInfo>
 
-      <VideoStudioFull ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} adsmap={adsmapOpen} />
+      <VideoStudioFull key={brand?.id ?? 'sans-marque'} ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} adsmap={adsmapOpen} />
     </main>
   );
 }

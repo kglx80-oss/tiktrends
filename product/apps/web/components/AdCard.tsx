@@ -63,7 +63,11 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
             sans ça (min-width auto par défaut) l'ellipsis voulue sur le nom
             n'opère pas et un annonceur au nom long pousse le badge et le bouton
             Suivre hors de la carte. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        {/* Nom long (mesuré · « M… » à 1280 dans Nouveautés, coincé entre « Piste
+            forte » et « Suivre ») · la rangée passe à la ligne quand le nom n'a
+            plus 120 px, le nom tient sur 2 lignes et reste complet au survol.
+            Un nom court ne change rien (recette #106, point 6). */}
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minWidth: 0 }}>
           {/* Le logo plateforme quand il existe · sinon une identité de repli
               (favicon du site d'atterrissage, ou initiales teintées) plutôt qu'un
               nom nu · même traitement d'identité que le reste de l'outil. */}
@@ -72,7 +76,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
           ) : (
             <AvatarSite nom={ad.advertiserName || 'Annonceur'} site={ad.landingDomain} taille={22} rayon={11} />
           )}
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
+          <span title={ad.advertiserName || undefined} style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', lineHeight: 1.3, flex: '1 1 120px', minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
           {gagnant && <span title="Source observée · tient dans le temps ou sa portée progresse · un proxy public de traction, pas une preuve de rentabilité" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Piste forte</span>}
           <FollowButton ad={ad} initialFollowing={following} />
         </div>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -71,7 +72,7 @@ describe('Pubs IA · recette Codex passe1 · vue mobile réellement galerie', ()
     // Recette Codex passe2 · une bulle fixe recouvrait un filtre / l'état vide au
     // défilement. Sur /studio/ads, le shell rend le support ANCRÉ (lanceur inline,
     // qui défile avec la page) au lieu du flottant. Rail et autres routes inchangés.
-    expect(appshell, 'le shell ne distingue pas /studio/ads pour le support').toContain("pathname === '/studio/ads'");
+    expect(placementLanceurSupport('/studio/ads'), 'le shell ne distingue pas /studio/ads pour le support').toBe('ancre');
     expect(appshell, 'le support n’est pas ancré sur cette route').toContain('<SupportWidget anchored');
     // Le mode ancré est un vrai dialogue · Escape ferme en rendant le focus au
     // lanceur, et le panneau porte le rôle dialog.
@@ -99,5 +100,13 @@ describe('Pubs IA · une barre, filtres à la demande', () => {
     for (const l of ['label="Format"', 'label="Qualité"', 'label="Performance"', 'label="Tri"']) {
       expect(barre, `filtre manquant : ${l}`).toContain(l);
     }
+  });
+});
+
+describe('Galerie Pubs IA · Retour garde recherche et filtres (recette #106)', () => {
+  it('le Studio relit les critères de l’URL au montage et la remplace à chaque changement', () => {
+    const studio = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
+    expect(studio).toMatch(/setCriteres\(lireCriteresGalerie\(window\.location\.search\)\)/);
+    expect(studio).toMatch(/replaceState\(null, '', `\$\{window\.location\.pathname\}\$\{ecrireCriteresGalerie\(window\.location\.search, c\)\}/);
   });
 });

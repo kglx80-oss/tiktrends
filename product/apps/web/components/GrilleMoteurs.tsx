@@ -1,3 +1,4 @@
+import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { VignetteMoteurVue } from './VignetteMoteurVue';
 
 /**
@@ -25,7 +26,7 @@ export function GrilleMoteurs({ moteurs, valeur, onChoisir }: {
             aria-pressed={on}
             onClick={() => onChoisir(m.key)}
             style={{
-              display: 'grid', gap: 0, padding: 0, textAlign: 'left', overflow: 'hidden',
+              display: 'grid', gap: 0, padding: 0, minHeight: CIBLE_TACTILE_MIN, textAlign: 'left', overflow: 'hidden',
               borderRadius: 14, cursor: 'pointer',
               border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
               background: on ? 'rgba(230,0,126,.05)' : 'var(--paper)',

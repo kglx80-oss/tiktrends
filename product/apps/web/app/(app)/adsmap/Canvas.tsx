@@ -11,6 +11,7 @@ import { findGaps, iterationParentSet, countGraph, summarizeGaps, LIBELLE_VERDIC
 import { graphAction, type Graph, type GraphNode } from '../../actions/adsmap-graph';
 import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
+import { useRouvrirFiche } from './useRouvrirFiche';
 
 /**
  * Canvas ADSMAP (§7).
@@ -182,6 +183,8 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
   const [nodes, setNodes] = useState<Node<DonneesNoeud>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [ouverte, setOuverte] = useState<string | null>(null);
+  // Avant vers l'entrée d'une fiche de cette vue · on la rouvre (recette #106).
+  useRouvrirFiche('carte', setOuverte);
   const [version, setVersion] = useState(0);
 
   // Avatar affiché · `null` = tous. Les ads restent repliées dans les deux cas.

@@ -33,11 +33,14 @@ export async function createInviteAction(formData: FormData): Promise<void> {
     workspaceId: s.workspaceId, email, role, token, invitedBy: s.user.id, expiresAt,
   });
   // E-mail d'invitation avec le lien · best-effort (le lien reste affiché côté Équipe).
+  // L'écran dit si l'e-mail est PARTI · il annonçait « invitation créée » même
+  // quand l'envoi n'était pas configuré (recette #106).
+  let envoye = false;
   try {
     const m = inviteEmail({ inviterName: s.user.name, workspaceName: s.workspaceName, roleLabel: ROLE_LABEL[role], token });
-    await sendMail({ to: email, subject: m.subject, html: m.html, text: m.text });
+    envoye = (await sendMail({ to: email, subject: m.subject, html: m.html, text: m.text })).ok;
   } catch { /* ignore */ }
-  redirect('/team?ok=invite');
+  redirect(envoye ? '/team?ok=invite_mail' : '/team?ok=invite');
 }
 
 export async function revokeInviteAction(formData: FormData): Promise<void> {

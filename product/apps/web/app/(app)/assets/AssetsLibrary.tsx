@@ -9,6 +9,8 @@ import { Icon } from '../../../components/Icon';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { MiniatureAsset } from '../../../components/MiniatureAsset';
+import { CIBLE_TACTILE_MIN, lireFiltreAssets, ecrireFiltreAssets } from '@tiktrends/core';
+import { remplacerRecherche } from '../../../lib/url-client';
 
 const KINDS: Array<{ key: AssetKind | 'all'; label: string }> = [
   { key: 'all', label: 'Tous' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Vidéos' }, { key: 'audio', label: 'Audio' }, { key: 'other', label: 'Autres' },
@@ -64,8 +66,28 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   const [driveKind, setDriveKind] = useState<AssetKind>('video');
   const [imp, setImp] = useState({ name: '', url: '', kind: 'video' as AssetKind });
   const [search, setSearch] = useState('');
+  // Type et recherche vivent dans l'URL (remplacée, jamais empilée) · le
+  // bouton Retour, depuis un autre écran, les retrouve (recette #106 ·
+  // `lireFiltreAssets` / `ecrireFiltreAssets`).
+  useEffect(() => {
+    const f = lireFiltreAssets(window.location.search);
+    if (f.type !== 'all') setFilter(f.type);
+    if (f.recherche) setSearch(f.recherche);
+  }, []);
+  const garderDansUrl = (type: AssetKind | 'all', recherche: string) =>
+    remplacerRecherche(ecrireFiltreAssets(window.location.search, { type, recherche }));
   const [tagging, setTagging] = useState<string | 'bulk' | ''>('');
   const fileRef = useRef<HTMLInputElement>(null);
+  // Déclencheurs des deux panneaux · Échap ferme le panneau ouvert et REND le
+  // focus ici, que le focus soit dans le panneau OU encore sur son bouton
+  // (Entrée ouvre sans déplacer le focus · mesuré au navigateur, recette #106).
+  const driveBtnRef = useRef<HTMLButtonElement>(null);
+  const importBtnRef = useRef<HTMLButtonElement>(null);
+  const fermerPanneau = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || (!showDrive && !showImport)) return;
+    e.stopPropagation();
+    if (showDrive) { setShowDrive(false); driveBtnRef.current?.focus(); } else { setShowImport(false); importBtnRef.current?.focus(); }
+  };
   const [, startTransition] = useTransition();
 
   const [page, setPage] = useState(0);
@@ -82,7 +104,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   // Un critère est actif dès qu'un filtre de type ou une recherche restreint la
   // vue · c'est ce qui déclenche « X sur Y » et le bouton Réinitialiser (CDC S13).
   const critereActif = filter !== 'all' || search.trim().length > 0;
-  const reinitialiser = () => { setFilter('all'); setSearch(''); setPage(0); };
+  const reinitialiser = () => { setFilter('all'); setSearch(''); setPage(0); garderDansUrl('all', ''); };
   const untagged = assets.filter((a) => a.kind === 'image' && (!a.tags || a.tags.length === 0)).length;
   const refresh = () => startTransition(() => router.refresh());
 
@@ -201,17 +223,17 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   }
 
   return (
-    <div>
+    <div onKeyDown={fermerPanneau}>
       {/* Barre d'actions */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
         <input ref={fileRef} type="file" accept={storageEnabled ? 'image/*,video/*,audio/*' : 'image/*'} multiple onChange={onFiles} style={{ display: 'none' }} />
         <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>
           {busy ? 'Traitement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="upload" size={14} /> {storageEnabled ? 'Téléverser des fichiers' : 'Téléverser des images'}</span>}
         </button>
-        <button type="button" onClick={() => { setShowDrive((v) => !v); setShowImport(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+        <button ref={driveBtnRef} type="button" aria-expanded={showDrive} aria-controls="assets-panneau-drive" onClick={() => { setShowDrive((v) => !v); setShowImport(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
           <GoogleDriveIcon size={15} /> Google Drive
         </button>
-        <button type="button" onClick={() => { setShowImport((v) => !v); setShowDrive(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="link" size={14} /> Importer par lien</button>
+        <button ref={importBtnRef} type="button" aria-expanded={showImport} aria-controls="assets-panneau-lien" onClick={() => { setShowImport((v) => !v); setShowDrive(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="link" size={14} /> Importer par lien</button>
         {progress && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)' }}>
             <span style={{ width: 90, height: 6, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden' }}>
@@ -220,7 +242,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
             {progress.pct}% · {progress.name.slice(0, 22)}
           </span>
         )}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--ink-2)', cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 7, minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, color: 'var(--ink-2)', cursor: 'pointer' }}>
           <input type="checkbox" checked={common} onChange={(e) => setCommon(e.target.checked)} />
           Commun à l'espace {brandName && <span style={{ color: 'var(--muted)' }}>(sinon rattaché à {brandName})</span>}
         </label>
@@ -229,7 +251,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
 
       {/* Google Drive · import de liens (fichiers ou dossier partagé) */}
       {showDrive && (
-        <div style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
+        <div id="assets-panneau-drive" style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <GoogleDriveIcon size={18} />
             <b style={{ fontSize: 14, color: 'var(--ink)' }}>Importer depuis Google Drive</b>
@@ -238,7 +260,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
             Colle un ou plusieurs <b>liens de partage Drive</b> (un par ligne). Assure-toi que le partage est réglé sur
             « Tous les utilisateurs disposant du lien ». Les fichiers deviennent des assets utilisables par l'IA.
           </p>
-          <textarea value={driveText} onChange={(e) => setDriveText(e.target.value)} placeholder={'https://drive.google.com/file/d/…\nhttps://drive.google.com/file/d/…'}
+          <textarea aria-label="Liens de partage Google Drive, un par ligne" value={driveText} onChange={(e) => setDriveText(e.target.value)} placeholder={'https://drive.google.com/file/d/…\nhttps://drive.google.com/file/d/…'}
             style={{ ...fld, minHeight: 90, resize: 'vertical', fontFamily: 'inherit' }} />
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
             <label style={{ fontSize: 12, color: 'var(--ink-2)' }}>Type&nbsp;
@@ -248,13 +270,13 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
             </label>
             <button type="button" onClick={importDrive} disabled={busy} style={primary}>{busy ? 'Import…' : 'Importer depuis Drive'}</button>
           </div>
-          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>Astuce : pour une synchro continue d'un dossier entier, utilise la <b>connexion Drive automatique</b> (encadré ci-dessus, ADMIN+). Cet import par lien reste pratique pour quelques fichiers ponctuels.</p>
+          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>Astuce : pour une synchro continue d'un dossier entier, utilise la <b>connexion Drive automatique</b> (encadré ci-dessus, réservée aux administrateurs). Cet import par lien reste pratique pour quelques fichiers ponctuels.</p>
         </div>
       )}
 
       {/* Import par lien */}
       {showImport && (
-        <div style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 16 }}>
+        <div id="assets-panneau-lien" style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: '2 1 300px' }}><label style={lbl}>URL (vidéo, audio, image, Google Drive…)</label><input value={imp.url} onChange={(e) => setImp((s) => ({ ...s, url: e.target.value }))} placeholder="https://…" style={fld} /></div>
             <div style={{ flex: '1 1 160px' }}><label style={lbl}>Nom</label><input value={imp.name} onChange={(e) => setImp((s) => ({ ...s, name: e.target.value }))} placeholder="Rush produit 01" style={fld} /></div>
@@ -270,7 +292,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
 
       {/* Recherche + tagging IA */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder="Rechercher par nom ou tag (IA)…"
+        <input aria-label="Rechercher un asset par nom ou tag" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); garderDansUrl(filter, e.target.value); }} placeholder="Rechercher par nom ou tag (IA)…"
           style={{ ...fld, flex: '1 1 260px', maxWidth: 420 }} />
         {untagged > 0 && (
           <button type="button" onClick={tagBulk} disabled={!!tagging} style={{ ...ghost, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)' }}>
@@ -286,7 +308,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
           const active = filter === k.key;
           const n = k.key === 'all' ? assets.length : assets.filter((a) => a.kind === k.key).length;
           return (
-            <button key={k.key} type="button" onClick={() => { setFilter(k.key); setPage(0); }} style={{ padding: '7px 13px', borderRadius: 999, border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--ink-2)', fontWeight: active ? 800 : 600, fontSize: 12.5, cursor: 'pointer' }}>
+            <button key={k.key} type="button" aria-pressed={active} onClick={() => { setFilter(k.key); setPage(0); garderDansUrl(k.key, search); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '7px 13px', borderRadius: 999, border: `1px solid ${active ? 'transparent' : 'var(--line-2)'}`, background: active ? 'var(--grad-accent)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--ink-2)', fontWeight: active ? 800 : 600, fontSize: 12.5, cursor: 'pointer' }}>
               {k.label} <span style={{ opacity: .7 }}>{n}</span>
             </button>
           );
@@ -350,24 +372,24 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
                     ))}
                   </div>
                 ) : a.kind === 'image' ? (
-                  <button type="button" onClick={() => tagOne(a)} disabled={!!tagging} style={{ alignSelf: 'flex-start', fontSize: 10.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'transparent', border: '1px solid var(--line-2)', borderRadius: 999, padding: '3px 9px', cursor: tagging ? 'default' : 'pointer' }}>
+                  <button type="button" onClick={() => tagOne(a)} disabled={!!tagging} style={{ alignSelf: 'flex-start', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', fontSize: 10.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'transparent', border: '1px solid var(--line-2)', borderRadius: 999, padding: '3px 9px', cursor: tagging ? 'default' : 'pointer' }}>
                     {tagging === a.id ? 'Analyse…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}><Icon name="sparkles" size={12} /> Analyser (1 cr.)</span>}
                   </button>
                 ) : null}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
-                  <label title="Utilisable par l'IA" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: a.useForAi ? '#7ee8bf' : 'var(--muted)', cursor: 'pointer', flex: 1 }}>
+                  <label title="Utilisable par l'IA" style={{ display: 'flex', alignItems: 'center', gap: 5, minHeight: CIBLE_TACTILE_MIN, fontSize: 11, color: a.useForAi ? '#7ee8bf' : 'var(--muted)', cursor: 'pointer', flex: 1 }}>
                     <input type="checkbox" checked={a.useForAi} onChange={() => toggleAi(a)} style={{ accentColor: '#7ee8bf' }} />
                     IA
                   </label>
                   {/* Coulisses · réservé à l'agence (admin+). Images seulement · un
                       template est visuel. Le client voit le badge, jamais ce bouton. */}
                   {isAdmin && a.kind === 'image' && (
-                    <button type="button" onClick={() => toggleTemplate(a)} title={a.isTemplate ? 'Retirer des templates' : 'En faire un template (visible du client)'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: a.isTemplate ? 'var(--accent-strong)' : 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    <button type="button" onClick={() => toggleTemplate(a)} title={a.isTemplate ? 'Retirer des templates' : 'En faire un template (visible du client)'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: CIBLE_TACTILE_MIN, fontSize: 11, fontWeight: 700, color: a.isTemplate ? 'var(--accent-strong)' : 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
                       <Icon name="star" size={12} /> {a.isTemplate ? 'Template ✓' : 'Template'}
                     </button>
                   )}
-                  {a.source !== 'upload' && <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--muted)', textDecoration: 'none' }}>ouvrir ↗</a>}
-                  <button type="button" onClick={() => remove(a)} style={{ fontSize: 11, color: '#ff9db0', background: 'transparent', border: 'none', cursor: 'pointer' }}>Suppr.</button>
+                  {a.source !== 'upload' && <a href={a.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: 'var(--muted)', textDecoration: 'none' }}>ouvrir ↗</a>}
+                  <button type="button" onClick={() => remove(a)} style={{ minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: '#ff9db0', background: 'transparent', border: 'none', cursor: 'pointer' }}>Suppr.</button>
                 </div>
               </div>
             </div>
@@ -379,7 +401,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   );
 }
 
-const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
+const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
-const primary = { padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
-const ghost = { padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;
+const primary = { minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
+const ghost = { minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;

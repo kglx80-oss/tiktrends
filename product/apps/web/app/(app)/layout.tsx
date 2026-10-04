@@ -5,7 +5,7 @@ import { getSession } from '../../lib/auth';
 import { RAIL_COOKIE, railCollapsedFromCookie } from '../../lib/rail-preference';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { railNav, accountSections, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, RAIL_GROUP_LABEL } from '../../lib/rbac';
+import { railNav, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, RAIL_GROUP_LABEL, ouverturesParRole, sectionsCompteOuvertes } from '../../lib/rbac';
 import { listBrands, getActiveBrand } from '../../lib/brands';
 import { AppShell } from '../../components/AppShell';
 import { ToastProvider } from '../../components/Toast';
@@ -55,8 +55,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AppShell
       nav={nav}
-      accountGroups={accountSections(access)}
-      isStaff={isFounder(s.user.email)}
+      // Lot 12 · la section « Espace » suit la garde réelle de ses pages
+      // (roleAtLeast admin) · un membre de l'équipe plateforme dont le rôle
+      // d'espace est inférieur y était renvoyé à l'accueil. Les coulisses
+      // exigent fondateur ET admin de l'espace (admin/page) · même règle ici.
+      accountGroups={sectionsCompteOuvertes(access)}
+      ouvertures={ouverturesParRole(access)}
+      isStaff={isFounder(s.user.email) && roleAtLeast(s.role, 'admin')}
       showUpgrade={roleAtLeast(s.role, 'admin') && !planAtLeast(access.plan, 'business')}
       brands={brands}
       activeBrandId={activeBrand?.id ?? null}

@@ -120,7 +120,7 @@ export function SupportWidget({ firstName, anchored = false }: { firstName: stri
                     <button type="button" onClick={() => setAsking(true)} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 10, background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
                       <span style={{ flex: 1 }}>
                         <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Poser une question</span>
-                        <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>Notre équipe te répond dans le fil</span>
+                        <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>Les admins de ton espace te répondent dans le fil</span>
                       </span>
                       <span style={{ fontSize: 18, color: 'var(--accent-strong)' }}>›</span>
                     </button>

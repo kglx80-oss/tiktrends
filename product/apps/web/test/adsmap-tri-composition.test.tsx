@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -15,7 +16,6 @@ import { join } from 'node:path';
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const src = read('app/(app)/adsmap/tri/Curation.tsx');
-const shell = read('components/AppShell.tsx');
 
 describe('Tri · cibles tactiles 44 (source)', () => {
   it('« réinitialiser » (lien du message sans-résultat) porte la cible tactile', () => {
@@ -51,7 +51,6 @@ describe('Tri · réinitialiser rend le focus au champ de recherche (source)', (
 
 describe('Tri · le support est ANCRÉ (il ne recouvre plus le contenu)', () => {
   it('/adsmap/tri entre dans la liste des écrans à support ancré', () => {
-    expect(shell, 'le support de /adsmap/tri flotte encore et recouvre le contenu au défilement')
-      .toContain("pathname === '/adsmap/tri'");
+    expect(placementLanceurSupport('/adsmap/tri'), 'le support de /adsmap/tri flotte encore et recouvre le contenu au défilement').toBe('ancre');
   });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { modeProchaineEtape, CIBLE_TACTILE_MIN, type Journey, type Relance } from '@tiktrends/core';
+import { modeProchaineEtape, CIBLE_TACTILE_MIN, cheminOuvert, liensOuverts, type Journey, type Relance, type RegleChemin } from '@tiktrends/core';
 import { JourneyPanel } from './JourneyPanel';
 import { Icon } from './Icon';
 
@@ -15,14 +15,24 @@ import { Icon } from './Icon';
  * la Veille (observer le marché). Une étape d'installation n'est jamais
  * présentée comme une hypothèse analytique.
  */
-export function ProchaineEtape({ parcours }: {
+const LIENS_ITERATION = [
+  { href: '/adsmap', icon: 'map', titre: 'Ouvrir Adsmap', sous: 'Tes tests et leurs verdicts' },
+  { href: '/veille', icon: 'search', titre: 'Ouvrir la Veille', sous: 'Observer le marché' },
+];
+
+export function ProchaineEtape({ parcours, regles = [] }: {
   parcours: { journey: Journey; relance: Relance | null } | null;
+  /** Lot 11 · ce que le rôle ouvre · sans accès ouvert, le bloc se tait. Absent = tout ouvert. */
+  regles?: RegleChemin[];
 }) {
   const mode = modeProchaineEtape({ parcoursPresent: !!parcours, journeyComplete: !!parcours?.journey.complete });
 
   if (mode === 'installation' && parcours) {
-    return <JourneyPanel j={parcours.journey} relance={parcours.relance} />;
+    return <JourneyPanel j={parcours.journey} relance={parcours.relance} regles={regles} />;
   }
+
+  const liens = liensOuverts(LIENS_ITERATION, (h) => cheminOuvert(h, regles));
+  if (!liens.length) return null;
 
   return (
     <section aria-label="Prépare ta prochaine itération" style={{ border: '1px solid var(--line-2)', borderRadius: 18, marginBottom: 22, background: 'var(--surface)', padding: '18px 20px' }}>
@@ -31,8 +41,7 @@ export function ProchaineEtape({ parcours }: {
         Repars de ce que la mesure a montré · relis tes tests, puis observe le marché pour poser la prochaine hypothèse.
       </p>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <LienIter href="/adsmap" icon="map" titre="Ouvrir Adsmap" sous="Tes tests et leurs verdicts" />
-        <LienIter href="/veille" icon="search" titre="Ouvrir la Veille" sous="Observer le marché" />
+        {liens.map((l) => <LienIter key={l.href} {...l} />)}
       </div>
     </section>
   );

@@ -1,12 +1,12 @@
 'use server';
 
-import { and, desc, eq, or, isNull } from 'drizzle-orm';
+import { and, desc, eq, or, isNull, sql, lte, ne } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
 import { suggestVideoBrief } from '@tiktrends/ai';
-import { costFor, safeVideoDuration, videoUnits, promptVideo } from '@tiktrends/core';
+import { costFor, safeVideoDuration, videoUnits, promptVideo, fenetrePage, borneConsultation, TAILLE_PAGE_GALERIE } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
@@ -172,28 +172,56 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
   }
 }
 
-/** Historique des vidéos de la marque active (pour la galerie). */
-export async function listBrandVideos(): Promise<BrandVideo[]> {
+/** Une page de la galerie Vidéo · lot 13 (voir core/galerie-pagination). */
+export interface PageVideos {
+  items: BrandVideo[];
+  page: number;
+  pages: number;
+  de: number;
+  a: number;
+  /** Générations vidéo (en cours, prêtes, échouées). */
+  generations: number;
+  /** Vidéos prêtes (une génération en produit au plus une). */
+  sorties: number;
+  jusqua: string;
+}
+
+/**
+ * Une page de l'historique vidéo de la marque active · lecture seule.
+ *
+ * Lot 13 · les 24 dernières générations seulement étaient chargées, et les
+ * archivées retirées APRÈS ce découpage. La pagination porte désormais sur
+ * toutes les générations visibles, ordre stable (date ↓, id ↓), sous la borne
+ * de consultation, au plus TAILLE_PAGE_GALERIE lignes par appel.
+ */
+export async function pageVideosMarque(p: { page?: number; jusqua?: string } = {}): Promise<PageVideos> {
+  const borne = borneConsultation(p.jusqua, new Date());
+  const iso = borne.toISOString();
+  const vide: PageVideos = { items: [], page: 0, pages: 1, de: 0, a: 0, generations: 0, sorties: 0, jusqua: iso };
   const s = await getSession();
-  if (!s || !db) return [];
+  if (!s || !db) return vide;
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return [];
+  if (!brand) return vide;
+  const g = schema.generations;
+  const visible = and(eq(g.brandId, brand.id), eq(g.kind, 'video'), or(isNull(g.status), ne(g.status, 'archived')), lte(g.createdAt, borne));
+  const [c] = await db.select({
+    generations: sql<number>`count(*)::int`,
+    sorties: sql<number>`count(*) filter (where ${g.status} = 'completed' and coalesce(array_length(${g.assetUrls}, 1), 0) > 0)::int`,
+  }).from(g).where(visible);
+  const f = fenetrePage(c?.generations ?? 0, p.page ?? 0, TAILLE_PAGE_GALERIE);
   const rows = await db.select({
-    id: schema.generations.id, input: schema.generations.input, output: schema.generations.output,
-    status: schema.generations.status, jobId: schema.generations.jobId,
-    assetUrls: schema.generations.assetUrls, createdAt: schema.generations.createdAt,
-  }).from(schema.generations)
-    .where(and(eq(schema.generations.brandId, brand.id), eq(schema.generations.kind, 'video')))
-    .orderBy(desc(schema.generations.createdAt)).limit(24);
-  return rows.filter((g) => g.status !== 'archived').map((g) => {
-    const input = (g.input ?? {}) as { prompt?: string; mode?: string; rating?: import('./creatives').Rating };
-    const output = (g.output ?? {}) as { error?: string };
+    id: g.id, input: g.input, output: g.output, status: g.status, jobId: g.jobId, assetUrls: g.assetUrls, createdAt: g.createdAt,
+  }).from(g).where(visible).orderBy(desc(g.createdAt), desc(g.id)).limit(TAILLE_PAGE_GALERIE).offset(f.offset);
+  const items = rows.map((r) => {
+    const input = (r.input ?? {}) as { prompt?: string; mode?: string; rating?: import('./creatives').Rating };
+    const output = (r.output ?? {}) as { error?: string };
     return {
-      id: g.id, prompt: input.prompt || '(sans description)', mode: input.mode || 't2v',
-      status: g.status || 'processing', jobId: g.jobId, videoUrl: (g.assetUrls && g.assetUrls[0]) || null,
-      error: output.error, createdAt: (g.createdAt as Date).toISOString(), rating: input.rating ?? null,
+      id: r.id, prompt: input.prompt || '(sans description)', mode: input.mode || 't2v',
+      status: r.status || 'processing', jobId: r.jobId, videoUrl: (r.assetUrls && r.assetUrls[0]) || null,
+      error: output.error, createdAt: (r.createdAt as Date).toISOString(), rating: input.rating ?? null,
     };
   });
+  return { items, page: f.page, pages: f.pages, de: f.de, a: f.a, generations: c?.generations ?? 0, sorties: c?.sorties ?? 0, jusqua: iso };
 }
 
 // Au-delà de ce délai sans complétion, on considère le job perdu (évite le spinner infini).

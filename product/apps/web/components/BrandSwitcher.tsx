@@ -1,55 +1,142 @@
 'use client';
 
 import Link from 'next/link';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
-import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import {
+  CIBLE_TACTILE_MIN, basculeMarqueNecessaire, CLE_FOCUS_BASCULE_MARQUE,
+  BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE, nomSelecteurMarque, rectangleALecran, cibleRetourFocus,
+  saisiesAProteger, texteConfirmationBascule, TITRE_CONFIRMATION_BASCULE, GARDER_SAISIE, CHANGER_ET_EFFACER,
+} from '@tiktrends/core';
+import { useEffect, useRef, useState } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
 import { Modal } from './Modal';
 import { SubmitButton } from './SubmitButton';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
+import { useIsMobile, MEDIA_ETROIT } from './useIsMobile';
+import { suivreSaisies, saisiesEnCours } from './saisiesEnCours';
 
 interface Brand { id: string; name: string; logoUrl?: string | null; url?: string | null }
 
+/**
+ * Le rechargement complet, isolé pour que le test le remplace · `window.location`
+ * n'est pas redéfinissable dans jsdom.
+ */
+export const navigateur = { recharger: () => window.location.reload() };
+
 export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]; activeId: string | null; canManage: boolean }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [quick, setQuick] = useState(false);
-  const [, start] = useTransition();
+  const [enCours, setEnCours] = useState(false);
+  const [echec, setEchec] = useState(false);
+  // Lot 15 · une saisie en cours dans la page · on demande avant d'effacer.
+  const [confirmation, setConfirmation] = useState<{ id: string; libelles: string[] } | null>(null);
+  const focusApresConfirmation = useRef(false);
+  const declencheur = useRef<HTMLButtonElement>(null);
   const active = brands.find((b) => b.id === activeId) || null;
 
-  const pick = (id: string) => {
+  // Retour d'un changement de marque · le focus revient au sélecteur, là où
+  // l'utilisateur l'avait laissé, ou au bouton du menu quand le sélecteur est
+  // dans le tiroir fermé (390). On attend que la coquille ait pris sa
+  // disposition finale (noyau `cibleRetourFocus`).
+  const etroit = useIsMobile();
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem(CLE_FOCUS_BASCULE_MARQUE)) return;
+      const b = declencheur.current;
+      const cible = cibleRetourFocus({
+        mediaEtroit: !!window.matchMedia?.(MEDIA_ETROIT).matches,
+        coquilleEtroite: etroit,
+        selecteurALecran: !!b && rectangleALecran(b.getBoundingClientRect(), window.innerWidth, window.innerHeight),
+      });
+      if (cible === 'attendre') return;
+      sessionStorage.removeItem(CLE_FOCUS_BASCULE_MARQUE);
+      if (cible === 'selecteur') b?.focus();
+      else document.querySelector<HTMLButtonElement>('button[aria-controls="nav-rail"]')?.focus();
+    } catch { /* stockage indisponible · le focus reste au document */ }
+  }, [etroit]);
+
+  useEffect(() => { suivreSaisies(); }, []);
+  // « Garder ma saisie » · rien n'a changé (ni cookie, ni marque, ni texte) ·
+  // la main revient au sélecteur (l'option cliquée a disparu avec la liste).
+  useEffect(() => {
+    if (!confirmation && focusApresConfirmation.current) { focusApresConfirmation.current = false; declencheur.current?.focus(); }
+  }, [confirmation]);
+
+  // Après un échec, la main revient au sélecteur · une fois RÉACTIVÉ (un
+  // bouton encore désactivé refuse le focus).
+  useEffect(() => { if (echec) declencheur.current?.focus(); }, [echec]);
+
+  const fermer = () => { setOpen(false); declencheur.current?.focus(); };
+
+  // Lot 14 · n° 29 · le rafraîchissement souple du routeur calait une fois sur
+  // deux (mesures dans le noyau `bascule-marque`). Le cookie posé, la page est
+  // rechargée en entier · rail, contenu et cookie sortent du même rendu.
+  const pick = async (id: string) => {
     setOpen(false);
-    start(async () => { await setActiveBrand(id); router.refresh(); });
+    if (!basculeMarqueNecessaire(id, activeId)) { declencheur.current?.focus(); return; }
+    const libelles = saisiesAProteger(saisiesEnCours());
+    if (libelles.length) { setConfirmation({ id, libelles }); return; }
+    await basculer(id);
+  };
+
+  const garder = () => { focusApresConfirmation.current = true; setConfirmation(null); };
+  const confirmer = async () => {
+    const id = confirmation?.id;
+    setConfirmation(null);
+    if (id !== undefined) await basculer(id);
+  };
+
+  const basculer = async (id: string) => {
+    setEchec(false);
+    setEnCours(true);
+    try {
+      await setActiveBrand(id);
+    } catch {
+      setEnCours(false);
+      setEchec(true);
+      return;
+    }
+    try { sessionStorage.setItem(CLE_FOCUS_BASCULE_MARQUE, '1'); } catch { /* sans stockage, pas de retour de focus */ }
+    // Lot 15 · nouveau contexte, la page repart du haut · sinon le navigateur
+    // restaure l'ancienne position et coupe le titre (mesuré sur Image, 1280).
+    try { window.history.scrollRestoration = 'manual'; window.scrollTo(0, 0); } catch { /* sans effet */ }
+    navigateur.recharger();
   };
 
   return (
-    <div style={{ position: 'relative', margin: '8px 0 0' }}>
-      <button type="button" onClick={() => setOpen((o) => !o)} style={{
-        width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 10,
-        border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer',
-      }}>
+    <div style={{ position: 'relative', margin: '8px 0 0' }}
+      onKeyDown={(e) => { if (open && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fermer(); } }}>
+      <button ref={declencheur} type="button" onClick={() => setOpen((o) => !o)} disabled={enCours}
+        aria-label={enCours ? BASCULE_MARQUE_EN_COURS : nomSelecteurMarque(active ? active.name : null)}
+        aria-expanded={open} aria-controls="selecteur-marque-liste" aria-busy={enCours || undefined}
+        style={{
+          width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 10,
+          border: '1px solid var(--line)', background: 'var(--surface)', cursor: enCours ? 'progress' : 'pointer', opacity: enCours ? 0.7 : 1,
+        }}>
         {/* La favicon de la marque active · identité reconnaissable d'un coup d'œil.
             « Toutes les marques » n'a pas de site propre · on garde le pavé neutre. */}
-        {active
-          ? <AvatarSite nom={active.name} site={active.url} taille={20} rayon={6} />
-          : <span style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', flexShrink: 0 }} />}
-        <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {active ? active.name : 'Toutes les marques'}
+        <span aria-hidden style={{ display: 'inline-flex', flexShrink: 0 }}>
+          {active
+            ? <AvatarSite nom={active.name} site={active.url} taille={20} rayon={6} />
+            : <span style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', flexShrink: 0 }} />}
         </span>
-        <span style={{ color: 'var(--muted)', fontSize: 11 }}>▾</span>
+        {/* n° 23 · le nom se lit EN ENTIER · retour à la ligne, jamais d'ellipse. */}
+        <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflowWrap: 'anywhere', lineHeight: 1.3 }}>
+          {enCours ? BASCULE_MARQUE_EN_COURS : (active ? active.name : 'Toutes les marques')}
+        </span>
+        <span aria-hidden style={{ color: 'var(--muted)', fontSize: 11 }}>▾</span>
       </button>
+      {echec && <p role="alert" style={{ margin: '6px 2px 0', fontSize: 12, lineHeight: 1.4, color: 'var(--ink-2)' }}>{ECHEC_BASCULE_MARQUE}</p>}
 
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-          <div style={{ position: 'absolute', zIndex: 30, top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}>
-            <button type="button" onClick={() => pick('')} style={row(!activeId)}>Toutes les marques</button>
+          <div id="selecteur-marque-liste" style={{ position: 'absolute', zIndex: 30, top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}>
+            <button type="button" onClick={() => pick('')} aria-current={!activeId || undefined} style={row(!activeId)}>Toutes les marques</button>
             {brands.map((b) => (
-              <button key={b.id} type="button" onClick={() => pick(b.id)} style={row(b.id === activeId)}>
-                <AvatarSite nom={b.name} site={b.url} taille={16} rayon={5} />
-                <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</span>
+              <button key={b.id} type="button" onClick={() => pick(b.id)} aria-current={b.id === activeId || undefined} style={row(b.id === activeId)}>
+                <span aria-hidden style={{ display: 'inline-flex', flexShrink: 0 }}><AvatarSite nom={b.name} site={b.url} taille={16} rayon={5} /></span>
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left', overflowWrap: 'anywhere', lineHeight: 1.3 }}>{b.name}</span>
               </button>
             ))}
             {brands.length === 0 && <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--muted)' }}>Aucune marque pour l'instant.</div>}
@@ -66,6 +153,25 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
           </div>
         </>
       )}
+
+      <Modal open={!!confirmation} onClose={garder} title={TITRE_CONFIRMATION_BASCULE}>
+        {confirmation && (
+          <div style={{ display: 'grid', gap: 14 }}>
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: 'var(--ink-2)' }}>
+              {texteConfirmationBascule(confirmation.libelles, (confirmation.id ? (brands.find((b) => b.id === confirmation.id)?.name ?? 'cette marque') : 'toutes les marques'))}
+            </p>
+            {confirmation.libelles.length > 1 && (
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+                {confirmation.libelles.map((l) => <li key={l}>{l}</li>)}
+              </ul>
+            )}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={garder} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{GARDER_SAISIE}</button>
+              <button type="button" onClick={confirmer} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid rgba(255,90,120,.45)', background: 'transparent', color: '#ff9db0', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{CHANGER_ET_EFFACER}</button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Création rapide en pop-up · le parcours détaillé (5 étapes) reste accessible. */}
       <Modal open={quick} onClose={() => setQuick(false)} icon={<Icon name="tag" size={18} />} title="Nouvelle marque"
@@ -118,7 +224,7 @@ const quickField = { padding: '11px 13px', borderRadius: 12, border: '1px solid 
 
 function row(active: boolean) {
   return {
-    width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px',
+    width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px',
     border: 'none', background: active ? 'var(--accent-soft)' : 'transparent',
     color: active ? 'var(--accent-strong)' : 'var(--ink-2)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer',
   } as const;

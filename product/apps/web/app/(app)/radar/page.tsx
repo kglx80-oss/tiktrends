@@ -9,6 +9,7 @@ import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { PageInfo } from '../../../components/PageInfo';
 import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
+import { LienCible } from '../../../components/LienCible';
 import { effectiveAccess } from '../../../lib/access';
 import { cadrePage } from '../../../components/ui';
 
@@ -66,7 +67,7 @@ function Row({ r }: { r: AnalysisRow }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-2)' }}>
         {r.diagnosis.map((d, i) => <span key={i} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, padding: '4px 9px' }}>→ {d}</span>)}
-        <a href={studioHref} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Icon name="sparkles" size={12} />{ACTION_CTA[r.bucket] ?? 'Retravailler au Studio'} ›</a>
+        <LienCible href={studioHref} style={{ marginLeft: 'auto', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Icon name="sparkles" size={12} />{ACTION_CTA[r.bucket] ?? 'Retravailler au Studio'} ›</LienCible>
       </div>
     </div>
   );
@@ -79,7 +80,7 @@ export default async function RadarPage() {
     const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={wrap}>
-        <h1 style={h1}>Radar</h1>
+        <h1 style={h1}>Radar créatif</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, marginTop: 10 }}>{why === 'plan' ? 'Le Radar est inclus à partir du plan Core.' : 'Accès réservé.'}</p>
@@ -109,7 +110,7 @@ export default async function RadarPage() {
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={h1}>Radar</h1>
+        <h1 style={h1}>Radar créatif</h1>
         <span style={{ fontSize: 12, color: isLive ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
           {isLive ? `Meta Ads · live${syncedAt ? ' · maj ' + new Date(syncedAt).toLocaleDateString('fr-FR') : ''}` : 'scoring prescriptif · démo'}
         </span>

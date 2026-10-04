@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { partDeMax } from '@tiktrends/core';
+import { partDeMax, messageServiceInactif } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
@@ -21,7 +21,8 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: 'themes', label: 'Thèmes' }, { key: 'personas', label: 'Personas' },
 ];
 const ERR: Record<string, string> = {
-  nolibrary: "La bibliothèque publicitaire n'est pas configurée sur le serveur.",
+  // Copie client (recette #106b).
+  nolibrary: messageServiceInactif('veille'),
   fetch: 'Échec de la récupération des créas, réessaie.',
   noresult: "Aucune créa trouvée pour ce concurrent. Vérifie l'orthographe exacte de sa page Meta (sans note entre parenthèses) · certaines marques locales ont peu de créas indexées.",
 };

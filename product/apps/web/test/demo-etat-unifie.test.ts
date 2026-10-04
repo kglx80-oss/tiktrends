@@ -18,12 +18,21 @@ const P = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
 describe('toute page de démo connectable offre une sortie vers le réel', () => {
   it.each([
-    ['tags', 'app/(app)/tags/page.tsx'],
     ['radar', 'app/(app)/radar/page.tsx'],
     ['dashboard', 'components/ApercuExemple.tsx'],
     ['analytics', 'app/(app)/analytics/page.tsx'],
   ])('%s montre la porte vers /connections', (_n, p) => {
     expect(P(p), 'aucune sortie « brancher un compte » sur une page d’exemple').toContain('/connections');
+  });
+});
+
+// Tagging lit un échantillon FIXE (`fixtures.tagged`) · aucun compte ne
+// l'alimente. Comme la Veille, on ne lui promet pas une porte qui ne mène
+// nulle part (recette #106 · « Branche un compte pour analyser tes vraies
+// créas » était faux).
+describe('Tagging · démo non branchable, aucune porte promise', () => {
+  it('ne renvoie pas vers /connections', () => {
+    expect(P('app/(app)/tags/page.tsx')).not.toContain('/connections');
   });
 });
 

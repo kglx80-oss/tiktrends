@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_STATUT_AD, LIBELLE_VERDICT, type AdStatus, type VerdictValue } from '@tiktrends/core';
 import { previewImportAction, applyImportAction, type PreviewResult } from '../../../actions/adsmap-import';
 
 /**
@@ -15,6 +15,7 @@ import { previewImportAction, applyImportAction, type PreviewResult } from '../.
 export function ImportPanel({ brandName }: { brandName: string }) {
   const [csv, setCsv] = useState('');
   const [nom, setNom] = useState('');
+  const [focusFichier, setFocusFichier] = useState(false);
   const [prev, setPrev] = useState<PreviewResult | null>(null);
   const [fait, setFait] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,16 +53,19 @@ export function ImportPanel({ brandName }: { brandName: string }) {
           deuxième ligne et les valeurs porter des émojis · c’est prévu.
         </p>
         {/* Le champ de fichier natif n'expose qu'un bouton « Parcourir » de ~26 px ·
-            on l'enrobe dans un label stylé à la cible de la charte, l'input restant
-            masqué mais toujours l'élément qui reçoit le clic (le label le relaie). */}
-        <label style={{
+            on l'enrobe dans un label stylé à la cible de la charte. L'input reste
+            DANS l'ordre de tabulation (visuellement masqué, pas `display:none`) ·
+            masqué en `display:none`, il était inatteignable au clavier (recette #106).
+            Le focus se voit sur le label (`:focus-within` simulé par l'état). */}
+        <label style={{ position: 'relative', outline: focusFichier ? '2px solid var(--accent-strong)' : 'none', outlineOffset: 2,
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
           padding: '0 18px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)',
           color: 'var(--ink)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
         }}>
           {nom ? 'Choisir un autre fichier' : 'Choisir un fichier CSV'}
           <input type="file" accept=".csv,text/csv" onChange={(e) => choisir(e.target.files?.[0] ?? null)}
-            style={{ display: 'none' }} />
+            onFocus={() => setFocusFichier(true)} onBlur={() => setFocusFichier(false)}
+            style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }} />
         </label>
         {nom && <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>{nom}</p>}
       </section>
@@ -102,8 +106,10 @@ export function ImportPanel({ brandName }: { brandName: string }) {
           {prev?.sample && prev.sample.length > 0 && (
             <section style={panel}>
               <h2 style={h2}>Aperçu</h2>
-              <p style={sub}>Les douze premières lignes, telles qu’elles seront enregistrées.</p>
-              <div style={{ overflowX: 'auto' }}>
+              <p style={sub}>Les douze premières lignes, telles qu’elles seront enregistrées. Le tableau défile de côté pour montrer Statut, Verdict et Date.</p>
+              {/* Région focusable · au clavier, les flèches font défiler les
+                  colonnes masquées à 390 (sinon seul le toucher y accède). */}
+              <div role="region" aria-label="Aperçu de l’import · défile horizontalement" tabIndex={0} style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 720 }}>
                   <thead><tr>{['Concept', 'Angle', 'Désir', 'Variante', 'Statut', 'Verdict', 'Date'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
                   <tbody>
@@ -113,9 +119,9 @@ export function ImportPanel({ brandName }: { brandName: string }) {
                         <td style={{ ...td, color: 'var(--ink-2)' }}>{r.angle}</td>
                         <td style={{ ...td, color: 'var(--ink-2)' }}>{r.desire}</td>
                         <td style={{ ...td, fontFamily: 'ui-monospace, monospace', color: 'var(--accent-strong)' }}>{r.variant}</td>
-                        <td style={td}>{r.status}</td>
-                        <td style={td}>{r.verdict ?? '—'}</td>
-                        <td style={{ ...td, color: 'var(--muted)' }}>{r.date ?? '—'}</td>
+                        <td style={td}>{LIBELLE_STATUT_AD[r.status as AdStatus] ?? r.status}</td>
+                        <td style={td}>{r.verdict ? (LIBELLE_VERDICT[r.verdict as VerdictValue]?.court ?? r.verdict) : 'Aucun'}</td>
+                        <td style={{ ...td, color: 'var(--muted)' }}>{r.date ?? 'Aucune'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -130,7 +136,9 @@ export function ImportPanel({ brandName }: { brandName: string }) {
               {busy ? 'Import en cours…' : `Importer ${rep.ads} ad(s) dans ${brandName}`}
             </button>
             <p style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 8 }}>
-              Tout arrive « proposé » : rien n’est considéré comme validé tant que tu ne l’as pas relu.
+              Personas, désirs, angles et concepts arrivent « proposés » · à trier avant de compter. Les verdicts et
+              apprentissages du tableau sont repris tels quels, marqués NON comparables (le protocole d’alors est
+              inconnu) · ils pèsent comme des pistes relatives, jamais comme des victoires prouvées.
             </p>
           </div>
         </>
@@ -140,7 +148,8 @@ export function ImportPanel({ brandName }: { brandName: string }) {
         <div style={{ ...bandeau, background: 'rgba(126,232,191,.07)', borderColor: 'rgba(126,232,191,.3)', color: '#7ee8bf' }}>
           <b>Import terminé.</b> {rep.ads} ad(s), {rep.concepts} concept(s) et {rep.batches} lot(s) créés.
           {rep.demotedToDraft > 0 && ` ${rep.demotedToDraft} ad(s) attendent leur hypothèse avant de pouvoir repartir en test.`}
-          {' '}<a href="/adsmap" style={{ color: '#7ee8bf', fontWeight: 700 }}>Ouvrir le tableau ›</a>
+          {' '}<a href="/adsmap/tri" style={{ color: '#7ee8bf', fontWeight: 700 }}>Trier ce qui est arrivé ›</a>
+          {' '}<a href="/adsmap?vue=table" style={{ color: '#7ee8bf', fontWeight: 700 }}>Ouvrir le tableau ›</a>
         </div>
       )}
     </div>

@@ -51,7 +51,10 @@ describe('N08 · le contrat de navigation mobile (garde de source)', () => {
   });
 
   it('Escape ferme le tiroir et rend le focus au déclencheur', () => {
-    expect(shell, 'pas de gestion d’Escape sur le tiroir').toMatch(/e\.key === 'Escape'\) fermerTiroir\(\)/);
+    // Lot 15 · Échap passe par la règle en couches (lib/chrome-coquille,
+    // `echapFermeTiroir`, éprouvée à part) · elle ferme toujours le tiroir quand
+    // aucune couche interne n'a traité la touche.
+    expect(shell, 'pas de gestion d’Escape sur le tiroir').toMatch(/if \(echapFermeTiroir\(\{ touche: e\.key[\s\S]{0,160}\}\)\) fermerTiroir\(\)/);
     expect(shell, 'la fermeture ne rend pas le focus au déclencheur').toMatch(/setDrawer\(false\); burgerRef\.current\?\.focus\(\)/);
     expect(shell, 'le focus n’entre pas dans le panneau à l’ouverture').toMatch(/railRef\.current\?\.querySelector<HTMLElement>\('a,button'\)\?\.focus\(\)/);
   });

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import {
   ETAPES_VIDEO, ETAPE_VIDEO_TITRE, ETAPE_VIDEO_ROLE,
   manqueVideo, etapeVideoComplete, etapeVideoSuivante, etapeVideoPrecedente,
   premiereVideoIncomplete, peutGenererVideo, recapitulatifVideo,
-  type EtapeVideo, type EtatAssistantVideo,
+  type EtapeVideo, type EtatAssistantVideo, CIBLE_TACTILE_MIN,
 } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
 import { Portail } from '../../../../components/Portail';
@@ -51,14 +52,21 @@ const Label = ({ children, htmlFor }: { children: ReactNode; htmlFor?: string })
 
 export function AssistantVideo(p: Props) {
   const [etape, setEtape] = useState<EtapeVideo>('depart');
-  // Échap ferme · pendant clavier du clic sur le fond.
-  const { ouvert, onFermer } = p;
+  // Le piège à focus partagé · focus entrant, Tab gardé dans la fenêtre, Échap,
+  // retour au déclencheur. L'écouteur maison se réabonnait à chaque rendu de la
+  // page et ratait Échap (mesuré au navigateur, lot 9 · focus resté sur
+  // « Assistant guidé », Tab sorti 11 fois sur 14).
+  const boiteRef = useRef<HTMLDivElement>(null);
+  usePiegeFocus(boiteRef, { actif: p.ouvert, onFermer: p.onFermer });
+  // Lot 11 · changer d'étape peut DÉSACTIVER le bouton qui a le focus (« Retour »
+  // revenu à la première étape) · le focus tombait hors de la fenêtre (mesuré
+  // au navigateur). On le rend à la fenêtre, jamais à un bouton inerte.
   useEffect(() => {
-    if (!ouvert) return;
-    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onFermer(); };
-    window.addEventListener('keydown', surTouche);
-    return () => window.removeEventListener('keydown', surTouche);
-  }, [ouvert, onFermer]);
+    const b = boiteRef.current;
+    if (!b) return;
+    const a = document.activeElement as HTMLButtonElement | null;
+    if (!a || !b.contains(a) || a.disabled) b.focus();
+  }, [etape]);
   if (!p.ouvert) return null;
 
   const bloquant = manqueVideo(etape, p.etat);
@@ -71,7 +79,7 @@ export function AssistantVideo(p: Props) {
   return (
     <Portail>
     <div style={fond} onClick={p.onFermer}>
-      <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-video-titre">
+      <div ref={boiteRef} tabIndex={-1} style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-video-titre">
         <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
             {ETAPES_VIDEO.map((e, i) => {
@@ -83,7 +91,7 @@ export function AssistantVideo(p: Props) {
                   aria-current={ici ? 'step' : undefined}
                   title={ouvrable ? ETAPE_VIDEO_TITRE[e] : 'Termine les étapes précédentes.'}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 6, padding: '5px 11px', borderRadius: 999,
                     fontSize: 11.5, fontWeight: ici ? 800 : 600, cursor: ouvrable ? 'pointer' : 'default',
                     border: `1px solid ${ici ? 'transparent' : 'var(--line-2)'}`,
                     background: ici ? 'var(--grad-accent)' : 'transparent',
@@ -94,7 +102,7 @@ export function AssistantVideo(p: Props) {
               );
             })}
           </div>
-          <button type="button" onClick={p.onFermer} aria-label="Fermer" style={{ border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button type="button" onClick={p.onFermer} aria-label="Fermer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
         <div style={{ padding: '18px 20px', overflowY: 'auto', flex: 1 }}>
@@ -106,7 +114,7 @@ export function AssistantVideo(p: Props) {
               <div style={{ display: 'flex', gap: 8 }}>
                 {([['i2v', 'Image → Vidéo'], ['t2v', 'Texte → Vidéo']] as const).map(([k, label]) => (
                   <button key={k} type="button" onClick={() => p.onMode(k)} aria-pressed={p.etat.mode === k} style={{
-                    fontSize: 12.5, fontWeight: p.etat.mode === k ? 800 : 600, padding: '8px 13px', borderRadius: 12, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: p.etat.mode === k ? 800 : 600, padding: '8px 13px', borderRadius: 12, cursor: 'pointer',
                     border: `1px solid ${p.etat.mode === k ? 'transparent' : 'var(--line-2)'}`,
                     background: p.etat.mode === k ? 'var(--grad-accent)' : 'transparent', color: p.etat.mode === k ? 'var(--on-accent)' : 'var(--ink-2)',
                   }}>{label}</button>
@@ -125,7 +133,7 @@ export function AssistantVideo(p: Props) {
                 style={{ ...champ, resize: 'vertical' }} />
               {p.onSuggest && (
                 <button type="button" onClick={p.onSuggest} disabled={!p.aiReady || p.suggesting} style={{
-                  justifySelf: 'start', fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
+                  justifySelf: 'start', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999,
                   border: '1px solid var(--line-2)', background: 'transparent', color: p.aiReady ? 'var(--accent-strong)' : 'var(--muted)',
                   cursor: p.aiReady && !p.suggesting ? 'pointer' : 'default',
                 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={14} /> {p.suggesting ? 'Rédaction…' : 'Proposer un mouvement'}</span></button>
@@ -138,7 +146,7 @@ export function AssistantVideo(p: Props) {
                       const on = (p.directionValue ?? '') === d.key;
                       return (
                         <button key={d.key || 'libre'} type="button" onClick={() => p.onDirection!(d.key)} aria-pressed={on} style={{
-                          display: 'grid', gap: 3, padding: '9px 11px', borderRadius: 12, textAlign: 'left',
+                          display: 'grid', gap: 3, minHeight: CIBLE_TACTILE_MIN, padding: '9px 11px', borderRadius: 12, textAlign: 'left',
                           border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'rgba(254,44,85,.06)' : 'transparent', cursor: 'pointer',
                         }}>
                           <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{d.label}</span>
@@ -181,13 +189,13 @@ export function AssistantVideo(p: Props) {
         <div style={{ padding: '14px 20px', borderTop: '1px solid var(--line)', display: 'grid', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <button type="button" onClick={() => precedente && setEtape(precedente)} disabled={!precedente} style={{
-              padding: '10px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'transparent',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'transparent',
               color: precedente ? 'var(--ink-2)' : 'var(--muted)', fontWeight: 700, fontSize: 13, cursor: precedente ? 'pointer' : 'default', opacity: precedente ? 1 : 0.4,
             }}>← Retour</button>
             <span style={{ flex: 1 }} />
             {derniere && <span style={{ fontSize: 12, color: 'var(--muted)' }}><b style={{ color: 'var(--ink-2)' }}>{p.coutParVideo} crédits</b> · une à trois minutes</span>}
             <button type="button" onClick={derniere ? p.onGenerer : () => suivante && setEtape(suivante)} disabled={!pret} style={{
-              padding: '11px 22px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '11px 22px', borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 14,
               background: pret ? 'var(--grad-accent)' : 'var(--line-2)', color: pret ? 'var(--on-accent)' : 'var(--muted)', cursor: pret ? 'pointer' : 'default',
             }}>{p.busy ? 'Génération…' : derniere ? 'Générer la vidéo' : 'Suivant →'}</button>
           </div>
@@ -205,7 +213,7 @@ export function AssistantVideo(p: Props) {
 
 function pastille(on: boolean): React.CSSProperties {
   return {
-    padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
     border: `1px solid ${on ? 'transparent' : 'var(--line-2)'}`,
     background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
   };

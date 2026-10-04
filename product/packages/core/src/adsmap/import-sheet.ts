@@ -508,7 +508,10 @@ export function buildImportPlan(csvText: string, opts: { today?: Date } = {}): I
     report.warnings.push(`${report.demotedToDraft} ad(s) marquées « Prête » ou « Test en cours » n'ont pas d'hypothèse : elles repassent en brouillon. Écris-la avant de les relancer.`);
   }
   if (report.datesRejected > 0) {
-    report.warnings.push(`${report.datesRejected} date(s) hors d'une fenêtre plausible (l'année s'incrémente ligne à ligne dans le fichier, jusqu'en 2032) : laissées vides.`);
+    // La règle de `parseSheetDate`, pas la cause d'UN fichier · l'ancienne phrase
+    // expliquait toute date écartée par « l'année qui s'incrémente jusqu'en 2032 »,
+    // y compris un 31/02 (recette lot 8).
+    report.warnings.push(`${report.datesRejected} date(s) écartée(s) · illisible, impossible (ex. 31/02) ou hors de la fenêtre retenue (ni dans le futur, ni avant le 01/01/${today.getFullYear() - 1}) : laissées vides.`);
   }
   if (report.datesRepaired > 0) {
     report.warnings.push(`${report.datesRepaired} date(s) au format « 07/052026 » réparées sans ambiguïté (barre oblique manquante).`);

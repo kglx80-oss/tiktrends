@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chromeCoquille, RAIL_DEVELOPPE, RAIL_REDUIT } from '../lib/chrome-coquille';
+import { chromeCoquille, echapFermeTiroir, RAIL_DEVELOPPE, RAIL_REDUIT } from '../lib/chrome-coquille';
 
 /**
  * La géométrie de la coquille. Le rail suit la direction validée (design.md § 5)
@@ -41,5 +41,19 @@ describe('la coquille adapte sa géométrie à la largeur', () => {
     const c = chromeCoquille({ mobile: true, collapsed: false, drawerOuvert: true });
     expect(c.railVisible).toBe(true);
     expect(c.voile).toBe(true);
+  });
+});
+
+describe('Lot 15 · tiroir fermé inerte, Échap en couches', () => {
+  it('le tiroir FERMÉ est inerte (hors tabulation), ouvert il ne l’est pas · desktop jamais', () => {
+    expect(chromeCoquille({ mobile: true, collapsed: false, drawerOuvert: false }).railInerte, 'tiroir fermé encore tabulable').toBe(true);
+    expect(chromeCoquille({ mobile: true, collapsed: false, drawerOuvert: true }).railInerte).toBe(false);
+    expect(chromeCoquille({ mobile: false, collapsed: false, drawerOuvert: false }).railInerte).toBe(false);
+  });
+  it('Échap ferme d’abord la couche interne, le tiroir au suivant', () => {
+    expect(echapFermeTiroir({ touche: 'Escape', dejaTraite: true, dansAutreDialogue: false }), 'Échap ferme liste ET tiroir').toBe(false);
+    expect(echapFermeTiroir({ touche: 'Escape', dejaTraite: false, dansAutreDialogue: true }), 'Échap dans une fenêtre ferme aussi le tiroir').toBe(false);
+    expect(echapFermeTiroir({ touche: 'Escape', dejaTraite: false, dansAutreDialogue: false })).toBe(true);
+    expect(echapFermeTiroir({ touche: 'Enter', dejaTraite: false, dansAutreDialogue: false })).toBe(false);
   });
 });

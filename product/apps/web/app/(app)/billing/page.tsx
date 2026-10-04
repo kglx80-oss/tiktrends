@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { isFounder } from '../../../lib/founder';
+import { caseCreditsFormule, PIED_FACTURATION_SANS_PAIEMENT, introFacturation } from '@tiktrends/core';
+import { unlimitedCredits } from '../../../lib/credits';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
 import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
@@ -52,11 +54,12 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Plans & Facturation</h1>
-        <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
+        {/* « ADMIN+ » désigne le personnel de la plateforme · cette page sert aux
+            admins de l'espace (roleAtLeast admin), comme Équipe (lot 9). */}
+        <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 6, marginBottom: 18, maxWidth: 760, lineHeight: 1.6 }}>
-        Formule de l'espace <b>{s.workspaceName}</b>. Chaque formule ouvre une allocation mensuelle de crédits :
-        les crédits se consomment à chaque génération (image, vidéo, analyse), selon l'action.
+        Formule de l'espace <b>{s.workspaceName}</b>. {introFacturation(unlimitedCredits(s.user.email))}
       </p>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
@@ -76,7 +79,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <span style={{ width: 1, height: 34, background: 'var(--line)' }} />
         <div>
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)' }}>Crédits</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent-strong)' }}>◈ {balance.toLocaleString('fr-FR')}<span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}> / {PLAN_CREDITS[current].toLocaleString('fr-FR')}</span></div>
+          {/* Même vérité que le rail · « Illimité », jamais « ◈ 0 / 24 000 ». */}
+          {(() => { const c = caseCreditsFormule({ balance, unlimited: unlimitedCredits(s.user.email), allocation: PLAN_CREDITS[current] }, (n) => n.toLocaleString('fr-FR')); return (
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent-strong)' }}>{c.valeur}<span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{c.detail}</span></div>
+          ); })()}
         </div>
       </div>
 
@@ -163,7 +169,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         {stripeOn ? (
           <><b style={{ color: 'var(--ink)' }}><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="lock" size={13} /></span>Paiement sécurisé par Stripe.</b> Carte bancaire, factures automatiques et TVA gérées par Stripe · aucune donnée de carte ne transite par TikTrends. Le changement de formule et la résiliation se font dans <b>« Gérer mon abonnement »</b>.</>
         ) : (
-          <><b style={{ color: 'var(--ink)' }}>Paiement en préparation.</b> Le règlement en ligne n'est pas encore activé sur ce serveur · écris-nous depuis le Support pour faire évoluer ta formule en attendant.{canPilotPlan && <> <a href="/admin/plans" style={{ color: 'var(--accent-strong)' }}>Pilotage interne (ADMIN+) ›</a></>}</>
+          <><b style={{ color: 'var(--ink)' }}>{PIED_FACTURATION_SANS_PAIEMENT.titre}</b> {PIED_FACTURATION_SANS_PAIEMENT.texte}{canPilotPlan && <> <a href="/admin/plans" style={{ color: 'var(--accent-strong)' }}>Pilotage interne (ADMIN+) ›</a></>}</>
         )}
       </div>
     </main>

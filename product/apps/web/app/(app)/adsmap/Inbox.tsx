@@ -9,6 +9,7 @@ import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
 import { Bandeau } from '../../../components/Bandeau';
+import { useRouvrirFiche } from './useRouvrirFiche';
 
 /**
  * File de décisions du jour.
@@ -49,6 +50,8 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [ouverte, setOuverte] = useState<string | null>(null);
+  // Avant vers l'entrée d'une fiche de cette vue · on la rouvre (recette #106).
+  useRouvrirFiche('decider', setOuverte);
   // Raisons longues repliées · on déplie ligne par ligne sans jamais perdre le texte.
   const [deplie, setDeplie] = useState<Set<string>>(() => new Set());
   const basculer = (id: string) =>

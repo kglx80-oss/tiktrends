@@ -1,6 +1,6 @@
 import { IMAGE_MODELS, imageTimeoutMs, conseilDelai, DELAI_IMAGE_DEFAUT } from '../src/economics';
 import { describe, it, expect } from 'vitest';
-import { costFor, canAfford, applyLedger, computeRollover } from '../src/credits';
+import { costFor, canAfford, applyLedger, computeRollover, CREDIT_COSTS, LIBELLE_ACTION_CREDIT } from '../src/credits';
 describe('crédits (§F14)', () => {
   it('coût par action (unités)', () => {
     expect(costFor('tag_video')).toBe(2);
@@ -65,6 +65,17 @@ describe('le conseil donné sur un délai dépassé', () => {
     const c = conseilDelai(cher)!;
     for (const m of IMAGE_MODELS.filter((x) => x.credits > cher.credits)) {
       expect(c).not.toContain(m.label);
+    }
+  });
+});
+
+describe('LIBELLE_ACTION_CREDIT · aucune clé brute à l’écran', () => {
+  it('chaque action facturée a un libellé lisible, distinct de sa clé', () => {
+    for (const k of Object.keys(CREDIT_COSTS) as Array<keyof typeof CREDIT_COSTS>) {
+      const l = LIBELLE_ACTION_CREDIT[k];
+      expect(l, `« ${k} » n’a pas de libellé`).toBeTruthy();
+      expect(l, `« ${k} » s’affiche en clé brute`).not.toBe(k);
+      expect(l).not.toMatch(/_/);
     }
   });
 });

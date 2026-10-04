@@ -11,6 +11,7 @@ import {
   addProductAction, deleteProductAction, importProductsAction, generateFullBrandAction,
 } from '../../../actions/brand-detail';
 import { input, lbl, Msg, cadrePage } from '../../../../components/ui';
+import { RetourMarques, LienEnteteMarque, OngletsFiche } from './NavFiche';
 import { Icon } from '../../../../components/Icon';
 import { BrandTile } from '../../../../components/BrandIcons';
 import { AvatarSite } from '../../../../components/AvatarSite';
@@ -25,7 +26,7 @@ import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
 import { CarteConcurrent } from '../../../../components/CarteConcurrent';
-import { costFor, imageModelByKey, connecteursBranches, accesAssets, type DaVisuelleMarque } from '@tiktrends/core';
+import { messageServiceInactif, CIBLE_TACTILE_MIN, costFor, imageModelByKey, connecteursBranches, accesAssets, type DaVisuelleMarque } from '@tiktrends/core';
 import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 
@@ -83,7 +84,9 @@ export default async function BrandDetailPage({ params, searchParams }: {
 
   return (
     <main style={cadrePage}>
-      <Link href="/brands" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ Marques</Link>
+      {/* Retour, liens d'en-tête et onglets · 44 px de zone sans grossir le
+          rendu, onglet actif annoncé (recette #106b · NavFiche). */}
+      <RetourMarques />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>
         {/* La favicon du site de la marque · même avatar identitaire que le
@@ -98,30 +101,16 @@ export default async function BrandDetailPage({ params, searchParams }: {
             bibliothèque suit l'active) · sinon on nomme la marque dont elle
             dépend, sans lien, sans changer l'active en silence. */}
         {assets.kind === 'lien' && (
-          <Link href={assets.href} title={assets.titre} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>
-            <Icon name="folder" size={13} /> {assets.libelle}
-          </Link>
+          <LienEnteteMarque href={assets.href} title={assets.titre}><Icon name="folder" size={13} /> {assets.libelle}</LienEnteteMarque>
         )}
         {assets.kind === 'note' && (
           <span style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={assets.texte}>{assets.texte}</span>
         )}
-        <Link href="/connections" style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, textDecoration: 'none' }}>Connexions</Link>
+        <LienEnteteMarque href="/connections">Connexions</LienEnteteMarque>
       </div>
 
       {/* Sous-navigation */}
-      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--line)', margin: '16px 0 20px', flexWrap: 'wrap' }}>
-        {TABS.map((t) => {
-          const active = t.key === tab;
-          const count = t.key === 'audience' ? personas.length + scenarios.length : t.key === 'products' ? products.length : t.key === 'competitors' ? competitors.length : 0;
-          return (
-            <Link key={t.key} href={`/brands/${id}?tab=${t.key}`} style={{
-              padding: '9px 14px', fontSize: 13.5, fontWeight: active ? 800 : 600, textDecoration: 'none',
-              color: active ? 'var(--accent-strong)' : 'var(--muted)',
-              borderBottom: `2px solid ${active ? 'var(--accent-strong)' : 'transparent'}`, marginBottom: -1,
-            }}>{t.label}{count ? <span style={{ fontSize: 11, marginLeft: 6, color: 'var(--muted)' }}>{count}</span> : null}</Link>
-          );
-        })}
-      </div>
+      <OngletsFiche id={id} actif={tab} onglets={TABS.map((t) => ({ ...t, count: t.key === 'audience' ? personas.length + scenarios.length : t.key === 'products' ? products.length : t.key === 'competitors' ? competitors.length : 0 }))} />
 
       {/* Fin de création : célébration + enchaînement sur l'import produits. */}
       {ok === 'created' && <BrandCreated brandId={b.id} brandName={b.name} hasSite={!!b.url} importCost={costFor('brief')} />}
@@ -214,10 +203,10 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}><Icon name="sparkles" size={15} /> Générer tout le profil depuis le site</div>
               <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>
-                {aiReady ? <>L'IA lit <b>{b.url || 'le site'}</b> et remplit profil, USP, audience, personas, scénarios et concurrents. Ne remplace pas ce que tu as déjà saisi.</> : <>Nécessite la clé IA serveur.</>}
+                {aiReady ? <>L'IA lit <b>{b.url || 'le site'}</b> et remplit profil, USP, audience, personas, scénarios et concurrents. Ne remplace pas ce que tu as déjà saisi.</> : <>{messageServiceInactif('ia_profil')}</>}
               </div>
             </div>
-            <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} />
+            <SubmitButton label="Générer maintenant" pendingLabel="Génération en cours…" disabled={!aiReady} style={{ minHeight: CIBLE_TACTILE_MIN }} />
           </form>
 
           {/* L'identité visuelle · BrandDA porte ses DEUX ancres de section

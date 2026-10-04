@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
-import { resumeImportDrive, etatSyncDrive, derniereTentativeDriveEnEchec } from '@tiktrends/core';
+import { resumeImportDrive, etatSyncDrive, derniereTentativeDriveEnEchec, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, DRIVE_PORTEE_ACCES, CIBLE_TACTILE_MIN, type MessageClient, BADGE_ESPACE_ADMIN } from '@tiktrends/core';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 
@@ -138,10 +138,9 @@ export function DriveConnect({ state }: { state: DriveState }) {
     return (
       <div style={card}>
         <Head brandName={state.brandName} />
-        <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>
-          La connexion Drive automatique n'est pas encore configurée (variables <code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code>).
-          En attendant, l'import par lien reste disponible ci-dessous.
-        </p>
+        {/* Copie CLIENT · ce qui manque, qui agit, quoi faire · aucun nom de
+            variable ni de service (recette #106, garde drive-message-client). */}
+        <MessageInactif m={DRIVE_CONNEXION_INACTIVE} />
       </div>
     );
   }
@@ -170,7 +169,7 @@ export function DriveConnect({ state }: { state: DriveState }) {
           <a href="/api/oauth/google" style={{ ...primary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <GoogleDriveIcon size={15} /> Connecter Google Drive
           </a>
-          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>Accès limité au seul dossier que tu choisis (scope <code>drive.file</code>) · aucune autre donnée n'est lue.</p>
+          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>{DRIVE_PORTEE_ACCES}</p>
         </div>
       ) : (
         <div style={{ marginTop: 10 }}>
@@ -209,15 +208,19 @@ export function DriveConnect({ state }: { state: DriveState }) {
               <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Déconnecter</button>
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-              <span style={{ fontSize: 11.5, color: '#ffcf8f' }}>Sélecteur non configuré (GOOGLE_API_KEY / GOOGLE_APP_ID).</span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>
+              <div style={{ flex: '1 1 100%' }}><MessageInactif m={DRIVE_SELECTEUR_INACTIF} /></div>
               <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Déconnecter</button>
             </div>
           )}
-          <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
-            <b>Choisir des fichiers</b> = le plus fiable (marche aussi pour « Partagé avec moi » · multi-sélection).
-            <b> Choisir un dossier</b> = synchro auto d'un dossier que tu possèdes.
-          </p>
+          {/* Le mode d'emploi des deux boutons · seulement quand ils existent
+              (sans sélecteur activé, il décrivait des boutons absents). */}
+          {state.pickerReady && (
+            <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+              <b>Choisir des fichiers</b> = le plus fiable (marche aussi pour « Partagé avec moi » · multi-sélection).
+              <b> Choisir un dossier</b> = synchro auto d'un dossier que tu possèdes.
+            </p>
+          )}
         </div>
       )}
       {/* Le bilan du dernier import réussi · CONSERVÉ, relu depuis la base, il
@@ -233,16 +236,34 @@ export function DriveConnect({ state }: { state: DriveState }) {
   );
 }
 
+/** Un service pas encore activé · constat, qui agit / quoi faire, et le geste. */
+function MessageInactif({ m }: { m: MessageClient }) {
+  return (
+    <div style={{ marginTop: 8 }}>
+      <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+        <b style={{ color: 'var(--ink)' }}>{m.constat}</b> {m.suite}
+      </p>
+      {m.action && (
+        <a href={m.action.href} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', marginTop: 10, textDecoration: 'none', fontSize: 12.5 }}>
+          {m.action.libelle}
+        </a>
+      )}
+    </div>
+  );
+}
+
+// Le bloc Drive n'est rendu qu'aux admins de l'espace (assets/page · roleAtLeast
+// admin) · lot 12, plus « ADMIN+ », réservé au personnel de la plateforme.
 function Head({ brandName }: { brandName: string | null }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       <GoogleDriveIcon size={19} />
       <b style={{ fontSize: 14, color: 'var(--ink)' }}>Google Drive{brandName ? ` · ${brandName}` : ''}</b>
-      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 8px', borderRadius: 999, color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>ADMIN+</span>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 8px', borderRadius: 999, color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>{BADGE_ESPACE_ADMIN}</span>
     </div>
   );
 }
 
 const card = { border: '1px solid var(--line-2)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 18, marginBottom: 16 } as const;
-const primary = { padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
-const ghost = { padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;
+const primary = { minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
+const ghost = { minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;

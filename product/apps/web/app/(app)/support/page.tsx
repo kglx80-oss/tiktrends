@@ -10,8 +10,10 @@ import { input, btn, panel, h1, h2, sub, lbl, Msg, cadrePage, colonneLecture } f
 import { PageInfo } from '../../../components/PageInfo';
 import { Icon } from '../../../components/Icon';
 
-const OK: Record<string, string> = { '1': 'Message envoyé.', created: 'Ticket ouvert, on te répond vite.' };
-const ERR: Record<string, string> = { title: 'Ajoute un titre.', forbidden: 'Action non autorisée.', notfound: 'Ticket introuvable.' };
+// Un ticket reste DANS l'espace · seuls ses admins le voient et y répondent
+// (aucun envoi à l'équipe TikTrends · recette #106). La copie le dit.
+const OK: Record<string, string> = { '1': 'Message envoyé.', created: 'Ticket ouvert · les admins de ton espace le voient dans ce fil.' };
+const ERR: Record<string, string> = { title: 'Ajoute un titre.', forbidden: 'Action non autorisée.', notfound: 'Ticket introuvable.', bad: 'Demande incomplète · réessaie depuis le ticket.' };
 
 const TYPE_LABEL: Record<string, string> = { bug: 'Bug', suggestion: 'Suggestion', question: 'Question' };
 // Icône du jeu partagé par type de ticket · plus d'emoji dans les libellés.
@@ -42,10 +44,11 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
   return (
     <main style={cadrePage}><div style={colonneLecture('formulaire')}>
       <h1 style={h1}>Support &amp; communication</h1>
-      <p style={sub}>{isAdmin ? "Tous les tickets de ton espace : réponds, change le statut, garde le fil." : 'Signale un bug, propose une idée, pose une question. On te répond dans le fil.'}</p>
+      <p style={sub}>{isAdmin ? "Tous les tickets de ton espace : réponds, change le statut, garde le fil." : 'Signale un bug, propose une idée, pose une question. Les admins de ton espace te répondent dans le fil.'}</p>
       <PageInfo title="comment ça marche">
-        Chaque message ouvre un <b>fil de discussion</b>. Tu reçois une <b>notification</b> (cloche en haut à droite)
-        dès qu'on te répond ou que le statut change. Types : bug, suggestion, question.
+        Chaque message ouvre un <b>fil de discussion</b> visible par les admins de ton espace. Tu reçois une
+        <b> notification</b> (cloche en haut à droite) dès qu'un admin te répond ou change le statut. Types : bug,
+        suggestion, question. Le ticket reste dans ton espace · il n'est pas transmis automatiquement à l'équipe TikTrends.
       </PageInfo>
 
       {ok && OK[ok] && <Msg kind="ok">{OK[ok]}</Msg>}
@@ -77,14 +80,14 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
       </div>
 
       <h2 style={{ ...h2, marginBottom: 12 }}>{isAdmin ? 'Tickets de l’espace' : 'Tes tickets'} ({tickets.length})</h2>
-      {tickets.length === 0 && <EmptyLine tone="good">Aucun ticket pour l'instant · tout roule. Écris-nous ci-dessus dès que tu bloques, on répond vite.</EmptyLine>}
+      {tickets.length === 0 && <EmptyLine tone="good">Aucun ticket pour l'instant · tout roule. Écris ci-dessus dès que tu bloques · les admins de ton espace verront le fil.</EmptyLine>}
       <div style={{ display: 'grid', gap: 10 }}>
         {tickets.map((t) => {
           const st = STATUS[t.status] ?? STATUS.open!;
           return (
             <Link key={t.id} href={`/support/${t.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '13px 16px', textDecoration: 'none', flexWrap: 'wrap' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>{TYPE_ICON[t.type] ? <Icon name={TYPE_ICON[t.type]!} size={13} /> : null}{TYPE_LABEL[t.type] ?? t.type}</span>
-              <span style={{ flex: 1, minWidth: 180, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{t.title}</span>
+              <span style={{ flex: 1, minWidth: 180, fontSize: 14, fontWeight: 700, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{t.title}</span>
               {isAdmin && t.authorName && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t.authorName}</span>}
               <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, color: st.color, background: st.color + '22' }}>{st.label}</span>
               <span style={{ fontSize: 12, color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir ›</span>

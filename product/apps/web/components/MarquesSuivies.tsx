@@ -2,7 +2,8 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { Icon } from './Icon';
-import { bibliothequePub, siteMarque, consigneAngleMarche, formatDominant, briefConcurrentBloque, type BriefConcurrent } from '@tiktrends/core';
+import { bibliothequePub, siteMarque, consigneAngleMarche, formatDominant, briefConcurrentBloque, cibleSelonPointeur, type BriefConcurrent } from '@tiktrends/core';
+import { useIsMobile } from './useIsMobile';
 import { BrandRemoveButton } from './InspoButtons';
 import { briefMarqueAction } from '../app/actions/brief-marque';
 
@@ -25,6 +26,10 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
   // analyse part, quoi qu'il arrive. Le garde `briefConcurrentBloque` (partagé avec
   // le `disabled`) reste pour l'état visuel.
   const verrou = useRef(false);
+  // 44 px au doigt, densité gardée à la souris · « analyser » et « voir »
+  // mesuraient 17 px (recette #106, point 6).
+  const tactile = useIsMobile('(pointer: coarse), (max-width: 768px)');
+  const action = { display: 'inline-flex', alignItems: 'center', minHeight: cibleSelonPointeur(tactile), padding: '0 6px' } as const;
 
   function analyser(b: MarqueLite) {
     if (ouvert === b.id) { setOuvert(null); return; }
@@ -53,24 +58,27 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
           const biblio = bibliothequePub({ platform: b.platform, name: b.name });
           const site = siteMarque({ landingDomain: b.domain });
           return (
-            <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 8px 6px 6px', background: ouvert === b.id ? 'var(--accent-soft)' : 'var(--surface)' }}>
+            // Un nom long (mesuré · 6 lignes à 390, le ✕ voisin coupé au bord)
+            // tient sur 2 lignes au plus, nom complet au survol, et les actions
+            // passent à la ligne au lieu de sortir de l'écran.
+            <div key={b.id} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 8px', maxWidth: '100%', minWidth: 0, border: '1px solid var(--line)', borderRadius: 22, padding: '6px 8px 6px 6px', background: ouvert === b.id ? 'var(--accent-soft)' : 'var(--surface)' }}>
               {b.logoUrl
 
                 ? <img src={b.logoUrl} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
                 : <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--paper)' }} />}
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{b.name}</span>
+              <span title={b.name} style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 0, maxWidth: 260, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{b.name}</span>
               <span style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)' }}>{b.platform}</span>
               {(() => {
                 const bloque = briefConcurrentBloque({ enCours, ouvert, cible: b.id });
                 return (
-                  <button type="button" onClick={() => analyser(b)} disabled={bloque} style={{ fontSize: 11, fontWeight: 700, color: ouvert === b.id ? 'var(--accent-strong)' : 'var(--ink-2)', background: 'none', border: 'none', cursor: bloque ? 'default' : 'pointer', opacity: bloque ? .5 : 1, padding: 0 }}>
+                  <button type="button" onClick={() => analyser(b)} disabled={bloque} aria-expanded={ouvert === b.id} style={{ ...action, fontSize: 11, fontWeight: 700, color: ouvert === b.id ? 'var(--accent-strong)' : 'var(--ink-2)', background: 'none', border: 'none', cursor: bloque ? 'default' : 'pointer', opacity: bloque ? .5 : 1 }}>
                     {ouvert === b.id ? (enCours ? 'analyse…' : '× fermer') : 'analyser'}
                   </button>
                 );
               })()}
-              <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
-              {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>bibliothèque ↗</a>}
-              {site && <a href={site} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none' }}>site ↗</a>}
+              <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ ...action, fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
+              {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={{ ...action, fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none', whiteSpace: 'nowrap' }}>bibliothèque ↗</a>}
+              {site && <a href={site} target="_blank" rel="noreferrer" style={{ ...action, fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none', whiteSpace: 'nowrap' }}>site ↗</a>}
               <BrandRemoveButton platform={b.platform} name={b.name} />
             </div>
           );

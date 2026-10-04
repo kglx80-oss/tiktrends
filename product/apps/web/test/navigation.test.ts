@@ -108,7 +108,7 @@ describe('la résolution d’un chemin', () => {
 
   it('expose le libellé d’un écran', () => {
     expect(routeLabel('/adsmap/radar')).toBe('Radar de veille');
-    expect(routeLabel('/radar')).toBe('Radar produits');
+    expect(routeLabel('/radar')).toBe('Radar créatif');
   });
 });
 

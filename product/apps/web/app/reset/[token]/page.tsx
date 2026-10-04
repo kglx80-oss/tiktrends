@@ -4,7 +4,7 @@ import { and, eq, gt, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { resetPasswordAction } from '../../actions/auth';
-import { AuthShell, field, primaryBtn, errorBox } from '../../../components/AuthShell';
+import { AuthShell, field, primaryBtn, errorBox, lienSeul } from '../../../components/AuthShell';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +50,7 @@ export default async function ResetPage({ params, searchParams }: { params: Prom
         <button type="submit" style={primaryBtn}>Mettre à jour</button>
       </form>
       <p style={{ marginTop: 18, fontSize: 13, color: 'var(--muted)' }}>
-        <Link href="/login" style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>← Retour à la connexion</Link>
+        <Link href="/login" style={{ ...lienSeul, color: 'var(--accent-strong)', fontWeight: 600 }}>← Retour à la connexion</Link>
       </p>
     </AuthShell>
   );

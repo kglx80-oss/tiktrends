@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CIBLE_TACTILE_MIN, cibleAccessible } from '../src/cible-tactile';
+import { CIBLE_TACTILE_MIN, CIBLE_POINTEUR_FIN_MIN, cibleAccessible, cibleSelonPointeur } from '../src/cible-tactile';
 
 /**
  * Le seuil de cible tactile · ce qui décide qu'un bouton se rate au doigt ou non.
@@ -24,5 +24,16 @@ describe('cible-tactile · le minimum maison', () => {
     // 39 échoue, 40 passe · la frontière est bien à CIBLE_TACTILE_MIN.
     expect(cibleAccessible(CIBLE_TACTILE_MIN - 1, 100)).toBe(false);
     expect(cibleAccessible(CIBLE_TACTILE_MIN, 100)).toBe(true);
+  });
+});
+
+describe('cibleSelonPointeur · 44 au doigt, densité AA à la souris', () => {
+  it('au doigt, jamais sous la cible tactile', () => {
+    expect(cibleSelonPointeur(true)).toBe(CIBLE_TACTILE_MIN);
+  });
+  it('à la souris, le plancher WCAG 2.5.8 (24), jamais moins', () => {
+    expect(cibleSelonPointeur(false)).toBe(CIBLE_POINTEUR_FIN_MIN);
+    expect(CIBLE_POINTEUR_FIN_MIN).toBeGreaterThanOrEqual(24);
+    expect(CIBLE_POINTEUR_FIN_MIN).toBeLessThan(CIBLE_TACTILE_MIN);
   });
 });

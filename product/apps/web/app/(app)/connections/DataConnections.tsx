@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, connectMetaAction, syncMetaAction, disconnectMetaAction, selectMetaAccountAction, type ConnectionState } from '../../actions/connections';
-import { ShopifyIcon, MetaIcon } from '../../../components/BrandIcons';
+import { BrandTile } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
@@ -47,12 +47,37 @@ export function DataConnections({ initial, brandName, metaOAuth = false, shopify
   );
 }
 
-function Wrap({ icon, title, badge, children }: { icon: React.ReactNode; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+/**
+ * Un jeton d'accès se saisit MASQUÉ · recette A (#120), les deux champs de
+ * jeton s'affichaient en clair pendant la saisie. Présentation seule · la
+ * valeur, sa transmission et son stockage ne changent pas. « Afficher » permet
+ * de relire ce qu'on a collé ; le libellé du bouton dit l'action suivante.
+ */
+function ChampJeton({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (v: string) => void; placeholder: string }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+      <input id={id} type={visible ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        autoComplete="off" autoCapitalize="off" spellCheck={false} style={{ ...fld, flex: 1, minWidth: 0 }} />
+      <button type="button" onClick={() => setVisible((v) => !v)} aria-controls={id} aria-label={visible ? 'Masquer le token' : 'Afficher le token'}
+        style={{ ...ghost, flexShrink: 0, borderRadius: 10 }}>
+        {visible ? 'Masquer' : 'Afficher'}
+      </button>
+    </div>
+  );
+}
+
+function Wrap({ outil, title, badge, children }: { outil: string; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <span style={{ width: 34, height: 34, borderRadius: 9, background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,.18)' }}>{icon}</span>
-        <b style={{ fontSize: 15, color: 'var(--ink)', flex: 1 }}>{title}</b>
+      {/* Recette A (#120) · mesuré à 390 avec un nom long · le badge d'état
+          (« CONNECTÉ · À SYNCHRONISER ») débordait la carte de 16 px (46 à 360) ·
+          la ligne passe à la ligne, le badge descend sous le titre. */}
+      <div data-entete-connecteur style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        {/* La pastille commune à toutes les intégrations · logo officiel, décoratif ·
+            le nom de l'outil est dans le titre juste à côté. */}
+        <BrandTile name={outil} />
+        <b style={{ fontSize: 15, color: 'var(--ink)', flex: '1 1 140px', minWidth: 0 }}>{title}</b>
         {badge}
       </div>
       {children}
@@ -104,7 +129,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
   const ins = sh?.insights;
   const phase = etatConnecteur({ connecte: !!sh?.connected, donnees: !!ins });
   return (
-    <Wrap icon={<ShopifyIcon size={21} />} title="Shopify · ventes" badge={<BadgePhase phase={phase} />}>
+    <Wrap outil="Shopify" title="Shopify · ventes" badge={<BadgePhase phase={phase} />}>
       {!sh?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           <div><label style={lbl} htmlFor="conn-shopify-domaine">Domaine de la boutique</label><input id="conn-shopify-domaine" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
@@ -125,7 +150,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
               </div>
             </>
           )}
-          <div><label style={lbl} htmlFor="conn-shopify-token">Token Admin API <span style={{ color: 'var(--muted)' }}>· app perso (shpat_…)</span></label><input id="conn-shopify-token" value={token} onChange={(e) => setToken(e.target.value)} placeholder="shpat_••••••••" style={fld} /></div>
+          <div><label style={lbl} htmlFor="conn-shopify-token">Token Admin API <span style={{ color: 'var(--muted)' }}>· app perso (shpat_…)</span></label><ChampJeton id="conn-shopify-token" value={token} onChange={setToken} placeholder="shpat_••••••••" /></div>
           <button type="button" onClick={connect} disabled={!!busy} style={primary}>{busy === 'connect' ? 'Test…' : 'Connecter'}</button>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>Shopify → Paramètres → Applications et canaux de vente → Développer des applications → créer une app, scopes lecture (orders, products), installer, copier le token Admin API.</p>
         </div>
@@ -143,7 +168,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Top produits</div>
               {ins.topProducts.slice(0, 4).map((p) => (
-                <div key={p.title} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span><b style={{ color: 'var(--ink)' }}>{eur(p.revenue, ins.currency)}</b></div>
+                <div key={p.title} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span data-nom-complet style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{p.title}</span><b style={{ color: 'var(--ink)', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{eur(p.revenue, ins.currency)}</b></div>
               ))}
             </div>
           ) : null}
@@ -198,7 +223,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
   const compteRequisManquant = !!mt?.connected && (mt.accounts?.length ?? 0) > 1 && !mt.adAccountId;
   const phase = etatConnecteur({ connecte: !!mt?.connected, compteRequisManquant, donnees: !!ins });
   return (
-    <Wrap icon={<MetaIcon size={22} />} title="Meta Ads · performance" badge={<BadgePhase phase={phase} />}>
+    <Wrap outil="Meta Ads" title="Meta Ads · performance" badge={<BadgePhase phase={phase} />}>
       {!mt?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           {oauth && (
@@ -210,7 +235,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
             </>
           )}
           <div><label style={lbl} htmlFor="conn-meta-acct">ID compte publicitaire</label><input id="conn-meta-acct" value={acct} onChange={(e) => setAcct(e.target.value)} placeholder="act_1234567890" style={fld} /></div>
-          <div><label style={lbl} htmlFor="conn-meta-token">Token d'accès <span style={{ color: 'var(--muted)' }}>· System User (BM)</span></label><input id="conn-meta-token" value={token} onChange={(e) => setToken(e.target.value)} placeholder="EAAB••••••••" style={fld} /></div>
+          <div><label style={lbl} htmlFor="conn-meta-token">Token d'accès <span style={{ color: 'var(--muted)' }}>· System User (BM)</span></label><ChampJeton id="conn-meta-token" value={token} onChange={setToken} placeholder="EAAB••••••••" /></div>
           <button type="button" onClick={connect} disabled={!!busy} style={primary}>{busy === 'connect' ? 'Test…' : 'Connecter'}</button>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>Business Manager → Paramètres → Utilisateurs système → générer un token avec la permission ads_read, sur le compte publicitaire.</p>
         </div>
@@ -240,7 +265,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Top créas (ROAS)</div>
               {ins.topAds.slice(0, 4).map((a) => (
-                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span><b style={{ color: '#7ee8bf' }}>{a.roas}×</b></div>
+                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span data-nom-complet style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{a.name}</span><b style={{ color: '#7ee8bf', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{a.roas}×</b></div>
               ))}
             </div>
           ) : null}

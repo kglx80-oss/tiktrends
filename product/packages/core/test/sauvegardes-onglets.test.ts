@@ -64,3 +64,23 @@ describe('la recherche dans les créas gardées', () => {
     expect(correspondSauvegarde(ad, 'piscine')).toBe(false);
   });
 });
+
+describe('Onglets · clavier (motif ARIA tabs) et scan des Nouveautés', () => {
+  it('← → bouclent, Début/Fin aux extrémités, autre touche · rien', async () => {
+    const { ongletVoisin } = await import('../src/sauvegardes-onglets');
+    const c = ['creations', 'marques', 'nouveautes'] as const;
+    expect(ongletVoisin(c, 'creations', 'ArrowRight')).toBe('marques');
+    expect(ongletVoisin(c, 'nouveautes', 'ArrowRight')).toBe('creations');
+    expect(ongletVoisin(c, 'creations', 'ArrowLeft')).toBe('nouveautes');
+    expect(ongletVoisin(c, 'marques', 'Home')).toBe('creations');
+    expect(ongletVoisin(c, 'marques', 'End')).toBe('nouveautes');
+    expect(ongletVoisin(c, 'marques', 'Enter')).toBeNull();
+  });
+  it('sans veille active, le scan est inactif et dit pourquoi · jamais « aucune marque suivie » à tort', async () => {
+    const { etatScanNouveautes } = await import('../src/sauvegardes-onglets');
+    const { messageServiceInactif } = await import('../src/copie-service');
+    expect(etatScanNouveautes({ veilleActive: false, marquesSuivies: 3 })).toEqual({ actif: false, raison: messageServiceInactif('veille') });
+    expect(etatScanNouveautes({ veilleActive: true, marquesSuivies: 0 }).actif).toBe(false);
+    expect(etatScanNouveautes({ veilleActive: true, marquesSuivies: 2 })).toEqual({ actif: true, raison: null });
+  });
+});

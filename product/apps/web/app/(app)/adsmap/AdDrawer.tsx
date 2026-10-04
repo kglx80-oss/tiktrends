@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
-import type { VerdictValue, TestedVariable } from '@tiktrends/core';
-import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio } from '@tiktrends/core';
+import type { VerdictValue, TestedVariable, OrigineFiche } from '@tiktrends/core';
+import { etatFicheAdsmap, ficheDeLEntree, lireVueAdsmap, PARAM_VUE_ADSMAP, rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -48,10 +48,12 @@ const MODE_LABEL: Record<string, { titre: string; aide: string }> = {
 const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)} %`);
 const eur = (v: number | null) => (v === null ? '—' : `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} €`);
 
-export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retour }: {
+export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retour, origine = 'liste' }: {
   adId: string; onClose: () => void; onChanged: () => void; peutPartager?: boolean;
   /** Ouvert depuis une carte du Studio (I1) · le chemin de retour, visible en tête. */
   retour?: { href: string; libelle: string };
+  /** Ouverte depuis la liste (empile une entrée · Retour la referme) ou par lien profond (n'empile rien). */
+  origine?: OrigineFiche;
 }) {
   const [d, setD] = useState<AdDetail | null>(null);
   const [error, setError] = useState('');
@@ -86,6 +88,36 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
   // (carte du Studio · I1), le panneau laissait le clavier derrière lui.
   const panneauRef = useRef<HTMLElement>(null);
   usePiegeFocus(panneauRef, { actif: true, onFermer: onClose });
+
+  // Retour du navigateur · ouverte depuis la liste, la fiche EMPILE une entrée
+  // (`?ad=<id>`, vue et filtres conservés) · Retour la dépile et referme la
+  // fiche sans quitter Adsmap. Fermée à la main, elle consomme son entrée
+  // (recette #106b · noyau `rechercheAdsmap`, `ficheEmpileHistorique`).
+  const fermerRef = useRef(onClose);
+  fermerRef.current = onClose;
+  // Monté ? · le mode strict (dev) démonte puis remonte l'effet · on ne
+  // dépile qu'après coup, si la fiche n'a pas été remontée entre-temps.
+  const monteRef = useRef(false);
+  useEffect(() => {
+    if (!ficheEmpileHistorique(origine)) return;
+    monteRef.current = true;
+    // L'état posé, ou `?ad=` si le routeur a réécrit l'entrée (`ficheDeLEntree`).
+    const nOtre = () => ficheDeLEntree(window.history.state, window.location.search) === adId;
+    // État minimal · Next.js y recopie lui-même son état interne (pushState
+    // natif intégré au routeur) et synchronise useSearchParams.
+    if (!nOtre()) window.history.pushState(etatFicheAdsmap(adId, lireVueAdsmap(new URLSearchParams(window.location.search).get(PARAM_VUE_ADSMAP))), '', `${window.location.pathname}${rechercheAdsmap(window.location.search, { fiche: adId })}`);
+    let parRetour = false;
+    const surRetour = () => { parRetour = true; fermerRef.current(); };
+    window.addEventListener('popstate', surRetour);
+    return () => {
+      monteRef.current = false;
+      window.removeEventListener('popstate', surRetour);
+      // Fermée à la main (bouton, Échap) · on retire l'entrée qu'on a posée.
+      // Partie vers un autre écran (lien du panneau) · l'entrée courante n'est
+      // plus la nôtre, on ne touche à rien.
+      setTimeout(() => { if (!parRetour && !monteRef.current && nOtre()) window.history.back(); }, 0);
+    };
+  }, [adId, origine]);
 
   async function valider() {
     if (busy || !d) return;

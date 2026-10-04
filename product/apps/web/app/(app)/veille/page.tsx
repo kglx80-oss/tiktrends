@@ -12,8 +12,10 @@ import { PageInfo } from '../../../components/PageInfo';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
-import { veilleSeedDefaut, NICHE_DEFAUT } from '@tiktrends/core';
+import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, type PerimetreVeille } from '@tiktrends/core';
+import { ChampRechercheVeille } from '../../../components/ChampRechercheVeille';
 import { Icon } from '../../../components/Icon';
+import { DepliableEchap } from '../../../components/DepliableEchap';
 import { Empty } from '../../../components/Empty';
 import { SectionMarche } from '../jarvis/sections/SectionMarche';
 import { baseUrlRecette, cleEffective } from '../../../lib/veille-recette-base';
@@ -53,11 +55,6 @@ type SP = {
 };
 
 const PLATFORMS: [AdPlatform, string][] = [['meta', 'Meta'], ['tiktok', 'TikTok'], ['google', 'Google']];
-// Libellés des filtres avancés · servent aux puces « critères actifs » sans
-// redéclarer les listes deux fois.
-const SEARCHIN_LABEL: Record<string, string> = { ad_copy: 'copy', brand: 'marque', domain: 'domaine' };
-const SORT_LABEL: Record<string, string> = Object.fromEntries(SORTS);
-const MEDIA_LABEL: Record<string, string> = { video: 'Vidéo', image: 'Image' };
 
 function buildQS(sp: SP, over: Partial<SP>): string {
   const merged = { ...sp, ...over };
@@ -110,7 +107,10 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   // on bascule automatiquement en recherche par domaine (plus pertinent).
   const urlLike = /^https?:\/\//i.test(query) || /^[a-z0-9-]+(\.[a-z0-9-]+){1,}(\/|$)/i.test(query);
   let effSearch = query;
-  let effSearchIn = (sp.searchIn as 'ad_copy' | 'brand' | 'domain') || undefined;
+  // Le périmètre · absent → celui de la source (texte de l'annonce) · un lien
+  // sans `searchIn` et le formulaire au défaut ont le même sens, en démo comme
+  // en direct (recette #106b · noyau `perimetreVeille`).
+  let effSearchIn: PerimetreVeille = perimetreVeille(sp.searchIn);
   let autoDomain = false;
   if (urlLike) {
     try {
@@ -133,7 +133,13 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   let defaut: { seed: string; parCategorie: boolean } | null = null;
 
   if (!apiKey) {
-    ads = SAMPLE_INSPO_ADS;
+    // Démonstration · le mot-clé et les filtres s'appliquent VRAIMENT à
+    // l'échantillon local, sans réseau (R14 · jamais un critère ignoré en
+    // silence · recette #106, `filtrerEchantillonVeille`).
+    ads = filtrerEchantillonVeille(SAMPLE_INSPO_ADS, {
+      q: effSearch, p: platform, searchIn: effSearchIn,
+      media: sp.media, status: sp.status, country: sp.country,
+    });
     sample = true;
   } else if (query) {
     const media = sp.media === 'video' || sp.media === 'image' ? sp.media : undefined;
@@ -226,6 +232,9 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   }
 
   const totalPages = Math.min(Math.ceil(total / LIMIT) || 1, 417);
+  // Démonstration vidée par les critères · un état vide qui le dit.
+  // État vide · nomme le périmètre et propose « Marque » (démo comme direct).
+  const vide = ads.length === 0 && !error && (sample || query) ? videRechercheVeille(query, effSearchIn, sample) : null;
 
   // La « Lecture du marché » n'a de destination que si la section peut rendre
   // (offre Plus + marque active) · sinon on ne propose pas d'ancrage vide.
@@ -233,12 +242,9 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
 
   // Critères avancés actifs · pour l'étiquette « Filtres (N) » et les puces des
   // critères actifs. On ne compte jamais un filtre que la source n'honore pas.
-  const avances: Array<{ cle: keyof SP; texte: string }> = [];
-  if (sp.searchIn) avances.push({ cle: 'searchIn', texte: 'Dans : ' + (SEARCHIN_LABEL[sp.searchIn] ?? sp.searchIn) });
-  if (platform === 'meta' && sp.sort) avances.push({ cle: 'sort', texte: 'Tri : ' + (SORT_LABEL[sp.sort] ?? sp.sort) });
-  if (sp.media && MEDIA_LABEL[sp.media]) avances.push({ cle: 'media', texte: MEDIA_LABEL[sp.media]! });
-  if (sp.status === 'active') avances.push({ cle: 'status', texte: 'Actives' });
-  if (sp.country) avances.push({ cle: 'country', texte: 'Pays : ' + sp.country });
+  // Seul ce qui s'écarte du défaut compte · le tri n'est pas un filtre (il
+  // s'affiche à part) · le périmètre par défaut ne fait pas de puce (#106b).
+  const avances = filtresActifsVeille(sp, platform);
 
   return (
     <main style={wrap}>
@@ -258,7 +264,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           grille (aucun débordement de PAGE · le dépassement reste dans la bande). */}
       <div style={{ display: 'flex', gap: 7, flexWrap: 'nowrap', overflowX: 'auto', marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
         <LienSec href="/veille/scale" icon="trend">Ce qui scale</LienSec>
-        <LienSec href="/radar" icon="radar">Radar produits</LienSec>
+        <LienSec href="/radar" icon="radar">Radar créatif</LienSec>
         <LienSec href="/saved" icon="bookmark">Sauvegardes</LienSec>
         {marcheDispo && <LienSec href="#lecture-marche" icon="brain">Lecture du marché ↓</LienSec>}
       </div>
@@ -268,7 +274,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       <form action="/veille" method="get" style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {/* Recherche pleine largeur · plateforme + bouton sur la ligne suivante. */}
-          <input name="q" defaultValue={query} placeholder="Ex : skincare, coque téléphone, legging…" style={{ flex: '1 1 100%', minWidth: 0, ...inputBase }} />
+          {/* Le champ et son périmètre, côte à côte · l'exemple suit le périmètre. */}
+          <ChampRechercheVeille q={query} perimetre={autoDomain ? 'domain' : effSearchIn} perimetreVisible={platform === 'meta'} styleChamp={inputBase} />
           <select name="p" defaultValue={sp.p ?? 'meta'} aria-label="Plateforme" style={{ ...inputBase, padding: '8px 12px', fontSize: 13.5, cursor: 'pointer', flex: '0 0 auto' }}>
             {PLATFORMS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
@@ -301,7 +308,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         {/* Filtres avancés · repliés par défaut, ne repoussent pas les résultats.
             En <details> natif · les <select> restent dans le DOM et se soumettent
             même fermés · valeurs et réinitialisation préservées via l'URL. */}
-        <details style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)' }}>
+        <DepliableEchap style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)' }}>
           <summary style={{ listStyle: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', fontSize: 13, fontWeight: 700, color: 'var(--ink-2)' }}>
             <span aria-hidden style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="gauge" size={15} /></span>
             Filtres{avances.length > 0 ? ` · ${avances.length} actif${avances.length > 1 ? 's' : ''}` : ''}
@@ -311,7 +318,6 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             {/* Le tri a quitté ce panneau · il vit dans la barre principale,
                 accessible filtres fermés. Ici, seulement des filtres. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
-              <Select name="searchIn" def={sp.searchIn} opts={[['ad_copy', 'Dans : copy'], ['brand', 'Dans : marque'], ['domain', 'Dans : domaine']]} />
               <Select name="media" def={sp.media} opts={[['', 'Média : tous'], ['video', 'Vidéo'], ['image', 'Image']]} />
               <Select name="status" def={sp.status} opts={[['all', 'Statut : toutes'], ['active', 'Actives']]} />
               <Select name="country" def={sp.country} opts={[['', 'Pays : tous'], ...COUNTRIES.map((c) => [c, c])]} />
@@ -321,7 +327,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
               Filtres langue, reach minimum et ancienneté minimum · non disponibles depuis la source pour l'instant. Ils reviendront une fois pris en charge côté fournisseur.
             </p>
           </div>
-        </details>
+        </DepliableEchap>
 
       </form>
 
@@ -335,7 +341,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
             Choisis une <b>plateforme</b> (Meta, TikTok, Google) puis cherche par mot-clé, ou colle une <b>URL de marque</b>
             (ex&nbsp;: gruns.co) : l'app bascule automatiquement en recherche par domaine. Le <b>tri</b> «&nbsp;Plus anciennes&nbsp;»
             fait remonter les créas diffusées depuis longtemps. Clique <b>★</b> pour sauvegarder une
-            créa, <b>+ Suivre</b> une marque, et <b>Générer une variante</b> pour l'envoyer au Studio.
+            créa, <b>+ Suivre</b> une marque, et <b>Décline cette piste</b> (ou <b>Génère ta version</b>) pour ouvrir
+            Pubs IA avec son angle comme point de départ · une piste à tester, pas un résultat garanti.
             Sans <b>catégorie de marque</b> renseignée, la sélection par défaut est générique · précise la catégorie pour cibler.
           </PageInfo>
         </div>
@@ -352,7 +359,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* Bandeau source/démo · TOUJOURS avant la grille. */}
-      {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon réel. La source de données n'est pas encore configurée sur le serveur pour la recherche en direct.</Bandeau>}
+      {sample && <Bandeau ton="demo" titre="Mode démonstration">Échantillon réel · la recherche en direct n’est pas encore activée pour ton espace. Ta recherche et tes filtres s’appliquent à cet échantillon.</Bandeau>}
       {error && <Bandeau ton="error">Erreur de la source de données : {error}</Bandeau>}
       {!sample && !error && !query && defaut && (
         // Une ligne factuelle · le « pourquoi » (hors catégorie, comment cibler)
@@ -378,13 +385,25 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {/* Une recherche sans résultat rendait une grille VIDE, sans un mot ·
           l'écran se lisait comme cassé. On dit ce qui s'est passé et on donne
           une sortie · repartir des pistes installées (efface la recherche). */}
-      {!sample && !error && ads.length === 0 && (
+      {vide && (
         <Empty
           tone="todo" icon="search"
-          title={query ? `Aucune annonce pour « ${query} ».` : 'Aucune annonce à afficher pour l’instant.'}
-          why="Élargis le terme, change de plateforme, ou repars des pistes installées dans ta catégorie."
-          action={{ label: 'Voir les pistes installées', href: '/veille' }}
-        />
+          title={vide.titre}
+          why={vide.pourquoi}
+          action={vide.essayerMarque && platform === 'meta'
+            ? { label: 'Chercher dans « Marque »', href: buildQS(sp, { searchIn: 'brand', page: '1' }), rechargement: true }
+            : sample ? { label: 'Réinitialiser', href: '/veille', rechargement: true } : { label: 'Voir les pistes installées', href: '/veille' }}
+        >
+          {/* « Marque » proposé · la remise à zéro reste à portée (navigation complète). */}
+          {vide.essayerMarque && platform === 'meta' && (
+            <div style={{ textAlign: 'center' }}>
+              <a href="/veille" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 10px', fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', textDecoration: 'none' }}>Réinitialiser</a>
+            </div>
+          )}
+        </Empty>
+      )}
+      {!sample && !error && !query && ads.length === 0 && (
+        <Empty tone="todo" icon="search" title="Aucune annonce à afficher pour l’instant." why="Élargis le terme, change de plateforme, ou repars des pistes installées dans ta catégorie." action={{ label: 'Voir les pistes installées', href: '/veille' }} />
       )}
 
       {/* Pagination */}

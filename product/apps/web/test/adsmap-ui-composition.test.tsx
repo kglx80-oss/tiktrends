@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { LIBELLE_VERDICT } from '@tiktrends/core';
+import { placementLanceurSupport, LIBELLE_VERDICT } from '@tiktrends/core';
 import { CarteTest } from '../app/(app)/adsmap/AdsMapTable';
 import type { AdRow } from '../app/actions/adsmap';
 
@@ -19,7 +19,6 @@ import type { AdRow } from '../app/actions/adsmap';
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const page = read('app/(app)/adsmap/page.tsx');
 const essais = read('app/(app)/jarvis/sections/SectionEssais.tsx');
-const shell = read('components/AppShell.tsx');
 const table = read('app/(app)/adsmap/AdsMapTable.tsx');
 const canvas = read('app/(app)/adsmap/Canvas.tsx');
 
@@ -96,7 +95,7 @@ describe('Adsmap · en-tête sobre + liens locaux + support ancré (source)', ()
   });
 
   it('le support est ANCRÉ sur /adsmap (comme Dashboard, Pubs, Veille)', () => {
-    expect(shell).toContain("pathname === '/adsmap'");
+    expect(placementLanceurSupport('/adsmap')).toBe('ancre');
   });
 });
 

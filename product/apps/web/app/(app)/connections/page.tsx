@@ -4,6 +4,7 @@ import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { getConnectionState } from '../../actions/connections';
 import { DataConnections } from './DataConnections';
+import { CategorieFeuilleDeRoute } from './CategorieFeuilleDeRoute';
 import { PageInfo } from '../../../components/PageInfo';
 import { ConnecteurBientot, type ConnecteurAVenir } from '../../../components/ConnecteurBientot';
 import { etatCatalogue, dejaDisponible } from '@tiktrends/core';
@@ -137,15 +138,9 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
         Ces connecteurs arrivent · TikTok Ads et Google Ads en tête. Un besoin urgent ? Dis-le au support, on priorise selon la demande.
       </p>
       {ROADMAP_CATS.map(({ cat, items }) => (
-        <details key={cat} open style={{ marginBottom: 14 }}>
-          <summary style={{ listStyle: 'none', cursor: 'pointer', ...h2, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: 'var(--muted)', fontSize: 12 }}>▾</span>{cat}
-            <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>({items.length})</span>
-          </summary>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 10, marginTop: 12 }}>
-            {items.map((c) => <ConnecteurBientot key={c.name} c={c} />)}
-          </div>
-        </details>
+        <CategorieFeuilleDeRoute key={cat} cat={cat} nombre={items.length}>
+          {items.map((c) => <ConnecteurBientot key={c.name} c={c} />)}
+        </CategorieFeuilleDeRoute>
       ))}
     </main>
   );

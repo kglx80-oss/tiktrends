@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/auth';
 import { loginAction } from '../actions/auth';
-import { AuthShell, field, primaryBtn, errorBox } from '../../components/AuthShell';
+import { AuthShell, field, primaryBtn, errorBox, lienSeul } from '../../components/AuthShell';
 
 const ERRORS: Record<string, string> = {
   invalid: 'E-mail ou mot de passe incorrect.',
@@ -29,9 +29,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <input name="email" type="email" required autoComplete="email" placeholder="toi@exemple.com" style={field} />
         </label>
         <label style={{ display: 'grid', gap: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>Mot de passe</span>
-            <Link href="/forgot" style={{ fontSize: 12, color: 'var(--muted)' }}>Oublié ?</Link>
+            <Link href="/forgot" style={{ ...lienSeul, fontSize: 12, color: 'var(--muted)' }}>Oublié ?</Link>
           </div>
           <input name="password" type="password" required autoComplete="current-password" placeholder="••••••••" style={field} />
         </label>

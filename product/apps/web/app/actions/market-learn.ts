@@ -8,7 +8,7 @@ import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, ty
 import {
   normalizeAnalysis, costFor, majSurvie,
   computeMarketStats, contrastMarketVsBrand, summarizeMarket,
-  type MarketAd, type MarketRow, type Contrast, type BrandRow, type RadarSignal,
+  type MarketAd, type MarketRow, type Contrast, type BrandRow, type RadarSignal, messageServiceInactif,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -200,7 +200,8 @@ export async function learnFromFollowedAction(): Promise<LearnResult> {
   if ('error' in g) return { error: g.error };
 
   const apiKey = process.env.TRENDTRACK_API_KEY;
-  if (!apiKey) return { error: 'La source de veille n’est pas configurée sur le serveur.' };
+  // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
+  if (!apiKey) return { error: messageServiceInactif('veille') };
 
   try {
     // Les marques suivies sur les DEUX plateformes · le produit est TikTok-first,

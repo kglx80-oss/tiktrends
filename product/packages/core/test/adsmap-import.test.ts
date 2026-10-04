@@ -84,6 +84,14 @@ describe('dates abîmées · défaut D7', () => {
     expect(d.date).toBeNull();
   });
 
+  it('l’avertissement des dates écartées dit la règle, pas la cause d’un seul fichier', () => {
+    const csv = 'Status,BATCH #,Ad Concept,Date de lancement\nTerminé,1,Concept A,31/02/2026\n';
+    const w = buildImportPlan(csv, { today: AUJOURD_HUI }).report.warnings.find((x) => x.includes('date(s)'));
+    expect(w, 'aucun avertissement de date').toBeTruthy();
+    expect(w, 'une date impossible attribuée à l’année qui s’incrémente').not.toContain('2032');
+    expect(w).toContain('impossible');
+  });
+
   it('le rapport compte réparations et rejets séparément', () => {
     const r = plan().report;
     expect(r.datesRepaired).toBe(4);

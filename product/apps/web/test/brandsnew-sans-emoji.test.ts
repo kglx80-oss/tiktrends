@@ -14,8 +14,10 @@ describe('Nouvelle marque · plus aucun emoji d’interface', () => {
     const trouves = [...new Set(SRC.match(PICTO) ?? [])];
     expect(trouves, `pictogramme(s) encore dans brands/new/page.tsx : ${trouves.join(' ')}`).toEqual([]);
   });
-  it('les conversions rendent des icônes du jeu', () => {
-    expect(SRC).toMatch(/<Icon name="store"/);
+  it('les conversions rendent des icônes du jeu, ou le vrai logo de l’outil proposé', () => {
+    // Lot A (#120) · 🛍️ est devenu le logo Shopify officiel (garde de rendu ·
+    // logos-pages-proprietaire-rendu), plus l'icône générique « store ».
+    expect(SRC).toMatch(/<ShopifyIcon\b/);
     expect(SRC).toMatch(/<Icon name="link"/);
   });
 });

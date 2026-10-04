@@ -104,6 +104,38 @@ export function etatConnecteur(o: { connecte: boolean; compteRequisManquant?: bo
   return o.donnees ? 'operationnel' : 'connecte_sans_donnees';
 }
 
+/**
+ * L'encart Meta de l'écran Analytics · il suit la PHASE réelle du connecteur
+ * (recette #106b). Il invitait à « Connecter Meta Ads » un compte déjà connecté
+ * mais pas encore synchronisé (mesuré · Connexions disait « Connecté · à
+ * synchroniser »). Opérationnel → pas d'encart, les KPI s'affichent.
+ */
+export interface EncartMetaAnalytics { titre: string; texte: string; cta: { libelle: string; href: string } }
+
+/**
+ * Analytics sans données Meta · l'aperçu reste marqué DÉMO (jamais présenté
+ * comme des performances synchronisées), mais la phrase dit POURQUOI selon
+ * l'état réel · « aucun compte branché » était faux une fois Meta connecté
+ * en attente de synchro (recette A / 106b, mesuré au navigateur).
+ */
+export function phrasesApercuAnalytics(phase: PhaseConnecteur): { intro: string; noteDemo: string } {
+  if (phase === 'a_brancher') return { intro: 'Branche un compte pour des données live.', noteDemo: 'exemple tant qu’aucun compte n’est branché' };
+  return { intro: 'Synchronise Meta Ads pour remplacer l’aperçu par tes données live.', noteDemo: 'exemple tant qu’aucune donnée Meta n’est synchronisée' };
+}
+
+export function encartMetaAnalytics(phase: PhaseConnecteur): EncartMetaAnalytics | null {
+  switch (phase) {
+    case 'a_brancher':
+      return { titre: 'Branche Meta Ads pour tes vrais KPI', texte: 'Dépense, ROAS, CPA, panier moyen, CPC, CPM et tes top créas, avec les variations vs période précédente.', cta: { libelle: 'Connecter Meta Ads ›', href: '/connections' } };
+    case 'compte_a_choisir':
+      return { titre: 'Meta Ads est connecté · choisis le compte pub', texte: 'Plusieurs comptes pub sont reliés · choisis celui de cette marque pour faire remonter ses KPI.', cta: { libelle: 'Choisir le compte ›', href: '/connections' } };
+    case 'connecte_sans_donnees':
+      return { titre: 'Meta Ads est connecté · première synchronisation en attente', texte: 'Lance la synchronisation depuis Connexions pour faire remonter dépense, ROAS, CPA et tes top créas.', cta: { libelle: 'Synchroniser Meta Ads ›', href: '/connections' } };
+    case 'operationnel':
+      return null;
+  }
+}
+
 const pluriel = (n: number) => (n > 1 ? 's' : '');
 
 /**
@@ -114,7 +146,7 @@ const pluriel = (n: number) => (n > 1 ? 's' : '');
  */
 export function resumeImportDrive(o: { found: number; added: number; skipped: number }): string {
   if (o.found <= 0) {
-    return 'Dossier connecté vide · aucun fichier média trouvé, rien à importer. Google (scope drive.file) ne renvoie que ce que tu as sélectionné · re-sélectionne le dossier, ou choisis un sous-dossier qui contient directement des images/vidéos.';
+    return 'Dossier connecté vide · aucun fichier média trouvé, rien à importer. Google ne nous montre que les fichiers que tu as choisis toi-même · re-sélectionne le dossier, ou choisis un sous-dossier qui contient directement des images/vidéos.';
   }
   const erreurs = Math.max(0, o.found - o.added - o.skipped);
   const bouts = [`${o.found} trouvé${pluriel(o.found)}`, `${o.added} importé${pluriel(o.added)}`];

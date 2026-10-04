@@ -107,9 +107,11 @@ export const FEATURES: Feature[] = [
   { key: 'scale',     label: 'Ce qui scale', href: '/veille/scale', icon: 'trend',  group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Observatoire', parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
-  // « Radar produits » et non « Radar » · le module Adsmap en a un autre, et
+  // « Radar créatif » et non « Radar » · le module Adsmap en a un autre, et
   // deux entrées du même nom obligent à cliquer pour savoir laquelle est laquelle.
-  { key: 'radar',     label: 'Radar produits', href: '/radar',     icon: 'radar',  group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
+  // Pas « Radar produits » · la page note des CRÉAS (Hook/Hold/CTR/Conv), elle
+  // ne repère aucun produit (recette #106 · promesse erronée).
+  { key: 'radar',     label: 'Radar créatif', href: '/radar',     icon: 'radar',  group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
 
   // ── Créer · Jarvis d'abord, c'est par lui qu'on entre ─────────────────────
   // Le rail le montre à partir de `core` : l'état des couches et les actions de
@@ -227,4 +229,27 @@ export function denyReason(a: Access, f: Feature): 'role' | 'plan' | null {
   if (!roleAtLeast(a.role, f.minRole)) return 'role';
   if (!planAtLeast(a.plan, f.minPlan)) return 'plan';
   return null;
+}
+
+/**
+ * Lot 11 · pour chaque rubrique, le RÔLE l'ouvre-t-il ? Lu par l'accueil pour
+ * ne proposer que les gestes ouverts. Un verrou de FORMULE n'est pas un refus
+ * de rôle · la rubrique reste proposée et sa page explique l'offre. Ne protège
+ * rien · les pages et les actions gardent leurs propres contrôles.
+ */
+export function ouverturesParRole(a: Access): Array<{ href: string; ouvert: boolean; verrou: boolean }> {
+  return FEATURES.map((f) => { const d = denyReason(a, f); return { href: f.href, ouvert: d !== 'role', verrou: d === 'plan' }; });
+}
+
+/**
+ * Lot 12 · le menu de compte suit la garde RÉELLE des pages « Espace »
+ * (roleAtLeast admin · brands, team, connections, usage, billing, réglages).
+ * La face équipe plateforme (matrice) les montrait à un membre de l'équipe
+ * dont le rôle d'ESPACE est inférieur · chaque page le renvoyait à l'accueil.
+ * N'élargit rien, ne protège rien · les pages gardent leurs contrôles.
+ */
+export function sectionsCompteOuvertes(a: Access): Array<{ section: AccountSection; items: NavItem[] }> {
+  return accountSections(a)
+    .map((g) => (g.section === 'Espace' && !roleAtLeast(a.role, 'admin') ? { ...g, items: [] } : g))
+    .filter((g) => g.items.length > 0);
 }

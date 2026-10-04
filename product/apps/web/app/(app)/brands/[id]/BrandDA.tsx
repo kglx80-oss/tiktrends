@@ -6,7 +6,7 @@ import { importBrandDAAction, saveBrandDAAction, extractBrandVisualDaAction, sav
 import { BrandGuidelines } from '../../../../components/BrandGuidelines';
 import { PaletteMarque } from './PaletteMarque';
 import { Icon } from '../../../../components/Icon';
-import { costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, SECTIONS_IDENTITE, HAUTEUR_ENTETE_APP, MARGE_BARRE_INDEX, MARGE_ANCRE_SECTION, SEUIL_SECTION_ACTIVE, type DaVisuelleMarque } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, SECTIONS_IDENTITE, HAUTEUR_ENTETE_APP, MARGE_BARRE_INDEX, MARGE_ANCRE_SECTION, SEUIL_SECTION_ACTIVE, type DaVisuelleMarque } from '@tiktrends/core';
 
 // L'identité visuelle se lit en DEUX sections distinctes · les tokens bruts
 // (couleurs + typographie) d'un côté, le kit (logo + style déduit + actions) de
@@ -213,10 +213,10 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
             <div style={sectionTitre}><Icon name={sectionDe('charte').icone} size={15} /> {sectionDe('charte').libelle}</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>{sectionDe('charte').sousTitre}</div>
           </div>
-          <button type="button" onClick={() => setEditing((v) => !v)} disabled={busy} style={{ padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: 'transparent', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
+          <button type="button" onClick={() => setEditing((v) => !v)} disabled={busy} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: 'transparent', color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>
             {editing ? 'Annuler' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="pen" size={13} /> Éditer</span>}
           </button>
-          <button type="button" onClick={fetchDA} disabled={busy} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1, whiteSpace: 'nowrap' }}>
+          <button type="button" onClick={fetchDA} disabled={busy} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1, whiteSpace: 'nowrap' }}>
             {busy ? 'Récupération…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Récupérer la DA</span>}
           </button>
           {/* L'analyse du STYLE (LLM) · elle DÉPENSE · action secondaire (contour),

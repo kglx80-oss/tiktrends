@@ -3,6 +3,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { storageConfigured } from '@tiktrends/integrations';
+import { messageErreurConnexionDrive, etatConnexionDrive } from '@tiktrends/core';
 import { listAssets } from '../../actions/assets';
 import { getDriveState } from '../../actions/drive';
 import { PageInfo } from '../../../components/PageInfo';
@@ -12,15 +13,6 @@ import { cadrePage } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
-const DRIVE_ERR: Record<string, string> = {
-  drive_config: 'Connexion Drive non configurée (variables Google manquantes).',
-  drive_state: 'Session OAuth invalide, réessaie la connexion Drive.',
-  drive_session: 'Session expirée, reconnecte-toi puis relance la connexion Drive.',
-  drive_norefresh: 'Google n’a pas renvoyé de jeton. Révoque l’accès dans ton compte Google puis reconnecte.',
-  drive_exchange: 'Échec de l’échange OAuth avec Google. Réessaie.',
-  drive_nobrand: 'Sélectionne une marque active avant de connecter son Drive.',
-};
-
 export default async function AssetsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
   if (!s) redirect('/login');
@@ -28,14 +20,16 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
 
   const sp = (await searchParams) ?? {};
   const okDrive = sp.ok === 'drive';
-  const errDrive = typeof sp.e === 'string' && sp.e.startsWith('drive') ? (DRIVE_ERR[sp.e] || 'Erreur de connexion Drive.') : '';
-
   const isAdmin = roleAtLeast(s.role, 'admin');
   const [assets, brand, driveState] = await Promise.all([
     listAssets(),
     getActiveBrand(s.workspaceId),
     isAdmin ? getDriveState() : Promise.resolve(null),
   ]);
+  // Copie client du retour Google · aucun nom de variable ni de protocole, et
+  // jamais un geste absent de l'écran · le message suit l'état Drive AFFICHÉ
+  // (recette #106 · `messageErreurConnexionDrive`, garde assets-retour-drive).
+  const errDrive = typeof sp.e === 'string' && sp.e.startsWith('drive') ? messageErreurConnexionDrive(sp.e, etatConnexionDrive(driveState)) : '';
   const imgCount = assets.filter((a) => a.kind === 'image').length;
   const storageOn = storageConfigured();
 

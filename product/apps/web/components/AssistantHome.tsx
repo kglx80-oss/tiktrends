@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { afficherCredits, texteCredits, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { afficherCredits, texteCredits, CIBLE_TACTILE_MIN, cheminOuvert, liensOuverts, noteAccesAccueil, type RegleChemin } from '@tiktrends/core';
 import { AssistantChat } from './AssistantChat';
 import { Icon } from './Icon';
 
@@ -22,6 +22,8 @@ export interface AssistantHomeProps {
   prochaineEtape?: ReactNode;
   /** L'aperçu d'exemple, replié, en toute fin. */
   exemple?: ReactNode;
+  /** Ce que le rôle ouvre (lot 11) · un accès fermé n'est pas proposé. Absent = tout ouvert. */
+  regles?: RegleChemin[];
 }
 
 /**
@@ -46,7 +48,7 @@ const ANALYSER: Array<{ href: string; icon: string; titre: string; sous: string 
   { href: '/adsmap', icon: 'map', titre: 'Adsmap', sous: 'Tes tests et leurs verdicts' },
   { href: '/analytics', icon: 'chart', titre: 'Analytics', sous: 'Les KPI agrégés de tes campagnes' },
   { href: '/veille', icon: 'search', titre: 'Veille', sous: 'Observe les concurrents et ce qui scale' },
-  { href: '/radar', icon: 'radar', titre: 'Radar produits', sous: 'Les produits qui montent' },
+  { href: '/radar', icon: 'radar', titre: 'Radar créatif', sous: 'Repérer les créas à retravailler' },
   { href: '/jarvis', icon: 'brain', titre: 'Ce que Jarvis sait', sous: 'La mémoire de ta catégorie' },
 ];
 
@@ -59,8 +61,12 @@ const STUDIOS: Array<{ href: string; icon: string; titre: string; teinte: string
   { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', teinte: 'linear-gradient(135deg, #8a5a12, #d69a3a)' },
 ];
 
-export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple, regles = [] }: AssistantHomeProps) {
   const etatCredits = afficherCredits({ balance: credits, unlimited });
+  const ouvert = (href: string) => cheminOuvert(href, regles);
+  const analyser = liensOuverts(ANALYSER, ouvert);
+  const studios = liensOuverts(STUDIOS, ouvert);
+  const note = noteAccesAccueil(ouvert);
   return (
     <div style={{ marginBottom: 32 }}>
       {/* En-tête COMPACT · salutation + crédits sur UNE ligne (les crédits
@@ -82,6 +88,8 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
             ? <>Marque active · <b style={{ color: 'var(--ink-2)' }}>{brandName}</b> · Observe, teste, apprends de chaque itération.</>
             : <>Choisis une marque · Observe, teste, apprends de chaque itération.</>}
         </p>
+        {/* Lot 11 · ce que le rôle n'ouvre pas est tu, et la raison est dite. */}
+        {note && <p role="note" style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45, maxWidth: 680 }}>{note}</p>}
       </div>
 
       {/* Le hero de la Home · bandeau à la une, PUIS les marques du compte
@@ -93,9 +101,10 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
       {prochaineEtape}
 
       {/* Analyser & décider · les accès d'analyse existants, en cartes compactes. */}
+      {analyser.length > 0 && <>
       <h2 style={sectionH}>Analyser &amp; décider</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(340px, 100%), 1fr))', gap: 12, margin: '10px 0 26px' }}>
-        {ANALYSER.map((a) => (
+        {analyser.map((a) => (
           <Link key={a.href} href={a.href} style={{
             display: 'flex', alignItems: 'center', gap: 12, minHeight: CIBLE_TACTILE_MIN, padding: '13px 15px', textDecoration: 'none',
             border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', minWidth: 0,
@@ -110,6 +119,7 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
           </Link>
         ))}
       </div>
+      </>}
 
       {/* L'assistant · conservé, APRÈS les accès d'analyse · aucune génération auto. */}
       <h2 style={sectionH}>Demande à l’assistant</h2>
@@ -119,9 +129,10 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
 
       {/* Créer les variantes de ton test · SECONDAIRE · rangée compacte, quatre
           studios conservés, sans studio en vedette ni surtitre de produit clé. */}
+      {studios.length > 0 && <>
       <h2 style={sectionH}>Créer les variantes de ton test</h2>
       <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', margin: '10px 0 26px' }}>
-        {STUDIOS.map((c) => (
+        {studios.map((c) => (
           <Link key={c.href} href={c.href} style={{
             display: 'inline-flex', alignItems: 'center', gap: 9, minHeight: CIBLE_TACTILE_MIN, padding: '8px 14px 8px 9px', borderRadius: 12, textDecoration: 'none',
             border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 13, fontWeight: 600,
@@ -131,6 +142,7 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
           </Link>
         ))}
       </div>
+      </>}
 
       {/* Explorer un exemple · replié, tout en bas. */}
       {exemple}

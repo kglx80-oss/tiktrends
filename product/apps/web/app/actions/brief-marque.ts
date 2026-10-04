@@ -4,7 +4,7 @@ import { getSession } from '../../lib/auth';
 import { canAccess, FEATURES } from '../../lib/rbac';
 import { effectiveAccess } from '../../lib/access';
 import { ttSearchAds, ttSearchTikTok } from '@tiktrends/integrations';
-import { briefConcurrent, cleBrief, type BriefConcurrent } from '@tiktrends/core';
+import { briefConcurrent, cleBrief, type BriefConcurrent, messageServiceInactif } from '@tiktrends/core';
 import { lireBrief, ecrireBrief, reserverAppelBrief } from '../../lib/brief-marque-cache';
 
 /**
@@ -20,7 +20,8 @@ export async function briefMarqueAction(input: { platform: string; name: string 
   if (!canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'inspo')!)) return { error: 'Accès Veille requis.' };
 
   const apiKey = process.env.TRENDTRACK_API_KEY;
-  if (!apiKey) return { error: 'Source de données non configurée.' };
+  // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
+  if (!apiKey) return { error: messageServiceInactif('veille') };
 
   const name = input.name.trim();
   if (!name) return { error: 'Marque inconnue.' };

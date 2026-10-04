@@ -10,6 +10,7 @@ import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
 import { useIsMobile } from '../../../components/useIsMobile';
 import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, tauxReussite, verdictEffectif, TAUX_NON_CALCULABLE, type VerdictValue } from '@tiktrends/core';
+import { useRouvrirFiche } from './useRouvrirFiche';
 
 /**
  * Vue Table d'ADSMAP.
@@ -51,6 +52,8 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
   const router = useRouter();
   const [briefBusy, setBriefBusy] = useState('');
   const [ouverte, setOuverte] = useState<string | null>(null);
+  // Avant vers l'entrée d'une fiche de cette vue · on la rouvre (recette #106).
+  useRouvrirFiche('table', setOuverte);
   // Change à chaque arbitrage · relance le chargement de la liste sans la vider.
   const [version, setVersion] = useState(0);
   // Sur petit écran, la lecture par défaut est une carte par test · un accès

@@ -3,7 +3,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, putObject, storeDriveThumb } from '@tiktrends/integrations';
-import type { DernierSyncDrive } from '@tiktrends/core';
+import { DRIVE_SELECTEUR_INACTIF, texteMessageClient, type DernierSyncDrive } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -49,7 +49,8 @@ export async function getDriveState(): Promise<DriveState> {
 export async function getDrivePickerConfigAction(): Promise<{ token?: string; apiKey?: string; appId?: string; error?: string }> {
   const g = await guard();
   if ('error' in g) return { error: g.error };
-  if (!drivePickerConfigured()) return { error: 'Sélecteur Drive non configuré (GOOGLE_API_KEY / GOOGLE_APP_ID).' };
+  // Copie client · aucun nom de variable n'atteint l'écran (recette #106).
+  if (!drivePickerConfigured()) return { error: texteMessageClient(DRIVE_SELECTEUR_INACTIF) };
   const [b] = await db!.select({ tok: schema.brands.driveRefreshToken }).from(schema.brands).where(eq(schema.brands.id, g.brand.id)).limit(1);
   const rt = decryptSecret(b?.tok);
   if (!rt) return { error: `Connecte d’abord Google Drive pour « ${g.brand.name} ».` };

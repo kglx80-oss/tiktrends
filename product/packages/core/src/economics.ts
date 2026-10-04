@@ -158,6 +158,17 @@ export const IMAGE_MODELS: ImageModelSpec[] = [
 ];
 
 /**
+ * La fourchette de crédits d'une image, du moteur le moins cher au plus cher.
+ * L'aide du studio image annonçait « 4 crédits par image » en dur alors que le
+ * prix suit le moteur (lot 9) · l'écran dit la fourchette, le bouton dit le prix
+ * exact avant le clic.
+ */
+export function fourchetteCreditsImage(modeles: ReadonlyArray<{ credits: number }> = IMAGE_MODELS): { min: number; max: number } {
+  const c = modeles.map((m) => m.credits);
+  return { min: Math.min(...c), max: Math.max(...c) };
+}
+
+/**
  * Corriger une adresse de modèle sans redéployer.
  *
  * Un fournisseur renomme ses endpoints sans prévenir, et une adresse fausse se

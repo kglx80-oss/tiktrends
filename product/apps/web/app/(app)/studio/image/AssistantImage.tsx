@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import {
   ETAPES_IMAGE, ETAPE_IMAGE_TITRE, ETAPE_IMAGE_ROLE,
   manqueImage, etapeImageComplete, etapeImageSuivante, etapeImagePrecedente,
@@ -60,15 +61,21 @@ const Label = ({ children, htmlFor }: { children: ReactNode; htmlFor?: string })
 
 export function AssistantImage(p: Props) {
   const [etape, setEtape] = useState<EtapeImage>('produit');
-  // Échap ferme · pendant clavier du clic sur le fond, sinon la modale piège qui
-  // n'a pas de souris.
-  const { ouvert, onFermer } = p;
+  // Le piège à focus partagé · focus entrant, Tab gardé dans la fenêtre, Échap,
+  // retour au déclencheur. L'écouteur maison se réabonnait à chaque rendu de la
+  // page et ratait Échap (mesuré au navigateur, lot 9 · focus resté sur
+  // « Assistant guidé », Tab sorti 11 fois sur 14).
+  const boiteRef = useRef<HTMLDivElement>(null);
+  usePiegeFocus(boiteRef, { actif: p.ouvert, onFermer: p.onFermer });
+  // Lot 11 · changer d'étape peut DÉSACTIVER le bouton qui a le focus (« Retour »
+  // revenu à la première étape) · le focus tombait hors de la fenêtre (mesuré
+  // au navigateur). On le rend à la fenêtre, jamais à un bouton inerte.
   useEffect(() => {
-    if (!ouvert) return;
-    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onFermer(); };
-    window.addEventListener('keydown', surTouche);
-    return () => window.removeEventListener('keydown', surTouche);
-  }, [ouvert, onFermer]);
+    const b = boiteRef.current;
+    if (!b) return;
+    const a = document.activeElement as HTMLButtonElement | null;
+    if (!a || !b.contains(a) || a.disabled) b.focus();
+  }, [etape]);
   if (!p.ouvert) return null;
 
   const bloquant = manqueImage(etape, p.etat);
@@ -84,7 +91,7 @@ export function AssistantImage(p: Props) {
   return (
     <Portail>
     <div style={fond} onClick={p.onFermer}>
-      <div style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-image-titre">
+      <div ref={boiteRef} tabIndex={-1} style={boite} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assistant-image-titre">
         {/* Le fil · une étape faite se rouvre, une étape dont les précédentes ne
             le sont pas reste fermée (règle du noyau). */}
         <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -162,7 +169,7 @@ export function AssistantImage(p: Props) {
                 const on = p.etat.direction === d.key;
                 return (
                   <button key={d.key || 'variees'} type="button" onClick={() => p.onDirection(d.key)} aria-pressed={on} style={{
-                    display: 'grid', gap: 3, padding: '10px 12px', borderRadius: 12, textAlign: 'left',
+                    display: 'grid', gap: 3, minHeight: CIBLE_TACTILE_MIN, padding: '10px 12px', borderRadius: 12, textAlign: 'left',
                     border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: on ? 'rgba(254,44,85,.06)' : 'transparent', cursor: 'pointer',
                   }}>
                     <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>{d.label}</span>

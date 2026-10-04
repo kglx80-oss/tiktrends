@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
@@ -120,6 +120,8 @@ export interface ComposerProps {
    */
   blocage?: string;
   generateLabel?: string;
+  /** Nom accessible du champ de description · un placeholder seul n'en est pas un. */
+  libelleZone?: string;
   /** Actions secondaires · « proposer une description », par exemple. */
   extra?: ReactNode;
 }
@@ -137,7 +139,7 @@ export function Composer(props: ComposerProps) {
     controls = [], toggles = [], scenes = [],
     onPickScene, onSaveScene, onAttach, attachLabel, attachedCount = 0,
     advice, preflight, cost, onGenerate, busy, disabled, generateLabel = 'Générer', extra,
-    requireText = true, blocage = '',
+    requireText = true, blocage = '', libelleZone = 'Description de la création',
   } = props;
 
   const [menu, setMenu] = useState<string | null>(null);
@@ -206,6 +208,7 @@ export function Composer(props: ComposerProps) {
         <textarea
           ref={zone} value={value} onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder} disabled={disabled}
+          aria-label={libelleZone}
           onKeyDown={(e) => {
             // Cmd/Ctrl + Entrée lance · Entrée seule passe à la ligne, parce
             // qu'une description tient rarement sur une phrase.
@@ -255,9 +258,16 @@ export function Composer(props: ComposerProps) {
               <button
                 key={o.value} type="button"
                 onClick={() => { c.onChange(o.value); setMenu(null); }}
+                aria-pressed={o.value === c.value}
                 style={{ ...ligneMenu, color: o.value === c.value ? 'var(--accent-strong)' : 'var(--ink-2)' }}
               >
-                {o.label}
+                {/* La sélection ne passe pas par la couleur seule · coche et valeur
+                    sur UNE ligne (la ligne de menu est une colonne flex, prévue
+                    pour les scènes à deux lignes · la coche passait au-dessus). */}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span aria-hidden style={{ display: 'inline-block', width: 12 }}>{o.value === c.value ? '✓' : ''}</span>
+                  {o.label}
+                </span>
               </button>
             ))}
           </Menu>
@@ -266,6 +276,7 @@ export function Composer(props: ComposerProps) {
         {toggles.map((t) => (
           <button
             key={t.key} type="button" onClick={() => t.onChange(!t.value)} disabled={t.disabled || disabled}
+            aria-pressed={t.value}
             style={{
               ...pastille,
               borderColor: t.value ? 'var(--accent-strong)' : 'var(--line-2)',
@@ -384,10 +395,18 @@ function Menu({ ouvert, onToggle, libelle, icone, titre, disabled, children }: {
   ouvert: boolean; onToggle: () => void; libelle: string;
   icone?: string; titre?: string; disabled?: boolean; children: ReactNode;
 }) {
+  // État annoncé (aria-expanded), panneau relié (aria-controls), Échap referme et
+  // rend le focus au bouton · le menu ne se fermait qu'au clic (lot 9).
+  const id = useId();
+  const bouton = useRef<HTMLButtonElement>(null);
   return (
-    <span style={{ position: 'relative', display: 'inline-block' }}>
+    <span
+      style={{ position: 'relative', display: 'inline-block' }}
+      onKeyDown={(e) => { if (ouvert && e.key === 'Escape') { e.stopPropagation(); onToggle(); bouton.current?.focus(); } }}
+    >
       <button
-        type="button" onClick={onToggle} disabled={disabled} title={titre}
+        ref={bouton} type="button" onClick={onToggle} disabled={disabled} title={titre}
+        aria-expanded={ouvert} aria-controls={ouvert ? id : undefined}
         style={{ ...pastille, opacity: disabled ? 0.5 : 1, borderColor: ouvert ? 'var(--accent-strong)' : 'var(--line-2)' }}
       >
         {icone && <span aria-hidden style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name={icone} size={15} /></span>}
@@ -399,7 +418,7 @@ function Menu({ ouvert, onToggle, libelle, icone, titre, disabled, children }: {
           {/* Un clic n'importe où referme · sans ça le menu reste ouvert et
               recouvre ce qu'on essayait de lire. */}
           <span onClick={onToggle} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-          <span style={{
+          <span id={id} style={{
             position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, zIndex: 30,
             minWidth: 190, maxWidth: 320, maxHeight: 280, overflowY: 'auto',
             background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12,

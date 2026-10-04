@@ -6,10 +6,10 @@ import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, phrasesApercuAnalytics, type PhaseConnecteur } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
-import { Icon } from '../../../components/Icon';
 import { MetaKeyMetrics } from './MetaKeyMetrics';
+import { BrandTile } from '../../../components/BrandIcons';
 import { CreativeIntel, type CreativeStats } from './CreativeIntel';
 import { SectionAttribution } from '../jarvis/sections/SectionAttribution';
 import { cadrePage } from '../../../components/ui';
@@ -29,13 +29,18 @@ export default async function AnalyticsPage() {
   // Données Meta réelles (si la marque active a connecté + synchronisé).
   let metaInsights: MetaAdsInsights | null = null;
   let syncedAt: string | null = null;
+  // La phase RÉELLE du connecteur · la même règle que l'écran Connexions
+  // (`etatConnecteur`) · l'encart n'invite plus à connecter un compte connecté.
+  let phaseMeta: PhaseConnecteur = 'a_brancher';
   const brand = await getActiveBrand(s.workspaceId);
   if (db && brand) {
     // La date de synchro MÉTA · pas la valeur partagée qu'une synchro Shopify
     // écrasait, faisant passer des KPI Meta anciens pour « à l'instant » (N09).
-    const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.metaSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.metaSyncedAt, token: schema.brands.metaToken, compte: schema.brands.metaAdAccountId, comptes: schema.brands.metaAdAccounts }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
     if (b?.ads && (b.ads as MetaAdsInsights).window) metaInsights = b.ads as MetaAdsInsights;
     syncedAt = b?.syncedAt ? b.syncedAt.toISOString() : null;
+    const nbComptes = Array.isArray(b?.comptes) ? (b!.comptes as unknown[]).length : 0;
+    phaseMeta = etatConnecteur({ connecte: !!b?.token, compteRequisManquant: !!b?.token && nbComptes > 1 && !b?.compte, donnees: !!metaInsights });
   }
 
   // Intelligence créative maison : diversité + top tags, à partir de NOS générations et assets.
@@ -90,6 +95,9 @@ export default async function AnalyticsPage() {
     ['ROAS moyen', t.avgRoas.toFixed(2) + '×', `${t.eligible} créas éligibles`],
   ];
 
+  const encart = encartMetaAnalytics(phaseMeta);
+  const phrases = phrasesApercuAnalytics(phaseMeta);
+
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -97,7 +105,7 @@ export default async function AnalyticsPage() {
         <span style={{ fontSize: 12, color: metaInsights ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{metaInsights ? 'Meta Ads · live' : 'aperçu démo'}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
-        Vue agrégée de tes créas : dépense, portée, efficacité, et répartition Radar. Branche un compte pour des données live.
+        Vue agrégée de tes créas : dépense, portée, efficacité, et répartition Radar. {phrases.intro}
       </p>
 
       <PageInfo title="lire tes KPI">
@@ -109,14 +117,14 @@ export default async function AnalyticsPage() {
       {/* ===== Données Meta réelles (Key Metrics façon Atria) ===== */}
       {metaInsights ? (
         <MetaKeyMetrics insights={metaInsights} syncedAt={syncedAt} />
-      ) : (
+      ) : encart && (
         <div style={{ border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="chart" size={22} /></span>
+          <BrandTile name="Meta Ads" />
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Branche Meta Ads pour tes vrais KPI</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Dépense, ROAS, CPA, panier moyen, CPC, CPM et tes top créas, avec les variations vs période précédente.</div>
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{encart.titre}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>{encart.texte}</div>
           </div>
-          <Link href="/connections" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>Connecter Meta Ads ›</Link>
+          <Link href="/connections" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>{encart.cta.libelle}</Link>
         </div>
       )}
 
@@ -128,7 +136,7 @@ export default async function AnalyticsPage() {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Aperçu créas</h2>
         <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: '#f5b043', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', borderRadius: 999, padding: '2px 8px' }}>DÉMO</span>
-        <span style={{ fontSize: 11, color: 'var(--muted)' }}>· exemple tant qu'aucun compte n'est branché</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>· {phrases.noteDemo}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 26 }}>
         {kpis.map(([label, value, sub]) => (

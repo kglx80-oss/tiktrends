@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../lib/auth';
 import { forgotPasswordAction } from '../actions/auth';
-import { AuthShell, field, primaryBtn } from '../../components/AuthShell';
+import { AuthShell, field, primaryBtn, lienSeul } from '../../components/AuthShell';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export default async function ForgotPage({ searchParams }: { searchParams: Promi
           <Link href="/forgot" style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>Réessayer</Link>.
         </div>
         <p style={{ marginTop: 20, fontSize: 13, color: 'var(--muted)' }}>
-          <Link href="/login" style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>← Retour à la connexion</Link>
+          <Link href="/login" style={{ ...lienSeul, color: 'var(--accent-strong)', fontWeight: 600 }}>← Retour à la connexion</Link>
         </p>
       </AuthShell>
     );
@@ -34,7 +34,7 @@ export default async function ForgotPage({ searchParams }: { searchParams: Promi
         <button type="submit" style={primaryBtn}>Envoyer le lien</button>
       </form>
       <p style={{ marginTop: 18, fontSize: 13, color: 'var(--muted)' }}>
-        <Link href="/login" style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>← Retour à la connexion</Link>
+        <Link href="/login" style={{ ...lienSeul, color: 'var(--accent-strong)', fontWeight: 600 }}>← Retour à la connexion</Link>
       </p>
     </AuthShell>
   );

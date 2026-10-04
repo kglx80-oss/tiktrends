@@ -34,7 +34,13 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    // Grille de cases d'au moins 44 px · les six actions ne tenaient pas sur une
+    // ligne (lot 9, coupées), puis passaient à la ligne en vrac (lot 10). Ici
+    // chaque action tombe dans une colonne, la paire de pouces en prend deux ;
+    // en desktop (carte de 220 px et plus) quatre colonnes, deux lignes
+    // alignées ; en carte large, une seule ligne. L'ordre du DOM, donc du
+    // clavier, ne change pas ; aucune cible ne rétrécit.
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${CIBLE_TACTILE_MIN}px, 1fr))`, justifyItems: 'start', alignItems: 'center', gap: 6 }}>
       {onOpen && (
         <button type="button" onClick={onOpen} style={actBtn} title="Ouvrir en grand" aria-label="Ouvrir">
           <Icon name="frame" size={14} />
@@ -46,9 +52,8 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
         </a>
       )}
 
-      <span style={{ flex: 1 }} />
-
-      <RatingControl genId={genId} rating={initial} />
+      {/* La paire de pouces occupe deux cases. */}
+      <span style={{ gridColumn: 'span 2', display: 'inline-flex' }}><RatingControl genId={genId} rating={initial} /></span>
 
       {trackable && (
         <button type="button" onClick={suivre} disabled={suivi === 'busy' || suivi === 'done'}

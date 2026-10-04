@@ -13,7 +13,10 @@ import { useEffect, useState } from 'react';
  * valent desktop, puis l'effet corrige au montage. Un booléen d'état, pas une
  * lecture pendant le rendu · c'est ce qui évite l'écart d'hydratation.
  */
-export function useIsMobile(query = '(max-width: 768px)'): boolean {
+/** Le seuil « écran étroit » de la coquille · partagé avec qui doit le lire hors rendu. */
+export const MEDIA_ETROIT = '(max-width: 768px)';
+
+export function useIsMobile(query = MEDIA_ETROIT): boolean {
   const [mobile, setMobile] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;

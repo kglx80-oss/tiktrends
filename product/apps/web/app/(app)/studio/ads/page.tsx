@@ -179,6 +179,10 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
           `productId`, sélection…) restent ceux de la marque précédente jusqu'à un
           rechargement complet. La clé par marque force le remontage · TOUT le
           contexte client se ré-ensemence ensemble depuis les nouvelles props.
+          Depuis le lot 14, le sélecteur du rail recharge la page en entier
+          (noyau `bascule-marque` · le rafraîchissement souple calait) · la clé
+          reste la garde de tout autre chemin qui changerait la marque sans
+          rechargement.
           Depuis I2, elle porte aussi le test du brief demandé (`cleMontageStudio`) ·
           mesuré, ?iter=A → ?iter=B gardait les champs de A sous le brief de B. */}
       {iteration && <PanneauIteration it={iteration} marque={brand?.name ?? null} />}
