@@ -1,11 +1,14 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { Icon } from './Icon';
-import { bibliothequePub, siteMarque, consigneAngleMarche, formatDominant, briefConcurrentBloque, cibleSelonPointeur, type BriefConcurrent } from '@tiktrends/core';
+import { bibliothequePub, siteMarque, consigneAngleMarche, formatDominant, briefConcurrentBloque, cibleSelonPointeur, echecRetraitSuivi, type BriefConcurrent } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { BrandRemoveButton } from './InspoButtons';
 import { briefMarqueAction } from '../app/actions/brief-marque';
+import { useRetraitsOnglet } from './SavedTabs';
+import { focusApresRetrait } from './focusApresRetrait';
+import { demanderFocusApresVidage } from './focusVidage';
 
 interface MarqueLite { id: string; platform: string; name: string; logoUrl?: string | null; domain?: string | null }
 
@@ -15,8 +18,41 @@ interface MarqueLite { id: string; platform: string; name: string; logoUrl?: str
  * vidéo, les angles dominants, les CTA, les sites. Rien de payant · seule la
  * recherche est appelée quand on clique « analyser ».
  */
-export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
+export function MarquesSuivies({ brands, vide }: { brands: MarqueLite[]; vide?: ReactNode }) {
   const [ouvert, setOuvert] = useState<string | null>(null);
+  // Lot 16 · un concurrent retiré quitte la liste TOUT DE SUITE (puce, compteur
+  // de l'onglet, état vide) · avant, seul le ✕ disparaissait et le reste
+  // attendait un `router.refresh()` qui calait 4 fois sur 12 (mesuré).
+  const [retirees, setRetirees] = useState<ReadonlySet<string>>(new Set());
+  const [echecRetrait, setEchecRetrait] = useState<string | null>(null);
+  const grilleRef = useRef<HTMLDivElement>(null);
+  const signalerRetraits = useRetraitsOnglet();
+  const visibles = brands.filter((b) => !retirees.has(b.id));
+  const retiresEncoreServis = brands.length - visibles.length;
+  useEffect(() => { signalerRetraits('marques', retiresEncoreServis); }, [signalerRetraits, retiresEncoreServis]);
+  // Le ✕ cliqué part avec sa puce · APRÈS le rendu qui l'a retirée, le focus
+  // passe à la puce qui prend sa place, sinon à l'onglet (aide des galeries,
+  // lot 13). Décidé pendant le clic, il visait encore la puce retirée.
+  const rangFocus = useRef<number | null>(null);
+  useEffect(() => {
+    if (rangFocus.current === null) return;
+    const rang = rangFocus.current; rangFocus.current = null;
+    focusApresRetrait(grilleRef.current, rang, document.getElementById('onglet-marques'));
+  }, [visibles.length]);
+  const surRetrait = (b: MarqueLite, rang: number) => (etat: 'retire' | 'annule') => {
+    if (etat === 'retire') {
+      setEchecRetrait(null);
+      setRetirees((s) => new Set(s).add(b.id));
+      if (ouvert === b.id) setOuvert(null);
+      rangFocus.current = rang;
+      // Le dernier visible part · si toute la bibliothèque est vide, le rendu
+      // serveur remplacera les onglets (N05) · l'état vide reprendra le focus.
+      if (visibles.length === 1) demanderFocusApresVidage();
+    } else {
+      setRetirees((s) => { const n = new Set(s); n.delete(b.id); return n; });
+      setEchecRetrait(echecRetraitSuivi(b.name));
+    }
+  };
   const [brief, setBrief] = useState<BriefConcurrent | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, start] = useTransition();
@@ -49,12 +85,15 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
     });
   }
 
-  const active = brands.find((b) => b.id === ouvert) || null;
+  const active = visibles.find((b) => b.id === ouvert) || null;
+
+  if (visibles.length === 0 && vide) return <>{vide}</>;
 
   return (
     <div style={{ marginBottom: 30 }}>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {brands.map((b) => {
+      {echecRetrait && <p role="alert" style={{ margin: '0 0 10px', fontSize: 13, color: '#ff9db0' }}>{echecRetrait}</p>}
+      <div ref={grilleRef} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {visibles.map((b, rang) => {
           const biblio = bibliothequePub({ platform: b.platform, name: b.name });
           const site = siteMarque({ landingDomain: b.domain });
           return (
@@ -79,7 +118,7 @@ export function MarquesSuivies({ brands }: { brands: MarqueLite[] }) {
               <a href={`/veille?q=${encodeURIComponent(b.name)}&searchIn=brand&p=${b.platform}`} style={{ ...action, fontSize: 11, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>voir</a>
               {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={{ ...action, fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none', whiteSpace: 'nowrap' }}>bibliothèque ↗</a>}
               {site && <a href={site} target="_blank" rel="noreferrer" style={{ ...action, fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textDecoration: 'none', whiteSpace: 'nowrap' }}>site ↗</a>}
-              <BrandRemoveButton platform={b.platform} name={b.name} />
+              <BrandRemoveButton platform={b.platform} name={b.name} onRetrait={surRetrait(b, rang)} />
             </div>
           );
         })}

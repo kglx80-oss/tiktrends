@@ -76,8 +76,16 @@ export function FollowButton({ ad, initialFollowing }: { ad: InspoAd; initialFol
   );
 }
 
-/** Retrait d'une marque suivie (page Sauvegardes) · rafraîchit la liste après coup. */
-export function BrandRemoveButton({ platform, name }: { platform: string; name: string }) {
+/**
+ * Retrait d'une marque suivie (page Sauvegardes).
+ *
+ * Lot 16 · le retrait ne s'affichait QUE par `router.refresh()` (l'action ne
+ * revalide rien) · 4 fois sur 12, le rafraîchissement calait et la puce comme le
+ * compteur restaient, alors que la base avait retiré la marque (mesuré). La
+ * liste qui porte ce bouton le retire désormais elle-même (`onRetrait`) ; le
+ * rafraîchissement reste pour le reste de la page (fil des nouveautés).
+ */
+export function BrandRemoveButton({ platform, name, onRetrait }: { platform: string; name: string; onRetrait?: (etat: 'retire' | 'annule') => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [gone, setGone] = useState(false);
@@ -86,14 +94,15 @@ export function BrandRemoveButton({ platform, name }: { platform: string; name: 
   const retirer = () => {
     if (!verrou.current.tenter()) return;
     setGone(true);
+    onRetrait?.('retire');
     start(async () => {
       try { await unfollowBrand({ platform, name }); router.refresh(); }
-      catch { setGone(false); }
+      catch { setGone(false); onRetrait?.('annule'); }
       finally { verrou.current.relacher(); }
     });
   };
   return (
-    <button type="button" title="Ne plus suivre" disabled={pending} onClick={retirer}
+    <button type="button" title="Ne plus suivre" aria-label={`Ne plus suivre ${name}`} disabled={pending} onClick={retirer}
       style={{ minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: 'var(--muted)', cursor: pending ? 'default' : 'pointer', fontSize: 14 }}>
       ✕
     </button>

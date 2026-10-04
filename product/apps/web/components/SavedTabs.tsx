@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { ONGLETS_SAUVEGARDES, defOnglet, ongletVoisin, cibleSelonPointeur, type OngletSauvegardes } from '@tiktrends/core';
+import { ONGLETS_SAUVEGARDES, defOnglet, ongletVoisin, cibleSelonPointeur, compteurApresRetraits, type OngletSauvegardes } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 
@@ -17,6 +17,16 @@ import { Icon } from './Icon';
  */
 
 export type Compteurs = Partial<Record<OngletSauvegardes, number>>;
+
+/**
+ * Lot 16 · les retraits faits DANS un onglet (concurrent retiré, nouveautés
+ * marquées vues) se reportent tout de suite sur son compteur · le compteur vient
+ * du rendu serveur, qui n'arrivait pas 4 fois sur 12 (`router.refresh()` calé,
+ * mesuré). Un panneau signale combien d'éléments il a retirés que le serveur
+ * montre ENCORE · le compteur les soustrait (`compteurApresRetraits`, noyau).
+ */
+const RetraitsOnglet = createContext<(cle: OngletSauvegardes, retiresEncoreServis: number) => void>(() => {});
+export const useRetraitsOnglet = () => useContext(RetraitsOnglet);
 
 /**
  * La barre d'onglets · sans routeur, pour être rendue et vérifiée en test.
@@ -69,6 +79,13 @@ export function SavedTabs({ initial, compteurs, creations, marques, nouveautes, 
   const params = useSearchParams();
   const pathname = usePathname();
   const [actif, setActif] = useState<OngletSauvegardes>(initial);
+  const [retraits, setRetraits] = useState<Partial<Record<OngletSauvegardes, number>>>({});
+  const signalerRetraits = useCallback((cle: OngletSauvegardes, n: number) => {
+    setRetraits((r) => ((r[cle] ?? 0) === n ? r : { ...r, [cle]: n }));
+  }, []);
+  const affiches: Compteurs = Object.fromEntries(
+    Object.entries(compteurs).map(([cle, n]) => [cle, typeof n === 'number' ? compteurApresRetraits(n, retraits[cle as OngletSauvegardes] ?? 0) : n]),
+  );
 
   const change = (cle: OngletSauvegardes) => {
     setActif(cle);
@@ -81,8 +98,8 @@ export function SavedTabs({ initial, compteurs, creations, marques, nouveautes, 
 
   const def = defOnglet(actif);
   return (
-    <>
-      <BarreOnglets actif={actif} onChange={change} compteurs={compteurs} />
+    <RetraitsOnglet.Provider value={signalerRetraits}>
+      <BarreOnglets actif={actif} onChange={change} compteurs={affiches} />
       <p style={{ margin: '0 0 20px', fontSize: 12.5, color: 'var(--muted)' }}>{def.description}</p>
       <div role="tabpanel" id={`panneau-${actif}`} aria-labelledby={`onglet-${actif}`}>
         {actif === 'creations' && creations}
@@ -102,7 +119,7 @@ export function SavedTabs({ initial, compteurs, creations, marques, nouveautes, 
           </>
         )}
       </div>
-    </>
+    </RetraitsOnglet.Provider>
   );
 }
 
