@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { createRoot, type Root } from 'react-dom/client';
+import { CLE_ITERATION_EN_COURS, FILIATION_NON_ENREGISTREE } from '@tiktrends/core';
 
 /**
  * Lot 17 · trois ruptures de reprise et d'itération Adsmap, gardées par ce
@@ -20,6 +22,8 @@ vi.mock('next/link', () => ({ default: ({ href, children, ...p }: { href: string
 
 const { CreativeActions } = await import('../components/CreativeActions');
 const { Lots } = await import('../app/(app)/adsmap/lots/Lots');
+const { RepriseIteration, MemoIteration } = await import('../app/(app)/studio/ads/RepriseIteration');
+const { PanneauIteration } = await import('../app/(app)/studio/ads/PanneauIteration');
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root | null = null; let el: HTMLDivElement | null = null;
@@ -69,5 +73,40 @@ describe('Lots › vivier · ce qui manque se lit à l’écran (lot 17)', () =>
     await monter(<Lots batches={[{ id: 'b', number: 9002, status: 'planned', goal: null, launchedAt: null, ads: 0 }]} brandName="Neva" />);
     const ligne = [...document.querySelectorAll('button')].find((b) => b.textContent?.startsWith('v32'));
     expect(ligne?.textContent, 'le détail n’est qu’en infobulle').toContain('manque l’offre et la page de destination');
+  });
+});
+
+describe('Brief d’itération · reprise après un changement d’onglet, filiation dite (lot 17)', () => {
+  const memo = { brandId: 'b1', adId: 'ada00000-0000-4000-8000-000000000002', titre: 'v2 · Concept 2' };
+
+  it('le panneau retient le brief ouvert · revenu sans `?iter`, la reprise rétablit le brief', async () => {
+    await monter(<MemoIteration {...memo} />);
+    expect(JSON.parse(sessionStorage.getItem(CLE_ITERATION_EN_COURS) ?? 'null')).toEqual(memo);
+    await monter(<main><h1>Pubs IA</h1><RepriseIteration brandId="b1" /></main>);
+    const lien = [...document.querySelectorAll('a')].find((a) => /Reprendre le brief/.test(a.textContent ?? ''));
+    expect(lien?.getAttribute('href'), 'aucune reprise · le brief et la saisie restent invisibles').toBe('/studio/ads?iter=ada00000-0000-4000-8000-000000000002');
+    // Ignorer · la proposition disparaît, la mémoire aussi, le focus va au titre.
+    await act(async () => { [...document.querySelectorAll('button')].find((b) => b.textContent === 'Ignorer')!.click(); });
+    expect(document.querySelector('[role=status]')).toBeNull();
+    expect(sessionStorage.getItem(CLE_ITERATION_EN_COURS)).toBeNull();
+    expect(document.activeElement?.tagName).toBe('H1');
+  });
+
+  it('une autre marque · aucune reprise proposée', async () => {
+    sessionStorage.setItem(CLE_ITERATION_EN_COURS, JSON.stringify(memo));
+    await monter(<RepriseIteration brandId="b2" />);
+    expect(document.querySelector('[role=status]')).toBeNull();
+  });
+
+  it('le brief dit que la pub créée n’est pas rattachée au test source', () => {
+    const it0 = {
+      etat: 'ok' as const, adId: memo.adId, eligible: true as const,
+      provenance: { titre: 'v2 · Concept 2', verdict: 'Gagnante', chiffres: [], variableTestee: null },
+      apprentissages: [{ texte: 'La preuve sociale retient', confiance: 4 }],
+      champs: { angle: { valeur: 'Preuve sociale' }, audience: null, hypothese: { valeur: 'h' }, variableSuivante: { valeur: 'accroche' } },
+      prefill: { angle: 'Preuve sociale', personaId: null },
+    } as unknown as Parameters<typeof PanneauIteration>[0]['it'];
+    const html = renderToStaticMarkup(<PanneauIteration it={it0} marque="Neva" brandId="b1" />);
+    expect(html, 'la filiation absente n’est pas dite').toContain(FILIATION_NON_ENREGISTREE.replace(/’/g, '’'));
   });
 });
