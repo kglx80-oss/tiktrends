@@ -27,6 +27,7 @@
  * Pur : ni base, ni horloge, ni réseau.
  */
 
+import { texteAdIncomplete } from './reprise-adsmap';
 import type { EtatVerdictCarte } from './verdict-carte';
 
 /** Statuts d'une ad Adsmap qui disent qu'elle a été diffusée. */
@@ -151,7 +152,14 @@ export interface PresentationTest {
 export const PREPARER_UN_TEST = { href: '/adsmap/lots', libelle: 'Préparer un test' } as const;
 
 export function presentationTest(
-  t: { status: string; launchedAt: string | null; computed: string | null; verdictStatus: 'computed' | 'validated' | null; batchNumber: number | null; apprentissages: number },
+  t: { status: string; launchedAt: string | null; computed: string | null; verdictStatus: 'computed' | 'validated' | null; batchNumber: number | null; apprentissages: number;
+    /**
+     * Lot 17 · ce qui manque à l'ad pour partir en test (`manquesAvantTest`).
+     * Absent ou vide = rien ne bloque. Sinon « Préparer un test » bouclait ·
+     * les Lots la disaient « incomplète » et renvoyaient vers cette fiche, et
+     * aucun écran ne permet de compléter ces champs.
+     */
+    manques?: string[] },
   o: { peutPreparer: boolean; peutMesurer: boolean },
 ): PresentationTest {
   const arbitre = t.verdictStatus === 'validated';
@@ -172,6 +180,16 @@ export function presentationTest(
     };
   }
   const lot = t.batchNumber;
+  if (t.manques && t.manques.length > 0) {
+    return {
+      phase: 'a_lancer',
+      resultatVide: 'Pas encore lancée · aucun chiffre à lire, donc rien à arbitrer.',
+      prochaineEtape: { texte: texteAdIncomplete(t.manques), lien: null },
+      arbitrageVisible,
+      suiteApresVerdict: false,
+      suiteAttente: 'L’itération se décide sur le verdict · rien à décider tant que le test n’a pas tourné.',
+    };
+  }
   const base = t.status === 'ready' && lot !== null
     ? `Prête dans le lot ${lot} · il reste à lancer le lot · la mesure commence au lancement.`
     : lot !== null

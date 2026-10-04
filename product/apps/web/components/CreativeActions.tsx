@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useTransition, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from 'react';
 import { rateCreativeAction, type Rating } from '../app/actions/creatives';
 import { trackGeneratedAdAction } from '../app/actions/adsmap-bridge';
 import { Icon } from './Icon';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { idGenerationSuivable, lienFicheAdsmap, PARAM_DEPUIS, DEPUIS_STUDIO, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 
 /**
  * Barre d'actions d'une créa (Pubs / Image / Vidéo IA) : vrais boutons + raccourcis.
@@ -23,23 +23,39 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
 }) {
   const [suivi, setSuivi] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const [note, setNote] = useState('');
+  const [adId, setAdId] = useState<string | null>(null);
+  // Lot 17 · la galerie Image compose `génération:url` (une carte par image) ·
+  // la passerelle attend la génération seule · l'id composite échouait 3/3
+  // (uuid refusé), avec le message en infobulle seulement. Sans génération
+  // connue (image fraîche `new-…`), il n'y a rien à suivre · pas de bouton.
+  const generation = idGenerationSuivable(genId);
+  const suivreRef = useRef<HTMLButtonElement>(null);
+  const voirRef = useRef<HTMLAnchorElement>(null);
+  // Le résultat se lit À L'ÉCRAN (et plus seulement au survol) · le focus va
+  // au lien de la fiche, ou revient au bouton après un échec.
+  useEffect(() => {
+    if (suivi === 'done') voirRef.current?.focus();
+    else if (suivi === 'err') suivreRef.current?.focus();
+  }, [suivi]);
 
   async function suivre() {
-    if (suivi === 'busy' || suivi === 'done') return;
+    if (!generation || suivi === 'busy' || suivi === 'done') return;
     setSuivi('busy');
-    const r = await trackGeneratedAdAction(genId);
-    if (r.error) { setSuivi('err'); setNote(r.error); return; }
-    setSuivi('done');
+    const r = await trackGeneratedAdAction(generation);
+    if (r.error || !r.adId) { setSuivi('err'); setNote(r.error ?? 'Le rattachement à la carte n’a pas abouti. Réessaie.'); return; }
+    setAdId(r.adId);
     setNote(r.prelaunch ?? 'Ajoutée à la carte · complète son hypothèse avant de la lancer.');
+    setSuivi('done');
   }
 
   return (
-    // Grille de cases d'au moins 44 px · les six actions ne tenaient pas sur une
-    // ligne (lot 9, coupées), puis passaient à la ligne en vrac (lot 10). Ici
-    // chaque action tombe dans une colonne, la paire de pouces en prend deux ;
-    // en desktop (carte de 220 px et plus) quatre colonnes, deux lignes
-    // alignées ; en carte large, une seule ligne. L'ordre du DOM, donc du
-    // clavier, ne change pas ; aucune cible ne rétrécit.
+    <>
+    {/* Grille de cases d'au moins 44 px · les six actions ne tenaient pas sur une
+        ligne (lot 9, coupées), puis passaient à la ligne en vrac (lot 10). Ici
+        chaque action tombe dans une colonne, la paire de pouces en prend deux ;
+        en desktop (carte de 220 px et plus) quatre colonnes, deux lignes
+        alignées ; en carte large, une seule ligne. L'ordre du DOM, donc du
+        clavier, ne change pas ; aucune cible ne rétrécit. */}
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${CIBLE_TACTILE_MIN}px, 1fr))`, justifyItems: 'start', alignItems: 'center', gap: 6 }}>
       {onOpen && (
         <button type="button" onClick={onOpen} style={actBtn} title="Ouvrir en grand" aria-label="Ouvrir">
@@ -55,8 +71,8 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
       {/* La paire de pouces occupe deux cases. */}
       <span style={{ gridColumn: 'span 2', display: 'inline-flex' }}><RatingControl genId={genId} rating={initial} /></span>
 
-      {trackable && (
-        <button type="button" onClick={suivre} disabled={suivi === 'busy' || suivi === 'done'}
+      {trackable && generation && (
+        <button ref={suivreRef} type="button" onClick={suivre} aria-disabled={suivi === 'busy' || suivi === 'done' || undefined}
           style={{ ...actBtn, color: suivi === 'done' ? '#7ee8bf' : 'var(--ink-2)', borderColor: suivi === 'done' ? 'rgba(126,232,191,.4)' : undefined, cursor: suivi === 'done' ? 'default' : 'pointer' }}
           title={suivi === 'done' ? note || 'Suivie dans Adsmap' : suivi === 'err' ? note : 'Suivre dans Adsmap · mesurer cette créa'}
           aria-label="Suivre dans Adsmap">
@@ -69,6 +85,16 @@ export function CreativeActions({ genId, rating: initial = null, onOpen, downloa
         </button>
       )}
     </div>
+    {suivi === 'done' && adId && (
+      <p role="status" style={{ margin: '6px 0 0', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45, overflowWrap: 'anywhere' }}>
+        Suivie dans Adsmap · <a ref={voirRef} href={`${lienFicheAdsmap(adId)}&${PARAM_DEPUIS}=${DEPUIS_STUDIO}`} style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN }}>Voir la fiche ›</a>
+        <span style={{ display: 'block', color: 'var(--muted)' }}>{note}</span>
+      </p>
+    )}
+    {suivi === 'err' && (
+      <p role="alert" style={{ margin: '6px 0 0', fontSize: 11.5, color: '#ff9db0', lineHeight: 1.45 }}>{note}</p>
+    )}
+    </>
   );
 }
 
