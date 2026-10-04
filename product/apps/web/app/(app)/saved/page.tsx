@@ -58,6 +58,16 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
   // onglets reprennent et la collection s'ouvre immédiatement.
   const toutVide = items.length === 0 && brands.length === 0 && trackerEvents.length === 0;
 
+  // Le même état vide quand la liste arrive vide ET quand le dernier concurrent
+  // vient d'être retiré à l'écran (lot 16 · sans attendre le rendu serveur).
+  const marquesVide = (
+    <Empty
+      tone="todo" icon="radar" title="Aucun concurrent suivi pour l'instant."
+      why="Suis des concurrents depuis la Veille pour surveiller leurs nouvelles pubs et nourrir Jarvis."
+      action={{ label: 'Ouvrir la veille', href: '/veille' }}
+    />
+  );
+
   return (
     <main style={cadrePage}>
       <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Sauvegardes</h1>
@@ -73,12 +83,8 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
           compteurs={{ creations: items.length, marques: brands.length, nouveautes: nonVus }}
           creations={<SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} />}
           marques={brands.length === 0
-            ? <Empty
-                tone="todo" icon="radar" title="Aucun concurrent suivi pour l'instant."
-                why="Suis des concurrents depuis la Veille pour surveiller leurs nouvelles pubs et nourrir Jarvis."
-                action={{ label: 'Ouvrir la veille', href: '/veille' }}
-              />
-            : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} />}
+            ? marquesVide
+            : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} vide={marquesVide} />}
           nouveautes={<TrackerFeed events={trackerEvents} followedCount={brands.length} trackingEnabled={trackingEnabled} />}
           explorer={trackingEnabled ? <><DecouverteSection /><GrammaireCategorie /></> : null}
         />

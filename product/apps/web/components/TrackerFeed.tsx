@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { Icon } from './Icon';
 import { useRouter } from 'next/navigation';
 import type { InspoAd } from '@tiktrends/integrations';
@@ -10,6 +10,7 @@ import { AdCard } from './AdCard';
 import { scanTrackerAction, markTrackerSeenAction } from '../app/actions/tracker';
 import { Empty } from './Empty';
 import { useToast } from './Toast';
+import { useRetraitsOnglet } from './SavedTabs';
 
 export interface TrackerEvent { ad: InspoAd; advertiserName: string; unseen: boolean }
 
@@ -22,7 +23,18 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
   const { toast } = useToast();
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
-  const unseen = events.filter((e) => e.unseen).length;
+  // Lot 16 · « Tout marquer vu » se voit TOUT DE SUITE (badge, bouton, compteur
+  // de l'onglet) · avant, il attendait le rendu serveur, en retard de 3,8 s
+  // 4 fois sur 12 (transition calée, relancée par la fermeture du toast · mesuré).
+  // On retient les nouveautés vues ici · une nouveauté arrivée APRÈS reste neuve.
+  const [vuesIci, setVuesIci] = useState<ReadonlySet<string>>(new Set());
+  const titreRef = useRef<HTMLHeadingElement>(null);
+  const cleEvt = (e: TrackerEvent) => `${e.ad.platform}:${e.ad.id}`;
+  const nonVu = (e: TrackerEvent) => e.unseen && !vuesIci.has(cleEvt(e));
+  const unseen = events.filter(nonVu).length;
+  const vuesEncoreServies = events.filter((e) => e.unseen && vuesIci.has(cleEvt(e))).length;
+  const signalerRetraits = useRetraitsOnglet();
+  useEffect(() => { signalerRetraits('nouveautes', vuesEncoreServies); }, [signalerRetraits, vuesEncoreServies]);
   // Sans bibliothèque de pubs côté serveur, pas de scan · le bouton le dit au
   // lieu d'annoncer « aucune marque suivie » (recette #106, point 6).
   const etatScan = etatScanNouveautes({ veilleActive: trackingEnabled, marquesSuivies: followedCount });
@@ -46,12 +58,20 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
     router.refresh();
   });
 
-  const markSeen = () => start(async () => { await markTrackerSeenAction(); toast('Tout marqué comme vu.'); router.refresh(); });
+  const markSeen = () => start(async () => {
+    const vues = events.filter((e) => e.unseen).map(cleEvt);
+    await markTrackerSeenAction();
+    setVuesIci((s) => new Set([...s, ...vues]));
+    toast('Tout marqué comme vu.');
+    // Le bouton cliqué disparaît · le focus va au titre du fil, pas sur <body>.
+    requestAnimationFrame(() => titreRef.current?.focus());
+    router.refresh();
+  });
 
   return (
     <section style={{ marginBottom: 30 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+        <h2 ref={titreRef} tabIndex={-1} style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: 0, outlineOffset: 4 }}>
           Nouveautés des concurrents
           {unseen > 0 && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 8px' }}>{unseen} nouveau{unseen > 1 ? 'x' : ''}</span>}
         </h2>
@@ -87,7 +107,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
           {ordered.map((e, i) => {
-            const evenements = evenementsConcurrent(e.ad, { nouveau: e.unseen });
+            const evenements = evenementsConcurrent(e.ad, { nouveau: nonVu(e) });
             return (
               <div key={e.ad.platform + e.ad.id + i} style={{ position: 'relative' }}>
                 {evenements.length > 0 && (

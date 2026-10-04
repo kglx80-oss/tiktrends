@@ -34,7 +34,10 @@ describe('N10 · badge d\'événement de veille · résultat visible', () => {
 describe('N10 · TrackerFeed câble la taxonomie', () => {
   const src = readFileSync(join(process.cwd(), 'components/TrackerFeed.tsx'), 'utf8');
   it('dérive les événements par pub via evenementsConcurrent', () => {
-    expect(src).toMatch(/evenementsConcurrent\(e\.ad, \{ nouveau: e\.unseen \}\)/);
+    // Lot 16 · « nouveau » = non vu côté serveur ET pas marqué vu ici à l'instant
+    // (`nonVu`) · le rendu de « Tout marquer vu » est gardé par lot16-refresh-rendu.
+    expect(src).toMatch(/evenementsConcurrent\(e\.ad, \{ nouveau: nonVu\(e\) \}\)/);
+    expect(src).toMatch(/const nonVu = \(e: TrackerEvent\) => e\.unseen && !vuesIci\.has\(cleEvt\(e\)\);/);
     expect(src).toMatch(/evenements\.map\(\(ev\) => <BadgeEvenement/);
   });
   it('plus de badge « NOUVEAU » codé en dur', () => {

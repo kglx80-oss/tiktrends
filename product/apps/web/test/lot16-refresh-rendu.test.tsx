@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { ECHEC_ENREGISTREMENT } from '@tiktrends/core';
+import { ECHEC_ENREGISTREMENT, echecRetraitSuivi } from '@tiktrends/core';
 
 /**
  * Lot 16 · les cinq `router.refresh()` signalés, gardés par ce qu'on VOIT.
@@ -37,6 +37,9 @@ vi.mock('../app/actions/tracker', () => ({ markTrackerSeenAction: actions.markTr
 vi.mock('../app/actions/brand-detail', () => ({ generateScenarioImageAction: actions.generateScenarioImageAction }));
 
 const { AppShell } = await import('../components/AppShell');
+const { SavedTabs } = await import('../components/SavedTabs');
+const { MarquesSuivies } = await import('../components/MarquesSuivies');
+const { TrackerFeed } = await import('../components/TrackerFeed');
 const { railNav, accountSections, ouverturesParRole } = await import('../lib/rbac');
 
 let root: Root | null = null;
@@ -148,5 +151,67 @@ describe('Mon profil · le nom enregistré se voit, la fenêtre se rouvre (lot 1
     const d2 = dialogue('Mon profil');
     expect(d2, 'la fenêtre se referme dès qu’on la rouvre').toBeTruthy();
     expect(d2!.querySelector<HTMLInputElement>('input[name=name]')!.value).toBe('Kévin Martin');
+  });
+});
+
+const MARQUES = [
+  { id: 'c1', platform: 'meta', name: 'Orée Cosmétiques' },
+  { id: 'c2', platform: 'meta', name: 'Maison Verte' },
+  { id: 'c3', platform: 'tiktok', name: 'Atelier Botanique' },
+];
+const compteur = (cle: string) => [...document.getElementById(`onglet-${cle}`)!.querySelectorAll('span')].pop()?.textContent;
+const puces = () => [...document.querySelectorAll('[role=tabpanel] span[title]')].map((s) => s.getAttribute('title'));
+
+function sauvegardes(onglet: 'marques' | 'nouveautes', nouveautes: React.ReactNode = null) {
+  act(() => {
+    root!.render(
+      <SavedTabs initial={onglet} compteurs={{ creations: 0, marques: 3, nouveautes: 3 }} creations={null}
+        marques={<MarquesSuivies brands={MARQUES} vide={<p>Aucun concurrent suivi pour l’instant.</p>} />}
+        nouveautes={nouveautes} />,
+    );
+  });
+}
+
+describe('Sauvegardes › Marques · « Ne plus suivre » se voit sans rendu serveur (lot 16)', () => {
+  it('la puce part, le compteur passe à 2, le focus va à la puce suivante', async () => {
+    actions.unfollowBrand.mockResolvedValue(undefined);
+    sauvegardes('marques');
+    await clic(document.querySelector('button[aria-label="Ne plus suivre Maison Verte"]'));
+    expect(puces(), 'la puce retirée reste affichée').toEqual(['Orée Cosmétiques', 'Atelier Botanique']);
+    expect(compteur('marques'), 'le compteur de l’onglet reste à 3').toBe('2');
+    expect(document.activeElement?.closest('div')?.querySelector('span[title]')?.getAttribute('title'), 'focus perdu après le retrait').toBe('Atelier Botanique');
+  });
+
+  it('le dernier retiré · l’état vide, compteur à 0, focus sur l’onglet', async () => {
+    actions.unfollowBrand.mockResolvedValue(undefined);
+    sauvegardes('marques');
+    for (const n of ['Orée Cosmétiques', 'Maison Verte', 'Atelier Botanique']) await clic(document.querySelector(`button[aria-label="Ne plus suivre ${n}"]`));
+    expect(document.querySelector('[role=tabpanel]')!.textContent, 'panneau blanc au lieu de l’état vide').toContain('Aucun concurrent suivi');
+    expect(compteur('marques')).toBe('0');
+    expect(document.activeElement?.id).toBe('onglet-marques');
+  });
+
+  it('échec · la puce revient et on le dit', async () => {
+    actions.unfollowBrand.mockRejectedValue(new Error('réseau'));
+    sauvegardes('marques');
+    await clic(document.querySelector('button[aria-label="Ne plus suivre Maison Verte"]'));
+    expect(puces()).toContain('Maison Verte');
+    expect(compteur('marques')).toBe('3');
+    expect(document.querySelector('[role=tabpanel] [role=alert]')?.textContent).toBe(echecRetraitSuivi('Maison Verte'));
+  });
+});
+
+const EVENEMENTS = ['a1', 'a2', 'a3'].map((id) => ({ ad: { id, platform: 'meta' as const, status: 'active', daysRunning: 3, advertiserName: 'Orée' }, advertiserName: 'Orée', unseen: true }));
+
+describe('Sauvegardes › Nouveautés · « Tout marquer vu » se voit sans rendu serveur (lot 16)', () => {
+  it('badge et bouton partent, compteur à 0, focus sur le titre du fil', async () => {
+    actions.markTrackerSeenAction.mockResolvedValue(undefined);
+    sauvegardes('nouveautes', <TrackerFeed events={EVENEMENTS} followedCount={3} trackingEnabled={false} />);
+    expect(document.querySelector('[role=tabpanel] h2')!.textContent).toMatch(/3 nouveaux/);
+    await clic(bouton('Tout marquer vu'));
+    expect(document.querySelector('[role=tabpanel] h2')!.textContent, 'le badge « 3 nouveaux » reste').not.toMatch(/nouveau/);
+    expect(bouton('Tout marquer vu'), 'le bouton reste cliquable').toBeFalsy();
+    expect(compteur('nouveautes')).toBe('0');
+    expect(document.activeElement?.tagName).toBe('H2');
   });
 });
