@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
-import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, CIBLE_TACTILE_MIN, type AngleKey } from '@tiktrends/core';
+import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, CIBLE_TACTILE_MIN, ecrireFiltresScale, FILTRES_SCALE_DEFAUT, type AngleKey, type FiltresScale } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
 import { Empty } from '../../../../components/Empty';
 import { Icon } from '../../../../components/Icon';
@@ -20,14 +20,26 @@ const ANGLE_COLOR: Record<AngleKey, string> = {
   lifestyle: '#a3e635', other: '#94a3b8',
 };
 
-export function SwipeFile({ items, stats, advertisers, niche, country }: {
+export function SwipeFile({ items, stats, advertisers, niche, country, initial = FILTRES_SCALE_DEFAUT }: {
   items: SwipeItem[]; stats: SwipeStats; advertisers: string[]; niche: string; country: string;
+  /** Lot 18B · les filtres relus de l'URL par la page (`lireFiltresScale`). */
+  initial?: FiltresScale;
 }) {
-  const [type, setType] = useState<'all' | 'video' | 'static'>('all');
-  const [adv, setAdv] = useState('all');
-  const [angle, setAngle] = useState<'all' | AngleKey>('all');
-  const [sort, setSort] = useState<'growth' | 'reach' | 'duration' | 'spend'>('growth');
-  const [qText, setQText] = useState('');
+  const [type, setType] = useState<'all' | 'video' | 'static'>(initial.type);
+  const [adv, setAdv] = useState(initial.annonceur);
+  const [angle, setAngle] = useState<'all' | AngleKey>(initial.angle as 'all' | AngleKey);
+  const [sort, setSort] = useState<'growth' | 'reach' | 'duration' | 'spend'>(initial.tri);
+  const [qText, setQText] = useState(initial.texte);
+
+  // Lot 18B · chaque changement REMPLACE l'entrée courante (aucune entrée empilée
+  // par frappe) · un rechargement ou un Retour retrouve les mêmes filtres et le
+  // même tri (mesuré · ils revenaient au défaut, 3 largeurs sur 3).
+  const premier = useRef(true);
+  useEffect(() => {
+    if (premier.current) { premier.current = false; return; }
+    const suite = ecrireFiltresScale(window.location.search, { type, annonceur: adv, angle, texte: qText, tri: sort });
+    window.history.replaceState(null, '', `${window.location.pathname}${suite}${window.location.hash}`);
+  }, [type, adv, angle, qText, sort]);
 
   // Raccourci « / » · met le focus sur la recherche locale. On NE capture PAS la
   // touche quand un champ a déjà le focus (input/textarea/select/contenteditable),

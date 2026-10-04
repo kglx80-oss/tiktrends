@@ -7,7 +7,7 @@ import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { Bandeau } from '../../../../components/Bandeau';
 import { getActiveBrand } from '../../../../lib/brands';
 import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
-import { classifyAngle, capPerBrand, median, BANDEAU_DEMO_VEILLE } from '@tiktrends/core';
+import { classifyAngle, capPerBrand, median, BANDEAU_DEMO_VEILLE, lireFiltresScale } from '@tiktrends/core';
 import { getVeilleCache, isFresh, setVeilleCache, refreshAllowed } from '../../../../lib/veille-cache';
 import { Empty } from '../../../../components/Empty';
 import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
@@ -42,7 +42,7 @@ function timeAgo(iso: string): string {
   return `il y a ${j} j`;
 }
 
-export default async function ScalePage({ searchParams }: { searchParams: Promise<{ q?: string; country?: string; refresh?: string }> }) {
+export default async function ScalePage({ searchParams }: { searchParams: Promise<{ q?: string; country?: string; refresh?: string; type?: string; annonceur?: string; angle?: string; texte?: string; tri?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!canAccess(effectiveAccess(s), feature)) {
@@ -185,7 +185,10 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
         />
       )}
 
-      {curated.length > 0 && <SwipeFile items={items} stats={stats} advertisers={advertisers} niche={q} country={country} />}
+      {/* Lot 18B · les filtres vivent dans l'URL · relus ici, ils s'affichent
+          dès le premier rendu (rechargement, Retour), sans repasser par le défaut. */}
+      {curated.length > 0 && <SwipeFile items={items} stats={stats} advertisers={advertisers} niche={q} country={country}
+        initial={lireFiltresScale(new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === 'string')).toString(), { annonceurs: advertisers, angles: Array.from(new Set(items.map((i) => i.angle))) })} />}
     </main>
   );
 }
