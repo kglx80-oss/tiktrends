@@ -10,7 +10,7 @@ import {
   addPersonaAction, deletePersonaAction, addScenarioAction, deleteScenarioAction,
   addProductAction, deleteProductAction, importProductsAction, generateFullBrandAction,
 } from '../../../actions/brand-detail';
-import { input, lbl, Msg, cadrePage } from '../../../../components/ui';
+import { input, lbl, Msg, cadrePage, surface, tuile } from '../../../../components/ui';
 import { RetourMarques, LienEnteteMarque, OngletsFiche } from './NavFiche';
 import { Icon } from '../../../../components/Icon';
 import { BrandTile } from '../../../../components/BrandIcons';
@@ -41,7 +41,8 @@ const OK: Record<string, string> = { saved: 'Profil mis à jour.', created: 'Mar
 const ERR: Record<string, string> = { nourl: 'Renseigne le site de la marque pour importer.', ai: "IA non configurée sur le serveur.", credits: 'Crédits insuffisants.', import: "L'import a échoué, réessaie.", generate: "La génération a échoué, réessaie." };
 
 const area = { ...input, minHeight: 74, resize: 'vertical' as const, lineHeight: 1.5, fontFamily: 'inherit' };
-const card = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: 14, marginBottom: 12 } as const;
+// Carte de premier niveau de la fiche · rôle `surface` (lot 19D).
+const card = { ...surface, background: 'var(--surface)', padding: 14, marginBottom: 12 } as const;
 const sectionH = { margin: '0 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' } as const;
 const j = (a?: string[] | null) => (a ?? []).join(', ');
 const delBtn = { padding: '7px 11px', borderRadius: 999, border: '1px solid rgba(255,77,109,.3)', background: 'transparent', color: '#ff9db0', fontWeight: 600, fontSize: 12, cursor: 'pointer' } as const;
@@ -189,7 +190,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 24 }}>
             {cards.map((c) => (
-              <Link key={c.label} href={`/brands/${id}?tab=${c.tab}`} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px', textDecoration: 'none' }}>
+              <Link key={c.label} href={`/brands/${id}?tab=${c.tab}`} style={{ ...surface, background: 'var(--surface)', padding: '14px 16px', textDecoration: 'none' }}>
                 <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>{c.n}</div>
                 <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{c.label}</div>
                 <div style={{ fontSize: 11.5, color: 'var(--accent-strong)', fontWeight: 700, marginTop: 8 }}>Voir ›</div>
@@ -198,7 +199,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           </div>
 
           {/* Générer tout le profil depuis le site (profil + audience + concurrents) */}
-          <form action={generateFullBrandAction} style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.08), var(--surface))', padding: '16px 18px', margin: '4px 0 22px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <form action={generateFullBrandAction} style={{ ...surface, background: 'linear-gradient(180deg, rgba(254,44,85,.08), var(--surface))', padding: '16px 18px', margin: '4px 0 22px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <input type="hidden" name="brandId" value={b.id} />
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}><Icon name="sparkles" size={15} /> Générer tout le profil depuis le site</div>
@@ -314,7 +315,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
               title="Aucun produit pour l'instant."
               why="Ajoute ton premier produit ci-dessous, ou importe-les depuis le site · l'IA s'en sert pour générer des créas qui parlent vraiment de ton offre."
             >
-              <AddProductForm brandId={id} />
+              <AddProductForm brandId={id} imbrique />
             </Empty>
           ) : (
             <AddProductForm brandId={id} />
@@ -384,9 +385,10 @@ export default async function BrandDetailPage({ params, searchParams }: {
  * dupliquer · seul sous la liste, ou en `children` de l'état vide `todo` quand
  * il n'y a encore rien.
  */
-function AddProductForm({ brandId }: { brandId: string }) {
+function AddProductForm({ brandId, imbrique = false }: { brandId: string; imbrique?: boolean }) {
   return (
-    <form action={addProductAction} style={{ ...card, marginBottom: 0 }}>
+    // Seul sous la liste · `surface` · dans l'état vide (déjà cadré) · `tuile`.
+    <form action={addProductAction} style={{ ...card, ...(imbrique ? tuile : null), marginBottom: 0 }}>
       <input type="hidden" name="brandId" value={brandId} />
       <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
         <div style={{ flex: '2 1 220px' }}><label style={lbl}>Nom du produit *</label><input name="name" required style={input} /></div>

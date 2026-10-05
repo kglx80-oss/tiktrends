@@ -8,7 +8,7 @@ import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { createBrandFromShopifyAction } from '../../../actions/brands';
 import { ShopifyIcon } from '../../../../components/BrandIcons';
-import { cadrePage, colonneLecture } from '../../../../components/ui';
+import { cadrePage, cadreSignal, colonneLecture } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +38,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
       </PageInfo>
 
       {/* Raccourci Shopify : crée la marque + importe produits, images et DA en un clic. */}
-      <form action={createBrandFromShopifyAction} style={{ marginTop: 18, border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(150,220,170,.06), var(--surface))', padding: '18px 20px' }}>
+      <form action={createBrandFromShopifyAction} style={{ marginTop: 18, ...cadreSignal('var(--accent-strong)'), background: 'linear-gradient(180deg, rgba(150,220,170,.06), var(--surface))', padding: '18px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span style={{ display: 'inline-flex' }}><ShopifyIcon size={18} /></span>
           <b style={{ fontSize: 15, color: 'var(--ink)' }}>Connecter une boutique Shopify</b>

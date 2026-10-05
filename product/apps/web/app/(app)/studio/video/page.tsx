@@ -9,7 +9,7 @@ import { VideoStudioFull } from './VideoStudioFull';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { effectiveAccess } from '../../../../lib/access';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, surface } from '../../../../components/ui';
 import { costFor } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ export default async function VideoStudioPage({ searchParams }: { searchParams: 
     return (
       <main style={wrap}>
         <h1 style={h1}>Vidéo IA</h1>
-        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
+        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0' }}>
             {why === 'plan' ? "La Vidéo IA est disponible à partir du plan Core." : "Ton rôle ne permet pas d'accéder à la Vidéo IA."}

@@ -4,7 +4,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { StripeDiagnostic } from './StripeDiagnostic';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, surface } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +61,7 @@ export default async function PaiementPage() {
         À passer avant chaque bascule de mode, et après toute modification des prix ou du webhook.
       </p>
 
-      <section style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' }}>
+      <section style={{ ...surface, background: 'var(--surface)', padding: '18px 20px' }}>
         <h2 style={{ margin: '0 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>1 · Vérification automatique</h2>
         <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 14px', lineHeight: 1.6, maxWidth: 660 }}>
           Sans carte ni paiement. Contrôle la clé et son mode, chaque prix (existence, mode, tarif réellement facturé
@@ -70,7 +70,7 @@ export default async function PaiementPage() {
         <StripeDiagnostic />
       </section>
 
-      <section style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px', marginTop: 16 }}>
+      <section style={{ ...surface, background: 'var(--surface)', padding: '18px 20px', marginTop: 16 }}>
         <h2 style={{ margin: '0 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>2 · Test manuel à la carte</h2>
         <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 16px', lineHeight: 1.6, maxWidth: 660 }}>
           La vérification ci-dessus valide la configuration · seul ce parcours valide l'expérience réelle.

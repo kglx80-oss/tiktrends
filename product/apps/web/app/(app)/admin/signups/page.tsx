@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, surface } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +50,7 @@ export default async function SignupsPage() {
         Chaque nouveau compte et son profil déclaré à l'onboarding · {rows.length} espace(s).
       </p>
 
-      <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' }}>
+      <div style={{ overflowX: 'auto', ...surface, background: 'var(--surface)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
           <thead><tr>{['Espace', 'Propriétaire', 'Profil', 'Expérience pub', 'Objectifs', 'Site', 'Plan', 'Inscrit', 'Onboardé'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
           <tbody>

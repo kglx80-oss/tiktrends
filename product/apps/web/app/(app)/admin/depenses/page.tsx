@@ -6,7 +6,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { spendStatus, spendByAction } from '../../../../lib/spend-guard';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, surface } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +51,7 @@ export default async function DepensesPage() {
 
       {/* Compteur */}
       <div style={{
-        border: `1px solid ${alerte ? 'rgba(254,44,85,.35)' : 'var(--line)'}`, borderRadius: 16,
+        border: `1px solid ${alerte ? 'rgba(254,44,85,.35)' : 'var(--line)'}`, borderRadius: surface.borderRadius,
         background: 'var(--surface)', padding: '18px 20px',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -108,7 +108,7 @@ export default async function DepensesPage() {
       {recentes.length === 0 ? (
         <p style={{ fontSize: 12.5, color: 'var(--muted)' }}>Rien pour l’instant.</p>
       ) : (
-        <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)' }}>
+        <div style={{ overflowX: 'auto', ...surface, background: 'var(--surface)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700, fontSize: 12 }}>
             <thead>
               <tr>{['Quand', 'Fournisseur', 'Modèle', 'Poste', 'Jetons', 'Coût'].map((h) => (

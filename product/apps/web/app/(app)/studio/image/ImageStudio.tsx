@@ -15,6 +15,7 @@ import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Icon } from '../../../../components/Icon';
+import { surface, tuile } from '../../../../components/ui';
 import { DebriefVisuelsStrip } from '../../../../components/DebriefVisuels';
 import { Composer } from '../../../../components/Composer';
 import { usePreflight } from '../../../../components/usePreflight';
@@ -239,7 +240,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
   // Le bloc photo produit · défini une fois, servi à la fois dans la barre à
   // plat et dans l'étape « produit » de l'assistant guidé.
   const photoBlock = (
-    <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer la photo produit" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
+    <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer la photo produit" style={{ marginBottom: 12, padding: 14, border: tuile.border, background: 'rgba(255,255,255,.02)' }}>
       <label style={lbl}>Photo de ton produit <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· on garde ton vrai packaging, on ne change que la scène · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une photo</b></span></label>
 
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -285,7 +286,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
 
   return (
     <div>
-      <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
+      <div style={{ ...surface, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
         {!ready && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
             <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={18} /></span>
@@ -451,7 +452,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           {/* Clé = sortie ET position · deux sorties identiques d'une même
               génération donnaient la même clé (cartes fantômes, lot 12). */}
           {images.map((im, i) => (
-            <div key={`${im.id}#${i}`} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
+            <div key={`${im.id}#${i}`} style={{ ...surface, background: 'var(--surface)', overflow: 'hidden' }}>
               {im.url && (
                 <button type="button" onClick={() => setPreview(im.url)} aria-label={`Agrandir le visuel · ${im.prompt.slice(0, 80)}`} style={{ display: 'block', width: '100%', padding: 0, border: 'none', cursor: 'zoom-in', background: 'transparent' }}>
                   { }

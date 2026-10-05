@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { useIsMobile } from './useIsMobile';
-import { input, lbl } from './ui';
+import { input, lbl, surface, tuile } from './ui';
 import { BrandGuidelines } from './BrandGuidelines';
 import { Icon } from './Icon';
 import { createBrandAction, generateBrandDraftAction, type BrandDraftState } from '../app/actions/brands';
@@ -13,7 +13,8 @@ interface Scenario { title: string; context: string }
 const STEPS = ['Profil', 'Charte', 'Audience', 'Concurrents', 'Comptes pub'] as const;
 
 const area = { ...input, minHeight: 78, resize: 'vertical' as const, lineHeight: 1.5, fontFamily: 'inherit' };
-const cardStyle = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: 14, marginBottom: 12 } as const;
+// Sous-carte dans la coquille du wizard (ou la modale) · rôle `tuile` (lot 19D).
+const cardStyle = { ...tuile, background: 'var(--surface)', padding: 14, marginBottom: 12 } as const;
 const chip = { fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer' } as const;
 
 // Le libellé ENROBE son champ · un `<label>` qui contient l'input les associe
@@ -271,10 +272,10 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
         <section style={{ display: step === 4 ? 'block' : 'none' }}>
           <h2 style={hStep}>Où tournent tes pubs&nbsp;?</h2>
           <p style={pStep}>Branche tes régies pour que l'analyse travaille sur tes vraies performances, pas des estimations.</p>
-          <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 16, color: 'var(--ink-2)', fontSize: 13.5, marginBottom: 8 }}>
+          <div style={{ ...tuile, padding: 16, color: 'var(--ink-2)', fontSize: 13.5, marginBottom: 8 }}>
             La connexion Meta / TikTok se fait en OAuth sécurisé depuis <b>Connexions</b>, marque par marque. Tu pourras la brancher juste après la création.
           </div>
-          <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+          <div style={{ ...tuile, background: 'var(--surface)', padding: '14px 16px' }}>
             <b style={{ color: 'var(--ink)', fontSize: 14 }}>Récapitulatif</b>
             <ul style={{ margin: '8px 0 0', paddingLeft: 18, color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.8 }}>
               <li>Marque : <b>{f.name || '·'}</b>{f.category ? ` · ${f.category}` : ''}</li>
@@ -319,7 +320,7 @@ function Row({ title, count, onAdd, addLabel }: { title: string; count: number; 
 /** Coquille du wizard : encadrée en page, à nu dans une pop-up (la modale porte déjà le cadre). */
 const shell = (embedded: boolean): React.CSSProperties => (embedded
   ? { margin: '-4px -4px 0', minHeight: 380 }
-  : { border: '1px solid var(--line-2)', borderRadius: 20, overflow: 'hidden', background: 'var(--surface)' });
+  : { ...surface, overflow: 'hidden', background: 'var(--surface)' });
 const noticeBox = (border: string, bg: string, color: string) => ({
   border: `1px solid ${border}`, background: bg, color, borderRadius: 12, padding: '10px 13px', fontSize: 13, marginBottom: 16,
 } as const);

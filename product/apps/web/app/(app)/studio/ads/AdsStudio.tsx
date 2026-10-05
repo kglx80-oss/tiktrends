@@ -16,7 +16,7 @@ import { RatingControl } from '../../../../components/CreativeActions';
 import { CartePub } from './CartePub';
 import { RailFicheCrea, toolBtn } from './RailFicheCrea';
 import { BarreFiltresGalerie } from '../../../../components/BarreFiltresGalerie';
-import { FOND_PASTILLE_MEDIA } from '../../../../components/ui';
+import { FOND_PASTILLE_MEDIA, cadreSignal, surface, tuile } from '../../../../components/ui';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Icon } from '../../../../components/Icon';
@@ -690,7 +690,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       {/* Brief d'itération · des saisies gardées ont remplacé le prérempli · on le
           DIT, et on offre d'y revenir. Rien n'est envoyé. */}
       {reprisIteration && (
-        <div role="status" data-brouillon-iteration="" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '-6px 0 18px', padding: '8px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--paper)' }}>
+        <div role="status" data-brouillon-iteration="" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '-6px 0 18px', padding: '8px 12px', ...surface, background: 'var(--paper)' }}>
           <span style={{ flex: '1 1 260px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
             Tes modifications de ce brief sont reprises dans les réglages · elles remplacent le prérempli initial du test (angle, audience), gardées dans cet onglet seulement, rien n’est envoyé.
           </span>
@@ -727,7 +727,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           (bordure, fond) n'apparaît qu'une fois DÉPLIÉ · replié, c'est une ligne
           sobre. La phrase descriptive tombe sur mobile (elle mange une ligne au
           moment où la galerie doit remonter). Cible 44 sur le déclencheur. */}
-      <div ref={composeur} style={{ border: avance ? '1px solid var(--line-2)' : 'none', borderRadius: 18, background: avance ? 'var(--surface)' : 'transparent', marginBottom: avance ? 28 : 16, scrollMarginTop: 16 }}>
+      <div ref={composeur} style={{ border: avance ? '1px solid var(--line-2)' : 'none', borderRadius: surface.borderRadius, background: avance ? 'var(--surface)' : 'transparent', marginBottom: avance ? 28 : 16, scrollMarginTop: 16 }}>
         <button type="button" onClick={() => setAvance((v) => !v)} style={{
           display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: CIBLE_TACTILE_MIN, padding: avance ? '13px 22px' : '8px 4px',
           border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left',
@@ -771,7 +771,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
 
         {/* Récupération auto au chargement ; ce rappel n'apparaît que s'il reste des photos manquantes. */}
         {prods.some((p) => !p.hasImage) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, padding: '10px 14px', ...tuile, background: 'rgba(255,255,255,.02)' }}>
             <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>
               <span style={{ display: 'inline-flex', verticalAlign: '-3px', marginRight: 5 }}><Icon name="image" size={15} /></span>Photos produit : <b>{prods.filter((p) => p.hasImage).length}/{prods.length}</b> · certaines manquent.
             </span>
@@ -905,7 +905,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             onDrop={onDrop}
             onClick={() => prodImgInput.current?.click()}
             style={{
-              display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, padding: 14, borderRadius: 14, cursor: 'pointer',
+              display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, padding: 14, borderRadius: tuile.borderRadius, cursor: 'pointer',
               border: `1.5px dashed ${dragOver ? 'var(--accent-strong)' : selected?.hasImage ? 'rgba(120,220,150,.5)' : 'rgba(245,166,35,.5)'}`,
               background: dragOver ? 'var(--accent-soft)' : selected?.hasImage ? 'rgba(120,220,150,.07)' : 'rgba(245,166,35,.07)',
             }}
@@ -963,7 +963,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             qui suit la mesure sans le dire se lit comme un bug. Montré tant que le
             mode conseillé est en place · un clic vers l'autre mode l'efface. */}
         {conseilModes.mesure && fabrication === conseilModes.defaut && (
-          <p style={{ margin: '0 0 10px', padding: '9px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 11.5, fontWeight: 600, color: '#ffca6b', lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 10px', padding: '9px 12px', ...tuile, background: 'var(--paper)', fontSize: 11.5, fontWeight: 600, color: '#ffca6b', lineHeight: 1.5 }}>
             {conseilModes.motif}
           </p>
         )}
@@ -976,7 +976,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         {/* Ce que le lot a APPLIQUÉ · mesurer et appliquer en silence revient
             à mesurer en cachette, et le lot suivant a l'air d'un hasard. */}
         {applique && (
-          <p style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 12px', padding: '9px 12px', ...cadreSignal('rgba(126,232,191,.3)', 'tuile'), background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
             <b style={{ color: '#7ee8bf' }}>Appliqué</b> · {applique}
           </p>
         )}
@@ -1071,7 +1071,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
                 const on = templates.includes(t.key);
                 return (
                   <button key={t.key} type="button" disabled={!ready} onClick={() => toggle(t.key)} style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, padding: '12px 13px', borderRadius: 14, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, padding: '12px 13px', borderRadius: tuile.borderRadius, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : .55,
                     border: `1.5px solid ${on ? 'transparent' : 'var(--line-2)'}`,
                     background: on ? 'var(--grad-accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-2)',
                   }}>
@@ -1083,7 +1083,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
             </div>
           </>
         ) : (
-          <DropZone onImages={onDropRef} onError={setError} disabled={!ready || busy} hint="Déposer la pub à cloner" style={{ padding: 14, border: '1px solid var(--line-2)', background: 'rgba(255,255,255,.02)' }}>
+          <DropZone onImages={onDropRef} onError={setError} disabled={!ready || busy} hint="Déposer la pub à cloner" style={{ padding: 14, border: tuile.border, background: 'rgba(255,255,255,.02)' }}>
             <label style={lbl}>Pub gagnante à cloner <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· l'IA reprend l'angle + la structure, sur TON produit, en {count} variation{count > 1 ? 's' : ''} · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose la capture</b></span></label>
 
             {savedRefs.length > 0 && (
@@ -1163,8 +1163,9 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
         const teinte = suggestion.avantTout ? '#ffb3c0' : 'var(--accent-strong)';
         return (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 24px', padding: '11px 14px', borderRadius: 14,
-          border: `1px solid ${suggestion.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 24px', padding: '11px 14px',
+          // Bandeau de premier niveau · `surface`, ou `signal` (rose) quand il faut agir AVANT de tester (lot 19D).
+          ...(suggestion.avantTout ? cadreSignal('rgba(255,90,120,.35)') : surface),
           background: 'var(--surface)',
         }}>
           <span style={{ display: 'inline-flex', color: teinte }}><Icon name={suggestion.avantTout ? 'alert' : 'swap'} size={17} /></span>
@@ -1218,7 +1219,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
       {/* La nuance du dernier lot (partiel, essai rompu) · rendue ICI, au point
           d'atterrissage du défilement post-génération, pour ne pas rester hors
           champ en haut de page. */}
-      {notice && <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}
+      {notice && <div style={{ marginBottom: 14, padding: '10px 13px', fontSize: 13, ...cadreSignal('rgba(245,166,35,.4)'), background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{notice}</div>}
       {/* Le lot entière, lu d'un coup · les trois questions qui décident si le
           mode est viable, additionnées sur les pubs qui viennent d'arriver.
           Rien tant qu'aucune n'a été relue. */}
@@ -1332,7 +1333,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
               média est bornée à la hauteur visible et le rail défile seul. Empilé
               (≤575px) · le dialogue défile en un bloc pour atteindre outils et
               fermeture. C'est ce qui empêche l'image d'être centrée hors cadre. */}
-          <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflowX: 'hidden', overflowY: detailEmpile ? 'auto' : 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
+          <div ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Détail de la pub · ${detailAd.headline}`} onMouseDown={(e) => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 0, width: 'min(980px, 96vw)', maxHeight: '92vh', background: 'var(--surface)', ...surface, overflowX: 'hidden', overflowY: detailEmpile ? 'auto' : 'hidden', boxShadow: '0 30px 90px -20px rgba(0,0,0,.8)' }}>
             {/* Aperçu + navigation */}
             <div style={{ flex: 1, minWidth: 'min(320px, 100%)', maxHeight: detailEmpile ? '46vh' : '92vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)', padding: 18 }}>
               {detailIdx != null && detailIdx > 0 && (

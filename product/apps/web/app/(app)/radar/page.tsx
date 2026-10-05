@@ -11,7 +11,7 @@ import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
 import { LienCible } from '../../../components/LienCible';
 import { effectiveAccess } from '../../../lib/access';
-import { cadrePage } from '../../../components/ui';
+import { cadrePage, surface } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'radar')!;
@@ -40,7 +40,7 @@ function Row({ r }: { r: AnalysisRow }) {
   // déposait un réglage qu'aucun écran ne relisait, donc perdu au chargement.
   const studioHref = `/studio/ads?angle=${encodeURIComponent(r.title)}`;
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px', display: 'grid', gap: 10 }}>
+    <div style={{ ...surface, background: 'var(--surface)', padding: '14px 16px', display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         {r.thumbUrl && (
            
@@ -81,7 +81,7 @@ export default async function RadarPage() {
     return (
       <main style={wrap}>
         <h1 style={h1}>Radar créatif</h1>
-        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
+        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, marginTop: 10 }}>{why === 'plan' ? 'Le Radar est inclus à partir du plan Core.' : 'Accès réservé.'}</p>
         </div>
@@ -142,7 +142,7 @@ export default async function RadarPage() {
         {BUCKETS.map((b) => {
           const n = rows.filter((r) => r.bucket === b.key).length;
           return (
-            <div key={b.key} style={{ flex: '1 1 120px', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)' }}>
+            <div key={b.key} style={{ flex: '1 1 120px', padding: '12px 14px', ...surface, background: 'var(--surface)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: b.color }} />
                 <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{b.label}</span>

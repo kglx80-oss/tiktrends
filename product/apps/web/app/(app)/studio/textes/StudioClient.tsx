@@ -5,11 +5,13 @@ import { generateAction, type StudioState } from '../../../actions/studio';
 import { costFor, CIBLE_TACTILE_MIN, TEXTES_IA_INACTIFS, BOUTON_TEXTES_INACTIF } from '@tiktrends/core';
 import type { CreativeOutput } from '@tiktrends/ai';
 import { Icon } from '../../../../components/Icon';
+import { surface } from '../../../../components/ui';
 import { useIsMobile } from '../../../../components/useIsMobile';
 
 const input: React.CSSProperties = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 };
-const card: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: 18 };
+// Bloc de premier niveau (brief, résultats) · rôle `surface` (lot 19D).
+const card: React.CSSProperties = { ...surface, background: 'var(--surface)', padding: 18 };
 const h2: React.CSSProperties = { margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'var(--ink)' };
 
 function Copy({ text }: { text: string }) {

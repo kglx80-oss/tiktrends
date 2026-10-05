@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition, type CSSProperties } from 'react';
 import { AD_DIRECTIONS } from '@tiktrends/core';
+import { tuile } from './ui';
 import {
   UNIVERSE_AUTO, UNIVERSE_FAMILIES, UNIVERSE_HINT, UNIVERSE_SWATCH,
   filterUniverses, type UniverseFamily,
@@ -117,7 +118,8 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
       {fabrique?.ready && fabrique.plan.missing.length > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 11,
-          padding: '9px 12px', borderRadius: 12, border: '1px dashed var(--line-2)', background: 'var(--paper)',
+          // Encart dans l'assistant · rôle `tuile` (pas un état vide · lot 19D).
+          padding: '9px 12px', ...tuile, background: 'var(--paper)',
         }}>
           <span style={{ fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5, flex: '1 1 240px' }}>
             {fabrique.plan.summary} Fabriqués une fois sur ton produit · un aperçu déjà fait n’est jamais refait.

@@ -6,7 +6,7 @@ import { partDeMax, messageServiceInactif } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
-import { Msg, cadrePage } from '../../../../../../components/ui';
+import { Msg, cadrePage, surface, vide } from '../../../../../../components/ui';
 import { Icon } from '../../../../../../components/Icon';
 import { BarreLabel } from '../../../../../../components/BarreLabel';
 import { AvatarSite } from '../../../../../../components/AvatarSite';
@@ -28,7 +28,8 @@ const ERR: Record<string, string> = {
 };
 
 const addBtn = { padding: '10px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' } as const;
-const card = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 12 } as const;
+// Carte de premier niveau du rapport · rôle `surface` (lot 19D).
+const card = { ...surface, background: 'var(--surface)', padding: 16, marginBottom: 12 } as const;
 const sectionH = { margin: '0 0 12px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' } as const;
 
 export default async function CompetitorPage({ params, searchParams }: {
@@ -85,7 +86,7 @@ export default async function CompetitorPage({ params, searchParams }: {
       {!report ? (
         <div style={{
           margin: '24px auto 0', maxWidth: 620, textAlign: 'center',
-          border: '1px solid var(--line-2)', borderRadius: 20, background: 'var(--surface)',
+          ...surface, background: 'var(--surface)',
           padding: 'clamp(24px, 5vw, 36px)',
           backgroundImage: 'radial-gradient(120% 90% at 50% -10%, rgba(254,44,85,.10), transparent 60%)',
         }}>
@@ -157,7 +158,7 @@ function Overview({ report }: { report: CompetitorReport }) {
   return (
     <div>
       {report.insights?.summary && (
-        <div style={{ ...card, borderColor: 'var(--line-2)' }}>
+        <div style={card}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.05em', color: 'var(--accent-strong)', marginBottom: 6 }}>SYNTHÈSE</div>
           <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.6 }}>{report.insights.summary}</p>
         </div>
@@ -196,7 +197,7 @@ function Creatives({ report }: { report: CompetitorReport }) {
       <h2 style={sectionH}>Créatives <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500 }}>{report.ads.length}</span></h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
         {report.ads.map((ad) => (
-          <div key={ad.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
+          <div key={ad.id} style={{ ...surface, background: 'var(--surface)', overflow: 'hidden' }}>
             <div style={{ aspectRatio: '4 / 5', background: '#140f18', position: 'relative' }}>
               {ad.thumbnailUrl
                  
@@ -221,7 +222,7 @@ function InsightList({ title, items, chips, testable }: { title: string; items?:
   // c'est cette dimension-là qui n'a rien retenu. Le geste est déjà en haut de
   // page (« Rafraîchir l'analyse ») · on le nomme au lieu d'une impasse muette.
   if (!items || items.length === 0) return (
-    <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 20, color: 'var(--muted)', fontSize: 13, lineHeight: 1.55 }}>
+    <div style={{ ...vide, padding: 20, color: 'var(--muted)', fontSize: 13, lineHeight: 1.55 }}>
       Rien de notable sur cette dimension. Relance <b style={{ color: 'var(--ink-2)' }}>« Rafraîchir l’analyse »</b> en haut de page pour (re)générer les insights.
     </div>
   );
@@ -235,7 +236,7 @@ function InsightList({ title, items, chips, testable }: { title: string; items?:
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {items.map((it, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '12px 14px' }}>
+            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', ...surface, background: 'var(--surface)', padding: '12px 14px' }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', minWidth: 20, alignSelf: 'flex-start' }}>{String(i + 1).padStart(2, '0')}</span>
               <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{it}</span>
               {/* Le pont analyser→créer · cet insight devient l'amorce d'une pub. */}
@@ -254,7 +255,7 @@ function InsightList({ title, items, chips, testable }: { title: string; items?:
 
 function Stat({ n, label }: { n: number; label: string }) {
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+    <div style={{ ...surface, background: 'var(--surface)', padding: '14px 16px' }}>
       <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>{n}</div>
       <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{label}</div>
     </div>

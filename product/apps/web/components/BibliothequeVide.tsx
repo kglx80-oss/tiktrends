@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { Empty } from './Empty';
 import { prendreFocusApresVidage } from './focusVidage';
+// L'anneau de focus épouse le cadre `vide` qu'il entoure (même rayon · lot 19D).
+import { vide } from './ui';
 
 /**
  * La bibliothèque ENTIÈREMENT vide · une seule activation, pas trois.
@@ -26,7 +28,7 @@ export function BibliothequeVide() {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (prendreFocusApresVidage()) ref.current?.focus(); }, []);
   return (
-    <section ref={ref} tabIndex={-1} aria-label="Ta bibliothèque est encore vide" style={{ outlineOffset: 4, borderRadius: 18 }}>
+    <section ref={ref} tabIndex={-1} aria-label="Ta bibliothèque est encore vide" style={{ outlineOffset: 4, borderRadius: vide.borderRadius }}>
       <Empty
         tone="todo"
         icon="bookmark"

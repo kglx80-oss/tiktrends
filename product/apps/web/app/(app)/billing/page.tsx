@@ -8,7 +8,7 @@ import { unlimitedCredits } from '../../../lib/credits';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
 import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
-import { Msg, cadrePage } from '../../../components/ui';
+import { Msg, cadrePage, cadreSignal, surface } from '../../../components/ui';
 import { Icon } from '../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -66,7 +66,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       {e && ERR[e] && <Msg kind="err">{ERR[e]}</Msg>}
 
       {/* Résumé formule actuelle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: '16px 20px', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', ...surface, background: 'var(--surface)', padding: '16px 20px', marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)' }}>Formule actuelle</div>
           <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>{PLAN_LABEL[current]}</div>
@@ -88,7 +88,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
       {/* Abonnement en cours · gestion via le portail Stripe */}
       {isOwner && hasSub && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', border: '1px solid rgba(24,204,140,.35)', borderRadius: 16, background: 'rgba(24,204,140,.06)', padding: '14px 18px', marginBottom: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', ...cadreSignal('rgba(24,204,140,.35)'), background: 'rgba(24,204,140,.06)', padding: '14px 18px', marginBottom: 22 }}>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Abonnement {PLAN_LABEL[current]} · <span style={{ color: '#18cc8c' }}>{STATUS_FR[subStatus ?? ''] ?? subStatus}</span></div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Change de formule, mets à jour ta carte, télécharge tes factures ou résilie.</div>
@@ -107,8 +107,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           return (
             <div key={p} style={{
               position: 'relative', display: 'flex', flexDirection: 'column',
-              border: `1px solid ${isCurrent ? 'var(--accent-strong)' : highlight ? 'rgba(254,44,85,.4)' : 'var(--line-2)'}`,
-              borderRadius: 18, background: isCurrent ? 'linear-gradient(180deg, rgba(254,44,85,.08), var(--surface))' : 'var(--surface)',
+              // Carte de formule · `surface` (--line), ou `signal` pour la formule actuelle et la mise en avant (lot 19D).
+              border: `1px solid ${isCurrent ? 'var(--accent-strong)' : highlight ? 'rgba(254,44,85,.4)' : 'var(--line)'}`,
+              borderRadius: surface.borderRadius, background: isCurrent ? 'linear-gradient(180deg, rgba(254,44,85,.08), var(--surface))' : 'var(--surface)',
               padding: '18px 18px 20px',
             }}>
               {highlight && !isCurrent && <span style={badge}>Populaire</span>}
@@ -165,7 +166,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       </div>
 
       {/* Facturation / paiement */}
-      <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, padding: '16px 20px', color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.6 }}>
+      <div style={{ ...surface, padding: '16px 20px', color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.6 }}>
         {stripeOn ? (
           <><b style={{ color: 'var(--ink)' }}><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="lock" size={13} /></span>Paiement sécurisé par Stripe.</b> Carte bancaire, factures automatiques et TVA gérées par Stripe · aucune donnée de carte ne transite par TikTrends. Le changement de formule et la résiliation se font dans <b>« Gérer mon abonnement »</b>.</>
         ) : (

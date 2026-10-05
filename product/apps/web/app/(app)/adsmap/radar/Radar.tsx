@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition, type CSSProperties } from 'react';
+import { surface } from '../../../../components/ui';
 import { CIBLE_TACTILE_MIN, lienFicheAdsmap } from '@tiktrends/core';
 import {
   radarViewAction, setRadarAction, runRadarNowAction, radarCostPreviewAction,
@@ -20,8 +21,9 @@ import { DraftCard } from '../../../../components/DraftCard';
  * au plafond choisi. Personne ne se fait surprendre par une moyenne.
  */
 
+// Carte de premier niveau · rôle `surface` (lot 19D).
 const carte: CSSProperties = {
-  border: '1px solid var(--line)', borderRadius: 14, padding: '16px 18px',
+  ...surface, padding: '16px 18px',
   background: 'var(--surface)', display: 'grid', gap: 12,
 };
 
