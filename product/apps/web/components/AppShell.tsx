@@ -36,6 +36,7 @@ export const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: 
   { key: 'a-credits', label: 'Coûts & marges', href: '/credits', icon: 'coin' },
   { key: 'a-console', label: 'Console', href: '/console', icon: 'gauge' },
   { key: 'a-intel', label: 'Intelligence marché', href: '/admin/intelligence', icon: 'radar' },
+  { key: 'a-connaissances', label: 'Connaissances', href: '/admin/connaissances', icon: 'file' },
 ];
 // Note : /billing et /settings sont des pages CLIENTES. Les lister ici basculait
 // toute la coquille en thème ADMIN+ dès qu'un membre du staff les ouvrait · le
@@ -404,6 +405,7 @@ function AppShellInner(props: Props) {
       { id: 'adm-spend', label: 'Dépense IA réelle', group: 'Plateforme', href: '/admin/depenses', icon: 'coin', keywords: 'plafond budget dollars facture anthropic fal cout reel' },
       { id: 'adm-credits', label: 'Coûts & marges', group: 'Plateforme', href: '/credits', icon: 'coin', keywords: 'crédits coût marge rentabilité' },
       { id: 'adm-intel', label: 'Intelligence marché', group: 'Plateforme', href: '/admin/intelligence', icon: 'radar', keywords: 'concurrents atria' },
+      { id: 'adm-connaissances', label: 'Connaissances · ce que Jarvis lit', group: 'Plateforme', href: '/admin/connaissances', icon: 'file', keywords: 'connaissances jarvis consigne methode iteration savoir donnees' },
       { id: 'adm-console', label: 'Console', group: 'Plateforme', href: '/console', icon: 'gauge', keywords: 'console système diagnostics' },
     );
   }

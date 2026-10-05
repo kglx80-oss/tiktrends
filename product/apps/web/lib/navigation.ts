@@ -122,6 +122,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/admin/incidents', label: 'Incidents', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/depenses', label: 'Dépense IA réelle', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/intelligence', label: 'Intelligence marché', parent: '/admin', section: 'Plateforme' },
+  { path: '/admin/connaissances', label: 'Connaissances', parent: '/admin', section: 'Plateforme' },
   { path: '/console', label: 'Console', section: 'Plateforme' },
   { path: '/credits', label: 'Coûts & marges', section: 'Plateforme' },
 

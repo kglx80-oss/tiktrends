@@ -6,6 +6,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { jarvisFullMemory, jarvisStats } from '../../../../lib/jarvis-memory';
+import { consigneAvecConnaissances, consignerUsageConnaissances } from '../../../../lib/jarvis-connaissances';
 import { guardedAnthropic, SpendBlockedError } from '../../../../lib/spend-guard';
 
 export const runtime = 'nodejs';
@@ -84,7 +85,9 @@ export async function POST(req: Request) {
     // il ne ferme aucune fonction (cf. accueil.ts).
     const { niveau } = personnalisationAccueil(ws[0]?.onboarding);
 
-    const system = chatSystemPrompt({
+    // Les connaissances PUBLIÉES de l'équipe, dans leur portée, délimitées ·
+    // insérées avant les règles maison (voir lib/jarvis-connaissances).
+    const { system, inclus } = await consigneAvecConnaissances(chatSystemPrompt({
       brandName: brand.name,
       memory: memoire,
       rules: b?.rules ?? null,
@@ -95,7 +98,7 @@ export async function POST(req: Request) {
       // boutons mèneraient vers des écrans fermés.
       canPropose: voitMemoire,
       niveau,
-    });
+    }), { workspaceId: s.workspaceId, brandId: brand.id });
 
     await db.insert(schema.jarvisMessages).values({
       workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id,
@@ -138,6 +141,8 @@ export async function POST(req: Request) {
               role: 'assistant', content: complet.slice(0, 12000),
             }).catch(() => { /* la réponse a été lue, la perdre en base n'annule pas le tour */ });
           }
+          // Ce qui était dans le contexte de CETTE réponse, et ce qu'elle a cité.
+          if (inclus.length) await consignerUsageConnaissances(inclus, complet).catch(() => { /* compteur, jamais bloquant */ });
           ctrl.close();
         }
       },
