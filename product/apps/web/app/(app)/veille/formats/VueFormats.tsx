@@ -44,6 +44,9 @@ export function VueFormats({ annonces, criteres: c, marque, suivis, adsmap }: {
   const plateformes = plateformesPresentes(annonces);
   const actifs = criteresActifsFormats(c);
   const filtre = !!(c.media || c.plateforme);
+  // Aucune sauvegarde du tout · ni compteurs à zéro, ni filtres qui ne
+  // trouveraient rien · l'état vide explique et donne la sortie.
+  const rien = annonces.length === 0;
 
   return (
     <>
@@ -51,13 +54,13 @@ export function VueFormats({ annonces, criteres: c, marque, suivis, adsmap }: {
       <p data-perimetre style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 6, lineHeight: 1.5, maxWidth: 760 }}>
         Périmètre · <b>tes sauvegardes classées</b> à la main{marque ? <>, marque <b>{marque}</b></> : null}. Ce n’est pas toute la bibliothèque de la Veille · rien n’est classé automatiquement.
       </p>
-      <p data-compteurs style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 16px' }}>
+      {!rien && <p data-compteurs style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 16px' }}>
         {pluriel(compte.total, 'sauvegarde', 'sauvegardes')}{filtre ? ' dans ces critères' : ''} · {pluriel(compte.classees, 'classée', 'classées')} · {pluriel(compte.nonClassees, 'non classée', 'non classées')}
         {compte.incertaines > 0 ? <> · {pluriel(compte.incertaines, 'incertaine', 'incertaines')}</> : null}
-      </p>
+      </p>}
 
       {/* Filtres de périmètre · liens, l'URL fait foi. */}
-      <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+      {!rien && <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
         <div role="group" aria-label="Média" style={rangee}>
           <span style={etiquette}>Média</span>
           {([[null, 'Tous'], ['image', 'Image'], ['video', 'Vidéo']] as const).map(([m, l]) => (
@@ -84,7 +87,7 @@ export function VueFormats({ annonces, criteres: c, marque, suivis, adsmap }: {
             {actifs.length > 1 && <a href={BASE} style={{ ...puce(false), border: 'none', background: 'transparent', textDecoration: 'underline' }}>Tout retirer</a>}
           </div>
         )}
-      </div>
+      </div>}
 
       {c.format ? <Grille annonces={annonces} c={c} total={compte} suivis={suivis} adsmap={adsmap} /> : <Liste compte={compte} c={c} filtre={filtre} />}
 
@@ -106,7 +109,7 @@ function Liste({ compte, c, filtre }: { compte: ReturnType<typeof compterFormats
     return (
       <Empty
         tone="todo" icon="tag" title="Aucune sauvegarde classée pour l’instant."
-        why={`Les compteurs par format se remplissent quand tu classes tes sauvegardes, une à une · rien n’est deviné. ${pluriel(compte.nonClassees, 'annonce attend', 'annonces attendent')} son format.`}
+        why={`Les compteurs par format se remplissent quand tu classes tes sauvegardes, une à une · rien n’est deviné. ${compte.nonClassees > 1 ? `${compte.nonClassees} annonces attendent leur format.` : `${compte.nonClassees} annonce attend son format.`}`}
         action={{ label: compte.nonClassees > 0 ? `Classer mes ${pluriel(compte.nonClassees, 'sauvegarde', 'sauvegardes')}` : 'Voir les incertaines', href: compte.nonClassees > 0 ? versNonClassees : lien({ ...c, format: FORMAT_INCERTAIN }) }}
       />
     );
@@ -173,7 +176,7 @@ function Grille({ annonces, c, total, suivis, adsmap }: { annonces: AnnonceSauve
   const retour = lien({ ...c, format: null, tri: 'recent' });
   const suiviSet = new Set(suivis);
   const def = estFormatCreatif(vue) ? formatCreatif(vue).definition
-    : vue === FORMAT_NON_CLASSE ? 'Choisis le format de chaque annonce · l’enregistrement est immédiat et l’annonce rejoint son format.'
+    : vue === FORMAT_NON_CLASSE ? 'Choisis le format de chaque annonce puis « Enregistrer » · l’annonce quitte cette liste et rejoint son format.'
       : 'Classements sous le seuil de confiance · exclus des résultats d’un format.';
   return (
     <section aria-labelledby="formats-vue">

@@ -75,7 +75,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
       <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Sauvegardes</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
         Tes créas gardées, les concurrents que tu suis et ce qu'ils sortent de neuf. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » un concurrent.
-        {items.length > 0 && <> Range tes créas par format dans <a href="/veille/formats" style={{ color: 'var(--accent-strong)', fontWeight: 700 }}>Formats créatifs</a>.</>}
+        {items.length > 0 && <> Range tes créas par format dans <a href="/veille/formats" style={{ color: 'var(--accent-strong)', fontWeight: 700, whiteSpace: 'nowrap' }}>Formats créatifs</a>.</>}
       </p>
 
       {toutVide ? (

@@ -46,6 +46,8 @@ vi.mock('../app/actions/adsmap-bridge', () => ({ trackSavedAdAction: async () =>
 import { db, schema } from '@tiktrends/db';
 import { classerFormatSauvegarde, saveAd } from '../app/actions/inspo';
 import FormatsPage from '../app/(app)/veille/formats/page';
+import { VueFormats } from '../app/(app)/veille/formats/VueFormats';
+import { CRITERES_FORMATS_DEFAUT } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 
 const ad = (id: string, mediaType: string, extra: Partial<InspoAd> = {}): InspoAd =>
@@ -217,6 +219,17 @@ describe('/veille/formats · compteurs réels, rendu', () => {
     session.plan = 'starter';
     const h = await rendre();
     expect(h).toContain('Fonctionnalité incluse dès l’abonnement Core');
+    expect(h).not.toContain('data-format=');
+  });
+});
+
+describe('/veille/formats · états vides', () => {
+  it('aucune sauvegarde · ni compteurs à zéro ni filtres, une explication et une sortie', () => {
+    const h = renderToStaticMarkup(<VueFormats annonces={[]} criteres={CRITERES_FORMATS_DEFAUT} marque="Vide" suivis={[]} adsmap={false} />);
+    expect(h).toContain('Aucune annonce sauvegardée.');
+    expect(h).toContain('href="/veille"');
+    expect(h, 'pas de « 0 sauvegarde · 0 classée » présenté comme un compte').not.toContain('data-compteurs');
+    expect(h, 'pas de filtres qui ne trouveraient rien').not.toContain('aria-label="Média"');
     expect(h).not.toContain('data-format=');
   });
 });
