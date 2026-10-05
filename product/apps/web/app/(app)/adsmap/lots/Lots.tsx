@@ -183,7 +183,8 @@ export function Lots({ batches, brandName }: {
       {mobile && liste.length === 0 ? champCreation : mobile ? (
         <div style={{ display: 'grid', gap: 9 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', minWidth: 0 }}>
-            <div style={{ flex: 1, minWidth: 0, padding: '8px 11px', borderRadius: 10, border: '1px solid var(--accent-strong)', background: 'var(--accent-soft)', color: 'var(--ink)', fontSize: 12 }}>
+            {/* Affichage du sélecteur de lot (à côté de « Changer ») · rôle `controle` DÉCLARÉ (lot 19D). */}
+            <div data-cadre="controle" style={{ flex: 1, minWidth: 0, padding: '8px 11px', borderRadius: 10, border: '1px solid var(--accent-strong)', background: 'var(--accent-soft)', color: 'var(--ink)', fontSize: 12 }}>
               {lotCourant ? (
                 <>
                   <strong>Lot {lotCourant.number}</strong> · {lotCourant.ads} ad(s)

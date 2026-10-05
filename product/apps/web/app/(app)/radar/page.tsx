@@ -11,7 +11,7 @@ import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
 import { LienCible } from '../../../components/LienCible';
 import { effectiveAccess } from '../../../lib/access';
-import { cadrePage, surface } from '../../../components/ui';
+import { cadrePage, surface, tuile } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'radar')!;
@@ -66,7 +66,7 @@ function Row({ r }: { r: AnalysisRow }) {
         <span style={{ fontSize: 12, fontWeight: 800, padding: '6px 14px', borderRadius: 999, color: '#fff', background: b.color }}>{b.action}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-2)' }}>
-        {r.diagnosis.map((d, i) => <span key={i} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, padding: '4px 9px' }}>→ {d}</span>)}
+        {r.diagnosis.map((d, i) => <span key={i} style={{ background: 'var(--bg)', ...tuile, padding: '4px 9px' }}>→ {d}</span>)}
         <LienCible href={studioHref} style={{ marginLeft: 'auto', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Icon name="sparkles" size={12} />{ACTION_CTA[r.bucket] ?? 'Retravailler au Studio'} ›</LienCible>
       </div>
     </div>
