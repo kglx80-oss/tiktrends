@@ -28,19 +28,36 @@ import {
  *
  * ── Le cache, et le retrait ──────────────────────────────────────────────────
  *
- * La liste relue est gardée 60 s en mémoire · chaque réponse de Jarvis la lit.
- * Toute écriture passée par les actions de cet écran VIDE le cache · un retrait
- * prend effet à la réponse suivante. Les 60 s ne bornent que le cas d'une
- * écriture faite hors de ce processus.
+ * Chaque réponse de Jarvis lit la liste. On la garde en mémoire, mais elle n'est
+ * jamais servie sur la foi d'une horloge ni d'une invalidation locale : avant
+ * chaque usage, une requête d'agrégat relit l'EMPREINTE des lignes (nombre,
+ * somme des révisions, dernière écriture). Elle a changé · on relit tout.
+ *
+ * Pourquoi pas un simple « vider le cache à l'écriture » : relevé à la recette
+ * en production locale, un même module serveur existe en PLUSIEURS instances
+ * (l'action d'administration et la lecture du fil de Jarvis ne partageaient pas
+ * la même mémoire) · le retrait vidait l'une et l'autre continuait d'afficher
+ * l'ancienne liste. L'empreinte vit en base, toutes les instances la voient, et
+ * un retrait prend effet à la réponse suivante, quel que soit le processus.
  */
 
 const PREFIXE = 'connaissance:';
 const PREFIXE_USAGE = 'connaissance-usage:';
-export const TTL_CONNAISSANCES_MS = 60_000;
 
-let cache: { at: number; liste: Connaissance[] } | null = null;
+let cache: { empreinte: string; liste: Connaissance[] } | null = null;
 
 export function invaliderConnaissances(): void { cache = null; }
+
+/** Nombre de lignes, somme des révisions, dernière écriture · change à CHAQUE geste du noyau. */
+async function empreinte(): Promise<string> {
+  if (!db) return '';
+  const [r] = await db.select({
+    n: sql<string>`count(*)::text`,
+    rev: sql<string>`coalesce(sum((${schema.appSettings.value}->>'rev')::int), 0)::text`,
+    maj: sql<string>`coalesce(max(${schema.appSettings.updatedAt})::text, '')`,
+  }).from(schema.appSettings).where(like(schema.appSettings.key, `${PREFIXE}%`));
+  return `${r?.n}|${r?.rev}|${r?.maj}`;
+}
 
 /** Toutes les connaissances lisibles · écarte (sans planter) ce qui ne se relit pas. */
 export async function listerConnaissances(): Promise<Connaissance[]> {
@@ -52,9 +69,10 @@ export async function listerConnaissances(): Promise<Connaissance[]> {
 }
 
 async function listeEnCache(): Promise<Connaissance[]> {
-  if (cache && Date.now() - cache.at < TTL_CONNAISSANCES_MS) return cache.liste;
+  const e = await empreinte();
+  if (cache && cache.empreinte === e) return cache.liste;
   const liste = await listerConnaissances();
-  cache = { at: Date.now(), liste };
+  cache = { empreinte: e, liste };
   return liste;
 }
 

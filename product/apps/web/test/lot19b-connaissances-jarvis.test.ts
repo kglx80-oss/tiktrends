@@ -42,7 +42,7 @@ import { chatSystemPrompt, trimThread, refConnaissance, type SaisieConnaissance,
 import {
   creerConnaissanceAction, nouvelleVersionAction, publierConnaissanceAction, retirerConnaissanceAction, chargerConnaissancesAction,
 } from '../app/actions/connaissances';
-import { consigneAvecConnaissances, consignerUsageConnaissances, invaliderConnaissances, TTL_CONNAISSANCES_MS } from '../lib/jarvis-connaissances';
+import { consigneAvecConnaissances, consignerUsageConnaissances, invaliderConnaissances } from '../lib/jarvis-connaissances';
 import { guardedAnthropic } from '../lib/spend-guard';
 import { demarrerMockFournisseur, type RequeteRecue } from './lot19b-mock-fournisseur';
 
@@ -179,19 +179,16 @@ describe('retrait · cache et fil existant', () => {
     expect(suivant.requete.messages.map((m) => m.content)).toContain('Réponse appuyée sur TEXTE_PUBLIE.');
   });
 
-  it('une écriture HORS de ce processus est vue au plus tard après le TTL du cache', async () => {
-    await repondre('chauffe le cache');
-    // Un autre processus retire « Itérer » directement en base · le cache local l'ignore encore.
+  it('une écriture faite AILLEURS (autre instance du module, autre processus) est vue à la réponse suivante', async () => {
+    // Relevé à la recette · l'action d'administration et la lecture de Jarvis
+    // n'avaient pas la même mémoire. On écrit donc directement en base, sans
+    // passer par l'action (aucune invalidation locale) · le cache doit le voir.
+    expect((await repondre('chauffe le cache')).requete.system).toContain('TEXTE_METHODE_V2');
     const [row] = await db.select().from(schema.appSettings).where(eq(schema.appSettings.key, `connaissance:${idsK.methode}`));
     const v = row!.value as { rev: number; versions: Array<{ etat: string }> };
     await db.update(schema.appSettings).set({ value: { ...v, rev: v.rev + 1, versions: v.versions.map((x) => ({ ...x, etat: x.etat === 'publie' ? 'retire' : x.etat })) } })
       .where(eq(schema.appSettings.key, `connaissance:${idsK.methode}`));
-    expect((await repondre('encore en cache')).requete.system).toContain('TEXTE_METHODE_V2');
-    const t = Date.now();
-    const horloge = vi.spyOn(Date, 'now').mockReturnValue(t + TTL_CONNAISSANCES_MS + 1);
-    try {
-      expect((await repondre('après le TTL')).requete.system).not.toContain('TEXTE_METHODE_V2');
-    } finally { horloge.mockRestore(); invaliderConnaissances(); }
+    expect((await repondre('juste après')).requete.system).not.toContain('TEXTE_METHODE_V2');
   });
 });
 
