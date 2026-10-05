@@ -20,7 +20,7 @@ describe('toute page de démo connectable offre une sortie vers le réel', () =>
   it.each([
     ['radar', 'app/(app)/radar/page.tsx'],
     ['dashboard', 'components/ApercuExemple.tsx'],
-    ['analytics', 'app/(app)/analytics/page.tsx'],
+    ['analytics', 'components/accueil/VueAnalytics.tsx'],
   ])('%s montre la porte vers /connections', (_n, p) => {
     expect(P(p), 'aucune sortie « brancher un compte » sur une page d’exemple').toContain('/connections');
   });

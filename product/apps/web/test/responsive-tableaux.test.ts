@@ -10,7 +10,7 @@ import { join } from 'node:path';
  * l'horizontale au lieu d'écraser. On éprouve le CSS livré par la source.
  */
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
-const analytics = read('app/(app)/analytics/page.tsx');
+const analytics = read('components/accueil/VueAnalytics.tsx');
 const meta = read('app/(app)/analytics/MetaKeyMetrics.tsx');
 const team = read('app/(app)/team/page.tsx');
 

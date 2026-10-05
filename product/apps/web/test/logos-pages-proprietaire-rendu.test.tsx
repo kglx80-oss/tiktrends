@@ -21,7 +21,7 @@ vi.mock('../app/(app)/analytics/CreativeIntel', () => ({ CreativeIntel: () => nu
 vi.mock('../app/(app)/jarvis/sections/SectionAttribution', () => ({ SectionAttribution: () => null }));
 
 import NouvelleMarque from '../app/(app)/brands/new/page';
-import AnalyticsPage from '../app/(app)/analytics/page';
+import { VueAnalytics as AnalyticsPage } from '../components/accueil/VueAnalytics';
 import { ShopifyIcon } from '../components/BrandIcons';
 
 /** Le bloc qui contient `titre`, du plus proche conteneur ouvrant au titre. */

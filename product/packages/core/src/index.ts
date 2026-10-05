@@ -151,3 +151,4 @@ export * from './retour-enregistrement';
 export * from './lanceur-support';
 export * from './filtres-url';
 export * from './compte-vue';
+export * from './accueil-vue';

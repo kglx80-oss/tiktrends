@@ -18,7 +18,7 @@ import { join } from 'node:path';
  */
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-const page = read('app/(app)/analytics/page.tsx');
+const page = read('components/accueil/VueAnalytics.tsx');
 
 describe('Analytics · les titres suivent la charte (graisse 500, sections à 19)', () => {
   it('le h1 reste l’ancre de charte (500)', () => {
