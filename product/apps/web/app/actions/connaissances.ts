@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import {
   peutGererConnaissances, validerSaisie, creerConnaissance, nouvelleVersion, publierVersion,
   retirerConnaissance, vueConnaissance, apercuContextePlateforme, derniereVersion, changementPortee,
+  verifierConfirmationPublication,
   type SaisieConnaissance, type VueConnaissance, type Connaissance, type Resultat, type PorteeConnaissance,
 } from '@tiktrends/core';
 import { eq } from 'drizzle-orm';
@@ -98,11 +99,20 @@ async function porteeExiste(p: PorteeConnaissance): Promise<string | null> {
   return b && b.ws === p.workspaceId ? null : 'Cette marque n’appartient pas à l’espace choisi.';
 }
 
-export async function creerConnaissanceAction(input: SaisieConnaissance & { publier?: boolean }): Promise<Retour> {
+/**
+ * Publier en portée PLATEFORME exige `confirmerPlateforme: true` · contrôle
+ * SERVEUR (règle au noyau, `verifierConfirmationPublication`), pas seulement la
+ * case de l'écran. Un refus n'écrit rien · pas même un brouillon.
+ */
+export async function creerConnaissanceAction(input: SaisieConnaissance & { publier?: boolean; confirmerPlateforme?: boolean }): Promise<Retour> {
   const g = await garde();
   if ('error' in g) return { error: g.error };
   const v = validerSaisie(input);
   if (!v.ok) return { error: v.erreur };
+  if (input.publier) {
+    const k = verifierConfirmationPublication(v.valeur.portee, input.confirmerPlateforme);
+    if (!k.ok) return { error: k.erreur };
+  }
   try {
     const refus = await porteeExiste(v.valeur.portee);
     if (refus) return { error: refus };
@@ -119,7 +129,7 @@ export async function creerConnaissanceAction(input: SaisieConnaissance & { publ
   }
 }
 
-export async function nouvelleVersionAction(input: { id: string; base: number; saisie: SaisieConnaissance; publier?: boolean; confirmerPortee?: boolean }): Promise<Retour> {
+export async function nouvelleVersionAction(input: { id: string; base: number; saisie: SaisieConnaissance; publier?: boolean; confirmerPortee?: boolean; confirmerPlateforme?: boolean }): Promise<Retour> {
   // Le garde d'abord · un refus ne doit rien dire de la validité de la saisie.
   const g = await garde();
   if ('error' in g) return { error: g.error };
@@ -135,14 +145,26 @@ export async function nouvelleVersionAction(input: { id: string; base: number; s
     if (ch && !input.confirmerPortee) {
       return { ok: false, erreur: ch === 'elargie' ? 'Cette version élargit la portée · confirme-le avant d’enregistrer.' : 'Cette version déplace la portée · confirme-le avant d’enregistrer.' };
     }
+    if (input.publier) {
+      const k = verifierConfirmationPublication(v.valeur.portee, input.confirmerPlateforme);
+      if (!k.ok) return { ok: false, erreur: k.erreur };
+    }
     const r = nouvelleVersion(c, v.valeur, input.base, auteur, maintenant);
     if (!r.ok || !input.publier) return r;
     return publierVersion(r.valeur, r.valeur.versions.length ? Math.max(...r.valeur.versions.map((x) => x.n)) : 1, auteur, maintenant);
   });
 }
 
-export async function publierConnaissanceAction(input: { id: string; n: number }): Promise<Retour> {
-  return modifier(input.id, (c, auteur, maintenant) => publierVersion(c, input.n, auteur, maintenant));
+export async function publierConnaissanceAction(input: { id: string; n: number; confirmerPlateforme?: boolean }): Promise<Retour> {
+  return modifier(input.id, (c, auteur, maintenant) => {
+    // La portée lue est celle de la version STOCKÉE · jamais celle que l'écran annonce.
+    const v = c.versions.find((x) => x.n === input.n);
+    if (v) {
+      const k = verifierConfirmationPublication(v.portee, input.confirmerPlateforme);
+      if (!k.ok) return { ok: false, erreur: k.erreur };
+    }
+    return publierVersion(c, input.n, auteur, maintenant);
+  });
 }
 
 export async function retirerConnaissanceAction(input: { id: string }): Promise<Retour> {

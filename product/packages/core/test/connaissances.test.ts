@@ -5,6 +5,8 @@ import {
   insererConnaissances, extraireCitations, peutGererConnaissances, refConnaissance, chatSystemPrompt,
   PLAFOND_CONNAISSANCES, LIMITE_TEXTE, OUVERTURE, FERMETURE, TITRE_BLOC,
   citationsComptees, changementPortee, AVERTISSEMENT_CONFIDENTIALITE,
+  avertissementPublication, verifierConfirmationPublication, publicationExigeConfirmation,
+  REFUS_PUBLICATION_PLATEFORME, LIMITE_CONSIGNE_MODELE,
   type Connaissance, type SaisieConnaissance, type SaisieValide,
 } from '../src/index';
 
@@ -287,5 +289,45 @@ describe('relecture sécurité · F1 · F3 · F4 · portée', () => {
     expect(changementPortee(P, M)).toBeNull();
     expect(changementPortee(M, M)).toBeNull();
     expect(AVERTISSEMENT_CONFIDENTIALITE).toBe('Tout texte publié en portée plateforme est lu par Jarvis pour tous les clients · un client peut lui en demander le contenu · n’y mets rien de confidentiel.');
+  });
+});
+
+describe('message 55 · avant publication · à qui le texte part', () => {
+  const P = { niveau: 'plateforme' } as const;
+  const E = { niveau: 'espace', workspaceId: WS } as const;
+  const M = { niveau: 'marque', workspaceId: WS, brandId: BR } as const;
+
+  it('plateforme · TOUS les destinataires autorisés, contenu qui ressort tel quel, pas un contrôle d’accès', () => {
+    const a = avertissementPublication('plateforme');
+    expect(a).toContain('TOUS les destinataires autorisés');
+    expect(a).toContain('tous les membres de tous les espaces qui ont droit à Jarvis');
+    expect(a).toContain('peut ressortir tel quel');
+    expect(a).toContain(LIMITE_CONSIGNE_MODELE);
+    expect(LIMITE_CONSIGNE_MODELE).toContain('n’est pas un contrôle d’accès');
+  });
+
+  it('espace et marque · le public restreint est nommé, la même limite est dite', () => {
+    const e = avertissementPublication('espace');
+    const m = avertissementPublication('marque');
+    expect(e).toContain('tous les membres de cet espace qui ont droit à Jarvis');
+    expect(m).toContain('quand cette marque est active');
+    for (const t of [e, m]) {
+      expect(t).toContain('peut ressortir tel quel');
+      expect(t).toContain(LIMITE_CONSIGNE_MODELE);
+      expect(t).not.toContain('TOUS les destinataires');
+      expect(t).not.toMatch(/\u2014/);
+    }
+  });
+
+  it('publier en plateforme exige une confirmation EXPLICITE (true) · espace et marque non', () => {
+    expect(publicationExigeConfirmation(P)).toBe(true);
+    expect(publicationExigeConfirmation(E)).toBe(false);
+    expect(publicationExigeConfirmation(M)).toBe(false);
+    for (const c of [undefined, null, false, 'true', 1, {}]) {
+      expect(verifierConfirmationPublication(P, c)).toEqual({ ok: false, erreur: REFUS_PUBLICATION_PLATEFORME });
+    }
+    expect(verifierConfirmationPublication(P, true)).toEqual({ ok: true, valeur: true });
+    expect(verifierConfirmationPublication(E, undefined).ok).toBe(true);
+    expect(verifierConfirmationPublication(M, false).ok).toBe(true);
   });
 });

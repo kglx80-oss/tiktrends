@@ -59,7 +59,7 @@ beforeAll(async () => {
   await db.insert(schema.users).values({ id: ids.user, email: 'membre@client.test' });
   await db.insert(schema.brands).values([{ id: ids.brand, workspaceId: ids.ws, name: 'Neva', creativeRules: 'REGLE_MAISON_NEVA' }, { id: ids.brand2, workspaceId: ids.ws2, name: 'Autre' }]);
   h.session = equipe();
-  const cree = async (cle: string, s: SaisieConnaissance, publier: boolean) => { const r = await creerConnaissanceAction({ ...s, publier }); if (!r.id) throw new Error(r.error); K[cle] = r.id; };
+  const cree = async (cle: string, s: SaisieConnaissance, publier: boolean) => { const r = await creerConnaissanceAction({ ...s, publier, confirmerPlateforme: true }); if (!r.id) throw new Error(r.error); K[cle] = r.id; };
   await cree('publiee', saisie({ titre: 'Ton', texte: 'TEXTE_PUBLIE' }), true);
   await cree('methode', saisie({ titre: 'Itérer', type: 'methode', texte: 'TEXTE_METHODE' }), true);
   await cree('brouillon', saisie({ titre: 'Pas prête', type: 'savoir', texte: 'TEXTE_BROUILLON' }), false);

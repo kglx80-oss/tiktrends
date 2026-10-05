@@ -92,7 +92,8 @@ beforeAll(async () => {
 
   h.session = adminPlus();
   const cree = async (cle: string, s: SaisieConnaissance, publier: boolean) => {
-    const r = await creerConnaissanceAction({ ...s, publier });
+    // Message 55 · la plateforme se confirme explicitement (sans effet sur les autres portées).
+    const r = await creerConnaissanceAction({ ...s, publier, confirmerPlateforme: true });
     if (r.error || !r.id) throw new Error(r.error);
     idsK[cle] = r.id;
   };
@@ -138,7 +139,7 @@ describe('ce qui part vers le modèle · publiées seulement, dans la portée', 
   });
 
   it('publier la v2 la fait entrer à la place de la v1, dès la réponse suivante', async () => {
-    const r = await publierConnaissanceAction({ id: idsK.methode!, n: 2 });
+    const r = await publierConnaissanceAction({ id: idsK.methode!, n: 2, confirmerPlateforme: true });
     expect(r.error).toBeUndefined();
     const { requete } = await repondre('Et maintenant ?');
     expect(requete.system).toContain('TEXTE_METHODE_V2');

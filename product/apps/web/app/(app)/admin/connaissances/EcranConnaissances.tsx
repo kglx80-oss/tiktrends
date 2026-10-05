@@ -1,15 +1,17 @@
 'use client';
 
-import { useRef, useState, type CSSProperties } from 'react';
+import { useId, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import {
   TYPES_CONNAISSANCE, LIBELLE_TYPE, LIBELLE_ETAT, LIBELLE_ORIGINE, LIMITE_TEXTE, LIMITE_TITRE, EXTENSIONS_FICHIER,
   CIBLE_TACTILE_MIN, verifierFichierTexte, libellePortee, familleType, changementPortee, AVERTISSEMENT_CONFIDENTIALITE,
+  avertissementPublication, publicationExigeConfirmation, CONFIRMATION_PUBLICATION_PLATEFORME, REFUS_PUBLICATION_PLATEFORME,
   type TypeConnaissance, type EtatVersion, type ModeOrigine, type PorteeConnaissance, type SaisieConnaissance,
 } from '@tiktrends/core';
 import {
   creerConnaissanceAction, nouvelleVersionAction, publierConnaissanceAction, retirerConnaissanceAction,
   type VueAdminConnaissances,
 } from '../../../actions/connaissances';
+import { cadreSignal } from '../../../../components/ui';
 
 /**
  * L'écran des Connaissances · déposer, publier, éditer, retirer, et voir ce que
@@ -144,14 +146,14 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
           titreFormulaire={edition ? `Nouvelle version · v${edition.base + 1}` : 'Nouvelle connaissance'}
           espaces={espaces} marques={marques} occupe={occupe}
           onAnnuler={edition ? () => setEdition(null) : undefined}
-          onEnvoyer={async (saisie, publier, confirmerPortee) => {
+          onEnvoyer={async (saisie, publier, confirmerPortee, confirmerPlateforme) => {
             if (edition) {
-              const ok = await geste(() => nouvelleVersionAction({ id: edition.id, base: edition.base, saisie, publier, confirmerPortee }),
+              const ok = await geste(() => nouvelleVersionAction({ id: edition.id, base: edition.base, saisie, publier, confirmerPortee, confirmerPlateforme }),
                 publier ? `Version v${edition.base + 1} publiée · elle remplace la précédente dès la prochaine réponse.` : `Version v${edition.base + 1} enregistrée en brouillon · la version en service continue de servir.`);
               if (ok) setEdition(null);
               return ok;
             }
-            return geste(() => creerConnaissanceAction({ ...saisie, publier }),
+            return geste(() => creerConnaissanceAction({ ...saisie, publier, confirmerPlateforme }),
               publier ? 'Connaissance publiée · elle entre dans le contexte dès la prochaine réponse.' : 'Brouillon enregistré · il n’entre pas dans le contexte tant qu’il n’est pas publié.');
           }}
         />
@@ -177,7 +179,7 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
                 inclusion={a.inclus.find((i) => i.id === it.id) ?? null}
                 horsPlace={a.exclues.some((e) => it.versions.some((v) => v.ref === e.ref))}
                 onEditer={() => editer(it)}
-                onPublier={(n) => void geste(() => publierConnaissanceAction({ id: it.id, n }), `v${n} publiée · elle entre dans le contexte dès la prochaine réponse.`)}
+                onPublier={(n, confirmerPlateforme) => geste(() => publierConnaissanceAction({ id: it.id, n, confirmerPlateforme }), `v${n} publiée · elle entre dans le contexte dès la prochaine réponse.`)}
                 onRetirer={() => geste(() => retirerConnaissanceAction({ id: it.id }), 'Retirée · elle n’entre plus dans le contexte des réponses suivantes. Les réponses déjà données restent telles quelles.')}
               />
             ))}
@@ -197,7 +199,7 @@ export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, mar
   onAnnuler?: () => void;
   /** Portée de la version qu'on édite · sert à signaler un élargissement. */
   porteeAvant?: PorteeConnaissance;
-  onEnvoyer: (s: SaisieConnaissance, publier: boolean, confirmerPortee: boolean) => Promise<boolean>;
+  onEnvoyer: (s: SaisieConnaissance, publier: boolean, confirmerPortee: boolean, confirmerPlateforme: boolean) => Promise<boolean>;
 }) {
   const [b, setB] = useState<Brouillon>(initial);
   const [erreurFichier, setErreurFichier] = useState<string | null>(null);
@@ -232,11 +234,20 @@ export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, mar
   const changement = porteeAvant && porteeApres ? changementPortee(porteeAvant, porteeApres) : null;
   const [confirme, setConfirme] = useState(false);
   const bloque = occupe || (!!changement && !confirme);
+  // Avant publication · la portée plateforme se confirme EXPLICITEMENT (règle au
+  // noyau, refusée aussi par le serveur). Sans la case, « Publier » ne part pas
+  // et le dit, à côté du bouton · le focus revient sur la case.
+  const [confirmePub, setConfirmePub] = useState(false);
+  const [refusPub, setRefusPub] = useState<string | null>(null);
+  const caseRef = useRef<HTMLInputElement>(null);
+  const exige = publicationExigeConfirmation(porteeApres ?? { niveau: b.niveau } as PorteeConnaissance);
 
   const envoyer = async (publier: boolean) => {
     if (changement && !confirme) return;
-    const ok = await onEnvoyer(saisie(), publier, !!changement && confirme);
-    if (ok && !onAnnuler) { setB(VIDE); if (fichierRef.current) fichierRef.current.value = ''; }
+    if (publier && exige && !confirmePub) { setRefusPub(REFUS_PUBLICATION_PLATEFORME); caseRef.current?.focus(); return; }
+    setRefusPub(null);
+    const ok = await onEnvoyer(saisie(), publier, !!changement && confirme, publier && exige && confirmePub);
+    if (ok && !onAnnuler) { setB(VIDE); setConfirmePub(false); if (fichierRef.current) fichierRef.current.value = ''; }
   };
 
   const marquesEspace = b.workspaceId ? marques.filter((m) => m.workspaceId === b.workspaceId) : marques;
@@ -286,7 +297,7 @@ export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, mar
         </label>
         <label style={champ}>
           <span style={etiquette}>Portée</span>
-          <select value={b.niveau} onChange={(e) => set({ niveau: e.target.value as Brouillon['niveau'], workspaceId: '', brandId: '' })} style={entree}>
+          <select value={b.niveau} onChange={(e) => { set({ niveau: e.target.value as Brouillon['niveau'], workspaceId: '', brandId: '' }); setConfirmePub(false); setRefusPub(null); }} style={entree}>
             <option value="plateforme">Plateforme · toutes les marques</option>
             <option value="espace">Un espace seulement</option>
             <option value="marque">Une marque seulement</option>
@@ -344,6 +355,9 @@ export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, mar
         </div>
       )}
 
+      <AvantPublication niveau={b.niveau} confirme={confirmePub} refus={refusPub} caseRef={caseRef}
+        onConfirme={(x) => { setConfirmePub(x); if (x) setRefusPub(null); }} />
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
         <button type="button" disabled={bloque} onClick={() => void envoyer(true)} style={bouton(true, bloque)}>Publier</button>
         <button type="button" disabled={bloque} onClick={() => void envoyer(false)} style={bouton(false, bloque)}>Enregistrer en brouillon</button>
@@ -366,9 +380,21 @@ const TON_ETAT: Record<EtatVersion, { fg: string; bd: string }> = {
 function Carte({ it, portee, occupe, inclusion, horsPlace, onEditer, onPublier, onRetirer }: {
   it: Item; portee: string; occupe: boolean;
   inclusion: { tronquee: boolean; caracteresOmis: number } | null; horsPlace: boolean;
-  onEditer: () => void; onPublier: (n: number) => void; onRetirer: () => Promise<boolean>;
+  onEditer: () => void; onPublier: (n: number, confirmerPlateforme: boolean) => Promise<boolean>; onRetirer: () => Promise<boolean>;
 }) {
   const [confirmer, setConfirmer] = useState(false);
+  // Publier un brouillon · l'avertissement de SA portée d'abord, et la case pour la plateforme.
+  const [aPublier, setAPublier] = useState<number | null>(null);
+  const [confirmePub, setConfirmePub] = useState(false);
+  const [refusPub, setRefusPub] = useState<string | null>(null);
+  const caseRef = useRef<HTMLInputElement>(null);
+  const versionAPublier = aPublier !== null ? it.versions.find((v) => v.n === aPublier) ?? null : null;
+  const publier = async () => {
+    if (!versionAPublier) return;
+    if (publicationExigeConfirmation(versionAPublier.portee) && !confirmePub) { setRefusPub(REFUS_PUBLICATION_PLATEFORME); caseRef.current?.focus(); return; }
+    setRefusPub(null);
+    if (await onPublier(versionAPublier.n, publicationExigeConfirmation(versionAPublier.portee) && confirmePub)) { setAPublier(null); setConfirmePub(false); }
+  };
   const [historique, setHistorique] = useState(false);
   const enService = it.versions.find((v) => v.n === it.enService) ?? null;
   const u = enService ? it.usage[enService.ref] : undefined;
@@ -399,8 +425,8 @@ function Carte({ it, portee, occupe, inclusion, horsPlace, onEditer, onPublier, 
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
         <button type="button" disabled={occupe} onClick={onEditer} style={bouton(false, occupe)}>Éditer · nouvelle version</button>
-        {it.brouillon !== null && it.brouillon === it.derniere && (
-          <button type="button" disabled={occupe} onClick={() => onPublier(it.brouillon!)} style={bouton(true, occupe)}>Publier v{it.brouillon}</button>
+        {it.brouillon !== null && it.brouillon === it.derniere && aPublier === null && (
+          <button type="button" disabled={occupe} onClick={() => { setAPublier(it.brouillon); setConfirmePub(false); setRefusPub(null); }} style={bouton(true, occupe)}>Publier v{it.brouillon}</button>
         )}
         {enService && !confirmer && (
           <button type="button" disabled={occupe} onClick={() => setConfirmer(true)} style={boutonDanger}>Retirer</button>
@@ -416,6 +442,17 @@ function Carte({ it, portee, occupe, inclusion, horsPlace, onEditer, onPublier, 
           {historique ? 'Masquer les versions' : `Versions (${it.versions.length})`}
         </button>
       </div>
+
+      {versionAPublier && (
+        <div style={{ marginTop: 4 }}>
+          <AvantPublication niveau={versionAPublier.portee.niveau} confirme={confirmePub} refus={refusPub} caseRef={caseRef}
+            onConfirme={(x) => { setConfirmePub(x); if (x) setRefusPub(null); }} />
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            <button type="button" disabled={occupe} onClick={() => void publier()} style={bouton(true, occupe)}>Publier v{versionAPublier.n}</button>
+            <button type="button" onClick={() => { setAPublier(null); setRefusPub(null); }} style={bouton(false, false)}>Annuler</button>
+          </div>
+        </div>
+      )}
 
       {historique && (
         <ol style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 8 }}>
@@ -437,6 +474,36 @@ function Carte({ it, portee, occupe, inclusion, horsPlace, onEditer, onPublier, 
         </ol>
       )}
     </article>
+  );
+}
+
+/**
+ * Juste avant « Publier » · à qui le texte part (texte du noyau, par portée), et
+ * pour la plateforme une case de confirmation · une vraie case à cocher, dans
+ * son libellé, atteignable au clavier (Tab, Espace). Le refus s'affiche sous
+ * la case, relié à elle (`aria-describedby`).
+ */
+export function AvantPublication({ niveau, confirme, refus, caseRef, onConfirme }: {
+  niveau: PorteeConnaissance['niveau']; confirme: boolean; refus: string | null;
+  caseRef?: RefObject<HTMLInputElement | null>; onConfirme: (x: boolean) => void;
+}) {
+  const idRefus = useId();
+  const exige = publicationExigeConfirmation({ niveau } as PorteeConnaissance);
+  return (
+    <div data-avant-publication={niveau} style={{ marginTop: 12, padding: '10px 12px', ...cadreSignal(exige ? 'rgba(245,166,35,.45)' : 'var(--line)', 'tuile'), background: exige ? 'rgba(245,166,35,.08)' : 'var(--paper)' }}>
+      <p role="note" style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: exige ? '#ffcf8f' : 'var(--ink-2)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+        Avant publication · {avertissementPublication(niveau)}
+      </p>
+      {exige && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', lineHeight: 1.4 }}>
+          <input ref={caseRef} type="checkbox" name="confirmer-plateforme" checked={confirme} onChange={(e) => onConfirme(e.target.checked)}
+            aria-describedby={refus ? idRefus : undefined} aria-invalid={refus ? true : undefined}
+            style={{ width: 18, height: 18, flexShrink: 0 }} />
+          {CONFIRMATION_PUBLICATION_PLATEFORME}
+        </label>
+      )}
+      {refus && <p id={idRefus} role="alert" style={{ ...alerte, color: '#ff8095' }}>{refus}</p>}
+    </div>
   );
 }
 
