@@ -24,6 +24,11 @@ export interface AssistantHomeProps {
   exemple?: ReactNode;
   /** Ce que le rôle ouvre (lot 11) · un accès fermé n'est pas proposé. Absent = tout ouvert. */
   regles?: RegleChemin[];
+  /**
+   * Le sélecteur de vue (Accueil · Analytics, lot 19A) · posé dans la rangée
+   * du titre, à droite · le titre garde son axe (mesuré y 99 avant le lot).
+   */
+  vues?: ReactNode;
 }
 
 /**
@@ -44,9 +49,11 @@ export interface AssistantHomeProps {
 
 // Les accès d'analyse · destinations EXISTANTES, libellés descriptifs. 3 colonnes
 // desktop, 2 en tablette, 1 en mobile (borne `min(340px,100%)`).
-const ANALYSER: Array<{ href: string; icon: string; titre: string; sous: string }> = [
+const ANALYSER: Array<{ href: string; icon: string; titre: string; sous: string; natif?: boolean }> = [
   { href: '/adsmap', icon: 'map', titre: 'Adsmap', sous: 'Tes tests et leurs verdicts' },
-  { href: '/analytics', icon: 'chart', titre: 'Analytics', sous: 'Les KPI agrégés de tes campagnes' },
+  // Lot 19A · la vue Analytics de l'Accueil (même chemin, autre recherche) ·
+  // lien NATIF · le routeur client ne termine pas cette transition.
+  { href: '/dashboard?vue=analytics', icon: 'chart', titre: 'Analytics', sous: 'Les KPI agrégés de tes campagnes', natif: true },
   { href: '/veille', icon: 'search', titre: 'Veille', sous: 'Observe les concurrents et ce qui scale' },
   { href: '/radar', icon: 'radar', titre: 'Radar créatif', sous: 'Repérer les créas à retravailler' },
   { href: '/jarvis', icon: 'brain', titre: 'Ce que Jarvis sait', sous: 'La mémoire de ta catégorie' },
@@ -61,7 +68,7 @@ const STUDIOS: Array<{ href: string; icon: string; titre: string; teinte: string
   { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', teinte: 'linear-gradient(135deg, #8a5a12, #d69a3a)' },
 ];
 
-export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple, regles = [] }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple, regles = [], vues }: AssistantHomeProps) {
   const etatCredits = afficherCredits({ balance: credits, unlimited });
   const ouvert = (href: string) => cheminOuvert(href, regles);
   const analyser = liensOuverts(ANALYSER, ouvert);
@@ -82,6 +89,7 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
             <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name="coin" size={13} /></span>
             {texteCredits(etatCredits, (n) => n.toLocaleString('fr-FR'))}{etatCredits.mode === 'solde' ? ' crédits' : ''}
           </span>
+          {vues}
         </div>
         <p style={{ margin: '3px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45 }}>
           {brandName
@@ -104,8 +112,10 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
       {analyser.length > 0 && <>
       <h2 style={sectionH}>Analyser &amp; décider</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(340px, 100%), 1fr))', gap: 12, margin: '10px 0 26px' }}>
-        {analyser.map((a) => (
-          <Link key={a.href} href={a.href} style={{
+        {analyser.map((a) => {
+          const Lien = a.natif ? 'a' : Link;
+          return (
+          <Lien key={a.href} href={a.href} style={{
             display: 'flex', alignItems: 'center', gap: 12, minHeight: CIBLE_TACTILE_MIN, padding: '13px 15px', textDecoration: 'none',
             border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', minWidth: 0,
           }}>
@@ -116,8 +126,9 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
             </span>
             <span aria-hidden style={{ flex: 1 }} />
             <span aria-hidden style={{ color: 'var(--muted)', fontWeight: 800 }}>›</span>
-          </Link>
-        ))}
+          </Lien>
+          );
+        })}
       </div>
       </>}
 

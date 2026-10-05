@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { prerender } from 'react-dom/static';
 import type { ReactNode } from 'react';
-import { journey } from '@tiktrends/core';
+import { journey, resoudreAccueil } from '@tiktrends/core';
 
 /**
  * Lot 19A · l'Accueil réunit le Pilotage · garde de RENDU.
@@ -49,6 +49,7 @@ vi.mock('../app/actions/adsmap-attribution', () => ({ attributionViewAction: asy
 import Dashboard from '../app/(app)/dashboard/page';
 import { GET } from '../app/(app)/analytics/route';
 import { VueAnalytics } from '../components/accueil/VueAnalytics';
+import { OngletsAccueil } from '../components/accueil/OngletsAccueil';
 import { h1 as h1Ui } from '../components/ui';
 
 /** Rend un arbre serveur (composants asynchrones compris) en HTML. */
@@ -79,12 +80,20 @@ describe('Accueil · le sélecteur de vue suit le rôle', () => {
     // Même chemin, autre recherche · le routeur client ne termine pas toujours
     // (mesuré · 2 clics sur 5 perdus avec <Link>) · lien natif, chargement complet.
     expect(n!, 'un onglet passe par le routeur client (<Link>)').not.toContain('data-lien-routeur');
-    // Emprise verticale · mesuré en production locale à 1440×720, la rangée de
-    // marques finissait à 682 px avant le sélecteur · il dispose de 720 − 682 = 38 px.
-    const marge = /<nav [^>]*style="[^"]*margin:(-?\d+)px 0 (\d+)px/.exec(n!);
-    expect(marge, 'marges du sélecteur illisibles').toBeTruthy();
-    const emprise = 44 + 1 + Number(marge![1]) + Number(marge![2]);
-    expect(emprise, `le sélecteur occupe ${emprise} px · la rangée de marques passe sous 720`).toBeLessThanOrEqual(38);
+    // Axe du titre · le sélecteur vit DANS la rangée du titre, après lui, jamais
+    // au-dessus · rien ne s'intercale avant le titre de l'Accueil (y 99 mesuré
+    // avant le lot 19A, revérifié au navigateur).
+    const iTitre = h.indexOf('<h1'), iNav = h.indexOf('<nav aria-label="Vues de l’accueil"'), iSous = h.indexOf('Marque active');
+    expect(iTitre, 'titre de l’Accueil introuvable').toBeGreaterThan(-1);
+    expect(iNav, 'le sélecteur passe AU-DESSUS du titre · le titre quitte son axe').toBeGreaterThan(iTitre);
+    expect(iNav, 'le sélecteur a quitté la rangée du titre').toBeLessThan(iSous);
+    // La carte « Analytics » de l'Accueil mène à la vue, en lien NATIF (même chemin).
+    const versVue = [...h.matchAll(/<a [^>]*href="\/dashboard\?vue=analytics"[^>]*>/g)].map((m) => m[0]);
+    expect(versVue.length, 'la carte Analytics ne mène pas à la vue').toBeGreaterThanOrEqual(2);
+    expect(versVue.filter((a) => a.includes('data-lien-routeur')), 'un lien vers la vue passe par le routeur client').toEqual([]);
+    expect(h, 'un lien de l’Accueil mène encore à /analytics par le routeur').not.toMatch(/<a data-lien-routeur="" href="\/analytics"/);
+    const main = h.slice(h.indexOf('<main'), iTitre);
+    expect(main, 'un élément visible s’intercale avant le titre').not.toMatch(/<(nav|a|p|h2|section)\b/);
     // Le reste de l'Accueil est inchangé · la salutation et le bandeau sont là.
     expect(h).toContain('Bonjour');
     expect(h, 'la vue Analytics fuit sur l’Accueil par défaut').not.toContain('data-vue="analytics"');
@@ -111,7 +120,9 @@ describe('Accueil · ?vue=analytics rend l’Analytics complet, sans copie', () 
 
   it('le HTML de la vue est celui du composant partagé, octet pour octet', async () => {
     const h = await accueil({ vue: 'analytics' });
-    const seule = await html(await VueAnalytics());
+    // Le même composant, avec le même sélecteur que l'Accueil lui passe.
+    const onglets = resoudreAccueil({ params: { vue: 'analytics' }, ouvert: () => true }).onglets;
+    const seule = await html(await VueAnalytics({ vues: <OngletsAccueil onglets={onglets} /> }));
     expect(seule.length).toBeGreaterThan(2000);
     expect(h.includes(seule), 'la vue montée par l’Accueil diverge du composant partagé').toBe(true);
   });

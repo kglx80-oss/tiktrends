@@ -45,8 +45,15 @@ export const PARAM_VUE_ACCUEIL = 'vue';
 /** La route de l'Accueil · celle qui porte les vues. */
 export const CHEMIN_ACCUEIL = '/dashboard';
 
-/** La rubrique dont le rôle doit disposer pour voir le sélecteur (matrice du rail). */
-export const RUBRIQUE_ANALYTICS = '/analytics';
+/**
+ * L'adresse de la vue Analytics · c'est aussi celle de l'entrée « Analytics »
+ * du rail (sous Accueil, lot 19A) et donc la RUBRIQUE dont le rôle doit
+ * disposer pour voir le sélecteur (matrice du rail, `ouverturesParRole`).
+ */
+export const RUBRIQUE_ANALYTICS = '/dashboard?vue=analytics';
+
+/** L'ancienne route · elle redirige vers la vue et se lit comme elle (droits compris). */
+export const ROUTE_HISTORIQUE_ANALYTICS = '/analytics';
 
 /** Les vues, dans l'ordre du sélecteur · l'Accueil d'abord, c'est le défaut. */
 export const VUES_ACCUEIL: ReadonlyArray<{ vue: VueAccueil; libelle: string }> = [
@@ -73,10 +80,13 @@ function paires(params: ParamsRequete | string): Array<[string, string]> {
   return out;
 }
 
-/** La vue demandée · `analytics` seulement si c'est la PREMIÈRE valeur de `vue`. */
-export function lireVueAccueil(params: ParamsRequete): VueAccueil {
-  const v = params[PARAM_VUE_ACCUEIL];
-  const premiere = typeof v === 'string' ? v : v?.[0];
+/**
+ * La vue demandée · `analytics` seulement si c'est la PREMIÈRE valeur de `vue`.
+ * Accepte les paramètres d'une page (objet) ou une recherche brute (`?vue=…`,
+ * ce que lisent la coquille et le fil d'Ariane).
+ */
+export function lireVueAccueil(params: ParamsRequete | string): VueAccueil {
+  const premiere = paires(params).find(([k]) => k === PARAM_VUE_ACCUEIL)?.[1];
   return premiere === 'analytics' ? 'analytics' : 'accueil';
 }
 

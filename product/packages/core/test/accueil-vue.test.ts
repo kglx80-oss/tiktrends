@@ -3,6 +3,7 @@ import { lireVueAccueil, hrefVueAccueil, redirectionAnalytics, resoudreAccueil, 
 import { roleVoitRubrique } from '../src/equipe-plateforme';
 import { placementLanceurSupport } from '../src/lanceur-support';
 import { chargementCompletRequis } from '../src/meme-chemin';
+import { cheminOuvert } from '../src/accueil-acces';
 
 /**
  * Lot 19A · l'Accueil réunit le Pilotage. La règle « quelle vue, à partir de
@@ -12,7 +13,11 @@ import { chargementCompletRequis } from '../src/meme-chemin';
 const toutOuvert = () => true;
 // La matrice réelle de l'équipe plateforme · « membre » n'a pas la rubrique
 // analytics par défaut, « lecture » l'a.
-const voit = (role: 'membre' | 'lecture') => (href: string) => href !== '/analytics' || roleVoitRubrique(role, 'analytics');
+// Les règles telles que la coquille les fournit (`ouverturesParRole`) · la
+// rubrique Analytics vit sur `/dashboard?vue=analytics` (rail, lot 19A).
+const voit = (role: 'membre' | 'lecture') => (href: string) => cheminOuvert(href, [
+  { href: '/dashboard', ouvert: true }, { href: '/dashboard?vue=analytics', ouvert: roleVoitRubrique(role, 'analytics') },
+]);
 
 describe('accueil · quelle vue, à partir de quels paramètres', () => {
   it('sans paramètre, l’Accueil d’aujourd’hui', () => {

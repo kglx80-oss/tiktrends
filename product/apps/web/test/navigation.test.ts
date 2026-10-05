@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROUTES, matchRoute, breadcrumb, isBrandScoped, routeLabel } from '../lib/navigation';
+import { ROUTES, VUES, matchRoute, breadcrumb, isBrandScoped, routeLabel } from '../lib/navigation';
 import { FEATURES } from '../lib/rbac';
 import { ADMIN_NAV } from '../components/AppShell';
 
@@ -260,7 +260,9 @@ describe('le rail et le fil décrivent la même hiérarchie', () => {
     const parChemin = new Map(ROUTES.map((r) => [r.path, r.label]));
     const ecarts = FEATURES
       .filter((f) => f.group !== 'account')
-      .map((f) => ({ href: f.href.split('?')[0]!, rail: f.label, fil: parChemin.get(f.href.split('?')[0]!) }))
+      // Une entrée à requête qui est une VUE déclarée (lot 19A · Analytics sous
+      // l'Accueil) se compare à SA déclaration, pas à l'écran nu du même chemin.
+      .map((f) => ({ href: f.href.split('?')[0]!, rail: f.label, fil: VUES.find((v) => v.href === f.href)?.label ?? parChemin.get(f.href.split('?')[0]!) }))
       .filter((x) => x.fil && x.fil !== x.rail);
     expect(ecarts, `Libellés divergents : ${ecarts.map((e) => `${e.href} (${e.rail} ≠ ${e.fil})`).join(', ')}`)
       .toEqual([]);
@@ -275,7 +277,8 @@ describe('le rail et le fil décrivent la même hiérarchie', () => {
       const route = parChemin.get(f.href.split('?')[0]!);
       const parentRail = parCle.get(f.parent);
       if (!route || !parentRail) continue;
-      if (route.parent !== parentRail.href.split('?')[0]) {
+      const parentCarte = VUES.find((v) => v.href === f.href)?.parent ?? route.parent;
+      if (parentCarte !== parentRail.href.split('?')[0]) {
         ecarts.push(`${f.href} · rail dit ${parentRail.href}, carte dit ${route.parent ?? 'aucun'}`);
       }
     }

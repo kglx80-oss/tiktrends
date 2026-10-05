@@ -341,7 +341,8 @@ function AppShellInner(props: Props) {
   }, [pathname, searchStr]);
   // Les ancres que le rail DÉCLARE lui-même · seules celles-ci départagent
   // l'entrée nue (« Aperçu ») de ses sœurs ancrées. Aucune valeur codée en dur.
-  const ancresRail = ancresDeclarees(nav.flatMap((g) => g.items.map((it) => it.href)));
+  const hrefsRail = nav.flatMap((g) => g.items.map((it) => it.href));
+  const ancresRail = ancresDeclarees(hrefsRail);
   /**
    * « Je suis ICI » · exact, et un seul élément à la fois.
    *
@@ -352,7 +353,9 @@ function AppShellInner(props: Props) {
    * règle (route + onglet + ancre) vit dans le noyau (`railEntreeActive`).
    */
   const isNavActive = (href: string, _isSub: boolean): boolean =>
-    railEntreeActive(href, { pathname, tab: currentTab, hash: currentHash, ancres: ancresRail });
+    // Lot 19A · la recherche et les entrées déclarées départagent « Accueil »
+    // (`/dashboard`) et sa vue « Analytics » (`/dashboard?vue=analytics`).
+    railEntreeActive(href, { pathname, tab: currentTab, hash: currentHash, ancres: ancresRail, recherche: searchStr, entrees: hrefsRail });
 
   /** « La branche où je suis » · le parent, sans lui voler la sélection. */
   const isNavInPath = (href: string): boolean => {

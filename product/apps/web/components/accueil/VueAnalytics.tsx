@@ -12,6 +12,7 @@
  * Le cadre (`<main>`, `cadrePage`) appartient à la page qui monte la vue.
  */
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
@@ -34,7 +35,7 @@ const eur = (n: number) => '€' + Math.round(n).toLocaleString('fr-FR');
 const pct = (n: number) => (n * 100).toFixed(2).replace('.', ',') + ' %';
 const num = (n: number) => n.toLocaleString('fr-FR');
 
-export async function VueAnalytics() {
+export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
   const s = await getSession();
   if (!s) redirect('/login');
 
@@ -115,6 +116,8 @@ export async function VueAnalytics() {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Analytics</h1>
         <span style={{ fontSize: 12, color: metaInsights ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{metaInsights ? 'Meta Ads · live' : 'aperçu démo'}</span>
+        {/* Le sélecteur de vue (lot 19A) · même place que sur l'Accueil, dans la rangée du titre. */}
+        {vues}
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
         Vue agrégée de tes créas : dépense, portée, efficacité, et répartition Radar. {phrases.intro}

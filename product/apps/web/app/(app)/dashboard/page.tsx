@@ -38,8 +38,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   if (vue === 'analytics') {
     return (
       <main style={wrap}>
-        <OngletsAccueil onglets={onglets} />
-        <VueAnalytics />
+        <VueAnalytics vues={<OngletsAccueil onglets={onglets} />} />
       </main>
     );
   }
@@ -75,7 +74,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   return (
     <main style={wrap}>
-      <OngletsAccueil onglets={onglets} />
       <AssistantHome
         firstName={firstName}
         credits={credits}
@@ -88,6 +86,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} gererMarques={ouvert('/brands/new')} />}
         prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} regles={regles} />}
         exemple={<ApercuExemple key="apercu-exemple" rows={rows} brancher={ouvert('/connections')} />}
+        vues={<OngletsAccueil key="vues" onglets={onglets} />}
       />
     </main>
   );

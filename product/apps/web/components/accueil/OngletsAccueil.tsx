@@ -25,19 +25,17 @@ import { CIBLE_TACTILE_MIN, type OngletAccueil } from '@tiktrends/core';
 export function OngletsAccueil({ onglets }: { onglets: readonly OngletAccueil[] }) {
   if (onglets.length === 0) return null;
   return (
-    // Emprise mesurée (1440×720, lot 19A) · avant le sélecteur, la rangée de
-    // cartes « Tes marques » finissait à 682 px ; un sélecteur de 44 + 1 + 14
-    // la poussait à 740, coupée sous la ligne de flottaison que l'Accueil promet
-    // de garder visible à 720. Il mord donc 18 px sur la respiration haute du
-    // cadre (32 px, il en reste 14) et ne laisse que 6 px dessous · 717 px.
-    <nav aria-label="Vues de l’accueil" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '1px solid var(--line)', margin: '-18px 0 6px' }}>
+    // Posé dans la RANGÉE DU TITRE (à droite), jamais au-dessus · le titre garde
+    // son axe (Accueil · y 99 mesuré avant le lot 19A). En rangée étroite (390),
+    // il passe à la ligne SOUS le titre, aligné à droite.
+    <nav aria-label="Vues de l’accueil" style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginLeft: 'auto', alignSelf: 'center' }}>
       {onglets.map((o) => (
         <a
           key={o.vue}
           href={o.href}
           aria-current={o.actif ? 'page' : undefined}
           style={{
-            display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', marginBottom: -1,
+            display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 12px', boxSizing: 'border-box',
             fontSize: 14, fontWeight: o.actif ? 700 : 600, textDecoration: 'none', whiteSpace: 'nowrap',
             color: o.actif ? 'var(--ink)' : 'var(--muted)',
             borderBottom: `2px solid ${o.actif ? 'var(--accent-strong)' : 'transparent'}`,

@@ -16,9 +16,13 @@ import { railNav, RAIL_GROUP_LABEL, type Access } from '../lib/rbac';
  *
  * Ce garde vérifie le RÉSULTAT · « Accueil » MÈNE le rail en entrée autonome
  * (sans en-tête de section, façon Flora · Kevin 30/09), puis les sections
- * libellées forment exactement « Observer · Créer · Tester · Piloter », dans cet
- * ordre. Il tombe si Accueil ne mène plus, si l'ordre repart en arrière, ou si
- * un libellé redevient un nom de musée.
+ * libellées forment exactement « Observer · Créer · Tester », dans cet ordre.
+ * Il tombe si Accueil ne mène plus, si l'ordre repart en arrière, ou si un
+ * libellé redevient un nom de musée.
+ *
+ * Lot 19A · mandat du 5/10 (il remplace la décision du 30/09 qui fermait le
+ * rail par « Piloter ») · le Pilotage est REGROUPÉ sous l'Accueil · plus de
+ * section « Piloter » ; « Analytics » est une sous-entrée de l'Accueil.
  */
 
 const LAYOUT = readFileSync(join(process.cwd(), 'app/(app)/layout.tsx'), 'utf8');
@@ -41,12 +45,21 @@ describe('le rail mène par l’Accueil, puis par la boucle', () => {
     const sections = railNav(complet)
       .map((g) => RAIL_GROUP_LABEL[g.group] ?? g.group)
       .filter((l) => l !== ''); // l'entrée autonome Accueil n'a pas d'en-tête
-    expect(sections).toEqual(['Observer', 'Créer', 'Tester', 'Piloter']);
+    expect(sections).toEqual(['Observer', 'Créer', 'Tester']);
   });
 
-  it('« Piloter » (le regard en arrière) vient APRÈS le travail réel', () => {
-    const sections = railNav(complet).map((g) => RAIL_GROUP_LABEL[g.group] ?? g.group);
-    expect(sections.indexOf('Piloter')).toBeGreaterThan(sections.indexOf('Créer'));
+  it('le Pilotage est regroupé sous l’Accueil · « Analytics » en sous-entrée, aucune section « Piloter »', () => {
+    const groupes = railNav(complet);
+    expect(groupes.map((g) => RAIL_GROUP_LABEL[g.group] ?? g.group), 'une section « Piloter » subsiste').not.toContain('Piloter');
+    expect(groupes.map((g) => g.group as string), 'un groupe Pilotage subsiste').not.toContain('Pilotage');
+    const accueil = groupes[0]!.items.map((i) => ({ label: i.label, href: i.href, isSub: i.isSub }));
+    expect(accueil, 'Analytics n’est pas la sous-entrée de l’Accueil').toEqual([
+      { label: 'Accueil', href: '/dashboard', isSub: false },
+      { label: 'Analytics', href: '/dashboard?vue=analytics', isSub: true },
+    ]);
+    // Une seule entrée Analytics dans tout le rail · déplacée, jamais doublée.
+    const tous = groupes.flatMap((g) => g.items).filter((i) => i.label === 'Analytics');
+    expect(tous).toHaveLength(1);
   });
 
   it('chaque section LIBELLÉE du rail porte un verbe, jamais un nom de musée', () => {
