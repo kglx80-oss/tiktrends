@@ -22,11 +22,14 @@ function cadresHorsRole(html: string): string[] {
   for (const [, tag, st] of html.matchAll(STYLE)) {
     const bordure = /(?:^|;)border:1px (solid|dashed) ([^;]+)/.exec(st!);
     if (!bordure) continue;
+    // `borderStyle: 'dashed'` posé après coup · le trait rendu est pointillé.
+    if (/(?:^|;)border-style:dashed/.test(st!)) bordure[1] = 'dashed';
     const rayon = /border-radius:([^;]+)/.exec(st!)?.[1] ?? '';
     if (/999|50%|--r-pill/.test(rayon)) continue; // pilule
     if (/(?:^|;)display:inline-flex/.test(st!)) continue; // bouton-lien compact ou puce · un contrôle (bordure --line-2 permise)
     if (/(?:^|;)(width|height):(\d+)px/.test(st!) && +/(?:^|;)(?:width|height):(\d+)px/.exec(st!)![1]! < 40) continue; // pastille
     if (bordure[1] === 'solid' && bordure[2] === 'var(--line-2)') fautes.push(`<${tag}> cadre plein en --line-2 · ${st!.slice(0, 90)}`);
+    if (bordure[1] === 'dashed' && bordure[2] !== 'var(--line-2)') fautes.push(`<${tag}> état vide hors rôle (pointillé ${bordure[2]}) · prends vide · ${st!.slice(0, 90)}`);
     if (!/^var\(--r-(card|md)\)$/.test(rayon)) fautes.push(`<${tag}> rayon « ${rayon || 'aucun'} » hors rôle · ${st!.slice(0, 90)}`);
   }
   return fautes;
@@ -44,7 +47,7 @@ describe('lot 19A · Accueil rendu · chaque cadre porte son rôle', () => {
       <HomeBandeau contenu={{ titre: 'Prépare ton prochain test', sous: 'Analyse.', ctaLabel: 'Voir mes tests', href: '/adsmap', ctaSecLabel: 'Créer', hrefSec: '/studio/ads' } as never} />,
     )],
     ['HomeMarques', renderToStaticMarkup(
-      <HomeMarques marques={[{ id: 'b1', name: 'Neva' }, { id: 'b2', name: 'Klorea' }] as never} activeId="b1" />,
+      <HomeMarques marques={[{ id: 'b1', name: 'Neva' }, { id: 'b2', name: 'Klorea' }] as never} activeId="b1" gererMarques />,
     )],
     ['JourneyPanel (relance + prochaine étape)', renderToStaticMarkup(<JourneyPanel j={j} relance={r} />)],
     ['JourneyPanel (en attente)', renderToStaticMarkup(<JourneyPanel j={{ ...j, next: null }} />)],
@@ -59,6 +62,11 @@ describe('lot 19A · Accueil rendu · chaque cadre porte son rôle', () => {
       expect(fautes, `Cadre(s) hors rôle :\n${fautes.join('\n')}`).toEqual([]);
     });
   }
+  it('la carte « Nouvelle marque » est un état vide (pointillé --line-2, r-card)', () => {
+    const balise = /<a\b[^>]*href="\/brands\/new"[^>]*>/.exec(ecrans[2]![1])?.[0] ?? '';
+    expect(balise, 'la carte « Nouvelle marque » n’est pas rendue').not.toBe('');
+    expect(balise).toContain('border:1px dashed var(--line-2);border-radius:var(--r-card)');
+  });
   it('les cartes « Analyser & décider » sont des surfaces', () => {
     const html = ecrans[0]![1];
     const balise = /<a\b[^>]*href="\/adsmap"[^>]*>/.exec(html)?.[0] ?? '';
