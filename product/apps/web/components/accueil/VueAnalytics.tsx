@@ -25,6 +25,8 @@ import { MetaKeyMetrics } from '../../app/(app)/analytics/MetaKeyMetrics';
 import { BrandTile } from '../BrandIcons';
 import { CreativeIntel, type CreativeStats } from '../../app/(app)/analytics/CreativeIntel';
 import { SectionAttribution } from '../../app/(app)/jarvis/sections/SectionAttribution';
+// Le titre d'écran suit le jeton partagé (lot 19 · réconciliation des titres).
+import { h1 } from '../ui';
 
 const TPL_LABEL: Record<string, string> = { problem_solution: 'Problème/solution', before_after: 'Avant/après', testimonial: 'Témoignage', benefits: 'Bénéfices', ugc: 'UGC', stat: 'Stat', offer: 'Offre' };
 
@@ -227,7 +229,6 @@ export async function VueAnalytics() {
   );
 }
 
-const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;
 const h2 = { margin: 0, fontSize: 15, fontWeight: 500, color: 'var(--ink)' } as const;
 const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
 const cardLabel = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 8 } as const;

@@ -47,6 +47,7 @@ vi.mock('../app/actions/adsmap-attribution', () => ({ attributionViewAction: asy
 import Dashboard from '../app/(app)/dashboard/page';
 import { GET } from '../app/(app)/analytics/route';
 import { VueAnalytics } from '../components/accueil/VueAnalytics';
+import { h1 as h1Ui } from '../components/ui';
 
 /** Rend un arbre serveur (composants asynchrones compris) en HTML. */
 async function html(n: ReactNode): Promise<string> {
@@ -102,6 +103,15 @@ describe('Accueil · ?vue=analytics rend l’Analytics complet, sans copie', () 
     const seule = await html(await VueAnalytics());
     expect(seule.length).toBeGreaterThan(2000);
     expect(h.includes(seule), 'la vue montée par l’Accueil diverge du composant partagé').toBe(true);
+  });
+
+  it('le titre de la vue porte le jeton h1 partagé, sa rangée n’a aucune marge haute', async () => {
+    const h = await accueil({ vue: 'analytics' });
+    const attendu = /style="([^"]*)"/.exec(await html(<h1 style={h1Ui}>x</h1>))![1];
+    const m = /<div style="([^"]*)"><h1 style="([^"]*)">Analytics<\/h1>/.exec(h);
+    expect(m, 'titre Analytics introuvable ou sorti de sa rangée').toBeTruthy();
+    expect(m![2], 'le titre Analytics ne rend pas le jeton h1 partagé').toBe(attendu);
+    expect(m![1], 'la rangée de titre porte une marge haute').not.toMatch(/margin(-top)?:/);
   });
 
   it('l’ancre #attribution existe sur la nouvelle adresse', async () => {
