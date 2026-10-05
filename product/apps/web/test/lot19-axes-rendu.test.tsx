@@ -85,3 +85,13 @@ describe('Lot 19 · chaque titre d’écran porte le jeton h1 de la charte', () 
     });
   }
 });
+
+describe('Lot 19 · dette 18B · le lien « Veille » de Ce qui scale est une cible de 44 px', () => {
+  it('mesuré à 20 px de haut avant · il porte la hauteur minimale de la charte', () => {
+    const src = readFileSync(join(APP, 'veille', 'scale', 'page.tsx'), 'utf8');
+    const lien = /<Link href="\/veille" style=\{\{([^}]*)\}\}>Veille<\/Link>/.exec(src)?.[1];
+    expect(lien, 'le lien « Veille » du titre a disparu').toBeDefined();
+    expect(lien, 'le lien « Veille » n’a pas la hauteur de cible de la charte').toMatch(/minHeight: CIBLE_TACTILE_MIN/);
+    expect(lien, 'sans inline-flex, minHeight ne s’applique pas à un lien en ligne').toMatch(/display: 'inline-flex'/);
+  });
+});

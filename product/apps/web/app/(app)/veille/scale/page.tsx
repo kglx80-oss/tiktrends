@@ -7,7 +7,7 @@ import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { Bandeau } from '../../../../components/Bandeau';
 import { getActiveBrand } from '../../../../lib/brands';
 import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
-import { classifyAngle, capPerBrand, median, BANDEAU_DEMO_VEILLE, lireFiltresScale } from '@tiktrends/core';
+import { classifyAngle, capPerBrand, median, BANDEAU_DEMO_VEILLE, lireFiltresScale, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { getVeilleCache, isFresh, setVeilleCache, refreshAllowed } from '../../../../lib/veille-cache';
 import { Empty } from '../../../../components/Empty';
 import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
@@ -134,7 +134,9 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
   return (
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <Link href="/veille" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>Veille</Link>
+        {/* Retour à la Veille · cible de 44 px (charte) sans grossir le texte ·
+            mesuré à 20 px de haut avant (lot 18B, dette reprise au lot 19). */}
+        <Link href="/veille" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>Veille</Link>
         <span style={{ color: 'var(--muted)' }}>/</span>
         <h1 style={h1}>Ce qui scale</h1>
         {q && <span style={{ fontSize: 12, color: 'var(--muted)' }}>· {country} · {q}</span>}
