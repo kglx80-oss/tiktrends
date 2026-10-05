@@ -20,8 +20,8 @@ import { VueAnalytics } from '../../../components/accueil/VueAnalytics';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Dashboard({ searchParams }: { searchParams?: Promise<ParamsRequete> } = {}) {
-  const params: ParamsRequete = (await searchParams) ?? {};
+export default async function Dashboard({ searchParams }: { searchParams: Promise<ParamsRequete> }) {
+  const params = await searchParams;
   const s = await getSession();
 
   // Ce que le RÔLE ouvre, rubrique par rubrique · la matrice existante, lue

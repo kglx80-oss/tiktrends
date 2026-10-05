@@ -54,7 +54,7 @@ async function html(n: ReactNode): Promise<string> {
   return new Response(prelude).text();
 }
 const accueil = async (params?: Record<string, string | string[]>) =>
-  html(await Dashboard(params ? { searchParams: Promise.resolve(params) } : undefined));
+  html(await Dashboard({ searchParams: Promise.resolve(params ?? {}) }));
 const nav = (h: string) => {
   const i = h.indexOf('aria-label="Vues de l’accueil"');
   return i < 0 ? null : h.slice(h.lastIndexOf('<nav', i), h.indexOf('</nav>', i) + 6);
