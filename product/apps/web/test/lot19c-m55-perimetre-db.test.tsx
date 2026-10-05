@@ -64,7 +64,7 @@ import type { InspoAd } from '@tiktrends/integrations';
 const ad = (id: string, mediaType: string): InspoAd =>
   ({ id, platform: 'meta', status: 'active', daysRunning: 9, mediaType, advertiserName: 'Annonceur ' + id, thumbnailUrl: `https://cdn.exemple.test/${id}.jpg` });
 const classe = (id: string, auteur: string) => ({ id, version: 1, date: '2026-10-04T09:00:00Z', auteur });
-const sauver = (ws: string, brandId: string | null, ext: string, snap: Record<string, unknown>) =>
+const sauver = (ws: string, brandId: string | null, ext: string, snap: InspoAd | Record<string, unknown>) =>
   db!.insert(schema.savedAds).values({ workspaceId: ws, brandId, platform: 'meta', externalId: ext, snapshot: snap, createdAt: new Date('2026-10-01T10:00:00Z') });
 async function ligne(ws: string, ext: string) {
   const [r] = await db!.select().from(schema.savedAds)
