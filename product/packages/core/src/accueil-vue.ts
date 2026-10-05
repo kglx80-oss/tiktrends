@@ -57,8 +57,13 @@ export const VUES_ACCUEIL: ReadonlyArray<{ vue: VueAccueil; libelle: string }> =
 /** Les paramètres tels que Next les livre à une page (`searchParams` résolu). */
 export type ParamsRequete = Readonly<Record<string, string | readonly string[] | undefined>>;
 
-/** Les paires clé/valeur, dans l'ordre reçu · une clé répétée garde chaque valeur. */
-function paires(params: ParamsRequete): Array<[string, string]> {
+/**
+ * Les paires clé/valeur, dans l'ordre reçu · une clé répétée garde chaque valeur.
+ * Une chaîne de requête brute (`?a=1&b=2`) garde son ordre EXACT · un objet suit
+ * l'ordre de ses clés (celui que Next livre à une page).
+ */
+function paires(params: ParamsRequete | string): Array<[string, string]> {
+  if (typeof params === 'string') return [...new URLSearchParams(params.startsWith('?') ? params.slice(1) : params)];
   const out: Array<[string, string]> = [];
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined) continue;
@@ -80,7 +85,7 @@ export function lireVueAccueil(params: ParamsRequete): VueAccueil {
  * nue), puis tous les autres paramètres, dans leur ordre, valeurs répétées
  * comprises. Une `vue` reçue est remplacée, jamais doublée.
  */
-export function hrefVueAccueil(vue: VueAccueil, params: ParamsRequete = {}): string {
+export function hrefVueAccueil(vue: VueAccueil, params: ParamsRequete | string = {}): string {
   const p = new URLSearchParams();
   if (vue !== 'accueil') p.append(PARAM_VUE_ACCUEIL, vue);
   for (const [k, v] of paires(params)) if (k !== PARAM_VUE_ACCUEIL) p.append(k, v);
@@ -88,8 +93,12 @@ export function hrefVueAccueil(vue: VueAccueil, params: ParamsRequete = {}): str
   return s ? `${CHEMIN_ACCUEIL}?${s}` : CHEMIN_ACCUEIL;
 }
 
-/** La cible de l'ancienne route `/analytics` · la vue Analytics de l'Accueil, paramètres préservés. */
-export function redirectionAnalytics(params: ParamsRequete = {}): string {
+/**
+ * La cible de l'ancienne route `/analytics` · la vue Analytics de l'Accueil,
+ * paramètres préservés. La route la reçoit en chaîne brute (`request.url`) pour
+ * garder l'ordre exact, valeurs répétées comprises.
+ */
+export function redirectionAnalytics(params: ParamsRequete | string = {}): string {
   return hrefVueAccueil('analytics', params);
 }
 

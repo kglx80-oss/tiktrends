@@ -14,7 +14,7 @@ import { journey } from '@tiktrends/core';
  *    l'Accueil est OCTET POUR OCTET celui du composant partagé (aucune copie),
  *    ancre `#attribution` comprise ;
  *  - les paramètres traversent les onglets ;
- *  - l'ancienne route `/analytics` redirige, paramètres préservés.
+ *  - l'ancienne route `/analytics` répond une vraie 307, paramètres préservés.
  */
 
 type Session = {
@@ -45,7 +45,7 @@ vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 vi.mock('../app/actions/adsmap-attribution', () => ({ attributionViewAction: async () => ({}), creativeTrendAction: async () => ({}) }));
 
 import Dashboard from '../app/(app)/dashboard/page';
-import AnalyticsPage from '../app/(app)/analytics/page';
+import { GET } from '../app/(app)/analytics/route';
 import { VueAnalytics } from '../components/accueil/VueAnalytics';
 
 /** Rend un arbre serveur (composants asynchrones compris) en HTML. */
@@ -127,19 +127,24 @@ describe('Accueil · ?vue=analytics rend l’Analytics complet, sans copie', () 
   });
 });
 
-describe('/analytics · route historique, redirigée sans perte', () => {
-  const cible = async (params: Record<string, string | string[]>) => {
-    try { await AnalyticsPage({ searchParams: Promise.resolve(params) }); } catch (e) { return String((e as Error).message); }
-    return 'aucune redirection';
+describe('/analytics · route historique, vraie 307 HTTP, sans perte', () => {
+  // La route est un route handler · la réponse est lue telle que le navigateur la reçoit.
+  const reponse = (recherche: string) => GET(new Request(`http://hote.invalide/analytics${recherche}`));
+  const cible = (recherche: string) => {
+    const r = reponse(recherche);
+    return `${r.status} ${r.headers.get('location')}`;
   };
-  it('sans paramètre', async () => {
-    expect(await cible({})).toBe('REDIRECT:/dashboard?vue=analytics');
+  it('sans paramètre', () => {
+    expect(cible('')).toBe('307 /dashboard?vue=analytics');
   });
-  it('chaque paramètre, dans l’ordre, valeurs répétées comprises', async () => {
-    expect(await cible({ periode: '7j', marque: 'b1', tag: ['été', 'a&b'] }))
-      .toBe('REDIRECT:/dashboard?vue=analytics&periode=7j&marque=b1&tag=%C3%A9t%C3%A9&tag=a%26b');
+  it('chaque paramètre, dans son ordre EXACT, valeurs répétées et clés numériques comprises', () => {
+    expect(cible('?periode=7j&marque=b1&tag=%C3%A9t%C3%A9&tag=a%26b&2=x&q=un+mot'))
+      .toBe('307 /dashboard?vue=analytics&periode=7j&marque=b1&tag=%C3%A9t%C3%A9&tag=a%26b&2=x&q=un+mot');
   });
-  it('une `vue` étrangère ne détourne pas la cible, et n’est pas doublée', async () => {
-    expect(await cible({ vue: 'accueil', a: '1' })).toBe('REDIRECT:/dashboard?vue=analytics&a=1');
+  it('une `vue` étrangère ne détourne pas la cible, et n’est pas doublée', () => {
+    expect(cible('?vue=accueil&a=1')).toBe('307 /dashboard?vue=analytics&a=1');
+  });
+  it('Location relative · jamais l’hôte interne derrière le proxy', () => {
+    expect(reponse('?a=1').headers.get('location')).not.toMatch(/^https?:/);
   });
 });

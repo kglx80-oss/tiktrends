@@ -13,15 +13,15 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
    * déclaration. Ajouter une page sans l'inscrire ici la rendrait invisible du
    * fil d'Ariane · silencieusement, comme avant.
    */
-  const pagesDe = (dir: string, prefixe = ''): string[] => {
+  const pagesDe = (dir: string, prefixe = '', fichiers: readonly string[] = ['page.tsx']): string[] => {
     const out: string[] = [];
     for (const e of readdirSync(dir)) {
       const p = join(dir, e);
       if (statSync(p).isDirectory()) {
         // Les groupes entre parenthèses n'apparaissent pas dans l'URL.
         const seg = e.startsWith('(') && e.endsWith(')') ? '' : `/${e}`;
-        out.push(...pagesDe(p, prefixe + seg));
-      } else if (e === 'page.tsx') {
+        out.push(...pagesDe(p, prefixe + seg, fichiers));
+      } else if (fichiers.includes(e)) {
         out.push(prefixe || '/');
       }
     }
@@ -47,8 +47,10 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
   it('chaque entrée déclarée a sa page', () => {
     // Ici on balaie tout `app/`, pas seulement le groupe applicatif · un écran
     // déclaré peut légitimement vivre hors du rail (l'accueil d'onboarding),
-    // ce qui compte est qu'il existe.
-    const reelles = new Set(pagesDe(join(process.cwd(), 'app')));
+    // ce qui compte est qu'il existe. Une route historique peut n'être plus
+    // qu'une redirection serveur (route handler · `/analytics` → l'Accueil,
+    // lot 19A) · elle mène quelque part, pas dans le vide.
+    const reelles = new Set(pagesDe(join(process.cwd(), 'app'), '', ['page.tsx', 'route.ts']));
     const fantomes = ROUTES.map((r) => r.path).filter((p) => !reelles.has(p));
     expect(fantomes, `Chemin(s) déclaré(s) sans page · le rail y mènerait dans le vide : ${fantomes.join(', ')}`)
       .toEqual([]);

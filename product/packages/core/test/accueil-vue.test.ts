@@ -60,6 +60,11 @@ describe('accueil · la redirection de l’ancienne route /analytics', () => {
     expect(redirectionAnalytics({ a: '1', b: ['2', '3'] })).toBe('/dashboard?vue=analytics&a=1&b=2&b=3');
     expect(redirectionAnalytics({ vue: 'accueil', a: '1' })).toBe('/dashboard?vue=analytics&a=1');
   });
+  it('une chaîne brute garde son ordre EXACT (une clé numérique ne remonte pas en tête)', () => {
+    expect(redirectionAnalytics('?b=1&2=x&a=3&a=4')).toBe('/dashboard?vue=analytics&b=1&2=x&a=3&a=4');
+    expect(redirectionAnalytics('b=1')).toBe('/dashboard?vue=analytics&b=1');
+    expect(redirectionAnalytics('')).toBe('/dashboard?vue=analytics');
+  });
   it('le lanceur de support reste ancré sur la nouvelle route (comme sur /analytics)', () => {
     expect(placementLanceurSupport('/analytics')).toBe('ancre');
     expect(placementLanceurSupport('/dashboard')).toBe('ancre');
