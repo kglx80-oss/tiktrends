@@ -3,7 +3,7 @@ import type { InspoAd } from '@tiktrends/integrations';
 import {
   CIBLE_TACTILE_MIN, FORMAT_INCERTAIN, FORMAT_NON_CLASSE, TRIS_FORMATS, VERSION_FORMATS_CREATIFS,
   compterFormats, criteresActifsFormats, dateCourteFormat, ecrireCriteresFormats, estFormatCreatif, formatCreatif,
-  grilleFormat, libellePlateforme, libelleVueFormat, plateformesPresentes,
+  grilleFormat, libelleClasserSauvegardes, libellePlateforme, libelleSauvegardesAClasser, libelleVueFormat, plateformesPresentes,
   type AnnonceFormat, type CriteresFormats, type FormatCreatif,
 } from '@tiktrends/core';
 import { AdCard } from '../../../../components/AdCard';
@@ -116,7 +116,7 @@ function Liste({ compte, c, filtre }: { compte: ReturnType<typeof compterFormats
       <Empty
         tone="todo" icon="tag" title="Aucune sauvegarde classée pour l’instant."
         why={`Les compteurs par format se remplissent quand tu classes tes sauvegardes, une à une · rien n’est deviné. ${compte.nonClassees > 1 ? `${compte.nonClassees} annonces attendent leur format.` : `${compte.nonClassees} annonce attend son format.`}`}
-        action={{ label: compte.nonClassees > 0 ? `Classer mes ${pluriel(compte.nonClassees, 'sauvegarde', 'sauvegardes')}` : 'Voir les incertaines', href: compte.nonClassees > 0 ? versNonClassees : lien({ ...c, format: FORMAT_INCERTAIN }),
+        action={{ label: compte.nonClassees > 0 ? libelleClasserSauvegardes(compte.nonClassees) : 'Voir les incertaines', href: compte.nonClassees > 0 ? versNonClassees : lien({ ...c, format: FORMAT_INCERTAIN }),
           // Même chemin, autre recherche · le routeur client ne termine pas
           // toujours cette transition (mesuré en recette 19C, comme #106b) ·
           // navigation complète, comme les autres sorties de cet écran.
@@ -128,7 +128,7 @@ function Liste({ compte, c, filtre }: { compte: ReturnType<typeof compterFormats
     <>
       {compte.nonClassees > 0 && (
         <div data-a-classer style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', marginBottom: 18, ...vide }}>
-          <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>{pluriel(compte.nonClassees, 'sauvegarde à classer', 'sauvegardes à classer')} · comptées à part, dans aucun format</span>
+          <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>{libelleSauvegardesAClasser(compte.nonClassees)}</span>
           <a href={versNonClassees} style={{ ...puce(true) }}>Classer maintenant</a>
         </div>
       )}

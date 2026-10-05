@@ -421,3 +421,25 @@ export function dateCourteFormat(iso: string | null | undefined): string | null 
   const z = (x: number) => String(x).padStart(2, '0');
   return `${z(d.getUTCDate())}/${z(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
 }
+
+/* ── Accord des sauvegardes à classer (message 56) ───────────────────────── */
+
+/**
+ * Le geste qui mène aux non classées · « mes » appelle le pluriel · au
+ * singulier, « ma sauvegarde » (mesuré avant · « Classer mes 1 sauvegarde »).
+ */
+export function libelleClasserSauvegardes(n: number): string {
+  if (n <= 0) return 'Rien à classer';
+  return n === 1 ? 'Classer ma sauvegarde' : `Classer mes ${n} sauvegardes`;
+}
+
+/**
+ * Le bandeau des non classées · nom ET participe s'accordent (0 et 1 au
+ * singulier, à la française) · mesuré avant · « 1 sauvegarde à classer ·
+ * comptées à part ».
+ */
+export function libelleSauvegardesAClasser(n: number): string {
+  return n > 1
+    ? `${n} sauvegardes à classer · comptées à part, dans aucun format`
+    : `${n} sauvegarde à classer · comptée à part, dans aucun format`;
+}

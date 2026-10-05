@@ -3,7 +3,7 @@ import {
   ANCIENNES_VALEURS_FORMAT, FORMATS_CREATIFS, IDS_FORMATS_CREATIFS, LECTURE_NON_CLASSE, VERSION_FORMATS_CREATIFS,
   compterFormats, criteresActifsFormats, ecrireCriteresFormats, enregistrementFormat, formatDepuisAncienneValeur,
   formatsPourMedia, grilleFormat, lireCriteresFormats, lireFormatCreatif, mediaAnnonce, sansFormatCreatif,
-  validerChoixFormat, dateCourteFormat, type AnnonceFormat, type LectureFormat,
+  validerChoixFormat, dateCourteFormat, libelleClasserSauvegardes, libelleSauvegardesAClasser, type AnnonceFormat, type LectureFormat,
 } from '../src/formats-creatifs';
 
 /**
@@ -216,5 +216,18 @@ describe('critères dans l’URL', () => {
   it('date courte en UTC', () => {
     expect(dateCourteFormat('2026-10-05T23:30:00Z')).toBe('05/10/2026');
     expect(dateCourteFormat('n/a')).toBeNull();
+  });
+});
+
+describe('accord des sauvegardes à classer (message 56)', () => {
+  it('le geste · 0, 1, 2', () => {
+    expect(libelleClasserSauvegardes(0)).toBe('Rien à classer');
+    expect(libelleClasserSauvegardes(1), 'accord faux au singulier').toBe('Classer ma sauvegarde');
+    expect(libelleClasserSauvegardes(2)).toBe('Classer mes 2 sauvegardes');
+  });
+  it('le bandeau · 0, 1, 2', () => {
+    expect(libelleSauvegardesAClasser(0)).toBe('0 sauvegarde à classer · comptée à part, dans aucun format');
+    expect(libelleSauvegardesAClasser(1), 'accord faux au singulier').toBe('1 sauvegarde à classer · comptée à part, dans aucun format');
+    expect(libelleSauvegardesAClasser(2)).toBe('2 sauvegardes à classer · comptées à part, dans aucun format');
   });
 });
