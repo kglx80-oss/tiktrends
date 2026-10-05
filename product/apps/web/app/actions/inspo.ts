@@ -112,26 +112,58 @@ export async function classerFormatSauvegarde(input: { platform: string; externa
   return { ok: true, format: choix.id, date: enr?.date ?? null };
 }
 
-/** Range une créa sauvegardée dans un board/dossier (null = « Sans dossier »). */
-export async function setSavedAdFolder(input: { platform: string; externalId: string; folder: string | null }): Promise<void> {
+export type ResultatEcriture = { ok: true } | { ok: false; error: string };
+
+/**
+ * Message 56 · garde des écritures sur une sauvegarde existante (ranger,
+ * retirer). Même matrice que `saveAd` et `classerFormatSauvegarde` pour le
+ * RÔLE de la Veille (un lecteur client, que `/saved` renvoie à l'accueil,
+ * supprimait et déplaçait les sauvegardes de l'espace en appelant l'action) et
+ * pour le périmètre (espace + marque active). L'OFFRE n'est pas exigée ici ·
+ * un espace Starter garde `/saved` comme aujourd'hui (dette connue, rapportée ·
+ * la fermer changerait ce qu'il voit).
+ */
+async function gardeEcritureSauvegarde(input: { platform: unknown; externalId: unknown }) {
   const s = await getSession();
-  if (!s || !db) return;
-  const folder = input.folder?.trim().slice(0, 60) || null;
-  await db.update(schema.savedAds).set({ folder }).where(and(
+  if (!s || !db) return { error: 'Session expirée · reconnecte-toi puis réessaie.' } as const;
+  if (denyReason(effectiveAccess(s), Veille) === 'role') {
+    return { error: 'Ton rôle ne permet pas d’utiliser la Veille · demande à un administrateur de l’espace.' } as const;
+  }
+  const marque = await getActiveBrand(s.workspaceId);
+  const platform = typeof input.platform === 'string' ? input.platform : '';
+  const externalId = typeof input.externalId === 'string' ? input.externalId : '';
+  const espace = and(
     eq(schema.savedAds.workspaceId, s.workspaceId),
-    eq(schema.savedAds.platform, input.platform),
-    eq(schema.savedAds.externalId, input.externalId),
-  ));
+    eq(schema.savedAds.platform, platform),
+    eq(schema.savedAds.externalId, externalId),
+  );
+  const ici = marque ? and(espace, eq(schema.savedAds.brandId, marque.id)) : espace;
+  const introuvable = marque
+    ? 'Annonce introuvable dans les sauvegardes de cette marque · recharge la page.'
+    : 'Annonce introuvable dans ton espace · recharge la page.';
+  return { s, marque, espace, ici, introuvable } as const;
 }
 
-export async function unsaveAd(input: { platform: string; externalId: string }): Promise<void> {
-  const s = await getSession();
-  if (!s || !db) return;
-  await db.delete(schema.savedAds).where(and(
-    eq(schema.savedAds.workspaceId, s.workspaceId),
-    eq(schema.savedAds.platform, input.platform),
-    eq(schema.savedAds.externalId, input.externalId),
-  ));
+/** Range une créa sauvegardée dans un board/dossier (null = « Sans dossier »). */
+export async function setSavedAdFolder(input: { platform: string; externalId: string; folder: string | null }): Promise<ResultatEcriture> {
+  const g = await gardeEcritureSauvegarde(input);
+  if ('error' in g) return { ok: false, error: g.error };
+  const folder = input.folder?.trim().slice(0, 60) || null;
+  const maj = await db!.update(schema.savedAds).set({ folder }).where(g.ici).returning({ id: schema.savedAds.id });
+  return maj.length ? { ok: true } : { ok: false, error: g.introuvable };
+}
+
+export async function unsaveAd(input: { platform: string; externalId: string }): Promise<ResultatEcriture> {
+  const g = await gardeEcritureSauvegarde(input);
+  if ('error' in g) return { ok: false, error: g.error };
+  const retirees = await db!.delete(schema.savedAds).where(g.ici).returning({ id: schema.savedAds.id });
+  if (retirees.length === 0 && g.marque) {
+    // Rien dans CETTE marque · si l'espace la garde pour une autre marque, on le
+    // dit au lieu de répondre « retirée ». Absente partout · déjà retirée, oui.
+    const [ailleurs] = await db!.select({ id: schema.savedAds.id }).from(schema.savedAds).where(g.espace).limit(1);
+    if (ailleurs) return { ok: false, error: g.introuvable };
+  }
+  return { ok: true };
 }
 
 export async function followBrand(input: { platform: string; name: string; externalId?: string; logoUrl?: string; domain?: string }): Promise<void> {
