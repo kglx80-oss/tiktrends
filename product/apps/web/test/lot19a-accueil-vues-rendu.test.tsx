@@ -165,6 +165,18 @@ describe('/analytics · route historique, vraie 307 HTTP, sans perte', () => {
   it('une `vue` étrangère ne détourne pas la cible, et n’est pas doublée', () => {
     expect(cible('?vue=accueil&a=1')).toBe('307 /dashboard?vue=analytics&a=1');
   });
+  it('au routeur client (Link · RSC), une réponse NON-RSC · Next bascule en navigation complète', async () => {
+    for (const r of [
+      GET(new Request('http://hote.invalide/analytics?a=1', { headers: { RSC: '1' } })),
+      GET(new Request('http://hote.invalide/analytics?a=1&_rsc=xyz')),
+    ]) {
+      expect(r.status, 'le routeur client reçoit encore une redirection qu’il ne termine pas').toBe(200);
+      expect(r.headers.get('location')).toBeNull();
+      expect(r.headers.get('content-type'), 'un flux RSC laisserait le routeur en navigation souple').not.toMatch(/text\/x-component/);
+      expect(r.headers.get('content-type')).toMatch(/^text\/plain/);
+      expect(await r.text()).not.toBe('');
+    }
+  });
   it('Location relative · jamais l’hôte interne derrière le proxy', () => {
     expect(reponse('?a=1').headers.get('location')).not.toMatch(/^https?:/);
   });

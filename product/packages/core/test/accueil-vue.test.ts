@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lireVueAccueil, hrefVueAccueil, redirectionAnalytics, resoudreAccueil, VUES_ACCUEIL } from '../src/accueil-vue';
+import { lireVueAccueil, hrefVueAccueil, redirectionAnalytics, resoudreAccueil, requeteDuRouteurClient, VUES_ACCUEIL } from '../src/accueil-vue';
 import { roleVoitRubrique } from '../src/equipe-plateforme';
 import { placementLanceurSupport } from '../src/lanceur-support';
 import { chargementCompletRequis } from '../src/meme-chemin';
@@ -65,6 +65,13 @@ describe('accueil · la redirection de l’ancienne route /analytics', () => {
     expect(redirectionAnalytics('?b=1&2=x&a=3&a=4')).toBe('/dashboard?vue=analytics&b=1&2=x&a=3&a=4');
     expect(redirectionAnalytics('b=1')).toBe('/dashboard?vue=analytics&b=1');
     expect(redirectionAnalytics('')).toBe('/dashboard?vue=analytics');
+  });
+  it('le routeur client se reconnaît (en-tête RSC ou paramètre _rsc), le navigateur non', () => {
+    expect(requeteDuRouteurClient({ rsc: '1', recherche: '' })).toBe(true);
+    expect(requeteDuRouteurClient({ rsc: null, recherche: '?a=1&_rsc=abc' })).toBe(true);
+    expect(requeteDuRouteurClient({ rsc: null, recherche: '?a=1' })).toBe(false);
+    expect(requeteDuRouteurClient({ rsc: undefined, recherche: '' })).toBe(false);
+    expect(requeteDuRouteurClient({ rsc: '0', recherche: '?rsc=1' })).toBe(false);
   });
   it('le lanceur de support reste ancré sur la nouvelle route (comme sur /analytics)', () => {
     expect(placementLanceurSupport('/analytics')).toBe('ancre');

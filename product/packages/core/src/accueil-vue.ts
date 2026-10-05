@@ -102,6 +102,24 @@ export function redirectionAnalytics(params: ParamsRequete | string = {}): strin
   return hrefVueAccueil('analytics', params);
 }
 
+/**
+ * La requête vient-elle du ROUTEUR CLIENT de Next (navigation souple ou
+ * préchargement d'un `<Link href="/analytics">`) plutôt que du navigateur ?
+ * Il s'annonce par l'en-tête `RSC: 1` et le paramètre `_rsc`.
+ *
+ * Mesuré en production locale · depuis l'Accueil, le lien « Analytics » de la
+ * page suivait la 307 vers `/dashboard?vue=analytics` · même chemin, autre
+ * recherche · et la transition ne se terminait JAMAIS (0 sur 5, 20 s
+ * d'attente) ; l'entrée du rail, 1 fois sur 5. On répond donc au routeur par
+ * une réponse qui n'est pas un flux RSC · Next en fait alors une navigation
+ * COMPLÈTE vers `/analytics` (fragment compris), que la 307 achève. Même
+ * doctrine que `chargementCompletRequis` · le navigateur, pas le routeur.
+ */
+export function requeteDuRouteurClient(p: { rsc: string | null | undefined; recherche: string }): boolean {
+  if (p.rsc === '1') return true;
+  return new URLSearchParams(p.recherche.startsWith('?') ? p.recherche.slice(1) : p.recherche).has('_rsc');
+}
+
 export interface OngletAccueil {
   vue: VueAccueil;
   libelle: string;

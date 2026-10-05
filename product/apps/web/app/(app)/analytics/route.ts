@@ -1,4 +1,4 @@
-import { redirectionAnalytics } from '@tiktrends/core';
+import { redirectionAnalytics, requeteDuRouteurClient } from '@tiktrends/core';
 
 /**
  * `/analytics` · route historique, toujours valide (lot 19A).
@@ -26,6 +26,14 @@ import { redirectionAnalytics } from '@tiktrends/core';
  * vue. `Location` est RELATIVE · elle se résout sur l'hôte demandé, jamais sur
  * l'hôte interne derrière le proxy.
  *
+ * ── Le routeur client (liens `<Link href="/analytics">`) ─────────────────────
+ *
+ * Suivre la 307 en navigation souple laissait l'écran sur l'Accueil (0 sur 5
+ * depuis la carte « Analytics » de l'Accueil · même chemin, autre recherche).
+ * Au routeur (`requeteDuRouteurClient`, noyau), on répond un texte qui n'est
+ * pas un flux RSC · Next bascule alors en navigation COMPLÈTE vers cette même
+ * adresse (fragment compris), que la 307 ci-dessous achève.
+ *
  * ── Les gardes ───────────────────────────────────────────────────────────────
  *
  * Inchangées · `/analytics` n'exigeait que la session (la coquille la vérifie)
@@ -35,5 +43,12 @@ import { redirectionAnalytics } from '@tiktrends/core';
 export const dynamic = 'force-dynamic';
 
 export function GET(request: Request): Response {
-  return new Response(null, { status: 307, headers: { Location: redirectionAnalytics(new URL(request.url).search) } });
+  const recherche = new URL(request.url).search;
+  const vary = { Vary: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch' };
+  if (requeteDuRouteurClient({ rsc: request.headers.get('rsc'), recherche })) {
+    return new Response('Analytics vit dans l’Accueil · navigation complète.', {
+      status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', ...vary },
+    });
+  }
+  return new Response(null, { status: 307, headers: { Location: redirectionAnalytics(recherche), ...vary } });
 }
