@@ -25,7 +25,12 @@ import { CIBLE_TACTILE_MIN, type OngletAccueil } from '@tiktrends/core';
 export function OngletsAccueil({ onglets }: { onglets: readonly OngletAccueil[] }) {
   if (onglets.length === 0) return null;
   return (
-    <nav aria-label="Vues de l’accueil" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '1px solid var(--line)', margin: '0 0 14px' }}>
+    // Emprise mesurée (1440×720, lot 19A) · avant le sélecteur, la rangée de
+    // cartes « Tes marques » finissait à 682 px ; un sélecteur de 44 + 1 + 14
+    // la poussait à 740, coupée sous la ligne de flottaison que l'Accueil promet
+    // de garder visible à 720. Il mord donc 18 px sur la respiration haute du
+    // cadre (32 px, il en reste 14) et ne laisse que 6 px dessous · 717 px.
+    <nav aria-label="Vues de l’accueil" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '1px solid var(--line)', margin: '-18px 0 6px' }}>
       {onglets.map((o) => (
         <a
           key={o.vue}
