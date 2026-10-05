@@ -89,7 +89,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           rendu, onglet actif annoncé (recette #106b · NavFiche). */}
       <RetourMarques />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 0 4px', flexWrap: 'wrap' }}>
         {/* La favicon du site de la marque · même avatar identitaire que le
             sélecteur et les concurrents · repli sur les initiales teintées. */}
         <AvatarSite nom={b.name} site={b.url} taille={46} rayon={12} />

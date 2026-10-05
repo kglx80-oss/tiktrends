@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { ROLE_LABEL, PLAN_LABEL, roleAtLeast, type Role } from '../../../lib/rbac';
 import { revokeInviteAction } from '../../actions/invites';
-import { btnGhost, panel, Msg, cadrePage, surface, tuile } from '../../../components/ui';
+import { btnGhost, panel, Msg, cadrePage, surface, tuile, h1 } from '../../../components/ui';
 import { ADMIN_THEME } from '../../../lib/theme';
 import { PageInfo } from '../../../components/PageInfo';
 import { InviteMemberButton } from '../../../components/InviteMemberButton';
@@ -57,7 +57,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   return (
     <main style={{ ...ADMIN_THEME, ...cadrePage }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Équipe & droits</h1>
+        <h1 style={h1}>Équipe & droits</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
