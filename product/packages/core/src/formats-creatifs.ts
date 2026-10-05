@@ -180,8 +180,15 @@ const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 /**
  * Lit `snapshot_json.formatCreatif` · forme attendue `{ id, version, date, auteur }`.
  * Tolère une ancienne valeur (`static_product` → `packshot`) et une chaîne nue.
- * Tout le reste (id inconnu, `ai_generated`, nombre, tableau, objet vide,
- * snapshot absent) → `non_classe`. Ne lève jamais.
+ * Tout le reste (id inconnu, nombre, tableau, objet vide, snapshot absent) →
+ * `non_classe`. Ne lève jamais.
+ *
+ * `versionAncienne` · tout classement qui n'a pas été choisi dans la liste
+ * COURANTE est signalé « à revoir » (message 55 · e) · version antérieure,
+ * absence de version (l'action v1 en écrit toujours une), valeur de l'ancienne
+ * taxonomie reprise par `ANCIENNES_VALEURS_FORMAT`, ou valeur RETIRÉE
+ * (`ai_generated` · lue non classée, mais le classement perdu se dit). Une
+ * reprise n'est jamais un reclassement silencieux.
  */
 export function lireFormatCreatif(snapshot: unknown): LectureFormat {
   if (!estObjet(snapshot)) return LECTURE_NON_CLASSE;
@@ -192,13 +199,17 @@ export function lireFormatCreatif(snapshot: unknown): LectureFormat {
   const version = typeof rec.version === 'number' && Number.isFinite(rec.version) ? rec.version : null;
   const date = typeof rec.date === 'string' && !Number.isNaN(Date.parse(rec.date)) ? rec.date : null;
   const auteur = typeof rec.auteur === 'string' && rec.auteur ? rec.auteur : null;
-  const meta = { version, versionAncienne: version !== null && version < VERSION_FORMATS_CREATIFS, date, auteur };
+  const avantListe = version === null || version < VERSION_FORMATS_CREATIFS;
+  const meta = { version, versionAncienne: avantListe, date, auteur };
 
   if (rec.id === FORMAT_INCERTAIN) return { etat: FORMAT_INCERTAIN, id: null, ...meta };
   if (estFormatCreatif(rec.id)) return { etat: 'classe', id: rec.id, ...meta };
+  const ancienne = typeof rec.id === 'string' && Object.prototype.hasOwnProperty.call(ANCIENNES_VALEURS_FORMAT, rec.id);
+  if (!ancienne) return LECTURE_NON_CLASSE;
   const repris = formatDepuisAncienneValeur(rec.id);
-  if (repris) return { etat: 'classe', id: repris, ...meta };
-  return LECTURE_NON_CLASSE;
+  if (repris) return { etat: 'classe', id: repris, ...meta, versionAncienne: true };
+  // Retirée de la liste · non classée, signalée.
+  return { ...LECTURE_NON_CLASSE, version, versionAncienne: true, date, auteur };
 }
 
 /**

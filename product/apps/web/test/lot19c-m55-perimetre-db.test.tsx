@@ -214,3 +214,26 @@ describe('d · pont Adsmap · droit vérifié côté serveur', () => {
     expect(plus).toContain('Préparer un test · Adsmap');
   });
 });
+
+describe('e · ancienne taxonomie déjà en base', () => {
+  it('une ancienne valeur reprise reste lisible ET est signalée « à revoir »', async () => {
+    const h = await rendre({ format: 'face_camera' });
+    const c = carte(h, 'y-ancienne');
+    expect(c, 'la sauvegarde à l’ancienne valeur n’est pas rendue').not.toBe('');
+    expect(c).toContain('<option value="face_camera" selected="">Face caméra</option>');
+    expect(c, 'ancienne valeur reclassée en silence').toContain('classée avec une version antérieure de la liste, à revoir');
+  });
+
+  it('une valeur retirée (ai_generated) · non classée, et signalée', async () => {
+    const h = await rendre({ format: 'non_classe' });
+    const c = carte(h, 'y-retiree');
+    expect(c, 'la sauvegarde à la valeur retirée n’est pas rendue').not.toBe('');
+    expect(c).toContain('<option value="non_classe" selected="">Non classé</option>');
+    expect(c, 'valeur retirée effacée en silence').toContain('classée avec une version antérieure de la liste, à revoir');
+  });
+
+  it('un classement v1 n’est PAS signalé', async () => {
+    const h = await rendre({ format: 'packshot' });
+    expect(carte(h, 'y-camille')).not.toContain('version antérieure');
+  });
+});

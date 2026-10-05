@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ANCIENNES_VALEURS_FORMAT, FORMATS_CREATIFS, IDS_FORMATS_CREATIFS, VERSION_FORMATS_CREATIFS,
+  ANCIENNES_VALEURS_FORMAT, FORMATS_CREATIFS, IDS_FORMATS_CREATIFS, LECTURE_NON_CLASSE, VERSION_FORMATS_CREATIFS,
   compterFormats, criteresActifsFormats, ecrireCriteresFormats, enregistrementFormat, formatDepuisAncienneValeur,
   formatsPourMedia, grilleFormat, lireCriteresFormats, lireFormatCreatif, mediaAnnonce, sansFormatCreatif,
   validerChoixFormat, dateCourteFormat, type AnnonceFormat, type LectureFormat,
@@ -65,6 +65,19 @@ describe('lecture sûre de snapshot_json.formatCreatif', () => {
     const l = lireFormatCreatif({ formatCreatif: { id: 'incertain' } });
     expect(l.etat).toBe('incertain');
     expect(l.id).toBeNull();
+  });
+  it('ancienne taxonomie en base · lisible ET signalée, jamais reclassée en silence (message 55 · e)', () => {
+    // Reprise une à une · la valeur reste lisible, mais elle n'a pas été choisie
+    // dans CETTE liste · à revoir.
+    expect(lireFormatCreatif({ formatCreatif: 'static_text' }), 'ancienne valeur reclassée en silence').toMatchObject({ etat: 'classe', id: 'texte_seul', versionAncienne: true });
+    expect(lireFormatCreatif({ formatCreatif: { id: 'testimonial' } })).toMatchObject({ etat: 'classe', id: 'avis_client', versionAncienne: true });
+    // Retirée (`ai_generated`) · non classée, mais le classement perdu est signalé.
+    expect(lireFormatCreatif({ formatCreatif: { id: 'ai_generated' } }), 'valeur retirée effacée en silence').toMatchObject({ etat: 'non_classe', id: null, versionAncienne: true });
+    // Sans version · pas écrit par l'action v1 · signalé aussi.
+    expect(lireFormatCreatif({ formatCreatif: { id: 'meme' } }).versionAncienne).toBe(true);
+    // Écrit par la v1 · rien à signaler ; une valeur inconnue n'est pas une ancienne valeur.
+    expect(lireFormatCreatif({ formatCreatif: { id: 'meme', version: VERSION_FORMATS_CREATIFS } }).versionAncienne).toBe(false);
+    expect(lireFormatCreatif({ formatCreatif: { id: 'inconnu_total', version: 1 } })).toEqual(LECTURE_NON_CLASSE);
   });
   it('une version ancienne est lisible et signalée', () => {
     expect(lireFormatCreatif({ formatCreatif: { id: 'meme', version: 0 } })).toMatchObject({ etat: 'classe', id: 'meme', versionAncienne: true });
