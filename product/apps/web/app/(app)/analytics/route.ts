@@ -28,8 +28,9 @@ import { redirectionAnalytics, requeteDuRouteurClient } from '@tiktrends/core';
  *
  * ── Le routeur client (liens `<Link href="/analytics">`) ─────────────────────
  *
- * Suivre la 307 en navigation souple laissait l'écran sur l'Accueil (0 sur 5
- * depuis la carte « Analytics » de l'Accueil · même chemin, autre recherche).
+ * Suivre la 307 en navigation souple laissait parfois l'écran sur l'Accueil
+ * (rail 1 fois sur 5, carte « Analytics » de l'Accueil 1 fois sur 3 · même
+ * chemin, autre recherche, mesuré en production locale).
  * Au routeur (`requeteDuRouteurClient`, noyau), on répond un texte qui n'est
  * pas un flux RSC · Next bascule alors en navigation COMPLÈTE vers cette même
  * adresse (fragment compris), que la 307 ci-dessous achève.
