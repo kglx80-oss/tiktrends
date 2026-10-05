@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { CIBLE_TACTILE_MIN, FILIATION_NON_ENREGISTREE, type BriefDepuisTest } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
+import { surface, tuile } from '../../../../components/ui';
 import { ModifierBrief } from './ModifierBrief';
 import { MemoIteration } from './RepriseIteration';
 
@@ -96,7 +97,7 @@ export function PanneauIteration({ it, marque, brandId }: { it: EtatIteration; m
 
 function Bloc({ titre, note, children }: { titre: string; note: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'grid', gap: 5, alignContent: 'start', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--paper)', minWidth: 0 }}>
+    <div style={{ display: 'grid', gap: 5, alignContent: 'start', padding: '10px 12px', ...tuile, background: 'var(--paper)', minWidth: 0 }}>
       <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)' }}>
         {titre} <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>· {note}</span>
       </span>
@@ -107,7 +108,8 @@ function Bloc({ titre, note, children }: { titre: string; note: string; children
 
 const cadre: CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '0 0 18px', padding: '12px 14px',
-  borderRadius: 14, border: '1px solid var(--line-2)', background: 'var(--surface)', minWidth: 0,
+  // Panneau de premier niveau · rôle `surface` (lot 19D).
+  ...surface, background: 'var(--surface)', minWidth: 0,
 };
 const texte: CSSProperties = { margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 };
 const lienSecondaire: CSSProperties = {

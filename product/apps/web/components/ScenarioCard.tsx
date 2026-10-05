@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { Icon } from './Icon';
+import { surface } from './ui';
 import { useRouter } from 'next/navigation';
 import { generateScenarioImageAction } from '../app/actions/brand-detail';
 
@@ -32,7 +33,7 @@ export function ScenarioCard({ brandId, scenarioId, title, context, imageUrl, co
   });
 
   return (
-    <div style={{ display: 'flex', gap: 13, alignItems: 'flex-start', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: 13, marginBottom: 10 }}>
+    <div style={{ display: 'flex', gap: 13, alignItems: 'flex-start', ...surface, background: 'var(--surface)', padding: 13, marginBottom: 10 }}>
       {/* Vignette */}
       <div style={{ width: 86, height: 86, flexShrink: 0, borderRadius: 11, overflow: 'hidden', background: 'var(--paper)', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {url

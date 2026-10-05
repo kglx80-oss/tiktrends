@@ -4,7 +4,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, PLAN_PRICE, PLAN_CREDITS, type Plan } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { analyzePlanNet, analyzePlanRisk, creditMarkup, corporateTaxRate, CREDIT_EUR } from '@tiktrends/core';
-import { cadrePage, h1 } from '../../../../components/ui';
+import { cadrePage, surface, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +70,7 @@ export default async function FinancePage() {
 
       {/* Répartition par plan */}
       <h2 style={h2}>Par formule</h2>
-      <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', marginBottom: 26 }}>
+      <div style={{ overflowX: 'auto', ...surface, background: 'var(--surface)', marginBottom: 26 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
           <thead>
             <tr>{['Formule', 'Prix HT', 'Clients', 'MRR', 'Marge nette/ab.', 'Net/mois', 'Santé'].map((h, i) => (
@@ -100,7 +100,7 @@ export default async function FinancePage() {
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 12 }}>
         {rows.map((r) => (
-          <div key={r.plan} style={{ border: `1px solid ${r.overAllocated ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`, borderRadius: 14, background: r.overAllocated ? 'rgba(245,166,35,.06)' : 'var(--surface)', padding: 16 }}>
+          <div key={r.plan} style={{ border: `1px solid ${r.overAllocated ? 'rgba(245,166,35,.4)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: r.overAllocated ? 'rgba(245,166,35,.06)' : 'var(--surface)', padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <b style={{ fontSize: 15, color: 'var(--ink)' }}>{r.label}</b>
               <span style={{ fontSize: 12, color: 'var(--muted)' }}>{eur(r.price)}/mois</span>
@@ -131,7 +131,7 @@ export default async function FinancePage() {
 
 function Kpi({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: boolean }) {
   return (
-    <div style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+    <div style={{ ...surface, background: 'var(--surface)', padding: '14px 16px' }}>
       <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>{label}</div>
       <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, marginTop: 4, color: accent ? 'var(--accent-strong)' : 'var(--ink)' }}>{value}</div>
       {hint && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>{hint}</div>}

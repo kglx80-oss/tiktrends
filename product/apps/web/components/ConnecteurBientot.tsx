@@ -1,4 +1,5 @@
 import { BrandTile } from './BrandIcons';
+import { surface } from './ui';
 
 /**
  * Une carte du catalogue de connecteurs · ceux qui ne sont pas encore branchables.
@@ -25,7 +26,8 @@ export interface ConnecteurAVenir {
 
 export function ConnecteurBientot({ c }: { c: ConnecteurAVenir }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '12px 14px' }}>
+    // Carte d'une grille principale · rôle `surface` (lot 19D).
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, ...surface, background: 'var(--surface)', padding: '12px 14px' }}>
       <BrandTile name={c.name} color={c.color} glyph={c.glyph} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{c.name}</div>

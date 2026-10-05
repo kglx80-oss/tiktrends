@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { surface } from '../../../../components/ui';
 import { CIBLE_TACTILE_MIN, listeManques } from '@tiktrends/core';
 import {
   batchDetailAction, candidatesAction, createBatchAction, setBatchAdAction,
@@ -182,7 +183,8 @@ export function Lots({ batches, brandName }: {
       {mobile && liste.length === 0 ? champCreation : mobile ? (
         <div style={{ display: 'grid', gap: 9 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', minWidth: 0 }}>
-            <div style={{ flex: 1, minWidth: 0, padding: '8px 11px', borderRadius: 10, border: '1px solid var(--accent-strong)', background: 'var(--accent-soft)', color: 'var(--ink)', fontSize: 12 }}>
+            {/* Affichage du sélecteur de lot (à côté de « Changer ») · rôle `controle` DÉCLARÉ (lot 19D). */}
+            <div data-cadre="controle" style={{ flex: 1, minWidth: 0, padding: '8px 11px', borderRadius: 10, border: '1px solid var(--accent-strong)', background: 'var(--accent-soft)', color: 'var(--ink)', fontSize: 12 }}>
               {lotCourant ? (
                 <>
                   <strong>Lot {lotCourant.number}</strong> · {lotCourant.ads} ad(s)
@@ -272,8 +274,8 @@ export function Lots({ batches, brandName }: {
 
             {/* Ce que le lot pourra conclure · avant de dépenser, pas après */}
             <div style={{
-              marginTop: 14, padding: '14px 16px', borderRadius: 13,
-              border: '1px solid var(--line)', background: 'var(--surface)',
+              marginTop: 14, padding: '14px 16px',
+              ...surface, background: 'var(--surface)',
             }}>
               <h3 style={titreSection}>Brief de lancement</h3>
               <Ligne label="Campagne" valeur={detail.brief.campaignName} onCopy={() => copier(detail.brief.campaignName, 'camp')} copie={copie === 'camp'} />
@@ -311,7 +313,7 @@ export function Lots({ batches, brandName }: {
                 {detail.ads.map((a) => (
                   <li key={a.id} style={{
                     border: `1px solid ${a.blocking ? 'rgba(245,166,35,.35)' : 'var(--line)'}`,
-                    borderRadius: 11, padding: '10px 13px', background: 'var(--surface)',
+                    borderRadius: surface.borderRadius, padding: '10px 13px', background: 'var(--surface)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                       <strong style={{ fontSize: 12.5, color: 'var(--ink)' }}>{a.variantCode}</strong>
@@ -352,7 +354,7 @@ export function Lots({ batches, brandName }: {
             )}
 
             {prep && (
-              <div style={{ marginTop: 14, padding: '11px 14px', borderRadius: 11, border: '1px solid var(--line)', background: 'var(--paper)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+              <div style={{ marginTop: 14, padding: '11px 14px', ...surface, background: 'var(--paper)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
                 {prep.named} nom(s) généré(s), {prep.ready} ad(s) passée(s) en prêt.
                 {prep.skipped?.length ? ` ${prep.skipped.length} ad(s) restent en brouillon · le détail est sur chaque ligne.` : ' Le lot est prêt à partir.'}
               </div>

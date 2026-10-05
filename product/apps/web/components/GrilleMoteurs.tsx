@@ -1,5 +1,8 @@
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { VignetteMoteurVue } from './VignetteMoteurVue';
+import { tuile } from './ui';
+
+const RAYON_CONTROLE = tuile.borderRadius;
 
 /**
  * Le choix d'un modèle d'image, en grille de cartes · la version légère du
@@ -27,7 +30,8 @@ export function GrilleMoteurs({ moteurs, valeur, onChoisir }: {
             onClick={() => onChoisir(m.key)}
             style={{
               display: 'grid', gap: 0, padding: 0, minHeight: CIBLE_TACTILE_MIN, textAlign: 'left', overflow: 'hidden',
-              borderRadius: 14, cursor: 'pointer',
+              // Bascule (aria-pressed) · rôle `controle` · bordure des contrôles, rayon r-md (lot 19D).
+            borderRadius: RAYON_CONTROLE, cursor: 'pointer',
               border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
               background: on ? 'rgba(230,0,126,.05)' : 'var(--paper)',
               boxShadow: on ? '0 0 0 3px rgba(230,0,126,.12)' : 'none',

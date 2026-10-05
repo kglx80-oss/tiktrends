@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { surface } from '../../../../components/ui';
 import { KIND_LABEL, isTrivialMerge, CIBLE_TACTILE_MIN, type MergePlan, type NodeKind } from '@tiktrends/core';
 import {
   curationViewAction, validateNodeAction, rejectNodeAction, validateManyAction,
@@ -36,8 +37,9 @@ import { useToast } from '../../../../components/Toast';
  * vide reviendrait à cacher l'outil exactement le jour où on en a besoin.
  */
 
+// Carte de premier niveau · rôle `surface` (lot 19D).
 const carte: CSSProperties = {
-  border: '1px solid var(--line)', borderRadius: 14, padding: '13px 16px',
+  ...surface, padding: '13px 16px',
   background: 'var(--surface)', display: 'grid', gap: 8,
 };
 

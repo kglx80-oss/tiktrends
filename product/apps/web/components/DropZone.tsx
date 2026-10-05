@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode, type CSSProperties } from 'react';
 import { Icon } from './Icon';
+import { tuile } from './ui';
 
 /** Compresse une image navigateur en data URI léger (jpeg), directement exploitable par l'IA. */
 export function imageFileToDataUri(file: File, maxSide = 1400, quality = 0.85): Promise<string> {
@@ -74,7 +75,8 @@ export function DropZone({ onImages, onError, disabled, multiple = false, maxSid
       onDragEnter={(e) => { if (!disabled && hasFiles(e)) { e.preventDefault(); setOver(true); } }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setOver(false); }}
       onDrop={handleDrop}
-      style={{ position: 'relative', borderRadius: 14, transition: 'box-shadow .12s, background .12s', ...style, ...(over ? { boxShadow: '0 0 0 2px var(--accent-strong)', background: 'rgba(255,60,120,.05)' } : null) }}
+      // Zone de dépôt posée dans un panneau · rôle `tuile` (r-md · lot 19D).
+      style={{ position: 'relative', borderRadius: tuile.borderRadius, transition: 'box-shadow .12s, background .12s', ...style, ...(over ? { boxShadow: '0 0 0 2px var(--accent-strong)', background: 'rgba(255,60,120,.05)' } : null) }}
     >
       {children}
       {over && (

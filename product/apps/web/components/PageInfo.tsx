@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { DepliableEchap } from './DepliableEchap';
 import { useIsMobile } from './useIsMobile';
+import { tuile } from './ui';
 
 /**
  * Le mode d'emploi de la page · un « chip » repérable qui déplie une courte
@@ -49,7 +50,8 @@ export function PageInfo({ children, title = 'Mode d’emploi', minHeight, mb }:
       </summary>
       <div style={{
         position: 'absolute', zIndex: 10, top: 'calc(100% + 6px)', left: 0, width: 360, maxWidth: '80vw',
-        padding: '13px 15px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)',
+        // L'encart déplié est un cadre (rôle `tuile`), pas un contrôle · --line, r-md (lot 19D).
+        padding: '13px 15px', ...tuile, background: 'var(--surface)',
         boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6,
       }}>
         {children}

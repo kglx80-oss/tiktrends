@@ -21,7 +21,7 @@ import { adsDeLaMarque } from '../../../../lib/adsmap-marque';
 import { RepriseIteration } from './RepriseIteration';
 import { RetourVeille } from '../../../../components/RetourVeille';
 import { PanneauIteration, type EtatIteration } from './PanneauIteration';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, surface } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
@@ -82,7 +82,7 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
     return (
       <main style={wrap}>
         <h1 style={h1}>Pubs IA</h1>
-        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
+        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0' }}>
             {why === 'plan' ? 'Les Pubs IA sont disponibles à partir du plan Core.' : "Ton rôle ne permet pas d'y accéder."}

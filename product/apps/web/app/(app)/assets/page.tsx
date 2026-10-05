@@ -9,7 +9,7 @@ import { getDriveState } from '../../actions/drive';
 import { PageInfo } from '../../../components/PageInfo';
 import { AssetsLibrary } from './AssetsLibrary';
 import { DriveConnect } from './DriveConnect';
-import { cadrePage, h1 } from '../../../components/ui';
+import { cadrePage, cadreSignal, h1 } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +55,8 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
       </PageInfo>
 
       {(okDrive || errDrive) && (
-        <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 12, fontSize: 12.5, border: '1px solid var(--line-2)', background: errDrive ? 'rgba(255,120,140,.08)' : 'rgba(126,232,191,.08)', color: errDrive ? '#ff9db0' : '#7ee8bf' }}>
+        // Retour de connexion · rôle `signal` · sa couleur sémantique, pas la bordure des contrôles (lot 19D).
+        <div style={{ marginTop: 14, padding: '10px 14px', fontSize: 12.5, ...cadreSignal(errDrive ? 'rgba(255,77,109,.4)' : 'rgba(24,204,140,.4)'), background: errDrive ? 'rgba(255,120,140,.08)' : 'rgba(126,232,191,.08)', color: errDrive ? '#ff9db0' : '#7ee8bf' }}>
           {errDrive || 'Google Drive connecté · choisis un dossier à synchroniser ci-dessous.'}
         </div>
       )}

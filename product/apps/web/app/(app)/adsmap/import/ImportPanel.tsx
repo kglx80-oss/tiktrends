@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
+import { surface } from '../../../../components/ui';
 import { CIBLE_TACTILE_MIN, LIBELLE_STATUT_AD, LIBELLE_VERDICT, type AdStatus, type VerdictValue } from '@tiktrends/core';
 import { previewImportAction, applyImportAction, type PreviewResult } from '../../../actions/adsmap-import';
 
@@ -170,7 +171,8 @@ function Chiffre({ label, v, fort }: { label: string; v: number; fort?: boolean 
 // déborder la PAGE à 390 · le conteneur `overflowX:auto` de la table n'était
 // jamais contraint. À 0, la section rétrécit à la piste et la table scrolle chez
 // elle. Desktop inchangé (la table tient dans les 900 px du contenu).
-const panel: CSSProperties = { minWidth: 0, border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' };
+// Section de premier niveau · rôle `surface` (lot 19D).
+const panel: CSSProperties = { minWidth: 0, ...surface, background: 'var(--surface)', padding: '18px 20px' };
 const h2: CSSProperties = { margin: '0 0 4px', fontSize: 16, fontWeight: 800, color: 'var(--ink)' };
 const sub: CSSProperties = { color: 'var(--muted)', fontSize: 12.5, margin: '0 0 14px', lineHeight: 1.6, maxWidth: 660 };
 const bandeau: CSSProperties = { padding: '12px 15px', borderRadius: 12, border: '1px solid', fontSize: 13, lineHeight: 1.6 };

@@ -4,6 +4,7 @@ import { useRef, type ReactNode } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { usePiegeFocus } from './use-piege-focus';
 import { Portail } from './Portail';
+import { surface } from './ui';
 
 /**
  * Fenêtre modale réutilisable (pop-up). Base du système « tout en pop-up » :
@@ -52,7 +53,8 @@ export function Modal({
         role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18,
+          // Rôle `surface` (lot 19D) · --line, r-card · le voile et l'ombre détachent déjà la fenêtre.
+          width: '100%', maxWidth, background: 'var(--surface)', ...surface,
           boxShadow: '0 30px 70px -20px rgba(0,0,0,.7)', overflow: 'hidden', maxHeight: '80vh', display: 'flex', flexDirection: 'column',
         }}
       >

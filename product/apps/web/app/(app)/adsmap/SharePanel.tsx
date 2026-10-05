@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { cadreSignal, surface, tuile } from '../../../components/ui';
 import {
   listShareLinksAction, createShareLinkAction, revokeShareLinkAction, type ShareLink,
 } from '../../actions/adsmap-share';
@@ -72,7 +73,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
       <div role="dialog" aria-label="Partager la carte" style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 70,
         width: 'min(560px, calc(100vw - 32px))', maxHeight: '80vh', overflowY: 'auto',
-        background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18,
+        background: 'var(--surface)', ...surface,
         boxShadow: '0 30px 70px -20px rgba(0,0,0,.6)', padding: '22px 24px',
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -94,7 +95,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
         </ul>
 
         {error && (
-          <p style={{ marginTop: 13, padding: '9px 12px', borderRadius: 10, background: 'rgba(254,44,85,.09)', border: '1px solid rgba(254,44,85,.3)', color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ marginTop: 13, padding: '9px 12px', background: 'rgba(254,44,85,.09)', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
             {error}
           </p>
         )}
@@ -129,7 +130,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
           {links?.length === 0 && <EmptyLine>Aucun lien actif · crée le premier ci-dessus pour partager tes créas gagnantes en marque blanche, sans jamais donner accès à l’outil.</EmptyLine>}
           {links?.map((l) => (
             <div key={l.id} style={{
-              border: '1px solid var(--line)', borderRadius: 11, padding: '9px 12px',
+              ...tuile, padding: '9px 12px',
               background: 'var(--paper)', display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap',
             }}>
               <code style={{

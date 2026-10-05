@@ -6,7 +6,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { deleteBrandAction } from '../../actions/brands';
-import { Msg, cadrePage, h1 } from '../../../components/ui';
+import { Msg, cadrePage, cadreSignal, surface, h1 } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { NewBrandButton } from '../../../components/NewBrandButton';
 import { ConfirmButton } from '../../../components/ConfirmButton';
@@ -86,7 +86,8 @@ export default async function BrandsPage({ searchParams }: { searchParams: Promi
 
       <div style={{ display: 'grid', gap: 12 }}>
         {rows.map((b) => (
-          <div key={b.id} style={{ border: `1px solid ${active?.id === b.id ? 'var(--line-2)' : 'var(--line)'}`, borderRadius: 16, background: 'var(--surface)', padding: '16px 18px' }}>
+          // Carte de premier niveau · `surface` · la marque active est mise en avant (`signal`, accent doux).
+          <div key={b.id} style={{ ...(active?.id === b.id ? cadreSignal('rgba(254,44,85,.35)') : surface), background: 'var(--surface)', padding: '16px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <AvatarSite nom={b.name} site={b.url} />
               <div style={{ flex: 1, minWidth: 200 }}>
