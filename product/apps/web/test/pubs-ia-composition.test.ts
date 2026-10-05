@@ -56,7 +56,8 @@ describe('Pubs IA · recette Codex passe1 · vue mobile réellement galerie', ()
 
   it('les réglages avancés · un contrôle sobre replié (pas de grosse carte), phrase masquée sur mobile', () => {
     // Le chrome de carte (bordure, fond) n'apparaît qu'une fois DÉPLIÉ.
-    expect(studio, 'la carte volumineuse subsiste même repliée').toContain("border: avance ? '1px solid var(--line-2)' : 'none'");
+    // Lot 19D · dépliée, c'est une `surface` (bordure des cadres, plus celle des contrôles).
+    expect(studio, 'la carte volumineuse subsiste même repliée').toContain("border: avance ? surface.border : 'none'");
     // La phrase descriptive tombe sur mobile.
     expect(studio, 'la phrase descriptive ne se replie pas sur mobile').toContain('{!compact && (');
   });

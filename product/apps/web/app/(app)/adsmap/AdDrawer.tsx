@@ -9,6 +9,7 @@ import {
   type AdDetail, type ValidateInput,
 } from '../../actions/adsmap-verdict';
 import { PartageGagnante } from './PartageGagnante';
+import { cadreSignal, tuile } from '../../../components/ui';
 import { Portail } from '../../../components/Portail';
 import { usePiegeFocus } from '../../../components/use-piege-focus';
 
@@ -224,7 +225,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
         )}
 
         {error && (
-          <p style={{ marginTop: 14, padding: '10px 13px', borderRadius: 10, background: 'rgba(254,44,85,.09)', border: '1px solid rgba(254,44,85,.3)', color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ marginTop: 14, padding: '10px 13px', background: 'rgba(254,44,85,.09)', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
             {error}
           </p>
         )}
@@ -460,7 +461,7 @@ function Section({ titre, children }: { titre: string; children: ReactNode }) {
 
 function Chiffre({ l, v, sub }: { l: string; v: string; sub?: string }) {
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '8px 10px', background: 'var(--paper)' }}>
+    <div style={{ ...tuile, padding: '8px 10px', background: 'var(--paper)' }}>
       <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{l}</div>
       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', marginTop: 2 }}>{v}</div>
       {sub && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1 }}>{sub}</div>}

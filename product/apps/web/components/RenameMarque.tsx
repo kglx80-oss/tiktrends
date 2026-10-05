@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { renameBrandAction } from '../app/actions/brands';
 import { SubmitButton } from './SubmitButton';
 import { Icon } from './Icon';
+import { h1 } from './ui';
 import { CIBLE_TACTILE_MIN, extensionCible, FICHE_MARQUE_MESURES } from '@tiktrends/core';
 
 /**
@@ -23,7 +24,7 @@ export function RenameMarque({ id, name }: { id: string; name: string }) {
   if (!edite) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--ink)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</h1>
+        <h1 style={{ ...h1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</h1>
         {/* Zone cliquable de 44 px, carré visible de 34 inchangé · le bouton est
             transparent et sa marge négative annule l'extension (recette #106b ·
             noyau `extensionCible`). */}

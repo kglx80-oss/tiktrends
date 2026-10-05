@@ -7,7 +7,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { EmptyLine } from '../../../../components/Empty';
 import { replyTicketAction, setTicketStatusAction } from '../../../actions/support';
-import { input, Msg, cadrePage, colonneLecture } from '../../../../components/ui';
+import { input, Msg, cadrePage, colonneLecture, surface, h1 } from '../../../../components/ui';
 import { Icon } from '../../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -48,11 +48,11 @@ export default async function TicketThreadPage({ params, searchParams }: {
     <main style={cadrePage}><div style={colonneLecture('fil')}>
       {/* Retour à la liste · le fil n'en offrait aucun (recette #106). */}
       <Link href="/support" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}>‹ Tous les tickets</Link>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '10px 0 4px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 4px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>{TYPE_ICON[tk.type] ? <Icon name={TYPE_ICON[tk.type]!} size={13} /> : null}{TYPE_LABEL[tk.type] ?? tk.type}</span>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--ink)', overflowWrap: 'anywhere', minWidth: 0 }}>{tk.title}</h1>
+            <h1 style={{ ...h1, overflowWrap: 'anywhere', minWidth: 0 }}>{tk.title}</h1>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>Ouvert par {tk.authorName || 'un membre'} · {new Date(tk.createdAt as Date).toLocaleDateString('fr-FR')}</div>
         </div>
@@ -85,7 +85,8 @@ export default async function TicketThreadPage({ params, searchParams }: {
       <div style={{ display: 'grid', gap: 12, margin: '18px 0' }}>
         {thread.map((m) => (
           <div key={m.id} style={{
-            border: '1px solid var(--line)', borderRadius: 14, padding: '13px 15px',
+            // Message du fil · bloc de premier niveau · rôle `surface` (lot 19D).
+            ...surface, padding: '13px 15px',
             background: m.isStaff ? 'rgba(122,162,255,.07)' : 'var(--surface)',
             borderColor: m.isStaff ? 'rgba(122,162,255,.3)' : 'var(--line)',
           }}>
@@ -103,7 +104,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
 
       {/* Répondre */}
       {tk.status === 'resolved' && !isAdmin ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 14, color: 'var(--muted)', fontSize: 13 }}>
+        <div style={{ ...surface, padding: 14, color: 'var(--muted)', fontSize: 13 }}>
           Ce ticket est résolu. Tu peux encore écrire ci-dessous · ton message s’ajoute au fil, et un admin de l’espace peut le rouvrir.
         </div>
       ) : null}

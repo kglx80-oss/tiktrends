@@ -5,7 +5,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Radar } from './Radar';
 import { effectiveAccess } from '../../../../lib/access';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,8 +30,8 @@ export default async function RadarPage() {
 
   return (
     <main style={cadrePage}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Radar</h1>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '0 0 4px' }}>
+        <h1 style={h1}>Radar</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 20, maxWidth: 800, lineHeight: 1.6 }}>

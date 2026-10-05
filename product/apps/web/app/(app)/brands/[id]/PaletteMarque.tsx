@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
+import { tuile } from '../../../../components/ui';
 
 /**
  * La palette de la marque · au REPOS, des cercles de couleur, rien d'autre.
@@ -81,7 +82,7 @@ export function PaletteMarque({ colors }: { colors: string[] }) {
 
       {/* Le HEX, seulement au clic · avec le seul geste qu'on en fait, Copier. */}
       {ouverte && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'var(--surface-2, rgba(255,255,255,.03))', maxWidth: 260 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '8px 10px', ...tuile, background: 'var(--surface-2, rgba(255,255,255,.03))', maxWidth: 260 }}>
           <span style={{ width: 22, height: 22, borderRadius: 6, background: ouverte, border: '1px solid rgba(255,255,255,.12)', flexShrink: 0 }} />
           <code style={{ fontSize: 13, color: 'var(--ink)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.02em', flex: 1 }}>{ouverte}</code>
           <button

@@ -7,7 +7,7 @@ import { COMPETITORS, AI_STACK, CAPABILITIES, GAPS, ADVANTAGES, type Cap } from 
 import { analyseSurvie, PROVEN_DAYS, bilanHypotheses, perfParAngle, type AnalyseSurvie, type BilanHypotheses, type PerfParAngle, type CreaLancee, type VerdictValue } from '@tiktrends/core';
 import { eq, inArray } from 'drizzle-orm';
 import { Icon } from '../../../../components/Icon';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, cadreSignal, surface, tuile, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,8 +85,8 @@ export default async function IntelligencePage() {
 
   return (
     <main style={cadrePage}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0 4px', flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Intelligence marché</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 4px', flexWrap: 'wrap' }}>
+        <h1 style={h1}>Intelligence marché</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 6, marginBottom: 22, maxWidth: 760, lineHeight: 1.6 }}>
@@ -96,7 +96,7 @@ export default async function IntelligencePage() {
 
       {/* Matrice comparative */}
       <h2 style={{ margin: '0 0 12px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Matrice comparative</h2>
-      <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden', marginBottom: 30 }}>
+      <div style={{ ...surface, background: 'var(--surface)', overflow: 'hidden', marginBottom: 30 }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 680 }}>
             <thead>
@@ -125,7 +125,7 @@ export default async function IntelligencePage() {
 
       {/* Où faire mieux + avantages */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 16, marginBottom: 32 }}>
-        <div style={{ border: '1px solid rgba(245,176,67,.35)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(245,166,35,.06), var(--surface))', padding: '18px 20px' }}>
+        <div style={{ ...cadreSignal('rgba(245,176,67,.35)'), background: 'linear-gradient(180deg, rgba(245,166,35,.06), var(--surface))', padding: '18px 20px' }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="target" size={15} /> Où l'on doit faire mieux</h3>
           <div style={{ display: 'grid', gap: 12 }}>
             {GAPS.map((g) => (
@@ -140,7 +140,7 @@ export default async function IntelligencePage() {
             ))}
           </div>
         </div>
-        <div style={{ border: '1px solid rgba(126,232,191,.35)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(61,220,151,.06), var(--surface))', padding: '18px 20px' }}>
+        <div style={{ ...cadreSignal('rgba(126,232,191,.35)'), background: 'linear-gradient(180deg, rgba(61,220,151,.06), var(--surface))', padding: '18px 20px' }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="star" size={15} /> Nos avantages à presser</h3>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 9, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
             {ADVANTAGES.map((a, i) => <li key={i}>{a}</li>)}
@@ -157,7 +157,7 @@ export default async function IntelligencePage() {
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 10, marginBottom: 30 }}>
         {AI_STACK.map((l, i) => (
-          <div key={l.layer} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '13px 15px' }}>
+          <div key={l.layer} style={{ ...surface, background: 'var(--surface)', padding: '13px 15px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
               <b style={{ fontSize: 13.5, color: 'var(--ink)' }}>{l.layer}</b>
@@ -174,7 +174,7 @@ export default async function IntelligencePage() {
 
       <div style={{ display: 'grid', gap: 16 }}>
         {COMPETITORS.map((c) => (
-          <div key={c.key} style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: '20px 22px' }}>
+          <div key={c.key} style={{ ...surface, background: 'var(--surface)', padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
               <h3 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--ink)' }}>{c.name}</h3>
               <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '2px 8px', borderRadius: 999, color: 'var(--accent-strong)', border: '1px solid var(--line-2)' }}>{c.tag}</span>
@@ -183,7 +183,7 @@ export default async function IntelligencePage() {
             </div>
             <p style={{ margin: '10px 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>{c.positioning}</p>
 
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)', background: 'rgba(255,255,255,.04)', border: '1px solid var(--line)', borderRadius: 10, padding: '7px 11px', marginBottom: 14 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)', background: 'rgba(255,255,255,.04)', ...tuile, padding: '7px 11px', marginBottom: 14 }}>
               <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 2 }}><Icon name="coin" size={13} /></span><b style={{ color: 'var(--ink)' }}>Tarif estimé :</b> {c.pricing}
             </div>
 
@@ -198,7 +198,7 @@ export default async function IntelligencePage() {
               </div>
             </div>
 
-            <div style={{ marginTop: 14, padding: '12px 15px', borderRadius: 12, background: 'linear-gradient(135deg, rgba(254,44,85,.10), rgba(120,90,255,.06))', border: '1px solid var(--line-2)' }}>
+            <div style={{ marginTop: 14, padding: '12px 15px', background: 'linear-gradient(135deg, rgba(254,44,85,.10), rgba(120,90,255,.06))', ...tuile }}>
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent-strong)', marginBottom: 4 }}>Notre angle</div>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--ink)', lineHeight: 1.55 }}>{c.ourEdge}</p>
             </div>
@@ -338,7 +338,8 @@ export default async function IntelligencePage() {
   );
 }
 
-const cardSurvie = { border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: 18, marginBottom: 30 } as const;
+// Carte de premier niveau · rôle `surface` (lot 19D).
+const cardSurvie = { ...surface, background: 'var(--surface)', padding: 18, marginBottom: 30 } as const;
 const sth = { padding: '8px 12px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' } as const;
 const std = { padding: '8px 12px', color: 'var(--ink-2)' } as const;
 

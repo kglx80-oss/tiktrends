@@ -11,7 +11,7 @@ import { getPlanConfig } from '../../../lib/settings';
 import { updatePlanConfigAction } from '../../actions/platform';
 import { grantTestPackAction, revokeTrialAction } from '../../actions/beta';
 import { trialStatus, TRIAL_DEFAULT_CREDITS, TRIAL_DEFAULT_DAYS } from '../../../lib/trial';
-import { input, Msg, cadrePage } from '../../../components/ui';
+import { input, Msg, cadrePage, cadreSignal, surface, h1 } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { DiagnosticDeploiement } from '../../../components/DiagnosticDeploiement';
 import { currentDeployment } from '../../../lib/deployment';
@@ -84,7 +84,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
   return (
     <main style={{ ...ADMIN_THEME, ...cadrePage }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>ADMIN+</h1>
+        <h1 style={h1}>ADMIN+</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>CONSOLE</span>
         {founder && <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#fe2c55', background: 'rgba(254,44,85,.12)' }}>FONDATEUR</span>}
       </div>
@@ -123,7 +123,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
           </div>
 
           {/* Répartition par plan */}
-          <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: 18, marginBottom: 16 }}>
+          <div style={{ ...surface, background: 'var(--surface)', padding: 18, marginBottom: 16 }}>
             <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Répartition par abonnement</h3>
             {PLANS.map((p) => {
               const nb = metrics.byPlan[p]; const pct = metrics.workspaces ? (nb / metrics.workspaces) * 100 : 0;
@@ -141,7 +141,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
           </div>
 
           {/* Table des espaces */}
-          <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden' }}>
+          <div style={{ ...surface, background: 'var(--surface)', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 16px', borderBottom: '1px solid var(--line)' }}>
               <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)', flex: 1 }}>Tous les espaces ({metrics.rows.length})</h3>
             </div>
@@ -169,7 +169,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
           </div>
 
           {/* Tarifs & allocations · éditables par le fondateur */}
-          <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: 18, marginTop: 16 }}>
+          <div style={{ ...surface, background: 'var(--surface)', padding: 18, marginTop: 16 }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Tarifs &amp; allocations par plan</h3>
             <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--muted)' }}>Modifiable ici. Le MRR et la répartition se recalculent sur ces valeurs.</p>
             <form action={updatePlanConfigAction}>
@@ -208,7 +208,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
           </p>
 
           {/* Provisionner */}
-          <form action={grantTestPackAction} style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <form action={grantTestPackAction} style={{ ...surface, background: 'var(--surface)', padding: 16, marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: '2 1 200px' }}>
               <label style={{ ...lblC }}>Espace</label>
               <select name="workspaceId" style={{ ...input, padding: '9px 10px' }}>
@@ -226,7 +226,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
           </form>
 
           {/* Table des comptes */}
-          <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden' }}>
+          <div style={{ ...surface, background: 'var(--surface)', overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 640 }}>
                 <thead>
@@ -299,7 +299,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
             {ROLE_GROUPS.map((g) => {
               const n = roster.filter((m) => m.role === g.role).length;
               return (
-                <div key={g.role} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '12px 14px' }}>
+                <div key={g.role} style={{ ...surface, background: 'var(--surface)', padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: roleColor[g.role] }} />
                     <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{g.label}</span>
@@ -311,7 +311,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
           </div>
 
           {/* Table détaillée avec suivi */}
-          <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden' }}>
+          <div style={{ ...surface, background: 'var(--surface)', overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 620 }}>
                 <thead>
@@ -359,7 +359,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
               {recent.map((t) => {
                 const st = STATUS[t.status] || STATUS.open!;
                 return (
-                  <Link key={t.id} href={`/support/${t.id}`} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '11px 13px', background: 'var(--surface)', textDecoration: 'none', display: 'block' }}>
+                  <Link key={t.id} href={`/support/${t.id}`} style={{ ...surface, padding: '11px 13px', background: 'var(--surface)', textDecoration: 'none', display: 'block' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 13, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</span>
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: st.color, background: 'rgba(255,255,255,.06)' }}>{st.label}</span>
@@ -378,7 +378,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
 
 function Kpi({ label, value, hint, accent, danger }: { label: string; value: string; hint?: string; accent?: boolean; danger?: boolean }) {
   return (
-    <div style={{ padding: '15px 16px', border: `1px solid ${accent ? 'var(--line-2)' : 'var(--line)'}`, borderRadius: 16, background: accent ? 'linear-gradient(180deg, rgba(245,166,35,.10), var(--surface))' : 'var(--surface)' }}>
+    <div style={{ padding: '15px 16px', ...(accent ? cadreSignal('rgba(245,166,35,.3)') : surface), background: accent ? 'linear-gradient(180deg, rgba(245,166,35,.10), var(--surface))' : 'var(--surface)' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 7 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 800, color: danger ? '#ff6b6b' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       {hint && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>{hint}</div>}
@@ -388,7 +388,7 @@ function Kpi({ label, value, hint, accent, danger }: { label: string; value: str
 
 function ManageCard({ href, title, desc }: { href: string; title: string; desc: string }) {
   return (
-    <Link href={href} style={{ display: 'block', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px', textDecoration: 'none' }}>
+    <Link href={href} style={{ display: 'block', ...surface, background: 'var(--surface)', padding: '14px 16px', textDecoration: 'none' }}>
       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{title}</div>
       <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 3 }}>{desc}</div>
       <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', marginTop: 10 }}>Ouvrir ›</div>

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import { phraseCompte, type Genre } from '@tiktrends/core';
 import { Icon } from './Icon';
+import { cadreSignal, surface } from './ui';
 
 /**
  * La page de garde d'une section.
@@ -78,7 +79,8 @@ export function Hub({ intro, next, cards, children }: {
       {next && (
         <Link href={next.href} style={{
           display: 'flex', alignItems: 'center', gap: 15, padding: '17px 20px', textDecoration: 'none',
-          border: '1px solid var(--accent-strong)', borderRadius: 18,
+          // Mise en avant de premier niveau · rôle `signal` (lot 19D).
+          ...cadreSignal('var(--accent-strong)'),
           background: 'linear-gradient(180deg, rgba(230,0,126,.10), var(--surface))',
         }}>
           <span style={{
@@ -109,7 +111,8 @@ function Carte({ href, icon, title, makes, when, state, count, tag }: HubCard) {
   return (
     <Link href={href} style={{
       display: 'block', padding: '18px 19px', textDecoration: 'none',
-      border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)',
+      // Carte d'une grille principale (cliquable) · rôle `surface`, pas la bordure des contrôles.
+      ...surface, background: 'var(--surface)',
       opacity: state.kind === 'locked' ? 0.72 : 1,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 11 }}>

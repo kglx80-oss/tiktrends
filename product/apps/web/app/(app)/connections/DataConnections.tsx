@@ -8,6 +8,7 @@ import { BrandTile } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
+import { surface, tuile } from '../../../components/ui';
 import { etatConnecteur, PHASE_CONNECTEUR_LABEL, type PhaseConnecteur } from '@tiktrends/core';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
@@ -69,7 +70,7 @@ function ChampJeton({ id, value, onChange, placeholder }: { id: string; value: s
 
 function Wrap({ outil, title, badge, children }: { outil: string; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div style={{ border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: 18 }}>
+    <div style={{ ...surface, background: 'var(--surface)', padding: 18 }}>
       {/* Recette A (#120) · mesuré à 390 avec un nom long · le badge d'état
           (« CONNECTÉ · À SYNCHRONISER ») débordait la carte de 16 px (46 à 360) ·
           la ligne passe à la ligne, le badge descend sous le titre. */}
@@ -299,7 +300,7 @@ export function Fraicheur({ iso }: { iso: string | null }) {
 
 function Kpi({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 10, background: 'var(--paper)', padding: '9px 10px' }}>
+    <div style={{ ...tuile, background: 'var(--paper)', padding: '9px 10px' }}>
       <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginTop: 3 }}>{value}</div>
     </div>

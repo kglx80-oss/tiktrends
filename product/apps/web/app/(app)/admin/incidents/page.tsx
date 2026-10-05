@@ -6,7 +6,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { FAMILY_LABEL, type ErrorFamily } from '../../../../lib/user-error';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, cadreSignal, surface, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,8 +73,8 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
 
   return (
     <main style={cadrePage}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Incidents techniques</h1>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '0 0 4px' }}>
+        <h1 style={h1}>Incidents techniques</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>
         <span style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 6 }}>
@@ -94,14 +94,14 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
       </p>
 
       {total === 0 ? (
-        <div style={{ border: '1px dashed rgba(126,232,191,.35)', background: 'rgba(126,232,191,.05)', borderRadius: 16, padding: '30px 24px', textAlign: 'center' }}>
+        <div style={{ ...cadreSignal('rgba(126,232,191,.35)'), background: 'rgba(126,232,191,.05)', padding: '30px 24px', textAlign: 'center' }}>
           <div style={{ fontSize: 26 }}>✓</div>
           <p style={{ margin: '8px 0 0', fontSize: 14, color: '#7ee8bf', fontWeight: 700 }}>Aucun incident sur {jours} jour(s).</p>
           <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>Toutes les générations ont abouti, ou le journal vient d'être mis en service.</p>
         </div>
       ) : (
         <>
-          <section style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', marginBottom: 16 }}>
+          <section style={{ ...surface, background: 'var(--surface)', padding: '16px 18px', marginBottom: 16 }}>
             <h2 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
               Par cause <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· {total} échec(s)</span>
             </h2>
@@ -124,7 +124,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
             </div>
           </section>
 
-          <section style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', marginBottom: 16 }}>
+          <section style={{ ...surface, background: 'var(--surface)', padding: '16px 18px', marginBottom: 16 }}>
             <h2 style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Zones touchées</h2>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
               {parScope.map((z) => (
@@ -137,7 +137,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
           </section>
 
           <h2 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Derniers échecs</h2>
-          <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ ...surface, overflow: 'hidden' }}>
             {lignes.map((r, i) => (
               <div key={r.id} style={{ padding: '11px 16px', borderTop: i === 0 ? 'none' : '1px solid var(--line)', background: 'var(--surface)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

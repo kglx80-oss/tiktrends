@@ -1,5 +1,6 @@
 import type { DeploymentState } from '@tiktrends/core';
 import { Icon } from './Icon';
+import { surface, tuile } from './ui';
 
 /**
  * Ce que le serveur exécute VRAIMENT · dans le panneau de diagnostic (CDC v7 · lot 0).
@@ -36,7 +37,7 @@ export function DiagnosticDeploiement({ etat, builtAt }: { etat: DeploymentState
     { k: 'Build', val: builtAt ? new Date(builtAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—' },
   ];
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: 18 }}>
+    <div style={{ ...surface, background: 'var(--surface)', padding: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
         <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Diagnostic du déploiement</h3>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, color: v.fg, border: `1px solid ${v.bord}` }}>
@@ -46,7 +47,7 @@ export function DiagnosticDeploiement({ etat, builtAt }: { etat: DeploymentState
       <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{etat.summary}</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
         {cases.map((c) => (
-          <div key={c.k} style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--bg)', padding: '10px 12px' }}>
+          <div key={c.k} style={{ ...tuile, background: 'var(--bg)', padding: '10px 12px' }}>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', marginBottom: 4 }}>{c.k}</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums', wordBreak: c.coupe ? 'break-all' : 'normal' }}>{c.val}</div>
           </div>

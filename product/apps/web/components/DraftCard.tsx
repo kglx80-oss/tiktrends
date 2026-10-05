@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import type { DraftView } from '../app/actions/adsmap-draft';
+import { tuile } from './ui';
 
 /**
  * Le brouillon de Jarvis, affiché.
@@ -20,7 +21,8 @@ import type { DraftView } from '../app/actions/adsmap-draft';
 export function DraftCard({ view, children }: { view: DraftView; children?: ReactNode }) {
   return (
     <div style={{
-      border: '1px solid var(--line-2)', borderRadius: 12, padding: '12px 14px',
+      // Brouillon posé dans un panneau · rôle `tuile` (--line, r-md · lot 19D).
+      ...tuile, padding: '12px 14px',
       display: 'grid', gap: 8, background: 'var(--paper)',
     }}>
       {/* Jarvis s'est corrigé · on le dit avant de montrer le résultat. */}

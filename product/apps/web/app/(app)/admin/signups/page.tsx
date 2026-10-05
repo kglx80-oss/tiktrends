@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, surface, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,15 +42,15 @@ export default async function SignupsPage() {
 
   return (
     <main style={cadrePage}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Inscriptions & onboarding</h1>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '0 0 4px' }}>
+        <h1 style={h1}>Inscriptions & onboarding</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
         Chaque nouveau compte et son profil déclaré à l'onboarding · {rows.length} espace(s).
       </p>
 
-      <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' }}>
+      <div style={{ overflowX: 'auto', ...surface, background: 'var(--surface)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
           <thead><tr>{['Espace', 'Propriétaire', 'Profil', 'Expérience pub', 'Objectifs', 'Site', 'Plan', 'Inscrit', 'Onboardé'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
           <tbody>

@@ -10,7 +10,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
 import { BarreValeur } from '../../../components/BarreValeur';
-import { cadrePage } from '../../../components/ui';
+import { cadrePage, surface, h1 } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +57,7 @@ export default async function UsagePage() {
   return (
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Utilisation des crédits</h1>
+        <h1 style={h1}>Utilisation des crédits</h1>
         <span style={{ flex: 1 }} />
         <Link href="/billing" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 16px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Abonnement &amp; factures ›</Link>
       </div>
@@ -81,7 +81,7 @@ export default async function UsagePage() {
 
       {/* Répartition par type d'action */}
       {families.length > 0 && (
-        <section style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', marginBottom: 24 }}>
+        <section style={{ ...surface, background: 'var(--surface)', padding: '16px 18px', marginBottom: 24 }}>
           <h2 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Où partent tes crédits <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· {repartition.tronquee ? `${LIMITE_JOURNAL} derniers mouvements (une partie des 30 jours)` : '30 derniers jours'}</span></h2>
           <div style={{ display: 'grid', gap: 9 }}>
             {families.map(({ label, icon, total }) => (
@@ -106,7 +106,7 @@ export default async function UsagePage() {
           action={{ label: 'Ouvrir le Studio', href: '/studio' }}
         />
       ) : (
-        <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ ...surface, overflow: 'hidden' }}>
           {rows.map((r, i) => {
             const f = familleMouvement(r.reason);
             const positive = r.delta > 0;
@@ -134,7 +134,7 @@ export default async function UsagePage() {
 
 function Card({ label, value, sub, strong }: { label: string; value: string; sub?: string; strong?: boolean }) {
   return (
-    <div style={{ border: `1px solid ${strong ? 'rgba(254,44,85,.3)' : 'var(--line)'}`, borderRadius: 16, background: strong ? 'rgba(254,44,85,.06)' : 'var(--surface)', padding: '15px 17px' }}>
+    <div style={{ border: `1px solid ${strong ? 'rgba(254,44,85,.3)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: strong ? 'rgba(254,44,85,.06)' : 'var(--surface)', padding: '15px 17px' }}>
       <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 25, fontWeight: 800, color: strong ? 'var(--accent-strong)' : 'var(--ink)', marginTop: 5, lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 5 }}>{sub}</div>}
