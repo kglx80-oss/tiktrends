@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition, type CSSProperties } from 'react';
 import { AD_DIRECTIONS } from '@tiktrends/core';
+import { tuile } from './ui';
 import {
   UNIVERSE_AUTO, UNIVERSE_FAMILIES, UNIVERSE_HINT, UNIVERSE_SWATCH,
   filterUniverses, type UniverseFamily,
@@ -117,7 +118,8 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
       {fabrique?.ready && fabrique.plan.missing.length > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 11,
-          padding: '9px 12px', borderRadius: 12, border: '1px dashed var(--line-2)', background: 'var(--paper)',
+          // Encart dans l'assistant · rôle `tuile` (pas un état vide · lot 19D).
+          padding: '9px 12px', ...tuile, background: 'var(--paper)',
         }}>
           <span style={{ fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5, flex: '1 1 240px' }}>
             {fabrique.plan.summary} Fabriqués une fois sur ton produit · un aperçu déjà fait n’est jamais refait.
@@ -151,7 +153,8 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
               key={u.key} type="button" disabled={disabled} onClick={() => onChange(u.key)}
               title={UNIVERSE_HINT[u.key] ?? ''}
               style={{
-                padding: 0, textAlign: 'left', borderRadius: 13, overflow: 'hidden', cursor: disabled ? 'default' : 'pointer',
+                // Carte d'univers à choisir · rôle `controle` · rayon r-md (lot 19D).
+                padding: 0, textAlign: 'left', borderRadius: tuile.borderRadius, overflow: 'hidden', cursor: disabled ? 'default' : 'pointer',
                 border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
                 background: on ? 'var(--accent-soft)' : 'var(--paper)',
                 opacity: disabled ? 0.55 : 1,

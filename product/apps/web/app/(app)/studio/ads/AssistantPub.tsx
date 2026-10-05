@@ -11,6 +11,7 @@ import {
 import type { AdTemplate } from '@tiktrends/ai';
 import { SelecteurMoteur } from './SelecteurMoteur';
 import { Icon } from '../../../../components/Icon';
+import { surface, tuile } from '../../../../components/ui';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 import { Portail } from '../../../../components/Portail';
 
@@ -465,7 +466,7 @@ export function EtapeVolume({ p }: { p: AssistantProps }) {
 
       {/* Le récapitulatif · cinq décisions oubliées ne valent pas mieux qu'onze
           décisions simultanées. On relit avant de payer. */}
-      <div style={{ padding: '11px 13px', borderRadius: 11, border: '1px solid var(--line)', background: 'var(--paper)' }}>
+      <div style={{ padding: '11px 13px', ...tuile, background: 'var(--paper)' }}>
         <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)', marginBottom: 6 }}>RÉCAPITULATIF</div>
         <div style={{ display: 'grid', gap: 4 }}>
           {recapitulatif(p.etat, {
@@ -493,7 +494,8 @@ const fond: React.CSSProperties = {
 };
 const boite: React.CSSProperties = {
   width: 'min(680px, 100%)', maxHeight: 'min(88vh, 860px)', display: 'flex', flexDirection: 'column',
-  border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', overflow: 'hidden',
+  // La fenêtre de l'assistant · rôle `surface` (comme `Modal` · lot 19D).
+  ...surface, background: 'var(--surface)', overflow: 'hidden',
 };
 const champ: React.CSSProperties = {
   // Pas d'`outline: none` · un champ atteignable au clavier sans anneau de focus
@@ -536,7 +538,7 @@ function Requis({ children }: { children: React.ReactNode }) {
 }
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: 0, padding: '11px 13px', borderRadius: 11, border: '1px solid var(--line)', background: 'var(--paper)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+    <p style={{ margin: 0, padding: '11px 13px', ...tuile, background: 'var(--paper)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
       {children}
     </p>
   );

@@ -5,6 +5,7 @@ import {
   type ImageModelSpec, type ConseilMoteur,
 } from '@tiktrends/core';
 import { VignetteMoteurVue } from '../../../../components/VignetteMoteurVue';
+import { cadreSignal, tuile } from '../../../../components/ui';
 
 /**
  * Le choix du moteur d'image · en grille de cartes, pas en liste de lignes.
@@ -44,7 +45,7 @@ export function SelecteurMoteur({ models, valeur, onChoisir, recommande, conseil
           par défaut et on le DIT · un défaut adossé à une mesure locale suit ce
           qu'on a prouvé. On laisse choisir quand même. */}
       {mesureActive && contredit(conseil, recommande) && (
-        <p style={{ margin: '0 0 2px', padding: '8px 11px', borderRadius: 10, border: '1px solid rgba(126,232,191,.3)', background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+        <p style={{ margin: '0 0 2px', padding: '8px 11px', ...cadreSignal('rgba(126,232,191,.3)', 'tuile'), background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
           <b style={{ color: '#7ee8bf' }}>On a retenu le moteur que ta mesure désigne, pas notre recommandation par défaut.</b>{' '}
           {conseil.resume}
         </p>
@@ -66,7 +67,8 @@ export function SelecteurMoteur({ models, valeur, onChoisir, recommande, conseil
               onClick={() => onChoisir(m.key)}
               style={{
                 display: 'grid', gap: 0, padding: 0, textAlign: 'left', overflow: 'hidden',
-                borderRadius: 14, cursor: 'pointer',
+                // Bascule (aria-pressed) · rôle `controle` · rayon r-md (lot 19D).
+                borderRadius: tuile.borderRadius, cursor: 'pointer',
                 border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
                 background: on ? 'rgba(230,0,126,.05)' : 'var(--paper)',
                 boxShadow: on ? '0 0 0 3px rgba(230,0,126,.12)' : 'none',

@@ -8,7 +8,7 @@ import { db, schema } from '@tiktrends/db';
 import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax, partConsommeeCycle, libelleMotif, LIBELLE_ACTION_CREDIT, videHistoriqueCredits } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
-import { panel, Msg, cadrePage, h1 } from '../../../components/ui';
+import { panel, Msg, cadrePage, surface, tuile, h1 } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { trialStatus } from '../../../lib/trial';
 import { isFounder } from '../../../lib/founder';
@@ -84,7 +84,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         if (!ts.isTrial || ts.daysLeft == null) return null;
         const warn = ts.expired || ts.daysLeft <= 3;
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${warn ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`, background: warn ? 'rgba(245,166,35,.08)' : 'var(--surface)', borderRadius: 14, padding: '12px 16px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${warn ? 'rgba(245,166,35,.4)' : 'var(--line)'}`, background: warn ? 'rgba(245,166,35,.08)' : 'var(--surface)', borderRadius: surface.borderRadius, padding: '12px 16px', marginBottom: 16 }}>
             <span style={{ display: 'inline-flex', color: 'var(--muted)' }}>{ts.expired ? <Icon name="clock" size={18} /> : <Icon name="coin" size={18} />}</span>
             <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 700 }}>
               {accountKind === 'staff' ? 'Compte staff' : 'Compte de test / beta'}
@@ -180,7 +180,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         {/* Cartes « net par formule » */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
           {planNet.map((p) => (
-            <div key={p.plan} style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+            <div key={p.plan} style={{ ...tuile, background: 'var(--surface)', padding: '14px 16px' }}>
               <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{p.plan}</div>
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>{p.priceEur} € / mois HT</div>
               <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: '#7ee8bf', lineHeight: 1 }}>+{Math.round(p.netEur)} €</div>
@@ -259,7 +259,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
 
         {/* Corrections de barème conseillées */}
         {suggestions.length > 0 && (
-          <div style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+          <div style={{ marginTop: 12, ...tuile, background: 'var(--surface)', padding: '14px 16px' }}>
             <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>Corrections de barème conseillées ({suggestions.length})</div>
             <div style={{ display: 'grid', gap: 6 }}>
               {suggestions.map((a) => {
@@ -283,7 +283,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         )}
 
         {/* Synthèse chef d'entreprise */}
-        <div style={{ marginTop: 12, padding: '13px 16px', borderRadius: 12, background: 'linear-gradient(135deg, rgba(254,44,85,.08), rgba(120,90,255,.05))', border: '1px solid var(--line-2)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+        <div style={{ marginTop: 12, padding: '13px 16px', background: 'linear-gradient(135deg, rgba(254,44,85,.08), rgba(120,90,255,.05))', ...tuile, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
           <b style={{ color: 'var(--ink)' }}>Lecture directeur :</b> la marge « pleine » est confortable partout, mais la <b>vidéo</b> est
           le poste qui tire la rentabilité vers le bas (coût réel élevé, sous-facturée en crédits). Deux leviers :
           {' '}1) <b>reprix</b> la vidéo dans le barème (colonne reco) ; 2) <b>encadre</b> le volume vidéo par formule
@@ -334,7 +334,8 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   );
 }
 
-const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
+// KPI de premier niveau · rôle `surface` (lot 19D).
+const card = { padding: '16px 18px', ...surface, background: 'var(--surface)' } as const;
 const cl = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 6 } as const;
 const h2 = { margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' } as const;
 const th = { padding: '4px 10px 8px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' } as const;

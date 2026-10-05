@@ -8,6 +8,7 @@ import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
 import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
+import { cadreSignal, surface } from '../../../components/ui';
 import { useIsMobile } from '../../../components/useIsMobile';
 import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, tauxReussite, verdictEffectif, TAUX_NON_CALCULABLE, type VerdictValue } from '@tiktrends/core';
 import { useRouvrirFiche } from './useRouvrirFiche';
@@ -152,14 +153,14 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
       </div>
 
       {stats.aArbitrer > 0 && (
-        <div style={{ padding: '10px 14px', borderRadius: 11, background: 'var(--accent-soft)', border: '1px solid rgba(254,44,85,.25)', fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 14, lineHeight: 1.55 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--accent-soft)', ...cadreSignal('rgba(254,44,85,.25)'), fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 14, lineHeight: 1.55 }}>
           {stats.aArbitrer} verdict(s) calculé(s) attendent d’être arbitrés. Tant qu’aucun apprentissage n’en est tiré,
           le test a coûté son budget sans rien apprendre à personne · ni à toi, ni à Jarvis. Clique <b>Arbitrer</b> sur la ligne.
         </div>
       )}
 
       {stats.sansHypothese > 0 && (
-        <div style={{ padding: '10px 14px', borderRadius: 11, background: 'rgba(245,166,35,.09)', border: '1px solid rgba(245,166,35,.3)', fontSize: 12.5, color: '#ffcf8f', marginBottom: 14 }}>
+        <div style={{ padding: '10px 14px', background: 'rgba(245,166,35,.09)', ...cadreSignal('rgba(245,166,35,.3)'), fontSize: 12.5, color: '#ffcf8f', marginBottom: 14 }}>
           {stats.sansHypothese} ad(s) en test sans hypothèse · importées de l’ancien tableur. Leur résultat ne pourra être attribué à rien tant qu’elle n’est pas écrite.
         </div>
       )}
@@ -193,7 +194,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
           </>
         );
         return mobile ? (
-          <details style={{ marginBottom: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '4px 12px' }}>
+          <details style={{ marginBottom: 12, ...surface, background: 'var(--surface)', padding: '4px 12px' }}>
             <summary style={{ listStyle: 'none', cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>
               Filtres & export{filtresActifs ? ' · actifs' : ''} <span aria-hidden style={{ color: 'var(--muted)', fontSize: 10 }}>▾</span>
             </summary>
@@ -247,7 +248,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
               ← Revenir aux cartes
             </button>
           )}
-          <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)' }}>
+          <div style={{ overflowX: 'auto', ...surface, background: 'var(--surface)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1270, fontSize: 12.5 }}>
             <thead>
               <tr>
@@ -355,7 +356,7 @@ export function CarteTest({ r, onOpen, onStudio, briefBusy }: {
   const eff = verdictEffectif(r.verdict as VerdictValue, !!r.comparable);
   const ton = eff ? VERDICT_TON[eff] : null;
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 13px' }}>
+    <div style={{ ...surface, background: 'var(--surface)', padding: '11px 13px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.concept}</span>
         <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, color: 'var(--accent-strong)', flexShrink: 0 }}>{r.variantCode}</span>
@@ -412,7 +413,7 @@ const carteBtn: CSSProperties = {
 function Stat({ label, value, sub, strong, alerte }: { label: string; value: string; sub?: string; strong?: boolean; alerte?: boolean }) {
   const accent = alerte ? '#ff8095' : strong ? 'var(--accent-strong)' : 'var(--ink)';
   return (
-    <div style={{ flex: '0 0 auto', minWidth: 132, border: `1px solid ${alerte ? 'rgba(254,44,85,.3)' : strong ? 'rgba(254,44,85,.22)' : 'var(--line)'}`, borderRadius: 13, background: 'var(--surface)', padding: '12px 14px' }}>
+    <div style={{ flex: '0 0 auto', minWidth: 132, border: `1px solid ${alerte ? 'rgba(254,44,85,.3)' : strong ? 'rgba(254,44,85,.22)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: 'var(--surface)', padding: '12px 14px' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 21, fontWeight: 800, color: accent, marginTop: 4, lineHeight: 1.1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>}

@@ -63,7 +63,9 @@ describe('carte · le menu d’actions n’est pas rogné par la carte', () => {
     const media = Array.from(article.querySelectorAll<HTMLElement>('div'))
       .find((d) => d.style.overflow === 'hidden' && d.style.borderTopLeftRadius);
     expect(media, 'un conteneur média doit porter overflow:hidden + arrondi haut').toBeTruthy();
-    expect(media!.style.borderTopLeftRadius).toBe('14px');
-    expect(media!.style.borderTopRightRadius).toBe('14px');
+    // Lot 19D · la carte est une `surface` (r-card) · le média épouse le MÊME rayon (sinon ses coins débordent).
+    expect(media!.style.borderTopLeftRadius).toBe('var(--r-card)');
+    expect(media!.style.borderTopRightRadius).toBe('var(--r-card)');
+    expect(article.style.borderRadius, 'la carte et son média n’ont plus le même rayon').toBe(media!.style.borderTopLeftRadius);
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { surface } from '../../../../components/ui';
 import { CIBLE_TACTILE_MIN, MODE_LABEL, resultatParentSuite, videSuites, lienFicheAdsmap, lireFiltreSuites, ecrireFiltreSuites } from '@tiktrends/core';
 import { iterationPlanAction, createIterationAction, type IterationPlanView, type IterationRow } from '../../../actions/adsmap-iterate';
 import { Empty } from '../../../../components/Empty';
@@ -40,8 +41,9 @@ type Filtre = 'all' | Mode;
 
 const TON: Record<Mode, string> = { more: '#7ee8bf', better: '#ffcf8f', new: '#9fb4ff' };
 
+// Carte de premier niveau · rôle `surface` (lot 19D).
 const carte: CSSProperties = {
-  border: '1px solid var(--line)', borderRadius: 14, padding: '13px 15px',
+  ...surface, padding: '13px 15px',
   background: 'var(--surface)', display: 'grid', gap: 9,
 };
 

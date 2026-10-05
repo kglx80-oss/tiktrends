@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { cadreSignal } from './ui';
 
 /**
  * Le retour, dit là où on le cherche · en bas de l'écran, après le clic.
@@ -96,7 +97,8 @@ export function ToastLigne({ t, onClose }: { t: Toast; onClose: () => void }) {
   const ton = TON[t.kind];
   const style: CSSProperties = {
     pointerEvents: 'auto', width: '100%', display: 'flex', alignItems: 'center', gap: 11,
-    padding: '11px 13px', borderRadius: 13, border: `1px solid ${ton.bord}`,
+    // Notification flottante · rôle `signal`, au rayon d'une tuile (lot 19D).
+    padding: '11px 13px', ...cadreSignal(ton.bord, 'tuile'),
     background: 'var(--surface)', boxShadow: 'var(--sh-lift, 0 14px 34px -10px rgba(0,0,0,.6))',
     fontSize: 13.5, color: 'var(--ink)',
   };

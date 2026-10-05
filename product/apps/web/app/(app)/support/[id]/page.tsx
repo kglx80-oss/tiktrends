@@ -7,7 +7,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { EmptyLine } from '../../../../components/Empty';
 import { replyTicketAction, setTicketStatusAction } from '../../../actions/support';
-import { input, Msg, cadrePage, colonneLecture, h1 } from '../../../../components/ui';
+import { input, Msg, cadrePage, colonneLecture, surface, h1 } from '../../../../components/ui';
 import { Icon } from '../../../../components/Icon';
 
 export const dynamic = 'force-dynamic';
@@ -85,7 +85,8 @@ export default async function TicketThreadPage({ params, searchParams }: {
       <div style={{ display: 'grid', gap: 12, margin: '18px 0' }}>
         {thread.map((m) => (
           <div key={m.id} style={{
-            border: '1px solid var(--line)', borderRadius: 14, padding: '13px 15px',
+            // Message du fil · bloc de premier niveau · rôle `surface` (lot 19D).
+            ...surface, padding: '13px 15px',
             background: m.isStaff ? 'rgba(122,162,255,.07)' : 'var(--surface)',
             borderColor: m.isStaff ? 'rgba(122,162,255,.3)' : 'var(--line)',
           }}>
@@ -103,7 +104,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
 
       {/* Répondre */}
       {tk.status === 'resolved' && !isAdmin ? (
-        <div style={{ border: '1px dashed var(--line-2)', borderRadius: 14, padding: 14, color: 'var(--muted)', fontSize: 13 }}>
+        <div style={{ ...surface, padding: 14, color: 'var(--muted)', fontSize: 13 }}>
           Ce ticket est résolu. Tu peux encore écrire ci-dessous · ton message s’ajoute au fil, et un admin de l’espace peut le rouvrir.
         </div>
       ) : null}

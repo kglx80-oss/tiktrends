@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { ROLE_LABEL, PLAN_LABEL, roleAtLeast, type Role } from '../../../lib/rbac';
 import { revokeInviteAction } from '../../actions/invites';
-import { btnGhost, panel, Msg, cadrePage, h1 } from '../../../components/ui';
+import { btnGhost, panel, Msg, cadrePage, surface, tuile, h1 } from '../../../components/ui';
 import { ADMIN_THEME } from '../../../lib/theme';
 import { PageInfo } from '../../../components/PageInfo';
 import { InviteMemberButton } from '../../../components/InviteMemberButton';
@@ -100,7 +100,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
               const expiree = etatInvitation(inv.expiresAt as Date | null, maintenant) === 'expiree';
               const lien = `${lienBase}/invite/${inv.token}`;
               return (
-              <div key={inv.id} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '10px 12px', background: 'var(--bg)' }}>
+              <div key={inv.id} style={{ ...tuile, padding: '10px 12px', background: 'var(--bg)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 0, overflowWrap: 'anywhere' }}>{inv.email}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: roleColor[inv.role as Role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[inv.role as Role]}</span>
@@ -127,7 +127,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
           plutôt que de défiler à l'horizontale · le défilement est réservé aux
           vrais tableaux denses (ex. Top créas d'Analytics). Chaque champ garde une
           base flexible et passe à la ligne quand la largeur manque. */}
-      <div style={{ border: '1px solid var(--line)', borderRadius: 16 }}>
+      <div style={surface}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px', padding: '11px 16px', background: 'var(--surface)', fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>
           <span style={{ flex: '1 1 140px', minWidth: 0 }}>Membre</span><span style={{ flex: '2 1 200px', minWidth: 0 }}>E-mail</span><span style={{ flex: '0 0 auto' }}>Rôle</span>
         </div>
@@ -148,5 +148,6 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   );
 }
 
-const card = { flex: '1 1 200px', padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
+// KPI de premier niveau · rôle `surface` (lot 19D).
+const card = { flex: '1 1 200px', padding: '16px 18px', ...surface, background: 'var(--surface)' } as const;
 const cardLabel = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 6 } as const;

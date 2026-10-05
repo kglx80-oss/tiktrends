@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { surface } from '../../../components/ui';
 import {
   proposePersonasAction, proposeDesiresAction, proposeAnglesAction, proposeConceptsAction,
   type ProposeResult,
@@ -54,7 +55,7 @@ export function BuildPanel() {
   const par = (k: GraphNode['kind']) => (nodes ?? []).filter((n) => n.kind === k);
 
   return (
-    <section style={{ marginTop: 20, padding: '16px 18px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)' }}>
+    <section style={{ marginTop: 20, padding: '16px 18px', ...surface, background: 'var(--surface)' }}>
       <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Construire la carte</h2>
       <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 700 }}>
         Les agents descendent l’arbre : avatar → désir → angle → concept. Tout arrive en

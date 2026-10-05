@@ -6,6 +6,7 @@ import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { importProductsAction } from '../app/actions/brand-detail';
 import { SubmitButton } from './SubmitButton';
+import { tuile } from './ui';
 
 /**
  * Fin de création d'une marque : on célèbre, on rappelle ce qui est débloqué, et on
@@ -29,7 +30,7 @@ export function BrandCreated({ brandId, brandName, hasSite, importCost }: {
 
         {hasSite ? (
           <>
-            <div style={{ border: '1px solid var(--line-2)', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ ...tuile, padding: '12px 14px' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Importer les produits depuis ton site</div>
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, lineHeight: 1.5 }}>
                 Jarvis lit ton site, crée tes fiches produit et récupère les visuels · {importCost} crédits.

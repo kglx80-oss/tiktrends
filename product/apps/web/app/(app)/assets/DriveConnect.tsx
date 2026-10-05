@@ -6,6 +6,7 @@ import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, s
 import { resumeImportDrive, etatSyncDrive, derniereTentativeDriveEnEchec, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, DRIVE_PORTEE_ACCES, CIBLE_TACTILE_MIN, type MessageClient, BADGE_ESPACE_ADMIN } from '@tiktrends/core';
 import { GoogleDriveIcon } from '../../../components/BrandIcons';
 import { useToast } from '../../../components/Toast';
+import { surface } from '../../../components/ui';
 
  
 declare global { interface Window { gapi?: any; google?: any } }
@@ -264,6 +265,7 @@ function Head({ brandName }: { brandName: string | null }) {
   );
 }
 
-const card = { border: '1px solid var(--line-2)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 18, marginBottom: 16 } as const;
+// Panneau de premier niveau · rôle `surface` (lot 19D).
+const card = { ...surface, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 18, marginBottom: 16 } as const;
 const primary = { minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
 const ghost = { minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;

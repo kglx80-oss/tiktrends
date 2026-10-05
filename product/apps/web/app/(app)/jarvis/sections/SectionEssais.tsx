@@ -6,6 +6,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { essaisViewAction, bilanNotesAction, bilanCopieAction, calibrationScoreAction } from '../../../actions/adsmap-attribution';
 import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, CIBLE_TACTILE_MIN, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { Empty } from '../../../../components/Empty';
+import { cadreSignal, surface, tuile } from '../../../../components/ui';
 import { Revelation, MARGE_ANCRE } from './Revelation';
 
 /**
@@ -84,8 +85,9 @@ export async function SectionEssais() {
 
       {conseil && (
         <div style={{
-          marginBottom: 18, padding: '11px 14px', borderRadius: 12,
-          border: `1px solid ${conseil.avantTout ? 'rgba(255,90,120,.35)' : 'var(--line-2)'}`,
+          // Bloc de premier niveau · `surface`, ou `signal` (rose) quand il faut agir AVANT de tester (lot 19D).
+          marginBottom: 18, padding: '11px 14px',
+          ...(conseil.avantTout ? cadreSignal('rgba(255,90,120,.35)') : surface),
           background: 'var(--surface)',
         }}>
           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
@@ -113,7 +115,7 @@ export async function SectionEssais() {
         </p>
 
         {essaisErreur ? (
-          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{essaisErreur}</p>
+          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{essaisErreur}</p>
         ) : !essaisVue?.lots.length ? (
           <Empty
             tone="wait" title="Aucun lot d’essai poussé dans la carte."
@@ -123,7 +125,7 @@ export async function SectionEssais() {
           <>
             <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
               {essaisVue.cumuls.filter((c) => c.essais > 0).map((c) => (
-                <div key={c.variable} style={{ padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: `1px solid ${c.conclusif ? 'rgba(126,232,191,.4)' : 'var(--line)'}` }}>
+                <div key={c.variable} style={{ padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: `1px solid ${c.conclusif ? 'rgba(126,232,191,.4)' : 'var(--line)'}` }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: c.conclusif ? '#7ee8bf' : 'var(--ink)', lineHeight: 1.5 }}>
                     {ESSAI_LABEL[c.variable as EssaiVariable]} · {c.resume}
                   </div>
@@ -176,7 +178,7 @@ export async function SectionEssais() {
 
         {calib && calib.predictif !== null && (
           <p style={{
-            margin: '10px 0 0', padding: '10px 13px', borderRadius: 10,
+            margin: '10px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius,
             background: calib.predictif ? 'rgba(126,232,191,.08)' : 'var(--paper)',
             border: `1px solid ${calib.predictif ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
             fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: 'var(--ink-2)', maxWidth: 720,
@@ -189,7 +191,7 @@ export async function SectionEssais() {
         )}
 
         {notesErreur ? (
-          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{notesErreur}</p>
+          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{notesErreur}</p>
         ) : !notes?.notes ? (
           <Empty
             tone="wait" title="Aucune créa notée pour l’instant."
@@ -198,7 +200,7 @@ export async function SectionEssais() {
         ) : (
           <>
             <p style={{
-              margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
+              margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius,
               background: 'var(--paper)', border: '1px solid var(--line)',
               fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
               color: notes.defauts.avecDefaut ? '#ff8095' : '#7ee8bf',
@@ -220,7 +222,7 @@ export async function SectionEssais() {
             {notes.dimensions.filter((d) => d.conclusif).length > 0 && (
               <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
                 {notes.dimensions.filter((d) => d.conclusif).map((d) => (
-                  <div key={d.dimension} style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)' }}>
+                  <div key={d.dimension} style={{ padding: '9px 12px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)' }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.5 }}>
                       {DIMENSION_LABEL[d.dimension]} · {d.resume}
                     </div>
@@ -261,7 +263,7 @@ export async function SectionEssais() {
         </p>
 
         {relecturesErreur ? (
-          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{relecturesErreur}</p>
+          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{relecturesErreur}</p>
         ) : !relectures?.relues ? (
           <Empty
             tone="wait" title="Aucune publicité relue pour l’instant."
@@ -270,7 +272,7 @@ export async function SectionEssais() {
         ) : (
           <>
             <p style={{
-              margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
+              margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius,
               background: 'var(--paper)', border: '1px solid var(--line)',
               fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
               color: (relectures.tauxReecriture ?? 0) > 0 || (relectures.tauxProduit ?? 0) > 0 ? '#ff8095' : '#7ee8bf',
@@ -280,7 +282,7 @@ export async function SectionEssais() {
 
             {copies.temoin?.resume && (
               <p style={{
-                margin: '8px 0 0', padding: '9px 12px', borderRadius: 10,
+                margin: '8px 0 0', padding: '9px 12px', borderRadius: tuile.borderRadius,
                 background: 'var(--paper)', border: '1px solid var(--line)',
                 fontSize: 12, fontWeight: 600, lineHeight: 1.5,
                 color: copies.temoin.evolutions.some((e) => e.sens === 'degradation') ? '#ffb86b' : '#7ee8bf',
@@ -290,7 +292,7 @@ export async function SectionEssais() {
             )}
 
             {relectures.dimensions.filter((d) => d.conclusif).map((d) => (
-              <div key={d.dimension} style={{ marginTop: 12, padding: '9px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)' }}>
+              <div key={d.dimension} style={{ marginTop: 12, padding: '9px 12px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)' }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.5 }}>
                   {DIMENSION_COPIE_LABEL[d.dimension]} · {d.resume}
                 </div>

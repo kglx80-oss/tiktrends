@@ -186,7 +186,8 @@ export function Composer(props: ComposerProps) {
           : '';
 
   return (
-    <div style={{
+    // Un champ composite · rôle `controle` DÉCLARÉ (la forme seule ne le dit pas · lot 19D).
+    <div data-cadre="controle" style={{
       border: '1px solid var(--line-2)', borderRadius: 20, background: 'var(--surface)',
       padding: '14px 16px', display: 'grid', gap: 12,
     }}>

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { surface } from '../../../../components/ui';
 import { natureLot, LIBELLE_NATURE_LOT } from '@tiktrends/core';
 
 /**
@@ -33,7 +34,8 @@ const badgeImporte: CSSProperties = {
 };
 
 const reserve: CSSProperties = {
-  margin: '10px 0 0', padding: '10px 13px', borderRadius: 11,
-  border: '1px dashed var(--line-2)', background: 'var(--paper)',
+  // Réserve de premier niveau (pas un état vide) · rôle `surface` (lot 19D).
+  margin: '10px 0 0', padding: '10px 13px',
+  ...surface, background: 'var(--paper)',
   fontSize: 11.5, lineHeight: 1.55, color: 'var(--muted)',
 };

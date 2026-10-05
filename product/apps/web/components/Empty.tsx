@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, styleCadre } from '@tiktrends/core';
 import { Icon } from './Icon';
+
+const RAYON_CARTE = styleCadre('surface').borderRadius;
 
 /**
  * Ce qu'on affiche quand il n'y a rien.
@@ -93,9 +95,12 @@ const bouton: CSSProperties = {
   textDecoration: 'none',
 };
 
+// Rôles de la charte (lot 19D · `cadre-page.ts`) · `todo` est un `vide`
+// (pointillé --line-2), `wait` une `surface` (--line), `good` un `signal` (sa
+// couleur) · tous au rayon d'une carte de premier niveau.
 const bloc = (t: (typeof TON)[EmptyProps['tone']]): CSSProperties => ({
   border: `1px ${t.trait} ${t.bord}`,
-  borderRadius: 16,
+  borderRadius: RAYON_CARTE,
   padding: '32px 24px',
   textAlign: 'center',
   background: t.trait === 'solid' ? 'var(--surface)' : 'transparent',

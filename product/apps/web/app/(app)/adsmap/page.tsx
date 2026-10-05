@@ -16,7 +16,7 @@ import { Icon } from '../../../components/Icon';
 import { CIBLE_TACTILE_MIN, lireLienProfondAdsmap } from '@tiktrends/core';
 import { adsDeLaMarque } from '../../../lib/adsmap-marque';
 import { SectionEssais } from '../jarvis/sections/SectionEssais';
-import { cadrePage, colonneLecture, h1 } from '../../../components/ui';
+import { cadrePage, colonneLecture, surface, h1 } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +38,7 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
     return (
       <main style={cadrePage}><div style={colonneLecture('fil')}>
         <h1 style={h1}>Adsmap</h1>
-        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
+        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0', lineHeight: 1.6 }}>
             {why === 'plan'
