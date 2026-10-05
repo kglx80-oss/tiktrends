@@ -7,17 +7,29 @@ import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
 import { costFor } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
+import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../lib/jarvis-acces';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 
+/**
+ * Les quatre gestes de cet écran (règles, proposition, entraînement,
+ * apprentissages) gardent le rôle admin d'espace qu'ils exigeaient, PUIS la
+ * feature `jarvis` (offre Core, matrice d'équipe · `refusJarvis`) · avant toute
+ * lecture, écriture, réservation de crédits ou appel au modèle. Message 56 ·
+ * un admin Starter ou un membre d'équipe sans Jarvis passait le seul contrôle
+ * admin. La marque active est déjà validée dans l'espace (`getActiveBrand`).
+ */
+
 /** Enregistre les règles créatives maison (Jarvis) de la marque active. Injectées dans chaque génération. */
 export async function saveJarvisRulesAction(input: { creativeRules: string }): Promise<{ ok?: true; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
+  const refus = refusJarvis(s);
+  if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
   const rules = (input.creativeRules || '').slice(0, 4000);
@@ -40,6 +52,8 @@ export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
+  const refus = refusJarvis(s);
+  if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
   const client = guardedAnthropic({ action: 'jarvis' });
   if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
@@ -90,6 +104,8 @@ export async function trainJarvisAction(): Promise<{ learnings?: string; adsAnal
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
+  const refus = refusJarvis(s);
+  if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
   const client = guardedAnthropic({ action: 'jarvis' });
   if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
@@ -164,6 +180,8 @@ export async function saveJarvisLearningsAction(input: { learnings: string }): P
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
+  const refus = refusJarvis(s);
+  if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
   await db.update(schema.brands).set({ jarvisLearnings: (input.learnings || '').slice(0, 4000) || null }).where(eq(schema.brands.id, brand.id));

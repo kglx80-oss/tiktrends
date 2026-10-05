@@ -30,3 +30,14 @@ export function refusJarvis(s: Pick<Session, 'role' | 'plan' | 'user' | 'equipe'
   if (canAccess(a, FEATURE_JARVIS)) return null;
   return denyReason(a, FEATURE_JARVIS) ?? 'role';
 }
+
+/**
+ * La phrase de refus, dite par sa VRAIE raison (`denyReason`) · la même à
+ * l'écran (`RefusJarvis`) et dans les actions serveur. Avant, une action
+ * répondait « rôle administrateur » à un compte Starter ou à un freelance ·
+ * c'était faux (l'offre, ou la matrice d'équipe, refusait).
+ */
+export const TEXTE_REFUS_JARVIS: Readonly<Record<'role' | 'plan', string>> = {
+  plan: 'Jarvis est disponible à partir du plan Core. Passe ton espace en Core dans Réglages puis Abonnement.',
+  role: "Ton rôle ne permet pas d'accéder à Jarvis.",
+};
