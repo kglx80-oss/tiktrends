@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
-import { canAccess, FEATURES, roleAtLeast } from '../../../lib/rbac';
+import { canAccess, denyReason, FEATURES, roleAtLeast } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
 import { getActiveBrand } from '../../../lib/brands';
 import { MarquesSuivies } from '../../../components/MarquesSuivies';
@@ -54,6 +54,13 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
   // cet espace ET qu'une marque est active · sinon l'action n'aurait nulle part
   // où écrire, et on proposerait un geste qui échoue.
   const adsmapOpen = !!activeBrand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
+  // Lot 19C · le classement par format suit le droit Veille · le MÊME calcul que
+  // la garde de l'action (`classerFormatSauvegarde`) et que `/veille/formats` ·
+  // fait ici, côté serveur, et transmis aux cartes · jamais recalculé au client.
+  const accesVeille = effectiveAccess(s);
+  const Veille = FEATURES.find((f) => f.key === 'inspo')!;
+  const formatIndisponible = canAccess(accesVeille, Veille) ? null
+    : denyReason(accesVeille, Veille) === 'plan' ? 'Classement réservé à la Veille · offre Core.' : 'Classement réservé aux rôles qui ont accès à la Veille.';
   const nonVus = trackerEvents.filter((e) => e.unseen).length;
   // Bibliothèque ENTIÈREMENT vide · une seule activation, pas trois « Ouvrir la
   // veille » répétés par onglet (CDC v7 · N05). Dès qu'un espace se remplit, les
@@ -84,7 +91,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
         <SavedTabs
           initial={ongletValide(sp.onglet)}
           compteurs={{ creations: items.length, marques: brands.length, nouveautes: nonVus }}
-          creations={<SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} />}
+          creations={<SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} formatIndisponible={formatIndisponible} />}
           marques={brands.length === 0
             ? marquesVide
             : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} vide={marquesVide} />}

@@ -64,4 +64,14 @@ describe('Sauvegardes · un choix « Format » par carte', () => {
     expect(appel.recu).toEqual([{ platform: 'meta', externalId: 'video-libre', format: 'deballage' }]);
     expect(s.closest('div[style*="grid"]')!.parentElement!.textContent).toContain('Enregistré · Déballage');
   });
+
+  it('sans droit (raison transmise par le serveur) · désactivé dès la carte, raison dite, rien à enregistrer', async () => {
+    const h = await monter(<SavedBoards items={items} followKeys={[]} formatIndisponible="Classement réservé à la Veille · offre Core." />);
+    const selects = [...h.querySelectorAll('select')];
+    expect(selects.every((s) => s.disabled)).toBe(true);
+    expect(selects[0]!.getAttribute('aria-describedby')).toMatch(/-indispo /);
+    expect(h.querySelectorAll('[data-format-indisponible]')).toHaveLength(3);
+    expect(h.textContent).toContain('Classement réservé à la Veille · offre Core.');
+    expect([...h.querySelectorAll('button')].some((b) => b.textContent === 'Enregistrer')).toBe(false);
+  });
 });

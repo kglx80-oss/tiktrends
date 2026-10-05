@@ -27,8 +27,16 @@ type Etat = { t: 'repos' } | { t: 'envoi' } | { t: 'ok'; msg: string } | { t: 'e
  * retirer · on rend d'abord le focus au choix suivant (sinon il tomberait en haut
  * de page).
  */
-export function FormatChoix({ platform, externalId, mediaType, initial, versionAncienne = false, vue = null }: {
+export function FormatChoix({ platform, externalId, mediaType, initial, versionAncienne = false, vue = null, indisponible = null }: {
   platform: string; externalId: string; mediaType?: string | null; initial: FormatCreatifId | null; versionAncienne?: boolean; vue?: string | null;
+  /**
+   * Raison pour laquelle le classement n'est PAS ouvert à cette session ·
+   * calculée côté serveur avec le même droit que l'action et `/veille/formats`
+   * (`canAccess(effectiveAccess(s), Veille)`) · jamais recalculée ici. Présente
+   * → choix désactivé dès la carte, la raison est dite (et liée au choix pour
+   * un lecteur d'écran). L'action serveur garde son propre refus.
+   */
+  indisponible?: string | null;
 }) {
   const media = mediaAnnonce(mediaType);
   const options = formatsPourMedia(media);
@@ -43,9 +51,10 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
   const id = useId();
   const router = useRouter();
   const { toast } = useToast();
-  const modifie = valeur !== enregistre;
+  const modifie = !indisponible && valeur !== enregistre;
 
-  const definition = estFormatCreatif(valeur) ? formatCreatif(valeur).definition : 'Choisis le format de cette annonce · rien n’est deviné ni classé automatiquement.';
+  const definition = estFormatCreatif(valeur) ? formatCreatif(valeur).definition
+    : indisponible ? 'Non classée.' : 'Choisis le format de cette annonce · rien n’est deviné ni classé automatiquement.';
 
   const enregistrer = async () => {
     if (verrou.current || !modifie) return;
@@ -85,12 +94,13 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
       <label htmlFor={id} style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>Format</label>
       <div style={{ display: 'flex', gap: 6 }}>
         <select
-          ref={selectRef} id={id} data-format-choix value={valeur} aria-describedby={`${id}-def ${id}-etat`}
+          ref={selectRef} id={id} data-format-choix value={valeur} disabled={!!indisponible} aria-describedby={indisponible ? `${id}-indispo ${id}-def` : `${id}-def ${id}-etat`}
           onChange={(e) => { setValeur(e.target.value); if (etat.t !== 'envoi') setEtat({ t: 'repos' }); }}
           style={{
             flex: 1, minWidth: 0, minHeight: CIBLE_TACTILE_MIN, padding: '8px 10px', borderRadius: 9,
             border: '1px solid ' + (etat.t === 'echec' ? 'var(--danger, #e5484d)' : modifie ? 'var(--accent-strong)' : 'var(--line-2)'),
-            background: 'var(--paper)', color: valeur === FORMAT_NON_CLASSE ? 'var(--muted)' : 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            background: 'var(--paper)', color: valeur === FORMAT_NON_CLASSE || indisponible ? 'var(--muted)' : 'var(--ink)', fontSize: 13, fontWeight: 600,
+            cursor: indisponible ? 'not-allowed' : 'pointer', opacity: indisponible ? 0.6 : 1,
           }}
         >
           <option value={FORMAT_NON_CLASSE}>Non classé</option>
@@ -103,6 +113,9 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
           </button>
         )}
       </div>
+      {indisponible && (
+        <p id={`${id}-indispo`} data-format-indisponible style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', lineHeight: 1.4 }}>{indisponible}</p>
+      )}
       <p id={`${id}-def`} style={{ margin: 0, fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.4 }}>
         {definition}
         {versionAncienne && !modifie && etat.t === 'repos' && <> · classée avec une version antérieure de la liste, à revoir</>}

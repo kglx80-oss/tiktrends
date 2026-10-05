@@ -38,6 +38,8 @@ vi.mock('../lib/brands', () => ({ getActiveBrand: async () => null }));
 vi.mock('next/navigation', () => ({
   redirect: (u: string) => { throw new Error('redirect ' + u); },
   useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/saved',
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }) }));
@@ -46,6 +48,7 @@ vi.mock('../app/actions/adsmap-bridge', () => ({ trackSavedAdAction: async () =>
 import { db, schema } from '@tiktrends/db';
 import { classerFormatSauvegarde, saveAd } from '../app/actions/inspo';
 import FormatsPage from '../app/(app)/veille/formats/page';
+import SavedPage from '../app/(app)/saved/page';
 import { VueFormats } from '../app/(app)/veille/formats/VueFormats';
 import { CRITERES_FORMATS_DEFAUT } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
@@ -233,3 +236,32 @@ describe('/veille/formats · états vides', () => {
     expect(h).not.toContain('data-format=');
   });
 });
+
+/**
+ * Sauvegardes · le choix « Format » de la carte suit le DROIT Veille calculé
+ * côté serveur (`saved/page.tsx`) · sans Veille, désactivé dès la carte avec sa
+ * raison ; avec, actif. On rend la page réelle (pglite) et on lit le HTML.
+ */
+describe('/saved · choix « Format » selon le droit Veille', () => {
+  const rendreSaved = async () => renderToStaticMarkup(await SavedPage({ searchParams: Promise.resolve({}) }));
+  const selects = (h: string) => [...h.matchAll(/<select[^>]*data-format-choix[^>]*>/g)].map((m) => m[0]);
+
+  it('avec la Veille (Core) · chaque choix est actif, aucune raison affichée', async () => {
+    const h = await rendreSaved();
+    expect(selects(h).length, 'un choix par carte').toBeGreaterThan(3);
+    expect(selects(h).every((x) => !/\sdisabled=""/.test(x)), 'aucun choix désactivé').toBe(true);
+    expect(h).not.toContain('data-format-indisponible');
+  });
+
+  it('sans la Veille (Starter) · chaque choix est désactivé dès la carte, la raison est dite et liée', async () => {
+    session.plan = 'starter';
+    const h = await rendreSaved();
+    const s = selects(h);
+    expect(s.length).toBeGreaterThan(3);
+    expect(s.every((x) => /\sdisabled=""/.test(x)), 'tous les choix désactivés').toBe(true);
+    expect(h).toContain('Classement réservé à la Veille · offre Core.');
+    const id = s[0]!.match(/aria-describedby="([^" ]+)/)![1]!;
+    expect(h, 'la raison est liée au choix (lecteur d’écran)').toContain(`id="${id}" data-format-indisponible="true"`);
+  });
+});
+

@@ -20,7 +20,9 @@ export interface SavedItem { id: string; ad: InspoAd; folder: string | null; ext
  * Boards / dossiers de rangement pour les créas sauvegardées (façon Foreplay/Atria).
  * Onglets par board + rangement d'une créa dans un board (existant ou nouveau), en direct.
  */
-export function SavedBoards({ items, followKeys, adsmap = false }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean }) {
+export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponible = null }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean;
+  /** Lot 19C · raison calculée côté serveur quand le classement par format n'est pas ouvert (sans Veille) · `null` = ouvert. */
+  formatIndisponible?: string | null }) {
   const [list, setList] = useState<SavedItem[]>(items);
   const [tab, setTab] = useState<string>(BOARD_TOUS);
   // 44 px au doigt, densité gardée à la souris (recette #106, point 6).
@@ -148,7 +150,7 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
             <AdCard ad={it.ad} saved following={following.has(it.ad.platform + ':' + (it.ad.advertiserName || ''))} cloneRef={it.id} cibles44={tactile} />
             <FolderPicker current={it.folder} folders={folders} onPick={(f) => move(it, f)} cible={cible} />
             {/* Formats créatifs v1 (lot 19C) · qualification manuelle, persistante. */}
-            <FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} />
+            <FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} />
             {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
           </div>
         ))}
