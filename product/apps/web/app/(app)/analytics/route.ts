@@ -16,8 +16,11 @@ import { redirectionAnalytics } from '@tiktrends/core';
  *
  * ── Ce qui traverse ──────────────────────────────────────────────────────────
  *
- * Chaque paramètre de requête, dans son ordre exact, valeurs répétées comprises
- * (`redirectionAnalytics`, noyau, sur la chaîne brute). Le fragment ne parvient
+ * Chaque paramètre de requête et chaque valeur, répétées comprises
+ * (`redirectionAnalytics`, noyau, sur la chaîne que Next transmet). L'ordre est
+ * celui de `request.url` · mesuré en production locale, Next y remonte en tête
+ * les clés purement numériques (`?b=1&2=x` arrive `?2=x&b=1`) · aucune valeur
+ * n'est perdue, l'ordre des autres clés est gardé. Le fragment ne parvient
  * jamais au serveur · le navigateur le reporte de lui-même sur une cible qui
  * n'en porte pas (RFC 9110 §10.2.2), et l'ancre `#attribution` existe sur la
  * vue. `Location` est RELATIVE · elle se résout sur l'hôte demandé, jamais sur

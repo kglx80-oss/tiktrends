@@ -147,7 +147,7 @@ describe('/analytics · route historique, vraie 307 HTTP, sans perte', () => {
   it('sans paramètre', () => {
     expect(cible('')).toBe('307 /dashboard?vue=analytics');
   });
-  it('chaque paramètre, dans son ordre EXACT, valeurs répétées et clés numériques comprises', () => {
+  it('chaque paramètre, dans l’ordre reçu de request.url, valeurs répétées et clés numériques comprises', () => {
     expect(cible('?periode=7j&marque=b1&tag=%C3%A9t%C3%A9&tag=a%26b&2=x&q=un+mot'))
       .toBe('307 /dashboard?vue=analytics&periode=7j&marque=b1&tag=%C3%A9t%C3%A9&tag=a%26b&2=x&q=un+mot');
   });
