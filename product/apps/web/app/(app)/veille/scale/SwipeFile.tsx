@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
-import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, CIBLE_TACTILE_MIN, ecrireFiltresScale, FILTRES_SCALE_DEFAUT, type AngleKey, type FiltresScale } from '@tiktrends/core';
+import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, CIBLE_TACTILE_MIN, ecrireFiltresScale, lireFiltresScale, FILTRES_SCALE_DEFAUT, type AngleKey, type FiltresScale } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
 import { Empty } from '../../../../components/Empty';
 import { Icon } from '../../../../components/Icon';
@@ -60,6 +60,17 @@ export function SwipeFile({ items, stats, advertisers, niche, country, initial =
     const set = new Set(items.map((i) => i.angle));
     return ANGLE_KEYS.filter((k) => set.has(k));
   }, [items]);
+
+  // Lot 18B · revenu par le Retour après une navigation interne, le routeur
+  // restaure la page telle que le serveur l'a rendue (sans critères) alors que
+  // l'URL les porte · mesuré en production, URL juste et puces absentes, 3
+  // largeurs sur 3. Comme la galerie Pubs IA, on relit l'URL au montage.
+  useEffect(() => {
+    const lu = lireFiltresScale(window.location.search, { annonceurs: advertisers, angles: anglePresent });
+    setType(lu.type); setAdv(lu.annonceur); setAngle(lu.angle as 'all' | AngleKey); setQText(lu.texte); setSort(lu.tri);
+    // Au montage seulement · ensuite, l'état fait foi et l'URL le suit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const shown = useMemo(() => {
     let list = items.filter((i) => {

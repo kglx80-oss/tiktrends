@@ -38,4 +38,12 @@ describe('Ce qui scale · filtres dans l’URL (lot 18B)', () => {
     await act(async () => { [...el!.querySelectorAll('button')].find((b) => b.textContent === 'Réinitialiser')!.click(); });
     expect(window.location.search, 'la réinitialisation laisse des critères dans l’URL').toBe('?q=caf%C3%A9&country=FR&tri=duration');
   });
+
+  it('revenu par le Retour avec une page restaurée sans critères · l’URL est relue au montage', async () => {
+    act(() => { root!.render(<SwipeFile items={items} stats={STATS} advertisers={['Old Spice.', 'Neutrogena']} niche="café" country="FR" />); });
+    await act(async () => { await Promise.resolve(); });
+    expect(el!.textContent, 'puces absentes alors que l’URL porte les critères').toContain('1 sur 2 créa(s)');
+    expect(el!.querySelector('button[aria-label="Retirer le critère · Old Spice."]')).not.toBeNull();
+    expect((el!.querySelector('select[aria-label="Trier les créas"]') as HTMLSelectElement).value).toBe('duration');
+  });
 });
