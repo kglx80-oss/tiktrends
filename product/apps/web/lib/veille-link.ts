@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { briefDepuisVeille, refSourceVeille } from '@tiktrends/core';
+import { briefDepuisVeille, refSourceVeille, PARAM_DEPUIS, DEPUIS_VEILLE, PARAM_RETOUR_VEILLE } from '@tiktrends/core';
 
 /**
  * L'URL des Pubs IA, armée depuis une pub de veille.
@@ -25,7 +25,12 @@ import { briefDepuisVeille, refSourceVeille } from '@tiktrends/core';
  * le clone remplace le produit par le tien. En clone, le champ `angle` sert de
  * consigne au clone · le brief y a donc toujours sa place.
  */
-export function studioDepuisVeille(ad: InspoAd, opts?: { ref?: string | null }): string {
+export function studioDepuisVeille(ad: InspoAd, opts?: { ref?: string | null;
+  /**
+   * Lot 18B · le contexte de la recherche de Veille (`contexteVeille`, ancre de
+   * la carte comprise) · le Studio propose alors d'y revenir. Absent hors Veille.
+   */
+  retour?: string | null }): string {
   const brief = briefDepuisVeille({ body: ad.body, callToAction: ad.callToAction, daysRunning: ad.daysRunning });
   const params = new URLSearchParams();
   if (opts?.ref) { params.set('mode', 'clone'); params.set('ref', opts.ref); }
@@ -36,6 +41,7 @@ export function studioDepuisVeille(ad: InspoAd, opts?: { ref?: string | null }):
   // Veille). Le studio la relit et l'affiche.
   const src = refSourceVeille(ad);
   if (src) { params.set('src', src.cle); if (src.nom) params.set('srcnom', src.nom); }
+  if (opts?.retour != null) { params.set(PARAM_DEPUIS, DEPUIS_VEILLE); params.set(PARAM_RETOUR_VEILLE, opts.retour); }
   const q = params.toString();
   return q ? `/studio/ads?${q}` : '/studio/ads';
 }

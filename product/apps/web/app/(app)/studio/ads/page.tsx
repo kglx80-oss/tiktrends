@@ -15,17 +15,18 @@ import { ContexteCreation } from '../../../../components/ContexteCreation';
 import { effectiveAccess } from '../../../../lib/access';
 import { spendStatus } from '../../../../lib/spend-guard';
 import { bilanCopieAction } from '../../../actions/adsmap-attribution';
-import { conseilMoteur, conseilMode, sourceVeilleDepuisRef, lireIterationDemandee, briefDepuisTest, cleMontageStudio, cleBrouillonIteration } from '@tiktrends/core';
+import { DEPUIS_VEILLE, conseilMoteur, conseilMode, sourceVeilleDepuisRef, lireIterationDemandee, briefDepuisTest, cleMontageStudio, cleBrouillonIteration } from '@tiktrends/core';
 import { adDetailAction } from '../../../actions/adsmap-verdict';
 import { adsDeLaMarque } from '../../../../lib/adsmap-marque';
 import { RepriseIteration } from './RepriseIteration';
+import { RetourVeille } from '../../../../components/RetourVeille';
 import { PanneauIteration, type EtatIteration } from './PanneauIteration';
 import { cadrePage } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'image')!;
 
-export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string; ref?: string; src?: string; srcnom?: string; iter?: string }> }) {
+export default async function AdsStudioPage({ searchParams }: { searchParams: Promise<{ mode?: string; angle?: string; ref?: string; src?: string; srcnom?: string; iter?: string; depuis?: string; rv?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   const sp = await searchParams;
@@ -190,6 +191,9 @@ export default async function AdsStudioPage({ searchParams }: { searchParams: Pr
       {/* Lot 17 · revenu sur Pubs IA sans `?iter` (changement d'onglet) · on
           propose de reprendre le brief ouvert dans cet onglet, pour cette marque. */}
       {!iterDemande && brand && <RepriseIteration brandId={brand.id} />}
+      {/* Lot 18B · arrivé d'une carte de Veille · revenir à SA recherche (critères,
+          page, carte), même après un rechargement ou des allers-retours ici. */}
+      {sp.depuis === DEPUIS_VEILLE && sp.rv != null && <div style={{ marginBottom: 10 }}><RetourVeille rv={sp.rv} libelle="Revenir à la Veille" /></div>}
 
       <AdsStudio key={cleMontageStudio(brand?.id ?? null, iterDemande)} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={ads} products={products} personas={personas} savedRefs={savedRefs} assets={assetChoices} initialMode={initialMode} initialAngle={angleInitial} initialPersonaId={personaInitial} iteration={iteration?.etat === 'ok' && brand ? { cle: cleBrouillonIteration(brand.id, iteration.adId) } : null} initialRef={initialRef} initialSource={initialSource} adsmap={adsmapOpen} suggestion={suggestion} budget={budget && { resume: budget.summary, bloque: budget.blocked }} conseilMoteurs={conseilMoteurs} conseilModes={conseilModes} />
     </main>
