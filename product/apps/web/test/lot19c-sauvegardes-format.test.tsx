@@ -14,7 +14,7 @@ import { lireFormatCreatif } from '@tiktrends/core';
  */
 const appel = vi.hoisted(() => ({ recu: [] as unknown[] }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }) }));
-vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }) }));
+vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }), useToastSiPresent: () => null }));
 vi.mock('../app/actions/adsmap-bridge', () => ({ trackSavedAdAction: async () => ({}) }));
 vi.mock('../app/actions/inspo', () => ({
   setSavedAdFolder: async () => ({}),

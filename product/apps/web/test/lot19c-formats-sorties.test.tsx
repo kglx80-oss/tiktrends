@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
  */
 vi.mock('next/link', () => ({ default: ({ href, children }: { href: string; children: React.ReactNode }) => <a data-lien-client href={href}>{children}</a> }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {} }) }));
-vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }) }));
+vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }), useToastSiPresent: () => null }));
 vi.mock('../app/actions/inspo', () => ({ classerFormatSauvegarde: async () => ({ ok: true }) }));
 vi.mock('../app/actions/adsmap-bridge', () => ({ trackSavedAdAction: async () => ({}) }));
 
