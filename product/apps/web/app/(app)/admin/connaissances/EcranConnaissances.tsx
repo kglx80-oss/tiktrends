@@ -3,7 +3,7 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import {
   TYPES_CONNAISSANCE, LIBELLE_TYPE, LIBELLE_ETAT, LIBELLE_ORIGINE, LIMITE_TEXTE, LIMITE_TITRE, EXTENSIONS_FICHIER,
-  CIBLE_TACTILE_MIN, verifierFichierTexte, libellePortee, familleType,
+  CIBLE_TACTILE_MIN, verifierFichierTexte, libellePortee, familleType, changementPortee, AVERTISSEMENT_CONFIDENTIALITE,
   type TypeConnaissance, type EtatVersion, type ModeOrigine, type PorteeConnaissance, type SaisieConnaissance,
 } from '@tiktrends/core';
 import {
@@ -48,7 +48,7 @@ const date = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('fr-FR
 export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueInitiale: VueAdminConnaissances; espaces: Espace[]; marques: Marque[] }) {
   const [vue, setVue] = useState(vueInitiale);
   const [note, setNote] = useState<{ ok: boolean; texte: string } | null>(null);
-  const [edition, setEdition] = useState<{ id: string; base: number; valeurs: Brouillon } | null>(null);
+  const [edition, setEdition] = useState<{ id: string; base: number; porteeAvant: PorteeConnaissance; valeurs: Brouillon } | null>(null);
   const [occupe, setOccupe] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +77,7 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
   const editer = (it: Item) => {
     const d = it.versions[0]!;
     setEdition({
-      id: it.id, base: it.derniere,
+      id: it.id, base: it.derniere, porteeAvant: d.portee,
       valeurs: {
         titre: d.titre, type: d.type, texte: d.texte, mode: 'saisie', fichier: null, niveau: d.portee.niveau,
         workspaceId: d.portee.niveau === 'plateforme' ? '' : d.portee.workspaceId,
@@ -96,6 +96,12 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
       {/* Ce qui part dans chaque réponse · la vérité de l'écran. */}
       <section aria-labelledby="ctx-titre" style={carte}>
         <h2 id="ctx-titre" style={h2}>Ce que Jarvis lit à chaque réponse</h2>
+        {/* Honnêteté d'abord · le panneau client n'affiche que des titres, ce
+            qui ne protège pas le texte : Jarvis le lit, un client peut le lui
+            demander. La décision de confidentialité appartient au pilotage. */}
+        <p role="note" style={{ margin: '8px 0 0', padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(245,166,35,.45)', background: 'rgba(245,166,35,.08)', color: '#ffcf8f', fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 }}>
+          {AVERTISSEMENT_CONFIDENTIALITE}
+        </p>
         <p style={{ ...corps, marginTop: 6 }}>
           Portée plateforme · <b style={{ color: 'var(--ink)' }}>{nf(a.taille)} / {nf(a.plafond)}</b> caractères ·{' '}
           {a.inclus.length ? `${a.inclus.length} connaissance(s) incluse(s) dans le contexte de chaque réponse.` : 'aucune connaissance publiée en portée plateforme · Jarvis répond sans ce bloc.'}
@@ -115,7 +121,7 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
         <ul style={{ margin: '10px 0 0', paddingLeft: 18, display: 'grid', gap: 4 }}>
           <li style={petit}><b>Publiée</b> · la version est en service, elle a le droit d’entrer dans le contexte.</li>
           <li style={petit}><b>Incluse</b> · elle était dans le contexte d’une réponse de Jarvis (compté à chaque réponse).</li>
-          <li style={petit}><b>Citée</b> · la réponse s’en est réclamée explicitement.</li>
+          <li style={petit}><b>Citée</b> · déclarée par le modèle · la réponse s’en est réclamée par un marqueur de source. Ce n’est pas une preuve d’usage, et une question qui dicte le marqueur n’est pas comptée.</li>
           <li style={petit}>Les connaissances sont lues comme des <b>données</b> · elles ne peuvent pas lever les règles de Jarvis, et les règles maison d’une marque passent devant.</li>
           <li style={petit}>Une connaissance <b>retirée</b> n’entre plus dans les réponses suivantes, y compris dans une conversation déjà ouverte. Les réponses déjà données ne sont pas réécrites · Jarvis n’oublie pas rétroactivement ce qu’il a déjà dit.</li>
         </ul>
@@ -134,12 +140,13 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
         <Formulaire
           key={edition ? `${edition.id}-${edition.base}` : 'nouveau'}
           initial={edition?.valeurs ?? VIDE}
+          porteeAvant={edition?.porteeAvant}
           titreFormulaire={edition ? `Nouvelle version · v${edition.base + 1}` : 'Nouvelle connaissance'}
           espaces={espaces} marques={marques} occupe={occupe}
           onAnnuler={edition ? () => setEdition(null) : undefined}
-          onEnvoyer={async (saisie, publier) => {
+          onEnvoyer={async (saisie, publier, confirmerPortee) => {
             if (edition) {
-              const ok = await geste(() => nouvelleVersionAction({ id: edition.id, base: edition.base, saisie, publier }),
+              const ok = await geste(() => nouvelleVersionAction({ id: edition.id, base: edition.base, saisie, publier, confirmerPortee }),
                 publier ? `Version v${edition.base + 1} publiée · elle remplace la précédente dès la prochaine réponse.` : `Version v${edition.base + 1} enregistrée en brouillon · la version en service continue de servir.`);
               if (ok) setEdition(null);
               return ok;
@@ -185,10 +192,12 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
 /*  Le formulaire · saisir, coller, importer                                  */
 /* -------------------------------------------------------------------------- */
 
-function Formulaire({ initial, titreFormulaire, espaces, marques, occupe, onAnnuler, onEnvoyer }: {
+export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, marques, occupe, onAnnuler, onEnvoyer }: {
   initial: Brouillon; titreFormulaire: string; espaces: Espace[]; marques: Marque[]; occupe: boolean;
   onAnnuler?: () => void;
-  onEnvoyer: (s: SaisieConnaissance, publier: boolean) => Promise<boolean>;
+  /** Portée de la version qu'on édite · sert à signaler un élargissement. */
+  porteeAvant?: PorteeConnaissance;
+  onEnvoyer: (s: SaisieConnaissance, publier: boolean, confirmerPortee: boolean) => Promise<boolean>;
 }) {
   const [b, setB] = useState<Brouillon>(initial);
   const [erreurFichier, setErreurFichier] = useState<string | null>(null);
@@ -215,8 +224,18 @@ function Formulaire({ initial, titreFormulaire, espaces, marques, occupe, onAnnu
     portee: { niveau: b.niveau, workspaceId: b.workspaceId || null, brandId: b.brandId || null },
   });
 
+  // Élargir (ou déplacer) la portée expose le texte à d'autres lecteurs · ça
+  // se confirme, explicitement, avant tout envoi. Règle dans le noyau.
+  const porteeApres: PorteeConnaissance | null = b.niveau === 'plateforme' ? { niveau: 'plateforme' }
+    : b.niveau === 'espace' ? (b.workspaceId ? { niveau: 'espace', workspaceId: b.workspaceId } : null)
+    : (b.workspaceId && b.brandId ? { niveau: 'marque', workspaceId: b.workspaceId, brandId: b.brandId } : null);
+  const changement = porteeAvant && porteeApres ? changementPortee(porteeAvant, porteeApres) : null;
+  const [confirme, setConfirme] = useState(false);
+  const bloque = occupe || (!!changement && !confirme);
+
   const envoyer = async (publier: boolean) => {
-    const ok = await onEnvoyer(saisie(), publier);
+    if (changement && !confirme) return;
+    const ok = await onEnvoyer(saisie(), publier, !!changement && confirme);
     if (ok && !onAnnuler) { setB(VIDE); if (fichierRef.current) fichierRef.current.value = ''; }
   };
 
@@ -312,9 +331,22 @@ function Formulaire({ initial, titreFormulaire, espaces, marques, occupe, onAnnu
         {nf(b.texte.length)} / {nf(LIMITE_TEXTE)} caractères · origine · {LIBELLE_ORIGINE[b.mode]}{b.mode === 'fichier' && b.fichier ? ` (${b.fichier})` : ''}
       </p>
 
+      {changement && porteeAvant && porteeApres && (
+        <div role="alert" style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(229,72,77,.45)', background: 'rgba(229,72,77,.08)' }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#ff8095', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+            {changement === 'elargie' ? 'Cette version ÉLARGIT la portée' : 'Cette version DÉPLACE la portée'} · de « {libellePortee(porteeAvant, nomsPortee(porteeAvant, espaces, marques))} » à « {libellePortee(porteeApres, nomsPortee(porteeApres, espaces, marques))} ».
+            {porteeApres.niveau === 'plateforme' ? ' Jarvis la lira pour tous les clients.' : ' D’autres lecteurs la liront.'}
+          </p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={confirme} onChange={(e) => setConfirme(e.target.checked)} style={{ width: 18, height: 18 }} />
+            Je confirme ce changement de portée
+          </label>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-        <button type="button" disabled={occupe} onClick={() => void envoyer(true)} style={bouton(true, occupe)}>Publier</button>
-        <button type="button" disabled={occupe} onClick={() => void envoyer(false)} style={bouton(false, occupe)}>Enregistrer en brouillon</button>
+        <button type="button" disabled={bloque} onClick={() => void envoyer(true)} style={bouton(true, bloque)}>Publier</button>
+        <button type="button" disabled={bloque} onClick={() => void envoyer(false)} style={bouton(false, bloque)}>Enregistrer en brouillon</button>
         {onAnnuler && <button type="button" onClick={onAnnuler} style={bouton(false, false)}>Annuler</button>}
       </div>
     </section>
@@ -419,6 +451,11 @@ function Jauge({ valeur, max }: { valeur: number; max: number }) {
 }
 
 /* -------------------------------------------------------------------------- */
+
+function nomsPortee(p: PorteeConnaissance, espaces: Espace[], marques: Marque[]): { espace?: string | null; marque?: string | null } {
+  if (p.niveau === 'plateforme') return {};
+  return { espace: espaces.find((e) => e.id === p.workspaceId)?.name ?? null, marque: p.niveau === 'marque' ? marques.find((m) => m.id === p.brandId)?.name ?? null : null };
+}
 
 const carte: CSSProperties = { border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', minWidth: 0 };
 const h2: CSSProperties = { margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' };

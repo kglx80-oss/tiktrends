@@ -31,7 +31,7 @@ vi.mock('../app/actions/jarvis-chat', () => ({ chatThreadAction: async () => ({}
 vi.mock('../app/actions/adsmap-draft', () => ({ draftConceptAction: async () => ({}) }));
 
 import ConnaissancesPage from '../app/(app)/admin/connaissances/page';
-import { EcranConnaissances } from '../app/(app)/admin/connaissances/EcranConnaissances';
+import { EcranConnaissances, Formulaire } from '../app/(app)/admin/connaissances/EcranConnaissances';
 import { JarvisContexte } from '../app/(app)/jarvis/JarvisContexte';
 import { Tour } from '../app/(app)/jarvis/JarvisChat';
 import type { VueAdminConnaissances } from '../app/actions/connaissances';
@@ -114,6 +114,43 @@ describe('écran Connaissances · publié, inclus, cité, distincts et visibles'
     const vide = rendu(vue([]));
     expect(vide).toContain('Aucune connaissance pour l’instant.');
     expect(vide).toContain('aucune connaissance publiée en portée plateforme');
+  });
+});
+
+describe('relecture sécurité · écran honnête', () => {
+  it('F1 · l’avertissement de confidentialité est visible, mot pour mot', () => {
+    const html = rendu(vue(fixtures()));
+    expect(html).toContain('Tout texte publié en portée plateforme est lu par Jarvis pour tous les clients · un client peut lui en demander le contenu · n’y mets rien de confidentiel.');
+    expect(rendu(vue([]))).toContain('n’y mets rien de confidentiel');
+  });
+
+  it('F3 · « citée » est dite déclarée par le modèle', () => {
+    expect(rendu(vue(fixtures()))).toContain('<b>Citée</b> · déclarée par le modèle');
+  });
+
+  it('F1 · plus aucune promesse « le texte reste côté équipe »', () => {
+    for (const f of ['app/(app)/jarvis/JarvisContexte.tsx', 'app/actions/jarvis-chat.ts', 'app/(app)/admin/connaissances/EcranConnaissances.tsx']) {
+      expect(readFileSync(join(process.cwd(), f), 'utf8'), f).not.toMatch(/reste côté équipe/);
+    }
+  });
+
+  const VALEURS = { titre: 'T', type: 'methode' as const, texte: 'x', mode: 'saisie' as const, fichier: null, niveau: 'plateforme' as const, workspaceId: '', brandId: '' };
+  const formulaire = (porteeAvant?: Parameters<typeof Formulaire>[0]['porteeAvant']) => renderToStaticMarkup(
+    <Formulaire initial={VALEURS} porteeAvant={porteeAvant} titreFormulaire="Nouvelle version · v2" espaces={[]} marques={[]} occupe={false} onAnnuler={() => {}} onEnvoyer={async () => true} />,
+  );
+
+  it('élargissement de portée · alerte visible, envoi bloqué tant que ce n’est pas confirmé', () => {
+    const html = formulaire({ niveau: 'marque', workspaceId: 'w', brandId: 'b' });
+    expect(html).toContain('Cette version ÉLARGIT la portée');
+    expect(html).toContain('Jarvis la lira pour tous les clients.');
+    expect(html).toContain('Je confirme ce changement de portée');
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Publier<\/button>/);
+  });
+
+  it('même portée · aucune alerte, envoi possible', () => {
+    const html = formulaire({ niveau: 'plateforme' });
+    expect(html).not.toContain('ÉLARGIT');
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Publier<\/button>/);
   });
 });
 

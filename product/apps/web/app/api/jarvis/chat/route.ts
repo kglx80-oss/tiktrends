@@ -142,7 +142,7 @@ export async function POST(req: Request) {
             }).catch(() => { /* la réponse a été lue, la perdre en base n'annule pas le tour */ });
           }
           // Ce qui était dans le contexte de CETTE réponse, et ce qu'elle a cité.
-          if (inclus.length) await consignerUsageConnaissances(inclus, complet).catch(() => { /* compteur, jamais bloquant */ });
+          if (inclus.length) await consignerUsageConnaissances(inclus, complet, question).catch(() => { /* compteur, jamais bloquant */ });
           ctrl.close();
         }
       },

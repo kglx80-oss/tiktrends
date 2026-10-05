@@ -2,7 +2,7 @@ import 'server-only';
 import { and, eq, like, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  lireConnaissance, versionsApplicables, assemblerConnaissances, insererConnaissances, extraireCitations,
+  lireConnaissance, versionsApplicables, assemblerConnaissances, insererConnaissances, citationsComptees,
   refConnaissance, porteeApplicable,
   type Connaissance, type ContexteReponse, type BlocConnaissances, type InclusionConnaissance, type Selection,
 } from '@tiktrends/core';
@@ -140,9 +140,10 @@ export interface UsageVersion { inclus: number; cite: number; dernierInclus: str
  * réellement CITÉ (marqueur `[[SOURCE:ref]]` d'une référence incluse). Une
  * incrémentation SQL par version · deux réponses simultanées ne se perdent pas.
  */
-export async function consignerUsageConnaissances(inclus: ReadonlyArray<InclusionConnaissance>, reponse: string): Promise<{ citees: string[] }> {
+export async function consignerUsageConnaissances(inclus: ReadonlyArray<InclusionConnaissance>, reponse: string, question?: string | null): Promise<{ citees: string[] }> {
   if (!db || !inclus.length) return { citees: [] };
-  const { refs } = extraireCitations(reponse, inclus.map((i) => i.ref));
+  // « Citée » = déclarée par le modèle · une question qui dicte le marqueur ne compte pas.
+  const refs = citationsComptees(reponse, inclus.map((i) => i.ref), question);
   const maintenant = new Date().toISOString();
   for (const i of inclus) {
     const cite = refs.includes(i.ref) ? 1 : 0;
@@ -200,6 +201,9 @@ export async function titresDesSources(refs: ReadonlyArray<string>, ctx: Context
     for (const v of c.versions) {
       const ref = refConnaissance(c.id, v.n);
       if (!voulues.has(ref)) continue;
+      // Un brouillon n'a jamais été dans un contexte · une citation qui le vise
+      // est forgée (recopiée, dictée), on ne révèle pas son titre.
+      if (v.etat === 'brouillon') continue;
       if (porteeApplicable(v.portee, ctx)) out[ref] = { titre: v.titre, enService: v.etat === 'publie' };
     }
   }

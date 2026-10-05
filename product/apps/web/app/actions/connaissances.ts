@@ -3,9 +3,11 @@
 import { randomUUID } from 'node:crypto';
 import {
   peutGererConnaissances, validerSaisie, creerConnaissance, nouvelleVersion, publierVersion,
-  retirerConnaissance, vueConnaissance, apercuContextePlateforme,
-  type SaisieConnaissance, type VueConnaissance, type Connaissance, type Resultat,
+  retirerConnaissance, vueConnaissance, apercuContextePlateforme, derniereVersion, changementPortee,
+  type SaisieConnaissance, type VueConnaissance, type Connaissance, type Resultat, type PorteeConnaissance,
 } from '@tiktrends/core';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import {
   listerConnaissances, lireUneConnaissance, ecrireConnaissance, usageConnaissances, type UsageVersion,
@@ -80,12 +82,30 @@ async function modifier(id: string, geste: (c: Connaissance, auteur: string, mai
   }
 }
 
+/**
+ * Une portée espace ou marque doit désigner un espace RÉEL, et une marque qui
+ * appartient À CET espace · relu en base, jamais cru sur parole. Sans ça, une
+ * portée « marque X de l'espace Y » forgée resterait invisible partout (aucune
+ * marque ne correspond) ou, pire, viserait la marque d'un autre espace.
+ */
+async function porteeExiste(p: PorteeConnaissance): Promise<string | null> {
+  if (p.niveau === 'plateforme' || !db) return null;
+  if (p.niveau === 'espace') {
+    const [w] = await db.select({ id: schema.workspaces.id }).from(schema.workspaces).where(eq(schema.workspaces.id, p.workspaceId)).limit(1);
+    return w ? null : 'Cet espace n’existe pas.';
+  }
+  const [b] = await db.select({ ws: schema.brands.workspaceId }).from(schema.brands).where(eq(schema.brands.id, p.brandId)).limit(1);
+  return b && b.ws === p.workspaceId ? null : 'Cette marque n’appartient pas à l’espace choisi.';
+}
+
 export async function creerConnaissanceAction(input: SaisieConnaissance & { publier?: boolean }): Promise<Retour> {
   const g = await garde();
   if ('error' in g) return { error: g.error };
   const v = validerSaisie(input);
   if (!v.ok) return { error: v.erreur };
   try {
+    const refus = await porteeExiste(v.valeur.portee);
+    if (refus) return { error: refus };
     const maintenant = new Date().toISOString();
     let c = creerConnaissance(randomUUID(), v.valeur, g.auteur, maintenant);
     if (input.publier) {
@@ -99,13 +119,22 @@ export async function creerConnaissanceAction(input: SaisieConnaissance & { publ
   }
 }
 
-export async function nouvelleVersionAction(input: { id: string; base: number; saisie: SaisieConnaissance; publier?: boolean }): Promise<Retour> {
+export async function nouvelleVersionAction(input: { id: string; base: number; saisie: SaisieConnaissance; publier?: boolean; confirmerPortee?: boolean }): Promise<Retour> {
+  // Le garde d'abord · un refus ne doit rien dire de la validité de la saisie.
+  const g = await garde();
+  if ('error' in g) return { error: g.error };
   const v = validerSaisie(input.saisie);
-  if (!v.ok) {
-    const g = await garde();
-    return 'error' in g ? { error: g.error } : { error: v.erreur };
-  }
+  if (!v.ok) return { error: v.erreur };
+  const refus = await porteeExiste(v.valeur.portee).catch(() => 'Portée illisible · réessaie.');
+  if (refus) return { error: refus };
   return modifier(input.id, (c, auteur, maintenant) => {
+    // Élargir ou déplacer la portée expose le texte à d'autres lecteurs · le
+    // serveur exige la confirmation que l'écran a demandée.
+    const avant = derniereVersion(c)?.portee;
+    const ch = avant ? changementPortee(avant, v.valeur.portee) : null;
+    if (ch && !input.confirmerPortee) {
+      return { ok: false, erreur: ch === 'elargie' ? 'Cette version élargit la portée · confirme-le avant d’enregistrer.' : 'Cette version déplace la portée · confirme-le avant d’enregistrer.' };
+    }
     const r = nouvelleVersion(c, v.valeur, input.base, auteur, maintenant);
     if (!r.ok || !input.publier) return r;
     return publierVersion(r.valeur, r.valeur.versions.length ? Math.max(...r.valeur.versions.map((x) => x.n)) : 1, auteur, maintenant);

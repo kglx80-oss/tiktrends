@@ -47,8 +47,11 @@ export interface ChatContexte {
   hooks: ChatHooks | null;
   /**
    * Connaissances de l'équipe plateforme INCLUSES dans le contexte des
-   * prochaines réponses pour cette marque · titre et type seulement, le texte
-   * reste côté équipe. null si la lecture a échoué.
+   * prochaines réponses pour cette marque · ce panneau n'en montre que le
+   * titre et le type. Ce n'est PAS une protection : le texte est dans la
+   * consigne de Jarvis, et un client peut lui en demander le contenu (la
+   * consigne lui interdit de le recopier, ce qui ne vaut pas garantie).
+   * null si la lecture a échoué.
    */
   connaissances?: { inclus: Array<{ ref: string; titre: string; type: TypeConnaissance; tronquee: boolean }>; horsPlace: number } | null;
 }

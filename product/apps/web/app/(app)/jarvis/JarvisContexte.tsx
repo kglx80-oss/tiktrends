@@ -124,9 +124,10 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
         )}
 
         {/* Les connaissances de l'équipe · ce qui entre dans le contexte des
-            PROCHAINES réponses pour cette marque. Titre et type seulement · le
-            texte reste côté équipe. Le retrait vaut pour la suite, pas pour le
-            passé · et c'est dit, plutôt que promis. */}
+            PROCHAINES réponses pour cette marque. Le panneau n'affiche que le
+            titre et le type · ce n'est pas une protection du texte, que Jarvis
+            lit et dont un client peut lui demander le contenu. Le retrait vaut
+            pour la suite, pas pour le passé · et c'est dit, plutôt que promis. */}
         {contexte.connaissances && (
           <Bloc titre="Connaissances de l’équipe" portee="plateforme">
             {contexte.connaissances.inclus.length ? (

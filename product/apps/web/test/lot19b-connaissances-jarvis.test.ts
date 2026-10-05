@@ -210,6 +210,31 @@ describe('données manquantes · Jarvis répond sans le bloc', () => {
   });
 });
 
+describe('relecture sécurité · remarques', () => {
+  it('nouvelleVersionAction · le garde passe AVANT la validation (un refus ne dit rien de la saisie)', async () => {
+    h.session = ownerEspace();
+    const r = await nouvelleVersionAction({ id: idsK.hostile!, base: 1, saisie: saisie({ titre: '', texte: '' }) });
+    expect(r.error).toContain('Réservé à l’équipe plateforme');
+  });
+
+  it('portée marque · une marque qui n’appartient pas à l’espace est refusée (création et nouvelle version)', async () => {
+    const forgee = { niveau: 'marque', workspaceId: ids.ws, brandId: ids.brand2 };
+    const c = await creerConnaissanceAction({ ...saisie({ titre: 'Forgée', texte: 'TEXTE_FORGE', portee: forgee }), publier: true });
+    expect(c.error).toBe('Cette marque n’appartient pas à l’espace choisi.');
+    expect(c.id).toBeUndefined();
+    const v = await nouvelleVersionAction({ id: idsK.autreMarque!, base: 1, saisie: saisie({ titre: 'Privée', type: 'donnees', texte: 'X', portee: { niveau: 'marque', workspaceId: ids.ws2, brandId: ids.brand } }), confirmerPortee: true });
+    expect(v.error).toBe('Cette marque n’appartient pas à l’espace choisi.');
+  });
+
+  it('élargir la portée d’une version à l’autre exige une confirmation explicite', async () => {
+    const plateforme = saisie({ titre: 'Privée', type: 'donnees', texte: 'TEXTE_ELARGI', portee: { niveau: 'plateforme' } });
+    const sans = await nouvelleVersionAction({ id: idsK.autreMarque!, base: 1, saisie: plateforme });
+    expect(sans.error).toBe('Cette version élargit la portée · confirme-le avant d’enregistrer.');
+    const avec = await nouvelleVersionAction({ id: idsK.autreMarque!, base: 1, saisie: plateforme, confirmerPortee: true });
+    expect(avec.error).toBeUndefined();
+  });
+});
+
 describe('garde · admin plateforme oui, owner d’espace non', () => {
   it('un owner d’ESPACE (sans rôle d’équipe) est refusé partout et n’écrit rien', async () => {
     const avant = await db.select({ key: schema.appSettings.key, value: schema.appSettings.value }).from(schema.appSettings);
