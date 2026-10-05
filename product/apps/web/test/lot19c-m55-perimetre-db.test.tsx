@@ -181,3 +181,36 @@ describe('c · espace ET marque active', () => {
     expect(r.ok).toBe(true);
   });
 });
+
+describe('d · pont Adsmap · droit vérifié côté serveur', () => {
+  const concepts = async () => (await db!.select({ n: count() }).from(schema.concepts).where(eq(schema.concepts.workspaceId, ids.wsA)))[0]!.n;
+
+  it('Core (sans Adsmap) · l’action refuse, aucun concept créé', async () => {
+    const avant = await concepts();
+    const r = await trackSavedAdAction({ platform: 'meta', externalId: 'y-camille' });
+    expect(r.error).toBe('Adsmap est disponible à partir de l’offre Plus.');
+    expect(r.ok).toBeUndefined();
+    expect(await concepts()).toBe(avant);
+  });
+
+  it('Starter · l’action refuse aussi', async () => {
+    session.plan = 'starter';
+    const r = await trackSavedAdAction({ platform: 'meta', externalId: 'y-camille' });
+    expect(r.error).toBe('Adsmap est disponible à partir de l’offre Plus.');
+  });
+
+  it('Plus, lecteur client · refus par le rôle', async () => {
+    session.plan = 'plus'; session.role = 'client_viewer';
+    const r = await trackSavedAdAction({ platform: 'meta', externalId: 'y-camille' });
+    expect(r.error).toBe('Ton rôle ne permet pas d’accéder à Adsmap.');
+  });
+
+  it('le bouton suit le même droit · absent en Core, présent en Plus', async () => {
+    const core = await rendre({ format: 'packshot' });
+    expect(core).toContain('data-annonce="y-camille"');
+    expect(core, 'le pont Adsmap est proposé sans le droit Adsmap').not.toContain('Préparer un test');
+    session.plan = 'plus';
+    const plus = await rendre({ format: 'packshot' });
+    expect(plus).toContain('Préparer un test · Adsmap');
+  });
+});
