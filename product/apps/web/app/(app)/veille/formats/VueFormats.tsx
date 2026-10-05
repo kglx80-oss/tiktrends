@@ -111,7 +111,11 @@ function Liste({ compte, c, filtre }: { compte: ReturnType<typeof compterFormats
       <Empty
         tone="todo" icon="tag" title="Aucune sauvegarde classée pour l’instant."
         why={`Les compteurs par format se remplissent quand tu classes tes sauvegardes, une à une · rien n’est deviné. ${compte.nonClassees > 1 ? `${compte.nonClassees} annonces attendent leur format.` : `${compte.nonClassees} annonce attend son format.`}`}
-        action={{ label: compte.nonClassees > 0 ? `Classer mes ${pluriel(compte.nonClassees, 'sauvegarde', 'sauvegardes')}` : 'Voir les incertaines', href: compte.nonClassees > 0 ? versNonClassees : lien({ ...c, format: FORMAT_INCERTAIN }) }}
+        action={{ label: compte.nonClassees > 0 ? `Classer mes ${pluriel(compte.nonClassees, 'sauvegarde', 'sauvegardes')}` : 'Voir les incertaines', href: compte.nonClassees > 0 ? versNonClassees : lien({ ...c, format: FORMAT_INCERTAIN }),
+          // Même chemin, autre recherche · le routeur client ne termine pas
+          // toujours cette transition (mesuré en recette 19C, comme #106b) ·
+          // navigation complète, comme les autres sorties de cet écran.
+          rechargement: true }}
       />
     );
   }
