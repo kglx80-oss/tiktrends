@@ -79,6 +79,12 @@ describe('Accueil · le sélecteur de vue suit le rôle', () => {
     // Même chemin, autre recherche · le routeur client ne termine pas toujours
     // (mesuré · 2 clics sur 5 perdus avec <Link>) · lien natif, chargement complet.
     expect(n!, 'un onglet passe par le routeur client (<Link>)').not.toContain('data-lien-routeur');
+    // Emprise verticale · mesuré en production locale à 1440×720, la rangée de
+    // marques finissait à 682 px avant le sélecteur · il dispose de 720 − 682 = 38 px.
+    const marge = /<nav [^>]*style="[^"]*margin:(-?\d+)px 0 (\d+)px/.exec(n!);
+    expect(marge, 'marges du sélecteur illisibles').toBeTruthy();
+    const emprise = 44 + 1 + Number(marge![1]) + Number(marge![2]);
+    expect(emprise, `le sélecteur occupe ${emprise} px · la rangée de marques passe sous 720`).toBeLessThanOrEqual(38);
     // Le reste de l'Accueil est inchangé · la salutation et le bandeau sont là.
     expect(h).toContain('Bonjour');
     expect(h, 'la vue Analytics fuit sur l’Accueil par défaut').not.toContain('data-vue="analytics"');
