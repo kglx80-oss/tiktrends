@@ -70,6 +70,15 @@ describe('rail · Analytics sous Accueil, une seule entrée allumée', () => {
     expect(allumees(h), 'sur la vue, l’entrée allumée doit être « Analytics » seule').toEqual(['Analytics']);
   });
 
+  it('ailleurs (Veille, Adsmap) · « Analytics » reste à un clic (branche Accueil dépliée d’office), rien n’est allumé à tort', () => {
+    for (const adresse of ['/veille', '/adsmap/suites']) {
+      const h = coquille(adresse);
+      expect(entree(h, '/dashboard?vue=analytics'), `Analytics caché sous Accueil replié sur ${adresse}`).not.toBeNull();
+      expect(allumees(h), adresse).not.toContain('Analytics');
+      expect(allumees(h), adresse).not.toContain('Accueil');
+    }
+  });
+
   it('aucune section « Piloter » dans le rail', () => {
     expect(texte(rail(coquille('/dashboard')))).not.toMatch(/Piloter/i);
   });

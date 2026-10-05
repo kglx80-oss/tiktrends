@@ -94,6 +94,11 @@ export interface Feature {
   minRole: Role;
   minPlan: Plan;
   soon?: boolean;    // fonctionnalité à venir (affichée grisée)
+  /**
+   * Branche DÉPLIÉE d'office, où que l'on soit (lot 19A) · « Analytics » était
+   * une entrée de tête · regroupée sous l'Accueil, elle reste à un clic.
+   */
+  deplie?: boolean;
 }
 
 export const FEATURES: Feature[] = [
@@ -101,7 +106,7 @@ export const FEATURES: Feature[] = [
   // « Accueil » (ex-« Dashboard ») MÈNE le rail, sans en-tête de section.
   // La cible reste /dashboard · c'est la vraie page d'accueil · sa vue
   // Analytics est la sous-entrée qui suit.
-  { key: 'dashboard', label: 'Accueil',      href: '/dashboard',   icon: 'grid',   group: 'Accueil',   minRole: 'client_viewer', minPlan: 'starter' },
+  { key: 'dashboard', label: 'Accueil',      href: '/dashboard',   icon: 'grid',   group: 'Accueil',   deplie: true, minRole: 'client_viewer', minPlan: 'starter' },
 
   // Analytics · le Pilotage regroupé SOUS l'Accueil (lot 19A) · même chemin que
   // l'Accueil, la vue `?vue=analytics`. Mêmes droits qu'avant (rôle, formule,
