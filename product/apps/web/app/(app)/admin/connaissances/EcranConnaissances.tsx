@@ -248,7 +248,10 @@ function Formulaire({ initial, titreFormulaire, espaces, marques, occupe, onAnnu
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 12, marginTop: 14 }}>
         <label style={champ}>
-          <span style={etiquette}>Titre</span>
+          <span style={{ ...etiquette, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <span>Titre</span>
+            <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 600, color: b.titre.length >= LIMITE_TITRE ? '#ffb35c' : 'var(--muted)' }}>{b.titre.length} / {LIMITE_TITRE}</span>
+          </span>
           <input value={b.titre} maxLength={LIMITE_TITRE} onChange={(e) => set({ titre: e.target.value })} placeholder="Ex. · Itérer une gagnante, une variable à la fois" style={entree} />
         </label>
         <label style={champ}>
@@ -347,15 +350,15 @@ function Carte({ it, portee, occupe, inclusion, horsPlace, onEditer, onPublier, 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
         <span style={badge({ fg: 'var(--ink-2)', bd: 'var(--line-2)' })}>{LIBELLE_TYPE[it.type]} · {familleType(it.type) === 'editorial' ? 'éditorial' : 'source'}</span>
         <span style={{ ...badge({ fg: 'var(--ink-2)', bd: 'var(--line-2)' }), maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{portee}</span>
-        {it.brouillon !== null && it.brouillon !== it.enService && <span style={badge({ fg: '#ffcf8f', bd: 'rgba(245,166,35,.4)' })}>Brouillon v{it.brouillon} en attente</span>}
+        {it.brouillon !== null && it.etat !== 'brouillon' && <span style={badge({ fg: '#ffcf8f', bd: 'rgba(245,166,35,.4)' })}>Brouillon v{it.brouillon} en attente</span>}
       </div>
 
       <p style={{ ...corps, marginTop: 10 }}>
         {enService
           ? <>
               {it.portee.niveau === 'plateforme'
-                ? (inclusion ? (inclusion.tronquee ? `Incluse, tronquée (${nf(inclusion.caracteresOmis)} caractères non lus)` : 'Incluse en entier') : horsPlace ? 'Hors place · n’entre pas' : 'Incluse')
-                : 'Incluse pour sa portée seulement'}
+                ? (inclusion ? (inclusion.tronquee ? `Dans le contexte · tronquée (${nf(inclusion.caracteresOmis)} caractères non lus)` : 'Dans le contexte · en entier') : horsPlace ? 'Hors place · n’entre pas dans le contexte' : 'Dans le contexte')
+                : 'Dans le contexte de sa portée seulement'}
               {' · '}incluse dans {nf(u?.inclus ?? 0)} réponse(s){u?.dernierInclus ? ` (dernière le ${date(u.dernierInclus)})` : ''}
               {' · '}citée {nf(u?.cite ?? 0)} fois
             </>

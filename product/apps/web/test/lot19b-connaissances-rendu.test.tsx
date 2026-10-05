@@ -73,12 +73,14 @@ describe('écran Connaissances · publié, inclus, cité, distincts et visibles'
     expect(html).toContain('Brouillon v3 en attente');
     expect(html).toContain('>Retirée<');
     expect(html).toContain('>Brouillon<');
+    // Un brouillon jamais publié ne s'annonce pas deux fois (« Brouillon » + « en attente »).
+    expect(html).not.toContain('Brouillon v1 en attente');
   });
 
   it('inclus et cité sont comptés séparément, sur la version en service', () => {
     expect(html).toContain('incluse dans 4 réponse(s)');
     expect(html).toContain('citée 1 fois');
-    expect(html).toContain('Incluse en entier');
+    expect(html).toContain('Dans le contexte · en entier');
   });
 
   it('l’aperçu dit ce que Jarvis lit, face au plafond mesuré', () => {
