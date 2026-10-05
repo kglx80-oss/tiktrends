@@ -27,8 +27,9 @@ const PERIMETRE = [
   ...['adsmap', 'studio', 'assets', 'tags', 'radar', 'brands', 'connections', 'billing', 'credits', 'usage', 'team', 'profile', 'settings', 'support', 'console']
     .map((d) => join('app', '(app)', d)),
   ...['depenses', 'finance', 'incidents', 'intelligence', 'paiement', 'plans', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
-  // Transféré au lot pour ce seul changement (rendu sur /adsmap) · le reste de jarvis/** n'est pas couvert.
+  // Transférés au lot pour ce seul changement (rendus sur /adsmap) · le reste de jarvis/** n'est pas couvert.
   join('app', '(app)', 'jarvis', 'sections', 'SectionEssais.tsx'),
+  join('app', '(app)', 'jarvis', 'sections', 'Revelation.tsx'),
 ];
 
 /** Fichiers du dossier `components` hors de ce lot, et pourquoi. */

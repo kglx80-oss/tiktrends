@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode, type CSSProperties } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { surface } from '../../../../components/ui';
 
 /**
  * Une révélation repliable du cumul « appris » (Essais, Score Jarvis, Relectures).
@@ -27,7 +28,8 @@ export function Revelation({ id, titre, badge, borderColor, children }: {
       id={id}
       onToggle={(e) => setOuvert((e.currentTarget as HTMLDetailsElement).open)}
       style={{
-        marginBottom: 12, padding: '14px 18px', borderRadius: 14,
+        // Révélation de premier niveau · `surface` (r-card) · une bordure colorée en fait un `signal`, même rayon (lot 19D).
+        marginBottom: 12, padding: '14px 18px', borderRadius: surface.borderRadius,
         border: `1px solid ${borderColor}`, background: 'var(--surface)', scrollMarginTop: MARGE_ANCRE,
       }}
     >
