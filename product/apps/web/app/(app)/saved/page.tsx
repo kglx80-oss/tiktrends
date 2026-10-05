@@ -13,7 +13,7 @@ import { GrammaireCategorie } from '../../../components/GrammaireCategorie';
 import { SavedTabs } from '../../../components/SavedTabs';
 import { BibliothequeVide } from '../../../components/BibliothequeVide';
 import { Empty } from '../../../components/Empty';
-import { ongletValide } from '@tiktrends/core';
+import { lireFormatCreatif, ongletValide } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { cadrePage } from '../../../components/ui';
 
@@ -42,7 +42,9 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
       db.select().from(schema.followedBrands).where(followWhere).orderBy(desc(schema.followedBrands.createdAt)),
       db.select().from(schema.brandTrackerEvents).where(eq(schema.brandTrackerEvents.workspaceId, s.workspaceId)).orderBy(desc(schema.brandTrackerEvents.createdAt)).limit(48),
     ]);
-    items = sv.map((r) => ({ id: r.id, ad: r.snapshot as InspoAd, folder: r.folder ?? null, externalId: r.externalId, platform: r.platform }));
+    // `format` · le classement lu au noyau (valeur inconnue → non classée) · prêt
+    // pour le choix « Format » des cartes (lot 19C).
+    items = sv.map((r) => ({ id: r.id, ad: r.snapshot as InspoAd, folder: r.folder ?? null, externalId: r.externalId, platform: r.platform, format: lireFormatCreatif(r.snapshot) }));
     brands = fl;
     trackerEvents = ev.map((r) => ({ ad: r.snapshot as InspoAd, advertiserName: r.advertiserName, unseen: !r.seenAt }));
     for (const b of fl) followKeys.push(b.platform + ':' + b.name);
@@ -73,6 +75,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
       <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Sauvegardes</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
         Tes créas gardées, les concurrents que tu suis et ce qu'ils sortent de neuf. Depuis la <b>Veille</b>, ★ sauvegarde une créa et « + Suivre » un concurrent.
+        {items.length > 0 && <> Range tes créas par format dans <a href="/veille/formats" style={{ color: 'var(--accent-strong)', fontWeight: 700 }}>Formats créatifs</a>.</>}
       </p>
 
       {toutVide ? (

@@ -1,21 +1,91 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { enregistrementFormat, mediaAnnonce, sansFormatCreatif, validerChoixFormat, type FormatCreatifId } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
+import { FEATURES, canAccess, denyReason } from '../../lib/rbac';
+import { effectiveAccess } from '../../lib/access';
 import type { InspoAd } from '@tiktrends/integrations';
 
 /* Appels directs (depuis des boutons client via useTransition) · pas de redirection,
    donc pas de rechargement de page ni de nouvelle recherche Trendtrack. */
 
-export async function saveAd(input: { platform: string; externalId: string; snapshot: InspoAd }): Promise<void> {
+/**
+ * La Veille (offre Core) · même contrôle que la page `/veille` (lot 19C).
+ * Cacher l'écran ne protège rien · une action serveur reste appelable
+ * directement. `saveAd` ne vérifiait que la session.
+ */
+const Veille = FEATURES.find((f) => f.key === 'inspo')!;
+type SessionVeille = NonNullable<Awaited<ReturnType<typeof getSession>>>;
+
+async function gardeVeille(): Promise<{ s: SessionVeille } | { error: string }> {
   const s = await getSession();
-  if (!s || !db) return;
+  if (!s || !db) return { error: 'Session expirée · reconnecte-toi puis réessaie.' };
+  const a = effectiveAccess(s);
+  if (!canAccess(a, Veille)) {
+    return {
+      error: denyReason(a, Veille) === 'plan'
+        ? 'La Veille est incluse dès l’offre Core · un propriétaire de l’espace peut changer d’offre dans Réglages.'
+        : 'Ton rôle ne permet pas d’utiliser la Veille · demande à un administrateur de l’espace.',
+    };
+  }
+  return { s };
+}
+
+export async function saveAd(input: { platform: string; externalId: string; snapshot: InspoAd }): Promise<{ ok: boolean; error?: string }> {
+  const g = await gardeVeille();
+  if ('error' in g) return { ok: false, error: g.error };
+  const { s } = g;
   const brand = await getActiveBrand(s.workspaceId);
-  await db.insert(schema.savedAds)
-    .values({ workspaceId: s.workspaceId, userId: s.user.id, brandId: brand?.id ?? null, platform: input.platform, externalId: input.externalId, snapshot: input.snapshot })
+  // Un classement ne voyage jamais avec la sauvegarde · il s'écrit par
+  // `classerFormatSauvegarde` (validé, daté, signé), pas depuis le client.
+  await db!.insert(schema.savedAds)
+    .values({ workspaceId: s.workspaceId, userId: s.user.id, brandId: brand?.id ?? null, platform: input.platform, externalId: input.externalId, snapshot: sansFormatCreatif(input.snapshot) })
     .onConflictDoNothing();
+  return { ok: true };
+}
+
+export type ResultatFormat = { ok: true; format: FormatCreatifId | null; date: string | null } | { ok: false; error: string };
+
+/**
+ * Formats créatifs v1 · qualification MANUELLE d'une annonce sauvegardée.
+ *
+ * Écrit `saved_ads.snapshot_json.formatCreatif` = `{ id, version, date, auteur }`
+ * (aucune migration) · `non_classe` retire le classement. Identité = (espace de
+ * la session, plateforme, `external_id`) · la clé unique de la table · une
+ * annonce d'un autre espace n'est jamais atteinte (introuvable). La règle
+ * (liste, média, validation) vit au noyau (`formats-creatifs.ts`).
+ */
+export async function classerFormatSauvegarde(input: { platform: string; externalId: string; format: string }): Promise<ResultatFormat> {
+  const g = await gardeVeille();
+  if ('error' in g) return { ok: false, error: g.error };
+  const { s } = g;
+  const platform = typeof input?.platform === 'string' ? input.platform.slice(0, 40) : '';
+  const externalId = typeof input?.externalId === 'string' ? input.externalId.slice(0, 200) : '';
+  if (!platform || !externalId) return { ok: false, error: 'Annonce introuvable dans ton espace · recharge la page.' };
+
+  const ici = and(
+    eq(schema.savedAds.workspaceId, s.workspaceId),
+    eq(schema.savedAds.platform, platform),
+    eq(schema.savedAds.externalId, externalId),
+  );
+  const [ligne] = await db!.select({ snapshot: schema.savedAds.snapshot }).from(schema.savedAds).where(ici).limit(1);
+  if (!ligne) return { ok: false, error: 'Annonce introuvable dans ton espace · recharge la page.' };
+
+  const choix = validerChoixFormat(input.format, mediaAnnonce((ligne.snapshot as { mediaType?: unknown } | null)?.mediaType));
+  if (!choix.ok) return { ok: false, error: choix.raison };
+
+  const enr = choix.id ? enregistrementFormat(choix.id, s.user.id, new Date()) : null;
+  const maj = await db!.update(schema.savedAds)
+    .set({ snapshot: enr
+      ? sql`jsonb_set(${schema.savedAds.snapshot}, '{formatCreatif}', ${JSON.stringify(enr)}::jsonb, true)`
+      : sql`${schema.savedAds.snapshot} - 'formatCreatif'` })
+    .where(ici)
+    .returning({ id: schema.savedAds.id });
+  if (maj.length === 0) return { ok: false, error: 'Annonce introuvable dans ton espace · recharge la page.' };
+  return { ok: true, format: choix.id, date: enr?.date ?? null };
 }
 
 /** Range une créa sauvegardée dans un board/dossier (null = « Sans dossier »). */
