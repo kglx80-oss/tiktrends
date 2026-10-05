@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, ancreCarteVeille, lienAnnonceurVeille, LIBELLE_ANNONCEUR_VEILLE, TITRE_ANNONCEUR_VEILLE, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, ancreCarteVeille, lienAnnonceurVeille, LIBELLE_ANNONCEUR_VEILLE, TITRE_ANNONCEUR_VEILLE, nomLienAnnonceurVeille, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -121,7 +121,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {/* Lot 18B · la recherche INTERNE des annonces du même annonceur ·
                 une recherche par nom, pas un suivi (le bouton Suivre reste à part). */}
-            {annonceur && <a href={annonceur} style={{ ...lienExterne, ...t44, color: 'var(--ink)' }} title={TITRE_ANNONCEUR_VEILLE}>{LIBELLE_ANNONCEUR_VEILLE} ›</a>}
+            {annonceur && <a href={annonceur} style={{ ...lienExterne, ...t44, color: 'var(--ink)' }} title={TITRE_ANNONCEUR_VEILLE} aria-label={nomLienAnnonceurVeille(ad)}>{LIBELLE_ANNONCEUR_VEILLE} ›</a>}
             {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={{ ...lienExterne, ...t44 }} title="Ouvre une recherche par nom d’annonceur · pas l’annonce exacte">{libelleBibliotheque(biblio)} ↗</a>}
             {site && <a href={site} target="_blank" rel="noreferrer" style={{ ...lienExterne, ...t44 }}>Site ↗</a>}
           </div>

@@ -24,6 +24,7 @@ describe('Carte de Veille · annonceur et retour (lot 18B)', () => {
     const ann = [...d.querySelectorAll('a')].find((a) => /Ses annonces dans la Veille/.test(a.textContent ?? ''));
     expect(ann?.getAttribute('href'), 'pas de lien interne vers l’annonceur').toBe('/veille?q=Brume+%26+Sel&p=meta&searchIn=brand&rv=q%3Droutine%26page%3D2%23ad-meta-mock-044');
     expect(ann?.getAttribute('target'), 'lien interne ouvert ailleurs').toBeNull();
+    expect(ann?.getAttribute('aria-label'), 'toutes les cartes portent le même nom accessible').toBe('Ses annonces dans la Veille · Brume & Sel');
     expect(d.textContent, 'une recherche présentée comme un suivi').not.toMatch(/concurrent suivi/i);
     const studio = [...d.querySelectorAll('a')].find((a) => (a.getAttribute('href') ?? '').startsWith('/studio/ads'))!;
     const u = new URL(studio.getAttribute('href')!, 'http://x');

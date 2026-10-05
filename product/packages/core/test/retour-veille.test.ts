@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  contexteVeille, lienRetourVeille, termeRetourVeille, ancreCarteVeille, lienAnnonceurVeille,
+  contexteVeille, lienRetourVeille, nomLienAnnonceurVeille, termeRetourVeille, ancreCarteVeille, lienAnnonceurVeille,
 } from '../src';
 
 describe('Veille · contexte de retour (lot 18B)', () => {
@@ -50,5 +50,14 @@ describe('Veille · « Ses annonces dans la Veille » (lot 18B)', () => {
     expect(lienAnnonceurVeille({ platform: 'tiktok', advertiserName: 'Kora' }, '')).toBeNull();
     expect(lienAnnonceurVeille({ platform: 'google', advertiserName: 'Kora' }, '')).toBeNull();
     expect(lienAnnonceurVeille({ platform: 'meta', advertiserName: '  ' }, '')).toBeNull();
+  });
+});
+
+describe('« Ses annonces dans la Veille » · nom accessible (lot 18B)', () => {
+  it('commence par le libellé visible et nomme l’annonceur, ou le domaine sur TikTok', () => {
+    const long = 'Maison Verdure · Laboratoire de soins botaniques pour peaux sensibles et réactives (édition France)';
+    expect(nomLienAnnonceurVeille({ platform: 'meta', advertiserName: long })).toBe(`Ses annonces dans la Veille · ${long}`);
+    expect(nomLienAnnonceurVeille({ platform: 'tiktok', advertiserName: 'Kora', landingDomain: 'kora.exemple.test' })).toBe('Ses annonces dans la Veille · kora.exemple.test');
+    expect(nomLienAnnonceurVeille({ platform: 'meta' })).toBe('Ses annonces dans la Veille');
   });
 });

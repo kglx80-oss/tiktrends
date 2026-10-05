@@ -127,3 +127,15 @@ export function lienAnnonceurVeille(
 
 export const LIBELLE_ANNONCEUR_VEILLE = 'Ses annonces dans la Veille';
 export const TITRE_ANNONCEUR_VEILLE = 'Recherche par nom d’annonceur dans la Veille · pas un suivi';
+
+/**
+ * Le nom ACCESSIBLE du lien · chaque carte portait le même « Ses annonces dans
+ * la Veille », indistinct hors contexte (liste des liens d'un lecteur d'écran).
+ * Il commence par le libellé visible (ce qu'on prononce pour l'activer) et
+ * nomme l'annonceur, ou le domaine quand c'est lui qu'on cherche (TikTok).
+ */
+export function nomLienAnnonceurVeille(ad: { platform?: string | null; advertiserName?: string | null; landingDomain?: string | null }): string {
+  const p = (ad.platform ?? 'meta').toLowerCase();
+  const qui = (p === 'tiktok' ? ad.landingDomain : ad.advertiserName)?.trim();
+  return qui ? `${LIBELLE_ANNONCEUR_VEILLE} · ${qui}` : LIBELLE_ANNONCEUR_VEILLE;
+}
