@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { afficherCredits, texteCredits, CIBLE_TACTILE_MIN, cheminOuvert, liensOuverts, noteAccesAccueil, type RegleChemin } from '@tiktrends/core';
 import { AssistantChat } from './AssistantChat';
 import { Icon } from './Icon';
+import { surface } from './ui';
 
 export interface AssistantHomeProps {
   firstName: string;
@@ -117,7 +118,7 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
           return (
           <Lien key={a.href} href={a.href} style={{
             display: 'flex', alignItems: 'center', gap: 12, minHeight: CIBLE_TACTILE_MIN, padding: '13px 15px', textDecoration: 'none',
-            border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', minWidth: 0,
+            ...surface, background: 'var(--surface)', minWidth: 0,
           }}>
             <span aria-hidden style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, background: 'var(--paper)', border: '1px solid var(--line-2)', color: 'var(--accent-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={a.icon} size={17} /></span>
             <span style={{ display: 'grid', gap: 1, minWidth: 0 }}>

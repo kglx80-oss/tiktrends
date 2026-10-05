@@ -3,6 +3,7 @@ import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { attributionViewAction, creativeTrendAction } from '../../../actions/adsmap-attribution';
+import { cadreSignal, tuile } from '../../../../components/ui';
 
 /**
  * Bilan avancé de Jarvis · l'attribution et la tendance, à leur destination.
@@ -53,8 +54,8 @@ export async function SectionAttribution() {
           la création de la créa, pas sur un déploiement. */}
       {tendance.trend && (
         <section style={{
-          marginBottom: 24, padding: '16px 18px', borderRadius: 14,
-          border: `1px solid ${tendance.trend.conclusive ? ((tendance.trend.liftPoints ?? 0) > 0 ? 'rgba(126,232,191,.4)' : 'rgba(255,77,109,.4)') : 'var(--line)'}`,
+          marginBottom: 24, padding: '16px 18px',
+          ...cadreSignal(tendance.trend.conclusive ? ((tendance.trend.liftPoints ?? 0) > 0 ? 'rgba(126,232,191,.4)' : 'rgba(255,77,109,.4)') : 'var(--line)'),
           background: 'var(--surface)',
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
@@ -66,8 +67,8 @@ export async function SectionAttribution() {
             </span>
           </div>
           <p style={{
-            margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
-            background: 'var(--paper)', border: '1px solid var(--line)',
+            margin: '11px 0 0', padding: '10px 13px',
+            background: 'var(--paper)', ...tuile,
             fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
             color: tendance.trend.conclusive
               ? ((tendance.trend.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095')
@@ -85,8 +86,8 @@ export async function SectionAttribution() {
 
       {/* Le contrôle · un outil qui ne se vérifie pas accumule. */}
       <section id="attribution" style={{
-        marginBottom: 8, padding: '16px 18px', borderRadius: 14,
-        border: `1px solid ${attr?.overall.conclusive ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
+        marginBottom: 8, padding: '16px 18px',
+        ...cadreSignal(attr?.overall.conclusive ? 'rgba(126,232,191,.4)' : 'var(--line)'),
         background: 'var(--surface)',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
@@ -103,8 +104,8 @@ export async function SectionAttribution() {
           indécidable · mais si l’ensemble fait bouger le taux.
         </p>
         <p style={{
-          margin: '11px 0 0', padding: '10px 13px', borderRadius: 10,
-          background: 'var(--paper)', border: '1px solid var(--line)',
+          margin: '11px 0 0', padding: '10px 13px',
+          background: 'var(--paper)', ...tuile,
           fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
           color: attrErreur ? '#ff8095' : attr?.overall.conclusive
             ? (attr.overall.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095'

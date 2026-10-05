@@ -30,6 +30,8 @@ const PERIMETRE = [
   // Transférés au lot pour ce seul changement (rendus sur /adsmap) · le reste de jarvis/** n'est pas couvert.
   join('app', '(app)', 'jarvis', 'sections', 'SectionEssais.tsx'),
   join('app', '(app)', 'jarvis', 'sections', 'Revelation.tsx'),
+  // Lot 19A · rendu dans la vue Analytics de l'Accueil (seul appelant).
+  join('app', '(app)', 'jarvis', 'sections', 'SectionAttribution.tsx'),
 ];
 
 /** Fichiers du dossier `components` hors de ce lot, et pourquoi. */
