@@ -97,3 +97,40 @@ export function lireFiltreSuites(recherche: string): FiltreSuites {
 export function ecrireFiltreSuites(recherche: string, f: FiltreSuites): string {
   return fusionner(recherche, { mode: f !== 'all' ? f : null });
 }
+
+/**
+ * Veille › Ce qui scale · type, annonceur, angle, recherche dans le copy et tri
+ * (lot 18B · mesuré, ils vivaient en état local et se perdaient au rechargement
+ * comme au Retour, 3 largeurs sur 3). `q` et `country` restent ceux de la niche ·
+ * la recherche dans le copy prend `texte`. Un annonceur ou un angle absent de
+ * l'échantillon affiché est ignoré · le menu ne saurait pas l'afficher.
+ */
+export type TypeScale = 'all' | 'video' | 'static';
+export type TriScale = 'growth' | 'reach' | 'duration' | 'spend';
+export interface FiltresScale { type: TypeScale; annonceur: string; angle: string; texte: string; tri: TriScale }
+export const FILTRES_SCALE_DEFAUT: FiltresScale = { type: 'all', annonceur: 'all', angle: 'all', texte: '', tri: 'growth' };
+const TYPES_SCALE: readonly TypeScale[] = ['all', 'video', 'static'];
+const TRIS_SCALE: readonly TriScale[] = ['growth', 'reach', 'duration', 'spend'];
+
+export function lireFiltresScale(recherche: string, admis: { annonceurs: readonly string[]; angles: readonly string[] }): FiltresScale {
+  const p = lire(recherche);
+  const ann = p.get('annonceur');
+  const ang = p.get('angle');
+  return {
+    type: parmi(p.get('type'), TYPES_SCALE, 'all'),
+    annonceur: ann && admis.annonceurs.includes(ann) ? ann : 'all',
+    angle: ang && admis.angles.includes(ang) ? ang : 'all',
+    texte: (p.get('texte') ?? '').slice(0, 200),
+    tri: parmi(p.get('tri'), TRIS_SCALE, 'growth'),
+  };
+}
+
+export function ecrireFiltresScale(recherche: string, f: FiltresScale): string {
+  return fusionner(recherche, {
+    type: f.type !== 'all' ? f.type : null,
+    annonceur: f.annonceur !== 'all' ? f.annonceur : null,
+    angle: f.angle !== 'all' ? f.angle : null,
+    texte: f.texte.trim() ? f.texte : null,
+    tri: f.tri !== 'growth' ? f.tri : null,
+  });
+}

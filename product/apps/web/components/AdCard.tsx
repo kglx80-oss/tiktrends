@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, ancreCarteVeille, lienAnnonceurVeille, LIBELLE_ANNONCEUR_VEILLE, TITRE_ANNONCEUR_VEILLE, nomLienAnnonceurVeille, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -25,7 +25,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false, cibles44 = false }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
+export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false, cibles44 = false, contexteRetour }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
   /**
    * Rend le pont vers la création DISCRET · même lien, même texte, même
    * comportement, mais sans le fond plein accentué. La Veille mène par
@@ -40,7 +40,13 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
    * Défaut `false` · les autres surfaces (Sauvegardes, découverte, tracker,
    * landing) gardent leur densité inchangée.
    */
-  cibles44?: boolean }) {
+  cibles44?: boolean;
+  /**
+   * Lot 18B · le contexte de la recherche de Veille en cours (`contexteVeille`) ·
+   * la carte porte alors une ancre, un lien vers les annonces du même annonceur
+   * et un Studio qui sait revenir ici. Absent hors Veille · rien ne change.
+   */
+  contexteRetour?: string }) {
   const t44 = cibles44 ? { minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' } as const : null;
   // Gagnant = éprouvé · tient depuis assez longtemps, ou portée qui progresse.
   // On le flague et on pousse le clone · c'est la pub PROUVÉE qu'on veut refaire,
@@ -49,8 +55,11 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
   // Liens sortants · retrouver la marque à sa source, pas une impasse.
   const biblio = bibliothequePub({ platform: ad.platform, name: ad.advertiserName });
   const site = siteMarque({ landingDomain: ad.landingDomain, landingUrl: ad.landingUrl });
+  const ancre = contexteRetour != null ? ancreCarteVeille(ad) : null;
+  const retour = contexteRetour != null ? `${contexteRetour}${ancre ? `#${ancre}` : ''}` : null;
+  const annonceur = retour != null ? lienAnnonceurVeille(ad, retour) : null;
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
+    <div id={ancre ?? undefined} style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column', ...(ancre ? { scrollMarginTop: 96 } : null) }}>
       <div style={{ position: 'relative' }}>
         <AdMedia mediaUrl={ad.mediaUrl} thumbnailUrl={ad.thumbnailUrl} isVideo={ad.mediaType === 'video'} daysRunning={ad.daysRunning} aspect="1/1" />
         {/* Sauvegarder / retirer (instantané) */}
@@ -108,8 +117,11 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
             {ad.landingDomain && <span>· {ad.landingDomain}</span>}
           </div>
         )}
-        {(biblio || site) && (
+        {(biblio || site || annonceur) && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {/* Lot 18B · la recherche INTERNE des annonces du même annonceur ·
+                une recherche par nom, pas un suivi (le bouton Suivre reste à part). */}
+            {annonceur && <a href={annonceur} style={{ ...lienExterne, ...t44, color: 'var(--ink)' }} title={TITRE_ANNONCEUR_VEILLE} aria-label={nomLienAnnonceurVeille(ad)}>{LIBELLE_ANNONCEUR_VEILLE} ›</a>}
             {biblio && <a href={biblio.url} target="_blank" rel="noreferrer" style={{ ...lienExterne, ...t44 }} title="Ouvre une recherche par nom d’annonceur · pas l’annonce exacte">{libelleBibliotheque(biblio)} ↗</a>}
             {site && <a href={site} target="_blank" rel="noreferrer" style={{ ...lienExterne, ...t44 }}>Site ↗</a>}
           </div>
@@ -121,7 +133,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
              règle « reprends l'angle, pas les mots » vit dans le noyau. */}
         {/* La piste qui tient est mise en avant · fond plein, l'action évidente.
              Une pub sans signal garde le geste discret · rien n'y presse. */}
-        <a href={studioDepuisVeille(ad, { ref: cloneRef })}
+        <a href={studioDepuisVeille(ad, { ref: cloneRef, retour })}
           style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: (gagnant && !ctaSobre) ? 800 : 700, padding: '7px 10px', borderRadius: 10,
             ...(cibles44 ? { minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', justifyContent: 'center' } : null),
             border: (gagnant && !ctaSobre) ? 'none' : '1px solid var(--line-2)',
