@@ -125,9 +125,9 @@ export type ResultatEcriture = { ok: true } | { ok: false; error: string };
  */
 async function gardeEcritureSauvegarde(input: { platform: unknown; externalId: unknown }) {
   const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée · reconnecte-toi puis réessaie.' } as const;
+  if (!s || !db) return { ok: false, error: 'Session expirée · reconnecte-toi puis réessaie.' } as const;
   if (denyReason(effectiveAccess(s), Veille) === 'role') {
-    return { error: 'Ton rôle ne permet pas d’utiliser la Veille · demande à un administrateur de l’espace.' } as const;
+    return { ok: false, error: 'Ton rôle ne permet pas d’utiliser la Veille · demande à un administrateur de l’espace.' } as const;
   }
   const marque = await getActiveBrand(s.workspaceId);
   const platform = typeof input.platform === 'string' ? input.platform : '';
@@ -141,13 +141,13 @@ async function gardeEcritureSauvegarde(input: { platform: unknown; externalId: u
   const introuvable = marque
     ? 'Annonce introuvable dans les sauvegardes de cette marque · recharge la page.'
     : 'Annonce introuvable dans ton espace · recharge la page.';
-  return { s, marque, espace, ici, introuvable } as const;
+  return { ok: true, s, marque, espace, ici, introuvable } as const;
 }
 
 /** Range une créa sauvegardée dans un board/dossier (null = « Sans dossier »). */
 export async function setSavedAdFolder(input: { platform: string; externalId: string; folder: string | null }): Promise<ResultatEcriture> {
   const g = await gardeEcritureSauvegarde(input);
-  if ('error' in g) return { ok: false, error: g.error };
+  if (!g.ok) return { ok: false, error: g.error };
   const folder = input.folder?.trim().slice(0, 60) || null;
   const maj = await db!.update(schema.savedAds).set({ folder }).where(g.ici).returning({ id: schema.savedAds.id });
   return maj.length ? { ok: true } : { ok: false, error: g.introuvable };
@@ -155,7 +155,7 @@ export async function setSavedAdFolder(input: { platform: string; externalId: st
 
 export async function unsaveAd(input: { platform: string; externalId: string }): Promise<ResultatEcriture> {
   const g = await gardeEcritureSauvegarde(input);
-  if ('error' in g) return { ok: false, error: g.error };
+  if (!g.ok) return { ok: false, error: g.error };
   const retirees = await db!.delete(schema.savedAds).where(g.ici).returning({ id: schema.savedAds.id });
   if (retirees.length === 0 && g.marque) {
     // Rien dans CETTE marque · si l'espace la garde pour une autre marque, on le
