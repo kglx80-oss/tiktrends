@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
+import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
@@ -310,8 +310,9 @@ export function JarvisChat() {
               messages est bornée à l'intérieur (voir `reponse` / `bulle`), pas
               par un plafond du fil (Kevin, 29/09). */}
           <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
-            {thread.turns.map((t) => (
-              <Tour key={t.id} turn={t} sources={thread.sources ?? {}} />
+            {thread.turns.map((t, i) => (
+              <Tour key={t.id} turn={t} sources={thread.sources ?? {}}
+                question={t.role === 'assistant' && thread.turns[i - 1]?.role === 'user' ? thread.turns[i - 1]!.content : null} />
             ))}
 
             {/* Pendant l'écriture, on coupe à la première ouverture de marqueur ·
@@ -345,7 +346,7 @@ export function JarvisChat() {
  * propositions. Un bouton qui disparaît au rechargement laisserait croire qu'on
  * l'a déjà cliqué.
  */
-export function Tour({ turn, sources }: { turn: ChatTurn; sources: NonNullable<ChatThread['sources']> }) {
+export function Tour({ turn, sources, question = null }: { turn: ChatTurn; sources: NonNullable<ChatThread['sources']>; question?: string | null }) {
   if (turn.role === 'user') return <div style={bulle(true)}>{turn.content}</div>;
 
   // Les sources d'abord · le marqueur `[[SOURCE:…]]` sort du texte, et seules
@@ -353,7 +354,9 @@ export function Tour({ turn, sources }: { turn: ChatTurn; sources: NonNullable<C
   // inconnue n'est pas une citation).
   const { texte, refs } = extraireCitations(turn.content);
   const { text, actions } = parseAnswer(texte);
-  const citees = refs.filter((r) => sources[r]);
+  // Même règle que le compteur (noyau) · une citation que la question a DICTÉE
+  // n'est pas affichée comme une source · elle ne prouve rien.
+  const citees = citationsComptees(turn.content, refs, question).filter((r) => sources[r]);
   return (
     <div style={{ display: 'contents' }}>
       <div style={reponse}>{text}</div>
