@@ -7,7 +7,7 @@ import {
   type AnnonceFormat, type CriteresFormats, type FormatCreatif,
 } from '@tiktrends/core';
 import { AdCard } from '../../../../components/AdCard';
-import { h1 } from '../../../../components/ui';
+import { h1, surface, tuile, vide } from '../../../../components/ui';
 import { Empty } from '../../../../components/Empty';
 import { FormatChoix } from '../../saved/FormatChoix';
 import { PreparerTest } from './PreparerTest';
@@ -33,6 +33,11 @@ const etiquette: CSSProperties = { fontSize: 11, fontWeight: 700, color: 'var(--
 const rangee: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' };
 
 /**
+ * Cadres (charte #725 · message 55) · carte de format = `surface` (un bloc de
+ * premier niveau, même cliquable) ; « à classer » et « incertaines » = `vide`
+ * (pointillé, appellent un geste) ; format sans annonce = `tuile` (dans le
+ * dépliant) ; puces, critères et médias restent des contrôles (pilules).
+ *
  * L'écran Formats · liste des formats avec le nombre RÉEL d'annonces classées,
  * puis la grille d'un format. Composant serveur sans état · tout vient de
  * l'URL (critères) et de la base (classements) · les comptes et la grille sont
@@ -122,7 +127,7 @@ function Liste({ compte, c, filtre }: { compte: ReturnType<typeof compterFormats
   return (
     <>
       {compte.nonClassees > 0 && (
-        <div data-a-classer style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', marginBottom: 18, borderRadius: 14, border: '1px dashed var(--line-2)' }}>
+        <div data-a-classer style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', marginBottom: 18, ...vide }}>
           <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>{pluriel(compte.nonClassees, 'sauvegarde à classer', 'sauvegardes à classer')} · comptées à part, dans aucun format</span>
           <a href={versNonClassees} style={{ ...puce(true) }}>Classer maintenant</a>
         </div>
@@ -131,7 +136,7 @@ function Liste({ compte, c, filtre }: { compte: ReturnType<typeof compterFormats
       <ul data-formats-presents style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: 10 }}>
         {compte.avecAnnonces.map(({ format, n }) => (
           <li key={format.id}>
-            <a href={lien({ ...c, format: format.id })} data-format={format.id} data-compte={n} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minHeight: CIBLE_TACTILE_MIN, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', textDecoration: 'none' }}>
+            <a href={lien({ ...c, format: format.id })} data-format={format.id} data-compte={n} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minHeight: CIBLE_TACTILE_MIN, padding: '12px 14px', ...surface, background: 'var(--surface)', textDecoration: 'none' }}>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{format.libelle}</span>
                 <span style={{ display: 'block', marginTop: 3, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4 }}>{format.definition}</span>
@@ -143,7 +148,7 @@ function Liste({ compte, c, filtre }: { compte: ReturnType<typeof compterFormats
         ))}
         {compte.incertaines > 0 && (
           <li>
-            <a href={lien({ ...c, format: FORMAT_INCERTAIN })} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE_TACTILE_MIN, padding: '12px 14px', borderRadius: 14, border: '1px dashed var(--line-2)', textDecoration: 'none', color: 'var(--ink-2)', fontSize: 13 }}>
+            <a href={lien({ ...c, format: FORMAT_INCERTAIN })} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE_TACTILE_MIN, padding: '12px 14px', ...vide, textDecoration: 'none', color: 'var(--ink-2)', fontSize: 13 }}>
               <span style={{ flex: 1 }}>Incertaines · exclues des formats</span><b>{compte.incertaines}</b>
             </a>
           </li>
@@ -156,7 +161,7 @@ function Liste({ compte, c, filtre }: { compte: ReturnType<typeof compterFormats
           </summary>
           <ul data-formats-vides style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(240px, 100%), 1fr))', gap: 8 }}>
             {compte.sansAnnonce.map((f) => (
-              <li key={f.id} style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--line)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
+              <li key={f.id} style={{ padding: '8px 10px', ...tuile, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
                 <b style={{ color: 'var(--ink-2)' }}>{f.libelle}</b> · {f.definition}
               </li>
             ))}
