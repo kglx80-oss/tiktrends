@@ -78,11 +78,16 @@ export default async function FormatsPage({ searchParams }: { searchParams: Prom
         sauvegardeLe: r.createdAt.toISOString(), format: lireFormatCreatif(r.snapshot), auteurNom: null,
       };
     });
-    // Qui a classé · le nom, pas l'identifiant.
+    // Qui a classé · le NOM d'un membre de CET espace, rien d'autre (message 55 ·
+    // b). La lecture de `users` passe par l'appartenance à l'espace de la
+    // session · une personne d'un autre espace (ou partie) n'est pas lue, et
+    // l'e-mail n'est jamais sélectionné · un membre sans nom reçoit un libellé.
     const auteurs = [...new Set(annonces.map((a) => a.format.auteur).filter((x): x is string => !!x && /^[0-9a-f-]{36}$/i.test(x)))];
     if (auteurs.length) {
-      const us = await db.select({ id: schema.users.id, name: schema.users.name, email: schema.users.email }).from(schema.users).where(inArray(schema.users.id, auteurs));
-      const noms = new Map(us.map((u) => [u.id, u.name || u.email.split('@')[0] || null]));
+      const us = await db.select({ id: schema.users.id, name: schema.users.name }).from(schema.users)
+        .innerJoin(schema.workspaceMembers, and(eq(schema.workspaceMembers.userId, schema.users.id), eq(schema.workspaceMembers.workspaceId, s.workspaceId)))
+        .where(inArray(schema.users.id, auteurs));
+      const noms = new Map(us.map((u) => [u.id, u.name?.trim() || 'un membre de l’espace']));
       for (const a of annonces) if (a.format.auteur) a.auteurNom = noms.get(a.format.auteur) ?? null;
     }
   }

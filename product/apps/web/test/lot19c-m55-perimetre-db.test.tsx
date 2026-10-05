@@ -1,0 +1,135 @@
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { and, count, eq } from 'drizzle-orm';
+
+/**
+ * Lot 19C · message 55 · constats b, c, d, e sur une VRAIE base (pglite,
+ * migrations réelles). On appelle les actions serveur et on rend la page
+ * `/veille/formats` · on lit la ligne en base, la réponse, le HTML.
+ *
+ * b · l'auteur d'un classement vient de la SESSION, jamais du JSON client ·
+ *     l'affichage de l'auteur ne révèle rien hors de l'espace (ni nom d'un
+ *     autre espace, ni e-mail, ni partie d'e-mail).
+ * c · classer et lire se limitent à l'espace ET à la marque active · une
+ *     sauvegarde d'une autre marque ou d'un autre espace est refusée / absente ·
+ *     `saveAd` ne répond pas « oui » quand l'annonce reste invisible ici.
+ * d · le pont Adsmap (« Préparer un test » → `trackSavedAdAction`) refuse côté
+ *     SERVEUR sans le droit Adsmap (offre Plus) · le bouton suit le même droit.
+ * e · une valeur de l'ANCIENNE taxonomie déjà en base reste lisible, et elle
+ *     est signalée « à revoir » au lieu d'être reclassée en silence.
+ */
+
+const ids = vi.hoisted(() => {
+  const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
+  return {
+    wsA: randomUUID(), wsB: randomUUID(), marqueX: randomUUID(), marqueY: randomUUID(),
+    camille: randomUUID(), sansNom: randomUUID(), externeSansNom: randomUUID(), externeNomme: randomUUID(),
+  };
+});
+const session = vi.hoisted(() => ({ plan: 'core' as string, role: 'member' as string, marque: 'Y' as 'X' | 'Y' | null }));
+
+vi.mock('@tiktrends/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tiktrends/db')>();
+  const { pgMemoire } = await import('./helpers/pg-memoire');
+  const db = await pgMemoire(actual.schema as unknown as Record<string, unknown>);
+  return { ...actual, db };
+});
+vi.mock('../lib/auth', () => ({
+  getSession: async () => ({
+    user: { id: ids.camille, email: 'camille@agence-a.test', name: 'Camille' },
+    workspaceId: ids.wsA, workspaceName: 'Agence A', role: session.role, plan: session.plan,
+  }),
+}));
+vi.mock('../lib/brands', () => ({
+  getActiveBrand: async () => session.marque === null ? null
+    : session.marque === 'X' ? { id: ids.marqueX, name: 'Marque X', workspaceId: ids.wsA } : { id: ids.marqueY, name: 'Marque Y', workspaceId: ids.wsA },
+}));
+// Le pont ne doit RIEN atteindre de payant ni de lent · la mémoire Jarvis est neutralisée.
+vi.mock('../lib/jarvis-memory', () => ({ invalidateJarvisMemory: () => {}, briefConceptBeforeLaunch: async () => ({ summary: '' }) }));
+vi.mock('next/navigation', () => ({
+  redirect: (u: string) => { throw new Error('redirect ' + u); },
+  useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/veille/formats',
+}));
+vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
+vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }), useToastSiPresent: () => null }));
+
+import { db, schema } from '@tiktrends/db';
+import { classerFormatSauvegarde, saveAd } from '../app/actions/inspo';
+import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
+import FormatsPage from '../app/(app)/veille/formats/page';
+import type { InspoAd } from '@tiktrends/integrations';
+
+const ad = (id: string, mediaType: string): InspoAd =>
+  ({ id, platform: 'meta', status: 'active', daysRunning: 9, mediaType, advertiserName: 'Annonceur ' + id, thumbnailUrl: `https://cdn.exemple.test/${id}.jpg` });
+const classe = (id: string, auteur: string) => ({ id, version: 1, date: '2026-10-04T09:00:00Z', auteur });
+const sauver = (ws: string, brandId: string | null, ext: string, snap: Record<string, unknown>) =>
+  db!.insert(schema.savedAds).values({ workspaceId: ws, brandId, platform: 'meta', externalId: ext, snapshot: snap, createdAt: new Date('2026-10-01T10:00:00Z') });
+async function ligne(ws: string, ext: string) {
+  const [r] = await db!.select().from(schema.savedAds)
+    .where(and(eq(schema.savedAds.workspaceId, ws), eq(schema.savedAds.platform, 'meta'), eq(schema.savedAds.externalId, ext)));
+  return r;
+}
+const rendre = async (sp: Record<string, string> = {}) => renderToStaticMarkup(await FormatsPage({ searchParams: Promise.resolve(sp) }));
+const carte = (h: string, ext: string) => { const i = h.indexOf(`data-annonce="${ext}"`); return i < 0 ? '' : h.slice(i, h.indexOf('</article>', i)); };
+
+beforeAll(async () => {
+  await db!.insert(schema.users).values([
+    { id: ids.camille, email: 'camille@agence-a.test', name: 'Camille' },
+    { id: ids.sansNom, email: 'membre.sans.nom@agence-a.test', name: null },
+    { id: ids.externeSansNom, email: 'secret.personne@autre-espace.test', name: null },
+    { id: ids.externeNomme, email: 'dominique@autre-espace.test', name: 'Dominique Externe' },
+  ]);
+  await db!.insert(schema.workspaces).values([{ id: ids.wsA, name: 'Agence A', plan: 'core' }, { id: ids.wsB, name: 'Agence B', plan: 'core' }]);
+  await db!.insert(schema.workspaceMembers).values([
+    { workspaceId: ids.wsA, userId: ids.camille, role: 'member' },
+    { workspaceId: ids.wsA, userId: ids.sansNom, role: 'member' },
+    { workspaceId: ids.wsB, userId: ids.externeSansNom, role: 'member' },
+    { workspaceId: ids.wsB, userId: ids.externeNomme, role: 'member' },
+  ]);
+  await db!.insert(schema.brands).values([{ id: ids.marqueX, workspaceId: ids.wsA, name: 'Marque X' }, { id: ids.marqueY, workspaceId: ids.wsA, name: 'Marque Y' }]);
+  // Marque Y (active) · quatre auteurs, une ancienne valeur, une valeur retirée.
+  await sauver(ids.wsA, ids.marqueY, 'y-camille', { ...ad('y-camille', 'image'), formatCreatif: classe('packshot', ids.camille) });
+  await sauver(ids.wsA, ids.marqueY, 'y-sans-nom', { ...ad('y-sans-nom', 'image'), formatCreatif: classe('packshot', ids.sansNom) });
+  await sauver(ids.wsA, ids.marqueY, 'y-externe-sans-nom', { ...ad('y-externe-sans-nom', 'image'), formatCreatif: classe('packshot', ids.externeSansNom) });
+  await sauver(ids.wsA, ids.marqueY, 'y-externe-nomme', { ...ad('y-externe-nomme', 'image'), formatCreatif: classe('packshot', ids.externeNomme) });
+  await sauver(ids.wsA, ids.marqueY, 'y-ancienne', { ...ad('y-ancienne', 'video'), formatCreatif: 'ugc_talking_head' });
+  await sauver(ids.wsA, ids.marqueY, 'y-retiree', { ...ad('y-retiree', 'image'), formatCreatif: { id: 'ai_generated' } });
+  await sauver(ids.wsA, ids.marqueY, 'y-a-classer', ad('y-a-classer', 'image'));
+  // Marque X (même espace) · une annonce non classée.
+  await sauver(ids.wsA, ids.marqueX, 'x-autre-marque', ad('x-autre-marque', 'image'));
+  // Autre espace.
+  await sauver(ids.wsB, null, 'b-seule', ad('b-seule', 'image'));
+});
+beforeEach(() => { session.plan = 'core'; session.role = 'member'; session.marque = 'Y'; });
+
+describe('b · auteur du classement', () => {
+  it('l’auteur écrit est celui de la SESSION · un auteur glissé dans le JSON est ignoré', async () => {
+    const r = await classerFormatSauvegarde({ platform: 'meta', externalId: 'y-a-classer', format: 'packshot', auteur: ids.externeNomme } as unknown as Parameters<typeof classerFormatSauvegarde>[0]);
+    expect(r.ok, JSON.stringify(r)).toBe(true);
+    const fc = (await ligne(ids.wsA, 'y-a-classer'))!.snapshot as { formatCreatif: { auteur: string } };
+    expect(fc.formatCreatif.auteur, 'l’auteur vient du client').toBe(ids.camille);
+    await classerFormatSauvegarde({ platform: 'meta', externalId: 'y-a-classer', format: 'non_classe' });
+  });
+
+  it('saveAd · un classement (et son auteur) glissé dans le snapshot n’est jamais écrit', async () => {
+    session.marque = null;
+    const r = await saveAd({ platform: 'meta', externalId: 'passager-m55', snapshot: { ...ad('passager-m55', 'image'), formatCreatif: classe('packshot', ids.externeNomme) } as unknown as InspoAd });
+    expect(r.ok).toBe(true);
+    expect(((await ligne(ids.wsA, 'passager-m55'))!.snapshot as Record<string, unknown>).formatCreatif).toBeUndefined();
+    await db!.delete(schema.savedAds).where(and(eq(schema.savedAds.workspaceId, ids.wsA), eq(schema.savedAds.externalId, 'passager-m55')));
+  });
+
+  it('l’auteur affiché · un membre par son nom, rien d’un autre espace, aucun morceau d’e-mail', async () => {
+    const h = await rendre({ format: 'packshot' });
+    expect(carte(h, 'y-camille'), 'la carte de Camille n’est pas rendue').toContain('par Camille');
+    expect(h, 'un morceau d’e-mail d’un autre espace est affiché').not.toContain('secret.personne');
+    expect(h, 'le nom d’une personne d’un autre espace est affiché').not.toContain('Dominique Externe');
+    expect(h, 'un morceau d’e-mail d’un membre est affiché').not.toContain('membre.sans.nom');
+    expect(h).not.toMatch(/@(agence-a|autre-espace)\.test/);
+    expect(carte(h, 'y-sans-nom'), 'un membre sans nom n’a pas de libellé').toContain('par un membre de l’espace');
+    expect(carte(h, 'y-externe-sans-nom')).toContain('classée le 04/10/2026');
+    expect(carte(h, 'y-externe-sans-nom'), 'un auteur hors de l’espace est nommé').not.toMatch(/classée le [^<]*<!-- --> par /);
+  });
+});

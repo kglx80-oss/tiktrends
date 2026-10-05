@@ -67,6 +67,8 @@ const sauver = (ws: string, ext: string, a: InspoAd | Record<string, unknown>, q
 beforeAll(async () => {
   await db!.insert(schema.users).values([{ id: ids.userA, email: 'camille@test.local', name: 'Camille' }, { id: ids.userB, email: 'b@test.local', name: 'B' }]);
   await db!.insert(schema.workspaces).values([{ id: ids.wsA, name: 'Agence A', plan: 'core' }, { id: ids.wsB, name: 'Agence B', plan: 'core' }]);
+  // Camille est membre de A · l'auteur d'un classement n'est nommé que s'il appartient à l'espace (message 55 · b).
+  await db!.insert(schema.workspaceMembers).values([{ workspaceId: ids.wsA, userId: ids.userA, role: 'member' }, { workspaceId: ids.wsB, userId: ids.userB, role: 'member' }]);
   // La MÊME annonce (meta, partagee-1) sauvegardée dans les deux espaces.
   await sauver(ids.wsA, 'partagee-1', ad('partagee-1', 'image'));
   await sauver(ids.wsB, 'partagee-1', ad('partagee-1', 'image'));
