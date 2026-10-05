@@ -6,6 +6,7 @@ import { CIBLE_TACTILE_MIN, LIBELLE_TYPE } from '@tiktrends/core';
 import type { ChatContexte } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 import { usePiegeFocus } from '../../../components/use-piege-focus';
+import { tuile } from '../../../components/ui';
 
 /**
  * Le contexte de marque, à la demande · ce sur quoi Jarvis s'appuie.
@@ -74,7 +75,7 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
         {/* Le statut technique · déplacé ici depuis l'en-tête de la conversation,
             pour garder le fil calme (réconciliation charte). */}
         <p style={{
-          margin: 0, padding: '9px 12px', borderRadius: 10, border: '1px solid var(--line)',
+          margin: 0, padding: '9px 12px', ...tuile,
           background: 'var(--surface)', fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5,
         }}>
           {measuredAds > 0
@@ -169,7 +170,7 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
 function Bloc({ titre, portee, children }: { titre: string; portee: 'utilisateur' | 'espace' | 'marque' | 'plateforme'; children: React.ReactNode }) {
   const PORTEE_LABEL = { utilisateur: 'portée · utilisateur', espace: 'portée · espace', marque: 'portée · marque', plateforme: 'portée · équipe plateforme' } as const;
   return (
-    <section style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '12px 14px' }}>
+    <section style={{ ...tuile, background: 'var(--surface)', padding: '12px 14px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
         <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--ink)', flex: 1 }}>{titre}</h3>
         <span style={{

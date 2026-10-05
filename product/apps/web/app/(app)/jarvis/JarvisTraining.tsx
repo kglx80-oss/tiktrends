@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { trainJarvisAction, saveJarvisLearningsAction } from '../../actions/jarvis';
 import { Icon } from '../../../components/Icon';
+import { cadreSignal } from '../../../components/ui';
 
 export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: string | null; initial: string; trainedAt: string | null }) {
   const [learnings, setLearnings] = useState(initial);
@@ -34,7 +35,7 @@ export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: s
   }
 
   return (
-    <div style={{ border: '1px solid rgba(120,90,255,.35)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(120,90,255,.08), var(--surface))', padding: 22, marginBottom: 4 }}>
+    <div style={{ ...cadreSignal('rgba(120,90,255,.35)'), background: 'linear-gradient(180deg, rgba(120,90,255,.08), var(--surface))', padding: 22, marginBottom: 4 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
         <span style={{ display: 'inline-flex', color: '#7a5aff' }}><Icon name="cap" size={18} /></span>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Entraînement · intelligence créative</h2>

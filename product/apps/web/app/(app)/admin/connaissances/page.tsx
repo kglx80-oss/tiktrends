@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { peutGererConnaissances } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { chargerConnaissancesAction } from '../../../actions/connaissances';
-import { cadrePage, h1 } from '../../../../components/ui';
+import { cadrePage, cadreSignal, h1 } from '../../../../components/ui';
 import { EcranConnaissances } from './EcranConnaissances';
 
 export const dynamic = 'force-dynamic';
@@ -53,7 +53,7 @@ export default async function ConnaissancesPage() {
       </div>
 
       {r.error || !r.vue
-        ? <div role="alert" style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(229,72,77,.4)', background: 'rgba(229,72,77,.1)', color: '#e5484d', fontSize: 13, fontWeight: 700 }}>{r.error ?? 'Lecture impossible.'}</div>
+        ? <div role="alert" style={{ padding: '12px 14px', ...cadreSignal('rgba(229,72,77,.4)'), background: 'rgba(229,72,77,.1)', color: '#e5484d', fontSize: 13, fontWeight: 700 }}>{r.error ?? 'Lecture impossible.'}</div>
         : <EcranConnaissances vueInitiale={r.vue} espaces={espaces} marques={marques.map((m) => ({ id: m.id, name: m.name, workspaceId: m.workspaceId }))} />}
     </main>
   );

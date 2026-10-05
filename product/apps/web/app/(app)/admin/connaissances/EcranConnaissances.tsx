@@ -11,7 +11,7 @@ import {
   creerConnaissanceAction, nouvelleVersionAction, publierConnaissanceAction, retirerConnaissanceAction,
   type VueAdminConnaissances,
 } from '../../../actions/connaissances';
-import { cadreSignal } from '../../../../components/ui';
+import { cadreSignal, surface, tuile, vide } from '../../../../components/ui';
 
 /**
  * L'écran des Connaissances · déposer, publier, éditer, retirer, et voir ce que
@@ -101,7 +101,7 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
         {/* Honnêteté d'abord · le panneau client n'affiche que des titres, ce
             qui ne protège pas le texte : Jarvis le lit, un client peut le lui
             demander. La décision de confidentialité appartient au pilotage. */}
-        <p role="note" style={{ margin: '8px 0 0', padding: '9px 12px', borderRadius: 10, border: '1px solid rgba(245,166,35,.45)', background: 'rgba(245,166,35,.08)', color: '#ffcf8f', fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 }}>
+        <p role="note" style={{ margin: '8px 0 0', padding: '9px 12px', ...cadreSignal('rgba(245,166,35,.45)', 'tuile'), background: 'rgba(245,166,35,.08)', color: '#ffcf8f', fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 }}>
           {AVERTISSEMENT_CONFIDENTIALITE}
         </p>
         <p style={{ ...corps, marginTop: 6 }}>
@@ -131,8 +131,8 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
 
       {note && (
         <div role={note.ok ? 'status' : 'alert'} style={{
-          padding: '10px 14px', borderRadius: 12, fontSize: 13, fontWeight: 700,
-          border: `1px solid ${note.ok ? 'rgba(48,164,108,.4)' : 'rgba(229,72,77,.4)'}`,
+          padding: '10px 14px', fontSize: 13, fontWeight: 700,
+          ...cadreSignal(note.ok ? 'rgba(48,164,108,.4)' : 'rgba(229,72,77,.4)'),
           background: note.ok ? 'rgba(48,164,108,.1)' : 'rgba(229,72,77,.1)', color: note.ok ? '#2fa46c' : '#e5484d',
           overflowWrap: 'anywhere',
         }}>{note.texte}</div>
@@ -165,7 +165,7 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
           <span style={petit}>{vue.items.length} au total · {publies} publiée(s)</span>
         </div>
         {vue.items.length === 0 ? (
-          <div style={{ ...carte, borderStyle: 'dashed', textAlign: 'center', padding: '26px 18px' }}>
+          <div style={{ ...carte, ...vide, textAlign: 'center', padding: '26px 18px' }}>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Aucune connaissance pour l’instant.</p>
             <p style={{ ...corps, margin: '6px auto 0', maxWidth: 520 }}>
               Jarvis répond aujourd’hui avec ses seules règles et la mémoire de chaque marque. Dépose une première consigne
@@ -343,7 +343,7 @@ export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, mar
       </p>
 
       {changement && porteeAvant && porteeApres && (
-        <div role="alert" style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(229,72,77,.45)', background: 'rgba(229,72,77,.08)' }}>
+        <div role="alert" style={{ marginTop: 12, padding: '10px 12px', ...cadreSignal('rgba(229,72,77,.45)', 'tuile'), background: 'rgba(229,72,77,.08)' }}>
           <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#ff8095', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
             {changement === 'elargie' ? 'Cette version ÉLARGIT la portée' : 'Cette version DÉPLACE la portée'} · de « {libellePortee(porteeAvant, nomsPortee(porteeAvant, espaces, marques))} » à « {libellePortee(porteeApres, nomsPortee(porteeApres, espaces, marques))} ».
             {porteeApres.niveau === 'plateforme' ? ' Jarvis la lira pour tous les clients.' : ' D’autres lecteurs la liront.'}
@@ -457,7 +457,7 @@ function Carte({ it, portee, occupe, inclusion, horsPlace, onEditer, onPublier, 
       {historique && (
         <ol style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 8 }}>
           {it.versions.map((v) => (
-            <li key={v.n} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', background: 'var(--paper)' }}>
+            <li key={v.n} style={{ ...tuile, padding: '10px 12px', background: 'var(--paper)' }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
                 <b style={{ fontSize: 12.5, color: 'var(--ink)' }}>v{v.n}</b>
                 <span style={badge(TON_ETAT[v.etat])}>{LIBELLE_ETAT[v.etat]}</span>
@@ -490,7 +490,7 @@ export function AvantPublication({ niveau, confirme, refus, caseRef, onConfirme 
   const idRefus = useId();
   const exige = publicationExigeConfirmation({ niveau } as PorteeConnaissance);
   return (
-    <div data-avant-publication={niveau} style={{ marginTop: 12, padding: '10px 12px', ...cadreSignal(exige ? 'rgba(245,166,35,.45)' : 'var(--line)', 'tuile'), background: exige ? 'rgba(245,166,35,.08)' : 'var(--paper)' }}>
+    <div data-avant-publication={niveau} style={{ marginTop: 12, padding: '10px 12px', ...(exige ? cadreSignal('rgba(245,166,35,.45)', 'tuile') : tuile), background: exige ? 'rgba(245,166,35,.08)' : 'var(--paper)' }}>
       <p role="note" style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: exige ? '#ffcf8f' : 'var(--ink-2)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
         Avant publication · {avertissementPublication(niveau)}
       </p>
@@ -524,7 +524,8 @@ function nomsPortee(p: PorteeConnaissance, espaces: Espace[], marques: Marque[])
   return { espace: espaces.find((e) => e.id === p.workspaceId)?.name ?? null, marque: p.niveau === 'marque' ? marques.find((m) => m.id === p.brandId)?.name ?? null : null };
 }
 
-const carte: CSSProperties = { border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', minWidth: 0 };
+/** Bloc de premier niveau (section, carte de la liste) · rôle `surface` de la charte. */
+const carte: CSSProperties = { ...surface, background: 'var(--surface)', padding: '16px 18px', minWidth: 0 };
 const h2: CSSProperties = { margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' };
 const corps: CSSProperties = { margin: 0, fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 };
 const petit: CSSProperties = { fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 };

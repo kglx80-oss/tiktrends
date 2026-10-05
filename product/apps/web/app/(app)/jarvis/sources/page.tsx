@@ -21,7 +21,7 @@ import { JarvisTraining } from '../JarvisTraining';
 import { DescribePanel } from '../DescribePanel';
 import { Empty } from '../../../../components/Empty';
 import { BarreValeur } from '../../../../components/BarreValeur';
-import { cadrePage, colonneLecture, h1 } from '../../../../components/ui';
+import { cadrePage, cadreSignal, colonneLecture, h1, surface } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,8 +124,8 @@ export default async function JarvisPage() {
       {deploiement && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-          margin: '18px 0 0', padding: '10px 14px', borderRadius: 12,
-          border: `1px solid ${deploiement.ok ? 'var(--line)' : 'rgba(245,166,35,.45)'}`,
+          margin: '18px 0 0', padding: '10px 14px',
+          ...(deploiement.ok ? surface : cadreSignal('rgba(245,166,35,.45)')),
           background: deploiement.ok ? 'var(--surface)' : 'rgba(245,166,35,.08)',
         }}>
           <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>
@@ -151,7 +151,7 @@ export default async function JarvisPage() {
       </div>
 
       {!voitMemoire && (
-        <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '20px 22px', marginBottom: 24 }}>
+        <div style={{ ...surface, background: 'var(--surface)', padding: '20px 22px', marginBottom: 24 }}>
           <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>La mémoire mesurée demande l’offre Plus.</p>
           <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 640 }}>
             Les couches ci-dessus tournent déjà. Ce qui s’ajoute avec Adsmap, c’est ce que Jarvis apprend
@@ -184,7 +184,7 @@ export default async function JarvisPage() {
 
       {/* 5 · Ce que Jarvis coûte · fondateur uniquement, comme /admin/depenses. */}
       {depense && (
-        <section style={{ marginTop: 22, padding: '15px 18px', borderRadius: 14, border: `1px solid ${depense.blocked ? '#ff8095' : 'var(--line)'}`, background: 'var(--surface)' }}>
+        <section style={{ marginTop: 22, padding: '15px 18px', ...(depense.blocked ? cadreSignal('#ff8095') : surface), background: 'var(--surface)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Ce que Jarvis coûte</h2>
             <span style={{ flex: 1 }} />
@@ -213,7 +213,7 @@ export default async function JarvisPage() {
           <h2 style={{ margin: '28px 0 12px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Moteurs orchestrés</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
             {ENGINES.map((e) => (
-              <div key={e.name} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+              <div key={e.name} style={{ ...surface, background: 'var(--surface)', padding: '14px 16px' }}>
                 <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: 'var(--accent-strong)', border: '1px solid var(--line-2)' }}>{e.tag}</span>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginTop: 8 }}>{e.name}</div>
                 <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>{e.role}</div>
@@ -247,7 +247,7 @@ const TON: Record<string, { fg: string; bd: string }> = {
 function Layer({ l }: { l: JarvisLayer }) {
   const t = TON[l.state] ?? TON.off!;
   return (
-    <div style={{ border: `1px solid ${t.bd}`, borderRadius: 14, background: 'var(--surface)', padding: '13px 15px', display: 'grid', gap: 5 }}>
+    <div style={{ ...(t.bd === 'var(--line)' ? surface : cadreSignal(t.bd)), background: 'var(--surface)', padding: '13px 15px', display: 'grid', gap: 5 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ display: 'inline-flex', color: t.fg }}><Icon name={l.icon} size={17} /></span>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', flex: 1 }}>{l.title}</span>
@@ -275,7 +275,7 @@ function Action({ href, title, desc, gate }: { href: string; title: string; desc
       <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 4, lineHeight: 1.5 }}>{desc}</div>
     </>
   );
-  const style = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '13px 15px', textDecoration: 'none', display: 'block' } as const;
+  const style = { ...surface, background: 'var(--surface)', padding: '13px 15px', textDecoration: 'none', display: 'block' } as const;
   return gate ? <Link href={href} style={style}>{inner}</Link> : <div style={{ ...style, opacity: 0.6 }}>{inner}</div>;
 }
 
@@ -333,7 +333,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
           </div>
           <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
             {parDim.map(({ dim, rows }) => (
-              <section key={dim} style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '15px 18px', boxSizing: 'border-box', minWidth: 0 }}>
+              <section key={dim} style={{ ...surface, background: 'var(--surface)', padding: '15px 18px', boxSizing: 'border-box', minWidth: 0 }}>
                 <h3 style={{ margin: '0 0 12px', fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{DIM_LABEL[dim] ?? dim}</h3>
                 <div style={{ display: 'grid', gap: 8 }}>
                   {rows.map((r) => {
@@ -367,7 +367,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
               <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
                 Part MESURÉE du contexte, injectée telle quelle · les autres éléments (usages du marché, accroches, préférences d’angles) ne sont pas affichés ici.
               </p>
-              <pre style={{ marginTop: 10, padding: '14px 16px', borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 11.5, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontFamily: 'ui-monospace, monospace' }}>
+              <pre style={{ marginTop: 10, padding: '14px 16px', ...surface, background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontFamily: 'ui-monospace, monospace' }}>
                 {memoire}
               </pre>
             </details>
@@ -380,7 +380,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
 
 function Stat({ label, value, sub, strong }: { label: string; value: string; sub?: string; strong?: boolean }) {
   return (
-    <div style={{ border: `1px solid ${strong ? 'rgba(254,44,85,.22)' : 'var(--line)'}`, borderRadius: 13, background: 'var(--surface)', padding: '12px 14px' }}>
+    <div style={{ ...(strong ? cadreSignal('rgba(254,44,85,.22)') : surface), background: 'var(--surface)', padding: '12px 14px' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 21, fontWeight: 800, color: strong ? 'var(--accent-strong)' : 'var(--ink)', marginTop: 4, lineHeight: 1.1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>}

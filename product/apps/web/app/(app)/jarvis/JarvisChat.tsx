@@ -9,6 +9,7 @@ import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
 import { DraftCard } from '../../../components/DraftCard';
 import { JarvisContexte } from './JarvisContexte';
 import { useIsMobile } from '../../../components/useIsMobile';
+import { cadreSignal } from '../../../components/ui';
 
 /**
  * L'espace où l'on parle à Jarvis.
@@ -161,7 +162,7 @@ export function JarvisChat() {
   }
 
   if (erreur && !thread) {
-    return <div style={{ border: '1px solid #ff8095', borderRadius: 14, padding: '16px 18px', color: '#ff8095', fontSize: 13 }}>{erreur}</div>;
+    return <div style={{ ...cadreSignal('#ff8095'), padding: '16px 18px', color: '#ff8095', fontSize: 13 }}>{erreur}</div>;
   }
   if (!thread) {
     return <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>Ouverture de la conversation…</div>;
@@ -181,7 +182,9 @@ export function JarvisChat() {
     // Le composeur s'aligne sur les bords du cadre (comme la Veille) · plus de
     // plafond 760 ici · Kevin, 29/09.
     <div style={{ width: '100%' }}>
-      <div style={{
+      {/* Champ composite (zone de texte + gestes) · rôle `controle` DÉCLARÉ (charte) ·
+          sa bordure --line-2 et son rayon restent ceux d'un champ. */}
+      <div data-cadre="controle" style={{
         display: 'flex', flexDirection: 'column', gap: 10,
         padding: isMobile ? 14 : 18,
         borderRadius: 24, border: '1px solid var(--line-2)', background: 'var(--surface)',
