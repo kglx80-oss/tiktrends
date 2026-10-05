@@ -9,7 +9,7 @@ import { effectiveAccess } from '../../../lib/access';
 import { prochainGesteStudio } from '@tiktrends/core';
 import { Hub, type HubCard, type HubState } from '../../../components/Hub';
 import { Icon } from '../../../components/Icon';
-import { cadrePage } from '../../../components/ui';
+import { cadrePage, surface } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +48,7 @@ export default async function StudioPage() {
     return (
       <main style={wrap}>
         <h1 style={h1}>Studio IA</h1>
-        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
+        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <h2 style={{ margin: '10px 0 6px', fontSize: 18, color: 'var(--ink)' }}>{why === 'plan' ? "Inclus dès l'abonnement Core" : 'Accès réservé'}</h2>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '0 auto' }}>

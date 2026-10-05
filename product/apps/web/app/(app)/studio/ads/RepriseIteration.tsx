@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type CSSProperties } from 'react';
+import { surface } from '../../../../components/ui';
 import { CIBLE_TACTILE_MIN, CLE_ITERATION_EN_COURS, repriseIteration, type IterationEnCours } from '@tiktrends/core';
 
 /**
@@ -47,6 +48,7 @@ export function RepriseIteration({ brandId }: { brandId: string }) {
   );
 }
 
-const bandeau: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, padding: '8px 14px', borderRadius: 14, border: '1px dashed var(--line-2)', background: 'var(--paper)' };
+// Rappel de premier niveau (pas un état vide) · rôle `surface` (lot 19D).
+const bandeau: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, padding: '8px 14px', ...surface, background: 'var(--paper)' };
 const lien: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' };
 const bouton: CSSProperties = { minHeight: CIBLE_TACTILE_MIN, padding: '0 12px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', fontSize: 12, fontWeight: 700, cursor: 'pointer' };

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { startVideoAction, startImageVideoAction, pollVideoAction, deleteVideoAction, suggestVideoBriefAction, pageVideosMarque, type BrandVideo, type PageVideos, type AnimatableAsset } from '../../../actions/video';
 import { VIDEO_DURATIONS, generationOutcome, premiereVideoIncomplete, manqueVideo, VIDEO_DIRECTIONS, costFor, CIBLE_TACTILE_MIN, compteurGalerie, type VideoDuration, type EtatAssistantVideo } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
+import { surface, tuile } from '../../../../components/ui';
 import { Pager } from '../../../../components/Pager';
 import { useGaleriePaginee } from '../../../../components/useGaleriePaginee';
 import { focusApresRetrait } from '../../../../components/focusApresRetrait';
@@ -170,7 +171,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   const departBlock = (
     <div>
       <label style={lbl}>Image de départ à animer <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· ton produit ou une pub déjà générée · <b style={{ color: 'var(--ink-2)' }}>glisse-dépose une image</b></span></label>
-      <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer l'image de départ" style={{ padding: 6, border: '1px dashed var(--line-2)' }}>
+      <DropZone onImages={onDropImages} onError={setError} disabled={!ready || busy} hint="Déposer l'image de départ" style={{ padding: 6, border: tuile.border }}>
         {shownAssets.length > 0 ? (
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
             {shownAssets.map((a) => (
@@ -194,7 +195,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
   return (
     <div>
       {/* Générateur */}
-      <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
+      <div style={{ ...surface, background: 'var(--surface)', padding: 22, marginBottom: 28 }}>
         {!ready && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', marginBottom: 18 }}>
             <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={18} /></span>
@@ -293,7 +294,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
             const st = STATUS_LABEL[v.status] ?? STATUS_LABEL.processing!;
             const pending = v.status === 'processing' || v.status === 'queued';
             return (
-              <div key={v.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
+              <div key={v.id} style={{ ...surface, background: 'var(--surface)', overflow: 'hidden' }}>
                 <div style={{ aspectRatio: '9 / 16', background: '#120c15', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {v.status === 'completed' && v.videoUrl
                     ? <video src={v.videoUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

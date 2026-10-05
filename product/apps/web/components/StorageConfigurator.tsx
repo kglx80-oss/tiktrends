@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
+import { tuile } from './ui';
 import { COPIE_STOCKAGE, TICKET_INTERNE, ROUTAGE_TICKET } from '@tiktrends/core';
 import {
   configureBucketAction, testStorageAction,
@@ -98,7 +99,7 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
       {steps.length > 0 && (
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
           {steps.map((s, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, border: '1px solid var(--line)', borderRadius: 10, padding: '9px 12px', background: 'var(--surface)' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, ...tuile, padding: '9px 12px', background: 'var(--surface)' }}>
               <span style={{ display: 'inline-flex', color: s.ok ? '#18cc8c' : '#f5b043' }}>{s.ok ? <Icon name="check" size={15} /> : <Icon name="alert" size={15} />}</span>
               <span style={{ fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{s.label}</span>
               <span style={{ fontSize: 11.5, color: s.ok ? '#7ee8bf' : '#f5b043', fontFamily: 'var(--font-mono)' }}>{s.detail}</span>
@@ -145,7 +146,7 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
 
 function Row({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, border: '1px solid var(--line)', borderRadius: 10, padding: '9px 12px', background: 'var(--surface)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, ...tuile, padding: '9px 12px', background: 'var(--surface)' }}>
       <span style={{ display: 'inline-flex', color: ok ? '#18cc8c' : '#ff9db0' }}>{ok ? <Icon name="check" size={15} /> : <Icon name="alert" size={15} />}</span>
       <span style={{ fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{label}</span>
       <span style={{ fontSize: 11.5, fontWeight: 800, color: ok ? '#7ee8bf' : '#ff9db0' }}>{ok ? 'OK' : 'KO'}</span>

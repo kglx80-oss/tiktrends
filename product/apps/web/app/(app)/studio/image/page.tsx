@@ -12,7 +12,7 @@ import { ImageStudio } from './ImageStudio';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { effectiveAccess } from '../../../../lib/access';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, surface } from '../../../../components/ui';
 import { fourchetteCreditsImage } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,7 @@ export default async function ImageStudioPage() {
     return (
       <main style={wrap}>
         <h1 style={h1}>Image IA</h1>
-        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
+        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0' }}>
             {why === 'plan' ? "L'Image IA est disponible à partir du plan Core." : "Ton rôle ne permet pas d'y accéder."}
@@ -52,7 +52,7 @@ export default async function ImageStudioPage() {
 
   return (
     <main style={wrap}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Image IA</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>Moteur d'image</span>
       </div>

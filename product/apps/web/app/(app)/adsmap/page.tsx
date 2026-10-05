@@ -16,7 +16,7 @@ import { Icon } from '../../../components/Icon';
 import { CIBLE_TACTILE_MIN, lireLienProfondAdsmap } from '@tiktrends/core';
 import { adsDeLaMarque } from '../../../lib/adsmap-marque';
 import { SectionEssais } from '../jarvis/sections/SectionEssais';
-import { cadrePage, colonneLecture } from '../../../components/ui';
+import { cadrePage, colonneLecture, surface, h1 } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,8 +37,8 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
     const why = denyReason(effectiveAccess(s), feature);
     return (
       <main style={cadrePage}><div style={colonneLecture('fil')}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Adsmap</h1>
-        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
+        <h1 style={h1}>Adsmap</h1>
+        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
           <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0', lineHeight: 1.6 }}>
             {why === 'plan'
@@ -59,7 +59,7 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
   if (!brand) {
     return (
       <main style={cadrePage}><div style={colonneLecture('fil')}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Adsmap</h1>
+        <h1 style={h1}>Adsmap</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
             tone="todo" title="Sélectionne une marque active."
@@ -91,7 +91,7 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
   return (
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(26px, 4vw, 30px)', fontWeight: 500, color: 'var(--ink)' }}>Adsmap</h1>
+        <h1 style={h1}>Adsmap</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
         <span style={{ flex: 1, minWidth: 12 }} />
         {/* Il ne reste ici que ce qui AGIT sur la carte · mesurer, partager.

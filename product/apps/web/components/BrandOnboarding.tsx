@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Icon } from './Icon';
+import { surface, tuile } from './ui';
 
 export interface OnboardStep {
   key: string;
@@ -20,7 +21,7 @@ export function BrandOnboarding({ steps }: { steps: OnboardStep[] }) {
   const nextIdx = steps.findIndex((s) => !s.done);
 
   return (
-    <div style={{ border: '1px solid var(--line-2)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(254,44,85,.06), var(--surface))', padding: '18px 20px', marginBottom: 22 }}>
+    <div style={{ ...surface, background:'linear-gradient(180deg, rgba(254,44,85,.06), var(--surface))', padding: '18px 20px', marginBottom: 22 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <span style={{ display: 'inline-flex', color: complete ? '#7ee8bf' : 'var(--accent-strong)' }}>{complete ? <Icon name="star" size={18} /> : <Icon name="spark" size={18} />}</span>
@@ -47,8 +48,9 @@ export function BrandOnboarding({ steps }: { steps: OnboardStep[] }) {
             <li key={s.key}>
               <Link href={s.href} style={{
                 display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none',
+                // Ligne d'étape dans la surface · `tuile` (ou `signal` au niveau tuile pour la prochaine).
                 border: `1px solid ${isNext ? 'var(--accent-strong)' : 'var(--line)'}`,
-                borderRadius: 13, padding: '11px 14px',
+                borderRadius: tuile.borderRadius, padding: '11px 14px',
                 background: isNext ? 'rgba(254,44,85,.06)' : 'var(--surface)',
                 opacity: s.done ? 0.72 : 1,
               }}>

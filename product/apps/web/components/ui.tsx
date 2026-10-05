@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, CADRE_PAGE, LECTURE, gouttiereCss, type LectureInterieure } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, CADRE_PAGE, LECTURE, gouttiereCss, rayonSignal, styleCadre, type LectureInterieure } from '@tiktrends/core';
 
 /**
  * Le fond translucide d'une pastille posée SUR une créa · pronostic et verdict
@@ -28,8 +28,28 @@ export const btnGhost: CSSProperties = {
   minHeight: CIBLE_TACTILE_MIN, padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)',
   background: 'transparent', color: 'var(--ink-2)', fontWeight: 600, fontSize: 12, cursor: 'pointer',
 };
+/**
+ * Les cadres de la charte, PAR RÔLE (lot 19D) · bordure et rayon lus au noyau
+ * (`styleCadre`), jamais un nombre choisi à l'écran. Mesuré avant · le même
+ * bloc de premier niveau portait 12, 13, 14, 16, 18, 20 ou 24 de rayon selon
+ * l'écran, et la bordure des contrôles (`--line-2`) sur des panneaux.
+ *
+ *  - `surface` · bloc de premier niveau (panneau, section, carte de grille, KPI).
+ *  - `tuile`   · cadre imbriqué dans une surface (sous-carte, ligne d'option).
+ *  - `vide`    · état vide qui appelle un geste (pointillé).
+ *  - `cadreSignal` · alerte, succès, mise en avant · sa couleur, le rayon de son niveau.
+ *
+ * Seuls la bordure et le rayon sont posés · fond et marges restent à l'écran.
+ */
+export const surface: CSSProperties = styleCadre('surface');
+export const tuile: CSSProperties = styleCadre('tuile');
+export const vide: CSSProperties = styleCadre('vide');
+export function cadreSignal(couleur: string, niveau: 'surface' | 'tuile' = 'surface'): CSSProperties {
+  return { border: `1px solid ${couleur}`, borderRadius: rayonSignal(niveau) };
+}
+/** Le panneau de premier niveau · une `surface` avec son fond et sa respiration. */
 export const panel: CSSProperties = {
-  border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', padding: 22, marginBottom: 20,
+  ...surface, background: 'var(--surface)', padding: 22, marginBottom: 20,
 };
 /**
  * Le cadre extérieur de TOUT écran de l'application (B2 · #118) · 1200 au plus,
@@ -81,9 +101,10 @@ export const lbl: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', display
 export function Msg({ kind, children }: { kind: 'ok' | 'err'; children: React.ReactNode }) {
   const ok = kind === 'ok';
   return (
+    // Rôle `signal` · posé en tête de page, au niveau d'une surface.
     <div role={ok ? 'status' : 'alert'} style={{
-      margin: '0 0 16px', padding: '10px 13px', borderRadius: 12, fontSize: 13,
-      border: `1px solid ${ok ? 'rgba(24,204,140,.4)' : 'rgba(255,77,109,.4)'}`,
+      margin: '0 0 16px', padding: '10px 13px', fontSize: 13,
+      ...cadreSignal(ok ? 'rgba(24,204,140,.4)' : 'rgba(255,77,109,.4)'),
       background: ok ? 'rgba(24,204,140,.10)' : 'rgba(255,77,109,.10)',
       color: ok ? '#7ee8bf' : '#ff9db0',
     }}>{children}</div>

@@ -6,6 +6,7 @@ import { importBrandDAAction, saveBrandDAAction, extractBrandVisualDaAction, sav
 import { BrandGuidelines } from '../../../../components/BrandGuidelines';
 import { PaletteMarque } from './PaletteMarque';
 import { Icon } from '../../../../components/Icon';
+import { surface, tuile } from '../../../../components/ui';
 import { CIBLE_TACTILE_MIN, costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, SECTIONS_IDENTITE, HAUTEUR_ENTETE_APP, MARGE_BARRE_INDEX, MARGE_ANCRE_SECTION, SEUIL_SECTION_ACTIVE, type DaVisuelleMarque } from '@tiktrends/core';
 
 // L'identité visuelle se lit en DEUX sections distinctes · les tokens bruts
@@ -63,7 +64,7 @@ function ApercuPolice({ nom }: { nom: string }) {
     return () => { vivant = false; };
   }, [nom]);
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface-2, rgba(255,255,255,.03))' }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', padding: '11px 14px', ...tuile, background: 'var(--surface-2, rgba(255,255,255,.03))' }}>
       <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.15, minWidth: 0, wordBreak: 'break-word' }}>{nom}</span>
       {dispo === true
         // Police prouvée disponible · spécimen FIDÈLE, rendu dans sa fonte.
@@ -320,7 +321,8 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
   );
 }
 
-const sectionCard = { border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', marginBottom: 14 } as const;
+// Section de premier niveau · rôle `surface` (--line, r-card · lot 19D).
+const sectionCard = { ...surface, background: 'var(--surface)', padding: '16px 18px', marginBottom: 14 } as const;
 const sectionTitre = { display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' } as const;
 const daLbl = { fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase' as const, color: 'var(--muted)', marginBottom: 7 };
 const taStyle = { width: '100%', marginTop: 4, padding: '9px 11px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface-2, transparent)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.45, resize: 'vertical' as const, fontFamily: 'inherit', boxSizing: 'border-box' as const };

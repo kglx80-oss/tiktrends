@@ -8,7 +8,7 @@ import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { createBrandFromShopifyAction } from '../../../actions/brands';
 import { ShopifyIcon } from '../../../../components/BrandIcons';
-import { cadrePage, colonneLecture } from '../../../../components/ui';
+import { cadrePage, cadreSignal, colonneLecture, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +25,8 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
 
   return (
     <main style={cadrePage}><div style={colonneLecture('formulaire')}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 0' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Créer une marque</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 4px' }}>
+        <h1 style={h1}>Créer une marque</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 12 }}>
@@ -38,7 +38,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
       </PageInfo>
 
       {/* Raccourci Shopify : crée la marque + importe produits, images et DA en un clic. */}
-      <form action={createBrandFromShopifyAction} style={{ marginTop: 18, border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(150,220,170,.06), var(--surface))', padding: '18px 20px' }}>
+      <form action={createBrandFromShopifyAction} style={{ marginTop: 18, ...cadreSignal('var(--accent-strong)'), background: 'linear-gradient(180deg, rgba(150,220,170,.06), var(--surface))', padding: '18px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span style={{ display: 'inline-flex' }}><ShopifyIcon size={18} /></span>
           <b style={{ fontSize: 15, color: 'var(--ink)' }}>Connecter une boutique Shopify</b>

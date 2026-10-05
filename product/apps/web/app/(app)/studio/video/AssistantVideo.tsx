@@ -9,6 +9,7 @@ import {
   type EtapeVideo, type EtatAssistantVideo, CIBLE_TACTILE_MIN,
 } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
+import { surface } from '../../../../components/ui';
 import { Portail } from '../../../../components/Portail';
 
 /**
@@ -44,7 +45,7 @@ interface Props {
 }
 
 const fond: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 };
-const boite: React.CSSProperties = { width: 'min(680px, 100%)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 90px -30px rgba(0,0,0,.7)' };
+const boite: React.CSSProperties = { width: 'min(680px, 100%)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', ...surface, overflow: 'hidden', boxShadow: '0 30px 90px -30px rgba(0,0,0,.7)' };
 const champ: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none', fontFamily: 'inherit' };
 // `htmlFor` lie le libellé à son champ · sans cible (libellé de groupe de
 // boutons), il reste un libellé visuel simple.

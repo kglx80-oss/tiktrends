@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { surface } from '../../../components/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CIBLE_TACTILE_MIN, RETOUR_STUDIO, lireVueAdsmap, rechercheAdsmap, PARAM_VUE_ADSMAP, type VueAdsmap } from '@tiktrends/core';
@@ -77,7 +78,7 @@ export function Views({ batches, canBuild = false, testProfond = null, marque = 
       {/* Lien profond vers un test qui n'est pas dans la marque active · on le
           dit et on rend la main, sans ouvrir le test d'une autre marque. */}
       {testProfond?.introuvable && (
-        <div role="status" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 13px', margin: '0 0 10px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+        <div role="status" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 13px', margin: '0 0 10px', ...surface, background: 'var(--surface)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
           <span style={{ flex: 1, minWidth: 200 }}>Ce test est introuvable dans Adsmap pour {marque || 'la marque active'} · il a pu être supprimé, ou appartient à une autre marque.</span>
           {retour && <Link href={retour.href} style={lienRetour}>‹ {retour.libelle}</Link>}
         </div>

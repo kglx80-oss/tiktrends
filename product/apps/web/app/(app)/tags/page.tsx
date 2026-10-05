@@ -2,7 +2,7 @@ import { fixtures } from '@tiktrends/integrations';
 import { topCreativeTags, personaHookMatrix, type TaggedCreative } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { Bandeau } from '../../../components/Bandeau';
-import { cadrePage } from '../../../components/ui';
+import { cadrePage, h1 } from '../../../components/ui';
 
 const creatives = (fixtures.tagged as { creatives: TaggedCreative[] }).creatives;
 const DIMS = [['hook_type', 'Type de hook'], ['persona', 'Persona'], ['angle', 'Angle'], ['emotion', 'Émotion']] as const;
@@ -12,7 +12,7 @@ export default function Tags() {
   const max = (arr: { weightedMetric: number }[]) => Math.max(1, ...arr.map((x) => x.weightedMetric));
   return (
     <main style={{ minHeight: '100vh', ...cadrePage }}>
-      <h1 style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Top Creative Tags</h1>
+      <h1 style={{ ...h1, marginBottom: 16 }}>Top Creative Tags</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, margin: '6px 0 22px' }}>
         Analyse par ingrédient créatif (métrique cible : ROAS, pondérée par le spend). La combinaison gagnante persona × hook en un coup d'œil.
       </p>

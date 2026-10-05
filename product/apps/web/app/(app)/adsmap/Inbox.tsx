@@ -10,6 +10,7 @@ import { AdDrawer } from './AdDrawer';
 import { Empty } from '../../../components/Empty';
 import { Bandeau } from '../../../components/Bandeau';
 import { useRouvrirFiche } from './useRouvrirFiche';
+import { cadreSignal, surface } from '../../../components/ui';
 
 /**
  * File de décisions du jour.
@@ -92,7 +93,7 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
     <div>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12,
-        padding: '9px 13px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)',
+        padding: '9px 13px', ...surface, background: 'var(--surface)',
       }}>
         <span style={{ flex: '1 1 200px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.45 }}>
           {data.summary}
@@ -124,7 +125,8 @@ export function Inbox({ peutPartager = false }: { peutPartager?: boolean }) {
             const ouvertRaison = deplie.has(it.id);
             return (
               <div key={it.id} style={{
-                border: `1px solid ${ton.bd}`, borderRadius: 12, background: 'var(--surface)', padding: '10px 13px',
+                // Décision de premier niveau · rôle `signal` (sa couleur, rayon d'une surface · lot 19D).
+                ...cadreSignal(ton.bd), background: 'var(--surface)', padding: '10px 13px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{

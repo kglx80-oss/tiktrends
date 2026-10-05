@@ -64,7 +64,7 @@ export function BarreFiltresGalerie({ criteres, onChange, formats, formatLabel, 
 
       {/* Le panneau de filtres · à la demande, mais TOUJOURS dans le DOM (`hidden`
           quand replié). Sur mobile il s'empile · c'est un panneau accessible. */}
-      <div id={panneauId} style={{ display: ouvert ? 'flex' : 'none', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '11px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)' }}>
+      <div id={panneauId} data-cadre="controle" style={{ display: ouvert ? 'flex' : 'none', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '11px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)' }}>
         <Choix label="Format" value={criteres.format} onChange={(v) => set({ format: v })}
           options={[['toutes', 'Tous les formats'], ...formats.map((f) => [f, formatLabel(f)] as [string, string])]} />
         <Choix label="Qualité" value={criteres.qualite} onChange={(v) => set({ qualite: v as CritereQualite })}

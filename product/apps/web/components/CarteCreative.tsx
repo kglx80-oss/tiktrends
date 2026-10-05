@@ -6,7 +6,7 @@ import { CIBLE_TACTILE_MIN, type QualiteCarte, type EtatVerdictCarte, type FaitC
 import { AdMedia } from './AdMedia';
 import { VerdictBadge } from './VerdictBadge';
 import { Icon } from './Icon';
-import { FOND_PASTILLE_MEDIA } from './ui';
+import { FOND_PASTILLE_MEDIA, surface } from './ui';
 
 /**
  * La carte créative COMMUNE · une anatomie, des zones adaptées au contexte.
@@ -91,7 +91,8 @@ const carte: CSSProperties = {
   // qui, plus large que la carte, déborde de quelques pixels et se faisait couper
   // au bord (mesuré : 26 px tranchés à gauche). L'arrondi du média est porté par
   // son propre conteneur (voir plus bas) · l'arrondi du bas tient par la bordure.
-  border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)',
+  // Carte d'une grille principale · rôle `surface` (lot 19D) · le média reprend le même rayon.
+  ...surface, background: 'var(--surface)',
 };
 const labelZone: CSSProperties = { fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' };
 
@@ -106,7 +107,7 @@ export function CarteCreative(props: CarteCreativeProps) {
       {/* Le conteneur média porte l'arrondi et le clip (les coins carrés de l'image
           suivent l'arrondi de la carte) · c'est ici, pas sur la carte, pour ne
           pas rogner le menu d'actions qui déborde. */}
-      <div style={{ position: 'relative', background: 'var(--paper)', overflow: 'hidden', borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+      <div style={{ position: 'relative', background: 'var(--paper)', overflow: 'hidden', borderTopLeftRadius: surface.borderRadius, borderTopRightRadius: surface.borderRadius }}>
         {erreur ? (
           <div style={{ aspectRatio: media.aspect ?? '1 / 1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, color: 'var(--muted)', textAlign: 'center' }}>
             <Icon name="alert" size={20} />
@@ -452,7 +453,7 @@ function SqueletteCarte({ aspect }: { aspect?: string }) {
   const bloc = (h: number, w = '100%'): CSSProperties => ({ height: h, width: w, borderRadius: 8, background: 'var(--paper)' });
   return (
     <article style={{ ...carte, opacity: 0.75 }} aria-busy="true" aria-label="Chargement de la création">
-      <div style={{ aspectRatio: aspect ?? '1 / 1', background: 'var(--paper)' }} />
+      <div style={{ aspectRatio: aspect ?? '1 / 1', background: 'var(--paper)', borderTopLeftRadius: surface.borderRadius, borderTopRightRadius: surface.borderRadius }} />
       <div style={{ display: 'grid', gap: 8, padding: '10px 12px 12px' }}>
         <div style={bloc(10, '40%')} />
         <div style={bloc(12, '85%')} />

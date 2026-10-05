@@ -6,7 +6,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { EmptyLine } from '../../../components/Empty';
 import { createTicketAction } from '../../actions/support';
-import { input, btn, panel, h1, h2, sub, lbl, Msg, cadrePage, colonneLecture } from '../../../components/ui';
+import { input, btn, panel, h1, h2, sub, lbl, Msg, cadrePage, colonneLecture, surface } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { Icon } from '../../../components/Icon';
 
@@ -85,7 +85,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
         {tickets.map((t) => {
           const st = STATUS[t.status] ?? STATUS.open!;
           return (
-            <Link key={t.id} href={`/support/${t.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '13px 16px', textDecoration: 'none', flexWrap: 'wrap' }}>
+            <Link key={t.id} href={`/support/${t.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, ...surface, background: 'var(--surface)', padding: '13px 16px', textDecoration: 'none', flexWrap: 'wrap' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>{TYPE_ICON[t.type] ? <Icon name={TYPE_ICON[t.type]!} size={13} /> : null}{TYPE_LABEL[t.type] ?? t.type}</span>
               <span style={{ flex: 1, minWidth: 180, fontSize: 14, fontWeight: 700, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{t.title}</span>
               {isAdmin && t.authorName && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t.authorName}</span>}

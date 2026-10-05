@@ -9,6 +9,7 @@ import { Icon } from '../../../components/Icon';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { MiniatureAsset } from '../../../components/MiniatureAsset';
+import { surface } from '../../../components/ui';
 import { CIBLE_TACTILE_MIN, lireFiltreAssets, ecrireFiltreAssets } from '@tiktrends/core';
 import { remplacerRecherche } from '../../../lib/url-client';
 
@@ -251,7 +252,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
 
       {/* Google Drive · import de liens (fichiers ou dossier partagé) */}
       {showDrive && (
-        <div id="assets-panneau-drive" style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
+        <div id="assets-panneau-drive" style={{ ...surface, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <GoogleDriveIcon size={18} />
             <b style={{ fontSize: 14, color: 'var(--ink)' }}>Importer depuis Google Drive</b>
@@ -276,7 +277,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
 
       {/* Import par lien */}
       {showImport && (
-        <div id="assets-panneau-lien" style={{ border: '1px solid var(--line-2)', borderRadius: 14, background: 'var(--surface)', padding: 16, marginBottom: 16 }}>
+        <div id="assets-panneau-lien" style={{ ...surface, background: 'var(--surface)', padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: '2 1 300px' }}><label style={lbl}>URL (vidéo, audio, image, Google Drive…)</label><input value={imp.url} onChange={(e) => setImp((s) => ({ ...s, url: e.target.value }))} placeholder="https://…" style={fld} /></div>
             <div style={{ flex: '1 1 160px' }}><label style={lbl}>Nom</label><input value={imp.name} onChange={(e) => setImp((s) => ({ ...s, name: e.target.value }))} placeholder="Rush produit 01" style={fld} /></div>
@@ -352,7 +353,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
           {shown.map((a) => (
-            <div key={a.id} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div key={a.id} style={{ ...surface, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <MiniatureAsset kind={a.kind} url={a.url} thumbUrl={a.thumbUrl} name={a.name} />
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</div>
