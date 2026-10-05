@@ -33,6 +33,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh() {}, push() {}, replace() {} }), usePathname: () => '/dashboard', useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
+// Un <Link> Next se reconnaît au rendu · on le marque pour voir qui l'emploie.
+vi.mock('next/link', () => ({ default: ({ href, children, prefetch: _p, ...reste }: { href: string; children: ReactNode; prefetch?: unknown } & Record<string, unknown>) => <a data-lien-routeur="" href={href} {...reste}>{children}</a> }));
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: 'b1', name: 'Neva' }), listBrands: async () => [{ id: 'b1', name: 'Neva' }] }));
 vi.mock('../lib/credits', () => ({ unlimitedCredits: () => false }));
@@ -74,6 +76,9 @@ describe('Accueil · le sélecteur de vue suit le rôle', () => {
       { href: '/dashboard?vue=analytics', texte: 'Analytics', actif: false },
     ]);
     expect(n!, 'cible tactile sous 44 px').toContain('min-height:44px');
+    // Même chemin, autre recherche · le routeur client ne termine pas toujours
+    // (mesuré · 2 clics sur 5 perdus avec <Link>) · lien natif, chargement complet.
+    expect(n!, 'un onglet passe par le routeur client (<Link>)').not.toContain('data-lien-routeur');
     // Le reste de l'Accueil est inchangé · la salutation et le bandeau sont là.
     expect(h).toContain('Bonjour');
     expect(h, 'la vue Analytics fuit sur l’Accueil par défaut').not.toContain('data-vue="analytics"');

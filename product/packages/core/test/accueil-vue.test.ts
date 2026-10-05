@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { lireVueAccueil, hrefVueAccueil, redirectionAnalytics, resoudreAccueil, VUES_ACCUEIL } from '../src/accueil-vue';
 import { roleVoitRubrique } from '../src/equipe-plateforme';
 import { placementLanceurSupport } from '../src/lanceur-support';
+import { chargementCompletRequis } from '../src/meme-chemin';
 
 /**
  * Lot 19A · l'Accueil réunit le Pilotage. La règle « quelle vue, à partir de
@@ -80,6 +81,15 @@ describe('accueil · pour quel rôle', () => {
       { vue: 'analytics', libelle: 'Analytics', href: '/dashboard?vue=analytics&periode=7j', actif: true },
     ]);
     expect(resoudreAccueil({ params: {}, ouvert: toutOuvert }).onglets.map((o) => o.actif)).toEqual([true, false]);
+  });
+  it('chaque bascule d’onglet est une navigation même-chemin · le navigateur la fait (chargement complet)', () => {
+    const o = 'http://hote.invalide';
+    for (const params of [{}, { vue: 'analytics' }, { vue: 'analytics', periode: '7j' }]) {
+      const ici = new URL(hrefVueAccueil(lireVueAccueil(params), params), o);
+      for (const ong of resoudreAccueil({ params, ouvert: toutOuvert }).onglets.filter((x) => !x.actif)) {
+        expect(chargementCompletRequis(ici, new URL(ong.href, o)), ong.href).toBe(true);
+      }
+    }
   });
   it('rôle qui n’ouvre pas Analytics · aucun sélecteur', () => {
     expect(roleVoitRubrique('membre', 'analytics'), 'préalable · la matrice réelle').toBe(false);
