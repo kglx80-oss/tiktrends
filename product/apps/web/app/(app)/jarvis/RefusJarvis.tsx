@@ -1,5 +1,6 @@
 import { Icon } from '../../../components/Icon';
 import { cadrePage, colonneLecture, h1, surface } from '../../../components/ui';
+import { TEXTE_REFUS_JARVIS } from '../../../lib/jarvis-acces';
 
 /**
  * L'écran de refus de Jarvis · le motif EXISTANT des pages verrouillées
@@ -19,9 +20,7 @@ export function RefusJarvis({ titre, why, owner }: { titre: string; why: 'role' 
           {why === 'plan' ? "Fonctionnalité incluse dès l'abonnement Core" : 'Accès réservé'}
         </h2>
         <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '0 auto' }}>
-          {why === 'plan'
-            ? 'Jarvis est disponible à partir du plan Core. Passe ton espace en Core dans Réglages puis Abonnement.'
-            : "Ton rôle ne permet pas d'accéder à Jarvis."}
+          {TEXTE_REFUS_JARVIS[why]}
         </p>
         {why === 'plan' && owner && (
           <a href="/settings" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginTop: 16, padding: '0 18px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Gérer l'abonnement →</a>

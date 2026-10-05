@@ -6,7 +6,7 @@ import { starters, personnalisationAccueil, MARQUEUR_SOURCE, type TypeConnaissan
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { canAccess, FEATURES } from '../../lib/rbac';
-import { refusJarvis } from '../../lib/jarvis-acces';
+import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../lib/jarvis-acces';
 import { effectiveAccess } from '../../lib/access';
 import { jarvisStats, jarvisHookView } from '../../lib/jarvis-memory';
 import { connaissancesPourReponse, titresDesSources } from '../../lib/jarvis-connaissances';
@@ -80,7 +80,9 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
   // Même porte que la route · la feature `jarvis` AVANT la marque, le fil et
   // les connaissances (titres, types, sources citées).
   const refus = refusJarvis(s);
-  if (refus) return { error: refus === 'plan' ? GUARD.plan('Core') : GUARD.role({ needRole: 'admin' }) };
+  // La vraie raison (offre ou rôle), dans les mots de l'écran `RefusJarvis` ·
+  // « rôle administrateur » était faux pour un Starter, un freelance, un lecteur.
+  if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
 
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active pour parler à Jarvis.' };
