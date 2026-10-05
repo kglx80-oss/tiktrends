@@ -42,8 +42,27 @@ const recette = (o: Partial<AdRecipe> = {}): AdRecipe => ({
   ...o,
 });
 
-const rendre = async (o: Partial<AdRecipe>) =>
-  decodePng(Buffer.from(await renderAdPng(recette(o))));
+/**
+ * Rend la main à la boucle d'événements AVANT chaque rendu.
+ *
+ * Un rendu (satori + resvg) est un long calcul synchrone, et une suite de
+ * rendus enchaînés par des promesses ne laisse passer AUCUNE tâche de la boucle ·
+ * mesuré : sept rendus pleine taille, 21 s sans un seul tour. Le fil de test ne
+ * lit alors plus les réponses de vitest, et sur la CI (fichier à 73 s) l'appel
+ * « onTaskUpdate » a dépassé son délai de 60 s · les 24 tests du fichier ont été
+ * perdus et la suite a échoué (run 37336430733). Un tour de boucle par rendu
+ * suffit à garder le dialogue vivant, sans rien changer à ce qui est mesuré.
+ */
+// `setTimeout` et non `setImmediate` · la minuterie fait passer la boucle par TOUTES
+// ses phases (minuteries, entrées-sorties) avant de reprendre · mesuré, une
+// minuterie posée entre deux rendus ne partait qu'APRÈS le second avec
+// `setImmediate`.
+const cederLaMain = () => new Promise<void>((r) => setTimeout(r, 0));
+
+const rendre = async (o: Partial<AdRecipe>) => {
+  await cederLaMain();
+  return decodePng(Buffer.from(await renderAdPng(recette(o))));
+};
 
 /** Deux compositions se ressemblent · encre et centre de gravité voisins. */
 function memeComposition(a: ReturnType<typeof composition>, b: ReturnType<typeof composition>) {
@@ -90,6 +109,28 @@ describe('la maquette suit la taille du canevas', () => {
       expect(d.centre, `${template} · centre ${plein.center.toFixed(3)} vs ${petit.center.toFixed(3)}`).toBeLessThan(0.08);
     }
   }, 300000);
+});
+
+describe('le fil de test reste vivant pendant les rendus', () => {
+  /**
+   * Garde de la cause du run 37336430733 · entre deux rendus, la boucle
+   * d'événements doit tourner (c'est là que passent les réponses de vitest).
+   * Une minuterie posée juste après un rendu doit partir AVANT le calcul du
+   * rendu suivant, pas après lui.
+   */
+  it('une minuterie posée entre deux rendus part avant le rendu suivant', async () => {
+    await rendre({ width: 324, height: 405 }); // polices et caches chauds
+    for (let i = 0; i < 3; i++) {
+      const apresA = performance.now();
+      let tick = Number.POSITIVE_INFINITY;
+      setTimeout(() => { tick = performance.now(); }, 0);
+      await rendre({ width: 1080, height: 1350 });
+      const apresB = performance.now();
+      const dureeB = apresB - apresA;
+      // Le tour de boucle a lieu dans le premier quart du rendu suivant, pas à sa fin.
+      expect(tick - apresA, `tour à +${(tick - apresA).toFixed(0)} ms pour un rendu de ${dureeB.toFixed(0)} ms`).toBeLessThan(dureeB / 4);
+    }
+  }, 120000);
 });
 
 describe('le rendu reste lisible', () => {
