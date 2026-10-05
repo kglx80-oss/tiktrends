@@ -98,7 +98,8 @@ export function gouttiereCss(): string {
  *   | --line-2 r18 (cadre)           | 12          | 6      |
  *   | --line r10 (imbriqué)          | 9           | 1      |
  *   | pointillé --line-2 r16 (vide)  | 3           | 3      |
- *   | couleurs sémantiques r11 à r18 | 28          | 14     |
+ *   | couleurs sémantiques r11 à r18 | 25          | 15     |
+ *   | autres (r12, r13, r20 en 20 %) | 22          | —      |
  *
  * ── La règle ─────────────────────────────────────────────────────────────────
  *
@@ -173,6 +174,13 @@ export function rayonSignal(niveau: 'surface' | 'tuile'): string {
  * une carte cliquable, qui prend le rôle d'une carte.
  */
 export const SEUILS_CADRE = { largeurMin: 160, hauteurMin: 40, hauteurControleMax: 56 } as const;
+
+/**
+ * Quand la forme ne suffit pas à dire le rôle (un champ composite comme le
+ * Composer · zone de texte, puces de réglage et bouton dans un même cadre), le
+ * cadre le DÉCLARE par cet attribut · la mesure le lit avant toute déduction.
+ */
+export const ATTRIBUT_ROLE_CADRE = 'data-cadre';
 
 /** Ce que la mesure observe d'un cadre dans le DOM (rien d'autre). */
 export interface CadreObserve {

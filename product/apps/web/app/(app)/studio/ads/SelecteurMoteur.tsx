@@ -5,7 +5,7 @@ import {
   type ImageModelSpec, type ConseilMoteur,
 } from '@tiktrends/core';
 import { VignetteMoteurVue } from '../../../../components/VignetteMoteurVue';
-import { cadreSignal } from '../../../../components/ui';
+import { cadreSignal, tuile } from '../../../../components/ui';
 
 /**
  * Le choix du moteur d'image · en grille de cartes, pas en liste de lignes.
@@ -67,7 +67,8 @@ export function SelecteurMoteur({ models, valeur, onChoisir, recommande, conseil
               onClick={() => onChoisir(m.key)}
               style={{
                 display: 'grid', gap: 0, padding: 0, textAlign: 'left', overflow: 'hidden',
-                borderRadius: 14, cursor: 'pointer',
+                // Bascule (aria-pressed) · rôle `controle` · rayon r-md (lot 19D).
+                borderRadius: tuile.borderRadius, cursor: 'pointer',
                 border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
                 background: on ? 'rgba(230,0,126,.05)' : 'var(--paper)',
                 boxShadow: on ? '0 0 0 3px rgba(230,0,126,.12)' : 'none',

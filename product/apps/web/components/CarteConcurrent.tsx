@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { domaineConcurrent } from '@tiktrends/core';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
+import { surface } from './ui';
 
 /**
  * Une carte de concurrent · plus lisible qu'une ligne grise.
@@ -28,7 +29,8 @@ export function CarteConcurrent({ nom, brandId }: { nom: string; brandId: string
   const analyser = `/brands/${brandId}/competitors/${encodeURIComponent(nom)}`;
   return (
     <div style={{
-      display: 'grid', gap: 8, border: '1px solid var(--line)', borderRadius: 14,
+      // Carte d'une grille principale · rôle `surface` (lot 19D).
+      display: 'grid', gap: 8, ...surface,
       background: 'var(--surface)', padding: 12,
     }}>
       {/* minWidth:0 · la rangée est un enfant de grille (min-width auto par

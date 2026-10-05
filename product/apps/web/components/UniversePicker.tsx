@@ -153,7 +153,8 @@ export function UniversePicker({ value, onChange, disabled = false, compact = fa
               key={u.key} type="button" disabled={disabled} onClick={() => onChange(u.key)}
               title={UNIVERSE_HINT[u.key] ?? ''}
               style={{
-                padding: 0, textAlign: 'left', borderRadius: 13, overflow: 'hidden', cursor: disabled ? 'default' : 'pointer',
+                // Carte d'univers à choisir · rôle `controle` · rayon r-md (lot 19D).
+                padding: 0, textAlign: 'left', borderRadius: tuile.borderRadius, overflow: 'hidden', cursor: disabled ? 'default' : 'pointer',
                 border: `1.5px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
                 background: on ? 'var(--accent-soft)' : 'var(--paper)',
                 opacity: disabled ? 0.55 : 1,
