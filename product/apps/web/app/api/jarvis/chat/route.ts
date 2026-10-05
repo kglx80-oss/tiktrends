@@ -3,7 +3,8 @@ import { db, schema } from '@tiktrends/db';
 import { chatSystemPrompt, trimThread, personnalisationAccueil, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
-import { canAccess, FEATURES, roleAtLeast } from '../../../../lib/rbac';
+import { canAccess, FEATURES } from '../../../../lib/rbac';
+import { refusJarvis } from '../../../../lib/jarvis-acces';
 import { effectiveAccess } from '../../../../lib/access';
 import { jarvisFullMemory, jarvisStats } from '../../../../lib/jarvis-memory';
 import { consigneAvecConnaissances, consignerUsageConnaissances } from '../../../../lib/jarvis-connaissances';
@@ -40,7 +41,10 @@ const MODEL = process.env.ANTHROPIC_GEN_MODEL || 'claude-sonnet-5';
 export async function POST(req: Request) {
   const s = await getSession();
   if (!s || !db) return json({ error: 'Session expirée.' }, 401);
-  if (!roleAtLeast(s.role, 'member')) return json({ error: 'Accès refusé.' }, 403);
+  // Les droits de la feature `jarvis` (rôle, offre, matrice d'équipe) AVANT la
+  // marque, le corps et les connaissances · un refus ne lit rien et ne dit rien
+  // de ce que Jarvis aurait lu (voir lib/jarvis-acces).
+  if (refusJarvis(s)) return json({ error: 'Accès refusé.' }, 403);
 
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return json({ error: 'Sélectionne une marque active.' }, 400);

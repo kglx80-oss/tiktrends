@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
-import { canAccess, FEATURES, roleAtLeast } from '../../../../lib/rbac';
+import { canAccess, FEATURES } from '../../../../lib/rbac';
+import { refusJarvis } from '../../../../lib/jarvis-acces';
+import { RefusJarvis } from '../RefusJarvis';
 import { effectiveAccess } from '../../../../lib/access';
 import { isFounder } from '../../../../lib/founder';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -52,7 +54,9 @@ const adsmap = FEATURES.find((f) => f.key === 'adsmap')!;
 export default async function JarvisPage() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
+  // Même porte que la conversation · la feature `jarvis` AVANT toute lecture.
+  const refus = refusJarvis(s);
+  if (refus) return <RefusJarvis titre="Sources de Jarvis" why={refus} owner={s.role === 'owner'} />;
 
   const fondateur = isFounder(s.user.email);
   const voitMemoire = canAccess(effectiveAccess(s), adsmap);

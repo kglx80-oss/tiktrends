@@ -5,7 +5,8 @@ import { db, schema } from '@tiktrends/db';
 import { starters, personnalisationAccueil, MARQUEUR_SOURCE, type TypeConnaissance } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
-import { canAccess, FEATURES, roleAtLeast } from '../../lib/rbac';
+import { canAccess, FEATURES } from '../../lib/rbac';
+import { refusJarvis } from '../../lib/jarvis-acces';
 import { effectiveAccess } from '../../lib/access';
 import { jarvisStats, jarvisHookView } from '../../lib/jarvis-memory';
 import { connaissancesPourReponse, titresDesSources } from '../../lib/jarvis-connaissances';
@@ -76,7 +77,10 @@ export interface ChatThread {
 export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
-  if (!roleAtLeast(s.role, 'member')) return { error: GUARD.role({ needRole: 'admin' }) };
+  // Même porte que la route · la feature `jarvis` AVANT la marque, le fil et
+  // les connaissances (titres, types, sources citées).
+  const refus = refusJarvis(s);
+  if (refus) return { error: refus === 'plan' ? GUARD.plan('Core') : GUARD.role({ needRole: 'admin' }) };
 
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active pour parler à Jarvis.' };
