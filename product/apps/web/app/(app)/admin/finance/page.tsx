@@ -4,7 +4,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, PLAN_PRICE, PLAN_CREDITS, type Plan } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { analyzePlanNet, analyzePlanRisk, creditMarkup, corporateTaxRate, CREDIT_EUR } from '@tiktrends/core';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,8 +52,8 @@ export default async function FinancePage() {
 
   return (
     <main style={cadrePage}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Finance · MRR & marges</h1>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '0 0 4px' }}>
+        <h1 style={h1}>Finance · MRR & marges</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>

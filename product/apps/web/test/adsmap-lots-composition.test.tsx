@@ -129,7 +129,8 @@ describe('Lots · charte, cibles tactiles et support ancré (source)', () => {
   });
 
   it('l’en-tête suit la charte · titre 500, aide repliée à cible tactile', () => {
-    expect(page).toContain('fontWeight: 500');
+    // Le titre prend le jeton h1 de la charte (graisse 500 · lot 19, garde lot19-axes-rendu).
+    expect(page).toMatch(/<h1 style=\{h1\}/);
     expect(page).toContain('minHeight={CIBLE_TACTILE_MIN}');
   });
 
