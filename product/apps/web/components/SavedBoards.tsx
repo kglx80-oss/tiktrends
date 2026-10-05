@@ -6,13 +6,15 @@ import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
 import type { InspoAd } from '@tiktrends/integrations';
+import type { LectureFormat } from '@tiktrends/core';
+import { FormatChoix } from '../app/(app)/saved/FormatChoix';
 import { AdCard } from './AdCard';
 import { setSavedAdFolder } from '../app/actions/inspo';
 import { Empty } from './Empty';
 import { useToast } from './Toast';
 import { remplacerRecherche } from '../lib/url-client';
 
-export interface SavedItem { id: string; ad: InspoAd; folder: string | null; externalId: string; platform: string }
+export interface SavedItem { id: string; ad: InspoAd; folder: string | null; externalId: string; platform: string; format?: LectureFormat }
 
 /**
  * Boards / dossiers de rangement pour les créas sauvegardées (façon Foreplay/Atria).
@@ -145,6 +147,8 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
                 ET la structure, pas seulement l'angle. */}
             <AdCard ad={it.ad} saved following={following.has(it.ad.platform + ':' + (it.ad.advertiserName || ''))} cloneRef={it.id} cibles44={tactile} />
             <FolderPicker current={it.folder} folders={folders} onPick={(f) => move(it, f)} cible={cible} />
+            {/* Formats créatifs v1 (lot 19C) · qualification manuelle, persistante. */}
+            <FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} />
             {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
           </div>
         ))}

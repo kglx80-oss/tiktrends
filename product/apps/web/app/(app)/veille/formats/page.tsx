@@ -8,7 +8,7 @@ import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { Icon } from '../../../../components/Icon';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, h1 } from '../../../../components/ui';
 import { VueFormats, type AnnonceSauvegardee } from './VueFormats';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,7 @@ export default async function FormatsPage({ searchParams }: { searchParams: Prom
     const why = denyReason(access, Veille);
     return (
       <main style={cadrePage}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Formats créatifs</h1>
+        <h1 style={h1}>Formats créatifs</h1>
         <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 18, background: 'var(--surface)', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={30} /></div>
           <h2 style={{ margin: '10px 0 6px', fontSize: 18, color: 'var(--ink)' }}>

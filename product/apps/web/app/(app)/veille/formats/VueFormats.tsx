@@ -7,6 +7,7 @@ import {
   type AnnonceFormat, type CriteresFormats, type FormatCreatif,
 } from '@tiktrends/core';
 import { AdCard } from '../../../../components/AdCard';
+import { h1 } from '../../../../components/ui';
 import { Empty } from '../../../../components/Empty';
 import { FormatChoix } from '../../saved/FormatChoix';
 import { PreparerTest } from './PreparerTest';
@@ -50,7 +51,7 @@ export function VueFormats({ annonces, criteres: c, marque, suivis, adsmap }: {
 
   return (
     <>
-      <h1 id="formats-titre" tabIndex={-1} style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)', outline: 'none' }}>Formats créatifs</h1>
+      <h1 id="formats-titre" tabIndex={-1} style={{ ...h1, outline: 'none' }}>Formats créatifs</h1>
       <p data-perimetre style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 6, lineHeight: 1.5, maxWidth: 760 }}>
         Périmètre · <b>tes sauvegardes classées</b> à la main{marque ? <>, marque <b>{marque}</b></> : null}. Ce n’est pas toute la bibliothèque de la Veille · rien n’est classé automatiquement.
       </p>
