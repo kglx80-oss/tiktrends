@@ -18,9 +18,11 @@ import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import { getSession } from '../../lib/auth';
+import { effectiveAccess } from '../../lib/access';
+import { FEATURES, canAccess, denyReason } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../lib/analysis';
-import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, phrasesApercuAnalytics, type PhaseConnecteur } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, phrasesApercuAnalytics, refusVueAnalytics, type PhaseConnecteur } from '@tiktrends/core';
 import { PageInfo } from '../PageInfo';
 import { MetaKeyMetrics } from '../../app/(app)/analytics/MetaKeyMetrics';
 import { BrandTile } from '../BrandIcons';
@@ -28,6 +30,7 @@ import { CreativeIntel, type CreativeStats } from '../../app/(app)/analytics/Cre
 import { SectionAttribution } from '../../app/(app)/jarvis/sections/SectionAttribution';
 // Le titre d'écran suit le jeton partagé (lot 19 · réconciliation des titres).
 import { cadreSignal, h1, surface } from '../ui';
+import { Icon } from '../Icon';
 
 const TPL_LABEL: Record<string, string> = { problem_solution: 'Problème/solution', before_after: 'Avant/après', testimonial: 'Témoignage', benefits: 'Bénéfices', ugc: 'UGC', stat: 'Stat', offer: 'Offre' };
 
@@ -35,9 +38,32 @@ const eur = (n: number) => '€' + Math.round(n).toLocaleString('fr-FR');
 const pct = (n: number) => (n * 100).toFixed(2).replace('.', ',') + ' %';
 const num = (n: number) => n.toLocaleString('fr-FR');
 
+/** La feature Analytics de la matrice existante (`lib/rbac` · rôle d'espace, offre, matrice d'équipe). */
+const ANALYTICS = FEATURES.find((f) => f.key === 'analytics')!;
+
 export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
   const s = await getSession();
   if (!s) redirect('/login');
+
+  // Message 55 · le droit DÉJÀ défini est appliqué au serveur, AVANT toute
+  // lecture · ni marque active, ni KPI Meta, ni générations, ni assets, ni
+  // bilan. Masquer l'onglet ne protégeait rien · un rôle dont la matrice ferme
+  // Analytics lisait les KPI de l'espace par l'URL.
+  const acces = effectiveAccess(s);
+  if (!canAccess(acces, ANALYTICS)) {
+    return (
+      <div data-vue="analytics-refusee">
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+          <h1 style={h1}>Analytics</h1>
+          {vues}
+        </div>
+        <div role="status" style={{ ...surface, background: 'var(--surface)', padding: 28, marginTop: 20, textAlign: 'center' }}>
+          <div aria-hidden style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={30} /></div>
+          <p style={{ color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.55, maxWidth: 460, margin: '10px auto 0' }}>{refusVueAnalytics(denyReason(acces, ANALYTICS))}</p>
+        </div>
+      </div>
+    );
+  }
 
   // Données Meta réelles (si la marque active a connecté + synchronisé).
   let metaInsights: MetaAdsInsights | null = null;

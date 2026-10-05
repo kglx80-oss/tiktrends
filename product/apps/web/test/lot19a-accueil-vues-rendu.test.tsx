@@ -145,10 +145,14 @@ describe('Accueil · ?vue=analytics rend l’Analytics complet, sans copie', () 
     expect(liens(nav(h)!).map((l) => l.href)).toEqual(['/dashboard?periode=7j&tag=a&tag=b', '/dashboard?vue=analytics&periode=7j&tag=a&tag=b']);
   });
 
-  it('rôle sans droit · ?vue=analytics rend ce que /analytics rendait (la vue, sans onglet)', async () => {
+  // Message 55 · le droit DÉJÀ défini est appliqué au serveur · la vue refuse
+  // (avant, elle rendait les KPI de l'espace, comme l'ancienne page /analytics).
+  it('rôle sans droit · ?vue=analytics rend le REFUS, sans onglet ni KPI', async () => {
     etat.session = sansAnalytics();
     const h = await accueil({ vue: 'analytics' });
     expect(nav(h)).toBeNull();
+    expect(h).toContain('data-vue="analytics-refusee"');
+    for (const b of ['Aperçu créas', 'Top créas par ROAS', 'id="attribution"']) expect(h, `KPI servi malgré le refus · ${b}`).not.toContain(b);
     expect(h).toContain(await html(await VueAnalytics()));
   });
 

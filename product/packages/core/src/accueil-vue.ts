@@ -158,3 +158,15 @@ export function resoudreAccueil(p: { params: ParamsRequete; ouvert: (href: strin
     : [];
   return { vue, onglets };
 }
+
+/**
+ * Message 55 · la vue Analytics REFUSÉE · ce que l'écran dit, selon la raison
+ * du refus (`denyReason` · rôle ou offre). Le refus lui-même est serveur
+ * (`canAccess` avant toute lecture de KPI) · ce texte ne protège rien, il
+ * explique. Factuel · on ne promet pas d'ouverture, on ne nomme personne.
+ */
+export function refusVueAnalytics(raison: 'role' | 'plan' | null): string {
+  return raison === 'plan'
+    ? 'Analytics n’est pas inclus dans l’offre de cet espace.'
+    : 'Ton rôle ne donne pas accès à Analytics · les KPI de l’espace ne te sont pas affichés.';
+}

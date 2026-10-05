@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lireVueAccueil, hrefVueAccueil, redirectionAnalytics, resoudreAccueil, requeteDuRouteurClient, VUES_ACCUEIL } from '../src/accueil-vue';
+import { lireVueAccueil, hrefVueAccueil, redirectionAnalytics, refusVueAnalytics, resoudreAccueil, requeteDuRouteurClient, VUES_ACCUEIL } from '../src/accueil-vue';
 import { roleVoitRubrique } from '../src/equipe-plateforme';
 import { placementLanceurSupport } from '../src/lanceur-support';
 import { chargementCompletRequis } from '../src/meme-chemin';
@@ -112,5 +112,14 @@ describe('accueil · pour quel rôle', () => {
     const r = resoudreAccueil({ params: { vue: 'analytics' }, ouvert: voit('membre') });
     expect(r.vue).toBe('analytics');
     expect(r.onglets).toEqual([]);
+  });
+});
+
+describe('refusVueAnalytics · ce que dit l’écran de refus', () => {
+  it('rôle · le refus est dit, sans promesse', () => {
+    expect(refusVueAnalytics('role')).toBe('Ton rôle ne donne pas accès à Analytics · les KPI de l’espace ne te sont pas affichés.');
+  });
+  it('offre · l’offre est nommée comme cause', () => {
+    expect(refusVueAnalytics('plan')).toContain('offre');
   });
 });
