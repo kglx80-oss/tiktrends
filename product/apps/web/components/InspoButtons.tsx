@@ -42,7 +42,12 @@ export function SaveButton({ ad, initialSaved }: { ad: InspoAd; initialSaved: bo
           // le ★ vide et se dit · jamais d'état « sauvegardé » sur un non.
           const r = await saveAd({ platform: ad.platform, externalId: ad.id, snapshot: ad });
           if (!r.ok) { setSaved(!next); pile?.toast(r.error ?? 'Sauvegarde refusée.', 'err', bouton.current); }
-        } else await unsaveAd({ platform: ad.platform, externalId: ad.id });
+        } else {
+          // Message 56 · retirer peut aussi être refusé (rôle, autre marque) · le ★
+          // reste plein et le refus se dit.
+          const r = await unsaveAd({ platform: ad.platform, externalId: ad.id });
+          if (r && r.ok === false) { setSaved(!next); pile?.toast(r.error, 'err', bouton.current); }
+        }
       } catch { setSaved(!next); pile?.toast('Échec · vérifie ta connexion puis réessaie.', 'err', bouton.current); }
       finally { verrou.current.relacher(); }
     });

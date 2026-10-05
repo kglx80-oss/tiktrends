@@ -87,10 +87,20 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
       if (vide) { setTab(BOARD_TOUS); garderDansUrl(BOARD_TOUS, q); }
       return next;
     });
-    start(async () => { await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value }); });
-    // Le rangement se voit à l'onglet, mais le geste vaut sa confirmation là où on
-    // a cliqué · sans elle, ranger une créa dans un board est une action muette.
-    toast(value ? `Rangé dans « ${value} ».` : 'Retiré du board.');
+    const avant = it.folder;
+    start(async () => {
+      const r = await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value });
+      // Message 56 · un refus du serveur (rôle, autre marque) remet la créa dans
+      // son board et se dit · jamais de « Rangé dans… » sur un non.
+      if (r && r.ok === false) {
+        setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
+        toast(r.error, 'err');
+        return;
+      }
+      // Le rangement se voit à l'onglet, mais le geste vaut sa confirmation là où on
+      // a cliqué · sans elle, ranger une créa dans un board est une action muette.
+      toast(value ? `Rangé dans « ${value} ».` : 'Retiré du board.');
+    });
   };
 
   if (!list.length) {
