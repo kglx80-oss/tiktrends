@@ -15,7 +15,7 @@ import { CreativeActions } from '../../../../components/CreativeActions';
 import { Empty } from '../../../../components/Empty';
 import { MiniatureAsset } from '../../../../components/MiniatureAsset';
 import { Icon } from '../../../../components/Icon';
-import { surface, tuile } from '../../../../components/ui';
+import { cadreSignal, surface, tuile } from '../../../../components/ui';
 import { DebriefVisuelsStrip } from '../../../../components/DebriefVisuels';
 import { Composer } from '../../../../components/Composer';
 import { usePreflight } from '../../../../components/usePreflight';
@@ -466,7 +466,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
                 </div>
                 {/* Relecture IA · note plafonnée par les ratés visibles. */}
                 {notes[im.id] && (() => { const nt = notes[im.id]!; return (
-                  <div style={{ marginTop: 8, padding: '7px 9px', borderRadius: 9, border: `1px solid ${nt.grave ? 'rgba(255,77,109,.4)' : 'var(--line-2)'}`, background: nt.grave ? 'rgba(255,77,109,.07)' : 'var(--paper)' }}>
+                  <div style={{ marginTop: 8, padding: '7px 9px', ...(nt.grave ? cadreSignal('rgba(255,77,109,.4)', 'tuile') : tuile), background: nt.grave ? 'rgba(255,77,109,.07)' : 'var(--paper)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <b style={{ fontSize: 13, color: nt.grave ? '#ff9db0' : nt.note >= 75 ? '#7ee8bf' : 'var(--ink)' }}>{nt.note}/100</b>
                       {nt.defauts.length > 0 && <span style={{ fontSize: 10.5, color: '#ffcf8f' }}>· {nt.defauts.join(', ')}</span>}

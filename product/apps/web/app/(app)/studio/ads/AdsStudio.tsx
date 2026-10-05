@@ -727,7 +727,7 @@ export function AdsStudio({ ready, aiReady, brandName, initial, products, person
           (bordure, fond) n'apparaît qu'une fois DÉPLIÉ · replié, c'est une ligne
           sobre. La phrase descriptive tombe sur mobile (elle mange une ligne au
           moment où la galerie doit remonter). Cible 44 sur le déclencheur. */}
-      <div ref={composeur} style={{ border: avance ? '1px solid var(--line-2)' : 'none', borderRadius: surface.borderRadius, background: avance ? 'var(--surface)' : 'transparent', marginBottom: avance ? 28 : 16, scrollMarginTop: 16 }}>
+      <div ref={composeur} style={{ border: avance ? surface.border : 'none', borderRadius: surface.borderRadius, background: avance ? 'var(--surface)' : 'transparent', marginBottom: avance ? 28 : 16, scrollMarginTop: 16 }}>
         <button type="button" onClick={() => setAvance((v) => !v)} style={{
           display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: CIBLE_TACTILE_MIN, padding: avance ? '13px 22px' : '8px 4px',
           border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left',

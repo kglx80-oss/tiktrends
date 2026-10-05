@@ -27,6 +27,8 @@ const PERIMETRE = [
   ...['adsmap', 'studio', 'assets', 'tags', 'radar', 'brands', 'connections', 'billing', 'credits', 'usage', 'team', 'profile', 'settings', 'support', 'console']
     .map((d) => join('app', '(app)', d)),
   ...['depenses', 'finance', 'incidents', 'intelligence', 'paiement', 'plans', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
+  // Transféré au lot pour ce seul changement (rendu sur /adsmap) · le reste de jarvis/** n'est pas couvert.
+  join('app', '(app)', 'jarvis', 'sections', 'SectionEssais.tsx'),
 ];
 
 /** Fichiers du dossier `components` hors de ce lot, et pourquoi. */
@@ -66,21 +68,17 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
  * de la ligne` · une exception ne vaut que dans SON fichier.
  */
 export const EXCEPTIONS_LIGNE_2: Readonly<Record<string, string>> = {
-  "app/(app)/studio/ads/AdsStudio.tsx::border: avance ? '1px solid var(--line-2)' : 'none'":
-    'Pubs IA · carte des réglages avancés (repliée par défaut) · littéral verrouillé par test/pubs-ia-composition · à passer en `surface` avec ce test',
   "components/Composer.tsx::background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12,":
     'Composer · menu déroulant d’un réglage · prolonge son contrôle',
 };
-export const EXCEPTIONS_RAYON: Readonly<Record<string, string>> = {
-  "components/CarteCreative.tsx::  border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)',":
-    'CarteCreative (Pubs IA) · le rayon du média est figé à 14px par test/carte-menu-non-clip · à passer en `surface` (carte ET média) avec ce test',
-};
+export const EXCEPTIONS_RAYON: Readonly<Record<string, string>> = {};
 const exceptee = (table: Readonly<Record<string, string>>, f: string, l: string) =>
   Object.keys(table).some((k) => { const [fk, extrait] = k.split('::') as [string, string]; return fk === f && l.includes(extrait); });
 
 const fichiers: string[] = [];
 (function parcourir(dirs: string[]) {
   for (const d of dirs) {
+    if (!statSync(join(WEB, d)).isDirectory()) { fichiers.push(d.split(sep).join('/')); continue; }
     for (const n of readdirSync(join(WEB, d))) {
       const p = join(d, n);
       if (statSync(join(WEB, p)).isDirectory()) parcourir([p]);
@@ -138,8 +136,10 @@ function cadresHorsRole(f: string): string[] {
   const lignes = src.split('\n');
   const fautes: string[] = [];
   lignes.forEach((l, i) => {
-    // 1 · la bordure des contrôles sur un cadre.
-    if (/\bborder: ?[`'"]1px (solid|dashed) var\(--line-2\)/.test(l)) {
+    // 1 · la bordure des contrôles sur un cadre · forme littérale OU conditionnelle
+    // (`border: avance ? '1px solid var(--line-2)' : 'none'`, `${x ? … : 'var(--line-2)'}`).
+    // La valeur s'arrête à la virgule qui suit · sauf celles d'une parenthèse (`rgba(255,90,120,.35)`).
+    if (/\bborder: ?(?:[^,(\n]|\([^)\n]*\))*var\(--line-2\)/.test(l)) {
       const exc = exceptee(EXCEPTIONS_LIGNE_2, f, l);
       if (!exc && !pasUnCadre(declaration(lignes, i))) fautes.push(`${f}:${i + 1} · cadre en --line-2 (bordure des contrôles) · prends surface/tuile (ou vide)`);
     }
