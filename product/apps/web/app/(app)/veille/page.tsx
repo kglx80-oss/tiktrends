@@ -12,7 +12,9 @@ import { PageInfo } from '../../../components/PageInfo';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
-import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, type PerimetreVeille } from '@tiktrends/core';
+import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, contexteVeille, PARAM_RETOUR_VEILLE, type PerimetreVeille } from '@tiktrends/core';
+import { RetourVeille } from '../../../components/RetourVeille';
+import { DefileAncreVeille } from '../../../components/DefileAncreVeille';
 import { ChampRechercheVeille } from '../../../components/ChampRechercheVeille';
 import { Icon } from '../../../components/Icon';
 import { DepliableEchap } from '../../../components/DepliableEchap';
@@ -52,6 +54,8 @@ type SP = {
   country?: string; page?: string;
   /** `?refresh=1` court-circuite le cache mémoire · un appel frais à Trendtrack. */
   refresh?: string;
+  /** Lot 18B · la recherche d'où l'on vient (« Ses annonces dans la Veille ») · `contexteVeille`. */
+  rv?: string;
 };
 
 const PLATFORMS: [AdPlatform, string][] = [['meta', 'Meta'], ['tiktok', 'TikTok'], ['google', 'Google']];
@@ -245,12 +249,18 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
   // Seul ce qui s'écarte du défaut compte · le tri n'est pas un filtre (il
   // s'affiche à part) · le périmètre par défaut ne fait pas de puce (#106b).
   const avances = filtresActifsVeille(sp, platform);
+  // Lot 18B · la recherche en cours, nettoyée · chaque carte la porte vers le
+  // Studio et vers « Ses annonces dans la Veille », pour pouvoir y revenir.
+  const contexte = contexteVeille(sp);
 
   return (
     <main style={wrap}>
       {/* En-tête sobre · observer pour préparer un test, pas une promesse. La
           phrase et la note honnête restent, resserrées · sur mobile elles ne
           repoussent pas la première carte. */}
+      {/* Lot 18B · arrivé par « Ses annonces dans la Veille » · la recherche
+          d'origine (critères, page, carte) reste à un clic. */}
+      {sp.rv != null && <div style={{ marginBottom: 4 }}><RetourVeille rv={sp.rv} /></div>}
       <h1 style={h1}>Veille</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 14, margin: '6px 0 3px', maxWidth: 640, lineHeight: 1.45 }}>
         Observe les publicités du marché pour préparer tes prochains tests.
@@ -272,6 +282,8 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {/* Recherche + plateforme accessibles d'emblée · les 5 autres filtres
           repliés (mais dans le form · ils partent quand même à la soumission). */}
       <form action="/veille" method="get" style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
+        {/* La recherche d'origine suit une nouvelle recherche ou un filtre (lot 18B). */}
+        {sp.rv != null && <input type="hidden" name={PARAM_RETOUR_VEILLE} value={sp.rv} />}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {/* Recherche pleine largeur · plateforme + bouton sur la ligne suivante. */}
           {/* Le champ et son périmètre, côte à côte · l'exemple suit le périmètre. */}
@@ -376,11 +388,14 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           même à deux résultats (pas d'étirement géant). */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 18 }}>
         {ads.map((ad) => (
-          <AdCard key={ad.id} ad={ad} ctaSobre cibles44
+          <AdCard key={ad.id} ad={ad} ctaSobre cibles44 contexteRetour={contexte}
             saved={savedSet.has(ad.platform + ':' + ad.id)}
             following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}
       </div>
+
+      {/* Lot 18B · retour par une URL qui vise une carte · on la recentre. */}
+      {ads.length > 0 && <DefileAncreVeille />}
 
       {/* Une recherche sans résultat rendait une grille VIDE, sans un mot ·
           l'écran se lisait comme cassé. On dit ce qui s'est passé et on donne

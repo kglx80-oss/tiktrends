@@ -117,6 +117,7 @@ export * from './brief-concurrent';
 export * from './veille-media';
 export * from './veille-defaut';
 export * from './veille-liens';
+export * from './retour-veille';
 export * from './decouverte-marche';
 export * from './exemple-direction';
 export * from './conseil-moteur';
