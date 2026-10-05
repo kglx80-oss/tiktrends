@@ -41,9 +41,24 @@ export async function saveAd(input: { platform: string; externalId: string; snap
   const brand = await getActiveBrand(s.workspaceId);
   // Un classement ne voyage jamais avec la sauvegarde · il s'écrit par
   // `classerFormatSauvegarde` (validé, daté, signé), pas depuis le client.
-  await db!.insert(schema.savedAds)
+  const ecrite = await db!.insert(schema.savedAds)
     .values({ workspaceId: s.workspaceId, userId: s.user.id, brandId: brand?.id ?? null, platform: input.platform, externalId: input.externalId, snapshot: sansFormatCreatif(input.snapshot) })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: schema.savedAds.id });
+  // Message 55 · c · la clé unique est (espace, plateforme, external_id) · une
+  // annonce déjà gardée pour une AUTRE marque n'est pas réécrite, et elle reste
+  // invisible dans les sauvegardes de la marque active · répondre « oui » serait
+  // un faux succès (★ plein ici, absente de Sauvegardes et de Formats).
+  if (ecrite.length === 0 && brand) {
+    const [deja] = await db!.select({ brandId: schema.savedAds.brandId }).from(schema.savedAds).where(and(
+      eq(schema.savedAds.workspaceId, s.workspaceId),
+      eq(schema.savedAds.platform, input.platform),
+      eq(schema.savedAds.externalId, input.externalId),
+    )).limit(1);
+    if (deja && deja.brandId !== brand.id) {
+      return { ok: false, error: 'Annonce déjà sauvegardée pour une autre marque de l’espace · elle n’apparaît pas dans les sauvegardes de cette marque.' };
+    }
+  }
   return { ok: true };
 }
 
@@ -54,8 +69,9 @@ export type ResultatFormat = { ok: true; format: FormatCreatifId | null; date: s
  *
  * Écrit `saved_ads.snapshot_json.formatCreatif` = `{ id, version, date, auteur }`
  * (aucune migration) · `non_classe` retire le classement. Identité = (espace de
- * la session, plateforme, `external_id`) · la clé unique de la table · une
- * annonce d'un autre espace n'est jamais atteinte (introuvable). La règle
+ * la session, plateforme, `external_id`) · la clé unique de la table · plus la
+ * marque active quand il y en a une · une annonce d'un autre espace ou d'une
+ * autre marque n'est jamais atteinte (introuvable). La règle
  * (liste, média, validation) vit au noyau (`formats-creatifs.ts`).
  */
 export async function classerFormatSauvegarde(input: { platform: string; externalId: string; format: string }): Promise<ResultatFormat> {
@@ -66,13 +82,21 @@ export async function classerFormatSauvegarde(input: { platform: string; externa
   const externalId = typeof input?.externalId === 'string' ? input.externalId.slice(0, 200) : '';
   if (!platform || !externalId) return { ok: false, error: 'Annonce introuvable dans ton espace · recharge la page.' };
 
+  // Message 55 · c · le MÊME périmètre que `/veille/formats` et Sauvegardes ·
+  // l'espace de la session ET, quand une marque est active, cette marque · une
+  // sauvegarde d'une autre marque n'est ni lue ni écrite depuis celle-ci.
+  const marque = await getActiveBrand(s.workspaceId);
+  const introuvable = marque
+    ? 'Annonce introuvable dans les sauvegardes de cette marque · recharge la page.'
+    : 'Annonce introuvable dans ton espace · recharge la page.';
   const ici = and(
     eq(schema.savedAds.workspaceId, s.workspaceId),
     eq(schema.savedAds.platform, platform),
     eq(schema.savedAds.externalId, externalId),
+    ...(marque ? [eq(schema.savedAds.brandId, marque.id)] : []),
   );
   const [ligne] = await db!.select({ snapshot: schema.savedAds.snapshot }).from(schema.savedAds).where(ici).limit(1);
-  if (!ligne) return { ok: false, error: 'Annonce introuvable dans ton espace · recharge la page.' };
+  if (!ligne) return { ok: false, error: introuvable };
 
   const choix = validerChoixFormat(input.format, mediaAnnonce((ligne.snapshot as { mediaType?: unknown } | null)?.mediaType));
   if (!choix.ok) return { ok: false, error: choix.raison };
@@ -84,7 +108,7 @@ export async function classerFormatSauvegarde(input: { platform: string; externa
       : sql`${schema.savedAds.snapshot} - 'formatCreatif'` })
     .where(ici)
     .returning({ id: schema.savedAds.id });
-  if (maj.length === 0) return { ok: false, error: 'Annonce introuvable dans ton espace · recharge la page.' };
+  if (maj.length === 0) return { ok: false, error: introuvable };
   return { ok: true, format: choix.id, date: enr?.date ?? null };
 }
 

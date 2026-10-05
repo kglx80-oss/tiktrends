@@ -133,3 +133,51 @@ describe('b · auteur du classement', () => {
     expect(carte(h, 'y-externe-sans-nom'), 'un auteur hors de l’espace est nommé').not.toMatch(/classée le [^<]*<!-- --> par /);
   });
 });
+
+describe('c · espace ET marque active', () => {
+  it('classer une sauvegarde d’une AUTRE marque de l’espace est refusé, rien n’est écrit', async () => {
+    const avant = await ligne(ids.wsA, 'x-autre-marque');
+    const r = await classerFormatSauvegarde({ platform: 'meta', externalId: 'x-autre-marque', format: 'packshot' });
+    expect(r.ok, 'une sauvegarde d’une autre marque est classée depuis la marque active').toBe(false);
+    expect(!r.ok && r.error).toBe('Annonce introuvable dans les sauvegardes de cette marque · recharge la page.');
+    expect((await ligne(ids.wsA, 'x-autre-marque'))!.snapshot).toEqual(avant!.snapshot);
+  });
+
+  it('la même sauvegarde se classe depuis SA marque', async () => {
+    session.marque = 'X';
+    const r = await classerFormatSauvegarde({ platform: 'meta', externalId: 'x-autre-marque', format: 'packshot' });
+    expect(r.ok, JSON.stringify(r)).toBe(true);
+    await classerFormatSauvegarde({ platform: 'meta', externalId: 'x-autre-marque', format: 'non_classe' });
+  });
+
+  it('classer une sauvegarde d’un autre espace est refusé, rien n’est écrit', async () => {
+    session.marque = null;
+    const avant = await ligne(ids.wsB, 'b-seule');
+    const r = await classerFormatSauvegarde({ platform: 'meta', externalId: 'b-seule', format: 'packshot' });
+    expect(r.ok).toBe(false);
+    expect((await ligne(ids.wsB, 'b-seule'))!.snapshot).toEqual(avant!.snapshot);
+  });
+
+  it('/veille/formats · la marque active seule · ni l’autre marque ni l’autre espace', async () => {
+    const h = await rendre({ format: 'non_classe' });
+    expect(h).toContain('data-annonce="y-a-classer"');
+    expect(h, 'une sauvegarde d’une autre marque est listée').not.toContain('x-autre-marque');
+    expect(h, 'une sauvegarde d’un autre espace est listée').not.toContain('b-seule');
+    session.marque = 'X';
+    const hx = await rendre({ format: 'non_classe' });
+    expect(hx).toContain('data-annonce="x-autre-marque"');
+    expect(hx).not.toContain('y-a-classer');
+  });
+
+  it('saveAd · une annonce déjà gardée pour une AUTRE marque ne répond pas « sauvegardée » ici', async () => {
+    const r = await saveAd({ platform: 'meta', externalId: 'x-autre-marque', snapshot: ad('x-autre-marque', 'image') });
+    expect(r.ok, 'oui répondu alors que l’annonce reste invisible dans les sauvegardes de la marque active').toBe(false);
+    expect(!r.ok && r.error).toContain('autre marque');
+    expect((await ligne(ids.wsA, 'x-autre-marque'))!.brandId, 'la sauvegarde a changé de marque').toBe(ids.marqueX);
+  });
+
+  it('saveAd · déjà gardée pour CETTE marque · oui (idempotent)', async () => {
+    const r = await saveAd({ platform: 'meta', externalId: 'y-camille', snapshot: ad('y-camille', 'image') });
+    expect(r.ok).toBe(true);
+  });
+});
