@@ -44,6 +44,7 @@ export default async function AdminBackstage() {
     { icon: 'coin', title: 'Crédits & marges', desc: 'Barème, coût réel API, règle × markup et marge par action.', href: '/credits' },
     { icon: 'terminal', title: 'Console', desc: 'État du système, intégrations, files de génération, diagnostics.', href: '/console' },
     { icon: 'brain', title: 'Jarvis', desc: 'Règles créatives maison imposées à chaque génération, par marque.', href: '/jarvis' },
+    { icon: 'file', title: 'Connaissances', desc: 'Consignes, méthodes d’itération, savoirs et données que Jarvis lit à chaque réponse.', href: '/admin/connaissances' },
     { icon: 'search', title: 'Intelligence marché', desc: 'Concurrents (Atria, Foreplay, Higgsfield) et notre positionnement.', href: '/admin/intelligence' },
     { icon: 'card', title: 'Plans & Facturation', desc: 'Formules, prix, allocations et abonnements.', href: '/billing' },
     { icon: 'gear', title: 'Réglages', desc: 'Paramètres de l’espace, modèles IA, clés et intégrations serveur.', href: '/settings' },

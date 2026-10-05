@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRef } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_TYPE } from '@tiktrends/core';
 import type { ChatContexte } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 import { usePiegeFocus } from '../../../components/use-piege-focus';
@@ -123,6 +123,35 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
           </Bloc>
         )}
 
+        {/* Les connaissances de l'équipe · ce qui entre dans le contexte des
+            PROCHAINES réponses pour cette marque. Titre et type seulement · le
+            texte reste côté équipe. Le retrait vaut pour la suite, pas pour le
+            passé · et c'est dit, plutôt que promis. */}
+        {contexte.connaissances && (
+          <Bloc titre="Connaissances de l’équipe" portee="plateforme">
+            {contexte.connaissances.inclus.length ? (
+              <>
+                <p style={corps}>Incluses dans le contexte de ses prochaines réponses · lues comme des données, sous ses règles et sous les consignes de la marque.</p>
+                <ul style={{ margin: '8px 0 0', paddingLeft: 18, display: 'grid', gap: 4 }}>
+                  {contexte.connaissances.inclus.map((k) => (
+                    <li key={k.ref} style={{ ...corps, overflowWrap: 'anywhere' }}>
+                      {k.titre} <span style={{ color: 'var(--muted)', fontSize: 11 }}>· {LIBELLE_TYPE[k.type]}{k.tronquee ? ' · tronquée' : ''}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p style={{ ...corps, color: 'var(--muted)' }}>Aucune connaissance publiée par l’équipe pour cette marque.</p>
+            )}
+            {contexte.connaissances.horsPlace > 0 && (
+              <p style={{ margin: '8px 0 0', fontSize: 11, color: '#ffcf8f', lineHeight: 1.5 }}>{contexte.connaissances.horsPlace} autre(s) n’ont pas tenu dans la place réservée.</p>
+            )}
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+              Une connaissance retirée n’entre plus dans les réponses suivantes · les réponses déjà données ne sont pas réécrites.
+            </p>
+          </Bloc>
+        )}
+
         <Bloc titre="Sources de Jarvis" portee="marque">
           <p style={corps}>
             La mémoire mesurée et les apprentissages de cette marque, avec leur provenance ·
@@ -136,8 +165,8 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
 }
 
 /** Une section du contexte · un titre, sa portée, son contenu. */
-function Bloc({ titre, portee, children }: { titre: string; portee: 'utilisateur' | 'espace' | 'marque'; children: React.ReactNode }) {
-  const PORTEE_LABEL = { utilisateur: 'portée · utilisateur', espace: 'portée · espace', marque: 'portée · marque' } as const;
+function Bloc({ titre, portee, children }: { titre: string; portee: 'utilisateur' | 'espace' | 'marque' | 'plateforme'; children: React.ReactNode }) {
+  const PORTEE_LABEL = { utilisateur: 'portée · utilisateur', espace: 'portée · espace', marque: 'portée · marque', plateforme: 'portée · équipe plateforme' } as const;
   return (
     <section style={{ border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '12px 14px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
