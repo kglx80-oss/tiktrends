@@ -35,6 +35,12 @@ import { EcranConnaissances } from '../app/(app)/admin/connaissances/EcranConnai
 import { JarvisContexte } from '../app/(app)/jarvis/JarvisContexte';
 import { Tour } from '../app/(app)/jarvis/JarvisChat';
 import type { VueAdminConnaissances } from '../app/actions/connaissances';
+import { h1 } from '../components/ui';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { CSSProperties } from 'react';
+
+const styleHtml = (st: CSSProperties) => renderToStaticMarkup(<i style={st} />).match(/style="([^"]*)"/)![1]!;
 
 const ok = <T,>(r: Resultat<T>): T => { if (!r.ok) throw new Error(r.erreur); return r.valeur; };
 const s = (o: Partial<SaisieConnaissance>) => ok(validerSaisie({
@@ -134,6 +140,28 @@ describe('page · le garde lit le rôle d’ÉQUIPE, jamais le rôle d’espace'
     expect(html).toContain('<h1');
     expect(html).toContain('Connaissances');
     expect(html).toContain('Chiffres du marché');
+  });
+
+  it('titre · le jeton h1 du cadre, tel quel, en tête de la rangée, sans marge haute', async () => {
+    h.session = { ...base, equipe: { role: 'adminplus', matrice: {} } };
+    const html = renderToStaticMarkup(await ConnaissancesPage());
+    const h1Html = html.match(/<h1 [^>]*>Connaissances<\/h1>/)?.[0] ?? '';
+    expect(h1Html).toContain(`style="${styleHtml(h1)}"`);
+    // La rangée qui porte le titre ne pousse rien vers le bas.
+    const avant = html.slice(0, html.indexOf(h1Html));
+    expect(avant.slice(avant.lastIndexOf('<div')).replace(/\s/g, '')).toContain('margin-top:0');
+  });
+});
+
+describe('/jarvis/sources · titre sur l’axe du cadre', () => {
+  // La page lit la base et la mémoire · on garde la règle sur la source : le
+  // titre est le jeton `h1`, et plus rien ne le précède dans sa rangée (l'icône
+  // le décalait de 32 px).
+  const src = readFileSync(join(process.cwd(), 'app/(app)/jarvis/sources/page.tsx'), 'utf8');
+  it('les deux titres utilisent le jeton h1 et aucune icône ne les précède', () => {
+    expect(src.match(/<h1 style=\{h1\}>Sources de Jarvis<\/h1>/g)?.length).toBe(2);
+    expect(src).not.toMatch(/<Icon name="brain"[^\n]*\n\s*<h1/);
+    expect(src).not.toMatch(/<h1 style=\{\{/);
   });
 });
 

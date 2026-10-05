@@ -19,7 +19,7 @@ import { JarvisTraining } from '../JarvisTraining';
 import { DescribePanel } from '../DescribePanel';
 import { Empty } from '../../../../components/Empty';
 import { BarreValeur } from '../../../../components/BarreValeur';
-import { cadrePage, colonneLecture } from '../../../../components/ui';
+import { cadrePage, colonneLecture, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +61,7 @@ export default async function JarvisPage() {
   if (!brand) {
     return (
       <main style={cadrePage}><div style={colonneLecture('fil')}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Sources de Jarvis</h1>
+        <h1 style={h1}>Sources de Jarvis</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
             tone="todo" title="Sélectionne une marque active."
@@ -101,10 +101,11 @@ export default async function JarvisPage() {
         Retour à la conversation
       </Link>
       {/* En-tête sobre (charte) · plus de bandeau dégradé ni de tuile d'icône rose. */}
-      <div style={{ padding: '4px 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', color: 'var(--muted)', flexShrink: 0 }}><Icon name="brain" size={22} /></span>
-          <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Sources de Jarvis</h1>
+      {/* Rangée de titre SANS marge haute, titre sur l'axe du cadre (jeton `h1`) ·
+          l'icône qui le précédait le décalait de 32 px vers la droite. */}
+      <div style={{ padding: '0 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 0 }}>
+          <h1 style={h1}>Sources de Jarvis</h1>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>· {brand.name}</span>
         </div>
         <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 640, lineHeight: 1.5 }}>

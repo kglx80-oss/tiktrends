@@ -5,8 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { peutGererConnaissances } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { chargerConnaissancesAction } from '../../../actions/connaissances';
-import { Icon } from '../../../../components/Icon';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, h1 } from '../../../../components/ui';
 import { EcranConnaissances } from './EcranConnaissances';
 
 export const dynamic = 'force-dynamic';
@@ -40,20 +39,17 @@ export default async function ConnaissancesPage() {
 
   return (
     <main style={cadrePage}>
-      <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(245,166,35,.3)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', flexShrink: 0 }}><Icon name="brain" size={23} /></div>
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0, fontSize: 25, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Connaissances</h1>
-              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
-            </div>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-              Ce que l’équipe donne à lire à Jarvis · consignes, méthodes d’itération, savoirs, données.
-            </p>
-          </div>
-          <Link href="/admin" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 16px', borderRadius: 999, background: 'rgba(255,255,255,.06)', border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>← Tableau de bord</Link>
+      {/* Rangée de titre SANS marge haute, jeton `h1` du cadre (pas de taille ni de
+          graisse réécrites) · le badge et le retour se rangent à côté. */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 0 }}>
+          <h1 style={h1}>Connaissances</h1>
+          <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
+          <Link href="/admin" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>← Tableau de bord</Link>
         </div>
+        <p style={{ margin: '6px 0 0', fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 640 }}>
+          Ce que l’équipe donne à lire à Jarvis · consignes, méthodes d’itération, savoirs, données.
+        </p>
       </div>
 
       {r.error || !r.vue
