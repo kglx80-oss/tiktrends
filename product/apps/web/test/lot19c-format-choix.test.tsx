@@ -5,9 +5,11 @@ import { createRoot, type Root } from 'react-dom/client';
 
 /**
  * Lot 19C · le choix « Format » d'une carte · on le MONTE (jsdom) et on lit le
- * DOM · étiquette, 44 px, retour d'état honnête (« Enregistré » seulement sur
- * un oui du serveur ; un refus remet l'ancien choix et dit l'échec), focus
- * rendu au choix suivant quand l'annonce quitte la vue.
+ * DOM · étiquette, 44 px, enregistrement EXPLICITE (changer le choix, au clavier
+ * comme à la souris, n'écrit rien · une flèche sur un select fermé déclenche
+ * `change`), retour d'état honnête (« Enregistré » seulement sur un oui du
+ * serveur ; un refus remet le choix enregistré et dit l'échec), focus rendu au
+ * choix suivant quand l'annonce quitte la vue.
  */
 const appel = vi.hoisted(() => ({ reponse: { ok: true, format: 'packshot', date: '2026-10-05T00:00:00Z' } as unknown, recu: [] as unknown[], refresh: 0 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => { appel.refresh++; } }) }));
@@ -24,6 +26,11 @@ afterEach(() => { act(() => { root?.unmount(); }); el?.remove(); root = null; el
 const monter = async (n: React.ReactNode) => { el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el); await act(async () => { root!.render(n); }); return el; };
 const choisir = async (s: HTMLSelectElement, v: string) => {
   await act(async () => { s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); });
+};
+const enregistrer = async (h: HTMLElement, s: HTMLSelectElement, v: string) => {
+  await choisir(s, v);
+  const b = [...h.querySelectorAll('button')].find((x) => x.textContent === 'Enregistrer' && s.parentElement!.contains(x))!;
+  await act(async () => { b.click(); });
 };
 
 describe('FormatChoix', () => {
@@ -44,11 +51,17 @@ describe('FormatChoix', () => {
     appel.reponse = { ok: true, format: 'packshot', date: '2026-10-05T00:00:00Z' };
     const h = await monter(<FormatChoix platform="meta" externalId="e1" mediaType="image" initial={null} />);
     const s = h.querySelector('select')!;
+    await choisir(s, 'callout');
     await choisir(s, 'packshot');
+    expect(appel.recu, 'changer le choix n’écrit rien · une écriture par flèche sinon').toEqual([]);
+    expect(h.querySelector('[role=status]')!.textContent).toBe('Pas encore enregistré.');
+    await enregistrer(h, s, 'packshot');
     expect(appel.recu).toEqual([{ platform: 'meta', externalId: 'e1', format: 'packshot' }]);
     expect(h.querySelector('[role=status]')!.textContent).toBe('Enregistré · Packshot');
     expect(h.textContent).toContain('Le produit seul, fond neutre');
     expect(s.value).toBe('packshot');
+    expect([...h.querySelectorAll('button')].some((b) => b.textContent === 'Enregistrer'), 'enregistré · plus rien à enregistrer').toBe(false);
+    expect(document.activeElement, 'le focus revient au choix').toBe(s);
     expect(appel.refresh).toBe(1);
   });
 
@@ -56,7 +69,7 @@ describe('FormatChoix', () => {
     appel.reponse = { ok: false, error: 'Annonce introuvable dans ton espace · recharge la page.' };
     const h = await monter(<FormatChoix platform="meta" externalId="e1" mediaType="image" initial="callout" />);
     const s = h.querySelector('select')!;
-    await choisir(s, 'packshot');
+    await enregistrer(h, s, 'packshot');
     expect(s.value, 'le choix refusé ne reste pas affiché').toBe('callout');
     expect(h.querySelector('[role=status]')!.textContent).toBe('Annonce introuvable dans ton espace · recharge la page.');
     expect(h.textContent).not.toContain('Enregistré');
@@ -67,7 +80,7 @@ describe('FormatChoix', () => {
     appel.reponse = new Error('réseau');
     const h = await monter(<FormatChoix platform="meta" externalId="e1" mediaType="image" initial={null} />);
     const s = h.querySelector('select')!;
-    await choisir(s, 'packshot');
+    await enregistrer(h, s, 'packshot');
     expect(s.value).toBe('non_classe');
     expect(h.querySelector('[role=status]')!.textContent).toContain('Échec de l’enregistrement');
   });
@@ -80,7 +93,7 @@ describe('FormatChoix', () => {
     </>);
     const [s1, s2] = [...h.querySelectorAll('select')];
     s1!.focus();
-    await choisir(s1!, 'packshot');
+    await enregistrer(h, s1!, 'packshot');
     expect(document.activeElement).toBe(s2);
   });
 });
