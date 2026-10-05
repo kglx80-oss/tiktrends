@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { clientViewByToken } from '../../../lib/client-view';
 import { Icon } from '../../../components/Icon';
+import { h1 } from '../../../components/ui';
 import { LIBELLE_VERDICT, GAGNANTES_ABSOLUES, type VerdictValue } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
@@ -74,7 +75,7 @@ export default async function ClientCardPage({ params }: { params: Promise<{ tok
 
   return (
     <main style={wrap}>
-      <h1 style={{ margin: 0, fontSize: 25, fontWeight: 800, color: 'var(--ink)' }}>{vue.brandName}</h1>
+      <h1 style={h1}>{vue.brandName}</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 7, marginBottom: 22, maxWidth: 640, lineHeight: 1.6 }}>
         Les créas testées et ce qu’elles ont donné. Chaque ligne est un test dont le résultat a été
         arbitré · les tests en cours n’apparaissent pas tant qu’ils ne sont pas conclus.

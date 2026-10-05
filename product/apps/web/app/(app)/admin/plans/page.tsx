@@ -9,7 +9,7 @@ import { unlimitedCredits } from '../../../../lib/credits';
 import { afficherCredits, texteCredits } from '@tiktrends/core';
 import { changePlanAction } from '../../../actions/billing';
 import { grantCreditsAction, rechargeAllocationAction } from '../../../actions/credits';
-import { input, btn, btnGhost, panel, lbl, Msg, cadrePage } from '../../../../components/ui';
+import { input, btn, btnGhost, panel, lbl, Msg, cadrePage, h1 } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,8 +52,8 @@ export default async function AdminPlansPage({ searchParams }: { searchParams: P
 
   return (
     <main style={cadrePage}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '10px 0 4px' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Formules & crédits · pilotage</h1>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '0 0 4px' }}>
+        <h1 style={h1}>Formules & crédits · pilotage</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18, maxWidth: 720, lineHeight: 1.6 }}>

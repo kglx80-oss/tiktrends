@@ -8,7 +8,7 @@ import { CategorieFeuilleDeRoute } from './CategorieFeuilleDeRoute';
 import { PageInfo } from '../../../components/PageInfo';
 import { ConnecteurBientot, type ConnecteurAVenir } from '../../../components/ConnecteurBientot';
 import { etatCatalogue, dejaDisponible } from '@tiktrends/core';
-import { cadrePage } from '../../../components/ui';
+import { cadrePage, h1 } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,7 +110,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   return (
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Connexions</h1>
+        <h1 style={h1}>Connexions</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>

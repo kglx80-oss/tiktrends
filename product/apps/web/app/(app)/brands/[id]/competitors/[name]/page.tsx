@@ -6,7 +6,7 @@ import { partDeMax, messageServiceInactif } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
-import { Msg, cadrePage } from '../../../../../../components/ui';
+import { Msg, cadrePage, h1 } from '../../../../../../components/ui';
 import { Icon } from '../../../../../../components/Icon';
 import { BarreLabel } from '../../../../../../components/BarreLabel';
 import { AvatarSite } from '../../../../../../components/AvatarSite';
@@ -58,10 +58,10 @@ export default async function CompetitorPage({ params, searchParams }: {
     <main style={cadrePage}>
       <Link href={`/brands/${id}?tab=competitors`} style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>‹ {b.name} · Concurrents</Link>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0 4px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 0 4px', flexWrap: 'wrap' }}>
         <AvatarSite nom={name} site={site} taille={46} />
         <div style={{ flex: 1, minWidth: 180 }}>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>{name}</h1>
+          <h1 style={h1}>{name}</h1>
           <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
             {report ? <>Concurrent analysé · {report.aggregates.adCount} créas · maj {new Date(report.analyzedAt).toLocaleDateString('fr-FR')}</> : 'Concurrent non encore analysé'}
           </div>
