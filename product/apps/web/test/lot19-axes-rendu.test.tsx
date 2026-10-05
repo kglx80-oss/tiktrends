@@ -80,7 +80,7 @@ describe('Lot 19 · chaque titre d’écran porte le jeton h1 de la charte', () 
       }
       // La rangée du titre ne repousse pas le titre vers le bas.
       for (const m of src.matchAll(/<div style=\{\{([^}]*)\}\}>\s*(?:<[A-Z]\w*[^>]*\/>\s*<div[^>]*>\s*)?<h1\b/g)) {
-        expect(m[1], `${nom} · la rangée du titre pose une marge haute`).not.toMatch(/margin: '(?!0[ ']|0$)\d/);
+        expect(m[1], `${nom} · la rangée du titre pose une marge haute`).not.toMatch(/margin: '(?!0[ ']|0$)\d|marginTop: [1-9]/);
       }
     });
   }
