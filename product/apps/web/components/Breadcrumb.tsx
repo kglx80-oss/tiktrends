@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { breadcrumb, isBrandScoped } from '../lib/navigation';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, CADRE_PAGE, gouttiereCss } from '@tiktrends/core';
 
 /**
  * Le fil d'Ariane.
@@ -47,7 +47,12 @@ export function Breadcrumb({ brandName, brandId, brands = [] }: {
         // liens et interceptait une partie des clics (« on ne peut pas cliquer »).
         position: 'relative', zIndex: 1,
         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
-        padding: '0 36px', margin: '18px 0 -8px', maxWidth: 1320,
+        // Sur l'axe du cadre de page (`CADRE_PAGE`) · même largeur, même
+        // gouttière, centré comme le <main> · le premier maillon tombe
+        // exactement au-dessus du titre. Mesuré avant (lot 19) · 36 px fixes
+        // et 1320 non centré · le fil partait 24 px À GAUCHE du titre à 1440
+        // et 4 px à DROITE à 1280.
+        padding: `0 ${gouttiereCss()}`, margin: '18px auto -8px', maxWidth: CADRE_PAGE.largeurMax, boxSizing: 'border-box',
         fontSize: 12, lineHeight: 1.4,
       }}
     >

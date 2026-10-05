@@ -9,7 +9,7 @@ import { getDriveState } from '../../actions/drive';
 import { PageInfo } from '../../../components/PageInfo';
 import { AssetsLibrary } from './AssetsLibrary';
 import { DriveConnect } from './DriveConnect';
-import { cadrePage } from '../../../components/ui';
+import { cadrePage, h1 } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +36,7 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
   return (
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Assets</h1>
+        <h1 style={h1}>Assets</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>BIBLIOTHÈQUE</span>
         <span style={{ flex: 1 }} />
         {/* Portée du compteur · médias de la BIBLIOTHÈQUE (importés ou téléversés).
