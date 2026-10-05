@@ -27,7 +27,7 @@ import { BrandTile } from '../BrandIcons';
 import { CreativeIntel, type CreativeStats } from '../../app/(app)/analytics/CreativeIntel';
 import { SectionAttribution } from '../../app/(app)/jarvis/sections/SectionAttribution';
 // Le titre d'écran suit le jeton partagé (lot 19 · réconciliation des titres).
-import { h1 } from '../ui';
+import { cadreSignal, h1, surface } from '../ui';
 
 const TPL_LABEL: Record<string, string> = { problem_solution: 'Problème/solution', before_after: 'Avant/après', testimonial: 'Témoignage', benefits: 'Bénéfices', ugc: 'UGC', stat: 'Stat', offer: 'Offre' };
 
@@ -133,7 +133,7 @@ export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
       {metaInsights ? (
         <MetaKeyMetrics insights={metaInsights} syncedAt={syncedAt} />
       ) : encart && (
-        <div style={{ border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ ...cadreSignal('var(--accent-strong)'), background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
           <BrandTile name="Meta Ads" />
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{encart.titre}</div>
@@ -204,7 +204,7 @@ export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
 
       {/* Top ROAS */}
       <h2 style={{ ...h2, fontSize: 19, marginTop: 28, marginBottom: 12 }}>Top créas par ROAS</h2>
-      <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflowX: 'auto' }}>
+      <div style={{ ...surface, overflowX: 'auto' }}>
         <div style={{ ...trow, background: 'var(--surface)', color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>
           <span>Créa</span><span>Plateforme</span><span style={{ textAlign: 'right' }}>Dépense</span><span style={{ textAlign: 'right' }}>CTR</span><span style={{ textAlign: 'right' }}>ROAS</span><span style={{ textAlign: 'center' }}>Reco</span>
         </div>
@@ -233,7 +233,7 @@ export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
 }
 
 const h2 = { margin: 0, fontSize: 15, fontWeight: 500, color: 'var(--ink)' } as const;
-const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
+const card = { padding: '16px 18px', ...surface, background: 'var(--surface)' } as const;
 const cardLabel = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 8 } as const;
 // minWidth · en dessous, les six colonnes se tassent et débordent · le tableau
 // défile alors à l'horizontale dans son cadre (overflowX) au lieu d'écraser.

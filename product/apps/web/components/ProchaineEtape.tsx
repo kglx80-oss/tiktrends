@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { modeProchaineEtape, CIBLE_TACTILE_MIN, cheminOuvert, liensOuverts, type Journey, type Relance, type RegleChemin } from '@tiktrends/core';
 import { JourneyPanel } from './JourneyPanel';
 import { Icon } from './Icon';
+import { surface } from './ui';
 
 /**
  * Ce qui passe DEVANT sur l'accueil · la prochaine itération, pas la création.
@@ -35,7 +36,7 @@ export function ProchaineEtape({ parcours, regles = [] }: {
   if (!liens.length) return null;
 
   return (
-    <section aria-label="Prépare ta prochaine itération" style={{ border: '1px solid var(--line-2)', borderRadius: 18, marginBottom: 22, background: 'var(--surface)', padding: '18px 20px' }}>
+    <section aria-label="Prépare ta prochaine itération" style={{ ...surface, marginBottom: 22, background: 'var(--surface)', padding: '18px 20px' }}>
       <h2 style={{ margin: 0, fontSize: 18, fontWeight: 500, color: 'var(--ink)', letterSpacing: '-.01em' }}>Prépare ta prochaine itération</h2>
       <p style={{ margin: '6px 0 14px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 620 }}>
         Repars de ce que la mesure a montré · relis tes tests, puis observe le marché pour poser la prochaine hypothèse.

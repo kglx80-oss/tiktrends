@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { surface } from './ui';
 
 /**
  * Les marques du compte, façon « Recent Projects » (Kevin, 30/09, inspiration
@@ -29,7 +30,7 @@ export interface MarqueCarte {
 
 const carte = {
   display: 'flex', flexDirection: 'column', textDecoration: 'none', minWidth: 0,
-  border: '1px solid var(--line-2)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)',
+  ...surface, overflow: 'hidden', background: 'var(--surface)',
 } as const;
 
 const apercu = {
