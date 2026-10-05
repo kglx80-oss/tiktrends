@@ -29,6 +29,7 @@ export function SaveButton({ ad, initialSaved }: { ad: InspoAd; initialSaved: bo
   const [pending, start] = useTransition();
   const verrou = useRef(verrouAction());
   const pile = useToastSiPresent();
+  const bouton = useRef<HTMLButtonElement>(null);
   const basculer = () => {
     if (!verrou.current.tenter()) return;
     const next = !saved;
@@ -40,14 +41,14 @@ export function SaveButton({ ad, initialSaved }: { ad: InspoAd; initialSaved: bo
           // gardée pour une autre marque), pas par une exception · un refus remet
           // le ★ vide et se dit · jamais d'état « sauvegardé » sur un non.
           const r = await saveAd({ platform: ad.platform, externalId: ad.id, snapshot: ad });
-          if (!r.ok) { setSaved(!next); pile?.toast(r.error ?? 'Sauvegarde refusée.', 'err'); }
+          if (!r.ok) { setSaved(!next); pile?.toast(r.error ?? 'Sauvegarde refusée.', 'err', bouton.current); }
         } else await unsaveAd({ platform: ad.platform, externalId: ad.id });
-      } catch { setSaved(!next); pile?.toast('Échec · vérifie ta connexion puis réessaie.', 'err'); }
+      } catch { setSaved(!next); pile?.toast('Échec · vérifie ta connexion puis réessaie.', 'err', bouton.current); }
       finally { verrou.current.relacher(); }
     });
   };
   return (
-    <button type="button" aria-pressed={saved} disabled={pending}
+    <button ref={bouton} type="button" aria-pressed={saved} disabled={pending}
       title={saved ? 'Retirer des sauvegardes' : 'Sauvegarder'}
       onClick={basculer}
       style={{ minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', padding: 0, cursor: pending ? 'default' : 'pointer' }}>

@@ -32,3 +32,27 @@ export function cibleSelonPointeur(tactile: boolean): number {
 export function cibleAccessible(largeur: number, hauteur: number, min = CIBLE_TACTILE_MIN): boolean {
   return largeur >= min && hauteur >= min;
 }
+
+/* ── Une cible ne se recouvre pas par son propre retour (message 56) ───────── */
+
+/** Une boîte à l'écran, en px (repère de la fenêtre). */
+export interface BoiteEcran { haut: number; bas: number; gauche: number; droite: number }
+
+/** Deux boîtes se recouvrent-elles (bords qui se touchent exclus, `marge` en plus) ? */
+export function boitesSeRecouvrent(a: BoiteEcran, b: BoiteEcran, marge = 0): boolean {
+  return a.gauche < b.droite + marge && b.gauche < a.droite + marge && a.haut < b.bas + marge && b.haut < a.bas + marge;
+}
+
+/**
+ * Où poser la pile de retours (toasts) · en bas par défaut ; en HAUT quand,
+ * posée en bas, elle recouvrirait le geste qui l'a déclenchée (`ancre`) et que
+ * le haut le laisse libre. Mesuré en recette 19C (message 56) · à 390 × 720 la
+ * pile occupait 615 → 696 et le ★ d'une carte 604 → 648 · 1 416 px² recouverts,
+ * le centre du ★ tombait sous le retour (non atteignable). La position haute est
+ * le miroir vertical de la position basse (même marge au bord).
+ */
+export function cotePileRetours(pileEnBas: BoiteEcran, ancre: BoiteEcran | null, hauteurVue: number, marge = 8): 'bas' | 'haut' {
+  if (!ancre || !boitesSeRecouvrent(pileEnBas, ancre, marge)) return 'bas';
+  const enHaut: BoiteEcran = { ...pileEnBas, haut: hauteurVue - pileEnBas.bas, bas: hauteurVue - pileEnBas.haut };
+  return boitesSeRecouvrent(enHaut, ancre, marge) ? 'bas' : 'haut';
+}
