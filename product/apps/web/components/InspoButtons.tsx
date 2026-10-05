@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CIBLE_TACTILE_MIN, verrouAction } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../app/actions/inspo';
+import { useToastSiPresent } from './Toast';
 
 /**
  * Les gestes les plus RÉPÉTÉS de la veille · sauvegarder une créa, suivre une
@@ -27,15 +28,21 @@ export function SaveButton({ ad, initialSaved }: { ad: InspoAd; initialSaved: bo
   const [saved, setSaved] = useState(initialSaved);
   const [pending, start] = useTransition();
   const verrou = useRef(verrouAction());
+  const pile = useToastSiPresent();
   const basculer = () => {
     if (!verrou.current.tenter()) return;
     const next = !saved;
     setSaved(next); // optimiste
     start(async () => {
       try {
-        if (next) await saveAd({ platform: ad.platform, externalId: ad.id, snapshot: ad });
-        else await unsaveAd({ platform: ad.platform, externalId: ad.id });
-      } catch { setSaved(!next); }
+        if (next) {
+          // Lot 19C · `saveAd` dit NON par une valeur (droit Veille, annonce déjà
+          // gardée pour une autre marque), pas par une exception · un refus remet
+          // le ★ vide et se dit · jamais d'état « sauvegardé » sur un non.
+          const r = await saveAd({ platform: ad.platform, externalId: ad.id, snapshot: ad });
+          if (!r.ok) { setSaved(!next); pile?.toast(r.error ?? 'Sauvegarde refusée.', 'err'); }
+        } else await unsaveAd({ platform: ad.platform, externalId: ad.id });
+      } catch { setSaved(!next); pile?.toast('Échec · vérifie ta connexion puis réessaie.', 'err'); }
       finally { verrou.current.relacher(); }
     });
   };

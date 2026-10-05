@@ -124,3 +124,12 @@ export function useToast(): ToastApi {
   if (!ctx) throw new Error('useToast doit être utilisé sous <ToastProvider>.');
   return ctx;
 }
+
+/**
+ * Le même canal, sans exiger la pile · pour un composant partagé qui se rend
+ * aussi hors de l'application (rendu isolé, page publique). `null` quand aucune
+ * pile n'est montée · l'appelant garde alors son propre retour d'état.
+ */
+export function useToastSiPresent(): ToastApi | null {
+  return useContext(Ctx);
+}
