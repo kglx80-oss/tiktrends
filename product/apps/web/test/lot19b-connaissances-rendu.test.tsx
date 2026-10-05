@@ -162,6 +162,10 @@ describe('/jarvis/sources · titre sur l’axe du cadre', () => {
     expect(src.match(/<h1 style=\{h1\}>Sources de Jarvis<\/h1>/g)?.length).toBe(2);
     expect(src).not.toMatch(/<Icon name="brain"[^\n]*\n\s*<h1/);
     expect(src).not.toMatch(/<h1 style=\{\{/);
+    // La rangée de titre est le PREMIER élément du cadre · rien ne la pousse vers le bas.
+    const corps = src.slice(src.lastIndexOf('<main style={cadrePage}>'));
+    const premier = corps.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').match(/<main style=\{cadrePage\}>\s*<div[^>]*>\s*<div[^>]*>\s*<h1 style=\{h1\}>/);
+    expect(premier, 'le titre n’est pas en tête du cadre').not.toBeNull();
   });
 });
 

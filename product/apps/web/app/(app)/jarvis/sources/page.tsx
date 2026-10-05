@@ -95,18 +95,20 @@ export default async function JarvisPage() {
 
   return (
     <main style={cadrePage}>
-      {/* On arrive ici depuis la conversation · on doit pouvoir y retourner d'un geste. */}
-      <Link href="/jarvis" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 7, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none', marginBottom: 12 }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-        Retour à la conversation
-      </Link>
-      {/* En-tête sobre (charte) · plus de bandeau dégradé ni de tuile d'icône rose. */}
-      {/* Rangée de titre SANS marge haute, titre sur l'axe du cadre (jeton `h1`) ·
-          l'icône qui le précédait le décalait de 32 px vers la droite. */}
+      {/* En-tête sobre (charte) · rangée de titre EN TÊTE du cadre, SANS marge
+          haute, titre sur l'axe (jeton `h1`) · l'icône qui le précédait le
+          décalait de 32 px à droite, et le lien de retour posé au-dessus le
+          faisait descendre de 56 px sous les autres écrans. Le retour à la
+          conversation (on arrive d'ici, on doit y repartir d'un geste) se range
+          au bout de la rangée. */}
       <div style={{ padding: '0 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 0 }}>
           <h1 style={h1}>Sources de Jarvis</h1>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>· {brand.name}</span>
+          <Link href="/jarvis" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 7, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            Retour à la conversation
+          </Link>
         </div>
         <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 640, lineHeight: 1.5 }}>
           Ce que Jarvis a mesuré de cette marque, et de quoi le nourrir · les essais, l’attribution
