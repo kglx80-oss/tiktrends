@@ -43,7 +43,7 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
  * travaille : on regarde où on en est, on cherche, on crée, on teste et on
  * apprend.
  */
-export type NavGroup = 'Accueil' | 'Pilotage' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'account';
+export type NavGroup = 'Accueil' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'account';
 /**
  * L'ordre du rail suit la BOUCLE de travail, pas l'ordre historique.
  *
@@ -55,9 +55,13 @@ export type NavGroup = 'Accueil' | 'Pilotage' | 'Observatoire' | 'Atelier' | 'La
  */
 // « Accueil » MÈNE le rail, en entrée AUTONOME (façon Flora · Kevin 30/09) · une
 // tête seule, sans en-tête de section, avant la boucle. Puis on lit le rail comme
-// on travaille · observer → créer → tester, et « Piloter » (le regard en arrière)
-// ferme.
-export const RAIL_GROUPS: NavGroup[] = ['Accueil', 'Observatoire', 'Atelier', 'Laboratoire', 'Pilotage'];
+// on travaille · observer → créer → tester.
+//
+// Lot 19A (mandat du 5/10, remplace l'arbitrage du 30/09) · le groupe
+// « Piloter » disparaît · le Pilotage est REGROUPÉ sous l'Accueil · « Analytics »
+// y est une sous-entrée (`/dashboard?vue=analytics`), la vue Analytics de
+// l'Accueil. `/analytics` reste une route valide (307 vers la vue).
+export const RAIL_GROUPS: NavGroup[] = ['Accueil', 'Observatoire', 'Atelier', 'Laboratoire'];
 /**
  * Ce que le rail AFFICHE · le verbe de l'étape, pas le nom de musée. Les clés
  * internes ne bougent pas (elles servent aussi au fil d'Ariane) · seul le
@@ -67,7 +71,7 @@ export const RAIL_GROUPS: NavGroup[] = ['Accueil', 'Observatoire', 'Atelier', 'L
  * autonome en tête, pas une rubrique · le rail ne pose aucun en-tête au-dessus.
  */
 export const RAIL_GROUP_LABEL: Record<string, string> = {
-  Accueil: '', Observatoire: 'Observer', Atelier: 'Créer', Laboratoire: 'Tester', Pilotage: 'Piloter',
+  Accueil: '', Observatoire: 'Observer', Atelier: 'Créer', Laboratoire: 'Tester',
 };
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
@@ -90,17 +94,24 @@ export interface Feature {
   minRole: Role;
   minPlan: Plan;
   soon?: boolean;    // fonctionnalité à venir (affichée grisée)
+  /**
+   * Branche DÉPLIÉE d'office, où que l'on soit (lot 19A) · « Analytics » était
+   * une entrée de tête · regroupée sous l'Accueil, elle reste à un clic.
+   */
+  deplie?: boolean;
 }
 
 export const FEATURES: Feature[] = [
   // ── Accueil · l'entrée autonome en tête (façon Flora · Kevin 30/09) ────────
-  // « Accueil » (ex-« Dashboard ») MÈNE le rail, seul, sans en-tête de section.
-  // La cible reste /dashboard · c'est la vraie page d'accueil (distincte de
-  // l'analytique /analytics).
-  { key: 'dashboard', label: 'Accueil',      href: '/dashboard',   icon: 'grid',   group: 'Accueil',   minRole: 'client_viewer', minPlan: 'starter' },
+  // « Accueil » (ex-« Dashboard ») MÈNE le rail, sans en-tête de section.
+  // La cible reste /dashboard · c'est la vraie page d'accueil · sa vue
+  // Analytics est la sous-entrée qui suit.
+  { key: 'dashboard', label: 'Accueil',      href: '/dashboard',   icon: 'grid',   group: 'Accueil',   deplie: true, minRole: 'client_viewer', minPlan: 'starter' },
 
-  // ── Piloter · le regard en arrière ────────────────────────────────────────
-  { key: 'analytics', label: 'Analytics',    href: '/analytics',   icon: 'chart',  group: 'Pilotage',  minRole: 'client_viewer', minPlan: 'starter' },
+  // Analytics · le Pilotage regroupé SOUS l'Accueil (lot 19A) · même chemin que
+  // l'Accueil, la vue `?vue=analytics`. Mêmes droits qu'avant (rôle, formule,
+  // rubrique `analytics` de la matrice d'équipe) · seule l'adresse change.
+  { key: 'analytics', label: 'Analytics',    href: '/dashboard?vue=analytics', icon: 'chart', group: 'Accueil', parent: 'dashboard', minRole: 'client_viewer', minPlan: 'starter' },
 
   // ── Trouver · ce que fait le marché ───────────────────────────────────────
   { key: 'inspo',     label: 'Veille',       href: '/veille',       icon: 'bulb',   group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },

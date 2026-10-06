@@ -5,7 +5,7 @@ import { getSession } from '../../../lib/auth';
 import { getActiveBrand, listBrands } from '../../../lib/brands';
 import { roleAtLeast, ouverturesParRole } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
-import { bandeauAccueil, cheminOuvert, type RegleChemin } from '@tiktrends/core';
+import { bandeauAccueil, cheminOuvert, resoudreAccueil, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { unlimitedCredits } from '../../../lib/credits';
 import { AssistantHome } from '../../../components/AssistantHome';
@@ -15,14 +15,37 @@ import { ProchaineEtape } from '../../../components/ProchaineEtape';
 import { ApercuExemple } from '../../../components/ApercuExemple';
 import { onboardingState } from '../../../lib/onboarding-state';
 import { cadrePage } from '../../../components/ui';
+import { OngletsAccueil } from '../../../components/accueil/OngletsAccueil';
+import { VueAnalytics } from '../../../components/accueil/VueAnalytics';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<ParamsRequete> }) {
+  const params = await searchParams;
+  const s = await getSession();
+
+  // Ce que le RÔLE ouvre, rubrique par rubrique · la matrice existante, lue
+  // telle quelle (lot 11). Un verrou de formule n'est pas un refus de rôle · la
+  // rubrique reste proposée, sa page explique l'offre. Rien n'est protégé ici.
+  const regles: RegleChemin[] = s ? ouverturesParRole(effectiveAccess(s)) : [];
+  const ouvert = (href: string) => cheminOuvert(href, regles);
+
+  // Lot 19A · l'Accueil réunit le Pilotage. Quelle vue, quels onglets, pour ce
+  // rôle et ces paramètres · règle du noyau (`resoudreAccueil`). La vue
+  // Analytics est l'ancienne page `/analytics`, montée telle quelle (mêmes
+  // requêtes, mêmes calculs) · `/analytics` redirige ici.
+  const { vue, onglets } = resoudreAccueil({ params, ouvert });
+  if (vue === 'analytics') {
+    return (
+      <main style={wrap}>
+        <VueAnalytics vues={<OngletsAccueil onglets={onglets} />} />
+      </main>
+    );
+  }
+
   // Un échantillon de démonstration du pipeline · il ne reflète pas la marque
   // (l'aperçu le dit, et il est replié). La mesure réelle vit dans Adsmap/Analytics.
   const rows = buildDashboard();
-  const s = await getSession();
   let credits = 0;
   let brand: { id: string; name: string } | null = null;
   if (s) {
@@ -36,12 +59,6 @@ export default async function Dashboard() {
 
   // Les marques du compte, pour les cartes « reprise » de la Home.
   const marques = s ? await listBrands(s.workspaceId) : [];
-
-  // Ce que le RÔLE ouvre, rubrique par rubrique · la matrice existante, lue
-  // telle quelle (lot 11). Un verrou de formule n'est pas un refus de rôle · la
-  // rubrique reste proposée, sa page explique l'offre. Rien n'est protégé ici.
-  const regles: RegleChemin[] = s ? ouverturesParRole(effectiveAccess(s)) : [];
-  const ouvert = (href: string) => cheminOuvert(href, regles);
 
   // Le bandeau à la une · copie orientée DÉCISION, priorité analyse → itération,
   // création en SECONDAIRE (`bandeauAccueil`, noyau) · un geste fermé au rôle
@@ -69,6 +86,7 @@ export default async function Dashboard() {
         marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} gererMarques={ouvert('/brands/new')} />}
         prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} regles={regles} />}
         exemple={<ApercuExemple key="apercu-exemple" rows={rows} brancher={ouvert('/connections')} />}
+        vues={<OngletsAccueil key="vues" onglets={onglets} />}
       />
     </main>
   );

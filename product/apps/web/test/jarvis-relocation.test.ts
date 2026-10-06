@@ -32,7 +32,7 @@ const sEssais = lit('app/(app)/jarvis/sections/SectionEssais.tsx');
 const sMarche = lit('app/(app)/jarvis/sections/SectionMarche.tsx');
 const contexte = lit('app/(app)/jarvis/JarvisContexte.tsx');
 const chatAction = lit('app/actions/jarvis-chat.ts');
-const analytics = lit('app/(app)/analytics/page.tsx');
+const analytics = lit('components/accueil/VueAnalytics.tsx');
 const adsmap = lit('app/(app)/adsmap/page.tsx');
 const veille = lit('app/(app)/veille/page.tsx');
 
