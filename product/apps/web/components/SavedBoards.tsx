@@ -150,6 +150,10 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
     );
   }
 
+  // Une piste par élément de la cellule · la carte, « Ranger », « Format », et
+  // le pont Adsmap quand il est rendu.
+  const pistes = 3 + (adsmap ? 1 : 0);
+
   const tabBtn = (key: string): CSSProperties => ({
     // Un nom de board long reste dans la largeur (ellipse, nom complet au survol).
     maxWidth: '100%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', minHeight: cible,
@@ -188,16 +192,28 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
         </Empty>
       ) : (
       /* Grille */
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', columnGap: 16, rowGap: 16 }}>
         {shown.map((it) => (
-          <div key={it.platform + it.externalId} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          // Lot 20B · une SOUS-GRILLE par carte · elle occupe une piste par
+          // élément (carte, ranger, format, pont) et ces pistes sont partagées
+          // par toute la rangée · chaque commande commence à la même hauteur
+          // d'une carte à l'autre, quel que soit le nom ou le texte de la carte
+          // (mesuré · jusqu'à 64,6 px d'écart à 1440 avant). La carte commune
+          // `AdCard` n'est pas touchée · elle s'étire à la hauteur de sa piste.
+          // Sa colonne unique est bornée (`minmax(0, 1fr)`) · en `auto`, un nom
+          // de board ou un lien sans retour à la ligne l'élargissait au-delà de
+          // la colonne de la grille et la carte chevauchait sa voisine (vu).
+          <div key={it.platform + it.externalId} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: 'subgrid', gridRow: `span ${pistes}`, rowGap: 6, minWidth: 0 }}>
             {/* La pub est sauvegardée · on connaît son identifiant, donc « Génère
                 ta version » ouvre le mode CLONE avec elle en référence · l'angle
                 ET la structure, pas seulement l'angle. */}
             <AdCard ad={it.ad} saved following={following.has(it.ad.platform + ':' + (it.ad.advertiserName || ''))} cloneRef={it.id} cibles44={tactile} />
             <FolderPicker current={it.folder} folders={folders} onPick={(f) => move(it, f)} cible={cible} />
-            {/* Formats créatifs v1 (lot 19C) · qualification manuelle, persistante. */}
-            <FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} />
+            {/* Formats créatifs v1 (lot 19C) · qualification manuelle, persistante.
+                Enveloppé · le choix est lui-même une grille · étiré à la hauteur
+                de sa piste, il répartissait l'excédent entre ses lignes et son
+                champ descendait (mesuré · 4 px à 1440 et 1280). */}
+            <div><FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} /></div>
             {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
           </div>
         ))}
