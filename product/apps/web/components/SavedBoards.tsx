@@ -70,6 +70,16 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
   };
 
   const barreRef = useRef<HTMLDivElement>(null);
+  const focusOngletActif = () => barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
+  // L'onglet AFFICHÉ, lu après la réponse du serveur (la fermeture de `move`
+  // garde celui du clic) · et le focus rendu APRÈS le rendu de la restauration
+  // (l'onglet rendu n'est pressé qu'une fois le rendu appliqué).
+  const tabRef = useRef(tab);
+  const focusApresRendu = useRef(false);
+  useEffect(() => {
+    tabRef.current = tab;
+    if (focusApresRendu.current) { focusApresRendu.current = false; focusOngletActif(); }
+  }, [tab, list]);
   const move = (it: SavedItem, folder: string | null) => {
     // Même troncature que côté serveur, pour que l'affichage corresponde après rechargement.
     const value = folder?.trim().slice(0, 60) || null;
@@ -77,7 +87,8 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
     // elle · le focus tombait en haut de page (mesuré, recette #106 point 6).
     // Il revient au board courant.
     const quitteLaVue = tab !== BOARD_TOUS && (tab === BOARD_SANS ? value !== null : value !== tab);
-    if (quitteLaVue) setTimeout(() => barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus(), 0);
+    if (quitteLaVue) setTimeout(focusOngletActif, 0);
+    const ongletAvant = tab;
     setList((l) => {
       const next = l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: value } : x));
       // Board vidé de sa dernière créa : on revient sur « Toutes » (l'onglet disparaît).
@@ -90,7 +101,20 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
     const avant = it.folder;
     // Remet la créa dans son board d'origine (l'onglet de ce board réapparaît
     // avec elle) · même geste pour un refus et pour une exception.
-    const restaurer = () => setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
+    // Lot 20B · l'onglet vidé par le déplacement optimiste avait basculé sur
+    // « Toutes » · la créa revenait, pas l'onglet (ni l'URL, ni le focus). On
+    // rend l'onglet d'avant le geste, s'il est encore celui de la bascule (un
+    // autre onglet choisi entre-temps est respecté) · la recherche en cours est
+    // relue dans l'URL, pas dans la fermeture.
+    const restaurer = () => {
+      setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
+      if (ongletAvant !== BOARD_TOUS && tabRef.current === BOARD_TOUS) {
+        setTab(ongletAvant);
+        garderDansUrl(ongletAvant, lireCriteresSauvegardes(window.location.search).recherche);
+      }
+      const dansLaBarre = !document.activeElement || document.activeElement === document.body || !!barreRef.current?.contains(document.activeElement);
+      if (quitteLaVue && dansLaBarre) focusApresRendu.current = true;
+    };
     start(async () => {
       let r: Awaited<ReturnType<typeof setSavedAdFolder>>;
       try {
