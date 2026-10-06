@@ -54,7 +54,12 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
   const garderDansUrl = (board: string, recherche: string) => {
     remplacerRecherche(ecrireCriteresSauvegardes(window.location.search, { board, recherche }));
   };
-  const choisirBoard = (b: string) => { setTab(b); garderDansUrl(b, q); };
+  // Message 73 · la bascule AUTOMATIQUE sur « Toutes » (board vidé par un
+  // rangement optimiste) porte le jeton de son geste · un choix explicite de
+  // l'utilisateur l'efface · seul un rollback dont le jeton est encore posé rend
+  // l'onglet d'origine.
+  const basculeAuto = useRef<object | null>(null);
+  const choisirBoard = (b: string) => { basculeAuto.current = null; setTab(b); garderDansUrl(b, q); };
   const chercher = (v: string) => { setQ(v); garderDansUrl(tab, v); };
   const countIn = (f: string) => f === '__all' ? list.length : f === '__none' ? list.filter((i) => !i.folder).length : list.filter((i) => i.folder === f).length;
   const dansBoard = list.filter((it) => tab === '__all' ? true : tab === '__none' ? !it.folder : it.folder === tab);
@@ -123,13 +128,14 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
     const quitteLaVue = tab !== BOARD_TOUS && (tab === BOARD_SANS ? value !== null : value !== tab);
     if (quitteLaVue) setTimeout(focusOngletActif, 0);
     const ongletAvant = tab;
+    const jeton = {};
     setList((l) => {
       const next = l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: value } : x));
       // Board vidé de sa dernière créa : on revient sur « Toutes » (l'onglet disparaît).
       // « Sans dossier » vidé aussi · l'onglet disparaissait et la vue restait
       // bloquée sur « Aucune créa pour cette recherche » sans recherche.
       const vide = tab === BOARD_SANS ? !next.some((x) => !x.folder) : tab !== BOARD_TOUS && !next.some((x) => x.folder === tab);
-      if (vide) { setTab(BOARD_TOUS); garderDansUrl(BOARD_TOUS, q); }
+      if (vide) { basculeAuto.current = jeton; setTab(BOARD_TOUS); garderDansUrl(BOARD_TOUS, q); }
       return next;
     });
     const avant = it.folder;
@@ -142,7 +148,10 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
     // relue dans l'URL, pas dans la fermeture.
     const restaurer = () => {
       setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
-      if (ongletAvant !== BOARD_TOUS && tabRef.current === BOARD_TOUS) {
+      // Message 73 · « Toutes » choisi EXPLICITEMENT pendant l'attente n'est
+      // plus écrasé (avant, seule la valeur de l'onglet était lue).
+      if (ongletAvant !== BOARD_TOUS && basculeAuto.current === jeton && tabRef.current === BOARD_TOUS) {
+        basculeAuto.current = null;
         setTab(ongletAvant);
         garderDansUrl(ongletAvant, lireCriteresSauvegardes(window.location.search).recherche);
       }
