@@ -14,7 +14,7 @@ import { CIBLE_TACTILE_MIN, messageServiceInactif } from '@tiktrends/core';
  * On monte les composants (jsdom) et on lit le DOM, l'URL et le focus.
  */
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }) }));
-vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }) }));
+vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }), useToastSiPresent: () => null }));
 vi.mock('../app/actions/adsmap-bridge', () => ({ trackSavedAdAction: async () => ({}) }));
 vi.mock('../app/actions/inspo', () => ({ setSavedAdFolder: async () => ({}) }));
 vi.mock('../app/actions/tracker', () => ({ scanTrackerAction: async () => ({}), markTrackerSeenAction: async () => {} }));

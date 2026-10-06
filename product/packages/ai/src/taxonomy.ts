@@ -1,7 +1,14 @@
 import { z } from 'zod';
+import { IDS_FORMATS_CREATIFS } from '@tiktrends/core';
 
 /** Taxonomie de tags · contrat de sortie de l'IA (CDC §5.5). JSON strict. */
-export const FORMAT = ['ugc_talking_head','pov','before_after','green_screen','listicle','storytime','demo','founder','testimonial','static_product','static_text','meme','comparison','unboxing','asmr','tutorial','street_interview','ai_generated'] as const;
+/**
+ * Formats créatifs · la liste UNIQUE vit au noyau (`@tiktrends/core`,
+ * `formats-creatifs.ts` · lot 19C). Plus de seconde énumération ici · les 18
+ * anciennes valeurs y sont reprises (17) ou retirées (`ai_generated`, un mode de
+ * fabrication, pas une composition) · voir `ANCIENNES_VALEURS_FORMAT`.
+ */
+export const FORMAT = IDS_FORMATS_CREATIFS;
 export const HOOK_TYPE = ['question','bold_claim','pattern_interrupt','curiosity_gap','problem_callout','result_first','social_proof','controversy','direct_address','visual_shock','text_overlay_statement'] as const;
 export const CORE_DESIRE = ['save_time','save_money','look_better','feel_better','status','belonging','safety','convenience','pleasure','mastery'] as const;
 export const EMOTION = ['curiosity','fear','relief','joy','pride','frustration','surprise','trust','desire','humor'] as const;

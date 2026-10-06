@@ -117,6 +117,8 @@ export const FEATURES: Feature[] = [
   { key: 'inspo',     label: 'Veille',       href: '/veille',       icon: 'bulb',   group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
   { key: 'scale',     label: 'Ce qui scale', href: '/veille/scale', icon: 'trend',  group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Observatoire', parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  // Formats créatifs v1 (lot 19C) · les sauvegardes classées à la main, par format.
+  { key: 'formats',   label: 'Formats',      href: '/veille/formats', icon: 'tag', group: 'Observatoire', parent: 'inspo', minRole: 'member', minPlan: 'core' },
   { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
   // « Radar créatif » et non « Radar » · le module Adsmap en a un autre, et
   // deux entrées du même nom obligent à cliquer pour savoir laquelle est laquelle.
@@ -169,7 +171,7 @@ export const FEATURES: Feature[] = [
  */
 const RUBRIQUE_DE_FEATURE: Record<string, string> = {
   dashboard: 'dashboard', analytics: 'analytics',
-  inspo: 'veille', scale: 'veille', tags: 'veille', saved: 'saved', radar: 'radar',
+  inspo: 'veille', scale: 'veille', tags: 'veille', formats: 'veille', saved: 'saved', radar: 'radar',
   jarvis: 'jarvis', studio: 'studio', ads: 'studio', image: 'studio', video: 'studio', textes: 'studio', assets: 'assets',
   adsmap: 'adsmap', suites: 'adsmap', lots: 'adsmap', ttradar: 'adsmap', tri: 'adsmap', protocole: 'adsmap', import: 'adsmap',
   brands: 'marques', team: 'equipe', connect: 'connexions', usage: 'usage', billing: 'facturation', settings: 'reglages',
