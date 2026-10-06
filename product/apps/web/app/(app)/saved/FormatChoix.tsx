@@ -67,10 +67,17 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
   // le message est amené à l'écran (défilement minimal) une fois rendu.
   const [montrerEchec, setMontrerEchec] = useState(0);
   useEffect(() => { if (montrerEchec) etatRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [montrerEchec]);
+  // Message 73 · le message n'est amené à l'écran QUE si le focus est rendu au
+  // choix de cette carte · un focus parti ailleurs pendant l'attente gardait sa
+  // place, mais la page défilait quand même vers la carte quittée (mesuré ·
+  // /saved 1349 → 1206 à 1440, 6833 → 2412 à 390). L'échec reste annoncé
+  // (role=status, lié au champ par aria-describedby).
   const rendreFocusApresEchec = () => {
     const a = document.activeElement;
-    if (!a || a === document.body || racineRef.current?.contains(a)) selectRef.current?.focus();
-    setMontrerEchec((n) => n + 1);
+    if (!a || a === document.body || racineRef.current?.contains(a)) {
+      selectRef.current?.focus();
+      setMontrerEchec((n) => n + 1);
+    }
   };
 
   const enregistrer = async () => {
