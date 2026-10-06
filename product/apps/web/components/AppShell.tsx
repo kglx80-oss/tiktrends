@@ -14,7 +14,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, type RegleChemin } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, type RegleChemin } from '@tiktrends/core';
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -238,6 +238,18 @@ function AppShellInner(props: Props) {
   // Où vit le lanceur de support · règle au noyau (`placementLanceurSupport`).
   const lanceurSupport = placementLanceurSupport(pathname);
   const supportAncre = lanceurSupport === 'ancre';
+  // Lot 20 · la bulle FLOTTANTE masquait l'élément qui reçoit le focus au Tab
+  // (le navigateur le pose au ras du bas, sous elle · jusqu'à 55 % à 390). Une
+  // marge basse de défilement (règle au noyau) arrête le focus au-dessus de la
+  // bulle. Rien quand le lanceur est ancré ou absent · la valeur d'avant revient.
+  useEffect(() => {
+    const px = reserveFocusLanceur(lanceurSupport);
+    if (!px) return;
+    const racine = document.documentElement;
+    const avant = racine.style.scrollPaddingBottom;
+    racine.style.scrollPaddingBottom = `${px}px`;
+    return () => { racine.style.scrollPaddingBottom = avant; };
+  }, [lanceurSupport]);
   const search = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
