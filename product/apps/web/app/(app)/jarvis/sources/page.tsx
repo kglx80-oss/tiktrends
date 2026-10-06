@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
-import { canAccess, FEATURES, roleAtLeast } from '../../../../lib/rbac';
+import { canAccess, FEATURES } from '../../../../lib/rbac';
+import { refusJarvis } from '../../../../lib/jarvis-acces';
+import { RefusJarvis } from '../RefusJarvis';
 import { effectiveAccess } from '../../../../lib/access';
 import { isFounder } from '../../../../lib/founder';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -19,7 +21,7 @@ import { JarvisTraining } from '../JarvisTraining';
 import { DescribePanel } from '../DescribePanel';
 import { Empty } from '../../../../components/Empty';
 import { BarreValeur } from '../../../../components/BarreValeur';
-import { cadrePage, colonneLecture } from '../../../../components/ui';
+import { cadrePage, cadreSignal, colonneLecture, h1, surface } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +54,9 @@ const adsmap = FEATURES.find((f) => f.key === 'adsmap')!;
 export default async function JarvisPage() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
+  // Même porte que la conversation · la feature `jarvis` AVANT toute lecture.
+  const refus = refusJarvis(s);
+  if (refus) return <RefusJarvis titre="Sources de Jarvis" why={refus} owner={s.role === 'owner'} />;
 
   const fondateur = isFounder(s.user.email);
   const voitMemoire = canAccess(effectiveAccess(s), adsmap);
@@ -61,7 +65,7 @@ export default async function JarvisPage() {
   if (!brand) {
     return (
       <main style={cadrePage}><div style={colonneLecture('fil')}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Sources de Jarvis</h1>
+        <h1 style={h1}>Sources de Jarvis</h1>
         <div style={{ marginTop: 20 }}>
           <Empty
             tone="todo" title="Sélectionne une marque active."
@@ -95,17 +99,20 @@ export default async function JarvisPage() {
 
   return (
     <main style={cadrePage}>
-      {/* On arrive ici depuis la conversation · on doit pouvoir y retourner d'un geste. */}
-      <Link href="/jarvis" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 7, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none', marginBottom: 12 }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-        Retour à la conversation
-      </Link>
-      {/* En-tête sobre (charte) · plus de bandeau dégradé ni de tuile d'icône rose. */}
-      <div style={{ padding: '4px 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', color: 'var(--muted)', flexShrink: 0 }}><Icon name="brain" size={22} /></span>
-          <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Sources de Jarvis</h1>
+      {/* En-tête sobre (charte) · rangée de titre EN TÊTE du cadre, SANS marge
+          haute, titre sur l'axe (jeton `h1`) · l'icône qui le précédait le
+          décalait de 32 px à droite, et le lien de retour posé au-dessus le
+          faisait descendre de 56 px sous les autres écrans. Le retour à la
+          conversation (on arrive d'ici, on doit y repartir d'un geste) se range
+          au bout de la rangée. */}
+      <div style={{ padding: '0 0 18px', marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 0 }}>
+          <h1 style={h1}>Sources de Jarvis</h1>
           <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>· {brand.name}</span>
+          <Link href="/jarvis" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 7, fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            Retour à la conversation
+          </Link>
         </div>
         <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ink-2)', maxWidth: 640, lineHeight: 1.5 }}>
           Ce que Jarvis a mesuré de cette marque, et de quoi le nourrir · les essais, l’attribution
@@ -117,8 +124,8 @@ export default async function JarvisPage() {
       {deploiement && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-          margin: '18px 0 0', padding: '10px 14px', borderRadius: 12,
-          border: `1px solid ${deploiement.ok ? 'var(--line)' : 'rgba(245,166,35,.45)'}`,
+          margin: '18px 0 0', padding: '10px 14px',
+          ...(deploiement.ok ? surface : cadreSignal('rgba(245,166,35,.45)')),
           background: deploiement.ok ? 'var(--surface)' : 'rgba(245,166,35,.08)',
         }}>
           <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>
@@ -144,7 +151,7 @@ export default async function JarvisPage() {
       </div>
 
       {!voitMemoire && (
-        <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '20px 22px', marginBottom: 24 }}>
+        <div style={{ ...surface, background: 'var(--surface)', padding: '20px 22px', marginBottom: 24 }}>
           <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>La mémoire mesurée demande l’offre Plus.</p>
           <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 640 }}>
             Les couches ci-dessus tournent déjà. Ce qui s’ajoute avec Adsmap, c’est ce que Jarvis apprend
@@ -177,7 +184,7 @@ export default async function JarvisPage() {
 
       {/* 5 · Ce que Jarvis coûte · fondateur uniquement, comme /admin/depenses. */}
       {depense && (
-        <section style={{ marginTop: 22, padding: '15px 18px', borderRadius: 14, border: `1px solid ${depense.blocked ? '#ff8095' : 'var(--line)'}`, background: 'var(--surface)' }}>
+        <section style={{ marginTop: 22, padding: '15px 18px', ...(depense.blocked ? cadreSignal('#ff8095') : surface), background: 'var(--surface)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Ce que Jarvis coûte</h2>
             <span style={{ flex: 1 }} />
@@ -206,7 +213,7 @@ export default async function JarvisPage() {
           <h2 style={{ margin: '28px 0 12px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Moteurs orchestrés</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
             {ENGINES.map((e) => (
-              <div key={e.name} style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '14px 16px' }}>
+              <div key={e.name} style={{ ...surface, background: 'var(--surface)', padding: '14px 16px' }}>
                 <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: 'var(--accent-strong)', border: '1px solid var(--line-2)' }}>{e.tag}</span>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginTop: 8 }}>{e.name}</div>
                 <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>{e.role}</div>
@@ -240,7 +247,7 @@ const TON: Record<string, { fg: string; bd: string }> = {
 function Layer({ l }: { l: JarvisLayer }) {
   const t = TON[l.state] ?? TON.off!;
   return (
-    <div style={{ border: `1px solid ${t.bd}`, borderRadius: 14, background: 'var(--surface)', padding: '13px 15px', display: 'grid', gap: 5 }}>
+    <div style={{ ...(t.bd === 'var(--line)' ? surface : cadreSignal(t.bd)), background: 'var(--surface)', padding: '13px 15px', display: 'grid', gap: 5 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ display: 'inline-flex', color: t.fg }}><Icon name={l.icon} size={17} /></span>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', flex: 1 }}>{l.title}</span>
@@ -268,7 +275,7 @@ function Action({ href, title, desc, gate }: { href: string; title: string; desc
       <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 4, lineHeight: 1.5 }}>{desc}</div>
     </>
   );
-  const style = { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', padding: '13px 15px', textDecoration: 'none', display: 'block' } as const;
+  const style = { ...surface, background: 'var(--surface)', padding: '13px 15px', textDecoration: 'none', display: 'block' } as const;
   return gate ? <Link href={href} style={style}>{inner}</Link> : <div style={{ ...style, opacity: 0.6 }}>{inner}</div>;
 }
 
@@ -326,7 +333,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
           </div>
           <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
             {parDim.map(({ dim, rows }) => (
-              <section key={dim} style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '15px 18px', boxSizing: 'border-box', minWidth: 0 }}>
+              <section key={dim} style={{ ...surface, background: 'var(--surface)', padding: '15px 18px', boxSizing: 'border-box', minWidth: 0 }}>
                 <h3 style={{ margin: '0 0 12px', fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{DIM_LABEL[dim] ?? dim}</h3>
                 <div style={{ display: 'grid', gap: 8 }}>
                   {rows.map((r) => {
@@ -360,7 +367,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
               <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
                 Part MESURÉE du contexte, injectée telle quelle · les autres éléments (usages du marché, accroches, préférences d’angles) ne sont pas affichés ici.
               </p>
-              <pre style={{ marginTop: 10, padding: '14px 16px', borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 11.5, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontFamily: 'ui-monospace, monospace' }}>
+              <pre style={{ marginTop: 10, padding: '14px 16px', ...surface, background: 'var(--paper)', fontSize: 11.5, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontFamily: 'ui-monospace, monospace' }}>
                 {memoire}
               </pre>
             </details>
@@ -373,7 +380,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
 
 function Stat({ label, value, sub, strong }: { label: string; value: string; sub?: string; strong?: boolean }) {
   return (
-    <div style={{ border: `1px solid ${strong ? 'rgba(254,44,85,.22)' : 'var(--line)'}`, borderRadius: 13, background: 'var(--surface)', padding: '12px 14px' }}>
+    <div style={{ ...(strong ? cadreSignal('rgba(254,44,85,.22)') : surface), background: 'var(--surface)', padding: '12px 14px' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 21, fontWeight: 800, color: strong ? 'var(--accent-strong)' : 'var(--ink)', marginTop: 4, lineHeight: 1.1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>}

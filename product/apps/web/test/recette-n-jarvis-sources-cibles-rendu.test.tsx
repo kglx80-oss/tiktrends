@@ -17,7 +17,9 @@ const etat = vi.hoisted(() => ({ voitMemoire: true }));
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error('redirect ' + u); } }));
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', workspaceName: 'Espace', role: 'owner', plan: 'business', user: { id: 'u', email: 'fondateur@exemple.invalid', name: 'K' } }) }));
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
-vi.mock('../lib/rbac', async (orig) => ({ ...(await orig<typeof import('../lib/rbac')>()), canAccess: () => etat.voitMemoire }));
+// `voitMemoire` simule l'offre Plus (feature `adsmap`) · la porte de Jarvis
+// lui-même (feature `jarvis`, message 55) reste ouverte pour ce fondateur.
+vi.mock('../lib/rbac', async (orig) => ({ ...(await orig<typeof import('../lib/rbac')>()), canAccess: (_a: unknown, f: { key: string }) => (f.key === 'jarvis' ? true : etat.voitMemoire) }));
 vi.mock('../lib/access', () => ({ effectiveAccess: () => ({}) }));
 vi.mock('../lib/founder', () => ({ isFounder: () => true }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: 'b1', name: 'Neva' }) }));

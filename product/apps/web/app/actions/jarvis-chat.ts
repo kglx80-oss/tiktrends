@@ -2,12 +2,14 @@
 
 import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { starters, personnalisationAccueil } from '@tiktrends/core';
+import { starters, personnalisationAccueil, MARQUEUR_SOURCE, type TypeConnaissance } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
-import { canAccess, FEATURES, roleAtLeast } from '../../lib/rbac';
+import { canAccess, FEATURES } from '../../lib/rbac';
+import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../lib/jarvis-acces';
 import { effectiveAccess } from '../../lib/access';
 import { jarvisStats, jarvisHookView } from '../../lib/jarvis-memory';
+import { connaissancesPourReponse, titresDesSources } from '../../lib/jarvis-connaissances';
 import { logAndTranslate } from '../../lib/error-log';
 import { GUARD } from '../../lib/guard-error';
 
@@ -44,6 +46,15 @@ export interface ChatContexte {
   rules: string | null;
   /** Accroches mesurées et de marché · portée marque, offre Plus. null sinon. */
   hooks: ChatHooks | null;
+  /**
+   * Connaissances de l'équipe plateforme INCLUSES dans le contexte des
+   * prochaines réponses pour cette marque · ce panneau n'en montre que le
+   * titre et le type. Ce n'est PAS une protection : le texte est dans la
+   * consigne de Jarvis, et un client peut lui en demander le contenu (la
+   * consigne lui interdit de le recopier, ce qui ne vaut pas garantie).
+   * null si la lecture a échoué.
+   */
+  connaissances?: { inclus: Array<{ ref: string; titre: string; type: TypeConnaissance; tronquee: boolean }>; horsPlace: number } | null;
 }
 
 export interface ChatThread {
@@ -55,12 +66,23 @@ export interface ChatThread {
   brandName: string;
   /** Ce que Jarvis a comme contexte de marque · ouvert à la demande. */
   contexte: ChatContexte;
+  /**
+   * Les sources citées dans le fil (`[[SOURCE:ref]]`) · leur titre, et si elles
+   * sont toujours en service. Seules les références présentes dans CE fil et
+   * applicables à CETTE marque sont résolues.
+   */
+  sources?: Record<string, { titre: string; enService: boolean }>;
 }
 
 export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
-  if (!roleAtLeast(s.role, 'member')) return { error: GUARD.role({ needRole: 'admin' }) };
+  // Même porte que la route · la feature `jarvis` AVANT la marque, le fil et
+  // les connaissances (titres, types, sources citées).
+  const refus = refusJarvis(s);
+  // La vraie raison (offre ou rôle), dans les mots de l'écran `RefusJarvis` ·
+  // « rôle administrateur » était faux pour un Starter, un freelance, un lecteur.
+  if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
 
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active pour parler à Jarvis.' };
@@ -89,6 +111,15 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
       voitMemoire ? jarvisHookView(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
     ]);
 
+    const ctx = { workspaceId: s.workspaceId, brandId: brand.id };
+    const citees = [...new Set(rows.flatMap((r) => r.role === 'assistant'
+      ? [...r.content.matchAll(new RegExp(MARQUEUR_SOURCE.source, 'g'))].map((m) => m[1]!)
+      : []))];
+    const [bloc, sources] = await Promise.all([
+      connaissancesPourReponse(ctx).catch(() => null),
+      titresDesSources(citees, ctx).catch(() => ({})),
+    ]);
+
     const n = stats?.nAds ?? 0;
     // L'objectif déclaré à l'accueil oriente les trois suggestions · c'est ici
     // que ses réponses cessent d'être un formulaire sans effet.
@@ -104,7 +135,14 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
         starters: starters({ measuredAds: n, hasMarket: false, objectif }),
         measuredAds: n,
         brandName: brand.name,
-        contexte: { brandId: brand.id, identity, rules: b?.creativeRules?.trim() || null, hooks },
+        contexte: {
+          brandId: brand.id, identity, rules: b?.creativeRules?.trim() || null, hooks,
+          connaissances: bloc ? {
+            inclus: bloc.inclus.map((i) => ({ ref: i.ref, titre: i.titre, type: i.type, tronquee: i.tronquee })),
+            horsPlace: bloc.exclues.length,
+          } : null,
+        },
+        sources,
       },
     };
   } catch (e) {

@@ -30,6 +30,19 @@ const PERIMETRE = [
   // Transférés au lot pour ce seul changement (rendus sur /adsmap) · le reste de jarvis/** n'est pas couvert.
   join('app', '(app)', 'jarvis', 'sections', 'SectionEssais.tsx'),
   join('app', '(app)', 'jarvis', 'sections', 'Revelation.tsx'),
+  // Lot 19B (#724) · les écrans et composants que les Connaissances ont créés ou
+  // modifiés, plus la page et l'écran de refus de Jarvis (message 55).
+  join('app', '(app)', 'admin', 'connaissances'),
+  join('app', '(app)', 'admin', 'page.tsx'),
+  join('app', '(app)', 'jarvis', 'sources'),
+  join('app', '(app)', 'jarvis', 'page.tsx'),
+  join('app', '(app)', 'jarvis', 'RefusJarvis.tsx'),
+  join('app', '(app)', 'jarvis', 'JarvisChat.tsx'),
+  join('app', '(app)', 'jarvis', 'JarvisContexte.tsx'),
+  // Rendus sur /jarvis/sources (écran de #724).
+  join('app', '(app)', 'jarvis', 'JarvisRules.tsx'),
+  join('app', '(app)', 'jarvis', 'JarvisTraining.tsx'),
+  join('app', '(app)', 'jarvis', 'DescribePanel.tsx'),
   // Lot 19C · les écrans des formats créatifs (message 55) · `veille/formats`
   // SEUL, pas toute la Veille ; le choix « Format » et Sauvegardes qui le porte.
   join('app', '(app)', 'veille', 'formats'),

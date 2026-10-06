@@ -5,7 +5,7 @@ import { roleAtLeast, ROLE_LABEL, PLAN_LABEL, PLAN_PRICE, type Plan } from '../.
 import { isFounder } from '../../../lib/founder';
 import { computePlatformMetrics } from '../../../lib/platform-metrics';
 import { Icon } from '../../../components/Icon';
-import { cadrePage } from '../../../components/ui';
+import { cadrePage, cadreSignal, surface } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +44,7 @@ export default async function AdminBackstage() {
     { icon: 'coin', title: 'Crédits & marges', desc: 'Barème, coût réel API, règle × markup et marge par action.', href: '/credits' },
     { icon: 'terminal', title: 'Console', desc: 'État du système, intégrations, files de génération, diagnostics.', href: '/console' },
     { icon: 'brain', title: 'Jarvis', desc: 'Règles créatives maison imposées à chaque génération, par marque.', href: '/jarvis' },
+    { icon: 'file', title: 'Connaissances', desc: 'Consignes, méthodes d’itération, savoirs et données que Jarvis lit à chaque réponse.', href: '/admin/connaissances' },
     { icon: 'search', title: 'Intelligence marché', desc: 'Concurrents (Atria, Foreplay, Higgsfield) et notre positionnement.', href: '/admin/intelligence' },
     { icon: 'card', title: 'Plans & Facturation', desc: 'Formules, prix, allocations et abonnements.', href: '/billing' },
     { icon: 'gear', title: 'Réglages', desc: 'Paramètres de l’espace, modèles IA, clés et intégrations serveur.', href: '/settings' },
@@ -52,7 +53,7 @@ export default async function AdminBackstage() {
   return (
     <main style={cadrePage}>
       {/* Héro */}
-      <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(245,166,35,.3)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
+      <div style={{ position: 'relative', overflow: 'hidden', ...cadreSignal('rgba(245,166,35,.3)'), background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', flexShrink: 0 }}><Icon name="gauge" size={23} /></div>
           <div style={{ flex: 1, minWidth: 220 }}>
@@ -71,7 +72,7 @@ export default async function AdminBackstage() {
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 22 }}>
         {kpis.map((k) => (
-          <div key={k.label} style={{ border: `1px solid ${k.strong ? 'rgba(245,166,35,.35)' : 'var(--line)'}`, borderRadius: 16, background: k.strong ? 'rgba(245,166,35,.07)' : 'var(--surface)', padding: '15px 17px' }}>
+          <div key={k.label} style={{ ...(k.strong ? cadreSignal('rgba(245,166,35,.35)') : surface), background: k.strong ? 'rgba(245,166,35,.07)' : 'var(--surface)', padding: '15px 17px' }}>
             <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{k.label}</div>
             <div style={{ fontSize: 25, fontWeight: 800, color: k.strong ? '#ffca6b' : 'var(--ink)', marginTop: 5, lineHeight: 1 }}>{k.value}</div>
             {k.sub && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 5 }}>{k.sub}</div>}
@@ -80,7 +81,7 @@ export default async function AdminBackstage() {
       </div>
 
       {/* Répartition par formule */}
-      <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px', marginBottom: 22 }}>
+      <div style={{ ...surface, background: 'var(--surface)', padding: '16px 18px', marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Répartition par formule</h2>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>{num(m.workspaces)} espaces</span>
@@ -106,7 +107,7 @@ export default async function AdminBackstage() {
       <h2 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Outils plateforme</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
         {tools.map((t) => (
-          <Link key={t.title} href={t.href} style={{ display: 'block', border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)', padding: '15px 17px', textDecoration: 'none' }}>
+          <Link key={t.title} href={t.href} style={{ display: 'block', ...surface, background: 'var(--surface)', padding: '15px 17px', textDecoration: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 36, height: 36, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#f5a623', background: 'rgba(245,166,35,.12)', border: '1px solid rgba(245,166,35,.24)', flexShrink: 0 }}><Icon name={t.icon} size={18} /></span>
               <span style={{ flex: 1, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{t.title}</span>

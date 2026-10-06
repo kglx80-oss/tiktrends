@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
-import { roleAtLeast } from '../../../lib/rbac';
+import { refusJarvis } from '../../../lib/jarvis-acces';
 import { getActiveBrand } from '../../../lib/brands';
 import { Icon } from '../../../components/Icon';
 import { JarvisChat } from './JarvisChat';
 import { Empty } from '../../../components/Empty';
 import { cadrePage, colonneLecture } from '../../../components/ui';
+import { RefusJarvis } from './RefusJarvis';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,11 @@ export const dynamic = 'force-dynamic';
 export default async function JarvisPage() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
+  // Les droits de la feature `jarvis` (rôle, offre, matrice d'équipe) AVANT
+  // toute lecture · la marque active, le fil et les connaissances ne sont lus
+  // qu'une fois l'accès établi (voir lib/jarvis-acces).
+  const refus = refusJarvis(s);
+  if (refus) return <RefusJarvis titre="Jarvis" why={refus} owner={s.role === 'owner'} />;
 
   const brand = await getActiveBrand(s.workspaceId);
 

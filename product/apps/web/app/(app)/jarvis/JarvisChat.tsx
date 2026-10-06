@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { parseAnswer, visibleWhileStreaming, verrouAction, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
+import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
 import { DraftCard } from '../../../components/DraftCard';
 import { JarvisContexte } from './JarvisContexte';
 import { useIsMobile } from '../../../components/useIsMobile';
+import { cadreSignal } from '../../../components/ui';
 
 /**
  * L'espace où l'on parle à Jarvis.
@@ -161,7 +162,7 @@ export function JarvisChat() {
   }
 
   if (erreur && !thread) {
-    return <div style={{ border: '1px solid #ff8095', borderRadius: 14, padding: '16px 18px', color: '#ff8095', fontSize: 13 }}>{erreur}</div>;
+    return <div style={{ ...cadreSignal('#ff8095'), padding: '16px 18px', color: '#ff8095', fontSize: 13 }}>{erreur}</div>;
   }
   if (!thread) {
     return <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>Ouverture de la conversation…</div>;
@@ -181,7 +182,9 @@ export function JarvisChat() {
     // Le composeur s'aligne sur les bords du cadre (comme la Veille) · plus de
     // plafond 760 ici · Kevin, 29/09.
     <div style={{ width: '100%' }}>
-      <div style={{
+      {/* Champ composite (zone de texte + gestes) · rôle `controle` DÉCLARÉ (charte) ·
+          sa bordure --line-2 et son rayon restent ceux d'un champ. */}
+      <div data-cadre="controle" style={{
         display: 'flex', flexDirection: 'column', gap: 10,
         padding: isMobile ? 14 : 18,
         borderRadius: 24, border: '1px solid var(--line-2)', background: 'var(--surface)',
@@ -310,8 +313,9 @@ export function JarvisChat() {
               messages est bornée à l'intérieur (voir `reponse` / `bulle`), pas
               par un plafond du fil (Kevin, 29/09). */}
           <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
-            {thread.turns.map((t) => (
-              <Tour key={t.id} turn={t} />
+            {thread.turns.map((t, i) => (
+              <Tour key={t.id} turn={t} sources={thread.sources ?? {}}
+                question={t.role === 'assistant' && thread.turns[i - 1]?.role === 'user' ? thread.turns[i - 1]!.content : null} />
             ))}
 
             {/* Pendant l'écriture, on coupe à la première ouverture de marqueur ·
@@ -345,13 +349,30 @@ export function JarvisChat() {
  * propositions. Un bouton qui disparaît au rechargement laisserait croire qu'on
  * l'a déjà cliqué.
  */
-function Tour({ turn }: { turn: ChatTurn }) {
+export function Tour({ turn, sources, question = null }: { turn: ChatTurn; sources: NonNullable<ChatThread['sources']>; question?: string | null }) {
   if (turn.role === 'user') return <div style={bulle(true)}>{turn.content}</div>;
 
-  const { text, actions } = parseAnswer(turn.content);
+  // Les sources d'abord · le marqueur `[[SOURCE:…]]` sort du texte, et seules
+  // les références résolues pour CETTE marque s'affichent (une référence
+  // inconnue n'est pas une citation).
+  const { texte, refs } = extraireCitations(turn.content);
+  const { text, actions } = parseAnswer(texte);
+  // Même règle que le compteur (noyau) · une citation que la question a DICTÉE
+  // n'est pas affichée comme une source · elle ne prouve rien.
+  const citees = citationsComptees(turn.content, refs, question).filter((r) => sources[r]);
   return (
     <div style={{ display: 'contents' }}>
       <div style={reponse}>{text}</div>
+      {citees.length > 0 && (
+        <p style={{ alignSelf: 'flex-start', maxWidth: 'min(760px, 92%)', margin: '-8px 0 0', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>Cité ·</span>
+          {citees.map((r) => (
+            <span key={r} style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--line-2)', overflowWrap: 'anywhere' }}>
+              {sources[r]!.titre}{sources[r]!.enService ? '' : ' · retirée depuis'}
+            </span>
+          ))}
+        </p>
+      )}
       {actions.length > 0 && <Gestes actions={actions} />}
     </div>
   );

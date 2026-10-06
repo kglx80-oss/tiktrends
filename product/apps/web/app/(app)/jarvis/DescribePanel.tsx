@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { analyzeAssetsAction, analysisCoverageAction, type AnalysisCoverage } from '../../actions/adsmap-analyze';
+import { surface, tuile } from '../../../components/ui';
 
 /**
  * Description des créas · agent A0.
@@ -55,8 +56,8 @@ export function DescribePanel() {
 
   return (
     <section style={{
-      marginTop: 22, padding: '15px 17px', borderRadius: 13,
-      border: '1px solid var(--line)', background: 'var(--surface)',
+      marginTop: 22, padding: '15px 17px',
+      ...surface, background: 'var(--surface)',
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 340px', minWidth: 0 }}>
@@ -80,8 +81,8 @@ export function DescribePanel() {
         </div>
         {c && restant > 0 && (
           <div style={{
-            flex: '0 0 auto', padding: '9px 12px', borderRadius: 10,
-            border: '1px solid var(--line-2)', background: 'var(--paper)', maxWidth: 250,
+            flex: '0 0 auto', padding: '9px 12px',
+            ...tuile, background: 'var(--paper)', maxWidth: 250,
           }}>
             <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>
               Cette tranche
