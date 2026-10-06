@@ -284,6 +284,11 @@ function FolderPicker({ current, folders, onPick, cible }: { current: string | n
   const panneauId = useId();
 
   const fermer = (rendreFocus: boolean) => { setOpen(false); if (rendreFocus) boutonRef.current?.focus(); };
+  // Message 71 · l'Entrée du champ « Nouveau board » est CONSOMMÉE · sinon son
+  // `keypress` arrivait sur le bouton du sélecteur (qui vient de reprendre le
+  // focus) et l'ACTIVAIT · le panneau se rouvrait et son fond fixe couvrait la
+  // page · aucun onglet de board atteignable au premier clic (mesuré au
+  // navigateur, 3 largeurs, pendant le retour d'un rangement refusé).
   const create = () => { const v = draft.trim(); if (v) { onPick(v); setDraft(''); fermer(true); } };
 
   return (
@@ -305,7 +310,7 @@ function FolderPicker({ current, folders, onPick, cible }: { current: string | n
             ))}
             {current && <button type="button" onClick={() => { onPick(null); fermer(true); }} style={{ ...row(false), minHeight: cible }}>✕ Retirer du board</button>}
             <div style={{ display: 'flex', gap: 6, padding: '6px 4px 2px', borderTop: folders.length ? '1px solid var(--line)' : 'none', marginTop: folders.length ? 4 : 0 }}>
-              <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') create(); }} placeholder="Nouveau board…" aria-label="Nom du nouveau board"
+              <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); create(); } }} placeholder="Nouveau board…" aria-label="Nom du nouveau board"
                 style={{ flex: 1, minWidth: 0, minHeight: cible, padding: '6px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 12, outline: 'none' }} />
               <button type="button" onClick={create} aria-label="Créer ce board" style={{ minWidth: cible, minHeight: cible, padding: '6px 10px', borderRadius: 8, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>+</button>
             </div>
