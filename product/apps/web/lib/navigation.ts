@@ -87,6 +87,7 @@ export const ROUTES: RouteNode[] = [
 
   { path: '/veille', label: 'Veille', section: 'Observatoire' },
   { path: '/veille/scale', label: 'Ce qui scale', parent: '/veille', section: 'Observatoire' },
+  { path: '/veille/formats', label: 'Formats', parent: '/veille', section: 'Observatoire' },
   { path: '/saved', label: 'Sauvegardes', parent: '/veille', section: 'Observatoire' },
 
   { path: '/studio', label: 'Studio IA', section: 'Atelier' },

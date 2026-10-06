@@ -43,6 +43,11 @@ const PERIMETRE = [
   join('app', '(app)', 'jarvis', 'JarvisRules.tsx'),
   join('app', '(app)', 'jarvis', 'JarvisTraining.tsx'),
   join('app', '(app)', 'jarvis', 'DescribePanel.tsx'),
+  // Lot 19C · les écrans des formats créatifs (message 55) · `veille/formats`
+  // SEUL, pas toute la Veille ; le choix « Format » et Sauvegardes qui le porte.
+  join('app', '(app)', 'veille', 'formats'),
+  join('app', '(app)', 'saved', 'FormatChoix.tsx'),
+  join('app', '(app)', 'saved', 'page.tsx'),
   // Lot 19A · rendu dans la vue Analytics de l'Accueil (seul appelant).
   join('app', '(app)', 'jarvis', 'sections', 'SectionAttribution.tsx'),
 ];
@@ -59,7 +64,6 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
   // (Les composants de l'Accueil sont entrés au lot avec le lot 19A.)
   'components/GrammaireCategorie.tsx': 'Bibliothèque seule',
   'components/MarquesSuivies.tsx': 'Bibliothèque seule',
-  'components/SavedBoards.tsx': 'Bibliothèque seule · lot 19C',
   'components/TrackerFeed.tsx': 'Bibliothèque seule',
   // Chrome de l'application, hors <main> · menus déroulants et panneau d'aide
   // flottant (prolongement d'un contrôle de la barre), hors de la mesure des pages.
@@ -79,6 +83,8 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
 export const EXCEPTIONS_LIGNE_2: Readonly<Record<string, string>> = {
   "components/Composer.tsx::background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12,":
     'Composer · menu déroulant d’un réglage · prolonge son contrôle',
+  "components/SavedBoards.tsx::zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12,":
+    'Sauvegardes · menu déroulant du sélecteur de board · prolonge son contrôle (même cas que Composer)',
 };
 export const EXCEPTIONS_RAYON: Readonly<Record<string, string>> = {};
 const exceptee = (table: Readonly<Record<string, string>>, f: string, l: string) =>

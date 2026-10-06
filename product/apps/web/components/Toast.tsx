@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { cotePileRetours, type BoiteEcran } from '@tiktrends/core';
 import { cadreSignal } from './ui';
 
 /**
@@ -28,7 +29,12 @@ interface Toast { id: number; message: string; kind: ToastKind }
 
 interface ToastApi {
   /** Pousse un retour. `kind` défaut « ok ». Renvoie l'id (pour un éventuel retrait). */
-  toast: (message: string, kind?: ToastKind) => number;
+  /**
+   * `ancre` · l'élément du geste qui a déclenché ce retour (le ★ cliqué…). La
+   * pile ne le recouvre jamais · posée en bas, si elle le couvre, elle passe en
+   * haut (règle du noyau `cotePileRetours` · message 56).
+   */
+  toast: (message: string, kind?: ToastKind, ancre?: Element | null) => number;
   dismiss: (id: number) => void;
 }
 
@@ -46,6 +52,12 @@ const TON: Record<ToastKind, { bord: string; pastille: string; icone: string }> 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seq = useRef(1);
+  // Message 56 · le retour ne recouvre pas le geste qui l'a déclenché. Mesuré à
+  // 390 × 720 · la pile basse couvrait le ★ d'une carte (1 416 px², centre du ★
+  // sous le retour). On mesure avant de peindre et on bascule en haut si besoin.
+  const [cote, setCote] = useState<'bas' | 'haut'>('bas');
+  const pileRef = useRef<HTMLDivElement>(null);
+  const ancreRef = useRef<Element | null>(null);
   const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const dismiss = useCallback((id: number) => {
@@ -54,13 +66,29 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     if (h) { clearTimeout(h); timers.current.delete(id); }
   }, []);
 
-  const toast = useCallback((message: string, kind: ToastKind = 'ok') => {
+  const toast = useCallback((message: string, kind: ToastKind = 'ok', ancre?: Element | null) => {
+    if (ancre) ancreRef.current = ancre;
     const id = seq.current++;
     setToasts((list) => [...list, { id, message, kind }]);
     const h = setTimeout(() => dismiss(id), VIE[kind]);
     timers.current.set(id, h);
     return id;
   }, [dismiss]);
+
+  useLayoutEffect(() => {
+    if (toasts.length === 0) { ancreRef.current = null; if (cote !== 'bas') setCote('bas'); return; }
+    const ancre = ancreRef.current;
+    if (cote !== 'bas' || !ancre || !ancre.isConnected || !pileRef.current || typeof window === 'undefined') return;
+    const boite = (r: DOMRect): BoiteEcran => ({ haut: r.top, bas: r.bottom, gauche: r.left, droite: r.right });
+    // La pile entière (le conteneur est étroit et centré · on lit ses lignes).
+    const lignes = [...pileRef.current.children].map((e) => e.getBoundingClientRect()).filter((r) => r.height > 0);
+    if (!lignes.length) return;
+    const pile: BoiteEcran = {
+      haut: Math.min(...lignes.map((r) => r.top)), bas: Math.max(...lignes.map((r) => r.bottom)),
+      gauche: Math.min(...lignes.map((r) => r.left)), droite: Math.max(...lignes.map((r) => r.right)),
+    };
+    if (cotePileRetours(pile, boite(ancre.getBoundingClientRect()), window.innerHeight) === 'haut') setCote('haut');
+  }, [toasts, cote]);
 
   // Échap ferme le plus récent · un retour ne doit jamais rester coincé devant.
   useEffect(() => {
@@ -78,9 +106,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{ toast, dismiss }}>
       {children}
       <div
+        ref={pileRef} data-pile-retours={cote}
         role="status" aria-live="polite" aria-atomic="false"
         style={{
-          position: 'fixed', left: '50%', bottom: 24, transform: 'translateX(-50%)',
+          position: 'fixed', left: '50%', ...(cote === 'haut' ? { top: 24 } : { bottom: 24 }), transform: 'translateX(-50%)',
           zIndex: 2147483000, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
           width: 'min(92vw, 420px)', pointerEvents: 'none',
         }}
@@ -123,4 +152,13 @@ export function useToast(): ToastApi {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error('useToast doit être utilisé sous <ToastProvider>.');
   return ctx;
+}
+
+/**
+ * Le même canal, sans exiger la pile · pour un composant partagé qui se rend
+ * aussi hors de l'application (rendu isolé, page publique). `null` quand aucune
+ * pile n'est montée · l'appelant garde alors son propre retour d'état.
+ */
+export function useToastSiPresent(): ToastApi | null {
+  return useContext(Ctx);
 }

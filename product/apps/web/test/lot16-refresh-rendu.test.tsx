@@ -21,7 +21,7 @@ vi.mock('../components/CreditsMenu', () => ({ CreditsMenu: () => null }));
 vi.mock('../components/BrandSwitcher', () => ({ BrandSwitcher: () => null }));
 vi.mock('../components/Breadcrumb', () => ({ Breadcrumb: () => null }));
 vi.mock('../components/AdCard', () => ({ AdCard: ({ ad }: { ad: { id: string } }) => <article data-ad={ad.id} /> }));
-vi.mock('../components/Toast', () => ({ useToast: () => ({ toast() {} }) }));
+vi.mock('../components/Toast', () => ({ useToast: () => ({ toast() {} }), useToastSiPresent: () => null }));
 
 const actions = vi.hoisted(() => ({
   saveProfileAction: vi.fn(),

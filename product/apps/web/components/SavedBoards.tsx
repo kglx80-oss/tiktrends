@@ -6,19 +6,23 @@ import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
 import type { InspoAd } from '@tiktrends/integrations';
+import type { LectureFormat } from '@tiktrends/core';
+import { FormatChoix } from '../app/(app)/saved/FormatChoix';
 import { AdCard } from './AdCard';
 import { setSavedAdFolder } from '../app/actions/inspo';
 import { Empty } from './Empty';
 import { useToast } from './Toast';
 import { remplacerRecherche } from '../lib/url-client';
 
-export interface SavedItem { id: string; ad: InspoAd; folder: string | null; externalId: string; platform: string }
+export interface SavedItem { id: string; ad: InspoAd; folder: string | null; externalId: string; platform: string; format?: LectureFormat }
 
 /**
  * Boards / dossiers de rangement pour les créas sauvegardées (façon Foreplay/Atria).
  * Onglets par board + rangement d'une créa dans un board (existant ou nouveau), en direct.
  */
-export function SavedBoards({ items, followKeys, adsmap = false }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean }) {
+export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponible = null }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean;
+  /** Lot 19C · raison calculée côté serveur quand le classement par format n'est pas ouvert (sans Veille) · `null` = ouvert. */
+  formatIndisponible?: string | null }) {
   const [list, setList] = useState<SavedItem[]>(items);
   const [tab, setTab] = useState<string>(BOARD_TOUS);
   // 44 px au doigt, densité gardée à la souris (recette #106, point 6).
@@ -83,10 +87,33 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
       if (vide) { setTab(BOARD_TOUS); garderDansUrl(BOARD_TOUS, q); }
       return next;
     });
-    start(async () => { await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value }); });
-    // Le rangement se voit à l'onglet, mais le geste vaut sa confirmation là où on
-    // a cliqué · sans elle, ranger une créa dans un board est une action muette.
-    toast(value ? `Rangé dans « ${value} ».` : 'Retiré du board.');
+    const avant = it.folder;
+    // Remet la créa dans son board d'origine (l'onglet de ce board réapparaît
+    // avec elle) · même geste pour un refus et pour une exception.
+    const restaurer = () => setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
+    start(async () => {
+      let r: Awaited<ReturnType<typeof setSavedAdFolder>>;
+      try {
+        r = await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value });
+      } catch {
+        // Message 60 · une exception (réseau, serveur) laissait la créa affichée
+        // dans le nouveau board, sans retour (et l'erreur remontait de la
+        // transition) · même traitement qu'un refus, avec la raison générique.
+        restaurer();
+        toast('Rangement non enregistré · vérifie ta connexion puis réessaie.', 'err');
+        return;
+      }
+      // Message 56 · un refus du serveur (rôle, autre marque) remet la créa dans
+      // son board et se dit · jamais de « Rangé dans… » sur un non.
+      if (r && r.ok === false) {
+        restaurer();
+        toast(r.error, 'err');
+        return;
+      }
+      // Le rangement se voit à l'onglet, mais le geste vaut sa confirmation là où on
+      // a cliqué · sans elle, ranger une créa dans un board est une action muette.
+      toast(value ? `Rangé dans « ${value} ».` : 'Retiré du board.');
+    });
   };
 
   if (!list.length) {
@@ -145,6 +172,8 @@ export function SavedBoards({ items, followKeys, adsmap = false }: { items: Save
                 ET la structure, pas seulement l'angle. */}
             <AdCard ad={it.ad} saved following={following.has(it.ad.platform + ':' + (it.ad.advertiserName || ''))} cloneRef={it.id} cibles44={tactile} />
             <FolderPicker current={it.folder} folders={folders} onPick={(f) => move(it, f)} cible={cible} />
+            {/* Formats créatifs v1 (lot 19C) · qualification manuelle, persistante. */}
+            <FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} />
             {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
           </div>
         ))}
