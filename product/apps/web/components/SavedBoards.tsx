@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
-import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable } from '@tiktrends/core';
+import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
@@ -88,7 +88,18 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
   };
 
   const barreRef = useRef<HTMLDivElement>(null);
-  const focusOngletActif = () => barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
+  // Message 72 · `focus()` seul laissait l'onglet SOUS la barre haute collante
+  // (mesuré · −1,2 → 31,5 à 1440 et 1280, centre = « Rechercher ») · il ne
+  // défile pas un élément déjà dans la vue. On focalise sans défiler, puis on
+  // ramène l'onglet à sa `scroll-margin-top` quand il est sous la barre ou
+  // hors du bas de la vue (règle du noyau) · un onglet visible ne bouge pas.
+  const focusOngletActif = () => {
+    const b = barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
+    if (!b) return;
+    b.focus({ preventScroll: true });
+    const r = b.getBoundingClientRect();
+    if (ramenerSousBarreHaute(r.top, r.bottom, window.innerHeight)) b.scrollIntoView?.({ block: 'start' });
+  };
   // L'onglet AFFICHÉ, lu après la réponse du serveur (la fermeture de `move`
   // garde celui du clic) · et le focus rendu APRÈS le rendu de la restauration
   // (l'onglet rendu n'est pressé qu'une fois le rendu appliqué).
@@ -176,6 +187,8 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
   const tabBtn = (key: string): CSSProperties => ({
     // Un nom de board long reste dans la largeur (ellipse, nom complet au survol).
     maxWidth: '100%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', minHeight: cible,
+    // Ramené par `focusOngletActif`, l'onglet s'arrête sous la barre haute.
+    scrollMarginTop: MARGE_SOUS_BARRE_HAUTE,
     display: 'inline-flex', alignItems: 'center',
     padding: '6px 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
     border: '1px solid ' + (tab === key ? 'transparent' : 'var(--line-2)'),
