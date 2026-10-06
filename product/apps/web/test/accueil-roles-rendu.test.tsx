@@ -26,7 +26,7 @@ import Dashboard from '../app/(app)/dashboard/page';
 const liens = (html: string) => [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]!);
 async function accueil(role: typeof etat.role) {
   etat.role = role;
-  const html = renderToStaticMarkup(await Dashboard());
+  const html = renderToStaticMarkup(await Dashboard({ searchParams: Promise.resolve({}) }));
   return { html, liens: liens(html), texte: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ') };
 }
 

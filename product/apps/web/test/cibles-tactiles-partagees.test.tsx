@@ -133,7 +133,7 @@ describe('Cibles tactiles · composants partagés', () => {
     ['app/(app)/studio/video/VideoStudioFull.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['app/(app)/studio/textes/StudioClient.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['app/(app)/studio/ads/AdsStudio.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
-    ['app/(app)/analytics/page.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
+    ['components/accueil/VueAnalytics.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['app/(app)/jarvis/JarvisChat.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['app/(app)/jarvis/JarvisContexte.tsx', ['CIBLE_TACTILE_MIN']],
   ];

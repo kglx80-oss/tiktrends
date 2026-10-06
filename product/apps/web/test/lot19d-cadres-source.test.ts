@@ -24,7 +24,7 @@ import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 const WEB = process.cwd();
 const PERIMETRE = [
   'components',
-  ...['adsmap', 'studio', 'assets', 'tags', 'radar', 'brands', 'connections', 'billing', 'credits', 'usage', 'team', 'profile', 'settings', 'support', 'console']
+  ...['dashboard', 'analytics', 'adsmap', 'studio', 'assets', 'tags', 'radar', 'brands', 'connections', 'billing', 'credits', 'usage', 'team', 'profile', 'settings', 'support', 'console']
     .map((d) => join('app', '(app)', d)),
   ...['depenses', 'finance', 'incidents', 'intelligence', 'paiement', 'plans', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
   // Transférés au lot pour ce seul changement (rendus sur /adsmap) · le reste de jarvis/** n'est pas couvert.
@@ -43,6 +43,8 @@ const PERIMETRE = [
   join('app', '(app)', 'jarvis', 'JarvisRules.tsx'),
   join('app', '(app)', 'jarvis', 'JarvisTraining.tsx'),
   join('app', '(app)', 'jarvis', 'DescribePanel.tsx'),
+  // Lot 19A · rendu dans la vue Analytics de l'Accueil (seul appelant).
+  join('app', '(app)', 'jarvis', 'sections', 'SectionAttribution.tsx'),
 ];
 
 /** Fichiers du dossier `components` hors de ce lot, et pourquoi. */
@@ -53,15 +55,8 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
   'components/RetourVeille.tsx': 'Veille · autre lot',
   'components/DefileAncreVeille.tsx': 'Veille · autre lot',
   'components/RenameMarque.tsx': 'autre lot',
-  // Composants qui ne servent QUE des écrans hors de ce lot (Accueil, Bibliothèque) ·
-  // leur rôle est décrit au rapport, l'écran propriétaire les reprend.
-  'components/ApercuExemple.tsx': 'Accueil seul',
-  'components/AssistantChat.tsx': 'Accueil seul',
-  'components/AssistantHome.tsx': 'Accueil seul',
-  'components/HomeBandeau.tsx': 'Accueil seul',
-  'components/HomeMarques.tsx': 'Accueil seul',
-  'components/JourneyPanel.tsx': 'Accueil seul',
-  'components/ProchaineEtape.tsx': 'Accueil seul',
+  // Composants qui ne servent QUE la Bibliothèque · l'écran propriétaire les reprend.
+  // (Les composants de l'Accueil sont entrés au lot avec le lot 19A.)
   'components/GrammaireCategorie.tsx': 'Bibliothèque seule',
   'components/MarquesSuivies.tsx': 'Bibliothèque seule',
   'components/SavedBoards.tsx': 'Bibliothèque seule · lot 19C',
@@ -175,6 +170,8 @@ describe('lot 19D · garde source · bordures et rayons par rôle', () => {
     expect(lot.length).toBeGreaterThan(140);
     expect(lot).toContain('components/ui.tsx');
     expect(lot).toContain('app/(app)/console/page.tsx');
+    // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.
+    for (const f of ['components/JourneyPanel.tsx', 'components/HomeBandeau.tsx', 'components/accueil/VueAnalytics.tsx', 'app/(app)/analytics/MetaKeyMetrics.tsx', 'app/(app)/dashboard/page.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
   });
   it('aucun cadre hors de son rôle (--line-2 sur un cadre, rayon 13–24 hors 20)', () => {
     const fautes = lot.flatMap(cadresHorsRole);

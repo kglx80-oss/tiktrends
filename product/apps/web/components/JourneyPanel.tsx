@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useId, useState, type CSSProperties } from 'react';
 import { CIBLE_TACTILE_MIN, cheminOuvert, type Journey, type JourneyStep, type Relance, type RegleChemin } from '@tiktrends/core';
 import { Icon } from './Icon';
+import { cadreSignal, surface, tuile } from './ui';
 
 /**
  * Le chemin, affiché.
@@ -70,7 +71,7 @@ export function JourneyPanel({ j, relance = null, regles = [] }: { j: Journey; r
   const optionnelles = j.steps.filter((s) => s.optional && s.status !== 'done');
 
   return (
-    <section aria-label="Ta prochaine étape" style={{ border: '1px solid var(--line-2)', borderRadius: 18, marginBottom: 22, background: 'var(--surface)', padding: '18px 20px' }}>
+    <section aria-label="Ta prochaine étape" style={{ ...surface, marginBottom: 22, background: 'var(--surface)', padding: '18px 20px' }}>
       {/* En-tête · titre + progression compacte, toujours. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 13, flexWrap: 'wrap' }}>
         <Anneau pct={pct} />
@@ -84,7 +85,7 @@ export function JourneyPanel({ j, relance = null, regles = [] }: { j: Journey; r
 
       {/* Relance douce · quand une étape de valeur traîne. */}
       {relance && (
-        <div style={{ marginTop: 14, padding: '13px 15px', borderRadius: 14, border: '1px solid rgba(254,44,85,.35)', background: 'var(--paper)' }}>
+        <div style={{ marginTop: 14, padding: '13px 15px', ...cadreSignal('rgba(254,44,85,.35)', 'tuile'), background: 'var(--paper)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <span aria-hidden style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="sparkles" size={15} /></span>
             <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{relance.titre}</div>
@@ -98,13 +99,13 @@ export function JourneyPanel({ j, relance = null, regles = [] }: { j: Journey; r
           membre), on énonce un état FACTUEL · on ne propose pas une action
           interdite, et « en attente » ne veut pas dire « terminé ». */}
       {j.next ? (
-        <Link href={j.next.href} style={{ display: 'block', marginTop: 14, padding: '15px 17px', borderRadius: 14, border: '1px solid rgba(254,44,85,.35)', background: 'var(--paper)', textDecoration: 'none' }}>
+        <Link href={j.next.href} style={{ display: 'block', marginTop: 14, padding: '15px 17px', ...cadreSignal('rgba(254,44,85,.35)', 'tuile'), background: 'var(--paper)', textDecoration: 'none' }}>
           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>Prochaine étape</div>
           <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginTop: 4 }}>{j.next.label} ›</div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 4, lineHeight: 1.55 }}>{j.next.why}</div>
         </Link>
       ) : (
-        <div style={{ marginTop: 14, padding: '13px 15px', borderRadius: 14, border: '1px solid var(--line-2)', background: 'var(--paper)' }}>
+        <div style={{ marginTop: 14, padding: '13px 15px', ...tuile, background: 'var(--paper)' }}>
           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)' }}>En attente</div>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', marginTop: 4, lineHeight: 1.5 }}>
             Rien à faire de ton côté pour l’instant · la mise en route de l’espace revient à un administrateur.

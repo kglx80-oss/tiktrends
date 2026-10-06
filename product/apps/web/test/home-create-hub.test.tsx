@@ -35,7 +35,8 @@ describe('la home mène par l’ANALYSE, création secondaire, au trait, sans em
   it('offre les accès d’ANALYSE (Adsmap, Analytics, Veille, Jarvis)', () => {
     const h = html();
     expect(h).toContain('/adsmap');
-    expect(h).toContain('/analytics');
+    // Lot 19A · Analytics est la vue de l'Accueil (lien natif).
+    expect(h).toContain('/dashboard?vue=analytics');
     expect(h).toContain('/veille');
     expect(h).toContain('/jarvis');
   });

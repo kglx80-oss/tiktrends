@@ -4,7 +4,7 @@ import { join, relative, sep } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { cadrePage, h1 } from '../components/ui';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/veille/scale' }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/veille/scale', useSearchParams: () => new URLSearchParams() }));
 const { Breadcrumb } = await import('../components/Breadcrumb');
 
 /**

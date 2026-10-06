@@ -23,7 +23,7 @@ const requete = (champs: Record<string, unknown>) => {
 };
 vi.mock('@tiktrends/db', async (orig) => ({ ...(await orig<typeof import('@tiktrends/db')>()), db: { select: (champs: Record<string, unknown>) => requete(champs ?? {}) } }));
 
-import AnalyticsPage from '../app/(app)/analytics/page';
+import { VueAnalytics as AnalyticsPage } from '../components/accueil/VueAnalytics';
 
 const texte = async () => renderToStaticMarkup(await AnalyticsPage()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const insights = { window: { since: '2026-09-01', until: '2026-09-30' } };

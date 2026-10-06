@@ -1,5 +1,6 @@
 import { niveauScore, LABEL_NIVEAU, COULEUR_NIVEAU, partDeMax } from '@tiktrends/core';
 import { BarreValeur } from '../../../components/BarreValeur';
+import { surface } from '../../../components/ui';
 
 export interface CreativeStats {
   score: number;
@@ -24,7 +25,7 @@ export function CreativeIntel({ stats }: { stats: CreativeStats }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 16 }}>
         {/* Score + gabarits */}
-        <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' }}>
+        <div style={{ ...surface, background: 'var(--surface)', padding: '18px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
             <span style={{ position: 'relative', width: 60, height: 60, borderRadius: '50%', background: `conic-gradient(${lv.color} ${stats.score * 3.6}deg, var(--line-2) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <span style={{ width: 46, height: 46, borderRadius: '50%', background: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>{stats.score}</span>
@@ -48,7 +49,7 @@ export function CreativeIntel({ stats }: { stats: CreativeStats }) {
         </div>
 
         {/* Top tags */}
-        <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '18px 20px' }}>
+        <div style={{ ...surface, background: 'var(--surface)', padding: '18px 20px' }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Top tags créatifs (IA)</div>
           {stats.tags.length === 0 ? <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: 0 }}>Tag tes assets (bouton « Analyser » dans Assets) pour voir tes thèmes dominants.</p> : (
             <div style={{ display: 'grid', gap: 7 }}>

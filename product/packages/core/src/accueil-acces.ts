@@ -17,6 +17,8 @@
  * Pur · ni base ni réseau.
  */
 
+import { ROUTE_HISTORIQUE_ANALYTICS, RUBRIQUE_ANALYTICS } from './accueil-vue';
+
 /** Une rubrique et si le rôle courant l'ouvre. */
 export interface RegleChemin {
   href: string;
@@ -25,12 +27,30 @@ export interface RegleChemin {
   verrou?: boolean;
 }
 
-/** La rubrique la plus précise qui couvre ce chemin (requête et ancre ignorées), ou `null`. */
+/** Chemin et paramètres d'une adresse (ancre ignorée). */
+function decoupe(href: string): { chemin: string; params: URLSearchParams } {
+  const [avantAncre] = href.split('#');
+  const [chemin, requete] = avantAncre!.split('?');
+  return { chemin: chemin!, params: new URLSearchParams(requete ?? '') };
+}
+
+/**
+ * La rubrique la plus précise qui couvre ce chemin (ancre ignorée), ou `null`.
+ *
+ * Lot 19A · une rubrique peut porter une requête (« Analytics » vit sur
+ * `/dashboard?vue=analytics`, sous l'Accueil). Elle ne couvre alors que les
+ * adresses qui portent les MÊMES paramètres · plus précise que la rubrique nue
+ * du même chemin, elle l'emporte. L'ancienne route `/analytics` (307 vers la
+ * vue) se lit comme sa cible · un lien historique garde les droits d'Analytics.
+ */
 export function regleDuChemin(href: string, regles: readonly RegleChemin[]): RegleChemin | null {
-  const chemin = href.split(/[?#]/)[0]!;
+  const cible = decoupe(href.split(/[?#]/)[0] === ROUTE_HISTORIQUE_ANALYTICS ? RUBRIQUE_ANALYTICS : href);
   let meilleure: RegleChemin | null = null;
   for (const r of regles) {
-    if ((chemin === r.href || chemin.startsWith(`${r.href}/`)) && (!meilleure || r.href.length > meilleure.href.length)) meilleure = r;
+    const regle = decoupe(r.href);
+    if (cible.chemin !== regle.chemin && !cible.chemin.startsWith(`${regle.chemin}/`)) continue;
+    if ([...regle.params].some(([k, v]) => cible.params.get(k) !== v)) continue;
+    if (!meilleure || r.href.length > meilleure.href.length) meilleure = r;
   }
   return meilleure;
 }

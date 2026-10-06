@@ -1,30 +1,69 @@
+/**
+ * La vue Analytics de l'Accueil · lot 19A.
+ *
+ * C'est le corps INCHANGÉ de l'ancienne page `/analytics` · mêmes requêtes
+ * (marque active, synchro Méta, générations, assets scopés marque-ou-commun),
+ * mêmes calculs (`buildAnalysis`, `analysisTotals`, buckets, diversité), mêmes
+ * composants (`MetaKeyMetrics`, `CreativeIntel`, `SectionAttribution`). Il a
+ * seulement quitté la page pour être monté par l'Accueil
+ * (`/dashboard?vue=analytics`) · `/analytics` redirige désormais ici
+ * (`redirectionAnalytics`, noyau). Aucune copie · une seule source de calcul.
+ *
+ * Le cadre (`<main>`, `cadrePage`) appartient à la page qui monte la vue.
+ */
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
-import { getSession } from '../../../lib/auth';
-import { getActiveBrand } from '../../../lib/brands';
-import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../../lib/analysis';
-import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, phrasesApercuAnalytics, type PhaseConnecteur } from '@tiktrends/core';
-import { PageInfo } from '../../../components/PageInfo';
-import { MetaKeyMetrics } from './MetaKeyMetrics';
-import { BrandTile } from '../../../components/BrandIcons';
-import { CreativeIntel, type CreativeStats } from './CreativeIntel';
-import { SectionAttribution } from '../jarvis/sections/SectionAttribution';
-import { cadrePage } from '../../../components/ui';
+import { getSession } from '../../lib/auth';
+import { effectiveAccess } from '../../lib/access';
+import { FEATURES, canAccess, denyReason } from '../../lib/rbac';
+import { getActiveBrand } from '../../lib/brands';
+import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../lib/analysis';
+import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, phrasesApercuAnalytics, refusVueAnalytics, type PhaseConnecteur } from '@tiktrends/core';
+import { PageInfo } from '../PageInfo';
+import { MetaKeyMetrics } from '../../app/(app)/analytics/MetaKeyMetrics';
+import { BrandTile } from '../BrandIcons';
+import { CreativeIntel, type CreativeStats } from '../../app/(app)/analytics/CreativeIntel';
+import { SectionAttribution } from '../../app/(app)/jarvis/sections/SectionAttribution';
+// Le titre d'écran suit le jeton partagé (lot 19 · réconciliation des titres).
+import { cadreSignal, h1, surface } from '../ui';
+import { Icon } from '../Icon';
 
 const TPL_LABEL: Record<string, string> = { problem_solution: 'Problème/solution', before_after: 'Avant/après', testimonial: 'Témoignage', benefits: 'Bénéfices', ugc: 'UGC', stat: 'Stat', offer: 'Offre' };
-
-export const dynamic = 'force-dynamic';
 
 const eur = (n: number) => '€' + Math.round(n).toLocaleString('fr-FR');
 const pct = (n: number) => (n * 100).toFixed(2).replace('.', ',') + ' %';
 const num = (n: number) => n.toLocaleString('fr-FR');
 
-export default async function AnalyticsPage() {
+/** La feature Analytics de la matrice existante (`lib/rbac` · rôle d'espace, offre, matrice d'équipe). */
+const ANALYTICS = FEATURES.find((f) => f.key === 'analytics')!;
+
+export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
   const s = await getSession();
   if (!s) redirect('/login');
+
+  // Message 55 · le droit DÉJÀ défini est appliqué au serveur, AVANT toute
+  // lecture · ni marque active, ni KPI Meta, ni générations, ni assets, ni
+  // bilan. Masquer l'onglet ne protégeait rien · un rôle dont la matrice ferme
+  // Analytics lisait les KPI de l'espace par l'URL.
+  const acces = effectiveAccess(s);
+  if (!canAccess(acces, ANALYTICS)) {
+    return (
+      <div data-vue="analytics-refusee">
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+          <h1 style={h1}>Analytics</h1>
+          {vues}
+        </div>
+        <div role="status" style={{ ...surface, background: 'var(--surface)', padding: 28, marginTop: 20, textAlign: 'center' }}>
+          <div aria-hidden style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={30} /></div>
+          <p style={{ color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.55, maxWidth: 460, margin: '10px auto 0' }}>{refusVueAnalytics(denyReason(acces, ANALYTICS))}</p>
+        </div>
+      </div>
+    );
+  }
 
   // Données Meta réelles (si la marque active a connecté + synchronisé).
   let metaInsights: MetaAdsInsights | null = null;
@@ -99,10 +138,12 @@ export default async function AnalyticsPage() {
   const phrases = phrasesApercuAnalytics(phaseMeta);
 
   return (
-    <main style={wrap}>
+    <div data-vue="analytics">
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Analytics</h1>
         <span style={{ fontSize: 12, color: metaInsights ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{metaInsights ? 'Meta Ads · live' : 'aperçu démo'}</span>
+        {/* Le sélecteur de vue (lot 19A) · même place que sur l'Accueil, dans la rangée du titre. */}
+        {vues}
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22 }}>
         Vue agrégée de tes créas : dépense, portée, efficacité, et répartition Radar. {phrases.intro}
@@ -118,7 +159,7 @@ export default async function AnalyticsPage() {
       {metaInsights ? (
         <MetaKeyMetrics insights={metaInsights} syncedAt={syncedAt} />
       ) : encart && (
-        <div style={{ border: '1px solid var(--accent-strong)', borderRadius: 16, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ ...cadreSignal('var(--accent-strong)'), background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
           <BrandTile name="Meta Ads" />
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{encart.titre}</div>
@@ -189,7 +230,7 @@ export default async function AnalyticsPage() {
 
       {/* Top ROAS */}
       <h2 style={{ ...h2, fontSize: 19, marginTop: 28, marginBottom: 12 }}>Top créas par ROAS</h2>
-      <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflowX: 'auto' }}>
+      <div style={{ ...surface, overflowX: 'auto' }}>
         <div style={{ ...trow, background: 'var(--surface)', color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>
           <span>Créa</span><span>Plateforme</span><span style={{ textAlign: 'right' }}>Dépense</span><span style={{ textAlign: 'right' }}>CTR</span><span style={{ textAlign: 'right' }}>ROAS</span><span style={{ textAlign: 'center' }}>Reco</span>
         </div>
@@ -213,14 +254,12 @@ export default async function AnalyticsPage() {
           Self-porté (offre Plus, marque active) · rend null sinon, il ne s'impose
           jamais à un compte qui n'y avait pas droit. */}
       <SectionAttribution />
-    </main>
+    </div>
   );
 }
 
-const wrap = cadrePage;
-const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;
 const h2 = { margin: 0, fontSize: 15, fontWeight: 500, color: 'var(--ink)' } as const;
-const card = { padding: '16px 18px', border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)' } as const;
+const card = { padding: '16px 18px', ...surface, background: 'var(--surface)' } as const;
 const cardLabel = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 8 } as const;
 // minWidth · en dessous, les six colonnes se tassent et débordent · le tableau
 // défile alors à l'horizontale dans son cadre (overflowX) au lieu d'écraser.

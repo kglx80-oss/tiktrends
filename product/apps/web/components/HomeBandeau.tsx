@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { surface } from './ui';
 
 /**
  * Le bandeau d'accueil · le SEUL hero de l'application (exception assumée de la
@@ -65,7 +66,7 @@ export function HomeBandeau({ contenu }: { contenu: BandeauAccueil }) {
       aria-label="À la une"
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap',
-        overflow: 'hidden', borderRadius: 18, border: '1px solid var(--line-2)',
+        overflow: 'hidden', ...surface,
         // Fond CALME · surface sombre + une lueur rose ciblée en haut à droite.
         background: 'radial-gradient(120% 150% at 100% 0%, rgba(254,44,85,.16), transparent 58%), var(--surface)',
         padding: 'clamp(20px, 4vw, 30px)', marginBottom: 20,

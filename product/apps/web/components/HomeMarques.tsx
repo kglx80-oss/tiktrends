@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { surface, vide } from './ui';
 
 /**
  * Les marques du compte, façon « Recent Projects » (Kevin, 30/09, inspiration
@@ -29,7 +30,7 @@ export interface MarqueCarte {
 
 const carte = {
   display: 'flex', flexDirection: 'column', textDecoration: 'none', minWidth: 0,
-  border: '1px solid var(--line-2)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)',
+  ...surface, overflow: 'hidden', background: 'var(--surface)',
 } as const;
 
 const apercu = {
@@ -162,7 +163,7 @@ export function HomeMarques({ marques, activeId, gererMarques = true }: { marque
               : <div key={m.id} aria-current={actif ? 'true' : undefined} style={{ ...carte, cursor: 'default' }}>{contenu}</div>;
           })}
           {/* Ajouter une marque · action réelle, même gabarit de carte · seulement si le rôle l'ouvre. */}
-          {gererMarques && <Link href="/brands/new" style={{ ...carte, borderStyle: 'dashed' }}>
+          {gererMarques && <Link href="/brands/new" style={{ ...carte, ...vide }}>
             <div style={{ ...apercu, background: 'linear-gradient(160deg, var(--paper), var(--surface))' }}>
               <span aria-hidden style={{ fontSize: 30, fontWeight: 800, color: 'var(--accent-strong)' }}>+</span>
             </div>
