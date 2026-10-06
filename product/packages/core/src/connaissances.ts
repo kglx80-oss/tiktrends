@@ -666,14 +666,24 @@ export function verifierConfirmationPublication(p: PorteeConnaissance, confirmat
 /**
  * D'une version à la suivante, la portée change-t-elle d'une façon qui expose
  * le texte à d'autres lecteurs ? `elargie` · plus large (marque → espace →
- * plateforme) ; `deplacee` · même largeur, autre cible (une marque vers une
- * autre). Les deux exigent une confirmation explicite · resserrer, non.
+ * plateforme) ; `deplacee` · autre cible, au même niveau (une marque vers une
+ * autre) OU à un niveau plus étroit qui sort de l'espace d'origine (espace A →
+ * marque d’un espace B · ses lecteurs ne lisaient pas le texte · message 63).
+ * Les deux exigent une confirmation explicite.
+ *
+ * Resserrer SANS sortir de chez soi ne demande rien · les nouveaux lecteurs sont
+ * un sous-ensemble des anciens : espace A → marque de A ; plateforme → espace ou
+ * marque (la plateforme couvre déjà tous les destinataires autorisés).
  */
 export function changementPortee(avant: PorteeConnaissance, apres: PorteeConnaissance): 'elargie' | 'deplacee' | null {
   const a = RANG_PORTEE[avant.niveau];
   const b = RANG_PORTEE[apres.niveau];
   if (b > a) return 'elargie';
-  if (b < a) return null;
+  if (b < a) {
+    // Plus étroit · déplacé seulement s'il sort de l'espace d'origine.
+    if (avant.niveau === 'espace' && apres.niveau === 'marque' && apres.workspaceId !== avant.workspaceId) return 'deplacee';
+    return null;
+  }
   if (avant.niveau === 'espace' && apres.niveau === 'espace' && avant.workspaceId !== apres.workspaceId) return 'deplacee';
   if (avant.niveau === 'marque' && apres.niveau === 'marque' && (avant.brandId !== apres.brandId || avant.workspaceId !== apres.workspaceId)) return 'deplacee';
   return null;
