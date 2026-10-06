@@ -512,46 +512,77 @@ export interface BlocConnaissances {
 }
 
 /**
- * Assemble le bloc sous le plafond. Les documents passent dans l'ordre de la
- * sélection · celui qui ne tient plus en entier est TRONQUÉ et le bloc le dit
- * (au modèle comme à l'écran) ; quand le reste ne porte plus un document
- * lisible, il est écarté, et c'est dit aussi.
+ * Assemble le bloc sous le plafond.
+ *
+ * ── Qui a la place, et dans quel ordre on lit ────────────────────────────────
+ *
+ * Deux ordres distincts (message 63) :
+ *  - l'ordre de LECTURE est celui de `retenues` (voir `versionsApplicables`) ·
+ *    éditorial d'abord, et dans chaque type de la plus ancienne à la plus
+ *    récente · la plus récente est la DERNIÈRE lue, comme l'en-tête le promet ;
+ *  - l'ordre d'ATTRIBUTION de la place, quand le plafond sature · éditorial
+ *    avant sources (consignes, méthodes, savoirs, données), et dans chaque type
+ *    de la plus RÉCENTE à la plus ancienne. Avant, la place suivait l'ordre de
+ *    lecture · une ancienne consigne longue excluait la plus récente, celle qui
+ *    devait primer.
+ *
+ * Le document qui ne tient plus en entier est TRONQUÉ et le bloc le dit (au
+ * modèle comme à l'écran) ; quand le reste ne porte plus un document lisible,
+ * il est écarté, et c'est dit aussi · ce sont désormais les plus anciens.
  */
 export function assemblerConnaissances(retenues: ReadonlyArray<VersionRetenue>, plafond: number = PLAFOND_CONNAISSANCES): BlocConnaissances {
   if (!retenues.length) return { texte: '', inclus: [], exclues: [] };
   const tete = entete(retenues.length);
-  const morceaux: string[] = [tete];
   let taille = tete.length;
-  const inclus: InclusionConnaissance[] = [];
-  const exclues: BlocConnaissances['exclues'] = [];
   const avisTroncature = '\n[… tronqué · la suite de ce document n’a pas tenu dans la place réservée]';
 
-  for (const r of retenues) {
+  // Priorité d'attribution · type (éditorial d'abord), puis la plus récente
+  // d'abord · « récente » = plus loin dans l'ordre de lecture de son type.
+  const priorite = retenues.map((r, i) => ({ r, i }))
+    .sort((x, y) => RANG_TYPE[x.r.type] - RANG_TYPE[y.r.type] || y.i - x.i);
+
+  // La note d'exclusion doit TOUJOURS pouvoir entrer · une troncature qui remplit
+  // le plafond la faisait disparaître (le bloc taisait alors les exclusions).
+  const noteExclusion = (k: number) => `\n\n(${k} autre(s) document(s) de l’équipe n’ont pas tenu dans la place réservée et ne sont pas lus ici.)`;
+  const reserveNote = noteExclusion(retenues.length).length;
+
+  type Place = { morceau: string; inclusion: InclusionConnaissance } | { exclue: BlocConnaissances['exclues'][number] };
+  const places = new Map<number, Place>();
+  for (const [rang, { r, i }] of priorite.entries()) {
     const ouverture = `\n\n${OUVERTURE} ref=${r.ref} type=${LIBELLE_TYPE[r.type]} titre="${titreSur(r.titre)}" version=${r.n}>>>\n`;
     const fermeture = `\n${FERMETURE} ref=${r.ref}>>>`;
     const corps = neutraliser(r.texte);
     const fixe = ouverture.length + fermeture.length;
     const reste = plafond - taille - fixe;
     if (corps.length <= reste) {
-      morceaux.push(ouverture + corps + fermeture);
       taille += fixe + corps.length;
-      inclus.push({ ref: r.ref, id: r.id, n: r.n, titre: r.titre, type: r.type, tronquee: false, caracteresOmis: 0 });
+      places.set(i, { morceau: ouverture + corps + fermeture, inclusion: { ref: r.ref, id: r.id, n: r.n, titre: r.titre, type: r.type, tronquee: false, caracteresOmis: 0 } });
       continue;
     }
-    const garde = reste - avisTroncature.length;
+    // Tronquer laisse la place de la note si d'autres documents attendent encore.
+    const garde = reste - avisTroncature.length - (rang < priorite.length - 1 ? reserveNote : 0);
     if (garde >= RESTE_MINIMAL) {
       const coupe = corps.slice(0, garde);
-      morceaux.push(ouverture + coupe + avisTroncature + fermeture);
       taille += fixe + coupe.length + avisTroncature.length;
-      inclus.push({ ref: r.ref, id: r.id, n: r.n, titre: r.titre, type: r.type, tronquee: true, caracteresOmis: corps.length - coupe.length });
+      places.set(i, { morceau: ouverture + coupe + avisTroncature + fermeture, inclusion: { ref: r.ref, id: r.id, n: r.n, titre: r.titre, type: r.type, tronquee: true, caracteresOmis: corps.length - coupe.length } });
     } else {
-      exclues.push({ ref: r.ref, titre: r.titre, caracteres: corps.length });
+      places.set(i, { exclue: { ref: r.ref, titre: r.titre, caracteres: corps.length } });
     }
   }
 
+  // Restitution dans l'ordre de LECTURE.
+  const morceaux: string[] = [tete];
+  const inclus: InclusionConnaissance[] = [];
+  const exclues: BlocConnaissances['exclues'] = [];
+  retenues.forEach((_, i) => {
+    const p = places.get(i)!;
+    if ('exclue' in p) exclues.push(p.exclue);
+    else { morceaux.push(p.morceau); inclus.push(p.inclusion); }
+  });
+
   if (!inclus.length) return { texte: '', inclus, exclues };
   if (exclues.length) {
-    const note = `\n\n(${exclues.length} autre(s) document(s) de l’équipe n’ont pas tenu dans la place réservée et ne sont pas lus ici.)`;
+    const note = noteExclusion(exclues.length);
     if (taille + note.length <= plafond) morceaux.push(note);
   }
   return { texte: morceaux.join(''), inclus, exclues };

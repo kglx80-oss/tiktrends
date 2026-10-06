@@ -211,14 +211,18 @@ describe('délimitation · une source hostile reste inerte', () => {
 });
 
 describe('plafond · mesuré, respecté, troncature dite', () => {
-  it('le bloc ne dépasse jamais le plafond · le document qui déborde est tronqué et signalé, le suivant écarté', () => {
+  it('le bloc ne dépasse jamais le plafond · le document qui déborde est tronqué et signalé, les autres écartés', () => {
     const liste = [1, 2, 3].map((k) => publiee(k, { titre: `doc ${k}`, type: 'savoir', texte: String(k).repeat(LIMITE_TEXTE - 100) }, `2026-10-05T0${k}:00:00.000Z`));
     const bloc = assemblerConnaissances(versionsApplicables(liste, ctx).retenues);
     expect(bloc.texte.length).toBeLessThanOrEqual(PLAFOND_CONNAISSANCES);
     expect(bloc.inclus.map((i) => i.tronquee)).toEqual([true]);
     expect(bloc.inclus[0]!.caracteresOmis).toBeGreaterThan(0);
     expect(bloc.texte).toContain('[… tronqué');
-    expect(bloc.exclues.map((e) => e.titre)).toEqual(['doc 2', 'doc 3']);
+    // Message 63 · sous saturation, la place va d'abord au plus RÉCENT de son
+    // type (doc 3) · les plus anciens sont écartés, et le bloc le dit.
+    expect(bloc.inclus[0]!.titre).toBe('doc 3');
+    expect(bloc.exclues.map((e) => e.titre)).toEqual(['doc 1', 'doc 2']);
+    expect(bloc.texte).toContain('2 autre(s) document(s) de l’équipe n’ont pas tenu');
   });
 
   it('sous le plafond · tout entre, rien n’est tronqué', () => {
