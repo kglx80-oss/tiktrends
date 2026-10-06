@@ -92,4 +92,22 @@ describe('Onglet rendu focalisé · jamais sous la barre haute', () => {
     expect(document.activeElement?.textContent?.replace(/\s*·?\s*\d+$/, '').trim()).toBe('Hooks');
     expect(appel.defile, 'la page défile pour un onglet déjà visible').toEqual([]);
   });
+
+  it('Tab au clavier sur un onglet sous la barre (mesuré sur 94d45285 · −1,2) · ramené · visible (337,5) · laissé en place', async () => {
+    appel.haut = -1.2;
+    window.history.replaceState(null, '', '/saved');
+    el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el);
+    await act(async () => { root!.render(<SavedBoards items={items} followKeys={[]} />); });
+    const tous = onglets(el);
+    expect(tous.length).toBeGreaterThanOrEqual(3);
+    for (const b of tous) {
+      appel.defile = [];
+      await act(async () => { b.focus(); });
+      const nom = (b.textContent || '').replace(/\s*·?\s*\d+$/, '').trim();
+      expect(appel.defile, `le focus clavier laisse « ${nom} » sous la barre haute`).toContainEqual({ onglet: nom, block: 'start' });
+    }
+    appel.haut = 337.5; appel.defile = [];
+    await act(async () => { tous[1]!.focus(); });
+    expect(appel.defile, 'la page défile pour un onglet visible').toEqual([]);
+  });
 });

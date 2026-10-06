@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties, type FocusEvent } from 'react';
 import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
@@ -93,12 +93,17 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
   // défile pas un élément déjà dans la vue. On focalise sans défiler, puis on
   // ramène l'onglet à sa `scroll-margin-top` quand il est sous la barre ou
   // hors du bas de la vue (règle du noyau) · un onglet visible ne bouge pas.
-  const focusOngletActif = () => {
-    const b = barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
-    if (!b) return;
-    b.focus({ preventScroll: true });
+  // Même règle pour TOUT focus d'onglet (Tab au clavier compris) · mesuré sur
+  // 94d45285 · après une création, Tab arrivait sur des onglets déjà dans la
+  // vue sous la barre (−1,2 à 1440 et 1280) et le navigateur ne défilait pas.
+  const ramenerSiMasque = (e: FocusEvent<HTMLButtonElement>) => {
+    const b = e.currentTarget;
     const r = b.getBoundingClientRect();
     if (ramenerSousBarreHaute(r.top, r.bottom, window.innerHeight)) b.scrollIntoView?.({ block: 'start' });
+  };
+  const focusOngletActif = () => {
+    // Le défilement éventuel est fait par `ramenerSiMasque` (onFocus).
+    barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus({ preventScroll: true });
   };
   // L'onglet AFFICHÉ, lu après la réponse du serveur (la fermeture de `move`
   // garde celui du clic) · et le focus rendu APRÈS le rendu de la restauration
@@ -208,11 +213,11 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
 
       {/* Onglets des boards */}
       <div ref={barreRef} role="group" aria-label="Boards" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
-        <button type="button" aria-pressed={tab === BOARD_TOUS} onClick={() => choisirBoard(BOARD_TOUS)} style={tabBtn(BOARD_TOUS)}>Toutes · {countIn(BOARD_TOUS)}</button>
+        <button type="button" aria-pressed={tab === BOARD_TOUS} onClick={() => choisirBoard(BOARD_TOUS)} onFocus={ramenerSiMasque} style={tabBtn(BOARD_TOUS)}>Toutes · {countIn(BOARD_TOUS)}</button>
         {folders.map((f) => (
-          <button key={f} type="button" aria-pressed={tab === f} title={f} onClick={() => choisirBoard(f)} style={tabBtn(f)}><Icon name="folder" size={13} /><span style={{ marginLeft: 5, overflow: 'hidden', textOverflow: 'ellipsis' }}>{f}</span><span style={{ flexShrink: 0 }}>&nbsp;· {countIn(f)}</span></button>
+          <button key={f} type="button" aria-pressed={tab === f} title={f} onClick={() => choisirBoard(f)} onFocus={ramenerSiMasque} style={tabBtn(f)}><Icon name="folder" size={13} /><span style={{ marginLeft: 5, overflow: 'hidden', textOverflow: 'ellipsis' }}>{f}</span><span style={{ flexShrink: 0 }}>&nbsp;· {countIn(f)}</span></button>
         ))}
-        {list.some((i) => !i.folder) && <button type="button" aria-pressed={tab === BOARD_SANS} onClick={() => choisirBoard(BOARD_SANS)} style={tabBtn(BOARD_SANS)}>Sans dossier · {countIn(BOARD_SANS)}</button>}
+        {list.some((i) => !i.folder) && <button type="button" aria-pressed={tab === BOARD_SANS} onClick={() => choisirBoard(BOARD_SANS)} onFocus={ramenerSiMasque} style={tabBtn(BOARD_SANS)}>Sans dossier · {countIn(BOARD_SANS)}</button>}
       </div>
 
       {shown.length === 0 ? (
