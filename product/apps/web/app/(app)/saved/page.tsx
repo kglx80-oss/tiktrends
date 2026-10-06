@@ -13,7 +13,7 @@ import { GrammaireCategorie } from '../../../components/GrammaireCategorie';
 import { SavedTabs } from '../../../components/SavedTabs';
 import { BibliothequeVide } from '../../../components/BibliothequeVide';
 import { Empty } from '../../../components/Empty';
-import { lireFormatCreatif, ongletValide } from '@tiktrends/core';
+import { explicationPontAdsmap, lireFormatCreatif, ongletValide, raisonPontAdsmap } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { cadrePage, h1 } from '../../../components/ui';
 
@@ -53,7 +53,15 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
   // Le bouton « Suivre dans ADSMAP » ne s'affiche que si la carte est ouverte à
   // cet espace ET qu'une marque est active · sinon l'action n'aurait nulle part
   // où écrire, et on proposerait un geste qui échoue.
-  const adsmapOpen = !!activeBrand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
+  const Adsmap = FEATURES.find((f) => f.key === 'adsmap')!;
+  const adsmapOpen = !!activeBrand && canAccess(effectiveAccess(s), Adsmap);
+  // Lot 20B · fermé, le pont dit pourquoi au lieu de disparaître · la raison
+  // RÉELLE (refus de la fonctionnalité · rôle avant offre · puis marque
+  // active), calculée ici comme sur `/veille/formats`, texte du noyau · aucun
+  // bouton ni lien d'achat. Les droits ne changent pas (Starter n'a pas
+  // Adsmap · il lit « inclus dans l'offre Plus »).
+  const refusAdsmap = adsmapOpen ? null
+    : explicationPontAdsmap(raisonPontAdsmap(denyReason(effectiveAccess(s), Adsmap), !!activeBrand), 'Suivre dans Adsmap');
   // Lot 19C · le classement par format suit le droit Veille · le MÊME calcul que
   // la garde de l'action (`classerFormatSauvegarde`) et que `/veille/formats` ·
   // fait ici, côté serveur, et transmis aux cartes · jamais recalculé au client.
@@ -91,7 +99,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
         <SavedTabs
           initial={ongletValide(sp.onglet)}
           compteurs={{ creations: items.length, marques: brands.length, nouveautes: nonVus }}
-          creations={<SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} formatIndisponible={formatIndisponible} />}
+          creations={<SavedBoards items={items} followKeys={followKeys} adsmap={adsmapOpen} refusAdsmap={refusAdsmap} formatIndisponible={formatIndisponible} />}
           marques={brands.length === 0
             ? marquesVide
             : <MarquesSuivies brands={brands.map((b) => ({ id: b.id, platform: b.platform, name: b.name, logoUrl: b.logoUrl, domain: b.domain }))} vide={marquesVide} />}

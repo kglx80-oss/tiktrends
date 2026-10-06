@@ -248,4 +248,12 @@ describe('pont Adsmap refusé · la raison réelle (message 60)', () => {
     expect(explicationPontAdsmap(null)).toBeNull();
     for (const r of ['offre', 'role', 'marque'] as const) expect(explicationPontAdsmap(r)!.length).toBeLessThan(80);
   });
+
+  it('lot 20B · le geste nommé suit l’écran (Sauvegardes · « Suivre dans Adsmap »), la raison ne change pas', () => {
+    expect(explicationPontAdsmap('offre', 'Suivre dans Adsmap')).toBe('Suivre dans Adsmap · inclus dans l’offre Plus.');
+    expect(explicationPontAdsmap('role', 'Suivre dans Adsmap')).toBe('Suivre dans Adsmap · réservé aux rôles qui ont accès à Adsmap.');
+    expect(explicationPontAdsmap('marque', 'Suivre dans Adsmap')).toBe('Suivre dans Adsmap · choisis d’abord une marque active.');
+    expect(explicationPontAdsmap(null, 'Suivre dans Adsmap')).toBeNull();
+    for (const r of ['offre', 'role', 'marque'] as const) expect(explicationPontAdsmap(r, 'Suivre dans Adsmap')!.length).toBeLessThan(80);
+  });
 });

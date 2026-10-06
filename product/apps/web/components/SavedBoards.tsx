@@ -20,7 +20,13 @@ export interface SavedItem { id: string; ad: InspoAd; folder: string | null; ext
  * Boards / dossiers de rangement pour les créas sauvegardées (façon Foreplay/Atria).
  * Onglets par board + rangement d'une créa dans un board (existant ou nouveau), en direct.
  */
-export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponible = null }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean;
+export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = null, formatIndisponible = null }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean;
+  /**
+   * Lot 20B · pont Adsmap fermé · l'explication calculée côté serveur (raison
+   * réelle, texte du noyau) affichée à la place du bouton · jamais recalculée
+   * ici. Ignorée quand `adsmap` est ouvert.
+   */
+  refusAdsmap?: string | null;
   /** Lot 19C · raison calculée côté serveur quand le classement par format n'est pas ouvert (sans Veille) · `null` = ouvert. */
   formatIndisponible?: string | null }) {
   const [list, setList] = useState<SavedItem[]>(items);
@@ -151,8 +157,9 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
   }
 
   // Une piste par élément de la cellule · la carte, « Ranger », « Format », et
-  // le pont Adsmap quand il est rendu.
-  const pistes = 3 + (adsmap ? 1 : 0);
+  // le pont Adsmap quand il est rendu (bouton, ou raison du refus).
+  const pontRefuse = !adsmap && !!refusAdsmap;
+  const pistes = 3 + (adsmap || pontRefuse ? 1 : 0);
 
   const tabBtn = (key: string): CSSProperties => ({
     // Un nom de board long reste dans la largeur (ellipse, nom complet au survol).
@@ -215,6 +222,7 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
                 champ descendait (mesuré · 4 px à 1440 et 1280). */}
             <div><FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} /></div>
             {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
+            {pontRefuse && <p data-pont-refus style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.45 }}>{refusAdsmap}</p>}
           </div>
         ))}
       </div>

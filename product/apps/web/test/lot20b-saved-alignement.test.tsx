@@ -52,7 +52,7 @@ const items: SavedItem[] = [
   { id: 's3', externalId: 'e3', platform: 'meta', folder: 'Hooks', ad: ad('e3', 'Maison Héritage Parfumerie Artisanale Française Indépendante', 'Un parfum de peau.') },
 ];
 
-function lire(props: { adsmap?: boolean }) {
+function lire(props: { adsmap?: boolean; refusAdsmap?: string | null }) {
   const h = document.createElement('div');
   h.innerHTML = renderToStaticMarkup(<SavedBoards items={items} followKeys={[]} {...props} />);
   const grille = [...h.querySelectorAll('div')].find((d) => /grid-template-columns:\s*repeat\(auto-fill/.test(d.getAttribute('style') ?? ''));
@@ -72,6 +72,7 @@ const style = (e: Element) => e.getAttribute('style') ?? '';
 describe('Sauvegardes · les commandes partagent les pistes de leur rangée', () => {
   for (const [cas, props, attendus] of [
     ['pont ouvert', { adsmap: true }, ['carte', 'ranger', 'format', 'pont']],
+    ['pont fermé, raison dite', { adsmap: false, refusAdsmap: 'Suivre dans Adsmap · inclus dans l’offre Plus.' }, ['carte', 'ranger', 'format', 'pont']],
     ['sans pont (composant seul, défaut)', {}, ['carte', 'ranger', 'format']],
   ] as const) {
     it(`${cas} · chaque cellule est une sous-grille qui couvre une piste par élément, dans le même ordre`, () => {
