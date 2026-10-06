@@ -88,12 +88,25 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
       return next;
     });
     const avant = it.folder;
+    // Remet la créa dans son board d'origine (l'onglet de ce board réapparaît
+    // avec elle) · même geste pour un refus et pour une exception.
+    const restaurer = () => setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
     start(async () => {
-      const r = await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value });
+      let r: Awaited<ReturnType<typeof setSavedAdFolder>>;
+      try {
+        r = await setSavedAdFolder({ platform: it.platform, externalId: it.externalId, folder: value });
+      } catch {
+        // Message 60 · une exception (réseau, serveur) laissait la créa affichée
+        // dans le nouveau board, sans retour (et l'erreur remontait de la
+        // transition) · même traitement qu'un refus, avec la raison générique.
+        restaurer();
+        toast('Rangement non enregistré · vérifie ta connexion puis réessaie.', 'err');
+        return;
+      }
       // Message 56 · un refus du serveur (rôle, autre marque) remet la créa dans
       // son board et se dit · jamais de « Rangé dans… » sur un non.
       if (r && r.ok === false) {
-        setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
+        restaurer();
         toast(r.error, 'err');
         return;
       }
