@@ -43,8 +43,10 @@ const rangee: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, align
  * l'URL (critères) et de la base (classements) · les comptes et la grille sont
  * calculés au noyau (`compterFormats`, `grilleFormat`).
  */
-export function VueFormats({ annonces, criteres: c, marque, suivis, adsmap }: {
+export function VueFormats({ annonces, criteres: c, marque, suivis, adsmap, refusAdsmap = null }: {
   annonces: AnnonceSauvegardee[]; criteres: CriteresFormats; marque: string | null; suivis: string[]; adsmap: boolean;
+  /** Message 60 · pont Adsmap fermé · l'explication calculée côté serveur (noyau), à la place du bouton. */
+  refusAdsmap?: string | null;
 }) {
   const compte = compterFormats(annonces, c);
   const plateformes = plateformesPresentes(annonces);
@@ -95,7 +97,7 @@ export function VueFormats({ annonces, criteres: c, marque, suivis, adsmap }: {
         )}
       </div>}
 
-      {c.format ? <Grille annonces={annonces} c={c} total={compte} suivis={suivis} adsmap={adsmap} /> : <Liste compte={compte} c={c} filtre={filtre} />}
+      {c.format ? <Grille annonces={annonces} c={c} total={compte} suivis={suivis} adsmap={adsmap} refusAdsmap={refusAdsmap} /> : <Liste compte={compte} c={c} filtre={filtre} />}
 
       <p style={{ marginTop: 28, fontSize: 11.5, color: 'var(--muted)' }}>
         Liste des formats · version {VERSION_FORMATS_CREATIFS} · 25 formats et Autre, filtrés par média au moment du choix. <a href="/saved" style={{ color: 'var(--ink-2)' }}>Toutes tes sauvegardes</a>
@@ -180,7 +182,7 @@ function Medias({ f }: { f: FormatCreatif }) {
   );
 }
 
-function Grille({ annonces, c, total, suivis, adsmap }: { annonces: AnnonceSauvegardee[]; c: CriteresFormats; total: ReturnType<typeof compterFormats>; suivis: string[]; adsmap: boolean }) {
+function Grille({ annonces, c, total, suivis, adsmap, refusAdsmap }: { annonces: AnnonceSauvegardee[]; c: CriteresFormats; total: ReturnType<typeof compterFormats>; suivis: string[]; adsmap: boolean; refusAdsmap: string | null }) {
   const vue = c.format!;
   const grille = grilleFormat(annonces, c);
   const retour = lien({ ...c, format: null, tri: 'recent' });
@@ -223,7 +225,8 @@ function Grille({ annonces, c, total, suivis, adsmap }: { annonces: AnnonceSauve
                   {classeLe ? <> · classée le {classeLe}{a.auteurNom ? <> par {a.auteurNom}</> : null}</> : null}
                 </p>
                 <FormatChoix platform={a.platform} externalId={a.externalId} mediaType={a.mediaType} initial={a.format.id} versionAncienne={a.format.versionAncienne} vue={vue} />
-                {adsmap && <PreparerTest platform={a.platform} externalId={a.externalId} />}
+                {adsmap ? <PreparerTest platform={a.platform} externalId={a.externalId} />
+                  : refusAdsmap ? <p data-pont-refus style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.45 }}>{refusAdsmap}</p> : null}
               </article>
             );
           })}

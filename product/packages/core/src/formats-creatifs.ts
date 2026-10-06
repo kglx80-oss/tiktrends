@@ -443,3 +443,29 @@ export function libelleSauvegardesAClasser(n: number): string {
     ? `${n} sauvegardes à classer · comptées à part, dans aucun format`
     : `${n} sauvegarde à classer · comptée à part, dans aucun format`;
 }
+
+/* ── Pont Adsmap refusé · la raison RÉELLE, dite (message 60) ────────────── */
+
+export type RaisonPontAdsmap = 'offre' | 'role' | 'marque';
+
+/**
+ * Pourquoi « Préparer un test · Adsmap » n'est pas proposé · la raison de refus
+ * de la fonctionnalité `adsmap` (`denyReason` · rôle avant offre, comme au
+ * rbac), sinon l'absence de marque active (le pont écrit dans une marque).
+ * `null` = pont ouvert. Avant, le bouton disparaissait sans rien dire.
+ */
+export function raisonPontAdsmap(refus: 'role' | 'plan' | null, marqueActive: boolean): RaisonPontAdsmap | null {
+  if (refus === 'role') return 'role';
+  if (refus === 'plan') return 'offre';
+  return marqueActive ? null : 'marque';
+}
+
+/** L'explication courte affichée à la place du bouton · aucun lien d'achat. */
+export function explicationPontAdsmap(raison: RaisonPontAdsmap | null): string | null {
+  switch (raison) {
+    case 'offre': return 'Préparer un test dans Adsmap · inclus dans l’offre Plus.';
+    case 'role': return 'Préparer un test dans Adsmap · réservé aux rôles qui ont accès à Adsmap.';
+    case 'marque': return 'Préparer un test dans Adsmap · choisis d’abord une marque active.';
+    default: return null;
+  }
+}

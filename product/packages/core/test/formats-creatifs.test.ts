@@ -3,7 +3,7 @@ import {
   ANCIENNES_VALEURS_FORMAT, FORMATS_CREATIFS, IDS_FORMATS_CREATIFS, LECTURE_NON_CLASSE, VERSION_FORMATS_CREATIFS,
   compterFormats, criteresActifsFormats, ecrireCriteresFormats, enregistrementFormat, formatDepuisAncienneValeur,
   formatsPourMedia, grilleFormat, lireCriteresFormats, lireFormatCreatif, mediaAnnonce, sansFormatCreatif,
-  validerChoixFormat, dateCourteFormat, libelleClasserSauvegardes, libelleSauvegardesAClasser, type AnnonceFormat, type LectureFormat,
+  validerChoixFormat, dateCourteFormat, explicationPontAdsmap, libelleClasserSauvegardes, libelleSauvegardesAClasser, raisonPontAdsmap, type AnnonceFormat, type LectureFormat,
 } from '../src/formats-creatifs';
 
 /**
@@ -229,5 +229,23 @@ describe('accord des sauvegardes à classer (message 56)', () => {
     expect(libelleSauvegardesAClasser(0)).toBe('0 sauvegarde à classer · comptée à part, dans aucun format');
     expect(libelleSauvegardesAClasser(1), 'accord faux au singulier').toBe('1 sauvegarde à classer · comptée à part, dans aucun format');
     expect(libelleSauvegardesAClasser(2)).toBe('2 sauvegardes à classer · comptées à part, dans aucun format');
+  });
+});
+
+describe('pont Adsmap refusé · la raison réelle (message 60)', () => {
+  it('rôle avant offre, puis marque absente, sinon ouvert', () => {
+    expect(raisonPontAdsmap('role', true)).toBe('role');
+    expect(raisonPontAdsmap('role', false)).toBe('role');
+    expect(raisonPontAdsmap('plan', true)).toBe('offre');
+    expect(raisonPontAdsmap('plan', false)).toBe('offre');
+    expect(raisonPontAdsmap(null, false)).toBe('marque');
+    expect(raisonPontAdsmap(null, true), 'pont ouvert, aucune explication').toBeNull();
+  });
+  it('une explication courte par raison, aucune quand le pont est ouvert', () => {
+    expect(explicationPontAdsmap('offre')).toBe('Préparer un test dans Adsmap · inclus dans l’offre Plus.');
+    expect(explicationPontAdsmap('role')).toBe('Préparer un test dans Adsmap · réservé aux rôles qui ont accès à Adsmap.');
+    expect(explicationPontAdsmap('marque')).toBe('Préparer un test dans Adsmap · choisis d’abord une marque active.');
+    expect(explicationPontAdsmap(null)).toBeNull();
+    for (const r of ['offre', 'role', 'marque'] as const) expect(explicationPontAdsmap(r)!.length).toBeLessThan(80);
   });
 });

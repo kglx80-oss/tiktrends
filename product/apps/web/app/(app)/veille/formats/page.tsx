@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { InspoAd } from '@tiktrends/integrations';
-import { lireCriteresFormats, lireFormatCreatif } from '@tiktrends/core';
+import { explicationPontAdsmap, lireCriteresFormats, lireFormatCreatif, raisonPontAdsmap } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
@@ -92,10 +92,13 @@ export default async function FormatsPage({ searchParams }: { searchParams: Prom
     }
   }
   const adsmapOuvert = !!marque && canAccess(access, Adsmap);
+  // Message 60 · fermé, le pont dit pourquoi (raison RÉELLE, calculée ici,
+  // texte du noyau) au lieu de disparaître · aucun bouton ni lien d'achat.
+  const refusAdsmap = adsmapOuvert ? null : explicationPontAdsmap(raisonPontAdsmap(denyReason(access, Adsmap), !!marque));
 
   return (
     <main style={cadrePage}>
-      <VueFormats annonces={annonces} criteres={criteres} marque={marque?.name ?? null} suivis={[...suivis]} adsmap={adsmapOuvert} />
+      <VueFormats annonces={annonces} criteres={criteres} marque={marque?.name ?? null} suivis={[...suivis]} adsmap={adsmapOuvert} refusAdsmap={refusAdsmap} />
     </main>
   );
 }

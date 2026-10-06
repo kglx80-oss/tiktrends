@@ -208,7 +208,7 @@ describe('d · pont Adsmap · droit vérifié côté serveur', () => {
   it('le bouton suit le même droit · absent en Core, présent en Plus', async () => {
     const core = await rendre({ format: 'packshot' });
     expect(core).toContain('data-annonce="y-camille"');
-    expect(core, 'le pont Adsmap est proposé sans le droit Adsmap').not.toContain('Préparer un test');
+    expect(core, 'le pont Adsmap est proposé sans le droit Adsmap').not.toContain('Préparer un test · Adsmap');
     session.plan = 'plus';
     const plus = await rendre({ format: 'packshot' });
     expect(plus).toContain('Préparer un test · Adsmap');
