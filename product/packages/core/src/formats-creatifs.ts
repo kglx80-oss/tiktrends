@@ -461,6 +461,17 @@ export function raisonPontAdsmap(refus: 'role' | 'plan' | null, marqueActive: bo
 }
 
 /**
+ * Message 71 · « Suivre dans Adsmap » (Sauvegardes) · un nouvel essai est-il
+ * permis ? Seuls un envoi EN COURS (`busy`) et un succès (`done`, définitif)
+ * le bloquent · une erreur (le texte du refus) se retente · le nouvel essai
+ * repasse par l'action et sa garde. Avant, toute valeur bloquait · une erreur
+ * de garde (marque active absente) rendait le bouton actif mais muet.
+ */
+export function suiviAdsmapRelancable(etat: string | undefined): boolean {
+  return etat !== 'busy' && etat !== 'done';
+}
+
+/**
  * L'explication courte affichée à la place du bouton · aucun lien d'achat.
  * `geste` · le geste que le bouton aurait proposé, tel qu'il s'affiche sur
  * l'écran qui l'utilise · « Préparer un test dans Adsmap » sur

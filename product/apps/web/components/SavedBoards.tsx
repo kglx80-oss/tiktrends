@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
-import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur } from '@tiktrends/core';
+import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
@@ -67,12 +67,24 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
 
   // Veille → ADSMAP : une pub concurrente devient un concept « imitation ».
   const [suivi, setSuivi] = useState<Record<string, 'busy' | 'done' | string>>({});
+  // Message 71 · une erreur (texte du refus) n'empêche plus un nouvel essai ·
+  // seuls l'envoi en cours et le succès bloquent (règle du noyau). Le verrou
+  // ne dépend pas du rendu · deux clics dans la même tâche n'envoient qu'UNE
+  // requête. Une exception ne laisse plus le bouton figé sur « Ajout… ».
+  const enCours = useRef(new Set<string>());
   const suivre = async (it: SavedItem) => {
     const cle = `${it.platform}:${it.externalId}`;
-    if (suivi[cle]) return;
+    if (enCours.current.has(cle) || !suiviAdsmapRelancable(suivi[cle])) return;
+    enCours.current.add(cle);
     setSuivi((x) => ({ ...x, [cle]: 'busy' }));
-    const r = await trackSavedAdAction({ platform: it.platform, externalId: it.externalId });
-    setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
+    try {
+      const r = await trackSavedAdAction({ platform: it.platform, externalId: it.externalId });
+      setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
+    } catch {
+      setSuivi((x) => ({ ...x, [cle]: 'Ajout non enregistré · vérifie ta connexion puis réessaie.' }));
+    } finally {
+      enCours.current.delete(cle);
+    }
   };
 
   const barreRef = useRef<HTMLDivElement>(null);

@@ -3,7 +3,7 @@ import {
   ANCIENNES_VALEURS_FORMAT, FORMATS_CREATIFS, IDS_FORMATS_CREATIFS, LECTURE_NON_CLASSE, VERSION_FORMATS_CREATIFS,
   compterFormats, criteresActifsFormats, ecrireCriteresFormats, enregistrementFormat, formatDepuisAncienneValeur,
   formatsPourMedia, grilleFormat, lireCriteresFormats, lireFormatCreatif, mediaAnnonce, sansFormatCreatif,
-  validerChoixFormat, dateCourteFormat, explicationPontAdsmap, libelleClasserSauvegardes, libelleSauvegardesAClasser, raisonPontAdsmap, type AnnonceFormat, type LectureFormat,
+  validerChoixFormat, dateCourteFormat, explicationPontAdsmap, suiviAdsmapRelancable, libelleClasserSauvegardes, libelleSauvegardesAClasser, raisonPontAdsmap, type AnnonceFormat, type LectureFormat,
 } from '../src/formats-creatifs';
 
 /**
@@ -247,6 +247,13 @@ describe('pont Adsmap refusé · la raison réelle (message 60)', () => {
     expect(explicationPontAdsmap('marque')).toBe('Préparer un test dans Adsmap · choisis d’abord une marque active.');
     expect(explicationPontAdsmap(null)).toBeNull();
     for (const r of ['offre', 'role', 'marque'] as const) expect(explicationPontAdsmap(r)!.length).toBeLessThan(80);
+  });
+
+  it('message 71 · seuls l’envoi en cours et le succès bloquent un nouvel essai · une erreur se retente', () => {
+    expect(suiviAdsmapRelancable(undefined)).toBe(true);
+    expect(suiviAdsmapRelancable('Sélectionne une marque active pour ouvrir Adsmap.'), 'une erreur bloque le nouvel essai').toBe(true);
+    expect(suiviAdsmapRelancable('busy'), 'un envoi en cours se double').toBe(false);
+    expect(suiviAdsmapRelancable('done'), 'un succès se renvoie').toBe(false);
   });
 
   it('lot 20B · le geste nommé suit l’écran (Sauvegardes · « Suivre dans Adsmap »), la raison ne change pas', () => {
