@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { breadcrumb, isBrandScoped } from '../lib/navigation';
 import { CIBLE_TACTILE_MIN, CADRE_PAGE, gouttiereCss } from '@tiktrends/core';
 
@@ -32,8 +32,10 @@ export function Breadcrumb({ brandName, brandId, brands = [] }: {
   brands?: Array<{ id: string; name: string }>;
 }) {
   const pathname = usePathname() || '/';
+  // Lot 19A · sur l'Accueil, la recherche choisit l'écran (`?vue=analytics`).
+  const recherche = useSearchParams()?.toString() ?? '';
   const resolveBrand = (id: string) => brands.find((b) => b.id === id)?.name ?? null;
-  const crumbs = breadcrumb(pathname, { brandName, brandId, resolveBrand, brandScoped: isBrandScoped(pathname) });
+  const crumbs = breadcrumb(pathname, { brandName, brandId, resolveBrand, brandScoped: isBrandScoped(pathname), recherche });
   if (!crumbs.length) return null;
 
   return (
@@ -60,9 +62,18 @@ export function Breadcrumb({ brandName, brandId, brands = [] }: {
           <span key={`${c.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {i > 0 && <span style={{ color: 'var(--line-2)' }} aria-hidden>›</span>}
             {c.href ? (
+              // Même chemin, autre recherche (« Accueil » depuis la vue Analytics) ·
+              // le routeur client ne termine pas cette transition (noyau
+              // `chargementCompletRequis`) · le navigateur la fait. Même style.
+              c.href.split('?')[0] === pathname ? (
+                <a href={c.href} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, color: 'var(--muted)', textDecoration: 'none', fontWeight: 600 }}>
+                  {c.label}
+                </a>
+              ) : (
               <Link href={c.href} style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, color: 'var(--muted)', textDecoration: 'none', fontWeight: 600 }}>
                 {c.label}
               </Link>
+              )
             ) : (
               <span
                 // Le dernier maillon est la page courante · on le dit aux

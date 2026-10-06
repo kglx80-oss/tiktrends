@@ -1,3 +1,5 @@
+import { CHEMIN_ACCUEIL, RUBRIQUE_ANALYTICS, lireVueAccueil } from '@tiktrends/core';
+
 /**
  * Où l'on est, et comment on y est arrivé.
  *
@@ -185,6 +187,34 @@ export interface CrumbOptions {
    * marque.
    */
   resolveBrand?: (id: string) => string | null;
+  /**
+   * Recherche courante (`?vue=analytics`) · lot 19A. Sur l'Accueil, elle choisit
+   * l'ÉCRAN (la vue Analytics) · le fil doit nommer cet écran, pas l'Accueil.
+   */
+  recherche?: string;
+}
+
+/**
+ * Les VUES d'un écran · même chemin, la recherche choisit l'écran (lot 19A).
+ * La vue Analytics de l'Accueil (`/dashboard?vue=analytics`, règle
+ * `lireVueAccueil` au noyau) était la page `/analytics` · elle garde son
+ * libellé, l'Accueil pour parent, et sa portée marque (elle travaille sur la
+ * marque active · le fil la nomme, comme il le faisait sur `/analytics`).
+ * Déclarée ICI pour que le rail (une entrée à requête) et le fil s'accordent.
+ */
+export interface VueDeRoute { path: string; href: string; label: string; parent: string; parMarque: boolean; active: (recherche: string) => boolean }
+export const VUES: VueDeRoute[] = [
+  { path: CHEMIN_ACCUEIL, href: RUBRIQUE_ANALYTICS, label: 'Analytics', parent: CHEMIN_ACCUEIL, parMarque: true, active: (r) => lireVueAccueil(r) === 'analytics' },
+];
+
+function filDeVue(route: RouteNode, opts: CrumbOptions): Crumb[] | null {
+  const vue = VUES.find((v) => v.path === route.path && v.active(opts.recherche ?? ''));
+  if (!vue) return null;
+  const parent = PAR_CHEMIN.get(vue.parent);
+  const crumbs: Crumb[] = [{ label: parent?.label ?? 'Accueil', href: vue.parent }];
+  if (vue.parMarque && opts.brandName) crumbs.push({ label: opts.brandName, href: opts.brandId ? `/brands/${opts.brandId}` : null });
+  crumbs.push({ label: vue.label, href: null });
+  return crumbs;
 }
 
 /** Écrans dont le contenu dépend entièrement de la marque active. */
@@ -216,6 +246,8 @@ export function isBrandScoped(pathname: string): boolean {
 export function breadcrumb(pathname: string, opts: CrumbOptions = {}): Crumb[] {
   const route = matchRoute(pathname);
   if (!route || route.hidden) return [];
+  const vue = filDeVue(route, opts);
+  if (vue) return vue;
 
   // Remontée de filiation · bornée, sûre même si la carte contenait un cycle.
   const chaine: RouteNode[] = [];

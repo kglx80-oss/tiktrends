@@ -50,7 +50,7 @@ describe('N09 · l\'écriture de fraîcheur ne déborde pas d\'un connecteur sur
 
 describe('N09 · les lecteurs Meta lisent la fraîcheur Meta, pas la valeur partagée', () => {
   it('Analytics data ses KPI Meta avec metaSyncedAt', () => {
-    const a = readFileSync(join(process.cwd(), 'app/(app)/analytics/page.tsx'), 'utf8');
+    const a = readFileSync(join(process.cwd(), 'components/accueil/VueAnalytics.tsx'), 'utf8');
     expect(a).toMatch(/syncedAt: schema\.brands\.metaSyncedAt/);
   });
   it('Radar data ses créas Meta avec metaSyncedAt', () => {

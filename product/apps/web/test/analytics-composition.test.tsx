@@ -18,12 +18,15 @@ import { join } from 'node:path';
  */
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-const page = read('app/(app)/analytics/page.tsx');
+const page = read('components/accueil/VueAnalytics.tsx');
 
 describe('Analytics · les titres suivent la charte (graisse 500, sections à 19)', () => {
-  it('le h1 reste l’ancre de charte (500)', () => {
+  it('le h1 reste l’ancre de charte (500) · le jeton partagé de components/ui (lot 19)', () => {
     expect(page).toContain("fontWeight: 500");
-    expect(page).toContain("const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500,");
+    expect(page, 'le titre n’utilise plus le jeton h1 partagé').toMatch(/import \{[^}]*\bh1\b[^}]*\} from '\.\.\/ui';/);
+    expect(page).toContain('<h1 style={h1}>Analytics</h1>');
+    expect(page, 'un h1 local concurrent du jeton est revenu').not.toMatch(/const h1 =/);
+    expect(read('components/ui.tsx')).toContain("export const h1: CSSProperties = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500,");
   });
 
   it('le const h2 (titres de carte / section) est en graisse 500, plus en 700', () => {

@@ -87,6 +87,15 @@ export interface ContexteRail {
   hash: string;
   /** Ancres que le rail déclare · une ancre hors de cet ensemble ne départage pas. */
   ancres: Set<string>;
+  /** Recherche courante (`?vue=analytics`) · lot 19A. Absente · aucune clé autre que `tab`. */
+  recherche?: string;
+  /** Hrefs que le rail déclare · une sœur à requête du même chemin peut prendre la sélection. */
+  entrees?: readonly string[];
+}
+
+/** Les clés d'une requête d'entrée, hors `tab` (qui a sa propre règle). */
+function clesVue(requete: string): Array<[string, string]> {
+  return [...new URLSearchParams(requete)].filter(([k]) => k !== 'tab');
 }
 
 /**
@@ -99,16 +108,30 @@ export interface ContexteRail {
 export function railEntreeActive(href: string, ctx: ContexteRail): boolean {
   const [avantHash, ancre] = href.split('#');
   const [path, query] = avantHash!.split('?');
+  const courante = new URLSearchParams(ctx.recherche ?? '');
   if (query) {
     const tab = new URLSearchParams(query).get('tab') || 'overview';
     if (ctx.pathname !== path || ctx.tab !== tab) return false;
+    // Lot 19A · toute autre clé de l'entrée (`vue=analytics`) doit valoir pareil
+    // dans la recherche courante · « Analytics » n'est pas allumé sur l'Accueil.
+    if (clesVue(query).some(([k, v]) => courante.get(k) !== v)) return false;
     const cible = ancre ? `#${ancre}` : '';
     // Une ancre étrangère (défilement libre) ne compte pas · seule une section
     // DÉCLARÉE cède la sélection de l'entrée nue à sa sœur.
     const courant = ctx.ancres.has(ctx.hash) ? ctx.hash : '';
     return cible === courant;
   }
-  return ctx.pathname === path;
+  if (ctx.pathname !== path) return false;
+  // Lot 19A · une entrée NUE (« Accueil », `/dashboard`) cède la sélection à une
+  // sœur DÉCLARÉE du même chemin dont les clés (hors `tab`) sont toutes dans la
+  // recherche courante (« Analytics », `/dashboard?vue=analytics`). Une seule
+  // entrée allumée à la fois · les onglets `?tab=` gardent leur règle d'avant.
+  return !(ctx.entrees ?? []).some((e) => {
+    const [p, q] = e.split('#')[0]!.split('?');
+    if (p !== path || !q) return false;
+    const cles = clesVue(q);
+    return cles.length > 0 && cles.every(([k, v]) => courante.get(k) === v);
+  });
 }
 
 /**

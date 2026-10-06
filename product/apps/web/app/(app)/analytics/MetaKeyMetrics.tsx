@@ -2,11 +2,12 @@ import type { MetaAdsInsights, MetaKpiSet, MetaBreakdownRow } from '@tiktrends/i
 import { partDeMax } from '@tiktrends/core';
 import { MetaIcon } from '../../../components/BrandIcons';
 import { BarreValeur } from '../../../components/BarreValeur';
+import { surface } from '../../../components/ui';
 
 function BreakdownCard({ title, rows, cur }: { title: string; rows: MetaBreakdownRow[]; cur: string }) {
   const max = Math.max(1, ...rows.map((r) => r.spend));
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '16px 18px' }}>
+    <div style={{ ...surface, background: 'var(--surface)', padding: '16px 18px' }}>
       <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{title}</h3>
       <div style={{ display: 'grid', gap: 9 }}>
         {rows.map((r) => (
@@ -64,7 +65,7 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
           const d = delta(w[m.key], p[m.key]);
           const good = d == null ? null : (m.goodUp ? d >= 0 : d <= 0);
           return (
-            <div key={m.key} style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', padding: '15px 17px' }}>
+            <div key={m.key} style={{ ...surface, background: 'var(--surface)', padding: '15px 17px' }}>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', marginBottom: 7 }}>{m.label}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)' }}>{fmt(w[m.key], cur, m.kind)}</span>
@@ -91,7 +92,7 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
       {insights.topAds?.length ? (
         <>
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Top créas (par ROAS)</h3>
-          <div style={{ border: '1px solid var(--line)', borderRadius: 16, overflowX: 'auto' }}>
+          <div style={{ ...surface, overflowX: 'auto' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px', minWidth: 420, gap: 8, padding: '10px 16px', background: 'var(--surface)', color: 'var(--muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }}>
               <span>Créa</span><span style={{ textAlign: 'right' }}>ROAS</span><span style={{ textAlign: 'right' }}>CPA</span><span style={{ textAlign: 'right' }}>Dépense</span>
             </div>

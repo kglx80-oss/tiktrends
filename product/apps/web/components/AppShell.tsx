@@ -50,7 +50,7 @@ const ADMIN_CONTENT = {
   backgroundColor: '#130d07',
 } as unknown as CSSProperties;
 
-interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
+interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean; deplie?: boolean }
 interface Group { group: string; items: NavItem[] }
 interface Brand { id: string; name: string; logoUrl?: string | null; url?: string | null }
 interface AccountGroup { section: string; items: NavItem[] }
@@ -341,7 +341,8 @@ function AppShellInner(props: Props) {
   }, [pathname, searchStr]);
   // Les ancres que le rail DÉCLARE lui-même · seules celles-ci départagent
   // l'entrée nue (« Aperçu ») de ses sœurs ancrées. Aucune valeur codée en dur.
-  const ancresRail = ancresDeclarees(nav.flatMap((g) => g.items.map((it) => it.href)));
+  const hrefsRail = nav.flatMap((g) => g.items.map((it) => it.href));
+  const ancresRail = ancresDeclarees(hrefsRail);
   /**
    * « Je suis ICI » · exact, et un seul élément à la fois.
    *
@@ -352,7 +353,9 @@ function AppShellInner(props: Props) {
    * règle (route + onglet + ancre) vit dans le noyau (`railEntreeActive`).
    */
   const isNavActive = (href: string, _isSub: boolean): boolean =>
-    railEntreeActive(href, { pathname, tab: currentTab, hash: currentHash, ancres: ancresRail });
+    // Lot 19A · la recherche et les entrées déclarées départagent « Accueil »
+    // (`/dashboard`) et sa vue « Analytics » (`/dashboard?vue=analytics`).
+    railEntreeActive(href, { pathname, tab: currentTab, hash: currentHash, ancres: ancresRail, recherche: searchStr, entrees: hrefsRail });
 
   /** « La branche où je suis » · le parent, sans lui voler la sélection. */
   const isNavInPath = (href: string): boolean => {
@@ -588,12 +591,15 @@ function AppShellInner(props: Props) {
                   // arrive sur une page dont les voisines sont cachées.
                   const dedans = isNavActive(b.head.href, false) || isNavInPath(b.head.href)
                     || b.subs.some((su) => isNavActive(su.href, true));
-                  const open = expanded[b.head.key] ?? dedans;
+                  // Lot 19A · une branche déclarée dépliée (Accueil, qui regroupe
+                  // le Pilotage) l'est d'office · « Analytics » reste à un clic.
+                  const parDefaut = dedans || !!b.head.deplie;
+                  const open = expanded[b.head.key] ?? parDefaut;
                   return (
                     <NavBranch
                       key={b.head.key} b={b} isActive={isNavActive} inPath={isNavInPath} open={open}
                       tactile={mobile}
-                      onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? dedans) }))}
+                      onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? parDefaut) }))}
                       onOpen={() => setExpanded((e) => ({ ...e, [b.head.key]: true }))}
                     />
                   );

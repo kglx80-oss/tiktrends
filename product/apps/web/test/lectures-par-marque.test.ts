@@ -24,7 +24,7 @@ describe('les écrans de marque lisent la marque, pas tout l’espace', () => {
   });
 
   it('Analytics · le nuage de tags scope les assets à la marque (ou communs)', () => {
-    const src = lit('app/(app)/analytics/page.tsx');
+    const src = lit('components/accueil/VueAnalytics.tsx');
     expect(src, 'les assets du nuage de tags doivent être scopés marque-ou-commun, pas tout l’espace')
       .toMatch(/isNull\(schema\.assets\.brandId\)/);
   });
