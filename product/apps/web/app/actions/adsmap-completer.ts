@@ -105,7 +105,7 @@ export interface CompleterTestInput extends SaisieCompletude { adId: string }
  * Complète une ad brouillon · hypothèse, variable, offre et page du produit
  * CONFIRMÉES à l'écran. Rend ce qui manque encore (même règle que la préparation).
  */
-export async function completerTestAction(input: CompleterTestInput): Promise<{ ok?: true; manques?: string[]; dejaEnregistre?: boolean; error?: string }> {
+export async function completerTestAction(input: CompleterTestInput): Promise<{ ok?: true; manques?: string[]; dejaEnregistre?: boolean; dejaRenseignes?: string[]; error?: string }> {
   const g = await adsmapGuard({ minRole: 'member' });
   if ('error' in g) return { error: g.error };
   if (!input || typeof input.adId !== 'string' || !UUID.test(input.adId)) return { error: AD_INTROUVABLE };
@@ -151,7 +151,7 @@ export async function completerTestAction(input: CompleterTestInput): Promise<{ 
         produits,
       );
       if (!r.ok) throw new Refus(r.erreur);
-      if (r.dejaEnregistre) return { manques: r.manquesApres, dejaEnregistre: true as const };
+      if (r.dejaEnregistre) return { manques: r.manquesApres, dejaEnregistre: true as const, dejaRenseignes: r.dejaRenseignes };
 
       let offerId: string | undefined;
       if (r.offre) {
@@ -201,10 +201,12 @@ export async function completerTestAction(input: CompleterTestInput): Promise<{ 
         .where(and(eq(schema.ads.id, ad.id), inArray(schema.ads.status, ['draft', 'proposed'])))
         .returning({ id: schema.ads.id });
       if (!maj.length) throw new ConflitStatut();
-      return { manques: r.manquesApres, dejaEnregistre: false as const };
+      return { manques: r.manquesApres, dejaEnregistre: false as const, dejaRenseignes: r.dejaRenseignes };
     });
 
-    return resultat.dejaEnregistre ? { ok: true, manques: resultat.manques, dejaEnregistre: true } : { ok: true, manques: resultat.manques };
+    // `dejaRenseignes` seulement s'il y en a · ce que la saisie n'a PAS écrit parce que c'était déjà rempli.
+    const deja = resultat.dejaRenseignes.length ? { dejaRenseignes: resultat.dejaRenseignes } : {};
+    return resultat.dejaEnregistre ? { ok: true, manques: resultat.manques, dejaEnregistre: true, ...deja } : { ok: true, manques: resultat.manques, ...deja };
   } catch (e) {
     if (e instanceof ConflitStatut) return { error: STATUT_NON_COMPLETABLE };
     if (e instanceof Introuvable) return { error: AD_INTROUVABLE };

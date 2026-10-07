@@ -222,6 +222,13 @@ export type ResultatCompletude =
       manquesApres: string[];
       /** Rien de neuf · la saisie était déjà en base (nouvel essai après une réponse perdue). */
       dejaEnregistre: boolean;
+      /**
+       * Ce qui a été saisi mais était DÉJÀ renseigné (par un autre onglet, une
+       * autre personne, ou un envoi précédent) · rien n'est écrasé, et on le dit
+       * (recette lot 21 · l'onglet perdant lisait « Enregistré » sans savoir que
+       * son hypothèse n'avait pas été écrite).
+       */
+      dejaRenseignes: string[];
     };
 
 export const STATUT_NON_COMPLETABLE = 'Cette ad n’est plus un brouillon · elle se complète avant d’entrer en préparation, pas après. Rien n’a été enregistré.';
@@ -236,11 +243,11 @@ export function saisieCompletude(ad: AdACompleter, s: SaisieCompletude, produits
   const manques = manquesAvantTest({ adType: ad.adType, hypothesis: ad.hypothesis, testedVariable: ad.testedVariable as TestedVariable | null, offerId: ad.offerId, landingPageId: ad.landingPageId });
   const champs = champsACompleter(manques);
   const maj: { hypothesis?: string; testedVariable?: TestedVariable; variableValue?: string } = {};
-  let dejaSaisi = 0;
+  const dejaRenseignes: string[] = [];
 
   const hyp = (s.hypothesis ?? '').trim();
   if (hyp) {
-    if (!champs.hypothese) dejaSaisi++;
+    if (!champs.hypothese) dejaRenseignes.push(LIBELLE_MANQUE['ad.hypothesis']!);
     else if (hyp.length < BORNES_COMPLETUDE.hypotheseMin) return { ok: false, erreur: 'Écris l’hypothèse en une phrase · quel KPI, quelle étape du funnel, quelle valeur cible.' };
     else if (hyp.length > BORNES_COMPLETUDE.hypotheseMax) return { ok: false, erreur: `Resserre l’hypothèse à ${BORNES_COMPLETUDE.hypotheseMax} caractères.` };
     else maj.hypothesis = hyp;
@@ -250,7 +257,7 @@ export function saisieCompletude(ad: AdACompleter, s: SaisieCompletude, produits
   if (variable) {
     if (variable === 'none_control') return { ok: false, erreur: 'Le témoin n’est pas une variable testée · choisis ce que cette ad change.' };
     if (!VARIABLES_A_TESTER.some((v) => v.valeur === variable)) return { ok: false, erreur: 'Variable testée inconnue.' };
-    if (!champs.variable) dejaSaisi++;
+    if (!champs.variable) dejaRenseignes.push(LIBELLE_MANQUE['ad.tested_variable']!);
     else {
       maj.testedVariable = variable as TestedVariable;
       const valeur = (s.variableValue ?? '').trim();
@@ -270,7 +277,7 @@ export function saisieCompletude(ad: AdACompleter, s: SaisieCompletude, produits
 
   let offre: { label: string; price: number | null } | null = null;
   if (veutOffre) {
-    if (!champs.offre) dejaSaisi++;
+    if (!champs.offre) dejaRenseignes.push(LIBELLE_MANQUE['ad.offer']!);
     else {
       const prix = lirePrix(s.offre!.prix);
       if (!prix.ok) return { ok: false, erreur: prix.erreur };
@@ -280,7 +287,7 @@ export function saisieCompletude(ad: AdACompleter, s: SaisieCompletude, produits
 
   let page: { url: string; label: string; pageType: 'pdp' } | null = null;
   if (veutPage) {
-    if (!champs.page) dejaSaisi++;
+    if (!champs.page) dejaRenseignes.push(LIBELLE_MANQUE['ad.landing_page']!);
     else {
       const url = lireUrlPage(s.page!.url);
       if (!url.ok) return { ok: false, erreur: url.erreur };
@@ -291,7 +298,7 @@ export function saisieCompletude(ad: AdACompleter, s: SaisieCompletude, produits
   }
 
   const rienDeNeuf = !maj.hypothesis && !maj.testedVariable && !offre && !page;
-  if (rienDeNeuf && dejaSaisi === 0) {
+  if (rienDeNeuf && dejaRenseignes.length === 0) {
     return { ok: false, erreur: 'Rien à enregistrer · écris l’hypothèse, choisis la variable, ou confirme le prix et l’adresse du produit.' };
   }
 
@@ -302,14 +309,17 @@ export function saisieCompletude(ad: AdACompleter, s: SaisieCompletude, produits
     offerId: offre ? 'à-rattacher' : ad.offerId,
     landingPageId: page ? 'à-rattacher' : ad.landingPageId,
   });
-  return { ok: true, maj, offre, page, manquesApres, dejaEnregistre: rienDeNeuf };
+  return { ok: true, maj, offre, page, manquesApres, dejaEnregistre: rienDeNeuf, dejaRenseignes };
 }
 
 /** Ce que dit le formulaire après une écriture réussie. */
-export function texteApresCompletude(manquesApres: readonly string[]): string {
-  return manquesApres.length
+export function texteApresCompletude(manquesApres: readonly string[], dejaRenseignes: readonly string[] = []): string {
+  const base = manquesApres.length
     ? `Enregistré · reste à compléter ${listeManques([...manquesApres])}.`
     : 'Enregistré · le test est complet · « Préparer » dans les Lots le fera passer en prête.';
+  if (!dejaRenseignes.length) return base;
+  const n = dejaRenseignes.length;
+  return `${base} ${n > 1 ? 'Déjà renseignés' : 'Déjà renseigné'} entre-temps, gardé${n > 1 ? 's' : ''} tel${n > 1 ? 's' : ''} quel${n > 1 ? 's' : ''} (ta saisie n’a rien écrasé) · ${listeManques([...dejaRenseignes])}.`;
 }
 
 // ── Lots (lot 21 · recette du pilotage) ─────────────────────────────────────

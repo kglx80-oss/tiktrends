@@ -372,8 +372,19 @@ describe('completerTestAction · refus sans aucune écriture, succès sans touch
     expect([b.offerId, b.landingPageId], 'offre ou page dupliquée').toEqual([a.offerId, a.landingPageId]);
     expect(await compter()).toEqual(avant);
     // Nouvel essai après une réponse perdue · rien de neuf, rien de dupliqué.
-    expect(await completerTestAction(saisieComplete(id2))).toEqual({ ok: true, manques: [], dejaEnregistre: true });
+    expect(await completerTestAction(saisieComplete(id2))).toEqual({ ok: true, manques: [], dejaEnregistre: true, dejaRenseignes: ['l’hypothèse testée', 'la variable testée', 'l’offre', 'la page de destination'] });
     expect(await compter()).toEqual(avant);
+  });
+
+  it('formulaire périmé (autre onglet passé avant) · rien d’écrasé, la réponse le dit', async () => {
+    const id = await ad(ids.neva, 'x-perime');
+    expect((await completerTestAction({ adId: id, hypothesis: 'Hypothèse de l’onglet A, la première.', testedVariable: 'hook', produitId: produits['Sérum Neva']!, offre: { prix: '29,90', confirmee: true } })).ok).toBe(true);
+    const avantB = await lireAd(id);
+    const r = await completerTestAction({ adId: id, hypothesis: 'Hypothèse de l’onglet B, la seconde.', testedVariable: 'proof', produitId: produits['Sérum Neva']!, offre: { prix: '27', confirmee: true }, page: { url: 'https://neva.example/serum', confirmee: true } });
+    expect(r).toEqual({ ok: true, manques: [], dejaRenseignes: ['l’hypothèse testée', 'la variable testée', 'l’offre'] });
+    const apres = await lireAd(id);
+    expect([apres.hypothesis, apres.testedVariable, apres.offerId], 'un champ rempli par l’onglet A est écrasé').toEqual([avantB.hypothesis, avantB.testedVariable, avantB.offerId]);
+    expect(apres.landingPageId).not.toBeNull();
   });
 
   it('échec en cours d’écriture (ad sortie du brouillon entre-temps) · ni offre ni page orpheline, ad intacte', async () => {

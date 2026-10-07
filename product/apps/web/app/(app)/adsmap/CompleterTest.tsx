@@ -111,7 +111,7 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
         page: champs.page ? { url, confirmee: pageConfirmee } : null,
       });
       if (r.error) { setErreur(r.error); rattraperFocus('alerte'); return; }
-      setEtat(texteApresCompletude(r.manques ?? []));
+      setEtat(texteApresCompletude(r.manques ?? [], r.dejaRenseignes ?? []));
       await onEnregistre();
       rattraperFocus('etat');
     } catch {

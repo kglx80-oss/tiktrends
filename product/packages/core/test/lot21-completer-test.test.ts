@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   manquesAvantTest, saisieCompletude, champsACompleter, preremplissageProduit, lirePrix, lireUrlPage,
   presentationTest, texteHeritageIteration, texteAdIncomplete, VARIABLES_A_TESTER, STATUT_NON_COMPLETABLE,
-  texteBilanPreparation, raisonVivier, nomBoutonVivier, libelleOptionProduit,
+  texteBilanPreparation, raisonVivier, nomBoutonVivier, libelleOptionProduit, texteApresCompletude,
   type AdACompleter, type ProduitMarque, type SaisieCompletude,
 } from '../src';
 
@@ -122,6 +122,7 @@ describe('Compléter le test · le contrat de préparation est satisfait par la 
     const r = saisieCompletude(complet, saisieComplete(serum), PRODUITS);
     if (!r.ok) throw new Error(r.erreur);
     expect(r).toMatchObject({ maj: {}, offre: null, page: null, manquesApres: [], dejaEnregistre: true });
+    expect(r.dejaRenseignes).toEqual(['l’hypothèse testée', 'la variable testée', 'l’offre', 'la page de destination']);
     expect(saisieCompletude(brouillonVide, {}, PRODUITS).ok, 'une saisie vide passe pour un succès').toBe(false);
   });
 
@@ -191,5 +192,18 @@ describe('Produits homonymes · l’offre ne garde qu’un libellé et un prix',
     };
     expect(offre(a)).not.toEqual(offre(b));
     expect(offre(a)).toEqual(offre({ ...b, prix: 29.9 }));
+  });
+});
+
+describe('Deux onglets · le perdant sait que sa saisie n’a rien écrasé', () => {
+  it('hypothèse remplie entre-temps · seule la page s’écrit, et le texte le dit', () => {
+    const ad: AdACompleter = { status: 'draft', adType: 'ideation', hypothesis: 'Écrite par l’onglet A, juste avant.', testedVariable: 'hook', offerId: 'o', landingPageId: null };
+    const r = saisieCompletude(ad, { hypothesis: 'Hypothèse de l’onglet B, différente.', testedVariable: 'proof', produitId: serum.id, offre: { prix: '27', confirmee: true }, page: { url: serum.url!, confirmee: true } }, PRODUITS);
+    if (!r.ok) throw new Error(r.erreur);
+    expect(r.maj, 'un champ déjà rempli est écrasé').toEqual({});
+    expect(r.offre).toBeNull();
+    expect(r.page).not.toBeNull();
+    expect(texteApresCompletude(r.manquesApres, r.dejaRenseignes), 'faux succès · l’onglet perdant croit son hypothèse écrite')
+      .toBe('Enregistré · le test est complet · « Préparer » dans les Lots le fera passer en prête. Déjà renseignés entre-temps, gardés tels quels (ta saisie n’a rien écrasé) · l’hypothèse testée, la variable testée et l’offre.');
   });
 });
