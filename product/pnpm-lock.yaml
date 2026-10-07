@@ -142,12 +142,21 @@ importers:
         specifier: ^5.4.1
         version: 5.11.1
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.8
+        version: 0.5.8
+      drizzle-orm:
+        specifier: ^0.33.0
+        version: 0.33.0(@electric-sql/pglite@0.5.8)(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8)
       tsx:
         specifier: ^4.17.0
         version: 4.23.12
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
+      vitest:
+        specifier: ^2.0.5
+        version: 2.1.9(@types/node@20.19.43)(jsdom@30.1.0)
 
   packages/ai:
     dependencies:
