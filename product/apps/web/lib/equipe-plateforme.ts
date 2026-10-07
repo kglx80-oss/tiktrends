@@ -2,7 +2,7 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { accesTotal, plateformeAdmissible, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
-import { isFounder } from './founder';
+import { isFounder, estFondateurCode } from './founder';
 
 /**
  * Le rôle d'ÉQUIPE INTERNE d'un compte + la matrice des droits éditable.
@@ -28,19 +28,6 @@ export interface EquipeSession {
    * doit le lire (`lib/studios/garde.ts`, branchement décrit au rapport SEC).
    */
   plateformeAdmissible?: boolean;
-}
-
-/**
- * Fondateurs de la liste CODÉE (`lib/founder.ts` · `FONDATEURS`), sans
- * `FOUNDER_EMAILS` · `founder.ts` n'exporte que l'union. Recopie éprouvée
- * contre le source de `founder.ts` (`sec-plateforme-admissible.test.ts`) ;
- * un écart y échoue. À remplacer par un export `estFondateurCode` de
- * `founder.ts` (hors périmètre SEC).
- */
-export const FONDATEURS_CODES: readonly string[] = ['kguilbaux@agence-glx.fr', 'marine@agence-melie.fr'];
-
-function estFondateurCode(email: string): boolean {
-  return FONDATEURS_CODES.includes(email.trim().toLowerCase());
 }
 
 /**

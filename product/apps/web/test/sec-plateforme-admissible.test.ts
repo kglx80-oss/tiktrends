@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 /**
  * SEC-10 / E5 · aucune escalade vers les permissions PLATEFORME du nouveau
@@ -32,7 +30,11 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 
 import { db, schema } from '@tiktrends/db';
 import { permissionsStudio, restreindrePlateforme, PERMISSIONS_PLATEFORME } from '@tiktrends/core';
-import { equipeDeSession, FONDATEURS_CODES } from '../lib/equipe-plateforme';
+import { equipeDeSession } from '../lib/equipe-plateforme';
+import { estFondateurCode, isFounder } from '../lib/founder';
+
+/** Un fondateur de la liste codée du dépôt (lib/founder.ts · FONDATEURS). */
+const FONDATEUR_CODE = 'kguilbaux@agence-glx.fr';
 
 const JANVIER = new Date('2026-01-01T00:00:00Z');
 const FEVRIER = new Date('2026-02-01T00:00:00Z');
@@ -49,7 +51,7 @@ beforeAll(async () => {
   await db!.insert(schema.users).values({ email: LEGITIME, createdAt: JANVIER });
   await db!.insert(schema.platformStaff).values({ email: LEGITIME, role: 'admin', createdAt: FEVRIER });
   // Fondateur codé, compte récent, sans ligne staff (filet adminplus).
-  await db!.insert(schema.users).values({ email: FONDATEURS_CODES[0]!, createdAt: FEVRIER });
+  await db!.insert(schema.users).values({ email: FONDATEUR_CODE, createdAt: FEVRIER });
   await db!.insert(schema.users).values({ email: ENV_FONDATEUR, createdAt: FEVRIER });
 });
 
@@ -74,7 +76,7 @@ describe('SEC-10 · equipeDeSession · antériorité du compte', () => {
   });
 
   it('fondateur de la liste codée · admissible quelle que soit la date', async () => {
-    const e = await equipeDeSession(FONDATEURS_CODES[0]!);
+    const e = await equipeDeSession(FONDATEUR_CODE);
     expect(e).toMatchObject({ role: 'adminplus', plateformeAdmissible: true });
   });
 
@@ -88,12 +90,12 @@ describe('SEC-10 · equipeDeSession · antériorité du compte', () => {
   });
 });
 
-describe('SEC-10 · la recopie de la liste codée suit lib/founder.ts', () => {
-  it('FONDATEURS_CODES = FONDATEURS de founder.ts', () => {
-    const src = readFileSync(join(__dirname, '..', 'lib', 'founder.ts'), 'utf8');
-    const bloc = /const FONDATEURS = \[([\s\S]*?)\]/.exec(src)?.[1] ?? '';
-    const emails = [...bloc.matchAll(/'([^']+@[^']+)'/g)].map((m) => m[1]!.toLowerCase()).sort();
-    expect(emails.length).toBeGreaterThan(0);
-    expect([...FONDATEURS_CODES].sort()).toEqual(emails);
+describe('SEC-10 · estFondateurCode · liste codée seule, sans FOUNDER_EMAILS', () => {
+  it('fondateur codé · oui (casse et espaces ignorés) ; fondateur par variable d’environnement · non', () => {
+    expect(estFondateurCode(FONDATEUR_CODE)).toBe(true);
+    expect(estFondateurCode('  KGuilbaux@Agence-GLX.fr ')).toBe(true);
+    expect(isFounder(ENV_FONDATEUR), 'la variable d’environnement fait toujours un fondateur').toBe(true);
+    expect(estFondateurCode(ENV_FONDATEUR), 'un fondateur par variable d’environnement n’est pas de la liste codée').toBe(false);
+    expect(estFondateurCode(null)).toBe(false);
   });
 });
