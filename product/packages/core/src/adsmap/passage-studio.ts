@@ -27,7 +27,7 @@
  * Pur : ni base, ni horloge, ni réseau.
  */
 
-import { texteAdIncomplete } from './reprise-adsmap';
+import { texteAdIncomplete, adCompletable, COMPLETER_LE_TEST } from './reprise-adsmap';
 import type { EtatVerdictCarte } from './verdict-carte';
 
 /** Statuts d'une ad Adsmap qui disent qu'elle a été diffusée. */
@@ -138,8 +138,13 @@ export interface PresentationTest {
   phase: PhaseTest;
   /** Le texte de « Ce que le test a donné » quand aucun verdict n'est calculé · `null` = montrer le verdict. */
   resultatVide: string | null;
-  /** La prochaine étape EXISTANTE, et son lien quand le rôle le permet. */
-  prochaineEtape: { texte: string; lien: { href: string; libelle: string } | null } | null;
+  /**
+   * La prochaine étape EXISTANTE, et son lien quand le rôle le permet.
+   * `completer` (lot 21) · l'ad incomplète se complète sur place · le tiroir
+   * montre le formulaire « Compléter le test » à cette ancre, au lieu d'une
+   * impasse. Absent ou `null` = pas de formulaire.
+   */
+  prochaineEtape: { texte: string; lien: { href: string; libelle: string } | null; completer?: { titre: string; ancre: string } | null } | null;
   /** La section d'arbitrage a-t-elle quelque chose à montrer ou à faire. */
   arbitrageVisible: boolean;
   /** La règle d'itération (gagnante / perdante) ne vaut qu'après un verdict. */
@@ -156,8 +161,9 @@ export function presentationTest(
     /**
      * Lot 17 · ce qui manque à l'ad pour partir en test (`manquesAvantTest`).
      * Absent ou vide = rien ne bloque. Sinon « Préparer un test » bouclait ·
-     * les Lots la disaient « incomplète » et renvoyaient vers cette fiche, et
-     * aucun écran ne permet de compléter ces champs.
+     * les Lots la disaient « incomplète » et renvoyaient vers cette fiche.
+     * Lot 21 · la fiche offre le formulaire « Compléter le test » (brouillon
+     * ou proposition seulement · `adCompletable`).
      */
     manques?: string[] },
   o: { peutPreparer: boolean; peutMesurer: boolean },
@@ -184,7 +190,11 @@ export function presentationTest(
     return {
       phase: 'a_lancer',
       resultatVide: 'Pas encore lancée · aucun chiffre à lire, donc rien à arbitrer.',
-      prochaineEtape: { texte: texteAdIncomplete(t.manques), lien: null },
+      prochaineEtape: {
+        texte: texteAdIncomplete(t.manques),
+        lien: null,
+        completer: adCompletable(t.status) ? { ...COMPLETER_LE_TEST } : null,
+      },
       arbitrageVisible,
       suiteApresVerdict: false,
       suiteAttente: 'L’itération se décide sur le verdict · rien à décider tant que le test n’a pas tourné.',
