@@ -93,6 +93,12 @@ export function texteAdIncomplete(manques: string[]): string {
 // d'abonnement · elle et la page se PRÉREMPLISSENT depuis un produit de la
 // marque, mais ne s'écrivent qu'une fois leurs valeurs CONFIRMÉES à l'écran.
 // L'hypothèse n'est jamais préremplie · c'est le maillon humain du test.
+//
+// Identité · une offre ne garde qu'un LIBELLÉ (le nom du produit) et un PRIX ·
+// aucun identifiant de produit (schéma inchangé). Deux produits homonymes à
+// prix différents donnent deux offres · à nom ET prix égaux, ils partagent la
+// même ligne d'offre (rien ne les distingue en base). Une page de destination
+// est identifiée par son adresse seule.
 
 /** Seuls un brouillon ou une proposition se complètent · « prête » et au-delà passent par les Lots. */
 export const STATUTS_COMPLETABLES: readonly string[] = ['draft', 'proposed'];
@@ -122,6 +128,21 @@ export const VARIABLES_A_TESTER: ReadonlyArray<{ valeur: TestedVariable; libelle
 
 /** Un produit de la marque, tel que le formulaire le lit (aucune écriture sur lui). */
 export interface ProduitMarque { id: string; nom: string; prix: number | null; url: string | null }
+
+/**
+ * Le libellé d'un produit dans le choix du formulaire · un homonyme dans la
+ * marque est départagé par son prix et son adresse (sans quoi deux lignes
+ * identiques se confondent à l'écran). Ce n'est qu'un libellé d'affichage.
+ */
+export function libelleOptionProduit(p: ProduitMarque, produits: readonly ProduitMarque[]): string {
+  const nom = p.nom.trim();
+  const homonymes = produits.filter((q) => q.nom.trim().toLowerCase() === nom.toLowerCase()).length > 1;
+  if (!homonymes) return nom;
+  const prix = typeof p.prix === 'number' && Number.isFinite(p.prix) ? `${preremplissageProduit(p).prix} €` : 'sans prix';
+  let adresse = 'sans adresse';
+  if (p.url) { try { const u = new URL(p.url); adresse = `${u.host}${u.pathname === '/' ? '' : u.pathname}`; } catch { adresse = p.url; } }
+  return `${nom} · ${prix} · ${adresse}`;
+}
 
 /** Les champs que le formulaire montre · exactement ce qui manque, rien d'autre. */
 export function champsACompleter(manques: readonly string[]): { hypothese: boolean; variable: boolean; offre: boolean; page: boolean } {
@@ -289,6 +310,37 @@ export function texteApresCompletude(manquesApres: readonly string[]): string {
   return manquesApres.length
     ? `Enregistré · reste à compléter ${listeManques([...manquesApres])}.`
     : 'Enregistré · le test est complet · « Préparer » dans les Lots le fera passer en prête.';
+}
+
+// ── Lots (lot 21 · recette du pilotage) ─────────────────────────────────────
+
+/** Statuts d'un lot qui disent qu'il est parti (même règle que `etatLancementLot`). */
+const LOT_PARTI = new Set(['testing', 'analyzed']);
+
+/**
+ * Le bilan de « Préparer le lot » · il ne vaut que tant que le lot n'est pas
+ * parti. Mesuré (d9613eee) · « Le lot est prêt à partir. » restait affiché à
+ * côté de « Ce lot est déjà lancé. » · `null` = ne rien afficher.
+ */
+export function texteBilanPreparation(
+  prep: { named?: number; ready?: number; skipped?: ReadonlyArray<unknown> } | null | undefined,
+  statutLot: string | null | undefined,
+): string | null {
+  if (!prep || LOT_PARTI.has(statutLot ?? '')) return null;
+  const reste = prep.skipped?.length ?? 0;
+  return `${prep.named ?? 0} nom(s) généré(s), ${prep.ready ?? 0} ad(s) passée(s) en prêt.${reste ? ` ${reste} ad(s) restent en brouillon · le détail est sur chaque ligne.` : ' Le lot est prêt à partir.'}`;
+}
+
+/** Ce que dit une carte du vivier d'une ad incomplète · la raison EN ENTIER. */
+export function raisonVivier(c: { blocking: string | null; manques?: readonly string[] | null }): string | null {
+  if (!c.blocking) return null;
+  return c.manques?.length ? `incomplète · manque ${listeManques([...c.manques])}` : 'incomplète';
+}
+
+/** Le nom accessible du bouton d'une carte du vivier · le geste, puis tout le texte visible. */
+export function nomBoutonVivier(c: { variantCode: string; concept: string; blocking: string | null; manques?: readonly string[] | null }): string {
+  const raison = raisonVivier(c);
+  return `Ajouter au lot · ${c.variantCode} · ${c.concept}${raison ? ` · ${raison}` : ''}`;
 }
 
 /**

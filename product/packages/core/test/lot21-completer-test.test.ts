@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   manquesAvantTest, saisieCompletude, champsACompleter, preremplissageProduit, lirePrix, lireUrlPage,
   presentationTest, texteHeritageIteration, texteAdIncomplete, VARIABLES_A_TESTER, STATUT_NON_COMPLETABLE,
+  texteBilanPreparation, raisonVivier, nomBoutonVivier, libelleOptionProduit,
   type AdACompleter, type ProduitMarque, type SaisieCompletude,
 } from '../src';
 
@@ -154,5 +155,41 @@ describe('Ligne 437 · l’itération dit ce dont elle hérite VRAIMENT', () => 
   });
   it('parent avec offre, sans page · la page reste à compléter', () => {
     expect(texteHeritageIteration(['la page de destination'])).toContain('la page de destination restera à compléter');
+  });
+});
+
+describe('Lots · recette du pilotage (message 78)', () => {
+  const prep = { named: 1, ready: 1, skipped: [] };
+  it('le bilan « prêt à partir » se tait une fois le lot lancé ou analysé', () => {
+    expect(texteBilanPreparation(prep, 'ready')).toBe('1 nom(s) généré(s), 1 ad(s) passée(s) en prêt. Le lot est prêt à partir.');
+    expect(texteBilanPreparation(prep, 'testing'), 'le lot lancé se dit encore « prêt à partir »').toBeNull();
+    expect(texteBilanPreparation(prep, 'analyzed')).toBeNull();
+    expect(texteBilanPreparation({ named: 2, ready: 1, skipped: [{}] }, 'planned')).toContain('1 ad(s) restent en brouillon');
+  });
+  it('la raison d’une carte du vivier est entière, et fait partie du nom du bouton', () => {
+    const c = { variantCode: 'v3', concept: 'Avant / après', blocking: 'x', manques: ['l’hypothèse testée', 'la variable testée', 'l’offre', 'la page de destination'] };
+    expect(raisonVivier(c)).toBe('incomplète · manque l’hypothèse testée, la variable testée, l’offre et la page de destination');
+    expect(nomBoutonVivier(c)).toBe('Ajouter au lot · v3 · Avant / après · incomplète · manque l’hypothèse testée, la variable testée, l’offre et la page de destination');
+    expect(nomBoutonVivier({ ...c, blocking: null })).toBe('Ajouter au lot · v3 · Avant / après');
+  });
+});
+
+describe('Produits homonymes · l’offre ne garde qu’un libellé et un prix', () => {
+  const a: ProduitMarque = { id: 'a', nom: 'Sérum éclat', prix: 29.9, url: 'https://neva.example/serum' };
+  const b: ProduitMarque = { id: 'b', nom: 'Sérum éclat', prix: 34.9, url: 'https://neva.example/serum-grand' };
+  it('deux homonymes se départagent à l’écran par prix et adresse · un nom unique reste nu', () => {
+    expect(libelleOptionProduit(a, [a, b])).toBe('Sérum éclat · 29,90 € · neva.example/serum');
+    expect(libelleOptionProduit(b, [a, b])).toBe('Sérum éclat · 34,90 € · neva.example/serum-grand');
+    expect(libelleOptionProduit(a, [a])).toBe('Sérum éclat');
+  });
+  it('à prix différents, deux offres distinctes partent à l’écriture · à prix égal, la même (libellé + prix)', () => {
+    const ad: AdACompleter = { status: 'draft', adType: 'ideation', hypothesis: 'h'.repeat(12), testedVariable: 'hook', offerId: null, landingPageId: 'l' };
+    const offre = (p: ProduitMarque) => {
+      const r = saisieCompletude(ad, { produitId: p.id, offre: { prix: preremplissageProduit(p).prix, confirmee: true } }, [a, b]);
+      if (!r.ok) throw new Error(r.erreur);
+      return r.offre;
+    };
+    expect(offre(a)).not.toEqual(offre(b));
+    expect(offre(a)).toEqual(offre({ ...b, prix: 29.9 }));
   });
 });
