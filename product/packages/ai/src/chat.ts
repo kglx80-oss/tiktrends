@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { GEN_MODEL } from './generation';
 import { TESS_SYSTEM } from './agent';
+import { neutraliserHistorique } from '@tiktrends/core';
 
 export interface ChatMessage { role: 'user' | 'assistant'; content: string }
 
@@ -32,7 +33,11 @@ export async function chatAssistant(
     model: GEN_MODEL,
     max_tokens: 1200,
     system: `${TESS_SYSTEM}\n\nContexte:\n${contextBlock(ctx)}`,
-    messages: messages.slice(-12).map((m) => ({ role: m.role, content: m.content.slice(0, 4000) })),
+    // SEC-05 · défense en profondeur : quel que soit l'appelant, seuls des tours
+    // `user|assistant` textuels partent, bornés (12 tours, 4 000 caractères),
+    // recopiés champ par champ, le premier étant `user`. La validation stricte
+    // (refus) est faite par l'action AVANT tout débit (`validerHistorique`).
+    messages: neutraliserHistorique(messages),
   });
   return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('\n').trim()
     || "Je n'ai pas de réponse pour le moment, reformule ta question.";
