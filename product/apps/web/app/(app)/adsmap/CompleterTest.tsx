@@ -52,13 +52,17 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
 
   // Le champ qui portait le focus a pu disparaître (il ne manque plus) · on
   // rattrape un focus PERDU (sur <body>), on n'en prend jamais un posé ailleurs.
-  function rattraperFocus(cible: 'etat' | 'alerte') {
-    requestAnimationFrame(() => {
-      const actif = document.activeElement;
-      if (actif && actif !== document.body) return;
-      (cible === 'alerte' ? alerteRef : etatRef).current?.focus({ preventScroll: true });
-    });
-  }
+  // Vérifié APRÈS la validation du rendu qui retire le champ (effet) · un
+  // `requestAnimationFrame` passait parfois avant (mesuré · focus sur <body>
+  // après « Enregistré », 2 cas sur 6 au navigateur).
+  const [controleFocus, setControleFocus] = useState<{ n: number; cible: 'etat' | 'alerte' }>({ n: 0, cible: 'etat' });
+  const rattraperFocus = (cible: 'etat' | 'alerte') => setControleFocus((c) => ({ n: c.n + 1, cible }));
+  useEffect(() => {
+    if (!controleFocus.n) return;
+    const actif = document.activeElement;
+    if (actif && actif !== document.body) return;
+    (controleFocus.cible === 'alerte' ? alerteRef : etatRef).current?.focus({ preventScroll: true });
+  }, [controleFocus]);
 
   async function chargerProduits() {
     setErreurProduits('');

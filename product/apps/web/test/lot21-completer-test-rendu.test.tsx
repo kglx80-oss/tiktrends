@@ -180,10 +180,14 @@ describe('Le tiroir d’une ad incomplète porte le formulaire « Compléter le 
     await saisir(champ(f, 'Produit')!, produits['Sérum Neva']!);
     for (const c of f.querySelectorAll('input[type="checkbox"]')) await cliquer(c);
     const bouton = [...f.querySelectorAll('button[type="submit"]')][0]!;
+    await act(async () => { (bouton as HTMLElement).focus(); });
     // Double clic · une seule requête, une seule écriture.
     const avantEnvois = envois.n;
     await act(async () => { (bouton as HTMLElement).click(); (bouton as HTMLElement).click(); });
     await attendre(() => (f.textContent ?? '').includes('Enregistré · le test est complet'), 'le message de succès');
+    // Le bouton a disparu (plus rien ne manque) · le focus est rendu au message d'état, pas laissé sur la page.
+    await attendre(() => document.activeElement !== document.body, 'le focus rattrapé');
+    expect(document.activeElement?.getAttribute('role'), 'le focus est perdu sur la page après « Enregistré »').toBe('status');
     const a = await lireAd(id);
     expect(a.hypothesis).toBe('Une preuve chiffrée en ouverture fera passer le hook rate de 22 % à 28 %.');
     expect(a.testedVariable).toBe('hook');
