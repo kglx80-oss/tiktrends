@@ -99,7 +99,7 @@ describe('AdDrawer · ce que dit le panneau selon l’état RÉEL du test', () =
     const { dialogue, fermer } = await ouvrir();
     const t = dialogue.textContent ?? '';
     expect(t, 'ce qui manque n’est pas dit').toContain('À compléter avant tout test · l’offre et la page de destination');
-    expect(t).toContain('ne se saisissent pas encore dans l’outil');
+    expect(t, 'lot 21 · la fiche dit encore que rien ne se saisit').not.toContain('ne se saisissent pas encore dans l’outil'); expect(dialogue.querySelector('[data-completer-test] legend')?.textContent, 'lot 21 · le formulaire « Compléter le test » n’est pas rendu').toBe('Le produit vendu dans la pub');
     expect(dialogue.querySelector('a[href="/adsmap/lots"]'), 'la fiche renvoie encore vers les Lots, qui renvoient vers la fiche').toBeNull();
     await fermer();
   });

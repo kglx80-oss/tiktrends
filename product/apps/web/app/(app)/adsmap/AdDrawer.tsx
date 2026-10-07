@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { VerdictValue, TestedVariable, OrigineFiche } from '@tiktrends/core';
-import { etatFicheAdsmap, ficheDeLEntree, lireVueAdsmap, PARAM_VUE_ADSMAP, rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio } from '@tiktrends/core';
+import { etatFicheAdsmap, ficheDeLEntree, lireVueAdsmap, PARAM_VUE_ADSMAP, rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio, adCompletable, texteHeritageIteration } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
 } from '../../actions/adsmap-verdict';
 import { PartageGagnante } from './PartageGagnante';
+import { CompleterTest } from './CompleterTest';
 import { cadreSignal, tuile } from '../../../components/ui';
 import { Portail } from '../../../components/Portail';
 import { usePiegeFocus } from '../../../components/use-piege-focus';
@@ -74,11 +75,25 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
   const [valeurVariable, setValeurVariable] = useState('');
   const [hypothese, setHypothese] = useState('');
 
+  // Lot 21 · « Compléter le test » · une fois ouvert pour cette ad, le
+  // formulaire reste monté après l'écriture · il dit alors ce qui a été
+  // enregistré et ce qui reste, au lieu de disparaître sous le focus.
+  const [formCompleter, setFormCompleter] = useState(false);
+
+  // Lot 21 · changement de fiche A → B sans démontage · la fiche affichée est
+  // celle de `adId` · une réponse en vol pour A (lecture, ou relecture après
+  // « Enregistrer ») est ignorée, et rien de A ne reste affiché pour B.
+  const adCourant = useRef(adId);
+  adCourant.current = adId;
+  useEffect(() => { setD(null); setFormCompleter(false); setError(''); }, [adId]);
+
   const charger = useCallback(async () => {
     const r = await adDetailAction(adId);
+    if (adCourant.current !== adId) return;
     if (r.error) { setError(r.error); return; }
     setError('');
     setD(r.detail!);
+    if (r.detail!.manques.length > 0 && adCompletable(r.detail!.status)) setFormCompleter(true);
     setValue(r.detail!.validated ?? r.detail!.computed ?? '');
   }, [adId]);
 
@@ -270,6 +285,11 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                       )}
                     </>
                   )}
+                  {/* Lot 21 · l'ad incomplète se complète ici (noyau ·
+                      presentationTest › completer) · plus d'impasse. */}
+                  {(pres?.prochaineEtape?.completer || formCompleter) && adCompletable(d.status) && (
+                    <CompleterTest key={adId} adId={adId} manques={d.manques} onEnregistre={async () => { await charger(); onChanged(); }} />
+                  )}
                 </>
               )}
               {d.hypothesis && (
@@ -434,7 +454,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                     <button type="button" onClick={() => setOuvrirIteration(false)} style={boutonSecondaire}>Annuler</button>
                   </div>
                   <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
-                    L’itération naît en brouillon, avec l’offre et la page héritées · il ne restera que ce qui change à produire.
+                    {texteHeritageIteration(d.manques)}
                   </p>
                 </>
               )}
