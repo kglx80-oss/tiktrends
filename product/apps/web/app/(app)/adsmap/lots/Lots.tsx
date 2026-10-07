@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { surface } from '../../../../components/ui';
-import { CIBLE_TACTILE_MIN, listeManques } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, texteBilanPreparation, raisonVivier, nomBoutonVivier } from '@tiktrends/core';
 import {
   batchDetailAction, candidatesAction, createBatchAction, setBatchAdAction,
   prepareBatchAction, launchBatchAction,
@@ -232,20 +232,31 @@ export function Lots({ batches, brandName }: {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: mobile ? 'none' : 420, overflowY: mobile ? 'visible' : 'auto' }}>
-          {candidats.map((c) => (
-            <button key={c.id} type="button" onClick={() => basculer(c.id, true)} disabled={busy}
-              title={c.blocking ?? 'Prête à être rangée dans le lot'}
-              style={{
-                textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, padding: '7px 10px', borderRadius: 9, cursor: 'pointer', fontSize: 11.5,
-                border: `1px ${c.blocking ? 'dashed' : 'solid'} ${c.blocking ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`,
-                background: 'var(--surface)', color: 'var(--ink-2)',
-              }}>
-              <strong style={{ color: 'var(--ink)' }}>{c.variantCode}</strong> · {c.concept}
-              {/* Lot 17 · le détail se lit À L'ÉCRAN · il n'était qu'en infobulle
-                  (invisible au doigt et au clavier). */}
-              {c.blocking && <span style={{ display: 'block', color: '#ffcf8f', fontSize: 10.5, marginTop: 1, overflowWrap: 'anywhere' }}>incomplète{c.manques?.length ? <> · manque {listeManques(c.manques)}</> : null}</span>}
-            </button>
-          ))}
+          {candidats.map((c) => {
+            // Lot 21 · la raison se lit EN ENTIER (≥ 12 px, à la ligne) et fait
+            // partie du nom accessible du bouton · une ad incomplète mène à sa
+            // fiche, où « Compléter le test » l'attend (lecture, droits inchangés).
+            const raison = raisonVivier(c);
+            return (
+              <div key={c.id} data-vivier-carte style={{ display: 'grid', gap: 2 }}>
+                <button type="button" onClick={() => basculer(c.id, true)} disabled={busy}
+                  aria-label={nomBoutonVivier(c)}
+                  style={{
+                    textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, padding: '7px 10px', borderRadius: 9, cursor: 'pointer', fontSize: 12,
+                    border: `1px ${c.blocking ? 'dashed' : 'solid'} ${c.blocking ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`,
+                    background: 'var(--surface)', color: 'var(--ink-2)', overflowWrap: 'anywhere',
+                  }}>
+                  <strong style={{ color: 'var(--ink)' }}>{c.variantCode}</strong> · {c.concept}
+                  {raison && <span style={{ display: 'block', color: '#ffcf8f', fontSize: 12, lineHeight: 1.45, marginTop: 2, overflowWrap: 'anywhere' }}>{raison}</span>}
+                </button>
+                {raison && (
+                  <a href={lienFicheAdsmap(c.id)} style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>
+                    Compléter le test {c.variantCode} dans sa fiche ›
+                  </a>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -353,10 +364,11 @@ export function Lots({ batches, brandName }: {
               </ul>
             )}
 
-            {prep && (
-              <div style={{ marginTop: 14, padding: '11px 14px', ...surface, background: 'var(--paper)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-                {prep.named} nom(s) généré(s), {prep.ready} ad(s) passée(s) en prêt.
-                {prep.skipped?.length ? ` ${prep.skipped.length} ad(s) restent en brouillon · le détail est sur chaque ligne.` : ' Le lot est prêt à partir.'}
+            {/* Lot 21 · le bilan de préparation se tait une fois le lot parti
+                (il disait « prêt à partir » à côté de « déjà lancé »). */}
+            {texteBilanPreparation(prep, detail.status) && (
+              <div data-bilan-preparation style={{ marginTop: 14, padding: '11px 14px', ...surface, background: 'var(--paper)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+                {texteBilanPreparation(prep, detail.status)}
               </div>
             )}
 
