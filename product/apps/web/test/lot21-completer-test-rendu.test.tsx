@@ -514,6 +514,8 @@ describe('Produits homonymes · ni identité inventée, ni fusion à prix diffé
     const options = [...(champ(f, 'Produit') as HTMLSelectElement).options].map((o) => o.textContent);
     expect(options).toContain('Homonyme Neva · 10 € · neva.example/h1');
     expect(options).toContain('Homonyme Neva · 12 € · neva.example/h2');
+    await saisir(champ(f, 'Produit')!, h2!.id);
+    expect(f.textContent, 'le libellé départagé est coupé à l’écran étroit, sans relais lisible').toContain('Choisi · Homonyme Neva · 12 € · neva.example/h2');
   });
 });
 

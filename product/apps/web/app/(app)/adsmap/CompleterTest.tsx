@@ -182,6 +182,10 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
                     <option value="">Choisir le produit…</option>
                     {produits.map((p) => <option key={p.id} value={p.id}>{libelleOptionProduit(p, produits)}</option>)}
                   </select>
+                  {/* Un homonyme se lit EN ENTIER sous le choix · un menu natif étroit (390) le coupe. */}
+                  {produit && libelleOptionProduit(produit, produits) !== produit.nom.trim() && (
+                    <Aide>Choisi · {libelleOptionProduit(produit, produits)}</Aide>
+                  )}
 
                   {produit && champs.offre && (
                     <>
