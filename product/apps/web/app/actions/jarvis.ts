@@ -54,7 +54,7 @@ export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost
   if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const refus = refusJarvis(s);
   if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
-  const client = guardedAnthropic({ action: 'jarvis' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'jarvis' });
   if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
@@ -106,7 +106,7 @@ export async function trainJarvisAction(): Promise<{ learnings?: string; adsAnal
   if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
   const refus = refusJarvis(s);
   if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
-  const client = guardedAnthropic({ action: 'jarvis' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'jarvis' });
   if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };

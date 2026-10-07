@@ -119,7 +119,17 @@ function promptChars(p: CreateParams): number {
  * réconcilie avec les jetons réellement consommés. Tout le reste du client passe
  * inchangé · on n'intercepte que la méthode qui coûte.
  */
-export function guardedAnthropic(opts: { workspaceId?: string | null; action: string }): Anthropic | null {
+/**
+ * L'espace qui paie · OBLIGATOIRE (L0-B §4). Vingt-quatre appels l'omettaient,
+ * et `ai_spend.workspace_id` restait nul · la génération des Pubs IA n'était
+ * imputable à aucun espace. Le type l'exige désormais : un appel qui l'oublie
+ * ne compile plus, et `sec-ai-spend-espace.test.ts` le vérifie au résultat
+ * (ligne `ai_spend` écrite avec l'espace). Le montant et le plafond sont
+ * inchangés · le plafond reste global.
+ */
+export interface ImputationDepense { workspaceId: string; action: string }
+
+export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
   const client = anthropicFromEnv();
   if (!client) return null;
 
@@ -208,7 +218,7 @@ export function guardedAnthropic(opts: { workspaceId?: string | null; action: st
  * une facture en quelques clics, d'où un forfait nettement supérieur.
  */
 export async function guardFixedCost(
-  kind: FixedCostKind, opts: { workspaceId?: string | null; action: string; units?: number },
+  kind: FixedCostKind, opts: ImputationDepense & { units?: number },
 ): Promise<string | null> {
   const cout = FIXED_COSTS[kind] * Math.max(1, Math.round(opts.units ?? 1));
   const status = await spendStatus();
@@ -278,7 +288,7 @@ export async function annuleCoutFixe(id: string | null, famille: string): Promis
  */
 export async function sousPlafond<T>(
   kind: FixedCostKind,
-  opts: { workspaceId?: string | null; action: string; units?: number },
+  opts: ImputationDepense & { units?: number },
   appel: () => Promise<T>,
 ): Promise<T> {
   const ligne = await guardFixedCost(kind, opts);

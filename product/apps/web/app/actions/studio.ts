@@ -30,7 +30,7 @@ export async function generateAction(_prev: StudioState, formData: FormData): Pr
   const product = norm(formData.get('product'));
   if (!product) return { error: 'Indique au moins un produit ou une marque.' };
 
-  const client = guardedAnthropic({ action: 'studio' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'studio' });
   // Copie client · aucun nom de variable n'atteint l'écran (recette #106).
   if (!client) return { error: texteMessageClient(TEXTES_IA_INACTIFS) };
 
