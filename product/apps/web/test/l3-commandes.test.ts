@@ -125,6 +125,17 @@ describe('COST-01 · double clic, même clé, en parallèle', () => {
     expect(await solde(db, ids.wsA)).toBe(avant - IMAGE);
   });
 
+  it('reconnexion après coup · même clé ⇒ même job, même si le plafond a été atteint entre-temps', async () => {
+    const q = await devis();
+    const e = { quoteId: q.id, inputHash: q.inputHash, creditsAnnonces: q.maximumCredits, idempotencyKey: `reco-${q.id}` };
+    const a = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), e, { illimite: false });
+    expect(a.ok).toBe(true);
+    const b = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), e, { illimite: false, plafond: { capUsd: 10, depenseUsd: 10, bloque: true } });
+    expect(b.ok && a.ok && [b.job.id, b.deja]).toEqual([a.ok && a.job.id, true]);
+    await annulerJob(ctxDe(ids, 'ua'), { jobId: a.ok ? a.job.id : '' });
+    await banc(db).moteur.tour({ maxNouveaux: 0 });
+  });
+
   it('même clé, AUTRE devis ⇒ VERSION_CONFLICT, rien créé', async () => {
     const q1 = await devis();
     const q2 = await devis();

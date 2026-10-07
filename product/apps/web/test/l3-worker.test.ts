@@ -103,10 +103,12 @@ describe('COST-06 · crash du worker APRÈS réservation, AVANT soumission', () 
     const A = banc(db, { workerId: 'worker-A' });
     const pris = await A.moteur.reclamer();
     expect(pris?.id).toBe(id);
-    // A « meurt » ici · B passe avant l'expiration du bail : il ne touche à rien.
+    // A « meurt » ici · B passe avant l'expiration du bail : il ne touche à rien,
+    // même en visant le job directement (le bail valide d'A est respecté en base).
     const B = secondWorker(db, A, 'worker-B');
     await B.tour();
-    expect((await etatEnBase(db, id)).job.state).toBe('claimed');
+    expect(await B.etape(pris!)).toBe(false);
+    expect((await etatEnBase(db, id)).job).toMatchObject({ state: 'claimed', leaseOwner: 'worker-A' });
     expect(A.fournisseur.soumissions).toBe(0);
 
     A.avancer(31_000);
@@ -352,6 +354,20 @@ describe('COST-11 · fournisseur réussi, stockage indisponible', () => {
     expect(e.job.error).toBeNull();
     expect(e.reglements).toBe(1);
     expect(e.violations).toEqual([]);
+  });
+
+  it('stockage qui acquitte sans conserver ⇒ la relecture le voit, pas completed', async () => {
+    const id = await jobEnFile();
+    const w = banc(db);
+    w.stockage.perteSilencieuse = true;
+    for (let i = 0; i < 4; i++) await w.moteur.tour();
+    const e = await etatEnBase(db, id);
+    expect(e.job.state).toBe('persisting');
+    expect((e.job.error as { motif?: string }).motif).toMatch(/relecture/);
+    expect(e.assets).toEqual([]);
+    w.stockage.perteSilencieuse = false;
+    expect(await jusquAuBout(db, w.moteur, id)).toBe('completed');
+    expect(w.fournisseur.soumissions).toBe(1);
   });
 
   it('résultat illisible (pas une image) ⇒ failed, crédits rendus, coût fournisseur réglé', async () => {

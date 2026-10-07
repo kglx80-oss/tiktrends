@@ -209,6 +209,8 @@ export function signerWebhookSimule(corpsBrut: string, horodatageS: number, secr
 export class StockageSimule implements StockageStudio {
   readonly fichiers = new Map<string, Uint8Array>();
   indisponible = false;
+  /** Acquitte le dépôt sans rien conserver (disque plein silencieux, cache menteur). */
+  perteSilencieuse = false;
   depots = 0;
 
   constructor(o: { drapeau: unknown; env?: Record<string, string | undefined> }) {
@@ -219,6 +221,7 @@ export class StockageSimule implements StockageStudio {
     if (this.indisponible) throw new Error('stockage simulé indisponible');
     if (!cle.startsWith('simule/')) throw new Error('le stockage simulé n’accepte que des clés « simule/ »');
     this.depots += 1;
+    if (this.perteSilencieuse) return;
     this.fichiers.set(cle, new Uint8Array(octets));
   }
 
