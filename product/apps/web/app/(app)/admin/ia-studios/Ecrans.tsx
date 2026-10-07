@@ -198,7 +198,7 @@ export function EcranReleases({ releases, pointee, environnement, peutPublier, p
           <FormulaireRelease />
         </Bloc>
       )}
-      {releases.length === 0 ? <Vide titre="Aucune release.">Valide les versions du registre, puis crée une release en attente. Rien n’est actif tant qu’aucune release n’est publiée : Jarvis répond alors « pas encore activé ».</Vide> : (
+      {releases.length === 0 ? <Vide titre="Aucune release.">Valide les versions du registre, puis crée une release en attente. Tant qu’aucune release n’est publiée, les tâches des studios restent bloquées et Jarvis garde sa consigne d’origine (version 1.0.0, identique au code d’avant).</Vide> : (
         <div style={grille(320)}>
           {releases.map((r) => (
             <article key={r.id} aria-label={`Release ${r.empreinte.slice(0, 12)}`} style={{ ...surfaceBloc, borderColor: r.pointee ? 'var(--accent)' : 'var(--line)' }}>

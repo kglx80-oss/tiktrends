@@ -8,7 +8,8 @@ import {
 } from './noyau';
 import { releaseActive, releaseChargee, type ReleaseChargee } from './depot-prompts';
 import { construireContexte, type EntreeContexte, type SourceSnapshot } from './contexte';
-import { CLE_CONVERSATION_JARVIS, type PolitiqueConversation } from './conversation';
+import { CLE_CONVERSATION_JARVIS, validerPolitiqueConversation, type PolitiqueConversation } from './conversation';
+import { POLITIQUE_JARVIS_1_0_0 } from './complement-tiktrends';
 import { chargerSource } from './source';
 import { microsUsd, type SourceTrace } from './traces';
 import type { AdaptateurModele } from './adaptateur';
@@ -194,18 +195,38 @@ export async function epinglerDevis(): Promise<{ ok: true; promptReleaseId: stri
 /* ─────────────────────────── Conversation Jarvis ───────────────────────── */
 
 export type ResolutionConversation =
-  | { ok: true; release: ReleaseChargee; politique: PolitiqueConversation; versionId: string | null; contentHash: string }
-  | { ok: false; code: 'RELEASE_ACTIVE_ABSENTE' | 'POLITIQUE_ABSENTE' };
+  | { ok: true; origine: 'release'; release: ReleaseChargee; politique: PolitiqueConversation; versionId: string | null; contentHash: string }
+  | { ok: true; origine: 'repli_1_0_0'; release: null; politique: PolitiqueConversation; versionId: null; contentHash: string }
+  | { ok: false; code: 'POLITIQUE_ABSENTE' | 'REPLI_INVALIDE' };
 
-/** La politique de conversation de la release active · aucune consigne de repli. */
+/**
+ * La politique de conversation de la release active.
+ *
+ * ── Sans release publiée : la version 1.0.0 migrée, jamais une coupure ──────
+ *
+ * Publier une release exige en production un benchmark approuvé, donc un budget
+ * que personne n'a encore autorisé. Couper Jarvis jusque-là retirerait une
+ * fonction en service (cahier : « ne supprime pas les fonctions existantes »).
+ * Tant qu'AUCUNE release n'est publiée, la conversation garde donc la version
+ * 1.0.0 du complément · le texte même que le code envoyait, prouvé identique au
+ * caractère près (`l2-jarvis-equivalence`). Ce repli n'invente rien et se voit :
+ * la trace porte `origine: 'repli_1_0_0'`, sans release. Dès qu'une release est
+ * publiée, elle seule fait foi. Une release publiée SANS politique Jarvis reste
+ * une erreur de configuration et coupe la conversation (aucun repli silencieux
+ * sur un choix explicite de l'ADMIN).
+ */
 export async function resoudreConversationJarvis(): Promise<ResolutionConversation> {
   const release = await releaseActive();
-  if (!release) return { ok: false, code: 'RELEASE_ACTIVE_ABSENTE' };
+  if (!release) {
+    const v = validerPolitiqueConversation(POLITIQUE_JARVIS_1_0_0);
+    if (!v.ok) return { ok: false, code: 'REPLI_INVALIDE' };
+    return { ok: true, origine: 'repli_1_0_0', release: null, politique: v.politique, versionId: null, contentHash: v.contentHash };
+  }
   const i = release.entrees.conversations.findIndex((c) => c.cle === CLE_CONVERSATION_JARVIS);
   const politique = release.contenu.conversations[i];
   if (i < 0 || !politique) return { ok: false, code: 'POLITIQUE_ABSENTE' };
   const e = release.entrees.conversations[i]!;
-  return { ok: true, release, politique, versionId: release.versionIds.get(`conversation:${e.cle}@${e.version}`) ?? null, contentHash: e.contentHash };
+  return { ok: true, origine: 'release', release, politique, versionId: release.versionIds.get(`conversation:${e.cle}@${e.version}`) ?? null, contentHash: e.contentHash };
 }
 
 export interface RunConversation {
@@ -230,12 +251,12 @@ export async function consignerRunConversation(r: RunConversation): Promise<stri
   const rel = r.resolution.release;
   const [l] = await db.insert(schema.studioPromptRuns).values({
     workspaceId: r.portee.workspaceId, brandId: r.portee.brandId,
-    templateKey: CLE_CONVERSATION_JARVIS, promptVersionId: r.resolution.versionId, promptReleaseId: rel.ligne.id,
+    templateKey: CLE_CONVERSATION_JARVIS, promptVersionId: r.resolution.versionId, promptReleaseId: rel?.ligne.id ?? null,
     compiledHash: empreinteJson({ system: r.system, messages: r.messages }, 'js'),
     contextSnapshotHash: empreinteJson(r.contexte, 'js'),
     sourceRefs: r.sources, model: r.modele,
     config: {
-      releaseHash: rel.ligne.releaseHash, packHash: rel.entrees.packHash,
+      origine: r.resolution.origine, releaseHash: rel?.ligne.releaseHash ?? null, packHash: rel?.entrees.packHash ?? null,
       conversation: { cle: r.resolution.politique.key, version: r.resolution.politique.version, contentHash: r.resolution.contentHash },
       jetons: r.jetons, environnement: 'conversation',
     },

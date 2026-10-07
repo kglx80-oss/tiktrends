@@ -85,9 +85,6 @@ import { invaliderConnaissances } from '../lib/jarvis-connaissances';
 import JarvisPage from '../app/(app)/jarvis/page';
 import SourcesPage from '../app/(app)/jarvis/sources/page';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
-// L2 · la consigne de Jarvis vient du registre : une release doit être publiée.
-import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
-import { publierRegistreDeTest } from './l2-outils';
 
 const T = '2026-10-05T08:00:00.000Z';
 function publiee(id: string, o: Partial<SaisieConnaissance>): Connaissance {
@@ -124,7 +121,6 @@ const poser = async (q = 'Comment itérer ?') => {
 };
 
 beforeAll(async () => {
-  await publierRegistreDeTest(depotPrompts);
   mock = await demarrerMockFournisseur(() => 'Réponse simulée.');
   process.env.ANTHROPIC_API_KEY = 'cle-factice-locale';
   process.env.ANTHROPIC_BASE_URL = mock.url;

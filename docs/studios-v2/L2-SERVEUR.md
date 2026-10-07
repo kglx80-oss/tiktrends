@@ -171,7 +171,10 @@ conversation est donc ajoutée au registre comme **politique de conversation** `
 - Comportement inchangé : `l2-jarvis-equivalence` prouve l'égalité au caractère près avec l'ancien
   `chatSystemPrompt` sur 16 800 combinaisons de contexte. Droits (`refusJarvis` avant toute lecture),
   barrière de dépense et absence de débit inchangés (prouvés par `l2-jarvis-route` et les tests lot19b).
-- Sans release publiée, Jarvis répond le message client existant « pas encore activé » (503), sans repli.
+- Sans release publiée, Jarvis garde la version 1.0.0 migrée du complément (le texte d'avant, prouvé identique)
+  et la trace porte `origine: 'repli_1_0_0'`, sans release ni version (décision de l'intégrateur, §13). Une
+  release publiée sans politique Jarvis coupe la conversation (« pas encore activé », 503) : c'est une erreur
+  de configuration explicite, sans repli silencieux.
 - Chaque tour écrit une trace `jarvis.conversation` (release, version de la politique, empreintes,
   connaissances, mémoire et règles par empreinte).
 
@@ -271,7 +274,7 @@ entrent ; seule l'empreinte de release change, comme attendu.
 
 ## 12. Besoins hors périmètre (décision de l'intégrateur)
 
-1. `apps/web/lib/navigation.ts` · ROUTES : ajouter
+1. (Fait par l'intégrateur.) `apps/web/lib/navigation.ts` · ROUTES :
    `{ path: '/admin/ia-studios', label: 'IA et Studios', parent: '/admin', section: 'Plateforme' },`
    (garde `test/navigation.test.ts` « chaque page.tsx a son entrée » rouge sans elle). Éventuellement une
    entrée dans `ADMIN_NAV` (`components/AppShell.tsx`).
@@ -294,11 +297,14 @@ entrent ; seule l'empreinte de release change, comme attendu.
 
 ## 13. Décisions et limites
 
-- **Déploiement** : dès ce lot en production, Jarvis répond « pas encore activé » tant qu'aucune release
-  n'est publiée, et la publication en production exige un benchmark approuvé, qu'aucune commande ne
-  permet d'approuver (budget à autoriser par le propriétaire). Ne pas fusionner sur `main` sans avoir
-  tranché : autoriser le benchmark, ou décider d'une approbation manuelle tracée de la politique migrée
-  (texte identique au code, prouvé), ou différer la bascule de la route.
+- **Déploiement (décision de l'intégrateur)** : la publication en production exige un benchmark approuvé,
+  qu'aucune commande ne permet d'approuver sans budget. Couper Jarvis jusque-là retirerait une fonction en
+  service. Sans release publiée, la conversation garde donc la version 1.0.0 migrée (texte identique au code
+  d'avant), tracée `repli_1_0_0`. Les tests lot19b de la route Jarvis passent SANS semis de release, à leur
+  forme d'avant L2. Mutations : repli retiré ⇒ `expected 503 to be 200` (l2-jarvis-route et lot19b) ; origine
+  non tracée ⇒ `expected { …(5) } to match object { origine: 'repli_1_0_0', …(2) }`. Les tâches studio
+  restent sans repli (`RELEASE_ACTIVE_ABSENTE`). La bascule vers une release reste une décision du
+  propriétaire (benchmark à budgéter, ou approbation manuelle tracée).
 - Le registre de capacités n'existe pas : seul `reasoning_structured` est routé (Anthropic via la barrière) ;
   les autres profils bloquent avant appel.
 - Aucun override d'espace ou de marque (le pack ne déclare aucun champ extensible, et aucun droit d'espace

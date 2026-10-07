@@ -7,7 +7,8 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
  * dépense réelle, SDK réel · seul le fournisseur est faux (serveur HTTP local
  * sur `ANTHROPIC_BASE_URL`, `lot19b-mock-fournisseur`), et il enregistre la
  * consigne RÉELLEMENT reçue. On vérifie :
- *  - sans release publiée · « pas encore activé », rien ne part ;
+ *  - sans release publiée · Jarvis répond avec la version 1.0.0 migrée (texte
+ *    d'avant), trace `repli_1_0_0` sans release ;
  *  - publiée · la consigne reçue est celle du registre, et chaque tour laisse
  *    une trace (release, version de la politique, empreintes, sources) ;
  *  - une modification inoffensive publiée en ADMIN · la conversation suivante
@@ -32,7 +33,6 @@ vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: ids.brand, name: 'Neva', logoUrl: null, url: null, category: null }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { messageServiceInactif } from '@tiktrends/core';
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { POST } from '../app/api/jarvis/chat/route';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
@@ -81,12 +81,22 @@ afterAll(async () => { await mock.fermer(); });
 beforeEach(() => { h.session = membre(); });
 
 describe('PROMPT-05 · Jarvis résout sa consigne dans le registre', () => {
-  it('aucune release publiée · « pas encore activé », rien ne part, aucune trace', async () => {
+  it('aucune release publiée · Jarvis répond avec la version 1.0.0 migrée, trace de repli sans release', async () => {
     const r = await poser();
-    expect(r.status).toBe(503);
-    expect(JSON.parse(r.texte)).toEqual({ error: messageServiceInactif('jarvis') });
-    expect(mock.recues).toHaveLength(0);
-    expect(await runs()).toHaveLength(0);
+    expect(r.status).toBe(200);
+    expect(r.texte).toContain('Réponse simulée.');
+    expect(mock.recues).toHaveLength(1);
+    // Le texte d'avant le registre, au caractère près sur ce contexte.
+    expect(dernierSysteme()).toContain(PHRASE);
+    expect(dernierSysteme()).toContain('Tu es Jarvis, le stratège créatif de cette marque.');
+    expect(dernierSysteme().trimEnd().endsWith('REGLE_MAISON_NEVA')).toBe(true);
+    const [t, ...reste] = await runs();
+    expect(reste).toHaveLength(0);
+    expect(t).toMatchObject({ templateKey: 'jarvis.conversation', promptReleaseId: null, promptVersionId: null, status: 'succeeded' });
+    expect((t!.config as Record<string, unknown>)).toMatchObject({ origine: 'repli_1_0_0', releaseHash: null, conversation: { version: '1.0.0' } });
+    // Ce repli ne crée ni release ni pointeur.
+    expect(await db.select().from(schema.studioPromptReleases)).toHaveLength(0);
+    expect(await db.select().from(schema.studioPromptActive)).toHaveLength(0);
   });
 
   it('release A publiée · consigne du registre reçue, trace du tour écrite', async () => {
@@ -96,7 +106,7 @@ describe('PROMPT-05 · Jarvis résout sa consigne dans le registre', () => {
     expect(r.texte).toContain('Réponse simulée.');
     expect(dernierSysteme()).toContain(PHRASE);
     expect(dernierSysteme().trimEnd().endsWith('REGLE_MAISON_NEVA')).toBe(true);
-    const [t] = await runs();
+    const t = (await runs()).at(-1);
     const politique = (await depot.listerVersions()).find((l) => l.key === 'jarvis.conversation')!;
     expect(t).toMatchObject({ templateKey: 'jarvis.conversation', promptReleaseId: rel.a, promptVersionId: politique.id, status: 'succeeded', workspaceId: ids.ws, brandId: ids.brand });
     expect((t!.config as Record<string, unknown>).conversation).toMatchObject({ version: '1.0.0', contentHash: politique.contentHash });

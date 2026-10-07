@@ -37,9 +37,6 @@ import { creerConnaissanceAction, retirerConnaissanceAction } from '../app/actio
 import { usageConnaissances, titresDesSources } from '../lib/jarvis-connaissances';
 import { POST } from '../app/api/jarvis/chat/route';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
-// L2 · la consigne de Jarvis vient du registre : une release doit être publiée.
-import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
-import { publierRegistreDeTest } from './l2-outils';
 
 const equipe = () => ({ user: { id: ids.user, email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {} } });
 const membre = () => ({ user: { id: ids.user, email: 'membre@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'member', plan: 'plus', equipe: null });
@@ -55,7 +52,6 @@ async function poser(question: string): Promise<{ status: number; texte: string 
 }
 
 beforeAll(async () => {
-  await publierRegistreDeTest(depotPrompts);
   mock = await demarrerMockFournisseur(() => reponse);
   process.env.ANTHROPIC_API_KEY = 'cle-factice-locale';
   process.env.ANTHROPIC_BASE_URL = mock.url;

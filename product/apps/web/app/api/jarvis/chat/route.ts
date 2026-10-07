@@ -34,9 +34,10 @@ export const maxDuration = 120;
  *
  * Son TEXTE est la politique de conversation `jarvis.conversation` de la
  * release active (registre de prompts, ADMIN « IA et Studios »), résolue par le
- * PromptResolver unique (`lib/studios/prompts/resolveur.ts`) · aucune consigne
- * de repli dans le code : sans release publiée, Jarvis répond « pas encore
- * activé ». L'ASSEMBLAGE (ordre des blocs, seuils, plafonds, bloc d'actions,
+ * PromptResolver unique (`lib/studios/prompts/resolveur.ts`). Sans release
+ * publiée, il garde la version 1.0.0 migrée (le texte d'avant, prouvé
+ * identique), tracée `repli_1_0_0` · Jarvis n'est jamais coupé faute de
+ * publication. L'ASSEMBLAGE (ordre des blocs, seuils, plafonds, bloc d'actions,
  * bloc de connaissances) reste une politique du code. Chaque tour laisse une
  * trace `studio_prompt_runs` (release, version, empreintes, sources, coût) ·
  * jamais la question ni la réponse en clair.
@@ -69,8 +70,9 @@ export async function POST(req: Request) {
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
   if (!client) return json({ error: messageServiceInactif('jarvis') }, 503);
 
-  // La release active porte la consigne · aucune n'est publiée = Jarvis n'est
-  // pas activé, comme sans fournisseur. Aucun texte de repli.
+  // La release active porte la consigne ; sans release, la version 1.0.0
+  // migrée (voir resoudreConversationJarvis). Échec de lecture ou release
+  // publiée sans politique Jarvis : service inactif, rien ne part.
   const resolution = await resoudreConversationJarvis().catch(() => null);
   if (!resolution?.ok) return json({ error: messageServiceInactif('jarvis') }, 503);
 
