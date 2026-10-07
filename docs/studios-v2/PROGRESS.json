@@ -1,0 +1,932 @@
+{
+  "versionDossier": "1.0",
+  "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
+  "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
+  "shaCourant": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
+  "lotCourant": "L0",
+  "lots": {
+    "L0": "IN_PROGRESS",
+    "L1": "TODO",
+    "L2": "TODO",
+    "L3": "TODO",
+    "L4": "TODO",
+    "L5": "TODO",
+    "L6": "TODO",
+    "L7": "TODO",
+    "L8": "TODO",
+    "L9": "TODO"
+  },
+  "proprietaires": {
+    "integrateur": "session principale (contrats communs, migrations, shell, navigation, tokens, releases)"
+  },
+  "branches": {
+    "claude/studios-l0-dossier": "dossier, matrice, checkpoint, inventaire L0",
+    "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (agent, en cours)",
+    "claude/studios-l1-fondations": "L1 · modèle canonique, migrations additives, ACL (agent)"
+  },
+  "prEnAttente": {
+    "729": {
+      "branche": "claude/lot21e-pont-fiche",
+      "tete": "64780a08d39b5111376b9e201c6275b6d5d898a4",
+      "etat": "ouverte, recette Codex en cours, non fusionnée"
+    },
+    "730": {
+      "branche": "claude/lot21d-completer-test",
+      "tete": "612e95215dd31dd5509c92208f6dc86584c04af5",
+      "etat": "ouverte, recette Codex en cours, non fusionnée"
+    }
+  },
+  "exigences": {
+    "BASE-01": {
+      "statut": "IMPLEMENTED",
+      "lot": "L0",
+      "implementation": "docs/studios-v2/L0/L0-A, L0-B, L0-C (lecture du code au SHA bc33cec8)",
+      "test": null,
+      "proofPath": "docs/studios-v2/L0/",
+      "sha": null,
+      "limites": null
+    },
+    "BASE-02": {
+      "statut": "IN_PROGRESS",
+      "lot": "L0",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": "#729 et #730 ouvertes, en recette Codex ; aucun lot Studios ne touche leurs fichiers"
+    },
+    "BASE-03": {
+      "statut": "TODO",
+      "lot": "L0",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "BASE-04": {
+      "statut": "TODO",
+      "lot": "L0",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "BASE-05": {
+      "statut": "TODO",
+      "lot": "L0",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-01": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-02": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-03": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-04": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-05": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-06": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-07": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-08": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-09": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "SEC-10": {
+      "statut": "TODO",
+      "lot": "L1",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-01": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-02": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-03": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-04": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-05": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-06": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-07": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-08": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-09": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-10": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-11": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "PROMPT-12": {
+      "statut": "TODO",
+      "lot": "L2",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-01": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-02": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-03": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-04": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-05": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-06": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-07": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-08": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-09": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-10": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-11": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "COST-12": {
+      "statut": "TODO",
+      "lot": "L3",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-01": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-02": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-03": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-04": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-05": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-06": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-07": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-08": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-09": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "FLOW-10": {
+      "statut": "TODO",
+      "lot": "L4",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-01": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-02": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-03": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-04": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-05": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-06": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-07": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-08": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-09": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "IMG-10": {
+      "statut": "TODO",
+      "lot": "L5",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-01": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-02": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-03": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-04": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-05": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-06": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-07": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-08": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-09": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-10": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-11": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-12": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "VIDEO-13": {
+      "statut": "TODO",
+      "lot": "L6",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "EXPORT-01": {
+      "statut": "TODO",
+      "lot": "L7",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "EXPORT-02": {
+      "statut": "TODO",
+      "lot": "L7",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "EXPORT-03": {
+      "statut": "TODO",
+      "lot": "L7",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "EXPORT-04": {
+      "statut": "TODO",
+      "lot": "L7",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "EXPORT-05": {
+      "statut": "TODO",
+      "lot": "L7",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "EXPORT-06": {
+      "statut": "TODO",
+      "lot": "L7",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "UX-01": {
+      "statut": "TODO",
+      "lot": "L8",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "UX-02": {
+      "statut": "TODO",
+      "lot": "L8",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "UX-03": {
+      "statut": "TODO",
+      "lot": "L8",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "UX-04": {
+      "statut": "TODO",
+      "lot": "L8",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "UX-05": {
+      "statut": "TODO",
+      "lot": "L8",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "UX-06": {
+      "statut": "TODO",
+      "lot": "L8",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "UX-07": {
+      "statut": "TODO",
+      "lot": "L8",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "MIG-01": {
+      "statut": "TODO",
+      "lot": "L9",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "MIG-02": {
+      "statut": "TODO",
+      "lot": "L9",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "MIG-03": {
+      "statut": "TODO",
+      "lot": "L9",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "MIG-04": {
+      "statut": "TODO",
+      "lot": "L9",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "MIG-05": {
+      "statut": "TODO",
+      "lot": "L9",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "MIG-06": {
+      "statut": "TODO",
+      "lot": "L9",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    },
+    "MIG-07": {
+      "statut": "TODO",
+      "lot": "L9",
+      "implementation": null,
+      "test": null,
+      "proofPath": null,
+      "sha": null,
+      "limites": null
+    }
+  },
+  "statutsAutorises": [
+    "TODO",
+    "IN_PROGRESS",
+    "IMPLEMENTED",
+    "LOCAL_VERIFIED",
+    "REAL_VERIFIED",
+    "ACCEPTED",
+    "DEPLOYED",
+    "PROD_OBSERVED",
+    "BLOCKED"
+  ],
+  "migrations": [],
+  "versionsPrompts": {
+    "pack": "02-PROMPTS.json v1.0 original (archive du 07/10, vérification structurelle 132/132 au dépôt)",
+    "etat": "draft, non importé"
+  },
+  "fournisseursVerifies": [],
+  "depenses": {
+    "autorisees": "aucun budget de recette fournisseur explicitement autorisé pour ce chantier ; plafond global AI_SPEND_CAP_USD du dépôt",
+    "reelles": 0
+  },
+  "blocages": [
+    {
+      "id": "B-FOURNISSEURS",
+      "exigences": [
+        "EXPORT-06",
+        "UX-07",
+        "PROMPT-05"
+      ],
+      "cause": "Le proxy de la session bloque fal, CloudFront et app.tiktrends.co ; aucun appel fournisseur réel ni observation production possible depuis la session.",
+      "solutionPreparee": "Adaptateurs simulés réservés aux tests ; preuve réelle à exécuter par le propriétaire ou sur le VPS.",
+      "besoinKevin": "Budget de recette fournisseur explicite et exécution réelle hors session."
+    }
+  ],
+  "prochaineAction": "Suivre L0-lectures (#125) et L1-fondations ; ensuite SEC (gardes studio, clé fal, P1/P2, ai_spend.workspace_id) puis L2 registre de prompts.",
+  "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
+  "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
+  "constatsSecurite": [
+    {
+      "id": "S-FAL-KEY",
+      "gravite": "haute",
+      "constat": "pollVideoAction reçoit le jobId du navigateur ; falGetVideo en extrait des URL et les appelle avec la clé fal sans vérifier le domaine (packages/integrations/src/fal.ts:211-234). Fuite possible de la clé et SSRF.",
+      "lot": "L1 (SEC-06/SEC-07)"
+    },
+    {
+      "id": "S-P3-STUDIOS",
+      "gravite": "haute",
+      "constat": "Actions ads.ts, image.ts, video.ts sans garde de rôle ni d'offre : client_viewer ou espace starter peut générer en appelant l'action.",
+      "lot": "L1 (SEC-03)"
+    },
+    {
+      "id": "S-E5",
+      "gravite": "haute",
+      "constat": "platform_staff indexé par e-mail, aucune vérification d'e-mail : un rôle plateforme peut être capté par la première inscription avec cet e-mail.",
+      "lot": "L1 (SEC-10)"
+    },
+    {
+      "id": "S-PLAFOND",
+      "gravite": "moyenne",
+      "constat": "Plafond de dépense par défaut 50 $ global (spend-guard.ts:40), pas 10 $ par espace ; forfait fal 0,08 $ sous-estime gpt2_high.",
+      "lot": "L3"
+    }
+  ]
+}
