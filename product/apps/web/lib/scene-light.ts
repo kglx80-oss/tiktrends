@@ -113,6 +113,9 @@ export async function compterMesuresManquantes(): Promise<number> {
  * réécrit depuis un instantané.
  *
  * Aucun appel de modèle, rien de facturé · une lecture de pixels par scène.
+ *
+ * Lancée par le script `scripts/rattraper-mesures.ts` (comptage d'abord,
+ * confirmation explicite, lot borné) · jamais par une consultation.
  */
 export async function rattraperMesures(opts: { limite?: number; delaiMs?: number } = {}): Promise<{ candidates: number; mesurees: number; echecs: number }> {
   if (!db) return { candidates: 0, mesurees: 0, echecs: 0 };
