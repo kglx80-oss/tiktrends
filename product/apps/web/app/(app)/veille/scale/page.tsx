@@ -7,8 +7,9 @@ import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { Bandeau } from '../../../../components/Bandeau';
 import { getActiveBrand } from '../../../../lib/brands';
 import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
-import { classifyAngle, capPerBrand, median, BANDEAU_DEMO_VEILLE, lireFiltresScale, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { classifyAngle, capPerBrand, median, BANDEAU_DEMO_VEILLE, lireFiltresScale, CIBLE_TACTILE_MIN, veillePersistable } from '@tiktrends/core';
 import { getVeilleCache, isFresh, setVeilleCache, refreshAllowed } from '../../../../lib/veille-cache';
+import { lireRecherche, ecrireRecherche, cleRecherche } from '../../../../lib/veille-search-cache';
 import { Empty } from '../../../../components/Empty';
 import { SwipeFile, type SwipeItem, type SwipeStats } from './SwipeFile';
 import { PageInfo } from '../../../../components/PageInfo';
@@ -78,23 +79,44 @@ export default async function ScalePage({ searchParams }: { searchParams: Promis
   let fetchedAt = '';
   let fromCache = false;
 
+  // ── Ce que la consultation écrit encore, et pourquoi (chantier L0) ────────
+  //
+  // L'appel au fournisseur de veille reste au rendu · c'est le cœur de l'écran,
+  // et le déplacer derrière un bouton est une décision produit (L3). C'est une
+  // LIMITE assumée de BASE-03 : une visite sans cache consomme du quota.
+  //
+  // Le cache persistant (`app_settings`) n'est plus écrit que pour l'ensemble
+  // FINI des niches proposées × pays proposés (`veillePersistable`) · un cache
+  // technique borné (au plus PRESETS × PAYS_VEILLE lignes, réécrites au plus
+  // toutes les six heures), qui existe pour ne PAS repayer à chaque visite. Une
+  // recherche libre (`?q=` inventé, analyse d'une marque) ne crée plus de
+  // ligne · elle passe par le cache mémoire borné de la Veille.
+  const persistable = !mono && veillePersistable(country, q, PRESETS.map((p) => p.q));
+  const cleMemoire = cleRecherche(['scale', country, terme, mono, plafond]);
+
   if (!apiKey) {
     curated = capPerBrand(SAMPLE_INSPO_ADS, (a) => a.advertiserName || a.id, growthOf, 3);
     sample = true;
   } else {
     // Cache 7 j (données marché partagées) : évite de rebrûler des crédits.
     const cache = await getVeilleCache(country, q);
+    const memoire = persistable ? undefined : lireRecherche(cleMemoire);
     // Un « Rafraîchir » n'est honoré que si le cache a déjà un certain âge : sinon
     // recharger la page en boucle suffit à brûler notre quota Trendtrack.
     const doRefresh = refresh && refreshAllowed(cache);
     if (cache && isFresh(cache) && !doRefresh) {
       curated = cache.ads; fetchedAt = cache.fetchedAt; fromCache = true;
+    } else if (memoire) {
+      // Le « Rafraîchir » n'a pas de plancher en mémoire · on ne l'honore donc
+      // pas ici, le cache court (15 min) suffit à le rendre inutile.
+      curated = memoire.ads; fromCache = true;
     } else {
       try {
         const r = await ttSearchAds({ apiKey }, { search: terme, searchIn: mono ? 'domain' : 'ad_copy', status: 'all', sortBy: 'reachDelta30d', country, limit: 100, offset: 0 });
         curated = capPerBrand(r.ads, (a) => a.advertiserName || a.id, growthOf, plafond);
         fetchedAt = new Date().toISOString();
-        await setVeilleCache(country, q, curated);
+        if (persistable) await setVeilleCache(country, q, curated);
+        else ecrireRecherche(cleMemoire, { ads: curated, total: curated.length });
       } catch (e) {
         error = (e as Error).message;
         if (cache) { curated = cache.ads; fetchedAt = cache.fetchedAt; fromCache = true; } // repli sur le cache périmé

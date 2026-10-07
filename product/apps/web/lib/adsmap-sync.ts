@@ -7,6 +7,7 @@ import {
   type DailyRow, type VerdictConfig, type ProtocolAd, type ProtocolRules, type AdMetrics,
 } from '@tiktrends/core';
 import { refreshDecisions } from './decisions';
+import { daterJalons } from './jarvis-memory';
 
 /**
  * ADSMAP · mesure quotidienne de la carte.
@@ -375,6 +376,12 @@ async function syncBrand(
     // Best-effort : une file non recalculée n'invalide pas la mesure qui précède.
     console.error('[adsmap] décisions', brand.id, (e as Error).message);
   }
+
+  // Les verdicts calculés viennent de changer · c'est ICI qu'un seuil se
+  // franchit, donc ici qu'il se date (chantier L0). Avant, la date venait de la
+  // première lecture de la mémoire, c'est-à-dire de qui regardait. Idempotent
+  // (`on conflict do nothing`) et silencieux : `daterJalons` n'échoue jamais.
+  await daterJalons(brand.id, brand.workspaceId);
 }
 
 /* -------------------------------------------------------------------------- */

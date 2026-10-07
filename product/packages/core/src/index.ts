@@ -163,3 +163,4 @@ export * from './studios/document';
 export * from './studios/patch';
 export * from './studios/machines';
 export * from './studios/impact';
+export * from './lectures-pures';

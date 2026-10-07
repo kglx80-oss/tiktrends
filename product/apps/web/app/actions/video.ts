@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, or, isNull, sql, lte, ne } from 'drizzle-orm';
+import { and, desc, eq, or, isNull, notInArray, sql, lte, ne } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
@@ -227,7 +227,25 @@ export async function pageVideosMarque(p: { page?: number; jusqua?: string } = {
 // Au-delà de ce délai sans complétion, on considère le job perdu (évite le spinner infini).
 const STALE_MS = 15 * 60 * 1000;
 
-/** Marque une génération vidéo en échec et rembourse les crédits (une seule fois). */
+/**
+ * Marque une génération vidéo en échec et rembourse les crédits · UNE seule fois.
+ *
+ * ── Le défaut (audit L0-C) ───────────────────────────────────────────────────
+ *
+ * On lisait le statut, puis on écrivait `failed` sans condition, puis on
+ * remboursait si le statut LU n'était pas terminal. Deux suivis concurrents
+ * (deux onglets sur /studio/video, ou deux polls qui se croisent) lisaient
+ * tous deux « en cours » et remboursaient tous deux · double crédit. Et une
+ * vidéo déjà `completed` pouvait être réécrite `failed`.
+ *
+ * ── Ce qui le rend unique ────────────────────────────────────────────────────
+ *
+ * La bascule est un seul UPDATE conditionnel (`status` ni `failed` ni
+ * `completed`) qui RENVOIE la ligne changée. Postgres sérialise les deux
+ * UPDATE sur la même ligne · le second, réévalué après le premier, ne trouve
+ * plus rien. On ne rembourse que si une ligne est revenue, avec le coût lu
+ * dans cette même instruction.
+ */
 async function failAndRefund(generationId: string, workspaceId: string, error: string): Promise<void> {
   if (!db) return;
   try {
@@ -235,21 +253,44 @@ async function failAndRefund(generationId: string, workspaceId: string, error: s
     // via sa marque (`generations` n'a pas de workspaceId direct). Sans ce
     // filtre, un generationId d'un AUTRE espace se faisait marquer en échec ET
     // rembourser sur l'espace de l'appelant · vol de crédits + DoS.
-    const [g] = await db.select({ status: schema.generations.status, cost: schema.generations.creditsCost })
+    const [g] = await db.select({ status: schema.generations.status })
       .from(schema.generations)
       .innerJoin(schema.brands, eq(schema.generations.brandId, schema.brands.id))
       .where(and(eq(schema.generations.id, generationId), eq(schema.brands.workspaceId, workspaceId)))
       .limit(1);
     if (!g) return; // n'appartient pas à cet espace · aucun effet
-    await db.update(schema.generations).set({ status: 'failed', output: { error } }).where(eq(schema.generations.id, generationId));
-    // Remboursement uniquement à la 1re bascule en échec, et si des crédits avaient été débités.
-    if (g.status !== 'failed' && g.status !== 'completed' && (g.cost ?? 0) > 0) {
-      await refundCredits(workspaceId, g.cost ?? 0, 'Studio · vidéo échouée (remboursement)');
+    // Déjà terminale · rien à écrire. Ce n'est qu'un raccourci : la garantie
+    // d'unicité vient de la condition reposée dans l'UPDATE ci-dessous.
+    if (g.status === 'failed' || g.status === 'completed') return;
+    const basculees = await db.update(schema.generations)
+      .set({ status: 'failed', output: { error } })
+      .where(and(
+        eq(schema.generations.id, generationId),
+        or(isNull(schema.generations.status), notInArray(schema.generations.status, ['failed', 'completed'])),
+      ))
+      .returning({ cost: schema.generations.creditsCost });
+    // Remboursement seulement si CETTE instruction a fait la bascule.
+    const cout = basculees[0]?.cost ?? 0;
+    if (basculees.length && cout > 0) {
+      await refundCredits(workspaceId, cout, 'Studio · vidéo échouée (remboursement)');
     }
   } catch { /* best-effort */ }
 }
 
-/** Interroge le statut d'un job vidéo (appelé en polling par le client). */
+/**
+ * Interroge le statut d'un job vidéo (appelé en polling par le client).
+ *
+ * ── Limite connue (chantier L0, à déplacer en L3) ────────────────────────────
+ *
+ * Ce suivi est lancé par l'ÉCRAN · ouvrir /studio/video reprend le suivi des
+ * vidéos encore « en cours », et la réponse du fournisseur est réconciliée ici
+ * (statut, adresse de la vidéo, échec et remboursement). Ce n'est pas une
+ * lecture pure au sens de BASE-03, mais la supprimer perdrait les vidéos
+ * terminées pendant l'absence de l'utilisateur. Elle reste donc, rendue
+ * idempotente (remboursement unique ci-dessus, `completed` jamais réécrit), et
+ * doit migrer vers le worker (webhook fournisseur ou tâche planifiée) pour que
+ * l'écran ne fasse plus que lire.
+ */
 export async function pollVideoAction(jobId: string, generationId?: string): Promise<VideoStatus> {
   const s = await getSession();
   if (!s) return { status: 'unknown', error: 'Session expirée.' };
@@ -286,15 +327,20 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
       try {
         // Appartenance vérifiée avant d'écrire l'URL · sinon un generationId
         // d'un autre espace se faisait injecter une URL vidéo arbitraire.
-        const [own] = await db.select({ id: schema.generations.id })
+        const [own] = await db.select({ status: schema.generations.status })
           .from(schema.generations)
           .innerJoin(schema.brands, eq(schema.generations.brandId, schema.brands.id))
           .where(and(eq(schema.generations.id, generationId), eq(schema.brands.workspaceId, s.workspaceId)))
           .limit(1);
-        if (own) {
+        if (own && own.status !== 'completed') {
+          // Conditionnel · une vidéo déjà `completed` n'est pas réécrite à
+          // chaque suivi (un second onglet ne refait aucune écriture).
           await db.update(schema.generations)
             .set({ status: 'completed', assetUrls: job.videoUrl ? [job.videoUrl] : [] })
-            .where(eq(schema.generations.id, generationId));
+            .where(and(
+              eq(schema.generations.id, generationId),
+              or(isNull(schema.generations.status), ne(schema.generations.status, 'completed')),
+            ));
         }
       } catch { /* best-effort */ }
     }
