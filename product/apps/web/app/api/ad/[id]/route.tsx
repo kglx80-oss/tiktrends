@@ -1,16 +1,17 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { lireDemandeRendu, type RatioRendu } from '@tiktrends/core/src/lectures-pures';
 import { getSession } from '../../../../lib/auth';
 import { renderAdPng, RENDER_VERSION, type AdRecipe } from '../../../../lib/ad-render';
-import { renduConnu, rangerRendu } from '../../../../lib/ad-store';
-import { mesurerScene } from '../../../../lib/scene-light';
-import type { SceneLight } from '@tiktrends/core';
+import { renduConnu, renduDansLeBucket, rangerRendu } from '../../../../lib/ad-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Ratios proposés -> dimensions de rendu (base 1080 de large).
-const RATIO_SIZE: Record<string, { width: number; height: number }> = {
+// Ratios proposés -> dimensions de rendu (base 1080 de large). La liste fait
+// foi via `RATIOS_RENDU` (noyau) · un ratio absent d'ici ne passerait pas la
+// vérification de type.
+const RATIO_SIZE: Record<RatioRendu, { width: number; height: number }> = {
   '4:5': { width: 1080, height: 1350 },
   '1:1': { width: 1080, height: 1080 },
   '9:16': { width: 1080, height: 1920 },
@@ -77,36 +78,19 @@ function recipeHash(r: AdRecipe): string {
   return (h >>> 0).toString(36);
 }
 
-/**
- * Mesure une scène qui n'avait pas été mesurée, et range le relevé.
- *
- * Le délai est court · faire attendre un affichage de grille pour un
- * embellissement serait un mauvais marché. Un échec ne se retient pas : la
- * prochaine ouverture réessaiera, et en attendant la publicité se rend avec les
- * voiles d'avant.
- */
-async function rattraperMesure(id: string, base: AdRecipe): Promise<SceneLight | null> {
-  const light = await mesurerScene(base.sceneUrl, 4_000);
-  try {
-    // Fusion côté SQL · la composition dure plusieurs secondes, et une retouche
-    // de texte faite pendant ce temps ne doit pas être écrasée par un
-    // instantané périmé.
-    await db!.update(schema.generations)
-      .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ light })}::jsonb` })
-      .where(eq(schema.generations.id, id));
-  } catch { /* le rendu de ce tour profite quand même de la mesure */ }
-  return light;
-}
-
 /** Rend la publicité composée (scène IA + couche design) en PNG, à la demande. Ratio via ?r=. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getSession();
   if (!s || !db) return new Response('Non autorisé', { status: 401 });
   const q = new URL(req.url).searchParams;
-  const r = q.get('r') || '';
-  const vignette = q.get('t') === '1';
-  const size = RATIO_SIZE[r];
+  // Borne de la clé (#125) · un ratio ou un drapeau inconnu est refusé AVANT
+  // toute lecture, toute composition et tout rangement. Avant, chaque `?r=`
+  // inventé produisait un rendu, un objet et une entrée de plus.
+  const demande = lireDemandeRendu(q.get('r'), q.get('t'));
+  if (!demande.ok) return new Response(demande.raison, { status: 400 });
+  const { ratio, vignette } = demande;
+  const size = ratio ? RATIO_SIZE[ratio] : undefined;
 
   const [g] = await db
     .select({ input: schema.generations.input, output: schema.generations.output, workspaceId: schema.brands.workspaceId, kind: schema.generations.kind })
@@ -119,16 +103,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const base = g.input as unknown as AdRecipe;
   if (!base?.sceneUrl) return new Response('Recette invalide', { status: 422 });
 
-  // Les publicités composées avant la mesure n'en portent pas · on la prend ici,
-  // une fois, et on la range. Rien n'est facturé : c'est une lecture de pixels,
-  // pas un appel de modèle. Sans ce rattrapage, la bibliothèque existante
-  // garderait son panneau noir pour toujours.
-  //
-  // `'light' in base` et non `base.light ??` · un échec est consigné en `null`,
-  // et doit compter comme une tentative. Sinon une scène devenue illisible
-  // (adresse expirée chez le fournisseur) referait quatre secondes d'attente à
-  // CHAQUE affichage de la grille, pour toujours.
-  const light = 'light' in base ? base.light ?? null : await rattraperMesure(id, base);
+  // Une pub composée avant la mesure n'en porte pas · elle se rend SANS, avec
+  // les voiles d'avant (le rendu d'une mesure ratée, prévu par la maquette).
+  // On ne mesure plus ici et on n'écrit plus la recette : consulter ne modifie
+  // rien (#125, BASE-03). Le rattrapage du stock est une commande explicite et
+  // idempotente · `rattraperMesures` (lib/scene-light.ts).
+  const light = base.light ?? null;
   const plein = size ?? { width: base.width ?? 1080, height: base.height ?? 1350 };
   const dims = vignette
     ? { width: Math.round(plein.width * ECHELLE_VIGNETTE), height: Math.round(plein.height * ECHELLE_VIGNETTE) }
@@ -137,7 +117,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // La version de la maquette entre dans la clé · sans elle, une image composée
   // par une version fautive reste servie pour toujours, et corriger le rendu ne
   // corrige rien de ce qui a déjà été rendu.
-  const cacheKey = `v${RENDER_VERSION}:${id}:${r || '4:5'}:${vignette ? 't' : 'f'}:${recipeHash(recipe)}`;
+  // `ratio` est borné · la clé ne peut plus prendre que quatre formes par recette.
+  const cacheKey = `v${RENDER_VERSION}:${id}:${ratio ?? '4:5'}:${vignette ? 't' : 'f'}:${recipeHash(recipe)}`;
 
   const cached = RENDER_CACHE.get(cacheKey);
   if (cached) {
@@ -149,7 +130,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // composition définitivement gratuite. Le cache mémoire, lui, repart à zéro à
   // chaque déploiement : la première personne à ouvrir le studio après une mise
   // en ligne repayait la composition de toutes ses pubs, une par une.
-  const range = renduConnu(g.output, cacheKey);
+  //
+  // Deux lectures, aucune écriture · l'index historique de la génération (les
+  // rendus notés avant L0), puis le bucket lui-même sous la clé déterministe.
+  const range = renduConnu(g.output, cacheKey) ?? await renduDansLeBucket(id, cacheKey);
   if (range) return Response.redirect(range, 302);
 
   try {
@@ -157,7 +141,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     cachePut(cacheKey, png);
     // On répond d'abord · faire attendre un aller-retour S3 rendrait le premier
     // affichage plus lent pour accélérer les suivants. Échec silencieux : un
-    // cache qui tombe doit se contenter de ne pas accélérer.
+    // cache qui tombe doit se contenter de ne pas accélérer. Cache TECHNIQUE
+    // (objet dérivé, déterministe, versionné, clé bornée) · aucune écriture SQL.
     void rangerRendu(id, cacheKey, png).catch(() => { /* le cache mémoire reste */ });
     return new Response(png, {
       headers: { 'content-type': 'image/png', 'cache-control': CACHE, 'x-cache': 'MISS' },

@@ -1,3 +1,5 @@
+import { and, eq, sql } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
 import { bandeDe, BANDE_BAS, BANDE_HAUT, type SceneLight } from '@tiktrends/core';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 
@@ -72,4 +74,64 @@ export async function mesurerBuffer(buf: Buffer): Promise<SceneLight | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Les publicités composées AVANT la mesure · celles dont la recette n'a pas de
+ * clé `light` (une mesure ratée est consignée `null`, donc comptée comme faite).
+ */
+const SANS_MESURE = sql`not (coalesce(${schema.generations.input}, '{}'::jsonb) ? 'light')`;
+
+/** Combien de publicités attendent leur mesure · à afficher AVANT de lancer le rattrapage. */
+export async function compterMesuresManquantes(): Promise<number> {
+  if (!db) return 0;
+  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.generations)
+    .where(and(eq(schema.generations.kind, 'ad'), SANS_MESURE));
+  return Number(r?.n ?? 0);
+}
+
+/**
+ * COMMANDE explicite · mesure et range la clarté des scènes jamais mesurées.
+ *
+ * ── Pourquoi plus au GET (#125, chantier L0) ─────────────────────────────────
+ *
+ * Le rattrapage se faisait à l'affichage · `GET /api/ad/<id>` téléchargeait la
+ * scène et RÉÉCRIVAIT la recette (`generations.input`) de toute pub d'avant la
+ * mesure, au premier regard de n'importe quel membre, y compris un lecteur
+ * client. La recette est l'objet métier que l'utilisateur retouche et que le
+ * contrôle de copie relit · elle ne bouge plus qu'à un geste.
+ *
+ * En attendant ce geste, la pub se rend sans mesure, avec les voiles d'avant ·
+ * exactement le rendu d'une mesure ratée, déjà prévu par la maquette.
+ *
+ * ── Idempotente et rejouable ─────────────────────────────────────────────────
+ *
+ * Ne vise que les recettes SANS clé `light`, et la condition est reposée dans
+ * l'UPDATE lui-même · deux exécutions simultanées, ou une retouche faite
+ * pendant la mesure, ne s'écrasent pas. Rejouée, elle ne trouve plus rien à
+ * faire. La fusion se fait côté SQL (`||`) · le reste de la recette n'est pas
+ * réécrit depuis un instantané.
+ *
+ * Aucun appel de modèle, rien de facturé · une lecture de pixels par scène.
+ */
+export async function rattraperMesures(opts: { limite?: number; delaiMs?: number } = {}): Promise<{ candidates: number; mesurees: number; echecs: number }> {
+  if (!db) return { candidates: 0, mesurees: 0, echecs: 0 };
+  const limite = Math.max(1, Math.min(opts.limite ?? 200, 1_000));
+  const lignes = await db.select({ id: schema.generations.id, input: schema.generations.input })
+    .from(schema.generations)
+    .where(and(eq(schema.generations.kind, 'ad'), SANS_MESURE))
+    .limit(limite);
+
+  let mesurees = 0, echecs = 0;
+  for (const l of lignes) {
+    const scene = (l.input as { sceneUrl?: unknown } | null)?.sceneUrl;
+    const light = typeof scene === 'string' && scene ? await mesurerScene(scene, opts.delaiMs ?? 8_000) : null;
+    const faites = await db.update(schema.generations)
+      .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ light })}::jsonb` })
+      .where(and(eq(schema.generations.id, l.id), SANS_MESURE))
+      .returning({ id: schema.generations.id });
+    if (!faites.length) continue; // déjà rattrapée entre-temps
+    if (light) mesurees++; else echecs++;
+  }
+  return { candidates: lignes.length, mesurees, echecs };
 }
