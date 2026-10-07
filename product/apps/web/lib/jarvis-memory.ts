@@ -222,7 +222,8 @@ export async function jarvisStats(brandId: string, workspaceId: string): Promise
  * COMMANDE · date les seuils que la marque vient de franchir.
  *
  * Appelée après une écriture qui change les verdicts ou la matière des
- * statistiques (via `invalidateJarvisMemory`), jamais depuis une lecture. Relit
+ * statistiques (via `invalidateJarvisMemory`, et par la synchro Adsmap après
+ * le calcul des verdicts), jamais depuis une lecture. Relit
  * la marque à frais (le cache vient d'être vidé), puis insère les jalons
  * nouveaux · idempotent, rejouable, silencieux. Rend le nombre de jalons
  * proposés (0 quand rien n'a franchi ou que la lecture a échoué).
@@ -236,6 +237,9 @@ export async function daterJalons(brandId: string, workspaceId?: string): Promis
       ws = b?.ws;
     }
     if (!ws) return 0;
+    // Toujours relue à frais · l'appelant vient d'écrire (verdicts, synchro), et
+    // dater sur un cache de cinq minutes daterait l'état d'AVANT la commande.
+    cache.delete(brandId);
     const { ads } = await loadCached(brandId, ws);
     return await recordMilestones(brandId, ws, computeBrandStats(ads));
   } catch {
