@@ -2,8 +2,8 @@ import 'server-only';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
 import type { EpinglageDevis } from '@tiktrends/core';
-// Le noyau L2 n'est pas (encore) exporté par `@tiktrends/core` : import direct du module pur.
-import { epinglerAuDevis, type Pointeur, type Portee, type Release } from '@tiktrends/core/src/prompts/release';
+// Le noyau L2 n'est pas exporté par `@tiktrends/core` (Ajv au chargement) : son seul point d'entrée serveur.
+import { epinglerAuDevis, type Pointeur, type Portee, type Release } from '../prompts/noyau';
 import type { ExecStudio } from './types';
 
 /**

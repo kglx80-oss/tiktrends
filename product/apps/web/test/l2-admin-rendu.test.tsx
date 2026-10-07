@@ -36,12 +36,14 @@ import * as depot from '../lib/studios/prompts/depot-prompts';
 import { acteurPlateforme } from './l2-outils';
 
 const base = (o: Record<string, unknown>) => ({ user: { id: ids.user, email: 'quelquun@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', plan: 'business', ...o });
-const EQUIPE = () => base({ role: 'owner', equipe: { role: 'adminplus', matrice: {} } });
+// SEC-10 / E5 · l'équipe n'obtient les permissions plateforme que si son compte est admissible.
+const EQUIPE = () => base({ role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
 const REFUSES: Array<[string, () => unknown]> = [
   ['owner d’espace (client)', () => base({ role: 'owner', equipe: null })],
   ['admin d’espace (client)', () => base({ role: 'admin', equipe: null })],
   ['lecteur', () => base({ role: 'client_viewer', equipe: null })],
   ['manager d’équipe (sans accès total)', () => base({ role: 'owner', equipe: { role: 'manager', matrice: {} } })],
+  ['adminplus non admissible (E5, compte créé après son entrée staff)', () => base({ role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false } })],
 ];
 
 async function page(sp: Record<string, string> = {}) {
