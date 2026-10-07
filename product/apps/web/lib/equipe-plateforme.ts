@@ -1,7 +1,7 @@
 import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { accesTotal, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
+import { accesTotal, plateformeAdmissible, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
 import { isFounder } from './founder';
 
 /**
@@ -15,6 +15,32 @@ import { isFounder } from './founder';
 export interface EquipeSession {
   role: RolePlateforme;
   matrice: MatriceDroits;
+  /**
+   * SEC-10 / E5 · le compte peut-il recevoir les permissions de portée
+   * PLATEFORME du nouveau studio (`prompt.*`, `provider.configure`,
+   * `run.inspect_redacted`, `knowledge.manage`) ? Calculé par
+   * `plateformeAdmissible` (noyau) : fondateur de la liste codée, ou compte
+   * créé AVANT l'inscription de son e-mail dans `platform_staff` (aucun e-mail
+   * n'est vérifié dans le produit). Absent → non admissible.
+   *
+   * N'ENLÈVE RIEN · `role` et `matrice` restent lus comme avant (rail,
+   * `/admin/equipe`, connaissances, crédits illimités). Seul le nouveau studio
+   * doit le lire (`lib/studios/garde.ts`, branchement décrit au rapport SEC).
+   */
+  plateformeAdmissible?: boolean;
+}
+
+/**
+ * Fondateurs de la liste CODÉE (`lib/founder.ts` · `FONDATEURS`), sans
+ * `FOUNDER_EMAILS` · `founder.ts` n'exporte que l'union. Recopie éprouvée
+ * contre le source de `founder.ts` (`sec-plateforme-admissible.test.ts`) ;
+ * un écart y échoue. À remplacer par un export `estFondateurCode` de
+ * `founder.ts` (hors périmètre SEC).
+ */
+export const FONDATEURS_CODES: readonly string[] = ['kguilbaux@agence-glx.fr', 'marine@agence-melie.fr'];
+
+function estFondateurCode(email: string): boolean {
+  return FONDATEURS_CODES.includes(email.trim().toLowerCase());
 }
 
 /**
@@ -57,11 +83,21 @@ export async function equipeDeSession(email?: string | null): Promise<EquipeSess
     .limit(1);
   const staffRole = (row?.role as RolePlateforme | undefined) ?? null;
 
+  // SEC-10 · antériorité du compte sur l'inscription staff. Une requête de plus
+  // pour les seuls comptes d'équipe (jamais pour un client).
+  let admissible = estFondateurCode(e);
+  if (!admissible && row) {
+    const [u] = await db.select({ createdAt: schema.users.createdAt }).from(schema.users)
+      .where(eq(schema.users.email, e)).limit(1);
+    admissible = plateformeAdmissible({ fondateurCode: false, emailVerifie: null, compteCreeLe: u?.createdAt, staffInscritLe: row.createdAt });
+  }
+
   // Accès total → matrice inutile · on tranche sans seconde requête.
-  if (staffRole && accesTotal(staffRole)) return { role: staffRole, matrice: {} };
+  if (staffRole && accesTotal(staffRole)) return { role: staffRole, matrice: {}, plateformeAdmissible: admissible };
 
   const rights = staffRole
     ? await db.select().from(schema.platformRoleRights)
     : [];
-  return equipeDepuisLignes(email, staffRole, rights as { role: string; rubriques: readonly string[] | null }[]);
+  const equipe = equipeDepuisLignes(email, staffRole, rights as { role: string; rubriques: readonly string[] | null }[]);
+  return equipe ? { ...equipe, plateformeAdmissible: admissible } : null;
 }
