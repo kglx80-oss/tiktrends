@@ -5,7 +5,7 @@ import { getSession } from '../../../lib/auth';
 import { getActiveBrand, listBrands } from '../../../lib/brands';
 import { roleAtLeast, ouverturesParRole } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
-import { bandeauAccueil, cheminOuvert, resoudreAccueil, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
+import { bandeauAccueil, cheminOuvert, resoudreAccueil, refusAssistant, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { unlimitedCredits } from '../../../lib/credits';
 import { AssistantHome } from '../../../components/AssistantHome';
@@ -81,6 +81,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         brandName={brand?.name ?? null}
         brandId={brand?.id ?? null}
         aiReady={anthropicConfigured()}
+        // SEC-03 · la même règle que le serveur (`askAssistant`) · un rôle que
+        // l'action refuse ne voit pas l'assistant.
+        assistantOuvert={!!s && refusAssistant({ roleEspace: s.role }) === null}
         regles={regles}
         bandeau={bandeau ? <HomeBandeau key="bandeau" contenu={bandeau} /> : null}
         marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} gererMarques={ouvert('/brands/new')} />}

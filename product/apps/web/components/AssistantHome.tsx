@@ -30,6 +30,12 @@ export interface AssistantHomeProps {
    * du titre, à droite · le titre garde son axe (mesuré y 99 avant le lot).
    */
   vues?: ReactNode;
+  /**
+   * SEC-03 · l'assistant est-il ouvert à cette session ? Calculé par la page
+   * avec `refusAssistant` (la règle de `askAssistant`). Fermé → ni titre ni
+   * champ. Absent = ouvert (comportement d'avant).
+   */
+  assistantOuvert?: boolean;
 }
 
 /**
@@ -69,7 +75,7 @@ const STUDIOS: Array<{ href: string; icon: string; titre: string; teinte: string
   { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', teinte: 'linear-gradient(135deg, #8a5a12, #d69a3a)' },
 ];
 
-export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple, regles = [], vues }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple, regles = [], vues, assistantOuvert = true }: AssistantHomeProps) {
   const etatCredits = afficherCredits({ balance: credits, unlimited });
   const ouvert = (href: string) => cheminOuvert(href, regles);
   const analyser = liensOuverts(ANALYSER, ouvert);
@@ -133,11 +139,14 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
       </div>
       </>}
 
-      {/* L'assistant · conservé, APRÈS les accès d'analyse · aucune génération auto. */}
+      {/* L'assistant · conservé, APRÈS les accès d'analyse · aucune génération auto.
+          Masqué au rôle que le serveur refuse (SEC-03). */}
+      {assistantOuvert && <>
       <h2 style={sectionH}>Demande à l’assistant</h2>
       <div style={{ marginTop: 10, marginBottom: 26 }}>
         <AssistantChat ready={aiReady} />
       </div>
+      </>}
 
       {/* Créer les variantes de ton test · SECONDAIRE · rangée compacte, quatre
           studios conservés, sans studio en vedette ni surtitre de produit clé. */}
