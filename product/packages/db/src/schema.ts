@@ -1,6 +1,7 @@
 import {
   pgTable, pgEnum, uuid, text, integer, doublePrecision, boolean,
   timestamp, jsonb, date, primaryKey, unique, vector, index,
+  bigint, bigserial, foreignKey,
 } from 'drizzle-orm/pg-core';
 
 /* ============================ ENUMS ============================ */
@@ -1187,3 +1188,484 @@ export const clientShareLinks = pgTable('adsmap_client_share_links', {
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* ============================ STUDIOS v1.0 · L1 ============================
+ * Modèle canonique des studios (migration 0054, docs/studios-v2/L1-MODELE.md).
+ *
+ * Ce bloc ne fait qu'AJOUTER. La migration SQL porte en plus ce que drizzle
+ * n'exprime pas ici et qu'il ne faut pas chercher à « régénérer » :
+ *  · les CHECK (valeurs fermées en `text`, empreintes hexadécimales, signes) ;
+ *  · les unicités composites posées sur l'existant (`brands (id, workspace_id)`,
+ *    `adsmap_ads (id, workspace_id)`), supports des clés de portée ;
+ *  · la clé `studio_projects (current_version_id, id)` → version du même projet ;
+ *  · les DÉCLENCHEURS d'immuabilité (versions, devis, plans d'impact, registre,
+ *    audit, approbations, prompts).
+ *
+ * Portée : chaque ligne porte (workspace_id, brand_id) et ses clés étrangères
+ * référencent le COUPLE · la base refuse une marque d'un autre espace et un
+ * enfant rattaché à un projet d'une autre marque.
+ */
+const PORTEE_PROMPT = ['platform', 'workspace', 'brand'] as const;
+
+/** Restriction OPTIONNELLE de marque · aucune ligne = toutes les marques. */
+export const studioMemberBrandScopes = pgTable('studio_member_brand_scopes', {
+  workspaceId: uuid('workspace_id').notNull(),
+  userId: uuid('user_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ name: 'studio_member_brand_scopes_pk', columns: [t.workspaceId, t.userId, t.brandId] }),
+  member: foreignKey({ name: 'studio_member_brand_scopes_member_fk', columns: [t.workspaceId, t.userId], foreignColumns: [workspaceMembers.workspaceId, workspaceMembers.userId] }).onDelete('cascade'),
+  brand: foreignKey({ name: 'studio_member_brand_scopes_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+}));
+
+export const studioPromptVersions = pgTable('studio_prompt_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').notNull(),
+  version: integer('version').notNull(),
+  kind: text('kind', { enum: ['template', 'style_recipe', 'common'] }).notNull(),
+  scope: text('scope', { enum: PORTEE_PROMPT }).notNull(),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'restrict' }),
+  brandId: uuid('brand_id'),
+  status: text('status', { enum: ['draft', 'validated', 'retired'] }).notNull().default('draft'),
+  content: jsonb('content').notNull(),
+  contentHash: text('content_hash').notNull(),
+  origin: text('origin').notNull(),
+  reason: text('reason').notNull().default(''),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  validatedBy: uuid('validated_by').references(() => users.id, { onDelete: 'restrict' }),
+  validatedAt: timestamp('validated_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  brand: foreignKey({ name: 'studio_prompt_versions_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+  uq: unique('studio_prompt_versions_uq').on(t.key, t.version, t.scope, t.workspaceId, t.brandId).nullsNotDistinct(),
+}));
+
+export const studioPromptReleases = pgTable('studio_prompt_releases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  scope: text('scope', { enum: PORTEE_PROMPT }).notNull(),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'restrict' }),
+  brandId: uuid('brand_id'),
+  entries: jsonb('entries').notNull(),
+  releaseHash: text('release_hash').notNull(),
+  status: text('status', { enum: ['staged', 'active', 'retired'] }).notNull().default('staged'),
+  evaluation: jsonb('evaluation'),
+  reason: text('reason').notNull().default(''),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  brand: foreignKey({ name: 'studio_prompt_releases_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+}));
+
+/** Pointeur actif par portée · activation et retour arrière par compare-and-set. */
+export const studioPromptActive = pgTable('studio_prompt_active', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  scope: text('scope', { enum: PORTEE_PROMPT }).notNull(),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'restrict' }),
+  brandId: uuid('brand_id'),
+  releaseId: uuid('release_id').notNull().references(() => studioPromptReleases.id, { onDelete: 'restrict' }),
+  previousReleaseId: uuid('previous_release_id').references(() => studioPromptReleases.id, { onDelete: 'restrict' }),
+  rowVersion: integer('row_version').notNull().default(0),
+  activatedBy: uuid('activated_by').references(() => users.id, { onDelete: 'set null' }),
+  activatedAt: timestamp('activated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  brand: foreignKey({ name: 'studio_prompt_active_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+  uq: unique('studio_prompt_active_uq').on(t.scope, t.workspaceId, t.brandId).nullsNotDistinct(),
+}));
+
+export const studioPromptEvaluations = pgTable('studio_prompt_evaluations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  releaseId: uuid('release_id').references(() => studioPromptReleases.id, { onDelete: 'restrict' }),
+  promptVersionId: uuid('prompt_version_id').references(() => studioPromptVersions.id, { onDelete: 'restrict' }),
+  kind: text('kind', { enum: ['structural', 'benchmark', 'manual'] }).notNull(),
+  passed: boolean('passed').notNull(),
+  result: jsonb('result').notNull(),
+  evaluatorId: uuid('evaluator_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** CreativeProject · `current_version_id` → version du MÊME projet (clé posée en SQL). */
+export const studioProjects = pgTable('studio_projects', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'restrict' }),
+  brandId: uuid('brand_id').notNull(),
+  kind: text('kind', { enum: ['image', 'video', 'ads', 'text', 'campaign'] }).notNull(),
+  title: text('title').notNull(),
+  status: text('status', { enum: ['active', 'archived'] }).notNull().default('active'),
+  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
+  currentVersionId: uuid('current_version_id'),
+  sourceRefs: jsonb('source_refs').notNull().default([]),
+  testRefs: jsonb('test_refs').notNull().default([]),
+  rowVersion: integer('row_version').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  brand: foreignKey({ name: 'studio_projects_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+  portee: unique('studio_projects_portee_uq').on(t.id, t.workspaceId, t.brandId),
+  porteeIdx: index('studio_projects_portee_idx').on(t.workspaceId, t.brandId, t.updatedAt),
+}));
+
+/** ProjectVersion · IMMUABLE (déclencheur `studio_project_versions_immuables`). */
+export const studioProjectVersions = pgTable('studio_project_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  parentId: uuid('parent_id'),
+  n: integer('n').notNull(),
+  schemaVersion: integer('schema_version').notNull(),
+  content: jsonb('content').notNull(),
+  promptReleaseId: uuid('prompt_release_id').references(() => studioPromptReleases.id, { onDelete: 'restrict' }),
+  contentHash: text('content_hash').notNull(),
+  authorId: uuid('author_id').references(() => users.id, { onDelete: 'restrict' }),
+  reason: text('reason').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_project_versions_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  nUq: unique('studio_project_versions_n_uq').on(t.projectId, t.n),
+  projetUq: unique('studio_project_versions_projet_uq').on(t.id, t.projectId),
+  parent: foreignKey({ name: 'studio_project_versions_parent_fk', columns: [t.parentId, t.projectId], foreignColumns: [t.id, t.projectId] }).onDelete('restrict'),
+  porteeIdx: index('studio_project_versions_portee_idx').on(t.workspaceId, t.brandId, t.projectId),
+}));
+
+/** Positions du canvas · séparées des données du projet et de ses versions. */
+export const studioLayouts = pgTable('studio_layouts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  positions: jsonb('positions').notNull().default({}),
+  viewport: jsonb('viewport'),
+  rowVersion: integer('row_version').notNull().default(0),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_layouts_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  projetUq: unique('studio_layouts_projet_uq').on(t.projectId),
+  porteeIdx: index('studio_layouts_portee_idx').on(t.workspaceId, t.brandId),
+}));
+
+export const studioAssets = pgTable('studio_assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'restrict' }),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id'),
+  storageKey: text('storage_key').notNull(),
+  mime: text('mime').notNull(),
+  bytes: bigint('bytes', { mode: 'number' }).notNull(),
+  width: integer('width'),
+  height: integer('height'),
+  durationMs: integer('duration_ms'),
+  fpsNum: integer('fps_num'),
+  fpsDen: integer('fps_den'),
+  hasAudio: boolean('has_audio'),
+  sha256: text('sha256').notNull(),
+  origin: text('origin', { enum: ['upload', 'generated', 'legacy', 'import', 'render'] }).notNull(),
+  rights: jsonb('rights').notNull().default({}),
+  parentAssetId: uuid('parent_asset_id'),
+  legacyRef: jsonb('legacy_ref'),
+  storageState: text('storage_state', { enum: ['pending', 'stored', 'failed', 'deleted'] }).notNull().default('pending'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  brand: foreignKey({ name: 'studio_assets_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+  projet: foreignKey({ name: 'studio_assets_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  portee: unique('studio_assets_portee_uq').on(t.id, t.workspaceId, t.brandId),
+  parent: foreignKey({ name: 'studio_assets_parent_fk', columns: [t.parentAssetId, t.workspaceId, t.brandId], foreignColumns: [t.id, t.workspaceId, t.brandId] }).onDelete('restrict'),
+  storage: unique('studio_assets_storage_uq').on(t.workspaceId, t.storageKey),
+  porteeIdx: index('studio_assets_portee_idx').on(t.workspaceId, t.brandId, t.createdAt),
+  shaIdx: index('studio_assets_sha_idx').on(t.workspaceId, t.sha256),
+}));
+
+export const studioProposals = pgTable('studio_proposals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  target: text('target').notNull(),
+  baseVersionId: uuid('base_version_id').notNull(),
+  allowedPaths: jsonb('allowed_paths').notNull(),
+  changes: jsonb('changes').notNull(),
+  explanation: text('explanation').notNull().default(''),
+  sourceIds: jsonb('source_ids').notNull().default([]),
+  estimatedCosts: jsonb('estimated_costs'),
+  state: text('state', { enum: ['draft', 'proposed', 'approved', 'rejected', 'expired'] }).notNull().default('draft'),
+  appliedVersionId: uuid('applied_version_id'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  origin: text('origin', { enum: ['jarvis', 'agent', 'human'] }).notNull(),
+  rowVersion: integer('row_version').notNull().default(0),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_proposals_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  base: foreignKey({ name: 'studio_proposals_base_fk', columns: [t.baseVersionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  appliquee: foreignKey({ name: 'studio_proposals_appliquee_fk', columns: [t.appliedVersionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  portee: unique('studio_proposals_portee_uq').on(t.id, t.workspaceId, t.brandId),
+  porteeIdx: index('studio_proposals_portee_idx').on(t.workspaceId, t.brandId, t.projectId, t.state),
+}));
+
+/** ImpactPlan · IMMUABLE. */
+export const studioImpactPlans = pgTable('studio_impact_plans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  proposalId: uuid('proposal_id'),
+  fromVersionId: uuid('from_version_id').notNull(),
+  toVersionId: uuid('to_version_id'),
+  changedInputs: jsonb('changed_inputs').notNull(),
+  reused: jsonb('reused').notNull(),
+  obsolete: jsonb('obsolete').notNull(),
+  redo: jsonb('redo').notNull(),
+  planHash: text('plan_hash').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_impact_plans_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  proposal: foreignKey({ name: 'studio_impact_plans_proposal_fk', columns: [t.proposalId, t.workspaceId, t.brandId], foreignColumns: [studioProposals.id, studioProposals.workspaceId, studioProposals.brandId] }).onDelete('restrict'),
+  depuis: foreignKey({ name: 'studio_impact_plans_depuis_fk', columns: [t.fromVersionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  vers: foreignKey({ name: 'studio_impact_plans_vers_fk', columns: [t.toVersionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  portee: unique('studio_impact_plans_portee_uq').on(t.id, t.workspaceId, t.brandId),
+  porteeIdx: index('studio_impact_plans_portee_idx').on(t.workspaceId, t.brandId, t.projectId),
+}));
+
+/** Quote · IMMUABLE ; montants entiers (crédits, micro-dollars). */
+export const studioQuotes = pgTable('studio_quotes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  projectVersionId: uuid('project_version_id').notNull(),
+  impactPlanId: uuid('impact_plan_id'),
+  impactPlanHash: text('impact_plan_hash').notNull(),
+  inputHash: text('input_hash').notNull(),
+  promptReleaseId: uuid('prompt_release_id').references(() => studioPromptReleases.id, { onDelete: 'restrict' }),
+  pricingVersion: text('pricing_version').notNull(),
+  lines: jsonb('lines').notNull(),
+  maximumCredits: integer('maximum_credits').notNull(),
+  maximumUsdMicros: bigint('maximum_usd_micros', { mode: 'number' }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_quotes_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  version: foreignKey({ name: 'studio_quotes_version_fk', columns: [t.projectVersionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  impact: foreignKey({ name: 'studio_quotes_impact_fk', columns: [t.impactPlanId, t.workspaceId, t.brandId], foreignColumns: [studioImpactPlans.id, studioImpactPlans.workspaceId, studioImpactPlans.brandId] }).onDelete('restrict'),
+  portee: unique('studio_quotes_portee_uq').on(t.id, t.workspaceId, t.brandId),
+  porteeIdx: index('studio_quotes_portee_idx').on(t.workspaceId, t.brandId, t.projectId),
+}));
+
+/** Approval · une par devis, consommée UNE fois (déclencheur). */
+export const studioApprovals = pgTable('studio_approvals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  quoteId: uuid('quote_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  inputHash: text('input_hash').notNull(),
+  approvedBy: uuid('approved_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  approvedAt: timestamp('approved_at', { withTimezone: true }).notNull().defaultNow(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  consumedJobId: uuid('consumed_job_id'),
+}, (t) => ({
+  quote: foreignKey({ name: 'studio_approvals_quote_fk', columns: [t.quoteId, t.workspaceId, t.brandId], foreignColumns: [studioQuotes.id, studioQuotes.workspaceId, studioQuotes.brandId] }).onDelete('restrict'),
+  quoteUq: unique('studio_approvals_quote_uq').on(t.quoteId),
+  portee: unique('studio_approvals_portee_uq').on(t.id, t.workspaceId, t.brandId),
+}));
+
+export const STUDIO_JOB_STATES = ['queued', 'claimed', 'running', 'persisting', 'completed', 'failed', 'cancel_requested', 'cancelled', 'reconciliation_required'] as const;
+
+export const studioJobs = pgTable('studio_jobs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  projectVersionId: uuid('project_version_id').notNull(),
+  quoteId: uuid('quote_id'),
+  approvalId: uuid('approval_id'),
+  operation: text('operation').notNull(),
+  state: text('state', { enum: STUDIO_JOB_STATES }).notNull().default('queued'),
+  qualityStatus: text('quality_status', { enum: ['pending', 'passed', 'requires_review', 'rejected'] }).notNull().default('pending'),
+  idempotencyKey: text('idempotency_key').notNull(),
+  inputHash: text('input_hash').notNull(),
+  snapshot: jsonb('snapshot').notNull(),
+  promptReleaseId: uuid('prompt_release_id').references(() => studioPromptReleases.id, { onDelete: 'restrict' }),
+  leaseOwner: text('lease_owner'),
+  leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+  heartbeatAt: timestamp('heartbeat_at', { withTimezone: true }),
+  provider: text('provider'),
+  providerRequestId: text('provider_request_id'),
+  parentJobId: uuid('parent_job_id'),
+  result: jsonb('result'),
+  error: jsonb('error'),
+  rowVersion: integer('row_version').notNull().default(0),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_jobs_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  version: foreignKey({ name: 'studio_jobs_version_fk', columns: [t.projectVersionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  quote: foreignKey({ name: 'studio_jobs_quote_fk', columns: [t.quoteId, t.workspaceId, t.brandId], foreignColumns: [studioQuotes.id, studioQuotes.workspaceId, studioQuotes.brandId] }).onDelete('restrict'),
+  approval: foreignKey({ name: 'studio_jobs_approval_fk', columns: [t.approvalId, t.workspaceId, t.brandId], foreignColumns: [studioApprovals.id, studioApprovals.workspaceId, studioApprovals.brandId] }).onDelete('restrict'),
+  approvalUq: unique('studio_jobs_approval_uq').on(t.approvalId),
+  idempotence: unique('studio_jobs_idempotence_uq').on(t.workspaceId, t.idempotencyKey),
+  portee: unique('studio_jobs_portee_uq').on(t.id, t.workspaceId, t.brandId),
+  parent: foreignKey({ name: 'studio_jobs_parent_fk', columns: [t.parentJobId, t.workspaceId, t.brandId], foreignColumns: [t.id, t.workspaceId, t.brandId] }).onDelete('restrict'),
+  porteeIdx: index('studio_jobs_portee_idx').on(t.workspaceId, t.brandId, t.createdAt),
+  fileIdx: index('studio_jobs_file_idx').on(t.state, t.leaseExpiresAt),
+}));
+
+export const studioJobAttempts = pgTable('studio_job_attempts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  jobId: uuid('job_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  n: integer('n').notNull(),
+  workerId: text('worker_id').notNull(),
+  state: text('state', { enum: ['started', 'submitted', 'succeeded', 'failed', 'uncertain', 'abandoned'] }).notNull(),
+  providerRequestId: text('provider_request_id'),
+  providerIdempotencyKey: text('provider_idempotency_key'),
+  error: jsonb('error'),
+  cost: jsonb('cost'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+}, (t) => ({
+  job: foreignKey({ name: 'studio_job_attempts_job_fk', columns: [t.jobId, t.workspaceId, t.brandId], foreignColumns: [studioJobs.id, studioJobs.workspaceId, studioJobs.brandId] }).onDelete('restrict'),
+  nUq: unique('studio_job_attempts_n_uq').on(t.jobId, t.n),
+}));
+
+/** Registre budgétaire · AJOUT SEUL (déclencheur), unités entières, `ref` unique. */
+export const studioBudgetLedger = pgTable('studio_budget_ledger', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'restrict' }),
+  brandId: uuid('brand_id'),
+  projectId: uuid('project_id'),
+  jobId: uuid('job_id'),
+  quoteId: uuid('quote_id'),
+  kind: text('kind', { enum: ['reserve', 'settle', 'release', 'adjustment'] }).notNull(),
+  credits: integer('credits').notNull(),
+  usdMicros: bigint('usd_micros', { mode: 'number' }).notNull(),
+  ref: text('ref').notNull(),
+  reason: text('reason').notNull().default(''),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  refUq: unique('studio_budget_ledger_ref_uq').on(t.ref),
+  brand: foreignKey({ name: 'studio_budget_ledger_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+  projet: foreignKey({ name: 'studio_budget_ledger_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  job: foreignKey({ name: 'studio_budget_ledger_job_fk', columns: [t.jobId, t.workspaceId, t.brandId], foreignColumns: [studioJobs.id, studioJobs.workspaceId, studioJobs.brandId] }).onDelete('restrict'),
+  quote: foreignKey({ name: 'studio_budget_ledger_quote_fk', columns: [t.quoteId, t.workspaceId, t.brandId], foreignColumns: [studioQuotes.id, studioQuotes.workspaceId, studioQuotes.brandId] }).onDelete('restrict'),
+  porteeIdx: index('studio_budget_ledger_portee_idx').on(t.workspaceId, t.brandId, t.createdAt),
+  jobIdx: index('studio_budget_ledger_job_idx').on(t.jobId),
+}));
+
+export const studioOutbox = pgTable('studio_outbox', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'restrict' }),
+  topic: text('topic').notNull(),
+  aggregateId: uuid('aggregate_id').notNull(),
+  payload: jsonb('payload').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+}, (t) => ({
+  aPublierIdx: index('studio_outbox_a_publier_idx').on(t.publishedAt, t.id),
+}));
+
+/** PromptRun · trace d'exécution, visibilité restreinte (ADMIN, expurgée). */
+export const studioPromptRuns = pgTable('studio_prompt_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id'),
+  jobId: uuid('job_id'),
+  templateKey: text('template_key').notNull(),
+  promptVersionId: uuid('prompt_version_id').references(() => studioPromptVersions.id, { onDelete: 'restrict' }),
+  promptReleaseId: uuid('prompt_release_id').references(() => studioPromptReleases.id, { onDelete: 'restrict' }),
+  compiledHash: text('compiled_hash').notNull(),
+  contextSnapshotHash: text('context_snapshot_hash').notNull(),
+  sourceRefs: jsonb('source_refs').notNull().default([]),
+  model: text('model').notNull(),
+  config: jsonb('config').notNull().default({}),
+  documentVersionId: uuid('document_version_id'),
+  outputHash: text('output_hash'),
+  latencyMs: integer('latency_ms'),
+  costUsdMicros: bigint('cost_usd_micros', { mode: 'number' }),
+  credits: integer('credits'),
+  status: text('status', { enum: ['succeeded', 'failed', 'blocked', 'shadow'] }).notNull(),
+  traceId: text('trace_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  brand: foreignKey({ name: 'studio_prompt_runs_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+  projet: foreignKey({ name: 'studio_prompt_runs_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  job: foreignKey({ name: 'studio_prompt_runs_job_fk', columns: [t.jobId, t.workspaceId, t.brandId], foreignColumns: [studioJobs.id, studioJobs.workspaceId, studioJobs.brandId] }).onDelete('restrict'),
+  version: foreignKey({ name: 'studio_prompt_runs_version_fk', columns: [t.documentVersionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  porteeIdx: index('studio_prompt_runs_portee_idx').on(t.workspaceId, t.brandId, t.createdAt),
+}));
+
+/** Variant · un média PRÉCIS d'une version. */
+export const studioVariants = pgTable('studio_variants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  projectVersionId: uuid('project_version_id').notNull(),
+  parentVariantId: uuid('parent_variant_id'),
+  mediaAssetId: uuid('media_asset_id').notNull(),
+  label: text('label').notNull().default(''),
+  hypothesis: text('hypothesis'),
+  testedVariable: text('tested_variable'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_variants_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  version: foreignKey({ name: 'studio_variants_version_fk', columns: [t.projectVersionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  media: foreignKey({ name: 'studio_variants_media_fk', columns: [t.mediaAssetId, t.workspaceId, t.brandId], foreignColumns: [studioAssets.id, studioAssets.workspaceId, studioAssets.brandId] }).onDelete('restrict'),
+  portee: unique('studio_variants_portee_uq').on(t.id, t.workspaceId, t.brandId),
+  parent: foreignKey({ name: 'studio_variants_parent_fk', columns: [t.parentVariantId, t.workspaceId, t.brandId], foreignColumns: [t.id, t.workspaceId, t.brandId] }).onDelete('restrict'),
+  porteeIdx: index('studio_variants_portee_idx').on(t.workspaceId, t.brandId, t.projectId),
+}));
+
+/** TestLink · variante ↔ ad Adsmap (même espace, une ad = une variante). */
+export const studioTestLinks = pgTable('studio_test_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  variantId: uuid('variant_id').notNull(),
+  adsmapAdId: uuid('adsmap_ad_id').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  variant: foreignKey({ name: 'studio_test_links_variant_fk', columns: [t.variantId, t.workspaceId, t.brandId], foreignColumns: [studioVariants.id, studioVariants.workspaceId, studioVariants.brandId] }).onDelete('restrict'),
+  ad: foreignKey({ name: 'studio_test_links_ad_fk', columns: [t.adsmapAdId, t.workspaceId], foreignColumns: [ads.id, ads.workspaceId] }).onDelete('restrict'),
+  adUq: unique('studio_test_links_ad_uq').on(t.adsmapAdId),
+  variantIdx: index('studio_test_links_variant_idx').on(t.workspaceId, t.brandId, t.variantId),
+}));
+
+/** AuditEvent · AJOUT SEUL (déclencheur). */
+export const studioAuditEvents = pgTable('studio_audit_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+  actorId: uuid('actor_id').references(() => users.id, { onDelete: 'restrict' }),
+  effectiveRole: text('effective_role').notNull(),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'restrict' }),
+  brandId: uuid('brand_id'),
+  action: text('action').notNull(),
+  targetType: text('target_type').notNull(),
+  targetId: text('target_id').notNull(),
+  versionBefore: text('version_before'),
+  versionAfter: text('version_after'),
+  reason: text('reason').notNull().default(''),
+  traceId: text('trace_id').notNull(),
+  details: jsonb('details'),
+}, (t) => ({
+  brand: foreignKey({ name: 'studio_audit_events_brand_fk', columns: [t.brandId, t.workspaceId], foreignColumns: [brands.id, brands.workspaceId] }).onDelete('restrict'),
+  porteeIdx: index('studio_audit_events_portee_idx').on(t.workspaceId, t.brandId, t.occurredAt),
+  cibleIdx: index('studio_audit_events_cible_idx').on(t.targetType, t.targetId),
+}));
