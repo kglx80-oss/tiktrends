@@ -17,6 +17,11 @@ import { eq, sql } from 'drizzle-orm';
  * - concept puis ad écrits hors transaction · un échec de l'ad laissait un
  *   concept sans ad.
  *
+ * Message 77 · la tête a2f157a5 REFUSAIT les vidéos ambiguës et les médias
+ * inconnus (capacité retirée) · désormais le serveur ne crée rien et demande un
+ * CHOIX explicite (liste compatible, rien de présélectionné), puis valide le
+ * choix reçu contre le média lu en base.
+ *
  * On lit des RÉSULTATS · le `href` rendu après le clic, la valeur renvoyée par
  * l'action RÉELLE et les LIGNES d'une vraie base (pglite, migrations réelles),
  * avec la garde Adsmap réelle (session et marque active simulées).
@@ -26,8 +31,8 @@ const ids = vi.hoisted(() => {
   return { ws: randomUUID(), wsB: randomUUID(), neva: randomUUID(), autre: randomUUID(), user: randomUUID() };
 });
 const session = vi.hoisted(() => ({ marque: 'neva' as 'neva' | 'autre', ws: '' }));
-type Reponse = { ok?: true; adId?: string; conceptId?: string; error?: string; dejaSuivie?: true };
-const sim = vi.hoisted(() => ({ n: 0, reponses: [] as Array<() => Promise<Reponse>> }));
+type Reponse = { ok?: true; adId?: string; conceptId?: string; error?: string; dejaSuivie?: true; choixFormat?: { options: Array<{ id: string; libelle: string }>; raison: string } };
+const sim = vi.hoisted(() => ({ n: 0, reponses: [] as Array<() => Promise<Reponse>>, refs: [] as Array<Record<string, unknown>> }));
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
@@ -52,8 +57,8 @@ vi.mock('../app/actions/adsmap-bridge', async (importOriginal) => {
   const reel = await importOriginal<typeof import('../app/actions/adsmap-bridge')>();
   return {
     ...reel,
-    trackSavedAdAction: (ref: { platform: string; externalId: string }) => {
-      sim.n++;
+    trackSavedAdAction: (ref: { platform: string; externalId: string; formatAd?: string }) => {
+      sim.n++; sim.refs.push({ ...ref });
       const r = sim.reponses.shift();
       return r ? r() : reel.trackSavedAdAction(ref);
     },
@@ -89,6 +94,12 @@ const SAUVEGARDES: Array<{ ext: string; ws?: string; mediaType?: string; format?
   { ext: 'echec', mediaType: 'image' },
   { ext: 'autre-espace', ws: 'B', mediaType: 'image' },
   { ext: 'rendu-reel', mediaType: 'image', format: qualifie('packshot') },
+  { ext: 'gif', mediaType: 'gif' },
+  { ext: 'img-auto-forge', mediaType: 'image' },
+  { ext: 'vid-choix', mediaType: 'video', format: qualifie('face_camera') },
+  { ext: 'vid-ancienne-ugc', mediaType: 'video' },
+  { ext: 'rendu-choix', mediaType: 'video' },
+  { ext: 'saved-choix', mediaType: 'video', nom: 'Vidéo à choisir' },
 ];
 
 beforeAll(async () => {
@@ -103,7 +114,7 @@ beforeAll(async () => {
     });
   }
 });
-beforeEach(() => { session.marque = 'neva'; session.ws = ''; sim.n = 0; sim.reponses = []; });
+beforeEach(() => { session.marque = 'neva'; session.ws = ''; sim.n = 0; sim.reponses = []; sim.refs = []; });
 
 const savedId = async (ext: string) => (await db!.select({ id: schema.savedAds.id }).from(schema.savedAds).where(eq(schema.savedAds.externalId, ext)))[0]!.id;
 /** Concepts et ads qui citent CETTE sauvegarde (toutes marques). */
@@ -137,7 +148,7 @@ describe('trackSavedAdAction · la même fiche, le bon format, rien de partiel',
     expect(r.adId, 'aucune ad renvoyée').toBeTruthy();
     const { concepts, ads } = await lignes('img-packshot');
     expect(ads.map((a) => a.format), 'une image « Packshot » n’est pas rangée en statique').toEqual(['static']);
-    expect(concepts[0]!.sourceRef).toEqual({ savedAdId: await savedId('img-packshot'), platform: 'meta', externalId: 'img-packshot', formatCreatif: 'packshot' });
+    expect(concepts[0]!.sourceRef).toEqual({ savedAdId: await savedId('img-packshot'), platform: 'meta', externalId: 'img-packshot', formatCreatif: 'packshot', formatAdChoisi: false });
     expect(await marqueDe(r.adId!)).toEqual({ brandId: ids.neva, ws: ids.ws });
   });
 
@@ -164,15 +175,65 @@ describe('trackSavedAdAction · la même fiche, le bon format, rien de partiel',
     expect(ads.map((a) => a.format), 'une vidéo « Démonstration » n’est pas une vidéo démo').toEqual(['video_demo', 'video_demo']);
   });
 
+  const VIDEO = [{ id: 'video_ugc', libelle: 'Vidéo UGC' }, { id: 'video_vsl', libelle: 'Vidéo VSL' }, { id: 'video_demo', libelle: 'Vidéo démo' }, { id: 'video_story', libelle: 'Vidéo story' }];
   it.each([
-    ['vid-nue', 'Vidéo non qualifiée · choisis d’abord son format dans « Format », puis réessaie · rien n’a été créé dans Adsmap.'],
-    ['vid-face', 'Format « Face caméra » · aucun format vidéo d’Adsmap (UGC, VSL, démo, story) ne lui correspond sans ambiguïté · rien n’a été créé, pour ne pas fausser les statistiques par format.'],
-    ['media-inconnu', 'Type de média inconnu dans la source (ni image ni vidéo) · son format Adsmap ne se devine pas · rien n’a été créé.'],
-  ])('refus %s · raison dite, ZÉRO ligne (ni chemin, ni concept, ni ad)', async (ext, raison) => {
+    ['vid-nue', VIDEO, 'Vidéo non qualifiée · choisis son type d’ad Adsmap · rien n’est déduit.'],
+    ['vid-face', VIDEO, 'Format « Face caméra » · aucun type vidéo d’Adsmap ne lui correspond sans ambiguïté · choisis-le.'],
+    ['gif', [{ id: 'gif', libelle: 'GIF' }], 'GIF · confirme son type d’ad Adsmap avant de créer la fiche.'],
+    ['media-inconnu', ['video_ugc', 'video_vsl', 'video_demo', 'video_story', 'static', 'image_carousel', 'gif'], 'Type de média inconnu dans la source · choisis son type d’ad parmi tous les types Adsmap · rien n’est déduit.'],
+  ])('%s sans choix · le choix est DEMANDÉ (liste compatible), ZÉRO ligne', async (ext, options, raison) => {
     const avant = await totaux();
     const r = await trackSavedAdAction({ platform: 'meta', externalId: ext });
-    expect(r).toEqual({ error: raison });
-    expect(await totaux(), 'un refus a écrit des lignes').toEqual(avant);
+    expect(r.error, 'une sauvegarde ambiguë est refusée au lieu de proposer un choix').toBeUndefined();
+    expect(r.choixFormat?.raison).toBe(raison);
+    expect(r.choixFormat?.options.map((o) => (typeof options[0] === 'string' ? o.id : o))).toEqual(options);
+    expect(r.adId).toBeUndefined();
+    expect(await totaux(), 'une demande de choix a écrit des lignes').toEqual(avant);
+  });
+
+  it.each([
+    ['vid-nue', 'static'], ['vid-nue', 'gif'], ['gif', 'video_ugc'], ['vid-face', 'ugc_talking_head'], ['media-inconnu', 'carte'],
+  ])('%s + choix forgé « %s » · refusé côté serveur, ZÉRO ligne', async (ext, forge) => {
+    const avant = await totaux();
+    const r = await trackSavedAdAction({ platform: 'meta', externalId: ext, formatAd: forge });
+    expect(r.adId, 'un type forgé par le client a été écrit').toBeUndefined();
+    expect(r.error).toMatch(/^Type d’ad non proposé pour ce média · choisis parmi « .+ » · rien n’a été créé\.$/);
+    expect(await totaux(), 'un choix forgé a écrit des lignes').toEqual(avant);
+  });
+
+  it('choix valide · une ad AU TYPE CHOISI, format qualifié conservé à part, « choisi » noté · second appel sans choix → même fiche', async () => {
+    const r = await trackSavedAdAction({ platform: 'meta', externalId: 'vid-choix', formatAd: 'video_vsl' });
+    expect(r.adId, 'le choix valide ne crée pas de fiche').toBeTruthy();
+    const { concepts, ads } = await lignes('vid-choix');
+    expect(ads.map((a) => a.format)).toEqual(['video_vsl']);
+    expect(concepts[0]!.sourceRef).toEqual({ savedAdId: await savedId('vid-choix'), platform: 'meta', externalId: 'vid-choix', formatCreatif: 'face_camera', formatAdChoisi: true });
+    const r2 = await trackSavedAdAction({ platform: 'meta', externalId: 'vid-choix' });
+    expect(r2, 'le second appel exige un nouveau choix ou change de fiche').toMatchObject({ ok: true, adId: r.adId, dejaSuivie: true });
+    expect(r2.choixFormat).toBeUndefined();
+    expect((await lignes('vid-choix')).ads).toHaveLength(1);
+  });
+
+  it('automatique · un choix forgé par le client est ignoré (image → static)', async () => {
+    const r = await trackSavedAdAction({ platform: 'meta', externalId: 'img-auto-forge', formatAd: 'video_ugc' });
+    const { concepts, ads } = await lignes('img-auto-forge');
+    expect(ads.map((x) => [x.id, x.format])).toEqual([[r.adId, 'static']]);
+    expect((concepts[0]!.sourceRef as { formatAdChoisi: boolean }).formatAdChoisi).toBe(false);
+  });
+
+  it('déjà suivie AVANT (ancienne ad `video_ugc` d’une vidéo non qualifiée) · renvoyée telle quelle, aucun choix exigé, rien modifié', async () => {
+    const sid = await savedId('vid-ancienne-ugc');
+    const [p] = await db!.insert(schema.personas).values({ brandId: ids.neva, name: 'Ancien UGC' }).returning();
+    const [d] = await db!.insert(schema.desires).values({ workspaceId: ids.ws, personaId: p!.id, label: 'D' }).returning();
+    const [a] = await db!.insert(schema.angles).values({ workspaceId: ids.ws, desireId: d!.id, label: 'A', mechanism: 'comparison' }).returning();
+    const [c] = await db!.insert(schema.concepts).values({ workspaceId: ids.ws, angleId: a!.id, title: 'Imitation · ancienne', adType: 'imitation',
+      sourceRef: { savedAdId: sid, platform: 'meta', externalId: 'vid-ancienne-ugc' } }).returning();
+    const [ad] = await db!.insert(schema.ads).values({ workspaceId: ids.ws, conceptId: c!.id, variantCode: 'v1', format: 'video_ugc', adType: 'imitation', status: 'draft' }).returning();
+    const r = await trackSavedAdAction({ platform: 'meta', externalId: 'vid-ancienne-ugc' });
+    expect(r, 'l’ancienne fiche n’est pas renvoyée d’abord').toMatchObject({ ok: true, adId: ad!.id, dejaSuivie: true });
+    expect(r.choixFormat).toBeUndefined();
+    const { concepts, ads } = await lignes('vid-ancienne-ugc');
+    expect(ads).toEqual([ad]);
+    expect(concepts).toEqual([c]);
   });
 
   it('autre espace · introuvable, zéro ligne', async () => {
@@ -227,6 +288,9 @@ async function monter(n: React.ReactNode) {
   return el;
 }
 const bouton = (h: HTMLElement, re: RegExp) => [...h.querySelectorAll('button')].find((b) => re.test(b.textContent ?? ''))!;
+async function choisir(sel: HTMLSelectElement, v: string) {
+  await act(async () => { sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); });
+}
 const liens = (h: HTMLElement) => [...h.querySelectorAll('a')].map((a) => ({ href: a.getAttribute('href'), texte: a.textContent, minHeight: a.style.minHeight }));
 
 describe('PreparerTest (Formats) · « Ouvrir la fiche dans Adsmap » vers CETTE ad', () => {
@@ -253,15 +317,6 @@ describe('PreparerTest (Formats) · « Ouvrir la fiche dans Adsmap » vers CETTE
     expect(liens(h2).map((l) => l.href), 'le second clic ne renvoie pas la même fiche').toEqual([`/adsmap?ad=${ads[0]!.id}`]);
     expect(bouton(h2, /Adsmap/).textContent).toBe('Déjà suivie dans Adsmap');
     expect((await lignes('rendu-reel')).ads).toHaveLength(1);
-  });
-
-  it('refus (vidéo non qualifiée, action réelle) · raison affichée, aucun lien, nouvel essai possible', async () => {
-    const h = await monter(<PreparerTest platform="meta" externalId="vid-nue" />);
-    await act(async () => { bouton(h, /Préparer un test/).click(); });
-    await vider();
-    expect(h.querySelector('[role="status"]')!.textContent).toBe('Vidéo non qualifiée · choisis d’abord son format dans « Format », puis réessaie · rien n’a été créé dans Adsmap.');
-    expect(liens(h)).toEqual([]);
-    expect(bouton(h, /Préparer un test/).getAttribute('aria-disabled')).toBe('false');
   });
 
   it('réponse différée · le focus posé ailleurs par l’utilisateur n’est pas volé', async () => {
@@ -296,12 +351,12 @@ describe('SavedBoards (Sauvegardes) · après « Suivre dans Adsmap », le lien 
   });
 
   it('refus puis reprise (#728 · suiviAdsmapRelancable) · une requête par essai, lien après succès, aucun doublon d’envoi', async () => {
-    sim.reponses = [() => Promise.resolve({ error: 'Vidéo non qualifiée · choisis d’abord son format dans « Format », puis réessaie · rien n’a été créé dans Adsmap.' }),
+    sim.reponses = [() => Promise.resolve({ error: 'Sélectionne une marque active pour ouvrir Adsmap.' }),
       () => Promise.resolve({ ok: true, adId: 'ad-888', dejaSuivie: true })];
     const h = await monter(<SavedBoards items={items} followKeys={[]} adsmap />);
     await act(async () => { cellule(h, 1).querySelector('button')!.click(); });
     await vider();
-    expect(cellule(h, 1).textContent).toContain('Vidéo non qualifiée');
+    expect(cellule(h, 1).textContent).toContain('Sélectionne une marque active');
     expect(liens(cellule(h, 1))).toEqual([]);
     const b = cellule(h, 1).querySelector('button')!;
     await act(async () => { b.click(); b.click(); });

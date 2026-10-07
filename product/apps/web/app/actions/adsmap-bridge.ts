@@ -2,7 +2,7 @@
 
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { mechanismForTemplate, formatAdPourGeneration, formatAdDepuisSauvegarde } from '@tiktrends/core';
+import { mechanismForTemplate, formatAdPourGeneration, resoudreTypeAd, type OptionTypeAd } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory, briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
@@ -23,7 +23,16 @@ import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
 
 const guard = adsmapGuard;
 
-export interface BridgeResult { ok?: true; adId?: string; conceptId?: string; prelaunch?: string; error?: string; /** La génération était déjà suivie · fiche existante renvoyée (lot 17). */ dejaSuivie?: true }
+export interface BridgeResult {
+  ok?: true; adId?: string; conceptId?: string; prelaunch?: string; error?: string;
+  /** La génération était déjà suivie · fiche existante renvoyée (lot 17). */ dejaSuivie?: true;
+  /**
+   * Lot 21 (message 77) · le type d'ad ne s'établit pas sans inventer · rien
+   * n'a été écrit · l'utilisateur choisit parmi ces types (aucun présélectionné)
+   * puis rappelle l'action avec `formatAd`.
+   */
+  choixFormat?: { options: OptionTypeAd[]; raison: string };
+}
 
 /**
  * Studio → ADSMAP · une créa générée devient une ad suivie.
@@ -125,15 +134,17 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
  *   rien n'est écrit · repérée par la provenance (`savedAdId`) et bornée à la
  *   marque active (persona de la marque) et à l'espace · jamais une ad d'une
  *   autre marque ;
- * - le format d'ad vient de la règle du noyau (`formatAdDepuisSauvegarde`) ·
- *   média et format qualifié, jamais `video_ugc` par défaut · un refus est
- *   rendu AVANT toute écriture ;
+ * - le type d'ad vient de la règle du noyau (`resoudreTypeAd`) · automatique
+ *   quand rien n'est inventé, sinon un CHOIX explicite de l'utilisateur
+ *   (`formatAd`), VALIDÉ ici contre les types compatibles avec le média lu en
+ *   base · sans choix, la liste est renvoyée et rien n'est écrit ; un choix
+ *   incompatible est refusé sans écriture · jamais `video_ugc` par défaut ;
  * - concept et ad s'écrivent dans UNE transaction (verrou par marque et
  *   sauvegarde) · un échec ne laisse aucun concept sans ad ;
  * - un concept ancien resté sans ad (écrit avant cette transaction) reçoit son
  *   ad · aucun second concept n'est créé.
  */
-export async function trackSavedAdAction(ref: { platform: string; externalId: string }): Promise<BridgeResult> {
+export async function trackSavedAdAction(ref: { platform: string; externalId: string; /** Type d'ad choisi par l'utilisateur, quand la règle le demande. */ formatAd?: string }): Promise<BridgeResult> {
   const g = await guard();
   if ('error' in g) return { error: g.error };
 
@@ -155,9 +166,10 @@ export async function trackSavedAdAction(ref: { platform: string; externalId: st
     const deja = await suiviSauvegarde(db!, saved.id, g.s.workspaceId, g.brand.id);
     if (deja?.adId) return { ok: true, adId: deja.adId, conceptId: deja.conceptId, dejaSuivie: true, error: undefined };
 
-    // Le format d'ad · décidé AVANT toute écriture · refus = zéro ligne.
-    const decision = formatAdDepuisSauvegarde(saved.snapshot);
-    if (!decision.ok) return { error: decision.raison };
+    // Le type d'ad · décidé AVANT toute écriture · le choix du client n'est
+    // jamais cru tel quel · il est validé contre le média lu en base.
+    const decision = resoudreTypeAd(saved.snapshot, ref.formatAd);
+    if (!decision.ok) return decision.cause === 'choix_requis' ? { choixFormat: { options: decision.options, raison: decision.raison } } : { error: decision.raison };
     const format = decision.format;
 
     const snap = (saved.snapshot ?? {}) as { advertiserName?: string; body?: string; callToAction?: string; id?: string };
@@ -184,9 +196,9 @@ export async function trackSavedAdAction(ref: { platform: string; externalId: st
         workspaceId: g.s.workspaceId, angleId: path!.angleId, title: titre,
         valueBlock: copy ? copy.slice(0, 900) : null, cta: snap.callToAction ?? null,
         adType: 'imitation', status: 'proposed',
-        // Le format QUALIFIÉ (composition) est gardé à côté de la provenance ·
-        // le format d'ad n'en garde que ce qui y correspond sans ambiguïté.
-        sourceRef: { savedAdId: saved.id, platform: saved.platform, externalId: snap.id ?? null, formatCreatif: decision.formatCreatif },
+        // Le format QUALIFIÉ (composition) est gardé à part · `formatAdChoisi`
+        // dit si le type d'ad vient d'un choix explicite de l'utilisateur.
+        sourceRef: { savedAdId: saved.id, platform: saved.platform, externalId: snap.id ?? null, formatCreatif: decision.formatCreatif, formatAdChoisi: decision.choisi },
       }).returning({ id: schema.concepts.id }))[0]?.id;
       if (!conceptId) throw new Error('concept non créé');
 
