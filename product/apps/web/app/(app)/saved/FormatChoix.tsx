@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CIBLE_TACTILE_MIN, FORMAT_NON_CLASSE, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, type FormatCreatifId } from '@tiktrends/core';
 import { classerFormatSauvegarde } from '../../actions/inspo';
@@ -48,6 +48,8 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
   const [etat, setEtat] = useState<Etat>({ t: 'repos' });
   const verrou = useRef(false);
   const selectRef = useRef<HTMLSelectElement>(null);
+  const racineRef = useRef<HTMLDivElement>(null);
+  const etatRef = useRef<HTMLParagraphElement>(null);
   const id = useId();
   const router = useRouter();
   const { toast } = useToast();
@@ -56,6 +58,28 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
   const definition = estFormatCreatif(valeur) ? formatCreatif(valeur).definition
     : indisponible ? 'Non classée.' : 'Choisis le format de cette annonce · rien n’est deviné ni classé automatiquement.';
 
+  // Lot 20B · un échec remet le choix enregistré · `modifie` repasse à faux et
+  // le bouton « Enregistrer », qui avait le focus, est démonté · le focus
+  // tombait sur <body>, en haut du document (mesuré au navigateur, clavier).
+  // Il revient au choix de CETTE carte AVANT le démontage, s'il était encore
+  // dans la carte (un focus parti ailleurs entre-temps est respecté) · le champ
+  // est lié au message d'état (`aria-describedby`), l'échec est donc annoncé, et
+  // le message est amené à l'écran (défilement minimal) une fois rendu.
+  const [montrerEchec, setMontrerEchec] = useState(0);
+  useEffect(() => { if (montrerEchec) etatRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [montrerEchec]);
+  // Message 73 · le message n'est amené à l'écran QUE si le focus est rendu au
+  // choix de cette carte · un focus parti ailleurs pendant l'attente gardait sa
+  // place, mais la page défilait quand même vers la carte quittée (mesuré ·
+  // /saved 1349 → 1206 à 1440, 6833 → 2412 à 390). L'échec reste annoncé
+  // (role=status, lié au champ par aria-describedby).
+  const rendreFocusApresEchec = () => {
+    const a = document.activeElement;
+    if (!a || a === document.body || racineRef.current?.contains(a)) {
+      selectRef.current?.focus();
+      setMontrerEchec((n) => n + 1);
+    }
+  };
+
   const enregistrer = async () => {
     if (verrou.current || !modifie) return;
     verrou.current = true;
@@ -63,7 +87,7 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
     setEtat({ t: 'envoi' });
     try {
       const r = await classerFormatSauvegarde({ platform, externalId, format: v });
-      if (!r.ok) { setValeur(enregistre); setEtat({ t: 'echec', msg: r.error }); return; }
+      if (!r.ok) { rendreFocusApresEchec(); setValeur(enregistre); setEtat({ t: 'echec', msg: r.error }); return; }
       const msg = r.format ? `Enregistré · ${formatCreatif(r.format).libelle}` : 'Enregistré · non classée';
       setEnregistre(v);
       setEtat({ t: 'ok', msg });
@@ -78,6 +102,7 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
       }
       router.refresh();
     } catch {
+      rendreFocusApresEchec();
       setValeur(enregistre);
       setEtat({ t: 'echec', msg: 'Échec de l’enregistrement · vérifie ta connexion puis réessaie.' });
     } finally {
@@ -90,7 +115,7 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
       : modifie ? 'Pas encore enregistré.' : '';
 
   return (
-    <div style={{ display: 'grid', gap: 4 }}>
+    <div ref={racineRef} style={{ display: 'grid', gap: 4 }}>
       <label htmlFor={id} style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>Format</label>
       <div style={{ display: 'flex', gap: 6 }}>
         <select
@@ -120,7 +145,7 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
         {definition}
         {versionAncienne && !modifie && etat.t === 'repos' && <> · classée avec une version antérieure de la liste, à revoir</>}
       </p>
-      <p id={`${id}-etat`} role="status" aria-live="polite" style={{ margin: 0, minHeight: 16, fontSize: 11.5, fontWeight: 600, lineHeight: 1.4, color: etat.t === 'echec' ? 'var(--danger, #e5484d)' : etat.t === 'ok' ? 'var(--accent-strong)' : 'var(--muted)' }}>
+      <p ref={etatRef} id={`${id}-etat`} role="status" aria-live="polite" style={{ margin: 0, minHeight: 16, fontSize: 11.5, fontWeight: 600, lineHeight: 1.4, color: etat.t === 'echec' ? 'var(--danger, #e5484d)' : etat.t === 'ok' ? 'var(--accent-strong)' : 'var(--muted)' }}>
         {message}
       </p>
     </div>

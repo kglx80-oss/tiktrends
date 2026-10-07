@@ -56,3 +56,30 @@ export function cotePileRetours(pileEnBas: BoiteEcran, ancre: BoiteEcran | null,
   const enHaut: BoiteEcran = { ...pileEnBas, haut: hauteurVue - pileEnBas.bas, bas: hauteurVue - pileEnBas.haut };
   return boitesSeRecouvrent(enHaut, ancre, marge) ? 'bas' : 'haut';
 }
+
+/**
+ * Message 72 · marge à laisser AU-DESSUS d'une commande qu'on focalise par
+ * programme, pour qu'elle ne passe pas sous la barre haute collante. Mesuré
+ * au navigateur (build a3361d12, Sauvegardes, rollback d'un rangement) ·
+ *
+ *   largeur · bas de la barre haute (HEADER sticky) · onglet focalisé avant
+ *   1440    · 65 px                                · −1,2 → 31,5 (centre = « Rechercher »)
+ *   1280    · 65 px                                · −1,2 → 31,5 (centre = « Rechercher »)
+ *   390     · 65 px                                · 337,5 → 381,5 (visible)
+ *
+ * 65 (barre) + 4 (anneau de focus · contour 2 + décalage 2) + 11 d'air = 80.
+ */
+export const MARGE_SOUS_BARRE_HAUTE = 80;
+
+/**
+ * Faut-il ramener une commande focalisée sous la barre haute ? `focus()` ne
+ * défile pas quand l'élément est déjà (même partiellement) dans la vue, même
+ * caché sous l'en-tête collant · et `scrollIntoView({block:'nearest'})` non
+ * plus (mesuré dans Chromium). Oui quand son haut est au-dessus de la marge,
+ * ou son bas sous le bas de la vue · alors `scrollIntoView({block:'start'})`
+ * la pose à `scroll-margin-top`. Non quand elle est déjà bien visible · on ne
+ * fait pas sauter la page pour rien.
+ */
+export function ramenerSousBarreHaute(haut: number, bas: number, hauteurVue: number, marge = MARGE_SOUS_BARRE_HAUTE): boolean {
+  return haut < marge || bas > hauteurVue;
+}

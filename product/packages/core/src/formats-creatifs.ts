@@ -460,12 +460,29 @@ export function raisonPontAdsmap(refus: 'role' | 'plan' | null, marqueActive: bo
   return marqueActive ? null : 'marque';
 }
 
-/** L'explication courte affichée à la place du bouton · aucun lien d'achat. */
-export function explicationPontAdsmap(raison: RaisonPontAdsmap | null): string | null {
+/**
+ * Message 71 · « Suivre dans Adsmap » (Sauvegardes) · un nouvel essai est-il
+ * permis ? Seuls un envoi EN COURS (`busy`) et un succès (`done`, définitif)
+ * le bloquent · une erreur (le texte du refus) se retente · le nouvel essai
+ * repasse par l'action et sa garde. Avant, toute valeur bloquait · une erreur
+ * de garde (marque active absente) rendait le bouton actif mais muet.
+ */
+export function suiviAdsmapRelancable(etat: string | undefined): boolean {
+  return etat !== 'busy' && etat !== 'done';
+}
+
+/**
+ * L'explication courte affichée à la place du bouton · aucun lien d'achat.
+ * `geste` · le geste que le bouton aurait proposé, tel qu'il s'affiche sur
+ * l'écran qui l'utilise · « Préparer un test dans Adsmap » sur
+ * `/veille/formats`, « Suivre dans Adsmap » dans Sauvegardes (lot 20B) · la
+ * raison est la même, seul le geste nommé change.
+ */
+export function explicationPontAdsmap(raison: RaisonPontAdsmap | null, geste = 'Préparer un test dans Adsmap'): string | null {
   switch (raison) {
-    case 'offre': return 'Préparer un test dans Adsmap · inclus dans l’offre Plus.';
-    case 'role': return 'Préparer un test dans Adsmap · réservé aux rôles qui ont accès à Adsmap.';
-    case 'marque': return 'Préparer un test dans Adsmap · choisis d’abord une marque active.';
+    case 'offre': return `${geste} · inclus dans l’offre Plus.`;
+    case 'role': return `${geste} · réservé aux rôles qui ont accès à Adsmap.`;
+    case 'marque': return `${geste} · choisis d’abord une marque active.`;
     default: return null;
   }
 }

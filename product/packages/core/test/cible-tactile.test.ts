@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CIBLE_TACTILE_MIN, CIBLE_POINTEUR_FIN_MIN, boitesSeRecouvrent, cibleAccessible, cibleSelonPointeur, cotePileRetours } from '../src/cible-tactile';
+import { CIBLE_TACTILE_MIN, CIBLE_POINTEUR_FIN_MIN, boitesSeRecouvrent, cibleAccessible, cibleSelonPointeur, cotePileRetours, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute } from '../src/cible-tactile';
 
 /**
  * Le seuil de cible tactile · ce qui décide qu'un bouton se rate au doigt ou non.
@@ -59,5 +59,20 @@ describe('cotePileRetours · le retour ne recouvre pas le geste qui l’a décle
   it('boitesSeRecouvrent · bords qui se touchent sans marge ne se recouvrent pas', () => {
     expect(boitesSeRecouvrent(b(0, 0, 10, 10), b(10, 0, 20, 10))).toBe(false);
     expect(boitesSeRecouvrent(b(0, 0, 10, 10), b(9, 0, 20, 10))).toBe(true);
+  });
+});
+
+describe('message 72 · commande focalisée sous la barre haute', () => {
+  it('la marge couvre la barre mesurée (65) et l’anneau de focus (4)', () => {
+    expect(MARGE_SOUS_BARRE_HAUTE).toBeGreaterThanOrEqual(65 + 4);
+  });
+  it('ramène l’onglet caché sous l’en-tête (mesuré · −1,2 → 31,5) et celui sous le bas de la vue', () => {
+    expect(ramenerSousBarreHaute(-1.2, 31.5, 720), 'onglet sous l’en-tête laissé en place').toBe(true);
+    expect(ramenerSousBarreHaute(70, 103, 720), 'onglet frôlant l’en-tête (anneau masqué) laissé en place').toBe(true);
+    expect(ramenerSousBarreHaute(700, 744, 720)).toBe(true);
+  });
+  it('laisse en place un onglet déjà bien visible (390 · 337,5 → 381,5)', () => {
+    expect(ramenerSousBarreHaute(337.5, 381.5, 720), 'la page saute pour un onglet visible').toBe(false);
+    expect(ramenerSousBarreHaute(80, 113, 720)).toBe(false);
   });
 });

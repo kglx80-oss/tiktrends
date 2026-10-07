@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
-import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur } from '@tiktrends/core';
+import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties, type FocusEvent } from 'react';
+import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
@@ -20,7 +20,13 @@ export interface SavedItem { id: string; ad: InspoAd; folder: string | null; ext
  * Boards / dossiers de rangement pour les créas sauvegardées (façon Foreplay/Atria).
  * Onglets par board + rangement d'une créa dans un board (existant ou nouveau), en direct.
  */
-export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponible = null }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean;
+export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = null, formatIndisponible = null }: { items: SavedItem[]; followKeys: string[]; adsmap?: boolean;
+  /**
+   * Lot 20B · pont Adsmap fermé · l'explication calculée côté serveur (raison
+   * réelle, texte du noyau) affichée à la place du bouton · jamais recalculée
+   * ici. Ignorée quand `adsmap` est ouvert.
+   */
+  refusAdsmap?: string | null;
   /** Lot 19C · raison calculée côté serveur quand le classement par format n'est pas ouvert (sans Veille) · `null` = ouvert. */
   formatIndisponible?: string | null }) {
   const [list, setList] = useState<SavedItem[]>(items);
@@ -48,7 +54,12 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
   const garderDansUrl = (board: string, recherche: string) => {
     remplacerRecherche(ecrireCriteresSauvegardes(window.location.search, { board, recherche }));
   };
-  const choisirBoard = (b: string) => { setTab(b); garderDansUrl(b, q); };
+  // Message 73 · la bascule AUTOMATIQUE sur « Toutes » (board vidé par un
+  // rangement optimiste) porte le jeton de son geste · un choix explicite de
+  // l'utilisateur l'efface · seul un rollback dont le jeton est encore posé rend
+  // l'onglet d'origine.
+  const basculeAuto = useRef<object | null>(null);
+  const choisirBoard = (b: string) => { basculeAuto.current = null; setTab(b); garderDansUrl(b, q); };
   const chercher = (v: string) => { setQ(v); garderDansUrl(tab, v); };
   const countIn = (f: string) => f === '__all' ? list.length : f === '__none' ? list.filter((i) => !i.folder).length : list.filter((i) => i.folder === f).length;
   const dansBoard = list.filter((it) => tab === '__all' ? true : tab === '__none' ? !it.folder : it.folder === tab);
@@ -61,15 +72,53 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
 
   // Veille → ADSMAP : une pub concurrente devient un concept « imitation ».
   const [suivi, setSuivi] = useState<Record<string, 'busy' | 'done' | string>>({});
+  // Message 71 · une erreur (texte du refus) n'empêche plus un nouvel essai ·
+  // seuls l'envoi en cours et le succès bloquent (règle du noyau). Le verrou
+  // ne dépend pas du rendu · deux clics dans la même tâche n'envoient qu'UNE
+  // requête. Une exception ne laisse plus le bouton figé sur « Ajout… ».
+  const enCours = useRef(new Set<string>());
   const suivre = async (it: SavedItem) => {
     const cle = `${it.platform}:${it.externalId}`;
-    if (suivi[cle]) return;
+    if (enCours.current.has(cle) || !suiviAdsmapRelancable(suivi[cle])) return;
+    enCours.current.add(cle);
     setSuivi((x) => ({ ...x, [cle]: 'busy' }));
-    const r = await trackSavedAdAction({ platform: it.platform, externalId: it.externalId });
-    setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
+    try {
+      const r = await trackSavedAdAction({ platform: it.platform, externalId: it.externalId });
+      setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
+    } catch {
+      setSuivi((x) => ({ ...x, [cle]: 'Ajout non enregistré · vérifie ta connexion puis réessaie.' }));
+    } finally {
+      enCours.current.delete(cle);
+    }
   };
 
   const barreRef = useRef<HTMLDivElement>(null);
+  // Message 72 · `focus()` seul laissait l'onglet SOUS la barre haute collante
+  // (mesuré · −1,2 → 31,5 à 1440 et 1280, centre = « Rechercher ») · il ne
+  // défile pas un élément déjà dans la vue. On focalise sans défiler, puis on
+  // ramène l'onglet à sa `scroll-margin-top` quand il est sous la barre ou
+  // hors du bas de la vue (règle du noyau) · un onglet visible ne bouge pas.
+  // Même règle pour TOUT focus d'onglet (Tab au clavier compris) · mesuré sur
+  // 94d45285 · après une création, Tab arrivait sur des onglets déjà dans la
+  // vue sous la barre (−1,2 à 1440 et 1280) et le navigateur ne défilait pas.
+  const ramenerSiMasque = (e: FocusEvent<HTMLButtonElement>) => {
+    const b = e.currentTarget;
+    const r = b.getBoundingClientRect();
+    if (ramenerSousBarreHaute(r.top, r.bottom, window.innerHeight)) b.scrollIntoView?.({ block: 'start' });
+  };
+  const focusOngletActif = () => {
+    // Le défilement éventuel est fait par `ramenerSiMasque` (onFocus).
+    barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus({ preventScroll: true });
+  };
+  // L'onglet AFFICHÉ, lu après la réponse du serveur (la fermeture de `move`
+  // garde celui du clic) · et le focus rendu APRÈS le rendu de la restauration
+  // (l'onglet rendu n'est pressé qu'une fois le rendu appliqué).
+  const tabRef = useRef(tab);
+  const focusApresRendu = useRef(false);
+  useEffect(() => {
+    tabRef.current = tab;
+    if (focusApresRendu.current) { focusApresRendu.current = false; focusOngletActif(); }
+  }, [tab, list]);
   const move = (it: SavedItem, folder: string | null) => {
     // Même troncature que côté serveur, pour que l'affichage corresponde après rechargement.
     const value = folder?.trim().slice(0, 60) || null;
@@ -77,20 +126,38 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
     // elle · le focus tombait en haut de page (mesuré, recette #106 point 6).
     // Il revient au board courant.
     const quitteLaVue = tab !== BOARD_TOUS && (tab === BOARD_SANS ? value !== null : value !== tab);
-    if (quitteLaVue) setTimeout(() => barreRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus(), 0);
+    if (quitteLaVue) setTimeout(focusOngletActif, 0);
+    const ongletAvant = tab;
+    const jeton = {};
     setList((l) => {
       const next = l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: value } : x));
       // Board vidé de sa dernière créa : on revient sur « Toutes » (l'onglet disparaît).
       // « Sans dossier » vidé aussi · l'onglet disparaissait et la vue restait
       // bloquée sur « Aucune créa pour cette recherche » sans recherche.
       const vide = tab === BOARD_SANS ? !next.some((x) => !x.folder) : tab !== BOARD_TOUS && !next.some((x) => x.folder === tab);
-      if (vide) { setTab(BOARD_TOUS); garderDansUrl(BOARD_TOUS, q); }
+      if (vide) { basculeAuto.current = jeton; setTab(BOARD_TOUS); garderDansUrl(BOARD_TOUS, q); }
       return next;
     });
     const avant = it.folder;
     // Remet la créa dans son board d'origine (l'onglet de ce board réapparaît
     // avec elle) · même geste pour un refus et pour une exception.
-    const restaurer = () => setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
+    // Lot 20B · l'onglet vidé par le déplacement optimiste avait basculé sur
+    // « Toutes » · la créa revenait, pas l'onglet (ni l'URL, ni le focus). On
+    // rend l'onglet d'avant le geste, s'il est encore celui de la bascule (un
+    // autre onglet choisi entre-temps est respecté) · la recherche en cours est
+    // relue dans l'URL, pas dans la fermeture.
+    const restaurer = () => {
+      setList((l) => l.map((x) => (x.externalId === it.externalId && x.platform === it.platform ? { ...x, folder: avant } : x)));
+      // Message 73 · « Toutes » choisi EXPLICITEMENT pendant l'attente n'est
+      // plus écrasé (avant, seule la valeur de l'onglet était lue).
+      if (ongletAvant !== BOARD_TOUS && basculeAuto.current === jeton && tabRef.current === BOARD_TOUS) {
+        basculeAuto.current = null;
+        setTab(ongletAvant);
+        garderDansUrl(ongletAvant, lireCriteresSauvegardes(window.location.search).recherche);
+      }
+      const dansLaBarre = !document.activeElement || document.activeElement === document.body || !!barreRef.current?.contains(document.activeElement);
+      if (quitteLaVue && dansLaBarre) focusApresRendu.current = true;
+    };
     start(async () => {
       let r: Awaited<ReturnType<typeof setSavedAdFolder>>;
       try {
@@ -126,9 +193,16 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
     );
   }
 
+  // Une piste par élément de la cellule · la carte, « Ranger », « Format », et
+  // le pont Adsmap quand il est rendu (bouton, ou raison du refus).
+  const pontRefuse = !adsmap && !!refusAdsmap;
+  const pistes = 3 + (adsmap || pontRefuse ? 1 : 0);
+
   const tabBtn = (key: string): CSSProperties => ({
     // Un nom de board long reste dans la largeur (ellipse, nom complet au survol).
     maxWidth: '100%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', minHeight: cible,
+    // Ramené par `focusOngletActif`, l'onglet s'arrête sous la barre haute.
+    scrollMarginTop: MARGE_SOUS_BARRE_HAUTE,
     display: 'inline-flex', alignItems: 'center',
     padding: '6px 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
     border: '1px solid ' + (tab === key ? 'transparent' : 'var(--line-2)'),
@@ -148,11 +222,11 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
 
       {/* Onglets des boards */}
       <div ref={barreRef} role="group" aria-label="Boards" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
-        <button type="button" aria-pressed={tab === BOARD_TOUS} onClick={() => choisirBoard(BOARD_TOUS)} style={tabBtn(BOARD_TOUS)}>Toutes · {countIn(BOARD_TOUS)}</button>
+        <button type="button" aria-pressed={tab === BOARD_TOUS} onClick={() => choisirBoard(BOARD_TOUS)} onFocus={ramenerSiMasque} style={tabBtn(BOARD_TOUS)}>Toutes · {countIn(BOARD_TOUS)}</button>
         {folders.map((f) => (
-          <button key={f} type="button" aria-pressed={tab === f} title={f} onClick={() => choisirBoard(f)} style={tabBtn(f)}><Icon name="folder" size={13} /><span style={{ marginLeft: 5, overflow: 'hidden', textOverflow: 'ellipsis' }}>{f}</span><span style={{ flexShrink: 0 }}>&nbsp;· {countIn(f)}</span></button>
+          <button key={f} type="button" aria-pressed={tab === f} title={f} onClick={() => choisirBoard(f)} onFocus={ramenerSiMasque} style={tabBtn(f)}><Icon name="folder" size={13} /><span style={{ marginLeft: 5, overflow: 'hidden', textOverflow: 'ellipsis' }}>{f}</span><span style={{ flexShrink: 0 }}>&nbsp;· {countIn(f)}</span></button>
         ))}
-        {list.some((i) => !i.folder) && <button type="button" aria-pressed={tab === BOARD_SANS} onClick={() => choisirBoard(BOARD_SANS)} style={tabBtn(BOARD_SANS)}>Sans dossier · {countIn(BOARD_SANS)}</button>}
+        {list.some((i) => !i.folder) && <button type="button" aria-pressed={tab === BOARD_SANS} onClick={() => choisirBoard(BOARD_SANS)} onFocus={ramenerSiMasque} style={tabBtn(BOARD_SANS)}>Sans dossier · {countIn(BOARD_SANS)}</button>}
       </div>
 
       {shown.length === 0 ? (
@@ -164,17 +238,30 @@ export function SavedBoards({ items, followKeys, adsmap = false, formatIndisponi
         </Empty>
       ) : (
       /* Grille */
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', columnGap: 16, rowGap: 16 }}>
         {shown.map((it) => (
-          <div key={it.platform + it.externalId} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          // Lot 20B · une SOUS-GRILLE par carte · elle occupe une piste par
+          // élément (carte, ranger, format, pont) et ces pistes sont partagées
+          // par toute la rangée · chaque commande commence à la même hauteur
+          // d'une carte à l'autre, quel que soit le nom ou le texte de la carte
+          // (mesuré · jusqu'à 64,6 px d'écart à 1440 avant). La carte commune
+          // `AdCard` n'est pas touchée · elle s'étire à la hauteur de sa piste.
+          // Sa colonne unique est bornée (`minmax(0, 1fr)`) · en `auto`, un nom
+          // de board ou un lien sans retour à la ligne l'élargissait au-delà de
+          // la colonne de la grille et la carte chevauchait sa voisine (vu).
+          <div key={it.platform + it.externalId} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: 'subgrid', gridRow: `span ${pistes}`, rowGap: 6, minWidth: 0 }}>
             {/* La pub est sauvegardée · on connaît son identifiant, donc « Génère
                 ta version » ouvre le mode CLONE avec elle en référence · l'angle
                 ET la structure, pas seulement l'angle. */}
             <AdCard ad={it.ad} saved following={following.has(it.ad.platform + ':' + (it.ad.advertiserName || ''))} cloneRef={it.id} cibles44={tactile} />
             <FolderPicker current={it.folder} folders={folders} onPick={(f) => move(it, f)} cible={cible} />
-            {/* Formats créatifs v1 (lot 19C) · qualification manuelle, persistante. */}
-            <FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} />
+            {/* Formats créatifs v1 (lot 19C) · qualification manuelle, persistante.
+                Enveloppé · le choix est lui-même une grille · étiré à la hauteur
+                de sa piste, il répartissait l'excédent entre ses lignes et son
+                champ descendait (mesuré · 4 px à 1440 et 1280). */}
+            <div><FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} /></div>
             {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
+            {pontRefuse && <p data-pont-refus style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.45 }}>{refusAdsmap}</p>}
           </div>
         ))}
       </div>
@@ -224,6 +311,11 @@ function FolderPicker({ current, folders, onPick, cible }: { current: string | n
   const panneauId = useId();
 
   const fermer = (rendreFocus: boolean) => { setOpen(false); if (rendreFocus) boutonRef.current?.focus(); };
+  // Message 71 · l'Entrée du champ « Nouveau board » est CONSOMMÉE · sinon son
+  // `keypress` arrivait sur le bouton du sélecteur (qui vient de reprendre le
+  // focus) et l'ACTIVAIT · le panneau se rouvrait et son fond fixe couvrait la
+  // page · aucun onglet de board atteignable au premier clic (mesuré au
+  // navigateur, 3 largeurs, pendant le retour d'un rangement refusé).
   const create = () => { const v = draft.trim(); if (v) { onPick(v); setDraft(''); fermer(true); } };
 
   return (
@@ -245,7 +337,7 @@ function FolderPicker({ current, folders, onPick, cible }: { current: string | n
             ))}
             {current && <button type="button" onClick={() => { onPick(null); fermer(true); }} style={{ ...row(false), minHeight: cible }}>✕ Retirer du board</button>}
             <div style={{ display: 'flex', gap: 6, padding: '6px 4px 2px', borderTop: folders.length ? '1px solid var(--line)' : 'none', marginTop: folders.length ? 4 : 0 }}>
-              <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') create(); }} placeholder="Nouveau board…" aria-label="Nom du nouveau board"
+              <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); create(); } }} placeholder="Nouveau board…" aria-label="Nom du nouveau board"
                 style={{ flex: 1, minWidth: 0, minHeight: cible, padding: '6px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 12, outline: 'none' }} />
               <button type="button" onClick={create} aria-label="Créer ce board" style={{ minWidth: cible, minHeight: cible, padding: '6px 10px', borderRadius: 8, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>+</button>
             </div>
