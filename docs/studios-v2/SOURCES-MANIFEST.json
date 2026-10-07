@@ -1,0 +1,68 @@
+[
+  {
+    "file": "references/CREAFLOW-STUDIO-RECHERCHE-APPROFONDIE.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/CREAFLOW-STUDIO-RECHERCHE-APPROFONDIE.md",
+    "sha256": "3aa60f33f3347685b5cbaba2a76922bd6808dee3f6bc1ffbf7e1ab50a637c9cb",
+    "status": "historique ; synthèse normative dans01/05"
+  },
+  {
+    "file": "references/CREAFLOW-CANVAS-ARCHITECTURE.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/CREAFLOW-CANVAS-ARCHITECTURE.md",
+    "sha256": "6672ade7f5f319ec85bbaa2030e0ad40b43a01976af1c420029953f5576654bd",
+    "status": "historique ; synthèse normative dans01/05"
+  },
+  {
+    "file": "references/CREAFLOW-EDITEUR-MODELES.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/CREAFLOW-EDITEUR-MODELES.md",
+    "sha256": "236a5b1c3ba9f57b4010d9bb7605cff8bebbfbc2521e308cce6427b6ae51bbf2",
+    "status": "historique ; synthèse normative dans01/05"
+  },
+  {
+    "file": "references/CREAFLOW-STOCKAGE-ORCHESTRATION.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/CREAFLOW-STOCKAGE-ORCHESTRATION.md",
+    "sha256": "f801a4635fc1c6a923fbde51ab3634f83207ba3c3fa0c35dfe114dbd5f79e54f",
+    "status": "historique ; synthèse normative dans01/05"
+  },
+  {
+    "file": "references/AUDIT-boucle-iteration-lot20.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/AUDIT-boucle-iteration-lot20.md",
+    "sha256": "fbeb651f5481b6d2a9e1586ec4b8b128408b61daa382e39888995d09d339732e",
+    "status": "historique ; synthèse normative dans01/05"
+  },
+  {
+    "file": "references/AUDIT-couverture-lot20.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/AUDIT-couverture-lot20.md",
+    "sha256": "d72fdf854ec9406af23abecb917d3d3cfc3f47461da0c82b03f99a3a4c30964f",
+    "status": "historique ; synthèse normative dans01/05"
+  },
+  {
+    "file": "references/STUDIO-CAPACITES-ECARTS.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/STUDIO-CAPACITES-ECARTS.md",
+    "sha256": "fb14a0535e9a110a43aa190336164586ebc7d086491f3ae5337b2dd9c261e5c0",
+    "status": "historique ; synthèse normative dans01/05"
+  },
+  {
+    "file": "references/CONTRAT-PROMPTS-STUDIO-INDEPENDANT.json",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/CONTRAT-PROMPTS-STUDIO-INDEPENDANT.json",
+    "sha256": "a221ee5268b1d63be942b895b8b6daceb448671a10e7816d76bc76f5471accf7",
+    "status": "historique ; synthèse normative dans01/05"
+  },
+  {
+    "file": "references/design-tiktrends.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/design.md",
+    "sha256": "f153dc762ea37e960d020f85c40b640ba00ab7b75effed57f7c257687eb75340",
+    "status": "référence historique"
+  },
+  {
+    "file": "references/PRODUCT-historique.md",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/PRODUCT.md",
+    "sha256": "3be888a68464027f3d61cfb90ade56ffdd3f64a527f13c46f6afb967e86c5d72",
+    "status": "référence historique"
+  },
+  {
+    "file": "references/PROMPT-SOURCING-LEDGER-7OCT.json",
+    "source": "/Users/kevinguilbaux/Documents/Codex/2026-09-24/voi/outputs/tiktrends-pilotage/preuves-creaflow-provenance/PROMPT-SOURCING-LEDGER-7OCT.json",
+    "sha256": "f9c14d27f6a50374bc9954b026ae06b33b5c8303375de7e010903d333fc080ce",
+    "status": "référence historique"
+  }
+]

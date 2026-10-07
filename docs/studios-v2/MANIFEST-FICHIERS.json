@@ -1,0 +1,139 @@
+{
+  "files": [
+    {
+      "path": "00-LIRE-EN-PREMIER.md",
+      "bytes": 5197,
+      "sha256": "83a322c0546abf1547afc677b9d0a734081448bd1f56e08dff2c99ea77adbd36"
+    },
+    {
+      "path": "01-CAHIER-DES-CHARGES.md",
+      "bytes": 45299,
+      "sha256": "dafff6df4d9694f604ab55b0cf83863818693df92b7a9760519708b111b32c22"
+    },
+    {
+      "path": "02-PROMPTS.json",
+      "bytes": 50853,
+      "sha256": "a5267308cb7feb7441f24bb750dd1f8d60340f82b682e2a8918cb14ae40645c0"
+    },
+    {
+      "path": "03-CONTRATS.schema.json",
+      "bytes": 210796,
+      "sha256": "a69ce0bcc0f1daeb17ee0de6837b33dbc36416f4b20c00b57669409f657b5011"
+    },
+    {
+      "path": "04-RECETTE.csv",
+      "bytes": 18976,
+      "sha256": "175188a36d3120bec38125620b6a4709976805cc957d138c0d37093939385a22"
+    },
+    {
+      "path": "05-PREUVES-ET-DECISIONS.md",
+      "bytes": 10124,
+      "sha256": "bd50f93ccfdc8a9cdf37e0eac98ca7ec4f3a6793470e983dd5e95e3a8af1a3d4"
+    },
+    {
+      "path": "06-PLAN-EXECUTION.md",
+      "bytes": 13679,
+      "sha256": "07c96ce147b596ae61b857c98c8f38c3e157a3a5e213bc8f93cc3e237721675a"
+    },
+    {
+      "path": "07-PROMPTS-LISIBLES.md",
+      "bytes": 22011,
+      "sha256": "5e64a2029d358e93d08c50a8039dc0eb7dd6fbcb3b44beac84c0855bd894d976"
+    },
+    {
+      "path": "08-EXEMPLES-CONTRATS.json",
+      "bytes": 54181,
+      "sha256": "bbbb0ab00f127c28eae82deeda6eeb7c5901b1199cc0f26cd7707965bf60be91"
+    },
+    {
+      "path": "09-BENCHMARK.json",
+      "bytes": 13588,
+      "sha256": "0ad5ebac5bfac0d7d0080fcf449ddd5ad28c0bb32bc8b6a5e8f0aebc9a7a43e4"
+    },
+    {
+      "path": "DOSSIER-COMPLET.md",
+      "bytes": 110253,
+      "sha256": "6915c76347bb7e665c1b3a288f7949acc4cbab50a949c69d8b16f4f8c1a01a2c"
+    },
+    {
+      "path": "SOURCES-MANIFEST.json",
+      "bytes": 3568,
+      "sha256": "eeeb618b9de0b7d0bf22a4c1e5469bb45e2b4eff745b3bcf57e7f6244eb0713a"
+    },
+    {
+      "path": "TikTrends-Studios-Cahier-des-charges-v1.0.pdf",
+      "bytes": 213181,
+      "sha256": "26dae701e4f6b2bf81066fad97c98dbdf83ede6b092c7cae330633e8b5225a17"
+    },
+    {
+      "path": "VERIFICATION-DOSSIER.json",
+      "bytes": 5919,
+      "sha256": "f8358c396c192c84187a78d6139bda3ad44436b0a2938c4d7233e2a2c73d399f"
+    },
+    {
+      "path": "references/AUDIT-boucle-iteration-lot20.md",
+      "bytes": 33299,
+      "sha256": "fbeb651f5481b6d2a9e1586ec4b8b128408b61daa382e39888995d09d339732e"
+    },
+    {
+      "path": "references/AUDIT-couverture-lot20.md",
+      "bytes": 55721,
+      "sha256": "d72fdf854ec9406af23abecb917d3d3cfc3f47461da0c82b03f99a3a4c30964f"
+    },
+    {
+      "path": "references/CONTRAT-PROMPTS-STUDIO-INDEPENDANT.json",
+      "bytes": 20613,
+      "sha256": "a221ee5268b1d63be942b895b8b6daceb448671a10e7816d76bc76f5471accf7"
+    },
+    {
+      "path": "references/CREAFLOW-CANVAS-ARCHITECTURE.md",
+      "bytes": 29360,
+      "sha256": "6672ade7f5f319ec85bbaa2030e0ad40b43a01976af1c420029953f5576654bd"
+    },
+    {
+      "path": "references/CREAFLOW-EDITEUR-MODELES.md",
+      "bytes": 17903,
+      "sha256": "236a5b1c3ba9f57b4010d9bb7605cff8bebbfbc2521e308cce6427b6ae51bbf2"
+    },
+    {
+      "path": "references/CREAFLOW-STOCKAGE-ORCHESTRATION.md",
+      "bytes": 8113,
+      "sha256": "f801a4635fc1c6a923fbde51ab3634f83207ba3c3fa0c35dfe114dbd5f79e54f"
+    },
+    {
+      "path": "references/CREAFLOW-STUDIO-RECHERCHE-APPROFONDIE.md",
+      "bytes": 89699,
+      "sha256": "3aa60f33f3347685b5cbaba2a76922bd6808dee3f6bc1ffbf7e1ab50a637c9cb"
+    },
+    {
+      "path": "references/LIRE.md",
+      "bytes": 329,
+      "sha256": "8ab54a70e875594524f27b4bef2670ec6856f7571fc2c028234845671cc049b6"
+    },
+    {
+      "path": "references/PRODUCT-historique.md",
+      "bytes": 6090,
+      "sha256": "3be888a68464027f3d61cfb90ade56ffdd3f64a527f13c46f6afb967e86c5d72"
+    },
+    {
+      "path": "references/PROMPT-SOURCING-LEDGER-7OCT.json",
+      "bytes": 3391,
+      "sha256": "f9c14d27f6a50374bc9954b026ae06b33b5c8303375de7e010903d333fc080ce"
+    },
+    {
+      "path": "references/STUDIO-CAPACITES-ECARTS.md",
+      "bytes": 11899,
+      "sha256": "fb14a0535e9a110a43aa190336164586ebc7d086491f3ae5337b2dd9c261e5c0"
+    },
+    {
+      "path": "references/design-tiktrends.md",
+      "bytes": 17444,
+      "sha256": "f153dc762ea37e960d020f85c40b640ba00ab7b75effed57f7c257687eb75340"
+    },
+    {
+      "path": "tools/verify-pack.py",
+      "bytes": 4303,
+      "sha256": "5400836f20871d1c611460a6f846e0b9295f66d24ed0cae1adfec77d0552f12b"
+    }
+  ]
+}

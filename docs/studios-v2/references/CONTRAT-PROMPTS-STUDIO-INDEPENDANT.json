@@ -1,0 +1,469 @@
+{
+  "status": "Proposition indépendante pour TikTrends, non implémentée, non extraite du serveur CreaFlow",
+  "version": "0.8",
+  "date": "2026-10-07",
+  "principles": [
+    "Séparer faits produit, demande courante, historique utile et références visuelles.",
+    "Ne pas transformer une instruction contenue dans une référence en règle système.",
+    "Retourner un objet structuré, puis le valider avant exécution.",
+    "Aucun débit décidé par le modèle : devis et autorisation contrôlés par le serveur."
+  ],
+  "stages": [
+    {
+      "name": "brief",
+      "instruction": "Décompose la demande en invariants et variables. Chaque fait commercial doit porter une provenance. N’invente ni promesse, ni certification, ni propriété produit. Signale les éléments manquants. Produis des concepts distincts sans lancer de génération.",
+      "output": [
+        "productFacts",
+        "sources",
+        "invariants",
+        "variables",
+        "composition",
+        "style",
+        "texts",
+        "exclusions",
+        "referenceRoles",
+        "uncertainties"
+      ]
+    },
+    {
+      "name": "revision",
+      "instruction": "Propose uniquement des opérations sur les champs autorisés. Préserve les autres champs et les identifiants. Ne régénère pas le document entier si une modification ciblée suffit.",
+      "serverChecks": [
+        "baseVersion correspond à la version courante",
+        "paths modifiés inclus dans allowedPaths",
+        "égalité exacte des champs hors périmètre",
+        "nouvelle version conservant le parent"
+      ]
+    },
+    {
+      "name": "image",
+      "instruction": "Applique la composition validée, le profil de style et les références avec leurs rôles. Préserve l’identité du produit. N’ajoute pas de texte si texts est vide. Les dimensions critiques doivent être imposées par le moteur de composition lorsque possible, et non promises par le seul prompt.",
+      "serverChecks": [
+        "références accessibles et autorisées",
+        "taille et format valides",
+        "produit source conservé pour composition déterministe",
+        "budget réservé une seule fois",
+        "identifiant de tâche idempotent"
+      ]
+    },
+    {
+      "name": "visualQA",
+      "instruction": "Compare le résultat aux références et au brief. Rapporte séparément la fidélité produit, la géométrie, les textes, la matière du décor et les ajouts indésirables. Ne déduis pas la réussite d’un simple statut technique terminé.",
+      "serverChecks": [
+        "géométrie mesurée avec tolérance explicite",
+        "OCR si absence de texte requise",
+        "contrôle humain avant publication tant que QA non calibrée",
+        "pas de retry payant illimité"
+      ]
+    },
+    {
+      "name": "video",
+      "instruction": "Sépare pour chaque plan image, mouvement, narration, texte écran et durée. Utilise les ressources de produit/personnage validées. Ne change pas la voix ou les plans non visés lors d’une révision ciblée.",
+      "serverChecks": [
+        "durée compatible narration",
+        "dépendances invalidées seulement si entrée modifiée",
+        "versions précédentes conservées",
+        "coût réel calculé avant chaque tâche"
+      ]
+    },
+    {
+      "name": "maskedEdit",
+      "instruction": "Décris uniquement la modification souhaitée dans la zone autorisée. Les coordonnées sont exprimées dans le repère de l’image source, indépendant du zoom et du déplacement du canevas. Ne promets pas une conservation des pixels que le moteur ne peut pas vérifier.",
+      "serverChecks": [
+        "normaliser les masques à la résolution source et versionner leur convention alpha",
+        "tester la conversion écran → image avec zoom, pan et plusieurs versions visibles",
+        "conserver un original immuable et son empreinte",
+        "composer résultat = masque * génération + (1 - masque) * original pour le mode conservation stricte",
+        "vérifier égalité exacte hors masque sur les pixels décodés avant encodage avec perte",
+        "appliquer le fondu uniquement dans une bande explicitement autorisée",
+        "si ajout isolé : privilégier un calque indépendant avec position et dimensions imposées",
+        "ne pas facturer une seconde fois la reprise du même job"
+      ],
+      "evidence": "Test CreaFlow 12 : étoile placée hors de la zone visible, coût 9. Le chemin client étudié réintègre une image complète ; aucune garantie serveur démontrée."
+    },
+    {
+      "name": "characterSheet",
+      "instruction": "À partir de identitySpec validée, décrire puis produire une fiche de référence cohérente face, trois-quarts, profil, dos. Ne modifier ni tenue ni coiffure entre vues. La fiche porte identityVersion. Ne pas emprunter des caractéristiques contradictoires à un ancien plan.",
+      "output": [
+        "identityVersion",
+        "views",
+        "wardrobe",
+        "hair",
+        "immutableTraits",
+        "uncertainties"
+      ],
+      "serverChecks": [
+        "couleur/forme de chaque composant de tenue vérifiées",
+        "toutes vues liées à la même version",
+        "aucun démarrage automatique de plans avant validation"
+      ]
+    },
+    {
+      "name": "storyboard",
+      "instruction": "Pour chaque shotId, dériver la description visuelle des références versionnées et de l’intention du plan. Séparer sujet, action, cadrage, caméra, lumière, décor, texte écran et narration. Si une ancienne description contredit la référence validée, signaler le conflit au lieu de choisir silencieusement.",
+      "output": [
+        "shotId",
+        "referenceVersions",
+        "subject",
+        "action",
+        "framing",
+        "camera",
+        "lighting",
+        "environment",
+        "narration",
+        "onScreenText",
+        "speechMode",
+        "estimatedDuration"
+      ],
+      "serverChecks": [
+        "références présentes et versionnées",
+        "champs contradictoires bloquants",
+        "ordre des plans stocké séparément des médias"
+      ]
+    },
+    {
+      "name": "voice",
+      "instruction": "Prononcer uniquement narrationText validé, dans la langue et la voix sélectionnées. Ne pas ajouter de préambule ni reformuler les faits. Les silences et intentions vocales sont fournis séparément du texte prononcé.",
+      "output": [
+        "audioAsset",
+        "wordTimings",
+        "actualDuration",
+        "voiceVersion"
+      ],
+      "serverChecks": [
+        "texte prononcé vérifié par transcription si disponible, à calibrer",
+        "durée réelle pilote chronologie",
+        "voix même version conservée pour révisions visuelles"
+      ]
+    },
+    {
+      "name": "animation",
+      "instruction": "Animer la keyframe validée conformément au mouvement autorisé. Préserver identité, tenue, produit et décor. Si caméra fixe, pas de rotation ni changement de point de vue. Si speechMode=voiceover, aucun mouvement labial demandé ; si lipsync, utiliser uniquement audioAsset lié au plan.",
+      "output": [
+        "clipAsset",
+        "sourceKeyframeHash",
+        "audioDependency",
+        "actualDuration"
+      ],
+      "serverChecks": [
+        "cadre début/milieu/fin comparé aux invariants",
+        "pas réutilisation clip d’une keyframe obsolète",
+        "durée et cadence explicitement contrôlées"
+      ]
+    },
+    {
+      "name": "music",
+      "instruction": "Produire une piste correspondant au mood validé, instrumentale si demandé, sans texte chanté. Respecter durée cible et autorisations de ressources. Ne pas réécrire la narration.",
+      "output": [
+        "musicAsset",
+        "duration",
+        "loopPolicy"
+      ],
+      "serverChecks": [
+        "gain du mix stocké hors prompt",
+        "aucune régénération voix ou images pour changement musique"
+      ]
+    },
+    {
+      "name": "composition",
+      "instruction": "Produire uniquement des opérations de composition autorisées sur calques identifiés : texte, position, taille, ordre, visibilité et plage temporelle. Ne pas rasteriser toute la scène pour déplacer un texte. Ne pas inventer de coordonnées hors du repère documenté.",
+      "output": [
+        "baseVersion",
+        "operations",
+        "affectedLayerIds",
+        "timeRanges"
+      ],
+      "serverChecks": [
+        "dimensions/positions calculées par moteur déterministe",
+        "anciens calques hors scope inchangés",
+        "masques et coordonnées testés à chaque zoom",
+        "pas exécution de code fourni par modèle"
+      ]
+    },
+    {
+      "name": "export",
+      "instruction": "Aucune décision créative nouvelle. Compiler le document validé avec ses médias et calques versionnés en respectant dimensions, cadence, temps, sous-titres et mixage.",
+      "output": [
+        "file",
+        "mediaManifest",
+        "renderVersion",
+        "validationReport"
+      ],
+      "serverChecks": [
+        "aperçu/export utilisent même document logique",
+        "texte absent si désactivé",
+        "durée/audio/crop vérifiés",
+        "SHA des entrées et sortie conservés",
+        "fichier et version précédente disponibles"
+      ]
+    }
+  ],
+  "unknownCreaflowInternals": [
+    "prompts système exacts",
+    "assemblage final des prompts fournisseur",
+    "sélection et résumé historique",
+    "modèles et versions par opération",
+    "températures, seeds et retries",
+    "évaluations et contrôles serveur"
+  ],
+  "validation": "À évaluer sur des cas synthétiques locaux ; aucun déploiement ou branchement fournisseur effectué.",
+  "acceptanceCases": [
+    {
+      "id": "geometry",
+      "input": "produit 55 % de largeur",
+      "oracle": "transformation de calque mesurée, tolérance 1 pixel",
+      "mode": "composition déterministe"
+    },
+    {
+      "id": "masked-background",
+      "input": "ajout dans rectangle sans toucher produit",
+      "oracle": "zéro pixel modifié hors masque avant encodage",
+      "mode": "composition masquée"
+    },
+    {
+      "id": "revision-isolation",
+      "input": "changer seulement A",
+      "oracle": "égalité structurelle de B et version parent conservée",
+      "mode": "validation de diff"
+    },
+    {
+      "id": "product-identity",
+      "input": "changer le style du décor",
+      "oracle": "calque produit inchangé ; si régénération, validation visuelle obligatoire",
+      "mode": "identité protégée"
+    },
+    {
+      "id": "cost-idempotency",
+      "input": "double validation ou reprise après interruption",
+      "oracle": "une réservation et un débit par job",
+      "mode": "contrôle serveur"
+    },
+    {
+      "name": "révision tenue sans substitution produit",
+      "input": "Même personne et lunettes, jaune→vert",
+      "expected": "Vesteverte et lunettes préservées ; si boîte remplace lunettes, échecQA sans publication automatique",
+      "evidence": "tests-95/character-result.json",
+      "origin": "Critère original issu d’un échec CreaFlow observé"
+    }
+  ],
+  "serverExecution": {
+    "status": "architecture proposée, non implémentée",
+    "jobStates": [
+      "draft",
+      "quoted",
+      "authorized",
+      "reserved",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled"
+    ],
+    "immutableInputs": [
+      "briefVersion",
+      "promptTemplateVersion",
+      "productAssetHash",
+      "referenceRoles",
+      "modelProvider",
+      "modelVersion",
+      "dimensions",
+      "maskHash",
+      "seedIfSupported"
+    ],
+    "promptAssemblyOrder": [
+      "règles de la tâche et format attendu",
+      "faits produit sourcés",
+      "invariants du projet",
+      "profil de style versionné",
+      "références étiquetées : identité, composition, style",
+      "modification courante et champs autorisés",
+      "exclusions",
+      "schéma de sortie"
+    ],
+    "outputValidation": [
+      "JSON conforme au schéma",
+      "diff dans les chemins autorisés",
+      "aucune allégation non sourcée",
+      "médias décodables et dimensions conformes",
+      "pixels hors masque préservés si mode strict",
+      "revue visuelle produit et typographie"
+    ],
+    "failurePolicy": {
+      "maxAutomaticPaidRetries": 0,
+      "instruction": "Présenter la cause et un nouveau devis avant toute nouvelle génération payante. Une récupération du même job ne doit pas générer un second débit."
+    },
+    "dependencyRules": [
+      {
+        "change": "texte écran",
+        "invalidate": [
+          "composition/export"
+        ],
+        "preserve": [
+          "image",
+          "animation",
+          "voix"
+        ]
+      },
+      {
+        "change": "narration",
+        "invalidate": [
+          "voix",
+          "synchronisation",
+          "composition/export"
+        ],
+        "preserve": [
+          "image"
+        ],
+        "conditional": "réévaluer animation si lipsync ou durée incompatibles"
+      },
+      {
+        "change": "produit ou référence identité",
+        "invalidate": [
+          "image liée",
+          "animation dérivée",
+          "composition/export"
+        ],
+        "preserve": [
+          "plans sans dépendance"
+        ]
+      },
+      {
+        "change": "musique",
+        "invalidate": [
+          "mixage",
+          "export"
+        ],
+        "preserve": [
+          "images",
+          "animations",
+          "voix"
+        ]
+      }
+    ]
+  },
+  "remainingVerification": [
+    {
+      "question": "cohérence entre plusieurs plans",
+      "test": "même référence identité, deux cadrages ; revue visage, produit, motif, voix",
+      "status": "Test16 animé, export V1/V2 examiné : identité visuelle globalement stable sur un cas, caméra plan2 mobile malgré consigne stable. Lipsync non évalué. V2 sous-titres retirés, audio décodé identique V1/V2."
+    },
+    {
+      "question": "référence de style contre référence produit",
+      "test": "références séparées avec rôles explicites ; comparer trois sorties contrôlées",
+      "status": "test15A produit seul effectué ; B non effectué, permission import manquante"
+    },
+    {
+      "question": "qualité du montage exporté",
+      "test": "export complet, lecture audio/vidéo et contrôle de synchronisation",
+      "status": "Exports V1/V2 et historique V4 récupérés et trames examinées. Audio V1/V2 identique. V4 comparé au mix aperçu : corrélation0.9828 après alignement10ms, gains ajustés≈0.986voix et0.172musique. Parité exhaustive et écoute non certifiées."
+    },
+    {
+      "question": "robustesse de reprise et débit unique",
+      "test": "uniquement sur notre implémentation locale avec fausses tâches et crédits synthétiques",
+      "status": "à implémenter ; ne pas perturber le serveur tiers"
+    },
+    {
+      "question": "prompts privés et fournisseurs exacts",
+      "test": "seulement preuve publique ou champ normalement exposé au compte",
+      "status": "non démontrés ; les générations seules ne peuvent pas les révéler avec certitude"
+    }
+  ],
+  "executionGate": {
+    "origin": "Décision indépendante motivée par défaut P1 observé, pas description du serveur CreaFlow",
+    "states": [
+      "draft",
+      "proposed",
+      "quoted",
+      "approved",
+      "running",
+      "completed",
+      "failed"
+    ],
+    "rules": [
+      "Une demande de prévisualisation produit uniquement un patch, jamais un job.",
+      "Les actions modèle ne constituent pas une approbation.",
+      "Toute exécution consomme une approbation liée au hash des entrées, version du document et devis.",
+      "Inclure dans devis crédits et quotas gratuits ; gratuit ne signifie pas sans conséquence.",
+      "Refuser toute écriture concurrente sur version périmée.",
+      "Conserver ressource source et précédente version avant publication du résultat."
+    ],
+    "acceptance": [
+      "La phrase présente avant génération ne crée aucune tâche, aucun débit, aucun quota consommé.",
+      "Après approbation, un rechargement reprend le même job sans nouvel appel fournisseur.",
+      "Un changement de coût ou de périmètre invalide approbation précédente."
+    ]
+  },
+  "productReferenceContract": {
+    "origin": "Décision originale issue des tests, pas prompt privé CreaFlow",
+    "requiredFields": [
+      "assetId",
+      "sha256",
+      "referenceRole",
+      "requiredComponents",
+      "allowedStyleScope",
+      "allowedGeometryChanges",
+      "forbiddenChanges"
+    ],
+    "rule": "Une interdiction vague accessoire ne doit jamais retirer un composant produit explicitement requis. Présenter les composants ambigus avant génération.",
+    "acceptance": "Catalogue avec lunettes et bandeau : deux composants doivent rester présents si requis ; une sortie sans bandeau échoue même si lunettes similaires."
+  },
+  "consistencyGate": {
+    "origin": "Proposition originale ; échec observé CreaFlow fiche verte/plan jaune V3",
+    "singleSourceOfTruth": "Les propriétés validées de personnage/produit sont des champs versionnés. Les prompts de plans les référencent au lieu de les recopier sans liaison.",
+    "precedence": [
+      "instruction utilisateur validée pour la révision courante",
+      "invariants produit obligatoires",
+      "fiche identité versionnée",
+      "intention plan",
+      "style décor"
+    ],
+    "conflictRule": "Avant devis puis exécution, détecter les contradictions entre champs et texte libre (exemple wardrobe.color=green / plan mentions yellow). Bloquer pour résolution explicite, aucune génération silencieuse.",
+    "invalidation": [
+      "changement identité ou tenue -> toutes keyframes utilisant version précédente obsolètes",
+      "keyframe modifiée -> clip correspondant obsolète",
+      "clip modifié -> montage obsolète",
+      "voix modifiée -> durée et alignements recalculés, conserver images si aucune dépendance labiale",
+      "ordre modifié -> montage et sous-titres recalculés, conserver clips source quand possible"
+    ],
+    "completionRule": "Job technique terminé ne signifie pas consigne réussie. Vérifier composants produit, attributs identité et contraintes plan ; marquer requires_review si échec. Garder dernière version validée accessible.",
+    "acceptanceCases": [
+      {
+        "input": "fiche verte + plan jaune",
+        "expected": "conflit détecté avant débit"
+      },
+      {
+        "input": "couleur tenue modifiée, plans1/2 la référencent",
+        "expected": "devis détaille fiche, deux images, deux clips, montage et quota ; aucune mutation des anciennes versions"
+      },
+      {
+        "input": "sortie jaune malgré champs verts",
+        "expected": "requires_review, pas succès automatique"
+      },
+      {
+        "input": "ordre2,1 sans lipsync nouveau",
+        "expected": "recomposition sans génération image/clip"
+      }
+    ]
+  },
+  "templateProvenance": "Instructions originales proposées pour notre studio. Aucun texte présenté comme prompt privé CreaFlow. Non benchmarkées contre un fournisseur.",
+  "readinessGate": {
+    "status": "Non atteint",
+    "condition": "Score documentaire95 ne suffit pas pour livrer : prototype puis benchmark qualité requis. Développement TikTrends en pause.",
+    "doNotInfer": [
+      "modèle exact à partir du style visuel",
+      "prompt serveur à partir des déclarations du chat",
+      "bonne exécution à partir de statut terminé"
+    ]
+  },
+  "referenceRoleAcceptance": {
+    "provenance": "Règles originales issues observation CreaFlow carte Style + produit distinct, deux sorties 7oct ; pas consignes privées récupérées.",
+    "rules": [
+      "Associer chaque image à un rôle explicite produit/style/logo et à une portée de transformation.",
+      "Épingler une photo produit et son empreinte, pas seulement un identifiant catalogue contenant plusieurs variantes.",
+      "Définir attributs immuables par composant : monture, verres, bandeau, attaches, motifs.",
+      "Pour packshot fidèle, proposer photo détourée et composition déterministe sur décor généré ; si régénération du produit, déclarer le risque et contrôler après rendu.",
+      "Garder separate texture du décor et matériaux du produit."
+    ],
+    "newAcceptanceCase": "Deux sorties de même brief doivent être inspectées pour monture/verres/bandeau ; succès décor ne suffit pas à valider fidélité produit.",
+    "implementationStatus": "Non implémenté"
+  }
+}
