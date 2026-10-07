@@ -1,6 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { chatSystemPrompt, trimThread, personnalisationAccueil, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
+import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
@@ -9,6 +9,9 @@ import { effectiveAccess } from '../../../../lib/access';
 import { jarvisFullMemory, jarvisStats } from '../../../../lib/jarvis-memory';
 import { consigneAvecConnaissances, consignerUsageConnaissances } from '../../../../lib/jarvis-connaissances';
 import { guardedAnthropic, SpendBlockedError } from '../../../../lib/spend-guard';
+import { resoudreConversationJarvis, consignerRunConversation } from '../../../../lib/studios/prompts/resolveur';
+import { assemblerConsigneJarvis } from '../../../../lib/studios/prompts/conversation';
+import type { SourceTrace } from '../../../../lib/studios/prompts/traces';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,7 +30,17 @@ export const maxDuration = 120;
  * contourné : les jetons réels sont relevés sur les événements du flux et la
  * dépense est écrite à la fin, même si la connexion se coupe en route.
  *
- * ── La consigne est recomposée à chaque tour ─────────────────────────────────
+ * ── La consigne vient du registre, recomposée à chaque tour ───────────────────
+ *
+ * Son TEXTE est la politique de conversation `jarvis.conversation` de la
+ * release active (registre de prompts, ADMIN « IA et Studios »), résolue par le
+ * PromptResolver unique (`lib/studios/prompts/resolveur.ts`). Sans release
+ * publiée, il garde la version 1.0.0 migrée (le texte d'avant, prouvé
+ * identique), tracée `repli_1_0_0` · Jarvis n'est jamais coupé faute de
+ * publication. L'ASSEMBLAGE (ordre des blocs, seuils, plafonds, bloc d'actions,
+ * bloc de connaissances) reste une politique du code. Chaque tour laisse une
+ * trace `studio_prompt_runs` (release, version, empreintes, sources, coût) ·
+ * jamais la question ni la réponse en clair.
  *
  * Elle n'est jamais stockée avec le fil. La mémoire de la marque bouge — un
  * verdict arbitré, une créa décrite, une accroche réfutée — et une consigne
@@ -56,6 +69,12 @@ export async function POST(req: Request) {
   const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'jarvis-chat' });
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
   if (!client) return json({ error: messageServiceInactif('jarvis') }, 503);
+
+  // La release active porte la consigne ; sans release, la version 1.0.0
+  // migrée (voir resoudreConversationJarvis). Échec de lecture ou release
+  // publiée sans politique Jarvis : service inactif, rien ne part.
+  const resolution = await resoudreConversationJarvis().catch(() => null);
+  if (!resolution?.ok) return json({ error: messageServiceInactif('jarvis') }, 503);
 
   try {
     // Le fil tel qu'il est en base, PUIS la question du tour · on n'écrit la
@@ -91,7 +110,7 @@ export async function POST(req: Request) {
 
     // Les connaissances PUBLIÉES de l'équipe, dans leur portée, délimitées ·
     // insérées avant les règles maison (voir lib/jarvis-connaissances).
-    const { system, inclus } = await consigneAvecConnaissances(chatSystemPrompt({
+    const donnees = {
       brandName: brand.name,
       memory: memoire,
       rules: b?.rules ?? null,
@@ -102,7 +121,9 @@ export async function POST(req: Request) {
       // boutons mèneraient vers des écrans fermés.
       canPropose: voitMemoire,
       niveau,
-    }), { workspaceId: s.workspaceId, brandId: brand.id });
+      blocActions: actionsPromptBlock(),
+    };
+    const { system, inclus } = await consigneAvecConnaissances(assemblerConsigneJarvis(resolution.politique, donnees), { workspaceId: s.workspaceId, brandId: brand.id });
 
     await db.insert(schema.jarvisMessages).values({
       workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id,
@@ -119,11 +140,17 @@ export async function POST(req: Request) {
 
     const encodeur = new TextEncoder();
     let complet = '';
+    let statut: 'succeeded' | 'failed' = 'succeeded';
+    const jetons = { entree: 0, sortie: 0 };
+    const debut = Date.now();
 
     const sortie = new ReadableStream<Uint8Array>({
       async start(ctrl) {
         try {
           for await (const ev of flux) {
+            const u = ev as { type?: string; message?: { usage?: { input_tokens?: number } }; usage?: { output_tokens?: number } };
+            if (u.type === 'message_start') jetons.entree = u.message?.usage?.input_tokens ?? 0;
+            if (u.type === 'message_delta') jetons.sortie = u.usage?.output_tokens ?? jetons.sortie;
             if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && ev.delta.text) {
               complet += ev.delta.text;
               ctrl.enqueue(encodeur.encode(ev.delta.text));
@@ -136,6 +163,7 @@ export async function POST(req: Request) {
             ? `\n\n[${e.message}]`
             : '\n\n[Réponse interrompue.]';
           complet += m;
+          statut = 'failed';
           ctrl.enqueue(encodeur.encode(m));
           console.error('[jarvis:chat]', (e as Error).message);
         } finally {
@@ -147,6 +175,19 @@ export async function POST(req: Request) {
           }
           // Ce qui était dans le contexte de CETTE réponse, et ce qu'elle a cité.
           if (inclus.length) await consignerUsageConnaissances(inclus, complet, question).catch(() => { /* compteur, jamais bloquant */ });
+          // Trace du tour (release, version, empreintes, sources) · jamais bloquante.
+          const empreinte = (t: string | null | undefined) => (t ? sha256Hex(t) : null);
+          const sources: SourceTrace[] = [
+            ...inclus.map((i) => ({ type: 'connaissance' as const, id: i.id, version: i.ref, titre: i.titre })),
+            ...(memoire.trim() ? [{ type: 'memoire' as const, id: brand.id, version: empreinte(memoire)!.slice(0, 16), titre: 'Mémoire mesurée de la marque' }] : []),
+            ...(b?.rules?.trim() ? [{ type: 'regles' as const, id: brand.id, version: empreinte(b.rules)!.slice(0, 16), titre: 'Règles maison' }] : []),
+          ];
+          await consignerRunConversation({
+            resolution, portee: { workspaceId: s.workspaceId, brandId: brand.id }, traceId: `jv_${crypto.randomUUID()}`, modele: MODEL,
+            system, messages: fil,
+            contexte: { marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref) },
+            sources, reponse: complet, statut, latenceMs: Date.now() - debut, jetons, coutUsd: costOfTokens(MODEL, jetons.entree, jetons.sortie),
+          }).catch((e) => console.error('[jarvis:chat] trace', (e as Error).message));
           ctrl.close();
         }
       },
