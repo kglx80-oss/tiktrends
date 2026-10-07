@@ -319,6 +319,75 @@ describe('PreparerTest (Formats) · « Ouvrir la fiche dans Adsmap » vers CETTE
     expect((await lignes('rendu-reel')).ads).toHaveLength(1);
   });
 
+  it('vidéo ambiguë (action RÉELLE) · le choix apparaît, RIEN de sélectionné, focus sur le choix · choix → lien vers l’ad au type choisi', async () => {
+    const h = await monter(<PreparerTest platform="meta" externalId="rendu-choix" />);
+    await act(async () => { bouton(h, /Préparer un test/).click(); });
+    await vider();
+    const sel = h.querySelector<HTMLSelectElement>('form[data-choix-type-ad] select');
+    expect(sel, 'aucun choix proposé pour une vidéo ambiguë').not.toBeNull();
+    expect(sel!.value, 'un type est présélectionné').toBe('');
+    expect([...sel!.options].filter((o) => o.value).map((o) => [o.textContent, o.selected])).toEqual([['Vidéo UGC', false], ['Vidéo VSL', false], ['Vidéo démo', false], ['Vidéo story', false]]);
+    expect(h.querySelector(`label[for="${sel!.id}"]`)?.textContent).toBe('Type d’ad Adsmap');
+    expect(document.activeElement, 'le choix n’a pas le focus').toBe(sel);
+    expect((await lignes('rendu-choix')).ads, 'une demande de choix a écrit').toHaveLength(0);
+    // Valider sans choisir · dit, rien n'est envoyé.
+    await act(async () => { bouton(h, /Créer la fiche/).click(); });
+    await vider();
+    expect(h.querySelector('[role="alert"]')?.textContent).toBe('Choisis un type d’ad avant de créer la fiche.');
+    expect(sim.n).toBe(1);
+    await choisir(sel!, 'video_story');
+    await act(async () => { bouton(h, /Créer la fiche/).click(); });
+    await vider();
+    const { ads } = await lignes('rendu-choix');
+    expect(ads.map((x) => x.format)).toEqual(['video_story']);
+    expect(liens(h).map((l) => l.href), 'après le choix, pas de lien vers la fiche').toEqual([`/adsmap?ad=${ads[0]!.id}`]);
+    expect(sim.refs.at(-1)).toEqual({ platform: 'meta', externalId: 'rendu-choix', formatAd: 'video_story' });
+    expect(h.querySelector('form[data-choix-type-ad]')).toBeNull();
+    expect(document.activeElement?.getAttribute('href'), 'le focus est perdu après la création').toBe(`/adsmap?ad=${ads[0]!.id}`);
+  });
+
+  it('annulation (bouton ou Échap) · AUCUN appel, retour au repos, focus rendu au bouton', async () => {
+    const CHOIX: Reponse = { choixFormat: { options: [{ id: 'video_ugc', libelle: 'Vidéo UGC' }, { id: 'video_vsl', libelle: 'Vidéo VSL' }], raison: 'Vidéo non qualifiée · choisis son type d’ad Adsmap · rien n’est déduit.' } };
+    sim.reponses = [() => Promise.resolve(CHOIX), () => Promise.resolve(CHOIX)];
+    const h = await monter(<PreparerTest platform="meta" externalId="x" />);
+    await act(async () => { bouton(h, /Préparer un test/).click(); });
+    await vider();
+    await choisir(h.querySelector('select')!, 'video_vsl');
+    await act(async () => { bouton(h, /^Annuler$/).click(); });
+    await vider();
+    expect(sim.n, 'l’annulation a appelé l’action').toBe(1);
+    expect(h.querySelector('form[data-choix-type-ad]'), 'le choix reste ouvert après annulation').toBeNull();
+    expect(document.activeElement).toBe(bouton(h, /Préparer un test/));
+    expect(liens(h)).toEqual([]);
+    // Échap · même effet.
+    await act(async () => { bouton(h, /Préparer un test/).click(); });
+    await vider();
+    const sel = h.querySelector('select')!;
+    expect(sel.value, 'l’ancien choix est resté présélectionné').toBe('');
+    await act(async () => { sel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    await vider();
+    expect(sim.n).toBe(2);
+    expect(h.querySelector('form[data-choix-type-ad]')).toBeNull();
+    expect(document.activeElement).toBe(bouton(h, /Préparer un test/));
+  });
+
+  it('échec réseau pendant la création · le choix est CONSERVÉ, l’erreur est annoncée, nouvel essai possible', async () => {
+    sim.reponses = [() => Promise.resolve({ choixFormat: { options: [{ id: 'gif', libelle: 'GIF' }], raison: 'GIF · confirme son type d’ad Adsmap avant de créer la fiche.' } }),
+      () => Promise.reject(new Error('réseau')), () => Promise.resolve({ ok: true, adId: 'ad-gif' })];
+    const h = await monter(<PreparerTest platform="meta" externalId="x" />);
+    await act(async () => { bouton(h, /Préparer un test/).click(); });
+    await vider();
+    await choisir(h.querySelector('select')!, 'gif');
+    await act(async () => { bouton(h, /Créer la fiche/).click(); });
+    await vider();
+    expect(h.querySelector('[role="alert"]')?.textContent).toBe('Échec · vérifie ta connexion puis réessaie.');
+    expect(h.querySelector('select')!.value, 'le choix est perdu après l’échec').toBe('gif');
+    await act(async () => { bouton(h, /Créer la fiche/).click(); });
+    await vider();
+    expect(sim.refs.map((r) => r.formatAd)).toEqual([undefined, 'gif', 'gif']);
+    expect(liens(h).map((l) => l.href)).toEqual(['/adsmap?ad=ad-gif']);
+  });
+
   it('réponse différée · le focus posé ailleurs par l’utilisateur n’est pas volé', async () => {
     const d = differee();
     sim.reponses = [d.lancer];
@@ -376,6 +445,35 @@ describe('SavedBoards (Sauvegardes) · après « Suivre dans Adsmap », le lien 
     await vider();
     expect(document.activeElement, 'la réponse a déplacé le focus').toBe(recherche);
     expect(liens(cellule(h, 0)).map((l) => l.href)).toEqual(['/adsmap?ad=ad-1']);
+  });
+
+  it('vidéo ambiguë (action RÉELLE) depuis Sauvegardes · choix sans présélection · annuler n’appelle rien · choix → fiche', async () => {
+    const it2: SavedItem[] = [{ id: 's7', externalId: 'saved-choix', platform: 'meta', folder: null, ad: { id: 'saved-choix', platform: 'meta', status: 'active', mediaType: 'video', advertiserName: 'Vidéo à choisir' } as InspoAd }];
+    const h = await monter(<SavedBoards items={it2} followKeys={[]} adsmap />);
+    const declencheur = () => [...h.querySelectorAll('button')].find((b) => /Suivre dans Adsmap|Dans Adsmap|Ajout…/.test(b.textContent ?? ''))!;
+    await act(async () => { declencheur().click(); });
+    await vider();
+    const sel = h.querySelector<HTMLSelectElement>('form[data-choix-type-ad] select')!;
+    expect(sel, 'aucun choix proposé').not.toBeNull();
+    expect(sel.value).toBe('');
+    expect(document.activeElement, 'le choix n’a pas le focus').toBe(sel);
+    expect(declencheur().textContent).toBe('Suivre dans Adsmap');
+    await act(async () => { bouton(h, /^Annuler$/).click(); });
+    await vider();
+    expect(sim.n, 'l’annulation a appelé l’action').toBe(1);
+    expect(h.querySelector('form[data-choix-type-ad]')).toBeNull();
+    expect(document.activeElement).toBe(declencheur());
+    expect((await lignes('saved-choix')).ads).toHaveLength(0);
+    await act(async () => { declencheur().click(); });
+    await vider();
+    await choisir(h.querySelector('select')!, 'video_ugc');
+    await act(async () => { bouton(h, /Créer la fiche/).click(); });
+    await vider();
+    const { ads } = await lignes('saved-choix');
+    expect(ads.map((x) => x.format)).toEqual(['video_ugc']);
+    expect(declencheur().textContent).toBe('Dans Adsmap');
+    expect(liens(h).map((l) => l.href)).toEqual([`/adsmap?ad=${ads[0]!.id}`]);
+    expect(document.activeElement?.getAttribute('href'), 'le focus est perdu sur body').toBe(`/adsmap?ad=${ads[0]!.id}`);
   });
 
   it('action RÉELLE (pglite) depuis Sauvegardes · le href porte l’id de la ligne', async () => {
