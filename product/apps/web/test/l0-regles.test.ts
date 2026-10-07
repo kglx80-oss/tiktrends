@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { lireDemandeRendu, RATIOS_RENDU } from '@tiktrends/core/src/lectures-pures';
+import { lireDemandeRendu, veillePersistable, RATIOS_RENDU, PAYS_VEILLE } from '@tiktrends/core/src/lectures-pures';
 
 /**
  * Chantier L0 · les bornes d'une lecture, en règle pure (noyau).
  * Le pendant RÉSULTAT de ces règles vit dans `l0-lectures-pures.test.ts`
- * (handler appelé, 400 et zéro écriture).
+ * (handler appelé, 400 et zéro écriture) et `l0-veille-scale.test.tsx`.
  */
 describe('lireDemandeRendu · seuls les formats connus passent', () => {
   it('sans paramètre · format de la recette, plein format', () => {
@@ -23,5 +23,19 @@ describe('lireDemandeRendu · seuls les formats connus passent', () => {
       expect(lireDemandeRendu(r, null).ok, `ratio « ${r} » accepté`).toBe(false);
     }
     for (const t of ['2', 'true', 'oui', ' 1']) expect(lireDemandeRendu(null, t).ok, `vignette « ${t} » acceptée`).toBe(false);
+  });
+});
+
+describe('veillePersistable · le cache persistant ne range qu’un ensemble fini', () => {
+  const niches = ['café', 'skincare', 'maison déco'];
+  it('niche proposée, pays proposé · rangée (casse et espaces normalisés comme la clé)', () => {
+    expect(veillePersistable('FR', 'café', niches)).toBe(true);
+    expect(veillePersistable('fr', '  Café ', niches)).toBe(true);
+    for (const p of PAYS_VEILLE) expect(veillePersistable(p, 'skincare', niches)).toBe(true);
+  });
+  it('recherche libre ou pays inventé · jamais rangée', () => {
+    expect(veillePersistable('FR', 'niche-inedite', niches)).toBe(false);
+    expect(veillePersistable('ZZ', 'café', niches)).toBe(false);
+    expect(veillePersistable('FR', 'café bio', niches)).toBe(false);
   });
 });

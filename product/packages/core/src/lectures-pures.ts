@@ -45,3 +45,33 @@ export function lireDemandeRendu(r: string | null | undefined, t: string | null 
   }
   return { ok: true, ratio: ratio === '' ? null : (ratio as RatioRendu), vignette: vignette === '1' };
 }
+
+/**
+ * Les pays que la Veille propose · la liste de l'écran `/veille`, recopiée ici
+ * pour borner ce qui a le droit d'être rangé.
+ */
+export const PAYS_VEILLE = ['FR', 'BE', 'CH', 'DE', 'ES', 'IT', 'GB', 'NL', 'PT', 'US', 'CA'] as const;
+
+/**
+ * « Ce qui scale » peut-il ranger cette recherche dans le cache PERSISTANT ?
+ *
+ * ── Pourquoi un cache rangé au rendu reste toléré, et à quelle condition ─────
+ *
+ * Le cache (`app_settings`, clé `veille:<pays>:<niche>`) n'est pas une donnée
+ * métier · c'est la copie, partagée entre espaces, d'une réponse du fournisseur
+ * de veille, datée, régénérable, sans effet sur ce qu'un client possède. Il
+ * existe pour NE PAS repayer le fournisseur à chaque visite. Le supprimer au
+ * nom de « consulter n'écrit rien » ferait payer chaque consultation.
+ *
+ * Mais il n'était pas borné · chaque `?q=` inventé ajoutait une ligne de cent
+ * créas. On ne range donc plus que l'ensemble FINI des niches proposées à
+ * l'écran (dont la niche par défaut), dans les pays proposés : au plus
+ * `niches × pays` lignes, réécrites au plus toutes les six heures. Une
+ * recherche libre passe par le cache mémoire, borné lui aussi.
+ */
+export function veillePersistable(pays: string, niche: string, nichesProposees: readonly string[]): boolean {
+  const p = pays.trim().toUpperCase();
+  const n = niche.trim().toLowerCase();
+  if (!(PAYS_VEILLE as readonly string[]).includes(p)) return false;
+  return nichesProposees.some((x) => x.trim().toLowerCase() === n);
+}
