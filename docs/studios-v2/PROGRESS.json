@@ -2,13 +2,13 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "beac17c (claude/studios-integration = main + dossier + L0 + L1 + L2 noyau, portes vertes : core 2249, web 2564, ai 8, integrations 88)",
-  "lotCourant": "L0",
+  "shaCourant": "119d2bf (claude/studios-integration = beac17c + SEC + L3 + L2 serveur + raccords ; portes vertes : core 2334, web 2808 dont 7 ignorés, workers 7, ai 8, integrations 88, build)",
+  "lotCourant": "L4",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
-    "L2": "IN_PROGRESS",
-    "L3": "IN_PROGRESS",
+    "L2": "LOCAL_VERIFIED",
+    "L3": "LOCAL_VERIFIED",
     "L4": "TODO",
     "L5": "TODO",
     "L6": "TODO",
@@ -21,13 +21,14 @@
   },
   "branches": {
     "claude/studios-l0-dossier": "dossier, matrice, checkpoint, inventaire L0",
-    "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (agent, en cours)",
-    "claude/studios-l1-fondations": "L1 · modèle canonique, migrations additives, ACL (agent)",
+    "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (c981fe9d, PR #734)",
+    "claude/studios-l1-fondations": "L1 · modèle canonique, migration 0054, ACL (400e634c, PR #732)",
     "claude/studios-l2-noyau-prompts": "L2 · noyau pur du registre (a5c6ea34, 201 tests, 64 mutations tuées, portes vertes) · à brancher après L1",
-    "claude/studios-integration": "intégration continue (beac17c)",
-    "claude/studios-l1-securite": "SEC · gardes studio, clé fal, P1/P2, ai_spend.workspace_id, E5 (agent)",
-    "claude/studios-l2-serveur-admin": "L2 · import, releases, résolveur, Jarvis, ADMIN IA et Studios (agent)",
-    "claude/studios-l3-execution": "L3 · devis, approbation, ledger, jobs, worker, réconciliation (agent)"
+    "claude/studios-integration": "intégration continue (119d2bf)",
+    "claude/studios-l1-securite": "SEC (2f6dec59, PR #735)",
+    "claude/studios-l2-serveur-admin": "L2 serveur (9ca57cab, PR #737)",
+    "claude/studios-l3-execution": "L3 (e3f3bcfd, PR #736)",
+    "claude/studios-base-vague2": "base figée beac17c, cible des PR de vague 2"
   },
   "prEnAttente": {
     "729": {
@@ -106,49 +107,49 @@
       "limites": "Restriction de marque optionnelle sans écran"
     },
     "SEC-03": {
-      "statut": "IN_PROGRESS",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": "400e634ca998913560ccabdb0fb5f187758e8a67",
-      "limites": "Permissions studio faites ; actions historiques Pubs/Image/Vidéo et askAssistant en cours (SEC)"
+      "implementation": "18 actions ads/image/video sous canAccess(studio) + rôle ; assistant d’accueil rôle membre",
+      "test": "apps/web/test/sec-gestes-studio.test.ts (56 cas)",
+      "proofPath": "PR #735",
+      "sha": "2f6dec59",
+      "limites": "Lectures inchangées ; offre Starter inchangée pour l’assistant"
     },
     "SEC-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "winningPatterns et scoreCreative en bloc <donnees_non_fiables> côté user (SEC) ; ContextResolver : sources en données JSON du message utilisateur (L2)",
+      "test": "apps/web/test/sec-prompts-donnees.test.ts, l2-resolveur-db.test.ts",
+      "proofPath": "PR #735, PR #737",
+      "sha": "2f6dec59 + 9ca57cab",
+      "limites": "Mémoire de jarvis-chat : texte du registre, données d’assemblage inchangées ; preuve réelle sur modèle non faite"
     },
     "SEC-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Historique de l’assistant validé avant débit (pas de system, rôles connus, tailles bornées), recopié champ par champ ; Jarvis relit son fil en base",
+      "test": "apps/web/test/sec-assistant.test.ts",
+      "proofPath": "PR #735",
+      "sha": "2f6dec59",
       "limites": null
     },
     "SEC-06": {
-      "statut": "TODO",
+      "statut": "IN_PROGRESS",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Suivi vidéo : URL fal reconstruites serveur, liste blanche, redirections refusées",
+      "test": "apps/web/test/sec-fal-suivi.test.ts",
+      "proofPath": "PR #735",
+      "sha": "2f6dec59",
+      "limites": "Imports de fichiers non traités"
     },
     "SEC-07": {
-      "statut": "TODO",
+      "statut": "IN_PROGRESS",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Clé fal plus envoyée hors liste blanche ; traces PromptRun expurgées (liste blanche) ; ni texte du pack ni Ajv dans .next/static",
+      "test": "sec-fal-suivi, l2-admin-rendu, inspection du build L2",
+      "proofPath": "PR #735, PR #737",
+      "sha": "2f6dec59 + 9ca57cab",
+      "limites": "Exports non inspectés"
     },
     "SEC-08": {
       "statut": "TODO",
@@ -162,29 +163,29 @@
     "SEC-09": {
       "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": "400e634ca998913560ccabdb0fb5f187758e8a67",
-      "limites": null
+      "implementation": "Garde plateforme de l’ADMIN IA et Studios ; commandes publier/revenir/importer/évaluer/créer refusées à owner/admin d’espace, lecteur, manager, adminplus non admissible",
+      "test": "apps/web/test/l2-admin-rendu.test.tsx, l2-releases-db.test.ts",
+      "proofPath": "PR #737 + intégration",
+      "sha": "9ca57cab + 119d2bf",
+      "limites": "Aucune personnalisation d’espace possible (pack sans champ extensible)"
     },
     "SEC-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "plateformeAdmissible (noyau) : fondateur codé ou compte antérieur à son entrée platform_staff ; branché dans lib/studios/garde.ts",
+      "test": "sec-plateforme-admissible, sec-garde-studio-plateforme, l2-admin-rendu (adminplus non admissible)",
+      "proofPath": "PR #735 + intégration",
+      "sha": "2f6dec59 + 119d2bf",
+      "limites": "E5 reste vrai hors du nouveau studio (rail, /admin/equipe) ; aucun e-mail vérifié dans le produit"
     },
     "PROMPT-01": {
-      "statut": "IMPLEMENTED",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": "packages/core/src/prompts (noyau pur)",
-      "test": "packages/core/test/prompts-*.test.ts",
-      "proofPath": null,
-      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
-      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-import-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-02": {
       "statut": "IMPLEMENTED",
@@ -196,76 +197,76 @@
       "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-03": {
-      "statut": "IMPLEMENTED",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": "packages/core/src/prompts (noyau pur)",
-      "test": "packages/core/test/prompts-*.test.ts",
-      "proofPath": null,
-      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
-      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-04": {
-      "statut": "IMPLEMENTED",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": "packages/core/src/prompts (noyau pur)",
-      "test": "packages/core/test/prompts-*.test.ts",
-      "proofPath": null,
-      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
-      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Jarvis et tâches studio résolus au registre ; sans release publiée, Jarvis garde la 1.0.0 migrée tracée repli_1_0_0",
+      "test": "l2-jarvis-route, l2-preuve-bout-en-bout, l2-jarvis-equivalence (16 800 combinaisons)",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §8 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Fournisseur HTTP simulé ; publication en production bloquée par B-BENCHMARK"
     },
     "PROMPT-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db, l2-releases-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-07": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-releases-db, l2-concurrence-pg",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-09": {
-      "statut": "IMPLEMENTED",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": "packages/core/src/prompts (noyau pur)",
-      "test": "packages/core/test/prompts-*.test.ts",
-      "proofPath": null,
-      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
-      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-releases-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db, l2-jarvis-route, l2-admin-rendu",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-11": {
       "statut": "IMPLEMENTED",
@@ -277,121 +278,121 @@
       "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-12": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-regles-pures (inventaire au §10 de L2-SERVEUR.md)",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Appels IA hors Jarvis et tâches studio listés pour L5"
     },
     "COST-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-07": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-11": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-12": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "FLOW-01": {
       "statut": "TODO",
@@ -682,13 +683,13 @@
       "limites": null
     },
     "VIDEO-13": {
-      "statut": "TODO",
+      "statut": "IN_PROGRESS",
       "lot": "L6",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "etatJob par clé du clic : même job, même progrès, aucun débit (L3)",
+      "test": "apps/web/test/l3-commandes.test.ts",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §6",
+      "sha": "e3f3bcfd",
+      "limites": "Écran vidéo pas encore basculé sur le worker (plan L3 §6)"
     },
     "EXPORT-01": {
       "statut": "TODO",
@@ -890,8 +891,9 @@
     }
   ],
   "versionsPrompts": {
-    "pack": "02-PROMPTS.json v1.0 original (archive du 07/10, vérification structurelle 132/132 au dépôt)",
-    "etat": "draft, non importé"
+    "pack": "02-PROMPTS.json v1.0 original, copie embarquée apps/web/lib/studios/prompts/pack-embarque.ts (garde de dérive)",
+    "complement": "jarvis.conversation 1.0.0 (texte migré du code)",
+    "etat": "import en brouillons prouvé localement ; aucune release publiée nulle part"
   },
   "fournisseursVerifies": [],
   "depenses": {
@@ -921,7 +923,7 @@
       "besoinKevin": "Budget explicite d'évaluation et exécution hors session (fal et Anthropic non joignables depuis la session pour fal)."
     }
   ],
-  "prochaineAction": "Recevoir SEC, L2-serveur, L3 ; revue et intégration sur claude/studios-integration ; ouvrir leurs PR ; puis L4 (Jarvis commun, Veille→brief→projet→test) et L5/L6 (studios, canvas, éditeur, vidéo).",
+  "prochaineAction": "Recette Codex de #731 à #737 (et #729/#730). Pendant ce temps : L4 (Jarvis commun par propositions, Veille → brief → projet → test, filiation, FLOW-*), puis L5/L6.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -929,19 +931,22 @@
       "id": "S-FAL-KEY",
       "gravite": "haute",
       "constat": "pollVideoAction reçoit le jobId du navigateur ; falGetVideo en extrait des URL et les appelle avec la clé fal sans vérifier le domaine (packages/integrations/src/fal.ts:211-234). Fuite possible de la clé et SSRF.",
-      "lot": "L1 (SEC-06/SEC-07)"
+      "lot": "L1 (SEC-06/SEC-07)",
+      "etat": "corrigé localement (PR #735), non publié"
     },
     {
       "id": "S-P3-STUDIOS",
       "gravite": "haute",
       "constat": "Actions ads.ts, image.ts, video.ts sans garde de rôle ni d'offre : client_viewer ou espace starter peut générer en appelant l'action.",
-      "lot": "L1 (SEC-03)"
+      "lot": "L1 (SEC-03)",
+      "etat": "corrigé localement (PR #735), non publié"
     },
     {
       "id": "S-E5",
       "gravite": "haute",
       "constat": "platform_staff indexé par e-mail, aucune vérification d'e-mail : un rôle plateforme peut être capté par la première inscription avec cet e-mail.",
-      "lot": "L1 (SEC-10)"
+      "lot": "L1 (SEC-10)",
+      "etat": "corrigé localement (PR #735), non publié"
     },
     {
       "id": "S-PLAFOND",
@@ -970,12 +975,45 @@
       "id": "D-L2-04",
       "decision": "Cycle de vie scindé : versions draft→validated→retired, releases staged→active→retired, pointeur actif par portée ; rollback = déplacement du pointeur.",
       "source": "L2-REGISTRE.md"
+    },
+    {
+      "id": "D-L2S-01",
+      "decision": "Sans release publiée, Jarvis garde la politique jarvis.conversation 1.0.0 migrée (texte identique au code), tracée repli_1_0_0 : Jarvis n’est jamais coupé faute de benchmark. Une release publiée sans politique Jarvis coupe (erreur explicite). Tâches studio sans repli.",
+      "source": "L2-SERVEUR.md §13 · décision de l’intégrateur"
+    },
+    {
+      "id": "D-L2S-02",
+      "decision": "Pack embarqué dans apps/web (l’image Docker est construite depuis product/, sans docs/), garde de dérive avec docs/studios-v2/02-PROMPTS.json.",
+      "source": "L2-SERVEUR.md §3"
+    },
+    {
+      "id": "D-L3-01",
+      "decision": "File durable en PostgreSQL (SKIP LOCKED + compare-and-set, bail), pas BullMQ : la vérité financière s’écrit dans une transaction Postgres. Aucune migration.",
+      "source": "L3-EXECUTION.md §3"
+    },
+    {
+      "id": "D-L3-02",
+      "decision": "Devis valable 30 minutes ; prix dérivés de CREDIT_COSTS/FIXED_COSTS ; voix sans tarif refusée (UNSUPPORTED_CAPABILITY).",
+      "source": "L3-EXECUTION.md §3"
     }
   ],
   "prOuvertes": {
     "731": "dossier L0 (docs)",
     "734": "L0 lectures pures #125 (c981fe9d)",
     "732": "L1 fondations (400e634c, base #731)",
-    "733": "L2 noyau prompts (a5c6ea34, base #731)"
-  }
+    "733": "L2 noyau prompts (a5c6ea34, base #731)",
+    "735": "SEC (2f6dec59, base vague 2)",
+    "736": "L3 exécution (e3f3bcfd, base vague 2)",
+    "737": "L2 serveur, registre, ADMIN, Jarvis (9ca57cab, base vague 2)"
+  },
+  "besoinsIntegrateur": [
+    "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
+    "sousPlafond accessible au worker avant tout adaptateur réel",
+    "Route webhook app/api/studios/webhook + STUDIO_WEBHOOK_SECRET (posé par le propriétaire dans .env.deploy)",
+    "Colonne revocation jsonb sur studio_prompt_releases (révocation lue dans evaluation.revocation.motif)",
+    "porteeSql exporté de lib/studios/depot.ts (recopié dans commandes.ts)",
+    "ajouterAudit avec workspaceId null pour la portée plateforme",
+    "deleteBrandAction face aux FK RESTRICT des projets studio",
+    "Écran de restriction de marques par membre"
+  ]
 }
