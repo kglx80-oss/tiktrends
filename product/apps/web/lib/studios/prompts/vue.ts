@@ -22,7 +22,7 @@ const LIBELLES: Record<string, string> = {
 const CONTRAT = new Set(['modelProfile', 'inputSchemaRef', 'outputSchemaRef', 'semanticChecks', 'evaluationCaseIds', 'maximumRepairAttempts', 'allowedTools', 'scope', 'method', 'requiredVariables', 'unresolvedVariablePolicy', 'contextVersionPinned', 'resolvedDataContract', 'mediaBindingContract']);
 const IGNORES = new Set(['key', 'id', 'version', 'status', 'contentHash', 'sections']);
 
-const enTexte = (v: unknown): string => (typeof v === 'string' ? v : Array.isArray(v) ? v.map((x) => `· ${String(x)}`).join('\n') : JSON.stringify(v));
+const enTexte = (v: unknown): string => (typeof v === 'string' ? v : Array.isArray(v) ? (v.length ? v.map((x) => `· ${String(x)}`).join('\n') : '(aucun)') : JSON.stringify(v));
 
 /** Les champs d'un contenu de version, dans un ordre stable, avec leur libellé. */
 export function champsAffiches(type: TypeEntree, contenu: unknown): ChampAffiche[] {

@@ -37,7 +37,8 @@ export async function vueVersions(types: readonly TypeEntree[], cleChoisie: stri
     const v: VueVersion = { id: l.id, version: entierVersVersion(l.version), statut: l.status, empreinte: l.contentHash, origine: l.origin, motif: l.reason, creeLe: date(l.createdAt), valideeLe: l.validatedAt ? date(l.validatedAt) : null, horsSource: !source.has(l.contentHash) };
     parCle.get(k)!.versions.push(v);
   }
-  const cles = [...parCle.values()].sort((a, b) => a.type.localeCompare(b.type) || a.cle.localeCompare(b.cle));
+  const ORDRE: Record<string, number> = { template: 0, conversation: 1, socle: 2, rendu: 3, recette: 4 };
+  const cles = [...parCle.values()].sort((a, b) => (ORDRE[a.type] ?? 9) - (ORDRE[b.type] ?? 9) || a.cle.localeCompare(b.cle));
   const plan = await depot.planImportPack();
   let detail: VueDetail | null = null;
   const choisie = cleChoisie ? parCle.get(cleChoisie) : undefined;

@@ -35,13 +35,13 @@ type Onglet = (typeof ONGLETS)[number]['id'];
 
 type SP = { onglet?: string; cle?: string; v?: string; comparer?: string; run?: string };
 
-function Entete() {
+function Entete({ retour = { href: '/admin', libelle: '← Tableau de bord' } }: { retour?: { href: string; libelle: string } }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={h1}>IA et Studios</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>
-        <Link href="/admin" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>← Tableau de bord</Link>
+        <Link href={retour.href} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>{retour.libelle}</Link>
       </div>
       <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 720 }}>
         Le registre des prompts que Jarvis et les studios résolvent · versions, releases, évaluations et traces. Rien n’est actif tant qu’une release n’est pas publiée.
@@ -56,7 +56,7 @@ export default async function IaStudiosPage({ searchParams }: { searchParams: Pr
   if (!g.ok) {
     return (
       <main style={cadrePage}>
-        <Entete />
+        <Entete retour={{ href: '/dashboard', libelle: '← Retour à l’app' }} />
         <div role="alert" style={{ ...surfaceBloc, borderColor: 'var(--line-2)' }}>
           <p style={{ margin: 0, fontWeight: 700 }}>Accès réservé à l’équipe de la plateforme.</p>
           <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>Les prompts globaux, leurs releases et leurs traces se gèrent avec un accès total d’équipe. Un administrateur d’espace ne les modifie pas.</p>

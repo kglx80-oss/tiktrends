@@ -159,7 +159,7 @@ function DetailVersion({ onglet, d, peutEditer }: { onglet: string; d: VueDetail
 
       {d.exemples && (
         <Bloc titre="Exemples d’entrée et de sortie (formes, 08-EXEMPLES)" id="titre-exemples">
-          <details><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>Afficher les exemples</summary><Texte>{d.exemples}</Texte></details>
+          <details><summary style={{ cursor: 'pointer', padding: '12px 0', fontSize: 14 }}>Afficher les exemples</summary><Texte>{d.exemples}</Texte></details>
         </Bloc>
       )}
 
@@ -192,7 +192,7 @@ export function EcranReleases({ releases, pointee, environnement, peutPublier, p
       {peutCreer && (
         <Bloc titre="Nouvelle release" id="titre-nouvelle">
           <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>Assemble la dernière version VALIDÉE de chaque clé ({selection.length} entrées). Refusée si une clé requise manque ou si un contrat diverge du code.</p>
-          <details style={{ marginBottom: 10 }}><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>Voir la sélection</summary>
+          <details style={{ marginBottom: 10 }}><summary style={{ cursor: 'pointer', padding: '12px 0', fontSize: 14 }}>Voir la sélection</summary>
             <ul style={{ ...mono, margin: '6px 0 0', paddingLeft: 18, columns: '16em', fontSize: 12.5 }}>{selection.map((s) => <li key={s.cle}>{s.cle} · {s.version}</li>)}</ul>
           </details>
           <FormulaireRelease />
@@ -249,12 +249,12 @@ export function EcranEvaluations({ evaluations }: { evaluations: VueEvaluation[]
             <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>{e.type} · {e.cible} · {e.creeLe}</span>
           </div>
           {e.tests.length > 0 && (
-            <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>{e.tests.filter((t) => t.passe).length}/{e.tests.length} tests structurels</summary>
+            <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', padding: '12px 0', fontSize: 14 }}>{e.tests.filter((t) => t.passe).length}/{e.tests.length} tests structurels</summary>
               <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13 }}>{e.tests.map((t) => <li key={t.id} style={{ marginTop: 3 }}><b>{t.passe ? 'Réussi' : 'Échec'}</b> · <code style={mono}>{t.id}</code> · {t.detail}</li>)}</ul>
             </details>
           )}
           {e.benchmark.length > 0 && (
-            <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>Benchmark · {e.benchmark.length} cas non exécutés (budget requis)</summary>
+            <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', padding: '12px 0', fontSize: 14 }}>Benchmark · {e.benchmark.length} cas non exécutés (budget requis)</summary>
               <p style={{ margin: '4px 0 6px', fontSize: 13, color: 'var(--ink-2)' }}>{e.benchmark[0]!.motif}</p>
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, columns: '18em' }}>{e.benchmark.map((b) => <li key={b.id}><code style={mono}>{b.id}</code> · {b.titre}</li>)}</ul>
             </details>
@@ -271,7 +271,7 @@ export function EcranRoutage({ lignes }: { lignes: Array<{ profil: string; fourn
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <div role="note" style={{ ...surfaceBloc, fontSize: 14, lineHeight: 1.55 }}>
-        <b>Lecture seule.</b> Le registre de capacités (profils logiques → fournisseurs configurés) n’existe pas encore. Ce tableau est déduit de l’adaptateur du résolveur de ce lot. La configuration des fournisseurs (`provider.configure`) viendra avec ce registre.
+        <b>Lecture seule.</b> Le registre de capacités (profils logiques → fournisseurs configurés) n’existe pas encore. Ce tableau est déduit de l’adaptateur du résolveur de ce lot. La configuration des fournisseurs (permission provider.configure) viendra avec ce registre.
       </div>
       <div style={grille(260)}>
         {lignes.map((l) => (
