@@ -259,12 +259,14 @@ describe('trackSavedAdAction · la même fiche, le bon format, rien de partiel',
   it('échec de l’écriture de l’ad · aucun concept orphelin (transaction)', async () => {
     await db!.execute(sql.raw(`create or replace function lot21_echec() returns trigger language plpgsql as $$ begin raise exception 'échec simulé de l''ad'; end $$`));
     await db!.execute(sql.raw('create trigger lot21_echec before insert on adsmap_ads for each row execute function lot21_echec()'));
+    const avant = await totaux();
     try {
       const r = await trackSavedAdAction({ platform: 'meta', externalId: 'echec' });
       expect(r.error, 'l’échec n’est pas dit').toBeTruthy();
       expect(r.adId).toBeUndefined();
       const { concepts, ads } = await lignes('echec');
       expect([concepts.length, ads.length], 'un concept sans ad est resté après l’échec').toEqual([0, 0]);
+      expect(await totaux(), 'un chemin partiel (persona, désir, angle) est resté après l’échec').toEqual(avant);
     } finally {
       await db!.execute(sql.raw('drop trigger lot21_echec on adsmap_ads'));
     }

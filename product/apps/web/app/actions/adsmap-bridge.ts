@@ -139,8 +139,9 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
  *   (`formatAd`), VALIDÉ ici contre les types compatibles avec le média lu en
  *   base · sans choix, la liste est renvoyée et rien n'est écrit ; un choix
  *   incompatible est refusé sans écriture · jamais `video_ugc` par défaut ;
- * - concept et ad s'écrivent dans UNE transaction (verrou par marque et
- *   sauvegarde) · un échec ne laisse aucun concept sans ad ;
+ * - chemin, concept et ad s'écrivent dans UNE transaction, sous un verrou par
+ *   marque · un échec ne laisse ni concept sans ad ni chemin partiel ; deux
+ *   onglets simultanés ne créent qu'une fiche (message 78) ;
  * - un concept ancien resté sans ad (écrit avant cette transaction) reçoit son
  *   ad · aucun second concept n'est créé.
  */
@@ -177,23 +178,22 @@ export async function trackSavedAdAction(ref: { platform: string; externalId: st
     const copy = (snap.body || '').replace(/\s+/g, ' ').trim();
     const titre = `Imitation · ${annonceur}${copy ? ` — ${copy.slice(0, 90)}` : ''}`.slice(0, 160);
 
-    // Chemin persona → désir → angle · trouvé ou créé (structure réutilisable,
-    // pas une ligne orpheline) · inutile quand le concept existe déjà.
-    const path = deja ? null : await ensureGraphPath({
-      workspaceId: g.s.workspaceId, brandId: g.brand.id,
-      desireLabel: 'À qualifier (veille)', angleLabel: `Structure reprise de ${annonceur}`,
-      mechanism: 'comparison',
-    });
-    if (!deja && !path) return { error: 'Rattachement impossible.' };
-
     const r = await db!.transaction(async (tx) => {
-      // Deux onglets, deux clics · un seul suivi par marque et sauvegarde.
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`adsmap-pont-sauvegarde:${g.brand.id}:${saved.id}`}))`);
+      // Message 78 · un verrou PAR MARQUE, pris avant toute écriture · deux
+      // onglets (ou deux sauvegardes suivies en même temps) ne créent qu'un
+      // chemin, un concept et une ad. Mesuré avant (deux onglets, Postgres
+      // réel) · 1 concept et 1 ad, mais persona, désir et angle « À qualifier »
+      // en DOUBLE · le chemin était écrit hors transaction, avant le verrou.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`adsmap-pont-sauvegarde:${g.brand.id}`}))`);
       const encore = await suiviSauvegarde(tx, saved.id, g.s.workspaceId, g.brand.id);
       if (encore?.adId) return { adId: encore.adId, conceptId: encore.conceptId, dejaSuivie: true as const };
 
+      // Chemin persona → désir → angle · trouvé ou créé DANS la transaction
+      // (un échec de l'ad n'en laisse aucun morceau) · inutile quand le concept
+      // existe déjà.
+      const angleId = encore ? null : await cheminVeille(tx, g.s.workspaceId, g.brand.id, `Structure reprise de ${annonceur}`);
       const conceptId = encore?.conceptId ?? (await tx.insert(schema.concepts).values({
-        workspaceId: g.s.workspaceId, angleId: path!.angleId, title: titre,
+        workspaceId: g.s.workspaceId, angleId: angleId!, title: titre,
         valueBlock: copy ? copy.slice(0, 900) : null, cta: snap.callToAction ?? null,
         adType: 'imitation', status: 'proposed',
         // Le format QUALIFIÉ (composition) est gardé à part · `formatAdChoisi`
@@ -224,6 +224,34 @@ export async function trackSavedAdAction(ref: { platform: string; externalId: st
 }
 
 type Lecteur = Pick<NonNullable<typeof db>, 'select'>;
+type Transaction = Parameters<Parameters<NonNullable<typeof db>['transaction']>[0]>[0];
+
+/**
+ * Le chemin persona « À qualifier » → désir « À qualifier (veille) » → angle,
+ * trouvé ou créé avec la transaction du pont · mêmes valeurs que
+ * `ensureGraphPath` (lib/adsmap-path.ts, branche sans persona choisi), qui
+ * écrit sur sa propre connexion et ne peut donc pas tenir sous le verrou.
+ */
+async function cheminVeille(tx: Transaction, workspaceId: string, brandId: string, angleLabel: string): Promise<string> {
+  const nom = 'À qualifier';
+  const [p0] = await tx.select({ id: schema.personas.id }).from(schema.personas)
+    .where(and(eq(schema.personas.brandId, brandId), eq(schema.personas.name, nom))).limit(1);
+  const personaId = p0?.id ?? (await tx.insert(schema.personas).values({
+    brandId, name: nom, status: 'proposed',
+    description: 'Persona provisoire · créé automatiquement en rattachant une créa à la carte. À scinder en avatars réels.',
+  }).returning({ id: schema.personas.id }))[0]!.id;
+  const desireLabel = 'À qualifier (veille)';
+  const [d0] = await tx.select({ id: schema.desires.id }).from(schema.desires)
+    .where(and(eq(schema.desires.personaId, personaId), eq(schema.desires.label, desireLabel))).limit(1);
+  const desireId = d0?.id ?? (await tx.insert(schema.desires).values({
+    workspaceId, personaId, label: desireLabel, status: 'proposed',
+  }).returning({ id: schema.desires.id }))[0]!.id;
+  const [a0] = await tx.select({ id: schema.angles.id }).from(schema.angles)
+    .where(and(eq(schema.angles.desireId, desireId), eq(schema.angles.label, angleLabel))).limit(1);
+  return a0?.id ?? (await tx.insert(schema.angles).values({
+    workspaceId, desireId, label: angleLabel, mechanism: 'comparison', status: 'proposed',
+  }).returning({ id: schema.angles.id }))[0]!.id;
+}
 
 /**
  * Le suivi existant d'une sauvegarde dans la marque active · le concept
