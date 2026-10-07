@@ -5,7 +5,7 @@
   "shaCourant": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
   "lotCourant": "L0",
   "lots": {
-    "L0": "TODO",
+    "L0": "IN_PROGRESS",
     "L1": "TODO",
     "L2": "TODO",
     "L3": "TODO",
@@ -20,7 +20,9 @@
     "integrateur": "session principale (contrats communs, migrations, shell, navigation, tokens, releases)"
   },
   "branches": {
-    "claude/studios-l0-dossier": "dossier, matrice, checkpoint, inventaire L0"
+    "claude/studios-l0-dossier": "dossier, matrice, checkpoint, inventaire L0",
+    "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (agent, en cours)",
+    "claude/studios-l1-fondations": "L1 · modèle canonique, migrations additives, ACL (agent)"
   },
   "prEnAttente": {
     "729": {
@@ -36,22 +38,22 @@
   },
   "exigences": {
     "BASE-01": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L0",
-      "implementation": null,
+      "implementation": "docs/studios-v2/L0/L0-A, L0-B, L0-C (lecture du code au SHA bc33cec8)",
       "test": null,
-      "proofPath": null,
+      "proofPath": "docs/studios-v2/L0/",
       "sha": null,
       "limites": null
     },
     "BASE-02": {
-      "statut": "TODO",
+      "statut": "IN_PROGRESS",
       "lot": "L0",
       "implementation": null,
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": null
+      "limites": "#729 et #730 ouvertes, en recette Codex ; aucun lot Studios ne touche leurs fichiers"
     },
     "BASE-03": {
       "statut": "TODO",
@@ -898,7 +900,33 @@
       "besoinKevin": "Budget de recette fournisseur explicite et exécution réelle hors session."
     }
   ],
-  "prochaineAction": "Terminer L0 : intégrer les trois inventaires (studios/IA, données/ACL/Jarvis, lectures #125), écrire L0-INVENTAIRE.md, ouvrir la PR L0.",
+  "prochaineAction": "Suivre L0-lectures (#125) et L1-fondations ; ensuite SEC (gardes studio, clé fal, P1/P2, ai_spend.workspace_id) puis L2 registre de prompts.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
-  "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas."
+  "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
+  "constatsSecurite": [
+    {
+      "id": "S-FAL-KEY",
+      "gravite": "haute",
+      "constat": "pollVideoAction reçoit le jobId du navigateur ; falGetVideo en extrait des URL et les appelle avec la clé fal sans vérifier le domaine (packages/integrations/src/fal.ts:211-234). Fuite possible de la clé et SSRF.",
+      "lot": "L1 (SEC-06/SEC-07)"
+    },
+    {
+      "id": "S-P3-STUDIOS",
+      "gravite": "haute",
+      "constat": "Actions ads.ts, image.ts, video.ts sans garde de rôle ni d'offre : client_viewer ou espace starter peut générer en appelant l'action.",
+      "lot": "L1 (SEC-03)"
+    },
+    {
+      "id": "S-E5",
+      "gravite": "haute",
+      "constat": "platform_staff indexé par e-mail, aucune vérification d'e-mail : un rôle plateforme peut être capté par la première inscription avec cet e-mail.",
+      "lot": "L1 (SEC-10)"
+    },
+    {
+      "id": "S-PLAFOND",
+      "gravite": "moyenne",
+      "constat": "Plafond de dépense par défaut 50 $ global (spend-guard.ts:40), pas 10 $ par espace ; forfait fal 0,08 $ sous-estime gpt2_high.",
+      "lot": "L3"
+    }
+  ]
 }
