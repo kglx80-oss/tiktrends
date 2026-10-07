@@ -1,77 +1,95 @@
 import { describe, expect, it } from 'vitest';
-import { FORMATS_CREATIFS, FORMAT_AD_VIDEO_QUALIFIEE, formatAdDepuisSauvegarde, type FormatCreatifId } from '../src/formats-creatifs';
+import { FORMATS_CREATIFS, FORMAT_AD_VIDEO_QUALIFIEE, TYPES_AD_PAR_MEDIA, formatAdDepuisSauvegarde, resoudreTypeAd } from '../src/formats-creatifs';
 
 /**
- * Lot 21 · R3 · le pont Sauvegarde → Adsmap écrivait `format: 'video_ugc'` en
- * dur · une annonce IMAGE qualifiée « Packshot » devenait une « Vidéo UGC », et
- * Adsmap n'a aucun outil pour corriger ce format après coup.
+ * Lot 21 · R3 · message 77 · le pont Sauvegarde → Adsmap écrivait
+ * `format: 'video_ugc'` en dur (une image « Packshot » devenait une « Vidéo
+ * UGC »). Puis (a2f157a5) il REFUSAIT toute vidéo ambiguë et tout média
+ * inconnu · une capacité existante retirée.
  *
- * La règle (`formatAdDepuisSauvegarde`) sépare le TYPE DE MÉDIA (image, vidéo)
- * du FORMAT CRÉATIF QUALIFIÉ (choisi à la main) · elle ne range jamais une vidéo
- * en UGC par défaut, et refuse (avec la raison) plutôt que d'inventer.
+ * La règle sépare le TYPE DE MÉDIA du FORMAT CRÉATIF QUALIFIÉ · automatique là
+ * où rien n'est inventé (image, carrousel, Démonstration), sinon un CHOIX
+ * EXPLICITE parmi les types compatibles · rien de présélectionné, jamais UGC
+ * par défaut, jamais de refus définitif pour une ambiguïté · et le choix reçu
+ * est validé contre la liste du média.
  */
 const qualifie = (id: string) => ({ id, version: 1, date: '2026-10-01T10:00:00.000Z', auteur: 'u' });
 const snap = (mediaType: unknown, formatCreatif?: unknown) => ({ id: 'x', advertiserName: 'A', mediaType, ...(formatCreatif === undefined ? {} : { formatCreatif }) });
+const VIDEO = [
+  { id: 'video_ugc', libelle: 'Vidéo UGC' }, { id: 'video_vsl', libelle: 'Vidéo VSL' },
+  { id: 'video_demo', libelle: 'Vidéo démo' }, { id: 'video_story', libelle: 'Vidéo story' },
+];
 
-describe('image · le média suffit', () => {
-  it('image qualifiée « Packshot » → static, le format qualifié est conservé', () => {
-    expect(formatAdDepuisSauvegarde(snap('image', qualifie('packshot')))).toEqual({ ok: true, media: 'image', format: 'static', formatCreatif: 'packshot' });
+describe('automatique · rien n’est inventé', () => {
+  it('image qualifiée « Packshot » → static, le format qualifié est conservé à part', () => {
+    expect(formatAdDepuisSauvegarde(snap('image', qualifie('packshot')))).toEqual({ etat: 'auto', media: 'image', format: 'static', formatCreatif: 'packshot' });
   });
-  it('image non qualifiée → static (le média le dit, aucune qualification inventée)', () => {
-    expect(formatAdDepuisSauvegarde(snap('IMAGE'))).toEqual({ ok: true, media: 'image', format: 'static', formatCreatif: null });
+  it('image non qualifiée → static · carrousel dit par la source → image_carousel', () => {
+    expect(formatAdDepuisSauvegarde(snap('IMAGE'))).toMatchObject({ etat: 'auto', format: 'static', formatCreatif: null });
+    expect(formatAdDepuisSauvegarde(snap('Carrousel', qualifie('liste')))).toMatchObject({ etat: 'auto', format: 'image_carousel', formatCreatif: 'liste' });
   });
-  it('carrousel (la source le dit) → image_carousel', () => {
-    expect(formatAdDepuisSauvegarde(snap('carousel'))).toMatchObject({ ok: true, format: 'image_carousel' });
-    expect(formatAdDepuisSauvegarde(snap('Carrousel', qualifie('liste')))).toMatchObject({ ok: true, format: 'image_carousel', formatCreatif: 'liste' });
-  });
-  it('aucune image ne devient une vidéo', () => {
-    for (const f of FORMATS_CREATIFS.filter((x) => x.medias.includes('image'))) {
-      const r = formatAdDepuisSauvegarde(snap('image', qualifie(f.id)));
-      expect(r.ok && r.format, `image « ${f.libelle} » rangée en ${r.ok ? r.format : 'refus'}`).toBe('static');
-    }
-  });
-});
-
-describe('vidéo · seulement par une correspondance non ambiguë', () => {
   it('vidéo qualifiée « Démonstration » → video_demo', () => {
-    expect(formatAdDepuisSauvegarde(snap('video', qualifie('demo')))).toEqual({ ok: true, media: 'video', format: 'video_demo', formatCreatif: 'demo' });
+    expect(formatAdDepuisSauvegarde(snap('video', qualifie('demo')))).toEqual({ etat: 'auto', media: 'video', format: 'video_demo', formatCreatif: 'demo' });
   });
-  it('vidéo NON qualifiée → refus motivé, jamais video_ugc par défaut', () => {
-    const r = formatAdDepuisSauvegarde(snap('video'));
-    expect(r.ok, 'une vidéo non qualifiée reçoit un format d’ad inventé').toBe(false);
-    expect(r).toEqual({ ok: false, cause: 'video_non_qualifiee', raison: 'Vidéo non qualifiée · choisis d’abord son format dans « Format », puis réessaie · rien n’a été créé dans Adsmap.' });
-  });
-  it('vidéo « incertaine » → refus (ce n’est pas une qualification)', () => {
-    expect(formatAdDepuisSauvegarde(snap('video', { id: 'incertain', version: 1 }))).toMatchObject({ ok: false, cause: 'video_non_qualifiee' });
-  });
-  it('vidéo qualifiée sans correspondance sûre (« Face caméra ») → refus nommant le format', () => {
-    expect(formatAdDepuisSauvegarde(snap('video', qualifie('face_camera')))).toEqual({
-      ok: false, cause: 'video_sans_correspondance',
-      raison: 'Format « Face caméra » · aucun format vidéo d’Adsmap (UGC, VSL, démo, story) ne lui correspond sans ambiguïté · rien n’a été créé, pour ne pas fausser les statistiques par format.',
-    });
-  });
-  it('aucune vidéo n’est déduite UGC · la table ne contient que des correspondances écrites', () => {
-    const vides: FormatCreatifId[] = [];
-    for (const f of FORMATS_CREATIFS.filter((x) => x.medias.includes('video'))) {
-      const r = formatAdDepuisSauvegarde(snap('video', qualifie(f.id)));
-      expect(r.ok && r.format, `vidéo « ${f.libelle} » rangée en video_ugc · UGC déduit d’une vidéo`).not.toBe('video_ugc');
-      if (!r.ok) vides.push(f.id);
-      else expect(r.format).toBe(FORMAT_AD_VIDEO_QUALIFIEE[f.id]);
-    }
-    // Mesuré · 21 formats vidéo, 1 correspondance (`demo`), 20 refus.
-    expect(Object.keys(FORMAT_AD_VIDEO_QUALIFIEE)).toEqual(['demo']);
-    expect(vides).toHaveLength(FORMATS_CREATIFS.filter((x) => x.medias.includes('video')).length - 1);
+  it('automatique · un choix forgé par le client est IGNORÉ (la règle décide)', () => {
+    expect(resoudreTypeAd(snap('image', qualifie('packshot')), 'video_ugc')).toEqual({ ok: true, format: 'static', choisi: false, formatCreatif: 'packshot' });
   });
 });
 
-describe('média inconnu · refus', () => {
-  it.each([[undefined], [null], [''], ['audio'], [42]])('mediaType %s → refus « type de média inconnu »', (m) => {
-    expect(formatAdDepuisSauvegarde(snap(m, qualifie('demo')))).toEqual({
-      ok: false, cause: 'media_inconnu',
-      raison: 'Type de média inconnu dans la source (ni image ni vidéo) · son format Adsmap ne se devine pas · rien n’a été créé.',
-    });
+describe('ambigu · choix requis, liste compatible, rien de présélectionné', () => {
+  it('vidéo NON qualifiée → choix parmi les 4 types vidéo, jamais video_ugc par défaut', () => {
+    const d = formatAdDepuisSauvegarde(snap('video'));
+    expect(d.etat, 'une vidéo non qualifiée reçoit un type d’ad sans choix').toBe('choix');
+    expect(d).toEqual({ etat: 'choix', cause: 'video_non_qualifiee', media: 'video', options: VIDEO, formatCreatif: null,
+      raison: 'Vidéo non qualifiée · choisis son type d’ad Adsmap · rien n’est déduit.' });
+    expect(d, 'un type est présélectionné').not.toHaveProperty('format');
   });
-  it('snapshot illisible → refus, jamais d’exception', () => {
-    for (const s of [null, undefined, 'x', [], 3]) expect(formatAdDepuisSauvegarde(s)).toMatchObject({ ok: false, cause: 'media_inconnu' });
+  it('vidéo « Face caméra » (sans correspondance sûre) → choix, format qualifié conservé', () => {
+    expect(formatAdDepuisSauvegarde(snap('video', qualifie('face_camera')))).toMatchObject({ etat: 'choix', cause: 'video_sans_correspondance', options: VIDEO, formatCreatif: 'face_camera' });
+  });
+  it('aucune vidéo n’est déduite UGC · aucune n’est refusée définitivement', () => {
+    for (const f of FORMATS_CREATIFS.filter((x) => x.medias.includes('video'))) {
+      const d = formatAdDepuisSauvegarde(snap('video', qualifie(f.id)));
+      if (d.etat === 'auto') expect(d.format, `vidéo « ${f.libelle} » rangée sans choix en ${d.format}`).toBe(FORMAT_AD_VIDEO_QUALIFIEE[f.id]);
+      else expect(d.options.map((o) => o.id), `vidéo « ${f.libelle} » sans liste de choix`).toEqual(TYPES_AD_PAR_MEDIA.video);
+    }
+    expect(Object.keys(FORMAT_AD_VIDEO_QUALIFIEE)).toEqual(['demo']);
+  });
+  it('GIF → choix parmi « GIF » seul (le contrat n’en connaît qu’un), confirmé', () => {
+    expect(formatAdDepuisSauvegarde(snap('gif'))).toMatchObject({ etat: 'choix', cause: 'gif', media: 'gif', options: [{ id: 'gif', libelle: 'GIF' }] });
+  });
+  it.each([[undefined], [null], [''], ['audio'], [42]])('média %s inconnu → choix parmi les SEPT types, le choix le dit', (m) => {
+    const d = formatAdDepuisSauvegarde(snap(m));
+    expect(d).toMatchObject({ etat: 'choix', cause: 'media_inconnu', media: null, raison: 'Type de média inconnu dans la source · choisis son type d’ad parmi tous les types Adsmap · rien n’est déduit.' });
+    expect(d.etat === 'choix' && d.options.map((o) => o.id)).toEqual(['video_ugc', 'video_vsl', 'video_demo', 'video_story', 'static', 'image_carousel', 'gif']);
+  });
+  it('snapshot illisible → choix (média inconnu), jamais d’exception', () => {
+    for (const s of [null, undefined, 'x', [], 3]) expect(formatAdDepuisSauvegarde(s)).toMatchObject({ etat: 'choix', cause: 'media_inconnu' });
+  });
+});
+
+describe('validation du choix reçu (côté serveur)', () => {
+  it('sans choix → choix requis, avec la liste', () => {
+    expect(resoudreTypeAd(snap('video'), undefined)).toMatchObject({ ok: false, cause: 'choix_requis', options: VIDEO });
+    expect(resoudreTypeAd(snap('video'), '')).toMatchObject({ ok: false, cause: 'choix_requis' });
+  });
+  it('choix compatible → accepté, marqué « choisi », format qualifié conservé', () => {
+    expect(resoudreTypeAd(snap('video', qualifie('face_camera')), 'video_vsl')).toEqual({ ok: true, format: 'video_vsl', choisi: true, formatCreatif: 'face_camera' });
+    expect(resoudreTypeAd(snap('gif'), 'gif')).toEqual({ ok: true, format: 'gif', choisi: true, formatCreatif: null });
+    expect(resoudreTypeAd(snap(undefined), 'static')).toMatchObject({ ok: true, format: 'static', choisi: true });
+  });
+  it.each([
+    ['vidéo + static', snap('video'), 'static'],
+    ['vidéo + gif', snap('video'), 'gif'],
+    ['GIF + video_ugc', snap('gif'), 'video_ugc'],
+    ['vidéo + valeur forgée', snap('video'), 'ugc_talking_head'],
+    ['vidéo + objet', snap('video'), { id: 'video_ugc' }],
+  ])('%s → refusé', (_n, s, c) => {
+    const r = resoudreTypeAd(s, c);
+    expect(r.ok, 'un type incompatible avec le média est accepté').toBe(false);
+    expect(r).toMatchObject({ cause: 'choix_incompatible' });
+  });
+  it('la raison du refus nomme les types proposés', () => {
+    expect(resoudreTypeAd(snap('gif'), 'static')).toEqual({ ok: false, cause: 'choix_incompatible', raison: 'Type d’ad non proposé pour ce média · choisis parmi « GIF » · rien n’a été créé.' });
   });
 });
