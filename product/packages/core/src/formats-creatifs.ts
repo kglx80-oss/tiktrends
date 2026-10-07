@@ -28,6 +28,8 @@
  * Pur · ni base, ni réseau, ni modèle.
  */
 
+import type { AdFormat } from './adsmap/format-generation';
+
 export type MediaFormat = 'image' | 'video';
 
 /** Version de la liste · à incrémenter à chaque changement de la liste. Un
@@ -485,4 +487,96 @@ export function explicationPontAdsmap(raison: RaisonPontAdsmap | null, geste = '
     case 'marque': return `${geste} · choisis d’abord une marque active.`;
     default: return null;
   }
+}
+
+/* ── Pont Sauvegarde → Adsmap · le format d'ad, sans rien inventer (lot 21) ── */
+
+/**
+ * Deux notions distinctes, jamais confondues :
+ * - le TYPE DE MÉDIA (`mediaAnnonce`) · image ou vidéo, lu dans la source ;
+ * - le FORMAT CRÉATIF QUALIFIÉ (`lireFormatCreatif`) · la composition, choisie
+ *   à la main dans la liste ci-dessus.
+ *
+ * La colonne `adsmap_ads.format` (énumération, NOT NULL, aucune migration) ne
+ * connaît que sept valeurs · `video_ugc` « Vidéo UGC », `video_vsl` « Vidéo
+ * VSL », `video_demo` « Vidéo démo », `video_story` « Vidéo story », `static`
+ * « Statique », `image_carousel` « Carrousel », `gif` « GIF » (libellés de
+ * `SHEET_FORMAT`, `adsmap/sheet.ts`). Aucun outil d'Adsmap ne corrige ce format
+ * après coup · une valeur inventée ici resterait fausse dans les statistiques
+ * par format.
+ *
+ * Avant (lot 20, R3) · le pont écrivait `video_ugc` en dur · une annonce IMAGE
+ * qualifiée « Packshot » devenait une « Vidéo UGC ».
+ *
+ * ── La correspondance, dérivée des définitions, seulement là où elle est sûre ─
+ *
+ * Par le MÉDIA (aucune qualification nécessaire) :
+ *
+ * | Média (`mediaAnnonce`)                  | Format d'ad      |
+ * | --------------------------------------- | ---------------- |
+ * | image, et la source dit « carousel » /  | `image_carousel` |
+ * |   « carrousel »                         |                  |
+ * | image (photo, image, static)            | `static`         |
+ * | inconnu (ni image ni vidéo)             | REFUS            |
+ *
+ * Pour une VIDÉO, par le format qualifié · une seule correspondance tient :
+ *
+ * | Format qualifié · définition                               | Format d'ad  |
+ * | ---------------------------------------------------------- | ------------ |
+ * | `demo` « Démonstration · Le produit utilisé, geste montré. » | `video_demo` |
+ *
+ * Les autres formats vidéo restent SANS correspondance (refus), parce que leur
+ * définition ne désigne pas un seul format d'ad :
+ * - `face_camera` « Une personne parle à l'objectif. » · UGC, VSL ou acteur
+ *   selon QUI parle · Adsmap distingue créateur UGC, fondateur et acteur
+ *   (`talentTypeEnum`) · l'ancienne valeur `ugc_talking_head` y a été fondue,
+ *   ce qui ne rend pas toute face caméra UGC ;
+ * - `recit` « Une histoire racontée. » · « story » désigne aussi le placement
+ *   Stories · ambigu avec `video_story` ;
+ * - `tutoriel` « Étapes expliquées. » · démonstration OU face caméra ;
+ * - `fondateur`, `pov`, `deballage`, `micro_trottoir`, `fond_incruste`, `asmr`
+ *   et les formats image + vidéo (`mise_en_situation`, `avant_apres`, …) · aucun
+ *   format d'ad ne les nomme ;
+ * - `autre` · par définition, aucun format de la liste ne convient.
+ *
+ * Une vidéo NON qualifiée (ou `incertain`) n'est jamais rangée en UGC par défaut
+ * · refus, avec le geste utile (qualifier son format).
+ */
+export const FORMAT_AD_VIDEO_QUALIFIEE: Readonly<Partial<Record<FormatCreatifId, AdFormat>>> = {
+  demo: 'video_demo',
+};
+
+export type CauseRefusFormatAd = 'media_inconnu' | 'video_non_qualifiee' | 'video_sans_correspondance';
+
+export type FormatAdSauvegarde =
+  | { ok: true; format: AdFormat; media: MediaFormat; /** Le format qualifié, à conserver dans la provenance (`null` si non classée). */ formatCreatif: FormatCreatifId | null }
+  | { ok: false; cause: CauseRefusFormatAd; raison: string };
+
+const estCarrousel = (mediaType: unknown) => typeof mediaType === 'string' && /carousel|carrousel/i.test(mediaType);
+
+/**
+ * Le format d'ad Adsmap d'une annonce sauvegardée, ou un refus motivé · à
+ * décider AVANT toute écriture. Lit `snapshot.mediaType` et
+ * `snapshot.formatCreatif` · ne lève jamais.
+ */
+export function formatAdDepuisSauvegarde(snapshot: unknown): FormatAdSauvegarde {
+  const snap = estObjet(snapshot) ? snapshot : {};
+  const media = mediaAnnonce(snap.mediaType);
+  const lecture = lireFormatCreatif(snapshot);
+  const qualifie = lecture.etat === 'classe' ? lecture.id : null;
+
+  if (media === null) {
+    return { ok: false, cause: 'media_inconnu', raison: 'Type de média inconnu dans la source (ni image ni vidéo) · son format Adsmap ne se devine pas · rien n’a été créé.' };
+  }
+  if (media === 'image') {
+    return { ok: true, media, format: estCarrousel(snap.mediaType) ? 'image_carousel' : 'static', formatCreatif: qualifie };
+  }
+  if (!qualifie) {
+    return { ok: false, cause: 'video_non_qualifiee', raison: 'Vidéo non qualifiée · choisis d’abord son format dans « Format », puis réessaie · rien n’a été créé dans Adsmap.' };
+  }
+  const format = FORMAT_AD_VIDEO_QUALIFIEE[qualifie];
+  if (!format) {
+    return { ok: false, cause: 'video_sans_correspondance', raison: `Format « ${formatCreatif(qualifie).libelle} » · aucun format vidéo d’Adsmap (UGC, VSL, démo, story) ne lui correspond sans ambiguïté · rien n’a été créé, pour ne pas fausser les statistiques par format.` };
+  }
+  return { ok: true, media, format, formatCreatif: qualifie };
 }
