@@ -2,13 +2,13 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
+  "shaCourant": "beac17c (claude/studios-integration = main + dossier + L0 + L1 + L2 noyau, portes vertes : core 2249, web 2564, ai 8, integrations 88)",
   "lotCourant": "L0",
   "lots": {
-    "L0": "IN_PROGRESS",
-    "L1": "TODO",
+    "L0": "LOCAL_VERIFIED",
+    "L1": "LOCAL_VERIFIED",
     "L2": "IN_PROGRESS",
-    "L3": "TODO",
+    "L3": "IN_PROGRESS",
     "L4": "TODO",
     "L5": "TODO",
     "L6": "TODO",
@@ -23,7 +23,11 @@
     "claude/studios-l0-dossier": "dossier, matrice, checkpoint, inventaire L0",
     "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (agent, en cours)",
     "claude/studios-l1-fondations": "L1 · modèle canonique, migrations additives, ACL (agent)",
-    "claude/studios-l2-noyau-prompts": "L2 · noyau pur du registre (a5c6ea34, 201 tests, 64 mutations tuées, portes vertes) · à brancher après L1"
+    "claude/studios-l2-noyau-prompts": "L2 · noyau pur du registre (a5c6ea34, 201 tests, 64 mutations tuées, portes vertes) · à brancher après L1",
+    "claude/studios-integration": "intégration continue (beac17c)",
+    "claude/studios-l1-securite": "SEC · gardes studio, clé fal, P1/P2, ai_spend.workspace_id, E5 (agent)",
+    "claude/studios-l2-serveur-admin": "L2 · import, releases, résolveur, Jarvis, ADMIN IA et Studios (agent)",
+    "claude/studios-l3-execution": "L3 · devis, approbation, ledger, jobs, worker, réconciliation (agent)"
   },
   "prEnAttente": {
     "729": {
@@ -57,13 +61,13 @@
       "limites": "#729 et #730 ouvertes, en recette Codex ; aucun lot Studios ne touche leurs fichiers"
     },
     "BASE-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L0",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "c981fe9de22e7642d6fde95bf917522c11dc959f",
+      "limites": "Suivi vidéo encore écrit à l'ouverture (passe au worker L3) ; appels Trendtrack de la Veille"
     },
     "BASE-04": {
       "statut": "TODO",
@@ -84,31 +88,31 @@
       "limites": null
     },
     "SEC-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
+      "sha": "400e634ca998913560ccabdb0fb5f187758e8a67",
       "limites": null
     },
     "SEC-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "400e634ca998913560ccabdb0fb5f187758e8a67",
+      "limites": "Restriction de marque optionnelle sans écran"
     },
     "SEC-03": {
-      "statut": "TODO",
+      "statut": "IN_PROGRESS",
       "lot": "L1",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "400e634ca998913560ccabdb0fb5f187758e8a67",
+      "limites": "Permissions studio faites ; actions historiques Pubs/Image/Vidéo et askAssistant en cours (SEC)"
     },
     "SEC-04": {
       "statut": "TODO",
@@ -156,12 +160,12 @@
       "limites": null
     },
     "SEC-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
+      "sha": "400e634ca998913560ccabdb0fb5f187758e8a67",
       "limites": null
     },
     "SEC-10": {
@@ -878,7 +882,13 @@
     "PROD_OBSERVED",
     "BLOCKED"
   ],
-  "migrations": [],
+  "migrations": [
+    {
+      "id": "0054_studios_fondations",
+      "etat": "locale, jouée deux fois sans erreur, non publiée",
+      "lot": "L1"
+    }
+  ],
   "versionsPrompts": {
     "pack": "02-PROMPTS.json v1.0 original (archive du 07/10, vérification structurelle 132/132 au dépôt)",
     "etat": "draft, non importé"
@@ -911,7 +921,7 @@
       "besoinKevin": "Budget explicite d'évaluation et exécution hors session (fal et Anthropic non joignables depuis la session pour fal)."
     }
   ],
-  "prochaineAction": "Suivre L0-lectures (#125) et L1-fondations ; ensuite SEC (gardes studio, clé fal, P1/P2, ai_spend.workspace_id) puis L2 registre de prompts.",
+  "prochaineAction": "Recevoir SEC, L2-serveur, L3 ; revue et intégration sur claude/studios-integration ; ouvrir leurs PR ; puis L4 (Jarvis commun, Veille→brief→projet→test) et L5/L6 (studios, canvas, éditeur, vidéo).",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -961,5 +971,11 @@
       "decision": "Cycle de vie scindé : versions draft→validated→retired, releases staged→active→retired, pointeur actif par portée ; rollback = déplacement du pointeur.",
       "source": "L2-REGISTRE.md"
     }
-  ]
+  ],
+  "prOuvertes": {
+    "731": "dossier L0 (docs)",
+    "734": "L0 lectures pures #125 (c981fe9d)",
+    "732": "L1 fondations (400e634c, base #731)",
+    "733": "L2 noyau prompts (a5c6ea34, base #731)"
+  }
 }
