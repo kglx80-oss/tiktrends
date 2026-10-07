@@ -48,6 +48,17 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
   const [etat, setEtat] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
   const etatRef = useRef<HTMLParagraphElement>(null);
+  const alerteRef = useRef<HTMLParagraphElement>(null);
+
+  // Le champ qui portait le focus a pu disparaître (il ne manque plus) · on
+  // rattrape un focus PERDU (sur <body>), on n'en prend jamais un posé ailleurs.
+  function rattraperFocus(cible: 'etat' | 'alerte') {
+    requestAnimationFrame(() => {
+      const actif = document.activeElement;
+      if (actif && actif !== document.body) return;
+      (cible === 'alerte' ? alerteRef : etatRef).current?.focus({ preventScroll: true });
+    });
+  }
 
   async function chargerProduits() {
     setErreurProduits('');
@@ -85,17 +96,13 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
         offre: champs.offre ? { prix, confirmee: offreConfirmee } : null,
         page: champs.page ? { url, confirmee: pageConfirmee } : null,
       });
-      if (r.error) { setErreur(r.error); return; }
+      if (r.error) { setErreur(r.error); rattraperFocus('alerte'); return; }
       setEtat(texteApresCompletude(r.manques ?? []));
       await onEnregistre();
-      // Le champ qui portait le focus a pu disparaître (il ne manque plus) ·
-      // on rattrape un focus PERDU, on n'en prend jamais un posé ailleurs.
-      requestAnimationFrame(() => {
-        const actif = document.activeElement;
-        if (!actif || actif === document.body) etatRef.current?.focus({ preventScroll: true });
-      });
+      rattraperFocus('etat');
     } catch {
       setErreur('L’enregistrement n’a pas abouti (connexion) · ta saisie est conservée, réessaie. Un nouvel essai ne crée aucun doublon.');
+      rattraperFocus('alerte');
     } finally {
       envoiRef.current = false;
       setEnvoi(false);
@@ -151,7 +158,7 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
               )}
               {produits !== null && produits.length === 0 && (
                 <p data-completer-vide style={{ ...vide, margin: '8px 0 0', padding: '10px 12px', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-                  Aucun produit dans cette marque · ajoute le produit (prix et adresse de sa page) dans la fiche Marque, puis reviens rattacher l’offre et la page. L’hypothèse et la variable s’enregistrent déjà.
+                  Aucun produit dans cette marque · un administrateur l’ajoute dans Marques › Produits (prix et adresse de sa page), puis tu reviens ici rattacher l’offre et la page. L’hypothèse et la variable s’enregistrent déjà.
                 </p>
               )}
               {produits !== null && produits.length > 0 && (
@@ -195,7 +202,10 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
           )}
 
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 14 }}>
-            <button type="submit" disabled={envoi} aria-disabled={envoi} style={{ ...bouton, opacity: envoi ? 0.6 : 1 }}>
+            {/* Pas d'attribut `disabled` pendant l'envoi · il retirait le focus
+                du bouton (mesuré au navigateur · focus sur <body> après un refus).
+                Le second clic est arrêté par `envoiRef`. */}
+            <button type="submit" aria-disabled={envoi} style={{ ...bouton, opacity: envoi ? 0.6 : 1 }}>
               {envoi ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>
@@ -203,7 +213,7 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
       )}
 
       {erreur && (
-        <p role="alert" style={{ margin: '10px 0 0', padding: '8px 11px', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12, lineHeight: 1.5 }}>
+        <p ref={alerteRef} role="alert" tabIndex={-1} style={{ outline: 'none', margin: '10px 0 0', padding: '8px 11px', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12, lineHeight: 1.5 }}>
           {erreur}
         </p>
       )}

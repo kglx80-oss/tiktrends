@@ -39,10 +39,15 @@ vi.mock('../lib/brands', () => ({
   getActiveBrand: async () => ({ id: ids[session.marque], name: session.marque === 'neva' ? 'Neva' : 'Autre', workspaceId: ids.ws }),
 }));
 // L'action RÉELLE, comptée · le nombre de requêtes parties est un résultat (double clic).
-const envois = vi.hoisted(() => ({ n: 0 }));
+// `retenue` · la requête attend (réseau lent) puis échoue comme une connexion coupée.
+const envois = vi.hoisted(() => ({ n: 0, retenue: null as null | Promise<void> }));
 vi.mock('../app/actions/adsmap-completer', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../app/actions/adsmap-completer')>();
-  return { ...actual, completerTestAction: async (...a: Parameters<typeof actual.completerTestAction>) => { envois.n++; return actual.completerTestAction(...a); } };
+  return { ...actual, completerTestAction: async (...a: Parameters<typeof actual.completerTestAction>) => {
+    envois.n++;
+    if (envois.retenue) { await envois.retenue; throw new TypeError('Failed to fetch'); }
+    return actual.completerTestAction(...a);
+  } };
 });
 vi.mock('next/link', () => ({ default: ({ href, children, ...p }: { href: string; children: React.ReactNode }) => <a href={href} {...p}>{children}</a> }));
 
@@ -90,7 +95,7 @@ beforeAll(async () => {
   for (const p of ps) produits[p.name] = p.id;
 });
 afterAll(() => { if (desc) Object.defineProperty(window.HTMLElement.prototype, 'offsetParent', desc); });
-beforeEach(() => { session.role = 'member'; session.plan = 'plus'; session.marque = 'neva'; });
+beforeEach(() => { session.role = 'member'; session.plan = 'plus'; session.marque = 'neva'; envois.retenue = null; });
 
 // ── Montage du tiroir et gestes d'utilisateur ────────────────────────────────
 
@@ -217,6 +222,37 @@ describe('Le tiroir d’une ad incomplète porte le formulaire « Compléter le 
     expect(a.offerId).not.toBeNull();
     expect(a.landingPageId, 'une page a été inventée').toBeNull();
     expect(d.textContent).toContain('À compléter avant tout test · la page de destination');
+  });
+
+  it('requête retenue puis échouée, puis reprise · focus gardé, saisie conservée, une seule écriture', async () => {
+    const id = await ad(ids.neva, 'r6');
+    const d = await ouvrir(id);
+    const f = formulaire(d)!;
+    await saisir(champ(f, 'Hypothèse testée')!, 'Une preuve chiffrée en ouverture fera passer le hook rate de 22 % à 28 %.');
+    await saisir(champ(f, 'Variable testée')!, 'hook');
+    await attendre(() => !!champ(f, 'Produit'), 'le choix du produit');
+    await saisir(champ(f, 'Produit')!, produits['Sérum Neva']!);
+    for (const c of f.querySelectorAll('input[type="checkbox"]')) await cliquer(c);
+    const bouton = f.querySelector('button[type="submit"]') as HTMLButtonElement;
+    let couper!: () => void;
+    envois.retenue = new Promise<void>((r) => { couper = r; });
+    const avant = await compter();
+    await act(async () => { bouton.focus(); bouton.click(); });
+    expect(bouton.textContent).toBe('Enregistrement…');
+    expect(bouton.getAttribute('aria-disabled')).toBe('true');
+    expect(bouton.hasAttribute('disabled'), 'l’attribut disabled retire le focus du bouton pendant l’envoi').toBe(false);
+    expect(document.activeElement, 'le focus a quitté le bouton pendant l’envoi').toBe(bouton);
+    await act(async () => { couper(); });
+    envois.retenue = null;
+    await attendre(() => !!f.querySelector('[role="alert"]'), 'l’erreur annoncée');
+    expect(f.querySelector('[role="alert"]')!.textContent).toContain('ta saisie est conservée');
+    expect((champ(f, 'Hypothèse testée') as HTMLTextAreaElement).value, 'la saisie est perdue après l’échec').toBe('Une preuve chiffrée en ouverture fera passer le hook rate de 22 % à 28 %.');
+    expect([...f.querySelectorAll('input[type="checkbox"]')].map((c) => (c as HTMLInputElement).checked)).toEqual([true, true]);
+    expect(document.activeElement, 'le focus est volé après l’échec').toBe(bouton);
+    expect(await compter(), 'l’échec a écrit').toEqual(avant);
+    await cliquer(bouton);
+    await attendre(() => (f.textContent ?? '').includes('Enregistré · le test est complet'), 'la reprise');
+    expect((await lireAd(id)).offerId).not.toBeNull();
   });
 
   it('marque sans produit · état vide qui dit quoi faire, hypothèse et variable restent saisissables', async () => {
