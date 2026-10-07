@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  permissionsStudio, marquesAccessibles, aPermissionEspace, erreurStudio, estRoleEspace,
+  permissionsStudio, restreindrePlateforme, marquesAccessibles, aPermissionEspace, erreurStudio, estRoleEspace,
   type PermissionEspace, type PermissionsStudio, type RoleEspace, type ErreurStudio,
 } from '@tiktrends/core';
 import { getSession, type Session } from '../auth';
@@ -56,11 +56,18 @@ export function contexteDepuisSession(
 ): ContexteStudio {
   const roleEspace: RoleEspace = estRoleEspace(s.role) ? s.role : 'client_viewer';
   const roleEquipe = s.equipe?.role ?? null;
-  const permissions = permissionsStudio({
-    roleEspace,
-    studioOuvert: canAccess(effectiveAccess(s), FEATURE_STUDIO),
-    roleEquipe,
-  });
+  // SEC-10 / E5 · la portée PLATEFORME n'est accordée qu'à un compte admissible
+  // (fondateur de la liste codée, ou compte créé AVANT son entrée
+  // `platform_staff` · `equipeDeSession`). Absent → refus. La portée espace
+  // n'est pas touchée.
+  const permissions = restreindrePlateforme(
+    permissionsStudio({
+      roleEspace,
+      studioOuvert: canAccess(effectiveAccess(s), FEATURE_STUDIO),
+      roleEquipe,
+    }),
+    s.equipe?.plateformeAdmissible === true,
+  );
   const marques = marquesAccessibles({ marquesDuWorkspace, restrictionsMarque });
   return {
     userId: s.user.id,
