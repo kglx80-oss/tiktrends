@@ -1,0 +1,1893 @@
+{
+  "purpose": "Exemples de forme uniquement, pas résultats créatifs validés ni entrées sémantiques complètes. Voir09 pour oracles métier.",
+  "cases": [
+    {
+      "templateKey": "jarvis.route",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "message": "fixture-message",
+          "availableActions": [],
+          "selectionId": "fixture-selectionId"
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "intent": "inspect",
+          "targetIds": [],
+          "proposedAction": "fixture-proposedAction",
+          "nextTemplateKey": "fixture-nextTemplateKey",
+          "reply": "fixture-reply"
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "intent": "inspect",
+          "targetIds": [],
+          "proposedAction": "fixture-proposedAction",
+          "nextTemplateKey": "fixture-nextTemplateKey",
+          "reply": "fixture-reply"
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "brand.extract",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "sourceIds": [],
+          "declaredFacts": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "facts": [],
+          "tone": "fixture-tone",
+          "audiences": [],
+          "objections": [],
+          "missingEvidence": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "facts": [],
+          "tone": "fixture-tone",
+          "audiences": [],
+          "objections": [],
+          "missingEvidence": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "source.analyze",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "sourceIds": [],
+          "transcription": "fixture-transcription",
+          "availableModalities": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "observations": [],
+          "hook": "fixture-hook",
+          "structure": [],
+          "visualMechanics": [],
+          "adaptationIdeas": [],
+          "performanceLimit": "fixture-performanceLimit"
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "observations": [],
+          "hook": "fixture-hook",
+          "structure": [],
+          "visualMechanics": [],
+          "adaptationIdeas": [],
+          "performanceLimit": "fixture-performanceLimit"
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "test.hypothesize",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "observationIds": [],
+          "objective": "fixture-objective",
+          "availableMetrics": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "hypotheses": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "hypotheses": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "brief.build",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "request": "fixture-request",
+          "hypothesisId": "fixture-hypothesisId",
+          "selectedReferences": [],
+          "requestedFormats": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "objective": "fixture-objective",
+          "audience": "fixture-audience",
+          "hypothesisId": "fixture-hypothesisId",
+          "testedVariable": "fixture-testedVariable",
+          "facts": [],
+          "invariants": [],
+          "variables": [],
+          "references": [],
+          "composition": "fixture-composition",
+          "styleIntent": "fixture-styleIntent",
+          "texts": [],
+          "formats": [],
+          "exclusions": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "objective": "fixture-objective",
+          "audience": "fixture-audience",
+          "hypothesisId": "fixture-hypothesisId",
+          "testedVariable": "fixture-testedVariable",
+          "facts": [],
+          "invariants": [],
+          "variables": [],
+          "references": [],
+          "composition": "fixture-composition",
+          "styleIntent": "fixture-styleIntent",
+          "texts": [],
+          "formats": [],
+          "exclusions": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "concept.plan",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "briefId": "fixture-briefId",
+          "angleCount": 1,
+          "formats": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "concepts": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "concepts": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "text.write",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "briefId": "fixture-briefId",
+          "contentType": "hook",
+          "maxCharacters": 1,
+          "variantCount": 1
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "variants": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "variants": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "style.describe",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "description": "fixture-description",
+          "referenceIds": [],
+          "allowedScope": "background"
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "style": {
+            "material": "fixture-material",
+            "palette": [],
+            "lighting": "fixture-lighting",
+            "composition": "fixture-composition",
+            "camera": "fixture-camera",
+            "motion": "fixture-motion",
+            "typography": "fixture-typography",
+            "scope": "background",
+            "forbiddenTransfers": []
+          },
+          "referenceObservations": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "style": {
+            "material": "fixture-material",
+            "palette": [],
+            "lighting": "fixture-lighting",
+            "composition": "fixture-composition",
+            "camera": "fixture-camera",
+            "motion": "fixture-motion",
+            "typography": "fixture-typography",
+            "scope": "background",
+            "forbiddenTransfers": []
+          },
+          "referenceObservations": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "character.spec",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "description": "fixture-description",
+          "referenceIds": [],
+          "requiredViews": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "identityId": "fixture-identityId",
+          "immutableTraits": [],
+          "wardrobe": [],
+          "hair": "fixture-hair",
+          "requiredViews": [],
+          "referenceIds": [],
+          "generationInstruction": "fixture-generationInstruction"
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "identityId": "fixture-identityId",
+          "immutableTraits": [],
+          "wardrobe": [],
+          "hair": "fixture-hair",
+          "requiredViews": [],
+          "referenceIds": [],
+          "generationInstruction": "fixture-generationInstruction"
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "storyboard.plan",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "briefId": "fixture-briefId",
+          "targetDurationMs": 1000,
+          "shotCount": 1,
+          "speechMode": "none"
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "shots": [],
+          "estimatedTotalMs": 0,
+          "durationCaveat": "fixture-durationCaveat"
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "shots": [],
+          "estimatedTotalMs": 0,
+          "durationCaveat": "fixture-durationCaveat"
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "image.compile",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "briefId": "fixture-briefId",
+          "conceptId": "fixture-conceptId",
+          "mode": "faithful_composite",
+          "referenceIds": [],
+          "width": 64,
+          "height": 64
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "negativeConstraints": [],
+          "referenceBindings": [],
+          "protectedComponents": [],
+          "needsDeterministicOverlay": false
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "negativeConstraints": [],
+          "referenceBindings": [],
+          "protectedComponents": [],
+          "needsDeterministicOverlay": false
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "shot.image",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "shotId": "fixture-shotId",
+          "referenceIds": [],
+          "identityVersion": "identity-v1"
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "referenceBindings": [],
+          "protectedComponents": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "referenceBindings": [],
+          "protectedComponents": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "edit.mask",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "assetId": "fixture-assetId",
+          "maskAssetId": "fixture-maskAssetId",
+          "request": "fixture-request",
+          "allowedChanges": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "preserve": [],
+          "expectedChanges": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "preserve": [],
+          "expectedChanges": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "document.patch",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "baseVersion": "project-v1",
+          "request": "fixture-request",
+          "allowedPaths": [],
+          "selectedIds": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "baseVersion": "project-v1",
+          "changes": [],
+          "preservedIds": [],
+          "impactSummary": "fixture-impactSummary"
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "baseVersion": "project-v1",
+          "changes": [],
+          "preservedIds": [],
+          "impactSummary": "fixture-impactSummary"
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "voice.prepare",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "narrationText": "fixture-narrationText",
+          "voiceId": "voice-demo",
+          "language": "fr",
+          "pronunciations": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "spokenText": "fixture-spokenText",
+          "voiceId": "voice-demo",
+          "language": "fr",
+          "deliveryNotes": "fixture-deliveryNotes",
+          "pronunciations": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "spokenText": "fixture-spokenText",
+          "voiceId": "voice-demo",
+          "language": "fr",
+          "deliveryNotes": "fixture-deliveryNotes",
+          "pronunciations": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "animation.compile",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "shotId": "fixture-shotId",
+          "keyframeAssetId": "fixture-keyframeAssetId",
+          "durationMs": 0,
+          "speechMode": "none",
+          "audioAssetId": "fixture-audioAssetId"
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "cameraConstraints": [],
+          "identityConstraints": [],
+          "audioRequired": false
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "cameraConstraints": [],
+          "identityConstraints": [],
+          "audioRequired": false
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "music.prepare",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "mood": "fixture-mood",
+          "durationMs": 0,
+          "instrumental": false,
+          "licensedAssetIds": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "instrumental": false,
+          "durationMs": 0,
+          "suggestedAssetIds": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "generationInstruction": "fixture-generationInstruction",
+          "instrumental": false,
+          "durationMs": 0,
+          "suggestedAssetIds": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "quality.visual",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "outputAssetIds": [],
+          "referenceIds": [],
+          "criteria": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "verdict": "passed",
+          "issues": [],
+          "unverifiable": [],
+          "summary": "fixture-summary"
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "verdict": "passed",
+          "issues": [],
+          "unverifiable": [],
+          "summary": "fixture-summary"
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "quality.consistency",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "targetIds": [],
+          "validatedFacts": [],
+          "protectedAttributes": []
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "verdict": "passed",
+          "issues": [],
+          "proposedResolutions": []
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "verdict": "passed",
+          "issues": [],
+          "proposedResolutions": []
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "learning.review",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "testId": "fixture-testId",
+          "metricSnapshotIds": [],
+          "hypothesisId": "fixture-hypothesisId",
+          "humanNotes": "fixture-humanNotes"
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "verdict": "supported",
+          "observations": [],
+          "confounders": [],
+          "learning": "fixture-learning",
+          "nextVariable": "fixture-nextVariable",
+          "recommendedAction": "fixture-recommendedAction"
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "verdict": "supported",
+          "observations": [],
+          "confounders": [],
+          "learning": "fixture-learning",
+          "nextVariable": "fixture-nextVariable",
+          "recommendedAction": "fixture-recommendedAction"
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "batch.plan",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "conceptIds": [],
+          "formats": [],
+          "maxOutputs": 1,
+          "testedVariable": "fixture-testedVariable"
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "items": [],
+          "count": 0
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "items": [],
+          "count": 0
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    },
+    {
+      "templateKey": "format.adapt",
+      "inputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        },
+        "taskInputs": {
+          "documentVersion": "fixture-documentVersion",
+          "targetFormat": "fixture-targetFormat",
+          "allowedPaths": [],
+          "safeZoneProfileId": "fixture-safeZoneProfileId"
+        }
+      },
+      "readyOutputShapeExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "baseVersion": "project-v1",
+          "changes": [],
+          "regenerationNeeded": false,
+          "reason": "fixture-reason"
+        }
+      },
+      "blockedOutputExample": {
+        "status": "blocked",
+        "questions": [
+          "Donnée obligatoire absente dans fixture."
+        ],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": null
+      },
+      "invalidOutputExample": {
+        "status": "ready",
+        "questions": [],
+        "warnings": [],
+        "evidenceIds": [],
+        "result": {
+          "baseVersion": "project-v1",
+          "changes": [],
+          "regenerationNeeded": false,
+          "reason": "fixture-reason"
+        },
+        "unexpectedField": "rejet"
+      },
+      "invalidInputExample": {
+        "context": {
+          "tenantId": "tenant-demo",
+          "brandId": "brand-demo",
+          "projectVersionId": "project-v1",
+          "language": "fr",
+          "authorizedSourceIds": [],
+          "facts": [],
+          "invariants": [],
+          "references": [],
+          "selectionIds": [],
+          "allowedPaths": [],
+          "knowledgeVersionIds": [],
+          "historySummary": "fixture-historySummary",
+          "sourceExcerpts": [],
+          "knowledgeExcerpts": [],
+          "resolvedDocuments": [],
+          "allocatedIds": [],
+          "mediaBindings": []
+        }
+      }
+    }
+  ]
+}

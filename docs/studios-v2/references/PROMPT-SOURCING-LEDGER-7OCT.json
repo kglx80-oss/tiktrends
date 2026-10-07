@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-07",
+  "scope": "Recherche des prompts accessibles et audit croisé des preuves, aucun accès serveur privé",
+  "new_credits_spent": 0,
+  "last_observed_balance": 1099,
+  "avenues": [
+    {
+      "avenue": "Guides officiels",
+      "status": "confirmed_public_educational_prompts",
+      "source": "https://creaflowai.fr/systeme-4-layer",
+      "evidence": "tests-95/public-four-layers-fresh.txt",
+      "finding": "Quatre étapes : extraction ADN marque, angles, concepts, construction outil. Consultation fraîche confirme les textes déjà archivés. Ce ne sont pas des instructions serveur démontrées."
+    },
+    {
+      "avenue": "Autres ressources officielles",
+      "status": "form_gate_encountered",
+      "evidence": "tests-95/public-guide-gate.txt",
+      "finding": "Lors du clic Static ads avec IA, dialogue prénom/e-mail. Aucun formulaire soumis ni contact initié."
+    },
+    {
+      "avenue": "Fondateur X",
+      "status": "specific_unobtained_resource_identified",
+      "source": "https://x.com/ibrascale/status/2107151559981199698",
+      "evidence": "tests-95/founder-style-recipes-5oct.txt",
+      "finding": "Annonce un pack de recettes de style, distribué par interaction publique puis DM. Recettes non obtenues. Description du contexte marque/produits/angles et chaîne storyboard-voix-montage ; aucune version de modèle ou prompt serveur."
+    },
+    {
+      "avenue": "Métadonnées médias",
+      "status": "audited_by_independent_agent",
+      "finding": "43 PNG authentiques examinés, 11 blocs C2PA mentionnent gpt-image dont cinq essais récents. Pas de chunk textuel PNG. Six MP4 sans marqueur prompt/instruction détecté. Signatures nouvelles non vérifiées ; ni version précise ni prompts déduits."
+    },
+    {
+      "avenue": "Bundles publics historiques",
+      "status": "partial_reproducibility",
+      "finding": "Trois guides présents et empreintes vérifiées par agent. Quatre bundles FlowPage/proposal/CanvasEditor/index absents : leurs détails restent historiquement rapportés et non relus."
+    },
+    {
+      "avenue": "Inspection requêtes",
+      "status": "tool_capability_unavailable",
+      "finding": "Capacités CUA actuelles exposent pageAssets, pas capture réseau ; aucun payload fournisseur capturé."
+    },
+    {
+      "avenue": "Tests différentiels",
+      "status": "observable_behavior_only",
+      "finding": "Quatre rendus précédents montrent effet du couple image Style+légende, sans isoler le texte serveur. Pas de nouvelle génération utile à la récupération exacte des prompts dans cette passe."
+    }
+  ],
+  "missing": [
+    "Prompts système privés",
+    "Assemblage final consignes/références envoyé au fournisseur",
+    "Versions et paramètres modèles actifs par opération",
+    "Exemples internes et règles de repli/réparation"
+  ],
+  "interpretation": "Conception indépendante possible à partir de contrats testables ; aucune promesse de réplication identique ou de récupération des secrets.",
+  "corrected_local_evidence": {
+    "file": "tests-95/factor-A1.png",
+    "bytes": 1354864,
+    "sha256": "5dfd2aa061c66f9da00004d2ee197c665d1a32fa0092ca83d29f5ab4b89250c1",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "limitation": "Présence vérifiée après échec signalé ; les trois autres originaux factoriels ne sont pas confirmés ici."
+  }
+}
