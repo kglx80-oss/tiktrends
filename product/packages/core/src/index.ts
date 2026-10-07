@@ -155,3 +155,4 @@ export * from './compte-vue';
 export * from './connaissances';
 export * from './formats-creatifs';
 export * from './accueil-vue';
+export * from './lectures-pures';

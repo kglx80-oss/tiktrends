@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { lireDemandeRendu, type RatioRendu } from '@tiktrends/core/src/lectures-pures';
+import { lireDemandeRendu, type RatioRendu } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { renderAdPng, RENDER_VERSION, type AdRecipe } from '../../../../lib/ad-render';
 import { renduConnu, renduDansLeBucket, rangerRendu } from '../../../../lib/ad-store';

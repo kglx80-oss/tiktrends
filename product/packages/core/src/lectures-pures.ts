@@ -2,9 +2,7 @@
  * Consulter n'écrit rien · les règles qui bornent ce qu'une LECTURE a le droit
  * de demander (BASE-03 du cahier Studios v1.0).
  *
- * Module pur · ni base, ni réseau, ni modèle. Importé par chemin
- * (`@tiktrends/core/src/lectures-pures`) pour ne pas toucher l'index du noyau
- * pendant le chantier L0.
+ * Module pur · ni base, ni réseau, ni modèle. Exporté par `@tiktrends/core`.
  *
  * ── Le défaut que ça borne (#125) ────────────────────────────────────────────
  *

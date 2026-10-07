@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { lireDemandeRendu, veillePersistable, RATIOS_RENDU, PAYS_VEILLE } from '@tiktrends/core/src/lectures-pures';
+import { lireDemandeRendu, veillePersistable, RATIOS_RENDU, PAYS_VEILLE } from '@tiktrends/core';
 
 /**
  * Chantier L0 · les bornes d'une lecture, en règle pure (noyau).
- * Le pendant RÉSULTAT de ces règles vit dans `l0-lectures-pures.test.ts`
+ * Le pendant RÉSULTAT de ces règles vit dans `l0-api-ad.test.ts`
  * (handler appelé, 400 et zéro écriture) et `l0-veille-scale.test.tsx`.
  */
 describe('lireDemandeRendu · seuls les formats connus passent', () => {
