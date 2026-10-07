@@ -1,8 +1,8 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { mechanismForTemplate, formatAdPourGeneration } from '@tiktrends/core';
+import { mechanismForTemplate, formatAdPourGeneration, formatAdDepuisSauvegarde } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory, briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
@@ -119,6 +119,19 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
  * Le cahier des charges type ces ads à part (§5) : on ne reprend pas une pub
  * concurrente comme une idée maison, on assume qu'on en reprend la structure, et
  * le verdict dira si elle transpose.
+ *
+ * Lot 21 (R3) · le pont mène à LA fiche, avec le bon format :
+ * - déjà suivie dans la marque active · la MÊME fiche (même ad) est renvoyée,
+ *   rien n'est écrit · repérée par la provenance (`savedAdId`) et bornée à la
+ *   marque active (persona de la marque) et à l'espace · jamais une ad d'une
+ *   autre marque ;
+ * - le format d'ad vient de la règle du noyau (`formatAdDepuisSauvegarde`) ·
+ *   média et format qualifié, jamais `video_ugc` par défaut · un refus est
+ *   rendu AVANT toute écriture ;
+ * - concept et ad s'écrivent dans UNE transaction (verrou par marque et
+ *   sauvegarde) · un échec ne laisse aucun concept sans ad ;
+ * - un concept ancien resté sans ad (écrit avant cette transaction) reçoit son
+ *   ad · aucun second concept n'est créé.
  */
 export async function trackSavedAdAction(ref: { platform: string; externalId: string }): Promise<BridgeResult> {
   const g = await guard();
@@ -137,44 +150,91 @@ export async function trackSavedAdAction(ref: { platform: string; externalId: st
       .limit(1);
     if (!saved) return { error: 'Pub sauvegardée introuvable.' };
 
+    // Déjà suivie dans CETTE marque · la même fiche, sans rien écrire (même
+    // pour une ancienne ad dont le format ne serait plus accepté aujourd'hui).
+    const deja = await suiviSauvegarde(db!, saved.id, g.s.workspaceId, g.brand.id);
+    if (deja?.adId) return { ok: true, adId: deja.adId, conceptId: deja.conceptId, dejaSuivie: true, error: undefined };
+
+    // Le format d'ad · décidé AVANT toute écriture · refus = zéro ligne.
+    const decision = formatAdDepuisSauvegarde(saved.snapshot);
+    if (!decision.ok) return { error: decision.raison };
+    const format = decision.format;
+
     const snap = (saved.snapshot ?? {}) as { advertiserName?: string; body?: string; callToAction?: string; id?: string };
     const annonceur = (snap.advertiserName || 'Concurrent').slice(0, 80);
     const copy = (snap.body || '').replace(/\s+/g, ' ').trim();
     const titre = `Imitation · ${annonceur}${copy ? ` — ${copy.slice(0, 90)}` : ''}`.slice(0, 160);
 
-    const path = await ensureGraphPath({
+    // Chemin persona → désir → angle · trouvé ou créé (structure réutilisable,
+    // pas une ligne orpheline) · inutile quand le concept existe déjà.
+    const path = deja ? null : await ensureGraphPath({
       workspaceId: g.s.workspaceId, brandId: g.brand.id,
       desireLabel: 'À qualifier (veille)', angleLabel: `Structure reprise de ${annonceur}`,
       mechanism: 'comparison',
     });
-    if (!path) return { error: 'Rattachement impossible.' };
+    if (!deja && !path) return { error: 'Rattachement impossible.' };
 
-    const [c0] = await db!.select({ id: schema.concepts.id }).from(schema.concepts)
-      .where(and(eq(schema.concepts.angleId, path.angleId), eq(schema.concepts.title, titre))).limit(1);
-    if (c0) return { ok: true, conceptId: c0.id, error: undefined };
+    const r = await db!.transaction(async (tx) => {
+      // Deux onglets, deux clics · un seul suivi par marque et sauvegarde.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`adsmap-pont-sauvegarde:${g.brand.id}:${saved.id}`}))`);
+      const encore = await suiviSauvegarde(tx, saved.id, g.s.workspaceId, g.brand.id);
+      if (encore?.adId) return { adId: encore.adId, conceptId: encore.conceptId, dejaSuivie: true as const };
 
-    const [concept] = await db!.insert(schema.concepts).values({
-      workspaceId: g.s.workspaceId, angleId: path.angleId, title: titre,
-      valueBlock: copy ? copy.slice(0, 900) : null, cta: snap.callToAction ?? null,
-      adType: 'imitation', status: 'proposed',
-      sourceRef: { savedAdId: saved.id, platform: saved.platform, externalId: snap.id ?? null },
-    }).returning({ id: schema.concepts.id });
-    if (!concept) return { error: 'Création impossible.' };
+      const conceptId = encore?.conceptId ?? (await tx.insert(schema.concepts).values({
+        workspaceId: g.s.workspaceId, angleId: path!.angleId, title: titre,
+        valueBlock: copy ? copy.slice(0, 900) : null, cta: snap.callToAction ?? null,
+        adType: 'imitation', status: 'proposed',
+        // Le format QUALIFIÉ (composition) est gardé à côté de la provenance ·
+        // le format d'ad n'en garde que ce qui y correspond sans ambiguïté.
+        sourceRef: { savedAdId: saved.id, platform: saved.platform, externalId: snap.id ?? null, formatCreatif: decision.formatCreatif },
+      }).returning({ id: schema.concepts.id }))[0]?.id;
+      if (!conceptId) throw new Error('concept non créé');
 
-    const [ad] = await db!.insert(schema.ads).values({
-      workspaceId: g.s.workspaceId, conceptId: concept.id, variantCode: 'v1',
-      format: 'video_ugc', adType: 'imitation', status: 'draft',
-      platform: saved.platform === 'tiktok' ? 'tiktok' : 'meta',
-    }).returning({ id: schema.ads.id });
+      const [ad] = await tx.insert(schema.ads).values({
+        workspaceId: g.s.workspaceId, conceptId, variantCode: 'v1',
+        format, adType: 'imitation', status: 'draft',
+        platform: saved.platform === 'tiktok' ? 'tiktok' : 'meta',
+      }).returning({ id: schema.ads.id });
+      // Sans ad, le concept ne s'écrit pas non plus (annulation de la transaction).
+      if (!ad) throw new Error('ad non créée');
+      return { adId: ad.id, conceptId, dejaSuivie: undefined };
+    });
+    if (r.dejaSuivie) return { ok: true, adId: r.adId, conceptId: r.conceptId, dejaSuivie: true, error: undefined };
 
     invalidateJarvisMemory(g.brand.id);
     const avis = await briefConceptBeforeLaunch(g.brand.id, g.s.workspaceId, {
-      mechanism: 'comparison', format: 'video_ugc', candidateHook: copy || null,
+      mechanism: 'comparison', format, candidateHook: copy || null,
     });
-    return { ok: true, adId: ad?.id, conceptId: concept.id, prelaunch: avis.summary };
+    return { ok: true, adId: r.adId, conceptId: r.conceptId, prelaunch: avis.summary };
   } catch (e) {
     return { error: logAndTranslate('adsmap:track-saved', e, { subject: 'le rattachement à la carte', workspaceId: g.s.workspaceId }) };
   }
+}
+
+type Lecteur = Pick<NonNullable<typeof db>, 'select'>;
+
+/**
+ * Le suivi existant d'une sauvegarde dans la marque active · le concept
+ * `imitation` qui la cite (`source_ref_json.savedAdId`), rattaché à un persona
+ * de CETTE marque, dans CET espace, et sa première ad s'il en a une. Un concept
+ * avec ad passe avant un concept sans ad.
+ */
+async function suiviSauvegarde(lecteur: Lecteur, savedAdId: string, workspaceId: string, brandId: string): Promise<{ conceptId: string; adId: string | null } | null> {
+  const [row] = await lecteur.select({ conceptId: schema.concepts.id, adId: schema.ads.id })
+    .from(schema.concepts)
+    .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+    .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+    .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+    .leftJoin(schema.ads, and(eq(schema.ads.conceptId, schema.concepts.id), eq(schema.ads.workspaceId, workspaceId)))
+    .where(and(
+      eq(schema.concepts.workspaceId, workspaceId),
+      eq(schema.personas.brandId, brandId),
+      eq(schema.concepts.adType, 'imitation'),
+      sql`${schema.concepts.sourceRef}->>'savedAdId' = ${savedAdId}`,
+    ))
+    .orderBy(sql`${schema.ads.id} is null`, asc(schema.concepts.createdAt), asc(schema.ads.createdAt))
+    .limit(1);
+  return row ? { conceptId: row.conceptId, adId: row.adId ?? null } : null;
 }
 
 /**
