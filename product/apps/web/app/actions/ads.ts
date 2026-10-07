@@ -2,7 +2,10 @@
 
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { getSession } from '../../lib/auth';
+import { getSession, type Session } from '../../lib/auth';
+import { FEATURES, canAccess, denyReason } from '../../lib/rbac';
+import { effectiveAccess } from '../../lib/access';
+import { refusGesteStudio, TEXTE_REFUS_STUDIO } from '@tiktrends/core';
 import { getActiveBrand } from '../../lib/brands';
 import { resolvePreset } from './presets';
 import { falFromEnv, falGenerateImage, type FalConfig } from '@tiktrends/integrations';
@@ -24,6 +27,30 @@ import { imageJointe } from '../../lib/image-jointe';
 import { chargerValidationsActives, faitsAvecEtat } from '../../lib/faits-preuve';
 import { adsDeLaMarque } from '../../lib/adsmap-marque';
 import type { FaitControle, SourceVeille } from '@tiktrends/core';
+
+/**
+ * SEC-03 · garde serveur des gestes du studio (générer, débiter, écrire).
+ *
+ * Ce fichier ne vérifiait que la session · un `client_viewer`, ou un membre
+ * d'un espace Starter, appelait directement l'action et dépensait des dollars
+ * et des crédits que la page lui refuse. On applique ici la MÊME règle que les
+ * pages `/studio/*` et `actions/studio.ts` (Textes) : `canAccess` sur la
+ * feature `studio` du catalogue existant (rôle + offre, ou matrice d'équipe),
+ * plus le rôle d'espace « member » minimum (`refusGesteStudio`, noyau). Aucun
+ * droit nouveau ; les lectures restent inchangées. Appelée AVANT tout appel IA,
+ * toute réservation de crédits et toute écriture.
+ */
+const FEATURE_STUDIO_GESTE = FEATURES.find((f) => f.key === 'studio')!;
+async function sessionGeste(): Promise<{ s: Session } | { refus: string }> {
+  const s = await getSession();
+  if (!s) return { refus: GUARD.session() };
+  const acces = effectiveAccess(s);
+  const refus = refusGesteStudio({
+    roleEspace: s.role,
+    refusCatalogue: canAccess(acces, FEATURE_STUDIO_GESTE) ? null : (denyReason(acces, FEATURE_STUDIO_GESTE) ?? 'role'),
+  });
+  return refus ? { refus: TEXTE_REFUS_STUDIO[refus] } : { s };
+}
 
 export interface AdItem {
   id: string; template: AdTemplate; headline: string; url: string; createdAt: string;
@@ -1043,12 +1070,13 @@ async function genererLotInterne(input: {
    */
   sourceVeille?: SourceVeille | null;
 }): Promise<AdsResult> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
 
   const cfg = falFromEnv();
   if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
-  const client = guardedAnthropic({ action: 'ads' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'ads' });
   if (!client) return { error: GUARD.aiOff() };
   if (!db) return { error: GUARD.db() };
 
@@ -1350,9 +1378,11 @@ async function genererLotInterne(input: {
 
 /** Propose des angles précis en s'appuyant sur la marque + les sauvegardes de veille + les concurrents. */
 export async function suggestAnglesAction(input: { productId?: string }): Promise<{ angles?: AdAngle[]; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
-  const client = guardedAnthropic({ action: 'ads' });
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  if (!db) return { error: GUARD.db() };
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'ads' });
   if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
@@ -1448,11 +1478,12 @@ async function clonerLotInterne(input: {
   /** Scène enregistrée reprise · c'est ce rattachement qui lui bâtit un bilan. */
   presetId?: string;
 }): Promise<AdsResult> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
   const cfg = falFromEnv();
   if (!cfg) return { error: "La génération d'image n'est pas activée (clé Fal manquante)." };
-  const client = guardedAnthropic({ action: 'ads' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'ads' });
   if (!client) return { error: GUARD.aiOff() };
   if (!db) return { error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
@@ -1698,8 +1729,10 @@ export async function universeSamplesAction(): Promise<Record<string, string>> {
 
 /** Archive (ou restaure) un rendu de pub. */
 export async function archiveAdAction(input: { id: string; archived?: boolean }): Promise<{ ok?: true; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  if (!db) return { error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
   const [g] = await db.select({ id: schema.generations.id }).from(schema.generations)
@@ -1729,8 +1762,10 @@ export async function getAdTextAction(id: string): Promise<{ text?: AdText; erro
  * aucun crédit débité. Renvoie une version pour rafraîchir l'aperçu (cache-bust).
  */
 export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok?: true; url?: string; mesureReinitialisee?: boolean; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  if (!db) return { error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
   const [g] = await db.select({ input: schema.generations.input }).from(schema.generations)
@@ -1763,9 +1798,11 @@ export async function updateAdTextAction(id: string, text: AdText): Promise<{ ok
  * en s'appuyant sur les règles maison + les patterns gagnants appris. Débite 2 crédits.
  */
 export async function scoreCreativeAction(id: string, opts?: { force?: boolean }): Promise<{ score?: CreativeScore; copie?: VerdictCopie | null; cost?: number; cached?: true; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
-  const client = guardedAnthropic({ action: 'ads' });
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  if (!db) return { error: GUARD.db() };
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'ads' });
   if (!client) return { error: GUARD.aiOff() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
@@ -1900,8 +1937,10 @@ export async function scoreCreativeAction(id: string, opts?: { force?: boolean }
  * Le contrôle passe AVANT la facturation · on ne fait pas payer un doublon.
  */
 export async function declineAdAction(input: { id: string; variable: string; model?: string }): Promise<{ ad?: AdItem; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  if (!db) return { error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
 
@@ -1951,7 +1990,7 @@ export async function declineAdAction(input: { id: string; variable: string; mod
     }
     patch = { layout: suivante };
   } else if (variable === 'accroche' || variable === 'offre') {
-    const client = guardedAnthropic({ action: 'ads' });
+    const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'ads' });
     if (!client) { await rendre(); return { error: GUARD.aiOff() }; }
     const { da, product, persona } = await loadAdContext(brand.id, parent.productId, parent.personaId);
     try {

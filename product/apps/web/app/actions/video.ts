@@ -2,7 +2,10 @@
 
 import { and, desc, eq, or, isNull, notInArray, sql, lte, ne } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { getSession } from '../../lib/auth';
+import { getSession, type Session } from '../../lib/auth';
+import { FEATURES, canAccess, denyReason } from '../../lib/rbac';
+import { effectiveAccess } from '../../lib/access';
+import { refusGesteStudio, TEXTE_REFUS_STUDIO } from '@tiktrends/core';
 import { getActiveBrand } from '../../lib/brands';
 import { higgsfieldFromEnv, hfSubmitVideo, hfSubmitImageVideo, hfGetJob, falFromEnv, falSubmitVideo, falGetVideo, isFalJob } from '@tiktrends/integrations';
 import { suggestVideoBrief } from '@tiktrends/ai';
@@ -13,6 +16,30 @@ import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { resolvePreset } from './presets';
 import { jarvisMemoryWithUse } from '../../lib/jarvis-memory';
+
+/**
+ * SEC-03 · garde serveur des gestes du studio (générer, débiter, écrire).
+ *
+ * Ce fichier ne vérifiait que la session · un `client_viewer`, ou un membre
+ * d'un espace Starter, appelait directement l'action et dépensait des dollars
+ * et des crédits que la page lui refuse. On applique ici la MÊME règle que les
+ * pages `/studio/*` et `actions/studio.ts` (Textes) : `canAccess` sur la
+ * feature `studio` du catalogue existant (rôle + offre, ou matrice d'équipe),
+ * plus le rôle d'espace « member » minimum (`refusGesteStudio`, noyau). Aucun
+ * droit nouveau ; les lectures restent inchangées. Appelée AVANT tout appel IA,
+ * toute réservation de crédits et toute écriture.
+ */
+const FEATURE_STUDIO_GESTE = FEATURES.find((f) => f.key === 'studio')!;
+async function sessionGeste(): Promise<{ s: Session } | { refus: string }> {
+  const s = await getSession();
+  if (!s) return { refus: GUARD.session() };
+  const acces = effectiveAccess(s);
+  const refus = refusGesteStudio({
+    roleEspace: s.role,
+    refusCatalogue: canAccess(acces, FEATURE_STUDIO_GESTE) ? null : (denyReason(acces, FEATURE_STUDIO_GESTE) ?? 'role'),
+  });
+  return refus ? { refus: TEXTE_REFUS_STUDIO[refus] } : { s };
+}
 
 /**
  * Ce que Jarvis sait, versé dans le brief vidéo.
@@ -97,14 +124,21 @@ async function recordGeneration(
 
 /** Texte → vidéo (gated + débit crédits). */
 export async function startVideoAction(input: { prompt: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number; presetId?: string; directionKey?: string }): Promise<VideoStart> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
   const prompt = input.prompt?.trim();
   if (!prompt) return { error: 'Décris la vidéo à générer.' };
 
   const fal = falFromEnv();
   const hf = fal ? null : higgsfieldFromEnv();
   if (!fal && !hf) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
+
+  // Le suivi relit le job en base, rattaché à une marque de l'espace (SEC-07) ·
+  // une vidéo sans marque active serait payée puis impossible à suivre (et
+  // n'était déjà jamais enregistrée). On refuse AVANT tout débit.
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: GUARD.noBrand() };
 
   const duree = safeVideoDuration(input.durationS);
   const cost = costFor('video') * videoUnits(duree);
@@ -120,15 +154,14 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
     // compte en unités de cinq secondes.
     // La marque est lue AVANT la soumission · sa mémoire doit entrer dans le
     // brief, pas être consignée après coup sur une vidéo qui n'en a rien su.
-    const brand = await getActiveBrand(s.workspaceId);
-    const memo = await avecMemoire(prompt, brand?.id ?? null, s.workspaceId);
+    const memo = await avecMemoire(prompt, brand.id, s.workspaceId);
     // La direction de mouvement se compose dans le prompt FINAL · la légende
     // stockée reste la description de la personne.
     const briefT2v = promptVideo(avecPreset(memo.brief, await resolvePreset(s.workspaceId, input.presetId)), input.directionKey);
     const { jobId } = await sousPlafond('fal_video', { action: 'video:t2v', workspaceId: s.workspaceId, units: videoUnits(duree) }, () => (fal
       ? falSubmitVideo(fal, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
       : hfSubmitVideo(hf!, { prompt: briefT2v, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })));
-    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(memo.use ? { memoryUse: memo.use } : {}), ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
+    const generationId = await recordGeneration(brand.id, cost, { mode: 't2v', prompt, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(memo.use ? { memoryUse: memo.use } : {}), ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
@@ -138,8 +171,9 @@ export async function startVideoAction(input: { prompt: string; aspectRatio?: '9
 
 /** Image → vidéo (anime une image de départ). */
 export async function startImageVideoAction(input: { prompt: string; imageUrl: string; aspectRatio?: '9:16' | '1:1' | '16:9'; durationS?: number; presetId?: string; directionKey?: string }): Promise<VideoStart> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
   const prompt = input.prompt?.trim();
   const imageUrl = input.imageUrl?.trim();
   if (!imageUrl) return { error: 'Choisis une image de départ (produit ou pub).' };
@@ -148,6 +182,10 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
   const fal = falFromEnv();
   const hf = fal ? null : higgsfieldFromEnv();
   if (!fal && !hf) return { error: "La vidéo IA n'est pas encore activée (clé serveur manquante)." };
+
+  // Même règle qu'en texte → vidéo · pas de vidéo payée et impossible à suivre.
+  const brand = await getActiveBrand(s.workspaceId);
+  if (!brand) return { error: GUARD.noBrand() };
 
   const duree = safeVideoDuration(input.durationS);
   const cost = costFor('video') * videoUnits(duree);
@@ -158,13 +196,12 @@ export async function startImageVideoAction(input: { prompt: string; imageUrl: s
 
   const motion = prompt || 'Anime cette image de façon naturelle et cinématographique.';
   try {
-    const brand = await getActiveBrand(s.workspaceId);
-    const memo = await avecMemoire(motion, brand?.id ?? null, s.workspaceId);
+    const memo = await avecMemoire(motion, brand.id, s.workspaceId);
     const briefI2v = promptVideo(avecPreset(memo.brief, await resolvePreset(s.workspaceId, input.presetId)), input.directionKey);
     const { jobId } = await sousPlafond('fal_video', { action: 'video:i2v', workspaceId: s.workspaceId, units: videoUnits(duree) }, () => (fal
       ? falSubmitVideo(fal, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })
       : hfSubmitImageVideo(hf!, { prompt: briefI2v, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree })));
-    const generationId = await recordGeneration(brand?.id ?? null, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(memo.use ? { memoryUse: memo.use } : {}), ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
+    const generationId = await recordGeneration(brand.id, cost, { mode: 'i2v', prompt, imageUrl, aspectRatio: input.aspectRatio ?? '9:16', durationS: duree, ...(memo.use ? { memoryUse: memo.use } : {}), ...(input.presetId ? { presetId: input.presetId } : {}) }, jobId, unlimited);
     return { jobId, generationId };
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · vidéo non lancée');
@@ -226,6 +263,10 @@ export async function pageVideosMarque(p: { page?: number; jusqua?: string } = {
 
 // Au-delà de ce délai sans complétion, on considère le job perdu (évite le spinner infini).
 const STALE_MS = 15 * 60 * 1000;
+
+/** Réponse neutre du suivi · ne dit pas si la génération existe ailleurs. */
+const SUIVI_INDISPONIBLE = 'Suivi indisponible pour cette vidéo.';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Marque une génération vidéo en échec et rembourse les crédits · UNE seule fois.
@@ -291,9 +332,28 @@ async function failAndRefund(generationId: string, workspaceId: string, error: s
  * doit migrer vers le worker (webhook fournisseur ou tâche planifiée) pour que
  * l'écran ne fasse plus que lire.
  */
-export async function pollVideoAction(jobId: string, generationId?: string): Promise<VideoStatus> {
-  const s = await getSession();
-  if (!s) return { status: 'unknown', error: 'Session expirée.' };
+export async function pollVideoAction(_jobIdClient: string, generationId?: string): Promise<VideoStatus> {
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { status: 'unknown', error: garde.refus };
+  const s = garde.s;
+
+  // ── SEC-07 · le job est RELU en base, dans la portée de l'espace ───────────
+  //
+  // Le `jobId` venait du navigateur et partait tel quel chez le fournisseur,
+  // avec la clé fal en en-tête · un `jobId` forgé emmenait la clé vers l'hôte
+  // de son choix. Il n'est plus lu (le paramètre reste pour l'écran actuel) :
+  // seul compte le job ENREGISTRÉ sur une génération vidéo d'une marque de
+  // l'espace. Génération inconnue, d'un autre espace, ou sans job → réponse
+  // neutre, aucune requête sortante, aucune écriture.
+  if (!db || !generationId || !UUID.test(generationId)) return { status: 'unknown', error: SUIVI_INDISPONIBLE };
+  const [gen] = await db.select({ jobId: schema.generations.jobId, createdAt: schema.generations.createdAt })
+    .from(schema.generations)
+    .innerJoin(schema.brands, eq(schema.generations.brandId, schema.brands.id))
+    .where(and(eq(schema.generations.id, generationId), eq(schema.generations.kind, 'video'), eq(schema.brands.workspaceId, s.workspaceId)))
+    .limit(1);
+  if (!gen?.jobId) return { status: 'unknown', error: SUIVI_INDISPONIBLE };
+  const jobId = gen.jobId;
+
   try {
     let job: VideoStatus;
     if (isFalJob(jobId)) {
@@ -307,16 +367,13 @@ export async function pollVideoAction(jobId: string, generationId?: string): Pro
     }
 
     // Garde-fou anti-blocage : un job « en cours » trop vieux est déclaré en échec.
-    if ((job.status === 'processing' || job.status === 'queued' || job.status === 'unknown') && db && generationId) {
-      try {
-        const [g] = await db.select({ createdAt: schema.generations.createdAt }).from(schema.generations).where(eq(schema.generations.id, generationId)).limit(1);
-        const age = g?.createdAt ? Date.now() - new Date(g.createdAt as Date).getTime() : 0;
-        if (age > STALE_MS) {
-          const error = 'La génération a pris trop de temps et a été interrompue. Crédits remboursés, relance-la.';
-          await failAndRefund(generationId, s.workspaceId, error);
-          return { status: 'failed', error };
-        }
-      } catch { /* best-effort */ }
+    if (job.status === 'processing' || job.status === 'queued' || job.status === 'unknown') {
+      const age = gen.createdAt ? Date.now() - new Date(gen.createdAt as Date).getTime() : 0;
+      if (age > STALE_MS) {
+        const error = 'La génération a pris trop de temps et a été interrompue. Crédits remboursés, relance-la.';
+        await failAndRefund(generationId, s.workspaceId, error);
+        return { status: 'failed', error };
+      }
     }
 
     if (db && generationId && job.status === 'failed') {
@@ -396,9 +453,10 @@ export async function listAnimatableAssets(): Promise<AnimatableAsset[]> {
 
 /** Propose une consigne de mouvement (ancrée marque/produit) pour la vidéo. */
 export async function suggestVideoBriefAction(input: { productId?: string; fromImage?: boolean }): Promise<{ text?: string; error?: string }> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
-  const client = guardedAnthropic({ action: 'video' });
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'video' });
   if (!client) return { error: GUARD.aiOff() };
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('suggest');
@@ -430,8 +488,10 @@ export async function suggestVideoBriefAction(input: { productId?: string; fromI
 
 /** Supprime une vidéo (rendu raté ou bloqué) de la galerie de la marque. */
 export async function deleteVideoAction(id: string): Promise<{ ok?: true; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  if (!db) return { error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
   await db.delete(schema.generations)
