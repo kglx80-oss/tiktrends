@@ -7,7 +7,7 @@
   "lots": {
     "L0": "IN_PROGRESS",
     "L1": "TODO",
-    "L2": "TODO",
+    "L2": "IN_PROGRESS",
     "L3": "TODO",
     "L4": "TODO",
     "L5": "TODO",
@@ -22,7 +22,8 @@
   "branches": {
     "claude/studios-l0-dossier": "dossier, matrice, checkpoint, inventaire L0",
     "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (agent, en cours)",
-    "claude/studios-l1-fondations": "L1 · modèle canonique, migrations additives, ACL (agent)"
+    "claude/studios-l1-fondations": "L1 · modèle canonique, migrations additives, ACL (agent)",
+    "claude/studios-l2-noyau-prompts": "L2 · noyau pur du registre (a5c6ea34, 201 tests, 64 mutations tuées, portes vertes) · à brancher après L1"
   },
   "prEnAttente": {
     "729": {
@@ -173,40 +174,40 @@
       "limites": null
     },
     "PROMPT-01": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/prompts (noyau pur)",
+      "test": "packages/core/test/prompts-*.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
+      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-02": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/prompts (noyau pur)",
+      "test": "packages/core/test/prompts-*.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
+      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-03": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/prompts (noyau pur)",
+      "test": "packages/core/test/prompts-*.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
+      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-04": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/prompts (noyau pur)",
+      "test": "packages/core/test/prompts-*.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
+      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-05": {
       "statut": "TODO",
@@ -245,13 +246,13 @@
       "limites": null
     },
     "PROMPT-09": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/prompts (noyau pur)",
+      "test": "packages/core/test/prompts-*.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
+      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-10": {
       "statut": "TODO",
@@ -263,13 +264,13 @@
       "limites": null
     },
     "PROMPT-11": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/prompts (noyau pur)",
+      "test": "packages/core/test/prompts-*.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
+      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-12": {
       "statut": "TODO",
@@ -898,6 +899,16 @@
       "cause": "Le proxy de la session bloque fal, CloudFront et app.tiktrends.co ; aucun appel fournisseur réel ni observation production possible depuis la session.",
       "solutionPreparee": "Adaptateurs simulés réservés aux tests ; preuve réelle à exécuter par le propriétaire ou sur le VPS.",
       "besoinKevin": "Budget de recette fournisseur explicite et exécution réelle hors session."
+    },
+    {
+      "id": "B-BENCHMARK",
+      "exigences": [
+        "UX-07",
+        "PROMPT-05"
+      ],
+      "cause": "Une release ne peut devenir active en production sans benchmark F01-F24 approuvé ; l'exécuter appelle des modèles payants.",
+      "solutionPreparee": "Évaluation par commande ADMIN dédiée, données synthétiques, budget séparé (cahier §8.2).",
+      "besoinKevin": "Budget explicite d'évaluation et exécution hors session (fal et Anthropic non joignables depuis la session pour fal)."
     }
   ],
   "prochaineAction": "Suivre L0-lectures (#125) et L1-fondations ; ensuite SEC (gardes studio, clé fal, P1/P2, ai_spend.workspace_id) puis L2 registre de prompts.",
@@ -927,6 +938,28 @@
       "gravite": "moyenne",
       "constat": "Plafond de dépense par défaut 50 $ global (spend-guard.ts:40), pas 10 $ par espace ; forfait fal 0,08 $ sous-estime gpt2_high.",
       "lot": "L3"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D-L2-01",
+      "decision": "Aucun champ de template surchargeable par espace ou marque tant que Kevin n'a pas fixé la liste (le pack n'en déclare aucun) : fermé par défaut.",
+      "source": "L2-REGISTRE.md"
+    },
+    {
+      "id": "D-L2-02",
+      "decision": "maximumRepairAttempts traité comme 0 tant qu'aucun template de réparation n'est publié au registre (pas de consigne de réparation codée en dur).",
+      "source": "L2-REGISTRE.md"
+    },
+    {
+      "id": "D-L2-03",
+      "decision": "Validateur Ajv 8.20.0 (draft 2020-12, strictTypes:false car le schéma du pack omet type dans des if/then) + ajv-formats 3.0.1, exporté côté serveur seulement.",
+      "source": "L2-REGISTRE.md"
+    },
+    {
+      "id": "D-L2-04",
+      "decision": "Cycle de vie scindé : versions draft→validated→retired, releases staged→active→retired, pointeur actif par portée ; rollback = déplacement du pointeur.",
+      "source": "L2-REGISTRE.md"
     }
   ]
 }
