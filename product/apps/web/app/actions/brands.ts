@@ -47,7 +47,7 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
   const url = norm(formData.get('url'));
   if (!name) return { error: 'Indique au moins le nom de la marque.' };
 
-  const client = guardedAnthropic({ action: 'brands' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'brands' });
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
   if (!client) return { error: messageServiceInactif('ia_profil') };
 

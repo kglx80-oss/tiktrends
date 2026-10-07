@@ -2,7 +2,10 @@
 
 import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { getSession } from '../../lib/auth';
+import { getSession, type Session } from '../../lib/auth';
+import { FEATURES, canAccess, denyReason } from '../../lib/rbac';
+import { effectiveAccess } from '../../lib/access';
+import { refusGesteStudio, TEXTE_REFUS_STUDIO } from '@tiktrends/core';
 import { getActiveBrand } from '../../lib/brands';
 import { falFromEnv, falGenerateImage, type FalAspect } from '@tiktrends/integrations';
 import { enhanceImagePrompt, suggestImageBrief, scoreCreative } from '@tiktrends/ai';
@@ -15,6 +18,30 @@ import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { resolvePreset } from './presets';
+
+/**
+ * SEC-03 · garde serveur des gestes du studio (générer, débiter, écrire).
+ *
+ * Ce fichier ne vérifiait que la session · un `client_viewer`, ou un membre
+ * d'un espace Starter, appelait directement l'action et dépensait des dollars
+ * et des crédits que la page lui refuse. On applique ici la MÊME règle que les
+ * pages `/studio/*` et `actions/studio.ts` (Textes) : `canAccess` sur la
+ * feature `studio` du catalogue existant (rôle + offre, ou matrice d'équipe),
+ * plus le rôle d'espace « member » minimum (`refusGesteStudio`, noyau). Aucun
+ * droit nouveau ; les lectures restent inchangées. Appelée AVANT tout appel IA,
+ * toute réservation de crédits et toute écriture.
+ */
+const FEATURE_STUDIO_GESTE = FEATURES.find((f) => f.key === 'studio')!;
+async function sessionGeste(): Promise<{ s: Session } | { refus: string }> {
+  const s = await getSession();
+  if (!s) return { refus: GUARD.session() };
+  const acces = effectiveAccess(s);
+  const refus = refusGesteStudio({
+    roleEspace: s.role,
+    refusCatalogue: canAccess(acces, FEATURE_STUDIO_GESTE) ? null : (denyReason(acces, FEATURE_STUDIO_GESTE) ?? 'role'),
+  });
+  return refus ? { refus: TEXTE_REFUS_STUDIO[refus] } : { s };
+}
 
 export interface ImageResult { error?: string; images?: string[]; prompt?: string; generationId?: string }
 export interface BrandImage { id: string; prompt: string; url: string | null; createdAt: string; rating?: import('./creatives').Rating }
@@ -38,8 +65,9 @@ export async function generateImageAction(input: {
   /** Moteur d'image choisi · le studio Image ne pouvait pas en changer. */
   model?: string;
 }): Promise<ImageResult> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
   const desc = input.prompt?.trim();
   if (!desc) return { error: "Décris l'image à générer." };
 
@@ -90,7 +118,7 @@ export async function generateImageAction(input: {
   // Optimisation du prompt par Claude (ancrée marque + produit + texte).
   let prompt = desc;
   if (input.enhance) {
-    const client = guardedAnthropic({ action: 'image' });
+    const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'image' });
     if (client) {
       try {
         prompt = await enhanceImagePrompt(client, desc, {
@@ -153,9 +181,10 @@ export async function generateImageAction(input: {
 
 /** Propose une description d'image ancrée sur la marque + produit sélectionné. */
 export async function suggestImageBriefAction(input: { productId?: string }): Promise<{ text?: string; error?: string }> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
-  const client = guardedAnthropic({ action: 'image' });
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'image' });
   if (!client) return { error: GUARD.aiOff() };
 
   const unlimited = unlimitedCredits(s.user.email);
@@ -192,8 +221,10 @@ export async function suggestImageBriefAction(input: { productId?: string }): Pr
 
 /** Enregistre (ou retire) la photo réelle d'un produit · réutilisée pour la mise en scène. */
 export async function setProductImageAction(input: { productId: string; dataUri?: string | null }): Promise<{ ok?: true; imageUrl?: string | null; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  if (!db) return { error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
 
@@ -214,8 +245,10 @@ export async function setProductImageAction(input: { productId: string; dataUri?
 
 /** Enregistre plusieurs photos de référence produit (glisser-déposer). La 1re sert d'aperçu. */
 export async function setProductImagesAction(input: { productId: string; dataUris: string[]; append?: boolean }): Promise<{ ok?: true; imageUrls?: string[]; imageUrl?: string | null; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
+  if (!db) return { error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
 
@@ -237,8 +270,10 @@ export async function setProductImagesAction(input: { productId: string; dataUri
 
 /** Récupère en masse les photos de tous les produits (sans photo) depuis leurs fiches / le site de la marque. */
 export async function importAllProductImagesAction(): Promise<{ updated: number; total: number; updatedIds: string[]; note?: string; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { updated: 0, total: 0, updatedIds: [], error: 'Session expirée.' };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { updated: 0, total: 0, updatedIds: [], error: garde.refus };
+  const s = garde.s;
+  if (!db) return { updated: 0, total: 0, updatedIds: [], error: GUARD.db() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { updated: 0, total: 0, updatedIds: [], error: 'Aucune marque active.' };
 
@@ -339,8 +374,9 @@ export async function pageImagesMarque(p: { page?: number; jusqua?: string } = {
  * le noyau décide · la note n'invente rien qu'un raté visible contredirait.
  */
 export async function scoreImageAction(input: { url: string; prompt?: string }): Promise<{ note?: NoteImage; error?: string }> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
+  const garde = await sessionGeste();
+  if ('refus' in garde) return { error: garde.refus };
+  const s = garde.s;
   const client = guardedAnthropic({ action: 'image:score', workspaceId: s.workspaceId });
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
   if (!client) return { error: messageServiceInactif('relecture_image') };

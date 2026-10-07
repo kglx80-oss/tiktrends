@@ -1,3 +1,4 @@
+import { blocDonneesNonFiables, BALISE_DONNEES_NON_FIABLES, CONSIGNE_DONNEES_NON_FIABLES } from '@tiktrends/core';
 import Anthropic from '@anthropic-ai/sdk';
 import { GEN_MODEL } from './generation';
 import type { AdTemplate } from './ads';
@@ -106,7 +107,7 @@ export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creativ
     "Tu es Jarvis, directeur créatif PERFORMANCE (niveau Atria/Motion) spécialiste des pubs qui SCALENT en paid social (Meta/TikTok).",
     "Tu notes le POTENTIEL DE PERFORMANCE réel d'une créa (scroll-stop, clarté, promesse, adéquation cible/offre), pas la beauté.",
     "Sois EXIGEANT et honnête : la plupart des créas moyennes sont entre 40 et 65. Une note ≥ 80 est réservée aux créas prêtes à scaler.",
-    ctx.winningPatterns ? "Appuie-toi sur les PATTERNS GAGNANTS appris pour cette marque (fournis) : récompense ce qui s'en rapproche." : '',
+    ctx.winningPatterns ? `Appuie-toi sur les PATTERNS GAGNANTS appris pour cette marque (fournis dans le bloc <${BALISE_DONNEES_NON_FIABLES} source="patterns_gagnants"> du message) : récompense ce qui s'en rapproche. ${CONSIGNE_DONNEES_NON_FIABLES}` : '',
     ctx.creativeRules ? "Respecte les RÈGLES MAISON de la marque (fournies)." : '',
     aVu && creative.texteDansImage
       ? "L'IMAGE de la pub t'est fournie, et sa typographie a été PRODUITE PAR LE MODÈLE D'IMAGES : c'est voulu, ce n'est donc PAS un défaut. Ne signale JAMAIS « texte_incruste » ici. RECOPIE dans « texteLu » tout le texte visible dans l'image, littéralement, ligne par ligne, sans rien corriger ni traduire · c'est une transcription, pas un jugement, et c'est notre code qui la comparera aux textes demandés. Juge aussi ce qu'un pouce voit en 0,5 s. Les autres ratés (produit déformé, anatomie anormale, logo inventé) restent des défauts."
@@ -124,7 +125,8 @@ export async function scoreCreative(client: Anthropic, ctx: CritiqueCtx, creativ
     ctx.usp ? `USP : ${ctx.usp}.` : '',
     ctx.objective ? `Objectif de la campagne : ${ctx.objective}.` : '',
     ctx.creativeRules ? `\nRègles maison :\n${ctx.creativeRules.slice(0, 800)}` : '',
-    ctx.winningPatterns ? `\nPatterns gagnants appris :\n${ctx.winningPatterns.slice(0, 1000)}` : '',
+    // SEC-04 · donnée non fiable (veille, transcriptions, apprentissages) · bloc délimité.
+    ctx.winningPatterns ? `\nPatterns gagnants appris :\n${blocDonneesNonFiables('patterns_gagnants', ctx.winningPatterns.slice(0, 1000))}` : '',
     `\nCréa à noter (gabarit : ${creative.template || 'n/a'}) :`,
     creative.kicker ? `Kicker : ${creative.kicker}` : '',
     `Accroche : ${creative.headline}`,

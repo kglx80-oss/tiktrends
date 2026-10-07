@@ -209,7 +209,7 @@ export async function basculerTemplateAction(input: { id: string; on: boolean })
 export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true; tags?: string[]; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
-  const client = guardedAnthropic({ action: 'assets' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'assets' });
   if (!client) return { error: GUARD.aiOff() };
   const [a] = await db.select({ id: schema.assets.id, kind: schema.assets.kind, url: schema.assets.url, tags: schema.assets.tags })
     .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
@@ -246,7 +246,7 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
 export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: number; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
-  const client = guardedAnthropic({ action: 'assets' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'assets' });
   if (!client) return { error: GUARD.aiOff() };
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('tag_image', 1);

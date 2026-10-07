@@ -27,6 +27,17 @@ export function founderEmails(): string[] {
   return [...new Set([...FONDATEURS, ...env])];
 }
 
+/**
+ * Fondateur de la liste CODÉE seulement (sans `FOUNDER_EMAILS`) · SEC-10.
+ * C'est la seule exemption à la règle d'antériorité des permissions
+ * plateforme du studio (`equipeDeSession`) : une entrée d'environnement peut
+ * viser un e-mail sans compte, que quiconque pourrait alors créer.
+ */
+export function estFondateurCode(email?: string | null): boolean {
+  if (!email) return false;
+  return FONDATEURS.includes(email.trim().toLowerCase());
+}
+
 export function isFounder(email?: string | null): boolean {
   if (!email) return false;
   return founderEmails().includes(email.trim().toLowerCase());

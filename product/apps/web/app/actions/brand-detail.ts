@@ -33,7 +33,7 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
   const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
   if (!b) redirect('/brands');
 
-  const client = guardedAnthropic({ action: 'brand-detail' });
+  const client = guardedAnthropic({ workspaceId: g.workspaceId, action: 'brand-detail' });
   if (!client) redirect(`/brands/${brandId}?tab=overview&e=ai`);
 
   const unlimited = unlimitedCredits(g.email);
@@ -105,7 +105,7 @@ export async function extractBrandVisualDaAction(formData: FormData): Promise<vo
   if (!b) redirect('/brands');
 
   // Barrière de dépense · aucune sortie IA si le plafond est atteint.
-  const client = guardedAnthropic({ action: 'brand-detail' });
+  const client = guardedAnthropic({ workspaceId: g.workspaceId, action: 'brand-detail' });
   if (!client) redirect(`/brands/${brandId}?tab=overview&e=ai`);
 
   const unlimited = unlimitedCredits(g.email);
@@ -360,7 +360,7 @@ export async function importProductsAction(formData: FormData): Promise<void> {
   const [brand] = await db.select({ url: schema.brands.url, name: schema.brands.name }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
   if (!brand?.url) redirect(`/brands/${brandId}?tab=products&e=nourl`);
 
-  const client = guardedAnthropic({ action: 'brand-detail' });
+  const client = guardedAnthropic({ workspaceId: g.workspaceId, action: 'brand-detail' });
   if (!client) redirect(`/brands/${brandId}?tab=products&e=ai`);
 
   const cost = costFor('brief');

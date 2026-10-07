@@ -101,8 +101,9 @@ describe('SEC-09 · admin ou owner d’espace : aucune permission plateforme', (
   });
 
   it('seul l’accès total plateforme ouvre prompt.publish', () => {
-    const admin = contexteDepuisSession(session(ids, 'ua', { equipe: { role: 'admin', matrice: {} } }), [ids.brandA1], [], 't');
-    const manager = contexteDepuisSession(session(ids, 'ua', { equipe: { role: 'manager', matrice: {} } }), [ids.brandA1], [], 't');
+    // Comptes ADMISSIBLES (SEC-10 · compte antérieur à son entrée staff) · seul le rôle départage ici.
+    const admin = contexteDepuisSession(session(ids, 'ua', { equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true } }), [ids.brandA1], [], 't');
+    const manager = contexteDepuisSession(session(ids, 'ua', { equipe: { role: 'manager', matrice: {}, plateformeAdmissible: true } }), [ids.brandA1], [], 't');
     expect(admin.permissions.plateforme.has('prompt.publish')).toBe(true);
     expect(manager.permissions.plateforme.has('prompt.publish')).toBe(false);
   });

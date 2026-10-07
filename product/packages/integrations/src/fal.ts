@@ -13,6 +13,8 @@
  *   FAL_IMAGE_MODEL_EDIT (def: fal-ai/nano-banana-2/edit)  · édition produit fidèle (proportions + réalisme)
  */
 
+import { suiviFalDepuisJob } from '@tiktrends/core';
+
 export interface FalConfig {
   apiKey: string;
   baseUrl: string;
@@ -205,23 +207,25 @@ export async function falSubmitVideo(cfg: FalConfig, input: FalVideoInput): Prom
   return { jobId: encodeJob(model, id) };
 }
 
-/** Interroge un job vidéo Fal. */
+/**
+ * Interroge un job vidéo Fal.
+ *
+ * ── SEC-07 · la clé ne part qu'à l'hôte officiel ─────────────────────────────
+ *
+ * Le `jobId` porte les URL de suivi renvoyées par fal (`falq|status|response`).
+ * Elles étaient appelées TELLES QUELLES avec `authorization: Key <FAL_KEY>` ·
+ * un `jobId` forgé vers un autre hôte y recevait la clé. Les URL sont désormais
+ * reconstruites et validées par le noyau (`suiviFalDepuisJob` · https, hôte de
+ * la liste blanche, jamais une IP, chemin de file fal). Hors liste → échec
+ * neutre SANS aucune requête. Les redirections sont refusées (`redirect:
+ * 'error'`) · un 30x ne peut pas emmener l'en-tête ailleurs.
+ */
 export async function falGetVideo(cfg: FalConfig, jobId: string): Promise<FalVideoJob> {
-  let statusUrl: string, responseUrl: string;
-  if (jobId.startsWith('falq|')) {
-    const parts = jobId.split('|');
-    if (!parts[1] || !parts[2]) return { status: 'failed', error: 'Job invalide.' };
-    statusUrl = parts[1]; responseUrl = parts[2];
-  } else {
-    const [model, id] = jobId.split('::');
-    if (!model || !id) return { status: 'failed', error: 'Job invalide.' };
-    // Rétro-compat : le suivi Fal se fait sur l'app de base (2 premiers segments), pas le chemin complet.
-    const app = model.split('/').slice(0, 2).join('/');
-    statusUrl = `${cfg.queueUrl}/${app}/requests/${encodeURIComponent(id)}/status`;
-    responseUrl = `${cfg.queueUrl}/${app}/requests/${encodeURIComponent(id)}`;
-  }
+  const suivi = suiviFalDepuisJob(jobId, cfg.queueUrl);
+  if (!suivi) return { status: 'failed', error: 'Job invalide.' };
+  const { statusUrl, responseUrl } = suivi;
 
-  const st = await fetch(statusUrl, { headers: { authorization: `Key ${cfg.apiKey}` }, signal: AbortSignal.timeout(20000) });
+  const st = await fetch(statusUrl, { headers: { authorization: `Key ${cfg.apiKey}` }, redirect: 'error', signal: AbortSignal.timeout(20000) });
   // Job introuvable/expiré (404/410/422) : on considère l'échec plutôt que de tourner en rond.
   if (st.status === 404 || st.status === 410 || st.status === 422) return { status: 'failed', error: 'Job introuvable ou expiré côté fournisseur.' };
   if (!st.ok) return { status: 'processing' }; // erreur transitoire : on réessaiera
@@ -231,7 +235,7 @@ export async function falGetVideo(cfg: FalConfig, jobId: string): Promise<FalVid
   if (/QUEUE/.test(raw)) return { status: 'queued' };
   if (!/COMPLET/.test(raw)) return { status: 'processing' };
 
-  const rr = await fetch(responseUrl, { headers: { authorization: `Key ${cfg.apiKey}` }, signal: AbortSignal.timeout(20000) });
+  const rr = await fetch(responseUrl, { headers: { authorization: `Key ${cfg.apiKey}` }, redirect: 'error', signal: AbortSignal.timeout(20000) });
   if (!rr.ok) return { status: 'failed', error: `La vidéo n'a pas pu être récupérée (${rr.status}).` };
   const rd = (await rr.json()) as Record<string, unknown>;
   const nested = (rd.video ?? rd.output ?? rd.data ?? {}) as Record<string, unknown>;

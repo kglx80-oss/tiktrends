@@ -112,7 +112,7 @@ const bilan = (quoi: string, created: number, duplicates: number, rejected: stri
 export async function proposePersonasAction(count = 3): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
-  const client = guardedAnthropic({ action: 'adsmap-propose' });
+  const client = guardedAnthropic({ workspaceId: g.s.workspaceId, action: 'adsmap-propose' });
   if (!client) return { error: GUARD.aiOff() };
 
   try {
@@ -148,7 +148,7 @@ export async function proposePersonasAction(count = 3): Promise<ProposeResult> {
 export async function proposeDesiresAction(personaId: string, count = 4): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
-  const client = guardedAnthropic({ action: 'adsmap-propose' });
+  const client = guardedAnthropic({ workspaceId: g.s.workspaceId, action: 'adsmap-propose' });
   if (!client) return { error: GUARD.aiOff() };
 
   try {
@@ -193,7 +193,7 @@ export async function proposeDesiresAction(personaId: string, count = 4): Promis
 export async function proposeAnglesAction(desireId: string, count = 4): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
-  const client = guardedAnthropic({ action: 'adsmap-propose' });
+  const client = guardedAnthropic({ workspaceId: g.s.workspaceId, action: 'adsmap-propose' });
   if (!client) return { error: GUARD.aiOff() };
 
   try {
@@ -242,7 +242,7 @@ export async function proposeAnglesAction(desireId: string, count = 4): Promise<
 export async function proposeConceptsAction(angleId: string, count = 3): Promise<ProposeResult> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
-  const client = guardedAnthropic({ action: 'adsmap-propose' });
+  const client = guardedAnthropic({ workspaceId: g.s.workspaceId, action: 'adsmap-propose' });
   if (!client) return { error: GUARD.aiOff() };
 
   try {
