@@ -6,38 +6,45 @@ import { newMilestones, learnedSince, type StatRow } from '@tiktrends/core';
 /**
  * L'historique des seuils franchis.
  *
- * ── Pourquoi l'écriture se fait au moment de LIRE ────────────────────────────
+ * ── Plus au moment de LIRE (chantier L0, BASE-03) ────────────────────────────
  *
- * Il n'existe aucun instant où « les statistiques d'une marque sont
- * recalculées » : elles sont dérivées à la volée depuis les ads, à chaque fois
- * qu'on en a besoin. Attendre un travail de fond qui n'existe pas aurait donné
- * une table vide · exactement ce qu'était `adsmap_brand_stats`, lue par le
- * radar et jamais écrite par personne.
+ * L'écriture se faisait au passage, dans `jarvisStats` · ouvrir
+ * `/jarvis/sources`, ou taper vingt-cinq caractères dans un Studio (préflight),
+ * insérait des jalons. `reached_at` valait donc « le jour où quelqu'un a
+ * regardé », et le récapitulatif hebdomadaire qui le lit (`learnedSinceFor`)
+ * dépendait des visites.
  *
- * On enregistre donc au passage, et sans jamais bloquer : l'insertion est
- * idempotente (`on conflict do nothing`), donc `reached_at` reste la PREMIÈRE
- * date où l'on a vu la dimension franchir le seuil.
+ * Les statistiques sont toujours dérivées à la volée, mais ce qui les fait
+ * BOUGER est connu · un verdict arbitré, une ad rattachée, une synchronisation,
+ * une curation. Chacune de ces commandes appelle déjà `invalidateJarvisMemory`
+ * (lib/jarvis-memory.ts), qui date désormais les jalons (`daterJalons`). La
+ * date d'un jalon est celle de la commande qui l'a fait franchir.
+ *
+ * L'insertion reste idempotente (`on conflict do nothing`) · `reached_at` est
+ * la PREMIÈRE date où la dimension a franchi le seuil, et rejouer ne change rien.
  *
  * ── Ce que ça date exactement ────────────────────────────────────────────────
  *
- * Le jour où on l'a VU, pas le jour où le test a tranché. Pour tout ce qui
- * arrive après la mise en place, les deux se confondent (la mémoire est lue
- * plusieurs fois par jour). Pour ce qui précède, ça n'a aucun sens · d'où le
+ * Pour ce qui précède la mise en place, la date n'a aucun sens · d'où le
  * marquage « rattrapé » du premier passage, qui ne s'annonce jamais.
  */
 
-/** Enregistre les jalons nouvellement franchis · silencieux, jamais bloquant. */
+/**
+ * Enregistre les jalons nouvellement franchis · silencieux, jamais bloquant.
+ * Rend le nombre de jalons proposés à l'insertion (0 quand rien n'a franchi).
+ * À n'appeler que depuis une COMMANDE, jamais depuis une lecture.
+ */
 export async function recordMilestones(
   brandId: string, workspaceId: string, stats: StatRow[],
-): Promise<void> {
-  if (!db || !stats.length) return;
+): Promise<number> {
+  if (!db || !stats.length) return 0;
   try {
     const connus = await db.select({
       dimension: schema.statMilestones.dimension, key: schema.statMilestones.key,
     }).from(schema.statMilestones).where(eq(schema.statMilestones.brandId, brandId));
 
     const nouveaux = newMilestones(stats, connus);
-    if (!nouveaux.length) return;
+    if (!nouveaux.length) return 0;
 
     await db.insert(schema.statMilestones).values(
       nouveaux.map((m) => ({
@@ -47,10 +54,11 @@ export async function recordMilestones(
         backfilled: m.backfilled,
       })),
     ).onConflictDoNothing();
+    return nouveaux.length;
   } catch {
     // Un historique qui n'a pas pu s'écrire ne doit jamais faire échouer la
-    // lecture qui l'a déclenché · au pire, le jalon sera posé au prochain
-    // passage, quelques heures plus tard.
+    // commande qui l'a déclenché · il sera posé à la prochaine commande.
+    return 0;
   }
 }
 
