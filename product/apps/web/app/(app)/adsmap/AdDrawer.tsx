@@ -80,8 +80,16 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
   // enregistré et ce qui reste, au lieu de disparaître sous le focus.
   const [formCompleter, setFormCompleter] = useState(false);
 
+  // Lot 21 · changement de fiche A → B sans démontage · la fiche affichée est
+  // celle de `adId` · une réponse en vol pour A (lecture, ou relecture après
+  // « Enregistrer ») est ignorée, et rien de A ne reste affiché pour B.
+  const adCourant = useRef(adId);
+  adCourant.current = adId;
+  useEffect(() => { setD(null); setFormCompleter(false); setError(''); }, [adId]);
+
   const charger = useCallback(async () => {
     const r = await adDetailAction(adId);
+    if (adCourant.current !== adId) return;
     if (r.error) { setError(r.error); return; }
     setError('');
     setD(r.detail!);
@@ -280,7 +288,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                   {/* Lot 21 · l'ad incomplète se complète ici (noyau ·
                       presentationTest › completer) · plus d'impasse. */}
                   {(pres?.prochaineEtape?.completer || formCompleter) && adCompletable(d.status) && (
-                    <CompleterTest adId={adId} manques={d.manques} onEnregistre={async () => { await charger(); onChanged(); }} />
+                    <CompleterTest key={adId} adId={adId} manques={d.manques} onEnregistre={async () => { await charger(); onChanged(); }} />
                   )}
                 </>
               )}

@@ -40,15 +40,30 @@ vi.mock('../lib/brands', () => ({
 }));
 // L'action RÉELLE, comptée · le nombre de requêtes parties est un résultat (double clic).
 // `retenue` · la requête attend (réseau lent) puis échoue comme une connexion coupée.
-const envois = vi.hoisted(() => ({ n: 0, retenue: null as null | Promise<void> }));
+// `pauses` (lot 21, A → B) · la réponse RÉELLE d'une ad est retenue jusqu'au relâchement.
+const envois = vi.hoisted(() => ({ n: 0, retenue: null as null | Promise<void>, pauses: new Map<string, Promise<void>>() }));
 vi.mock('../app/actions/adsmap-completer', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../app/actions/adsmap-completer')>();
-  return { ...actual, completerTestAction: async (...a: Parameters<typeof actual.completerTestAction>) => {
-    envois.n++;
-    if (envois.retenue) { await envois.retenue; throw new TypeError('Failed to fetch'); }
-    return actual.completerTestAction(...a);
-  } };
+  return {
+    ...actual,
+    completerTestAction: async (...a: Parameters<typeof actual.completerTestAction>) => {
+      envois.n++;
+      if (envois.retenue) { await envois.retenue; throw new TypeError('Failed to fetch'); }
+      const r = await actual.completerTestAction(...a);
+      await envois.pauses.get('enregistrer:' + a[0].adId);
+      return r;
+    },
+    produitsCompletionAction: async (adId: string) => {
+      const r = await actual.produitsCompletionAction(adId);
+      const pause = envois.pauses.get('produits:' + adId);
+      if (!pause) return r;
+      await pause;
+      // Réponse retenue · marquée, pour la reconnaître si elle fuyait ailleurs.
+      return { produits: [...(r.produits ?? []), { id: '00000000-0000-4000-8000-0000000000aa', nom: 'Produit de la réponse retenue de ' + adId.slice(0, 8), prix: 1, url: null }] };
+    },
+  };
 });
+vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }), useToastSiPresent: () => null }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...p }: { href: string; children: React.ReactNode }) => <a href={href} {...p}>{children}</a> }));
 
 import { and, eq, sql } from 'drizzle-orm';
@@ -95,7 +110,7 @@ beforeAll(async () => {
   for (const p of ps) produits[p.name] = p.id;
 });
 afterAll(() => { if (desc) Object.defineProperty(window.HTMLElement.prototype, 'offsetParent', desc); });
-beforeEach(() => { session.role = 'member'; session.plan = 'plus'; session.marque = 'neva'; envois.retenue = null; });
+beforeEach(() => { session.role = 'member'; session.plan = 'plus'; session.marque = 'neva'; envois.retenue = null; envois.pauses.clear(); });
 
 // ── Montage du tiroir et gestes d'utilisateur ────────────────────────────────
 
@@ -110,11 +125,14 @@ async function attendre(cond: () => boolean, quoi: string) {
   throw new Error(`jamais vu · ${quoi}`);
 }
 
+let rendreFiche: (adId: string) => Promise<void> = async () => {};
 async function ouvrir(adId: string) {
   const hote = document.createElement('div');
   document.body.appendChild(hote);
   const racine = createRoot(hote);
-  await act(async () => { racine.render(<AdDrawer adId={adId} onClose={() => {}} onChanged={() => {}} />); });
+  // Même racine · un autre `adId` re-rend le MÊME tiroir (pas de démontage du parent).
+  rendreFiche = async (id: string) => { await act(async () => { racine.render(<AdDrawer adId={id} onClose={() => {}} onChanged={() => {}} />); }); };
+  await rendreFiche(adId);
   const dialogue = () => document.querySelector('[role="dialog"]') as HTMLElement;
   await attendre(() => !!dialogue() && !(dialogue().textContent ?? '').includes('Chargement…'), 'la fiche chargée');
   montes.push(async () => { await act(async () => { racine.unmount(); }); hote.remove(); });
@@ -293,7 +311,7 @@ describe('completerTestAction · refus sans aucune écriture, succès sans touch
     const avant = await compter();
     const r = await completerTestAction(saisieComplete(id));
     expect(r.ok, 'une ad d’une autre marque a été complétée').toBeUndefined();
-    expect(r.error).toBeTruthy();
+    expect(r.error, 'refus mal accordé ou absent').toBe('Cette ad est introuvable · elle a peut-être été supprimée, ou elle appartient à une autre marque.');
     expect(await compter()).toEqual(avant);
     expect((await lireAd(id)).hypothesis).toBeNull();
   });
@@ -373,5 +391,148 @@ describe('completerTestAction · refus sans aucune écriture, succès sans touch
     expect(await compter(), 'une offre ou une page orpheline est restée').toEqual(avant);
     expect(await db!.select().from(schema.offers).where(and(eq(schema.offers.brandId, ids.neva), eq(schema.offers.label, 'Produit conflit')))).toEqual([]);
     expect(await lireAd(id)).toMatchObject({ status: 'draft', hypothesis: null, offerId: null, landingPageId: null });
+  });
+});
+
+// ── Lot 21 · recette du pilotage (message 78) ────────────────────────────────
+
+import { Lots } from '../app/(app)/adsmap/lots/Lots';
+
+describe('Changement de fiche A → B dans le MÊME tiroir · rien de A ne passe dans B', () => {
+  it('saisie, produit, confirmations et réponses retenues de A (produits, enregistrement) n’apparaissent jamais dans B', async () => {
+    const A = await ad(ids.neva, 'ab-a');
+    const B = await ad(ids.neva, 'ab-b');
+    const d = await ouvrir(A);
+    const f = formulaire(d)!;
+    await saisir(champ(f, 'Hypothèse testée')!, 'Hypothèse de A · une preuve chiffrée fera cliquer davantage.');
+    await saisir(champ(f, 'Variable testée')!, 'hook');
+    await attendre(() => !!champ(f, 'Produit'), 'le choix du produit de A');
+    await saisir(champ(f, 'Produit')!, produits['Sérum Neva']!);
+    for (const c of f.querySelectorAll('input[type="checkbox"]')) await cliquer(c);
+    // L'enregistrement de A part et sa réponse est RETENUE.
+    let relacherA!: () => void;
+    envois.pauses.set('enregistrer:' + A, new Promise<void>((r) => { relacherA = r; }));
+    await cliquer(f.querySelector('button[type="submit"]'));
+    // On passe à B dans le même tiroir · sa liste de produits est retenue elle aussi.
+    let relacherProduitsB!: () => void;
+    envois.pauses.set('produits:' + B, new Promise<void>((r) => { relacherProduitsB = r; }));
+    await rendreFiche(B);
+    const dlg = () => document.querySelector('[role="dialog"]') as HTMLElement;
+    await attendre(() => (dlg().querySelector('#addrawer-titre')?.textContent ?? '') === 'Concept ab-b' && !!formulaire(dlg()), 'la fiche de B');
+    const fb = () => formulaire(dlg())!;
+    expect((champ(fb(), 'Hypothèse testée') as HTMLTextAreaElement).value, 'l’hypothèse de A est passée dans B').toBe('');
+    expect((champ(fb(), 'Variable testée') as HTMLSelectElement).value, 'la variable de A est passée dans B').toBe('');
+    // A se termine PENDANT que B attend ses produits.
+    await act(async () => { relacherA(); });
+    for (let i = 0; i < 10; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(dlg().querySelector('#addrawer-titre')?.textContent, 'la réponse de A a remplacé la fiche de B').toBe('Concept ab-b');
+    expect(fb().textContent, 'le succès de A s’annonce dans B').not.toContain('Enregistré');
+    await act(async () => { relacherProduitsB(); });
+    await attendre(() => !!champ(fb(), 'Produit'), 'les produits de B');
+    expect((champ(fb(), 'Produit') as HTMLSelectElement).value, 'le produit choisi pour A est sélectionné dans B').toBe('');
+    expect([...fb().querySelectorAll('input[type="checkbox"]')].length, 'des confirmations de A apparaissent dans B').toBe(0);
+    // A est bien écrite, B intacte.
+    expect((await lireAd(A)).hypothesis).toBe('Hypothèse de A · une preuve chiffrée fera cliquer davantage.');
+    expect(await lireAd(B)).toMatchObject({ hypothesis: null, offerId: null, landingPageId: null });
+  });
+});
+
+describe('Changement de fiche A → B · la liste de produits retenue de A', () => {
+  it('relâchée après l’ouverture de B, elle n’apparaît pas dans B', async () => {
+    const A = await ad(ids.neva, 'pa-a');
+    const B = await ad(ids.neva, 'pa-b');
+    let relacher!: () => void;
+    envois.pauses.set('produits:' + A, new Promise<void>((r) => { relacher = r; }));
+    const d = await ouvrir(A);
+    await saisir(champ(formulaire(d)!, 'Hypothèse testée')!, 'Hypothèse de A, saisie avant de changer de fiche.');
+    await rendreFiche(B);
+    const dlg = () => document.querySelector('[role="dialog"]') as HTMLElement;
+    await attendre(() => (dlg().querySelector('#addrawer-titre')?.textContent ?? '') === 'Concept pa-b' && !!formulaire(dlg()) && !!champ(formulaire(dlg())!, 'Produit'), 'la fiche de B et ses produits');
+    await act(async () => { relacher(); });
+    for (let i = 0; i < 10; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    const options = [...(champ(formulaire(dlg())!, 'Produit') as HTMLSelectElement).options].map((o) => o.textContent ?? '');
+    expect(options.filter((o) => o.includes('réponse retenue')), 'la liste de produits de A est arrivée dans B').toEqual([]);
+    expect((champ(formulaire(dlg())!, 'Hypothèse testée') as HTMLTextAreaElement).value, 'l’hypothèse de A est passée dans B').toBe('');
+  });
+});
+
+describe('Formulaire · charte typographique (écran étroit)', () => {
+  it('champs à 16 px sur mobile, étiquettes et aides à 12 px au moins', async () => {
+    const avant = window.matchMedia;
+    window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
+    try {
+      const id = await ad(ids.neva, 'typo');
+      const d = await ouvrir(id);
+      const f = formulaire(d)!;
+      await attendre(() => !!champ(f, 'Produit'), 'le choix du produit');
+      await saisir(champ(f, 'Produit')!, produits['Sérum Neva']!);
+      const px = (e: Element) => parseFloat((e as HTMLElement).style.fontSize);
+      const champs = [...f.querySelectorAll('input:not([type="checkbox"]), select, textarea')];
+      expect(champs.length).toBeGreaterThanOrEqual(6);
+      expect(champs.map(px).filter((v) => v < 16), 'un champ sous 16 px fait zoomer iOS au focus').toEqual([]);
+      const textes = [...f.querySelectorAll('label, p, legend')];
+      expect(textes.map((e) => [e.textContent!.slice(0, 30), px(e)]).filter(([, v]) => (v as number) < 12), 'un texte du formulaire sous 12 px').toEqual([]);
+    } finally { window.matchMedia = avant; }
+  });
+});
+
+describe('Produits homonymes · ni identité inventée, ni fusion à prix différents', () => {
+  it('deux produits de même nom · prix différents → deux offres · prix égal → une seule offre (libellé + prix)', async () => {
+    const [h1, h2, h3] = await db!.insert(schema.products).values([
+      { brandId: ids.neva, name: 'Homonyme Neva', price: 10, url: 'https://neva.example/h1' },
+      { brandId: ids.neva, name: 'Homonyme Neva', price: 12, url: 'https://neva.example/h2' },
+      { brandId: ids.neva, name: 'Homonyme Neva', price: 10, url: 'https://neva.example/h3' },
+    ]).returning();
+    const complete = async (code: string, p: typeof h1, prix: string) => {
+      const id = await ad(ids.neva, code);
+      const r = await completerTestAction({ adId: id, hypothesis: 'Hypothèse homonyme assez longue.', testedVariable: 'hook', produitId: p!.id, offre: { prix, confirmee: true }, page: { url: p!.url!, confirmee: true } });
+      expect(r.error).toBeUndefined();
+      return lireAd(id);
+    };
+    const a1 = await complete('h-1', h1, '10');
+    const a2 = await complete('h-2', h2, '12');
+    const a3 = await complete('h-3', h3, '10');
+    expect(a1.offerId, 'deux produits homonymes à prix différents fusionnés en une offre').not.toBe(a2.offerId);
+    expect(a3.offerId, 'à nom et prix égaux, l’offre (libellé + prix) est partagée').toBe(a1.offerId);
+    expect(new Set([a1.landingPageId, a2.landingPageId, a3.landingPageId]).size, 'les pages (adresses distinctes) sont fusionnées').toBe(3);
+    // À l'écran · les homonymes se départagent par prix et adresse.
+    const id = await ad(ids.neva, 'h-ecran');
+    const d = await ouvrir(id);
+    const f = formulaire(d)!;
+    await attendre(() => !!champ(f, 'Produit'), 'le choix du produit');
+    const options = [...(champ(f, 'Produit') as HTMLSelectElement).options].map((o) => o.textContent);
+    expect(options).toContain('Homonyme Neva · 10 € · neva.example/h1');
+    expect(options).toContain('Homonyme Neva · 12 € · neva.example/h2');
+  });
+});
+
+describe('Lots · bilan après lancement, vivier lisible', () => {
+  it('le vivier dit la raison entière (≥ 12 px, dans le nom du bouton) et mène à la fiche · le bilan se tait une fois lancé', async () => {
+    session.role = 'admin';
+    const [lot] = await db!.insert(schema.batches).values({ workspaceId: ids.ws, brandId: ids.neva, number: 77 }).returning();
+    const pret = await ad(ids.neva, 'lot-pret', { batchId: lot!.id });
+    expect((await completerTestAction(saisieComplete(pret))).ok).toBe(true);
+    const incomplete = await ad(ids.neva, 'vivier-x');
+    const hote = document.createElement('div');
+    document.body.appendChild(hote);
+    const racine = createRoot(hote);
+    await act(async () => { racine.render(<Lots batches={[{ id: lot!.id, number: 77, status: 'planned', goal: null, launchedAt: null, ads: 1 }]} brandName="Neva" />); });
+    montes.push(async () => { await act(async () => { racine.unmount(); }); hote.remove(); });
+    const carte = () => [...hote.querySelectorAll('[data-vivier-carte]')].find((c) => c.textContent!.includes('vivier-x')) as HTMLElement | undefined;
+    await attendre(() => !!carte(), 'la carte du vivier');
+    const bouton = carte()!.querySelector('button')!;
+    expect(bouton.getAttribute('aria-label'), 'la raison n’est pas dans le nom du bouton').toBe('Ajouter au lot · vivier-x · Concept vivier-x · incomplète · manque l’hypothèse testée, la variable testée, l’offre et la page de destination');
+    const raison = bouton.querySelector('span')!;
+    expect(parseFloat(raison.style.fontSize), 'raison minuscule').toBeGreaterThanOrEqual(12);
+    expect(raison.textContent).toBe('incomplète · manque l’hypothèse testée, la variable testée, l’offre et la page de destination');
+    expect(carte()!.querySelector('a')?.getAttribute('href'), 'aucun chemin vers « Compléter le test »').toBe(`/adsmap?ad=${incomplete}`);
+    const btn = (t: string) => [...hote.querySelectorAll('button')].find((b) => b.textContent!.trim() === t)!;
+    await cliquer(btn('Préparer le lot'));
+    await attendre(() => !!hote.querySelector('[data-bilan-preparation]'), 'le bilan de préparation');
+    expect(hote.querySelector('[data-bilan-preparation]')!.textContent).toContain('Le lot est prêt à partir.');
+    await cliquer(btn('Marquer comme lancé'));
+    await attendre(() => (hote.textContent ?? '').includes('Ce lot est déjà lancé.'), 'le lot lancé');
+    expect(hote.textContent, 'le lot lancé se dit encore « prêt à partir »').not.toContain('Le lot est prêt à partir.');
+    expect((await lireAd(pret)).status).toBe('live');
   });
 });

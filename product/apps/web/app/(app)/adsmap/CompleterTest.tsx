@@ -3,10 +3,11 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import {
   champsACompleter, preremplissageProduit, texteApresCompletude, VARIABLES_A_TESTER, COMPLETER_LE_TEST, BORNES_COMPLETUDE,
-  CIBLE_TACTILE_MIN, type ProduitMarque,
+  CIBLE_TACTILE_MIN, libelleOptionProduit, type ProduitMarque,
 } from '@tiktrends/core';
 import { completerTestAction, produitsCompletionAction } from '../../actions/adsmap-completer';
 import { cadreSignal, tuile, vide } from '../../../components/ui';
+import { useIsMobile } from '../../../components/useIsMobile';
 
 /**
  * « Compléter le test » · le formulaire du tiroir d'une ad incomplète (lot 21).
@@ -16,6 +17,13 @@ import { cadreSignal, tuile, vide } from '../../../components/ui';
  * prix et adresse se préremplissent depuis un produit de la marque, restent
  * modifiables, et ne s'écrivent qu'une fois confirmés (case par valeur ·
  * modifier la valeur décoche la case). L'hypothèse n'est jamais préremplie.
+ *
+ * Typographie (lot 21, recette) · champs à 16 px sur écran étroit (sous 16 px,
+ * iOS zoome au focus), étiquettes et aides à 12 px au moins.
+ *
+ * Changement de fiche · le tiroir le monte avec `key={adId}` · rien de la
+ * saisie, du produit choisi, des confirmations ni d'une réponse en vol d'une
+ * ad ne passe dans la suivante.
  *
  * Opération différée · le focus et la saisie restent où ils sont, l'erreur est
  * annoncée (`role="alert"`), un second clic pendant l'envoi ne part pas. Si
@@ -31,6 +39,8 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
   const champs = champsACompleter(manques);
   const veutProduit = champs.offre || champs.page;
   const id = useId();
+  const mobile = useIsMobile();
+  const champ = styleChamp(mobile);
 
   const [produits, setProduits] = useState<ProduitMarque[] | null>(null);
   const [erreurProduits, setErreurProduits] = useState('');
@@ -117,7 +127,7 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
 
   return (
     <section id={COMPLETER_LE_TEST.ancre} aria-labelledby={`${id}-titre`} data-completer-test style={{ ...tuile, marginTop: 12, padding: '14px 16px', background: 'var(--paper)' }}>
-      <h4 id={`${id}-titre`} style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>{COMPLETER_LE_TEST.titre}</h4>
+      <h4 id={`${id}-titre`} style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{COMPLETER_LE_TEST.titre}</h4>
 
       {complet ? null : (
         <form ref={formRef} onSubmit={envoyer} noValidate aria-busy={envoi}>
@@ -147,7 +157,7 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
 
           {veutProduit && (
             <fieldset style={{ margin: '14px 0 0', padding: 0, border: 'none', minWidth: 0 }}>
-              <legend style={{ padding: 0, fontSize: 12, fontWeight: 800, color: 'var(--ink)' }}>
+              <legend style={{ padding: 0, fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>
                 Le produit vendu dans la pub
               </legend>
               <Aide>
@@ -155,13 +165,13 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
               </Aide>
               {produits === null && !erreurProduits && <Aide>Lecture des produits de la marque…</Aide>}
               {erreurProduits && (
-                <div role="alert" style={{ marginTop: 8, padding: '8px 11px', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12, lineHeight: 1.5 }}>
+                <div role="alert" style={{ marginTop: 8, padding: '8px 11px', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
                   {erreurProduits}{' '}
                   <button type="button" onClick={() => void chargerProduits()} style={{ ...boutonSecondaire, marginTop: 6 }}>Relire les produits</button>
                 </div>
               )}
               {produits !== null && produits.length === 0 && (
-                <p data-completer-vide style={{ ...vide, margin: '8px 0 0', padding: '10px 12px', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+                <p data-completer-vide style={{ ...vide, margin: '8px 0 0', padding: '10px 12px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
                   Aucun produit dans cette marque · un administrateur l’ajoute dans Marques › Produits (prix et adresse de sa page), puis tu reviens ici rattacher l’offre et la page. L’hypothèse et la variable s’enregistrent déjà.
                 </p>
               )}
@@ -170,7 +180,7 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
                   <Etiquette htmlFor={`${id}-prod`}>Produit</Etiquette>
                   <select id={`${id}-prod`} name="produit" value={produitId} onChange={(e) => choisirProduit(e.target.value)} style={champ}>
                     <option value="">Choisir le produit…</option>
-                    {produits.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                    {produits.map((p) => <option key={p.id} value={p.id}>{libelleOptionProduit(p, produits)}</option>)}
                   </select>
 
                   {produit && champs.offre && (
@@ -217,11 +227,11 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
       )}
 
       {erreur && (
-        <p ref={alerteRef} role="alert" tabIndex={-1} style={{ outline: 'none', margin: '10px 0 0', padding: '8px 11px', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12, lineHeight: 1.5 }}>
+        <p ref={alerteRef} role="alert" tabIndex={-1} style={{ outline: 'none', margin: '10px 0 0', padding: '8px 11px', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
           {erreur}
         </p>
       )}
-      <p ref={etatRef} role="status" tabIndex={-1} style={{ margin: etat || complet ? '10px 0 0' : 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5, outline: 'none' }}>
+      <p ref={etatRef} role="status" tabIndex={-1} style={{ margin: etat || complet ? '10px 0 0' : 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, outline: 'none' }}>
         {etat || (complet ? texteApresCompletude([]) : '')}
       </p>
     </section>
@@ -229,16 +239,16 @@ export function CompleterTest({ adId, manques, onEnregistre }: {
 }
 
 function Etiquette({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
-  return <label htmlFor={htmlFor} style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)', margin: '12px 0 5px' }}>{children}</label>;
+  return <label htmlFor={htmlFor} style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)', margin: '12px 0 5px' }}>{children}</label>;
 }
 
 function Aide({ id, children }: { id?: string; children: ReactNode }) {
-  return <p id={id} style={{ margin: '5px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>{children}</p>;
+  return <p id={id} style={{ margin: '5px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{children}</p>;
 }
 
 function Confirmation({ id, coche, onChange, desactive = false, children }: { id: string; coche: boolean; onChange: (v: boolean) => void; desactive?: boolean; children: ReactNode }) {
   return (
-    <label htmlFor={id} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE_TACTILE_MIN, marginTop: 6, fontSize: 12, color: desactive ? 'var(--muted)' : 'var(--ink)', cursor: desactive ? 'not-allowed' : 'pointer', overflowWrap: 'anywhere' }}>
+    <label htmlFor={id} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE_TACTILE_MIN, marginTop: 6, fontSize: 12.5, color: desactive ? 'var(--muted)' : 'var(--ink)', cursor: desactive ? 'not-allowed' : 'pointer', overflowWrap: 'anywhere' }}>
       <input id={id} type="checkbox" checked={coche && !desactive} disabled={desactive} onChange={(e) => onChange(e.target.checked)}
         style={{ width: 20, height: 20, flexShrink: 0, accentColor: 'var(--accent-strong)', cursor: 'inherit' }} />
       <span>{children}</span>
@@ -246,15 +256,16 @@ function Confirmation({ id, coche, onChange, desactive = false, children }: { id
   );
 }
 
-const champ: CSSProperties = {
+/** Un champ · 16 px sur écran étroit (iOS ne zoome plus au focus), 13,5 px ailleurs. */
+const styleChamp = (mobile: boolean): CSSProperties => ({
   width: '100%', minHeight: CIBLE_TACTILE_MIN, padding: '8px 11px', borderRadius: 9, border: '1px solid var(--line-2)',
-  background: 'var(--surface)', color: 'var(--ink)', fontSize: 12.5, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-};
+  background: 'var(--surface)', color: 'var(--ink)', fontSize: mobile ? 16 : 13.5, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+});
 
 const bouton: CSSProperties = {
   minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   padding: '9px 18px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-  color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
+  color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer',
 };
 
 const boutonSecondaire: CSSProperties = {
