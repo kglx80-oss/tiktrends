@@ -1,8 +1,8 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { mechanismForTemplate, formatAdPourGeneration } from '@tiktrends/core';
+import { mechanismForTemplate, formatAdPourGeneration, resoudreTypeAd, type OptionTypeAd } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory, briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
@@ -23,7 +23,16 @@ import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
 
 const guard = adsmapGuard;
 
-export interface BridgeResult { ok?: true; adId?: string; conceptId?: string; prelaunch?: string; error?: string; /** La génération était déjà suivie · fiche existante renvoyée (lot 17). */ dejaSuivie?: true }
+export interface BridgeResult {
+  ok?: true; adId?: string; conceptId?: string; prelaunch?: string; error?: string;
+  /** La génération était déjà suivie · fiche existante renvoyée (lot 17). */ dejaSuivie?: true;
+  /**
+   * Lot 21 (message 77) · le type d'ad ne s'établit pas sans inventer · rien
+   * n'a été écrit · l'utilisateur choisit parmi ces types (aucun présélectionné)
+   * puis rappelle l'action avec `formatAd`.
+   */
+  choixFormat?: { options: OptionTypeAd[]; raison: string };
+}
 
 /**
  * Studio → ADSMAP · une créa générée devient une ad suivie.
@@ -119,8 +128,24 @@ export async function trackGeneratedAdAction(generationId: string): Promise<Brid
  * Le cahier des charges type ces ads à part (§5) : on ne reprend pas une pub
  * concurrente comme une idée maison, on assume qu'on en reprend la structure, et
  * le verdict dira si elle transpose.
+ *
+ * Lot 21 (R3) · le pont mène à LA fiche, avec le bon format :
+ * - déjà suivie dans la marque active · la MÊME fiche (même ad) est renvoyée,
+ *   rien n'est écrit · repérée par la provenance (`savedAdId`) et bornée à la
+ *   marque active (persona de la marque) et à l'espace · jamais une ad d'une
+ *   autre marque ;
+ * - le type d'ad vient de la règle du noyau (`resoudreTypeAd`) · automatique
+ *   quand rien n'est inventé, sinon un CHOIX explicite de l'utilisateur
+ *   (`formatAd`), VALIDÉ ici contre les types compatibles avec le média lu en
+ *   base · sans choix, la liste est renvoyée et rien n'est écrit ; un choix
+ *   incompatible est refusé sans écriture · jamais `video_ugc` par défaut ;
+ * - chemin, concept et ad s'écrivent dans UNE transaction, sous un verrou par
+ *   marque · un échec ne laisse ni concept sans ad ni chemin partiel ; deux
+ *   onglets simultanés ne créent qu'une fiche (message 78) ;
+ * - un concept ancien resté sans ad (écrit avant cette transaction) reçoit son
+ *   ad · aucun second concept n'est créé.
  */
-export async function trackSavedAdAction(ref: { platform: string; externalId: string }): Promise<BridgeResult> {
+export async function trackSavedAdAction(ref: { platform: string; externalId: string; /** Type d'ad choisi par l'utilisateur, quand la règle le demande. */ formatAd?: string }): Promise<BridgeResult> {
   const g = await guard();
   if ('error' in g) return { error: g.error };
 
@@ -137,44 +162,119 @@ export async function trackSavedAdAction(ref: { platform: string; externalId: st
       .limit(1);
     if (!saved) return { error: 'Pub sauvegardée introuvable.' };
 
+    // Déjà suivie dans CETTE marque · la même fiche, sans rien écrire (même
+    // pour une ancienne ad dont le format ne serait plus accepté aujourd'hui).
+    const deja = await suiviSauvegarde(db!, saved.id, g.s.workspaceId, g.brand.id);
+    if (deja?.adId) return { ok: true, adId: deja.adId, conceptId: deja.conceptId, dejaSuivie: true, error: undefined };
+
+    // Le type d'ad · décidé AVANT toute écriture · le choix du client n'est
+    // jamais cru tel quel · il est validé contre le média lu en base.
+    const decision = resoudreTypeAd(saved.snapshot, ref.formatAd);
+    if (!decision.ok) return decision.cause === 'choix_requis' ? { choixFormat: { options: decision.options, raison: decision.raison } } : { error: decision.raison };
+    const format = decision.format;
+
     const snap = (saved.snapshot ?? {}) as { advertiserName?: string; body?: string; callToAction?: string; id?: string };
     const annonceur = (snap.advertiserName || 'Concurrent').slice(0, 80);
     const copy = (snap.body || '').replace(/\s+/g, ' ').trim();
     const titre = `Imitation · ${annonceur}${copy ? ` — ${copy.slice(0, 90)}` : ''}`.slice(0, 160);
 
-    const path = await ensureGraphPath({
-      workspaceId: g.s.workspaceId, brandId: g.brand.id,
-      desireLabel: 'À qualifier (veille)', angleLabel: `Structure reprise de ${annonceur}`,
-      mechanism: 'comparison',
+    const r = await db!.transaction(async (tx) => {
+      // Message 78 · un verrou PAR MARQUE, pris avant toute écriture · deux
+      // onglets (ou deux sauvegardes suivies en même temps) ne créent qu'un
+      // chemin, un concept et une ad. Mesuré avant (deux onglets, Postgres
+      // réel) · 1 concept et 1 ad, mais persona, désir et angle « À qualifier »
+      // en DOUBLE · le chemin était écrit hors transaction, avant le verrou.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`adsmap-pont-sauvegarde:${g.brand.id}`}))`);
+      const encore = await suiviSauvegarde(tx, saved.id, g.s.workspaceId, g.brand.id);
+      if (encore?.adId) return { adId: encore.adId, conceptId: encore.conceptId, dejaSuivie: true as const };
+
+      // Chemin persona → désir → angle · trouvé ou créé DANS la transaction
+      // (un échec de l'ad n'en laisse aucun morceau) · inutile quand le concept
+      // existe déjà.
+      const angleId = encore ? null : await cheminVeille(tx, g.s.workspaceId, g.brand.id, `Structure reprise de ${annonceur}`);
+      const conceptId = encore?.conceptId ?? (await tx.insert(schema.concepts).values({
+        workspaceId: g.s.workspaceId, angleId: angleId!, title: titre,
+        valueBlock: copy ? copy.slice(0, 900) : null, cta: snap.callToAction ?? null,
+        adType: 'imitation', status: 'proposed',
+        // Le format QUALIFIÉ (composition) est gardé à part · `formatAdChoisi`
+        // dit si le type d'ad vient d'un choix explicite de l'utilisateur.
+        sourceRef: { savedAdId: saved.id, platform: saved.platform, externalId: snap.id ?? null, formatCreatif: decision.formatCreatif, formatAdChoisi: decision.choisi },
+      }).returning({ id: schema.concepts.id }))[0]?.id;
+      if (!conceptId) throw new Error('concept non créé');
+
+      const [ad] = await tx.insert(schema.ads).values({
+        workspaceId: g.s.workspaceId, conceptId, variantCode: 'v1',
+        format, adType: 'imitation', status: 'draft',
+        platform: saved.platform === 'tiktok' ? 'tiktok' : 'meta',
+      }).returning({ id: schema.ads.id });
+      // Sans ad, le concept ne s'écrit pas non plus (annulation de la transaction).
+      if (!ad) throw new Error('ad non créée');
+      return { adId: ad.id, conceptId, dejaSuivie: undefined };
     });
-    if (!path) return { error: 'Rattachement impossible.' };
-
-    const [c0] = await db!.select({ id: schema.concepts.id }).from(schema.concepts)
-      .where(and(eq(schema.concepts.angleId, path.angleId), eq(schema.concepts.title, titre))).limit(1);
-    if (c0) return { ok: true, conceptId: c0.id, error: undefined };
-
-    const [concept] = await db!.insert(schema.concepts).values({
-      workspaceId: g.s.workspaceId, angleId: path.angleId, title: titre,
-      valueBlock: copy ? copy.slice(0, 900) : null, cta: snap.callToAction ?? null,
-      adType: 'imitation', status: 'proposed',
-      sourceRef: { savedAdId: saved.id, platform: saved.platform, externalId: snap.id ?? null },
-    }).returning({ id: schema.concepts.id });
-    if (!concept) return { error: 'Création impossible.' };
-
-    const [ad] = await db!.insert(schema.ads).values({
-      workspaceId: g.s.workspaceId, conceptId: concept.id, variantCode: 'v1',
-      format: 'video_ugc', adType: 'imitation', status: 'draft',
-      platform: saved.platform === 'tiktok' ? 'tiktok' : 'meta',
-    }).returning({ id: schema.ads.id });
+    if (r.dejaSuivie) return { ok: true, adId: r.adId, conceptId: r.conceptId, dejaSuivie: true, error: undefined };
 
     invalidateJarvisMemory(g.brand.id);
     const avis = await briefConceptBeforeLaunch(g.brand.id, g.s.workspaceId, {
-      mechanism: 'comparison', format: 'video_ugc', candidateHook: copy || null,
+      mechanism: 'comparison', format, candidateHook: copy || null,
     });
-    return { ok: true, adId: ad?.id, conceptId: concept.id, prelaunch: avis.summary };
+    return { ok: true, adId: r.adId, conceptId: r.conceptId, prelaunch: avis.summary };
   } catch (e) {
     return { error: logAndTranslate('adsmap:track-saved', e, { subject: 'le rattachement à la carte', workspaceId: g.s.workspaceId }) };
   }
+}
+
+type Lecteur = Pick<NonNullable<typeof db>, 'select'>;
+type Transaction = Parameters<Parameters<NonNullable<typeof db>['transaction']>[0]>[0];
+
+/**
+ * Le chemin persona « À qualifier » → désir « À qualifier (veille) » → angle,
+ * trouvé ou créé avec la transaction du pont · mêmes valeurs que
+ * `ensureGraphPath` (lib/adsmap-path.ts, branche sans persona choisi), qui
+ * écrit sur sa propre connexion et ne peut donc pas tenir sous le verrou.
+ */
+async function cheminVeille(tx: Transaction, workspaceId: string, brandId: string, angleLabel: string): Promise<string> {
+  const nom = 'À qualifier';
+  const [p0] = await tx.select({ id: schema.personas.id }).from(schema.personas)
+    .where(and(eq(schema.personas.brandId, brandId), eq(schema.personas.name, nom))).limit(1);
+  const personaId = p0?.id ?? (await tx.insert(schema.personas).values({
+    brandId, name: nom, status: 'proposed',
+    description: 'Persona provisoire · créé automatiquement en rattachant une créa à la carte. À scinder en avatars réels.',
+  }).returning({ id: schema.personas.id }))[0]!.id;
+  const desireLabel = 'À qualifier (veille)';
+  const [d0] = await tx.select({ id: schema.desires.id }).from(schema.desires)
+    .where(and(eq(schema.desires.personaId, personaId), eq(schema.desires.label, desireLabel))).limit(1);
+  const desireId = d0?.id ?? (await tx.insert(schema.desires).values({
+    workspaceId, personaId, label: desireLabel, status: 'proposed',
+  }).returning({ id: schema.desires.id }))[0]!.id;
+  const [a0] = await tx.select({ id: schema.angles.id }).from(schema.angles)
+    .where(and(eq(schema.angles.desireId, desireId), eq(schema.angles.label, angleLabel))).limit(1);
+  return a0?.id ?? (await tx.insert(schema.angles).values({
+    workspaceId, desireId, label: angleLabel, mechanism: 'comparison', status: 'proposed',
+  }).returning({ id: schema.angles.id }))[0]!.id;
+}
+
+/**
+ * Le suivi existant d'une sauvegarde dans la marque active · le concept
+ * `imitation` qui la cite (`source_ref_json.savedAdId`), rattaché à un persona
+ * de CETTE marque, dans CET espace, et sa première ad s'il en a une. Un concept
+ * avec ad passe avant un concept sans ad.
+ */
+async function suiviSauvegarde(lecteur: Lecteur, savedAdId: string, workspaceId: string, brandId: string): Promise<{ conceptId: string; adId: string | null } | null> {
+  const [row] = await lecteur.select({ conceptId: schema.concepts.id, adId: schema.ads.id })
+    .from(schema.concepts)
+    .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+    .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+    .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+    .leftJoin(schema.ads, and(eq(schema.ads.conceptId, schema.concepts.id), eq(schema.ads.workspaceId, workspaceId)))
+    .where(and(
+      eq(schema.concepts.workspaceId, workspaceId),
+      eq(schema.personas.brandId, brandId),
+      eq(schema.concepts.adType, 'imitation'),
+      sql`${schema.concepts.sourceRef}->>'savedAdId' = ${savedAdId}`,
+    ))
+    .orderBy(sql`${schema.ads.id} is null`, asc(schema.concepts.createdAt), asc(schema.ads.createdAt))
+    .limit(1);
+  return row ? { conceptId: row.conceptId, adId: row.adId ?? null } : null;
 }
 
 /**

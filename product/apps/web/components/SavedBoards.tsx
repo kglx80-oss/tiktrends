@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties, type FocusEvent } from 'react';
-import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute } from '@tiktrends/core';
+import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties, type FocusEvent, type ReactNode } from 'react';
+import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute, lienFicheAdsmap, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
 import type { InspoAd } from '@tiktrends/integrations';
-import type { LectureFormat } from '@tiktrends/core';
+import type { LectureFormat, OptionTypeAd } from '@tiktrends/core';
 import { FormatChoix } from '../app/(app)/saved/FormatChoix';
+import { ChoixTypeAd } from '../app/(app)/veille/formats/PreparerTest';
 import { AdCard } from './AdCard';
 import { setSavedAdFolder } from '../app/actions/inspo';
 import { Empty } from './Empty';
@@ -77,19 +78,65 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
   // ne dépend pas du rendu · deux clics dans la même tâche n'envoient qu'UNE
   // requête. Une exception ne laisse plus le bouton figé sur « Ajout… ».
   const enCours = useRef(new Set<string>());
-  const suivre = async (it: SavedItem) => {
+  // Lot 21 (R3) · l'ad renvoyée par le pont (créée ou déjà suivie) · le lien
+  // mène à SA fiche, pas à la carte nue. À part de `suivi` · la règle de reprise
+  // (`suiviAdsmapRelancable`) lit toujours le même état.
+  const [fiches, setFiches] = useState<Record<string, string>>({});
+  // Message 77 · le type d'ad à CHOISIR (vidéo ambiguë, GIF, média inconnu) ·
+  // rien n'a été écrit · à part de `suivi`, dont la règle de reprise ne change pas.
+  const [choix, setChoix] = useState<Record<string, { options: OptionTypeAd[]; raison: string; envoi: boolean; erreur: string | null }>>({});
+  const sansCle = <T,>(o: Record<string, T>, cle: string) => { const n = { ...o }; delete n[cle]; return n; };
+  // Le focus suit le geste APRÈS le rendu, seulement s'il est encore dans la
+  // cellule du pont (bouton, choix) ou perdu sur `body` · jamais pris ailleurs.
+  const focusPont = useRef<null | { cle: string; cible: 'choix' | 'bouton' | 'lien' }>(null);
+  useEffect(() => {
+    const f = focusPont.current;
+    if (!f) return;
+    focusPont.current = null;
+    const cell = [...document.querySelectorAll<HTMLElement>('[data-pont-cle]')].find((e) => e.getAttribute('data-pont-cle') === f.cle);
+    if (!cell) return;
+    const a = document.activeElement;
+    if (a && a !== document.body && !cell.contains(a)) return;
+    const cible = f.cible === 'choix' ? cell.querySelector<HTMLElement>('select')
+      : f.cible === 'lien' ? (cell.querySelector<HTMLElement>('a[data-fiche-adsmap]') ?? cell.querySelector<HTMLElement>('button'))
+      : cell.querySelector<HTMLElement>('button');
+    cible?.focus();
+  });
+  const suivre = async (it: SavedItem, formatAd?: string) => {
     const cle = `${it.platform}:${it.externalId}`;
     if (enCours.current.has(cle) || !suiviAdsmapRelancable(suivi[cle])) return;
     enCours.current.add(cle);
     setSuivi((x) => ({ ...x, [cle]: 'busy' }));
+    if (formatAd) setChoix((x) => (x[cle] ? { ...x, [cle]: { ...x[cle]!, envoi: true, erreur: null } } : x));
     try {
-      const r = await trackSavedAdAction({ platform: it.platform, externalId: it.externalId });
-      setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
+      const r = await trackSavedAdAction(formatAd ? { platform: it.platform, externalId: it.externalId, formatAd } : { platform: it.platform, externalId: it.externalId });
+      if (r.choixFormat) {
+        const { options, raison } = r.choixFormat;
+        setChoix((x) => ({ ...x, [cle]: { options, raison, envoi: false, erreur: null } }));
+        setSuivi((x) => sansCle(x, cle));
+        focusPont.current = { cle, cible: 'choix' };
+      } else if (r.error && formatAd) {
+        setChoix((x) => (x[cle] ? { ...x, [cle]: { ...x[cle]!, envoi: false, erreur: r.error ?? null } } : x));
+        setSuivi((x) => sansCle(x, cle));
+      } else {
+        if (!r.error && r.adId) { const adId = r.adId; setFiches((x) => ({ ...x, [cle]: adId })); }
+        if (!r.error) { setChoix((x) => sansCle(x, cle)); if (formatAd) focusPont.current = { cle, cible: 'lien' }; }
+        setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
+      }
     } catch {
-      setSuivi((x) => ({ ...x, [cle]: 'Ajout non enregistré · vérifie ta connexion puis réessaie.' }));
+      const msg = 'Ajout non enregistré · vérifie ta connexion puis réessaie.';
+      if (formatAd) {
+        setChoix((x) => (x[cle] ? { ...x, [cle]: { ...x[cle]!, envoi: false, erreur: msg } } : x));
+        setSuivi((x) => sansCle(x, cle));
+      } else setSuivi((x) => ({ ...x, [cle]: msg }));
     } finally {
       enCours.current.delete(cle);
     }
+  };
+  const annulerChoix = (cle: string) => {
+    if (choix[cle]?.envoi) return;
+    setChoix((x) => sansCle(x, cle));
+    focusPont.current = { cle, cible: 'bouton' };
   };
 
   const barreRef = useRef<HTMLDivElement>(null);
@@ -260,7 +307,16 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
                 de sa piste, il répartissait l'excédent entre ses lignes et son
                 champ descendait (mesuré · 4 px à 1440 et 1280). */}
             <div><FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} /></div>
-            {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
+            {adsmap && (() => {
+              const cle = `${it.platform}:${it.externalId}`;
+              const c = choix[cle];
+              return (
+                <TrackButton cle={cle} state={suivi[cle]} fiche={fiches[cle]} cible={cible} enChoix={!!c}
+                  onClick={() => { if (c) { [...document.querySelectorAll<HTMLElement>('[data-pont-cle]')].find((e) => e.getAttribute('data-pont-cle') === cle)?.querySelector('select')?.focus(); return; } void suivre(it); }}>
+                  {c && <ChoixTypeAd options={c.options} raison={c.raison} envoi={c.envoi} erreur={c.erreur} onValider={(f) => { void suivre(it, f); }} onAnnuler={() => annulerChoix(cle)} />}
+                </TrackButton>
+              );
+            })()}
             {pontRefuse && <p data-pont-refus style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.45 }}>{refusAdsmap}</p>}
           </div>
         ))}
@@ -276,14 +332,22 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
  * Le libellé dit ce qui se passe vraiment : rien n'est lancé, un brouillon entre
  * dans la carte. C'est important, parce qu'un bouton qui promet plus que ça se
  * traduit par des ads fantômes que personne n'assume.
+ *
+ * Lot 21 (R3) · une fois suivie, le lien mène à la fiche de CETTE ad
+ * (`lienFicheAdsmap`) · contenu et lien seulement, aucun cadre ajouté.
  */
-function TrackButton({ state, onClick, cible }: { state: string | undefined; onClick: () => void; cible: number }) {
+function TrackButton({ cle, state, fiche, onClick, cible, enChoix, children }: { cle: string; state: string | undefined; fiche?: string; onClick: () => void; cible: number; enChoix?: boolean; children?: ReactNode }) {
   const done = state === 'done';
   const busy = state === 'busy';
   const err = state && !done && !busy ? state : null;
   return (
-    <div>
-      <button type="button" onClick={onClick} disabled={busy || done} title="Créer un concept « imitation » dans Adsmap" style={{
+    <div data-pont-cle={cle}>
+      {/* Lot 21 (message 78) · `aria-disabled`, plus `disabled` · un bouton
+          désactivé pendant l'envoi faisait tomber le focus sur `body` (mesuré au
+          navigateur, souris et Entrée). Le verrou reste dans `suivre` (`enCours`
+          et `suiviAdsmapRelancable`) · un clic pendant l'envoi ou après le succès
+          n'envoie rien. */}
+      <button type="button" onClick={onClick} aria-disabled={busy || done || undefined} aria-expanded={enChoix || undefined} title="Créer un concept « imitation » dans Adsmap" style={{
         width: '100%', minHeight: cible, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px', borderRadius: 9,
         border: '1px solid ' + (done ? 'transparent' : 'var(--line-2)'),
         background: done ? 'var(--accent-soft)' : 'var(--paper)',
@@ -293,6 +357,8 @@ function TrackButton({ state, onClick, cible }: { state: string | undefined; onC
         <span style={{ display: "inline-flex" }}><Icon name="map" size={15} /></span>
         <span>{done ? 'Dans Adsmap' : busy ? 'Ajout…' : 'Suivre dans Adsmap'}</span>
       </button>
+      {children && <div style={{ marginTop: 6 }}>{children}</div>}
+      {done && fiche && <a href={lienFicheAdsmap(fiche)} data-fiche-adsmap style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir la fiche dans Adsmap</a>}
       {err && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--danger, #e5484d)', lineHeight: 1.4 }}>{err}</p>}
     </div>
   );

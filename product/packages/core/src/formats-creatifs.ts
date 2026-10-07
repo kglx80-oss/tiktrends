@@ -28,6 +28,9 @@
  * Pur · ni base, ni réseau, ni modèle.
  */
 
+import type { AdFormat } from './adsmap/format-generation';
+import { SHEET_FORMAT } from './adsmap/sheet';
+
 export type MediaFormat = 'image' | 'video';
 
 /** Version de la liste · à incrémenter à chaque changement de la liste. Un
@@ -485,4 +488,144 @@ export function explicationPontAdsmap(raison: RaisonPontAdsmap | null, geste = '
     case 'marque': return `${geste} · choisis d’abord une marque active.`;
     default: return null;
   }
+}
+
+/* ── Pont Sauvegarde → Adsmap · le type d'ad, sans rien inventer (lot 21) ── */
+
+/**
+ * Deux notions distinctes, jamais confondues :
+ * - le TYPE DE MÉDIA (`mediaAnnonce`, plus le GIF lu à part) · lu dans la source ;
+ * - le FORMAT CRÉATIF QUALIFIÉ (`lireFormatCreatif`) · la composition, choisie
+ *   à la main dans la liste ci-dessus · conservé à part, dans la provenance.
+ *
+ * La colonne `adsmap_ads.format` (énumération, NOT NULL, aucune migration) ne
+ * connaît que sept TYPES D'AD · leurs libellés sont ceux du contrat Sheet
+ * (`SHEET_FORMAT`, `adsmap/sheet.ts`). Aucun outil d'Adsmap ne corrige ce type
+ * après coup · une valeur inventée resterait fausse dans les statistiques.
+ *
+ * Avant (lot 20, R3) · le pont écrivait `video_ugc` en dur · une annonce IMAGE
+ * qualifiée « Packshot » devenait une « Vidéo UGC ».
+ *
+ * ── Automatique, seulement là où rien n'est inventé ──────────────────────────
+ *
+ * | Source                                              | Type d'ad        |
+ * | --------------------------------------------------- | ---------------- |
+ * | image, et la source dit « carousel » / « carrousel » | `image_carousel` |
+ * | image (photo, image, static)                        | `static`         |
+ * | vidéo qualifiée `demo` « Démonstration · Le produit | `video_demo`     |
+ * |   utilisé, geste montré. »                          |                  |
+ *
+ * ── Sinon, CHOIX EXPLICITE de l'utilisateur (message 77) ──────────────────────
+ *
+ * Jamais un refus définitif pour une ambiguïté, jamais un type présélectionné,
+ * jamais UGC par défaut · l'utilisateur choisit parmi les types COMPATIBLES
+ * avec le média, avant toute création :
+ *
+ * | Cas                                         | Types proposés (contrat Sheet)                          |
+ * | ------------------------------------------- | ------------------------------------------------------- |
+ * | vidéo non qualifiée, `incertain`, ou format | `video_ugc` Vidéo UGC, `video_vsl` Vidéo VSL,           |
+ * |   sans correspondance sûre (ci-dessous)     | `video_demo` Vidéo démo, `video_story` Vidéo story      |
+ * | GIF (la source dit « gif »)                 | `gif` GIF · le seul type du contrat pour ce média       |
+ * |                                             |   (import Sheet `gif` → `gif`) · confirmé, pas déduit   |
+ * | média inconnu (ni image, ni vidéo, ni GIF)  | les SEPT types · le choix le dit (média inconnu)        |
+ *
+ * `gif` n'est proposé ni pour une vidéo ni pour une image · rien dans le
+ * contrat ne relie un GIF à une source vidéo ou image fixe (la synchro le range
+ * en créa `image`, sans en faire un type d'image fixe).
+ *
+ * Formats vidéo qualifiés SANS correspondance sûre (donc choix) · leur
+ * définition ne désigne pas un seul type :
+ * - `face_camera` « Une personne parle à l'objectif. » · UGC, VSL ou acteur
+ *   selon QUI parle (Adsmap distingue créateur UGC, fondateur, acteur ·
+ *   `talentTypeEnum`) ;
+ * - `recit` « Une histoire racontée. » · « story » désigne aussi le placement
+ *   Stories · ambigu avec `video_story` ;
+ * - `tutoriel` « Étapes expliquées. » · démonstration OU face caméra ;
+ * - `fondateur`, `pov`, `deballage`, `micro_trottoir`, `fond_incruste`, `asmr`,
+ *   les formats image + vidéo et `autre` · aucun type ne les nomme.
+ */
+export const FORMAT_AD_VIDEO_QUALIFIEE: Readonly<Partial<Record<FormatCreatifId, AdFormat>>> = {
+  demo: 'video_demo',
+};
+
+/** Le média tel que le pont le distingue · le GIF est lu à part (`mediaAnnonce` ne le connaît pas). */
+export type MediaPont = MediaFormat | 'gif' | null;
+
+const TOUS_TYPES_AD: readonly AdFormat[] = ['video_ugc', 'video_vsl', 'video_demo', 'video_story', 'static', 'image_carousel', 'gif'];
+
+/** Les types d'ad compatibles avec un média (tableau ci-dessus) · média inconnu → tous. */
+export const TYPES_AD_PAR_MEDIA: Readonly<Record<'image' | 'video' | 'gif' | 'inconnu', readonly AdFormat[]>> = {
+  video: ['video_ugc', 'video_vsl', 'video_demo', 'video_story'],
+  image: ['static', 'image_carousel'],
+  gif: ['gif'],
+  inconnu: TOUS_TYPES_AD,
+};
+
+export interface OptionTypeAd { id: AdFormat; libelle: string }
+
+export function typesAdCompatibles(media: MediaPont): OptionTypeAd[] {
+  return TYPES_AD_PAR_MEDIA[media ?? 'inconnu'].map((id) => ({ id, libelle: SHEET_FORMAT[id] ?? id }));
+}
+
+/** Le média de la source, GIF compris. */
+export function mediaPont(mediaType: unknown): MediaPont {
+  if (typeof mediaType === 'string' && /\bgif\b/i.test(mediaType)) return 'gif';
+  return mediaAnnonce(mediaType);
+}
+
+export type CauseChoixTypeAd = 'media_inconnu' | 'gif' | 'video_non_qualifiee' | 'video_sans_correspondance';
+
+export type DecisionTypeAd =
+  | { etat: 'auto'; format: AdFormat; media: MediaPont; /** Le format qualifié, conservé à part (`null` si non classée). */ formatCreatif: FormatCreatifId | null }
+  | { etat: 'choix'; cause: CauseChoixTypeAd; media: MediaPont; options: OptionTypeAd[]; raison: string; formatCreatif: FormatCreatifId | null };
+
+const estCarrousel = (mediaType: unknown) => typeof mediaType === 'string' && /carousel|carrousel/i.test(mediaType);
+
+/**
+ * Le type d'ad d'une annonce sauvegardée · automatique quand rien n'est
+ * inventé, sinon un CHOIX à demander (liste compatible, rien de présélectionné).
+ * Lit `snapshot.mediaType` et `snapshot.formatCreatif` · ne lève jamais.
+ */
+export function formatAdDepuisSauvegarde(snapshot: unknown): DecisionTypeAd {
+  const snap = estObjet(snapshot) ? snapshot : {};
+  const media = mediaPont(snap.mediaType);
+  const lecture = lireFormatCreatif(snapshot);
+  const qualifie = lecture.etat === 'classe' ? lecture.id : null;
+  const choix = (cause: CauseChoixTypeAd, raison: string): DecisionTypeAd => ({ etat: 'choix', cause, media, options: typesAdCompatibles(media), raison, formatCreatif: qualifie });
+
+  if (media === 'image') {
+    return { etat: 'auto', media, format: estCarrousel(snap.mediaType) ? 'image_carousel' : 'static', formatCreatif: qualifie };
+  }
+  if (media === 'gif') return choix('gif', 'GIF · confirme son type d’ad Adsmap avant de créer la fiche.');
+  if (media === null) {
+    return choix('media_inconnu', 'Type de média inconnu dans la source · choisis son type d’ad parmi tous les types Adsmap · rien n’est déduit.');
+  }
+  if (!qualifie) return choix('video_non_qualifiee', 'Vidéo non qualifiée · choisis son type d’ad Adsmap · rien n’est déduit.');
+  const format = FORMAT_AD_VIDEO_QUALIFIEE[qualifie];
+  if (!format) {
+    return choix('video_sans_correspondance', `Format « ${formatCreatif(qualifie).libelle} » · aucun type vidéo d’Adsmap ne lui correspond sans ambiguïté · choisis-le.`);
+  }
+  return { etat: 'auto', media, format, formatCreatif: qualifie };
+}
+
+export type ResolutionTypeAd =
+  | { ok: true; format: AdFormat; /** Le type vient d'un choix explicite de l'utilisateur. */ choisi: boolean; formatCreatif: FormatCreatifId | null }
+  | { ok: false; cause: 'choix_requis'; options: OptionTypeAd[]; raison: string }
+  | { ok: false; cause: 'choix_incompatible'; raison: string };
+
+/**
+ * Le type d'ad à ÉCRIRE · la décision, plus le choix reçu du client, VALIDÉ ici
+ * contre la liste compatible avec le média lu en base (jamais confiance au
+ * client). Automatique · le choix reçu est ignoré (la règle décide). Choix
+ * requis · absent → on le demande ; hors liste → refus.
+ */
+export function resoudreTypeAd(snapshot: unknown, choixClient: unknown): ResolutionTypeAd {
+  const d = formatAdDepuisSauvegarde(snapshot);
+  if (d.etat === 'auto') return { ok: true, format: d.format, choisi: false, formatCreatif: d.formatCreatif };
+  if (choixClient === undefined || choixClient === null || choixClient === '') return { ok: false, cause: 'choix_requis', options: d.options, raison: d.raison };
+  const option = d.options.find((o) => o.id === choixClient);
+  if (!option) {
+    return { ok: false, cause: 'choix_incompatible', raison: `Type d’ad non proposé pour ce média · choisis parmi ${d.options.map((o) => `« ${o.libelle} »`).join(', ')} · rien n’a été créé.` };
+  }
+  return { ok: true, format: option.id, choisi: true, formatCreatif: d.formatCreatif };
 }
