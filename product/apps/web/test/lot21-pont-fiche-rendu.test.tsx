@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { eq, sql } from 'drizzle-orm';
 
 /**
@@ -65,6 +67,9 @@ vi.mock('../app/(app)/saved/FormatChoix', () => ({ FormatChoix: () => <input dat
 
 import { db, schema } from '@tiktrends/db';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
+import { PreparerTest } from '../app/(app)/veille/formats/PreparerTest';
+import { SavedBoards, type SavedItem } from '../components/SavedBoards';
+import type { InspoAd } from '@tiktrends/integrations';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
@@ -207,5 +212,126 @@ describe('trackSavedAdAction · la même fiche, le bon format, rien de partiel',
     expect(r2.adId).toBeTruthy();
     const { concepts, ads } = await lignes('echec');
     expect([concepts.length, ads.length]).toEqual([1, 1]);
+  });
+});
+
+/* ── Le rendu · le lien mène à LA fiche ────────────────────────────────────── */
+
+let root: Root | null = null; let el: HTMLDivElement | null = null;
+afterEach(() => { act(() => { root?.unmount(); }); el?.remove(); root = null; el = null; });
+const vider = async () => { for (let i = 0; i < 6; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
+const differee = () => { let lacher: (r: Reponse) => void = () => {}; const p = new Promise<Reponse>((ok) => { lacher = ok; }); return { lancer: () => p, lacher: (r: Reponse) => lacher(r) }; };
+async function monter(n: React.ReactNode) {
+  el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el);
+  await act(async () => { root!.render(n); });
+  return el;
+}
+const bouton = (h: HTMLElement, re: RegExp) => [...h.querySelectorAll('button')].find((b) => re.test(b.textContent ?? ''))!;
+const liens = (h: HTMLElement) => [...h.querySelectorAll('a')].map((a) => ({ href: a.getAttribute('href'), texte: a.textContent, minHeight: a.style.minHeight }));
+
+describe('PreparerTest (Formats) · « Ouvrir la fiche dans Adsmap » vers CETTE ad', () => {
+  it('action réussie (simulée, adId) · href = /adsmap?ad=<adId>, cible 44 px', async () => {
+    sim.reponses = [() => Promise.resolve({ ok: true, adId: 'ad-123', conceptId: 'c-1' })];
+    const h = await monter(<PreparerTest platform="meta" externalId="x" />);
+    await act(async () => { bouton(h, /Préparer un test/).click(); });
+    await vider();
+    expect(liens(h), 'le lien ne mène pas à la fiche de l’ad').toEqual([{ href: '/adsmap?ad=ad-123', texte: 'Ouvrir la fiche dans Adsmap', minHeight: '44px' }]);
+    expect(bouton(h, /Adsmap/).textContent).toBe('Brouillon de test créé dans Adsmap');
+  });
+
+  it('action RÉELLE (pglite) · le href porte l’id de la ligne créée · second clic après rechargement · même fiche, « déjà suivie »', async () => {
+    const h = await monter(<PreparerTest platform="meta" externalId="rendu-reel" />);
+    await act(async () => { bouton(h, /Préparer un test/).click(); });
+    await vider();
+    const { ads } = await lignes('rendu-reel');
+    expect(ads).toHaveLength(1);
+    expect(liens(h).map((l) => l.href)).toEqual([`/adsmap?ad=${ads[0]!.id}`]);
+    act(() => { root?.unmount(); }); el?.remove();
+    const h2 = await monter(<PreparerTest platform="meta" externalId="rendu-reel" />);
+    await act(async () => { bouton(h2, /Préparer un test/).click(); });
+    await vider();
+    expect(liens(h2).map((l) => l.href), 'le second clic ne renvoie pas la même fiche').toEqual([`/adsmap?ad=${ads[0]!.id}`]);
+    expect(bouton(h2, /Adsmap/).textContent).toBe('Déjà suivie dans Adsmap');
+    expect((await lignes('rendu-reel')).ads).toHaveLength(1);
+  });
+
+  it('refus (vidéo non qualifiée, action réelle) · raison affichée, aucun lien, nouvel essai possible', async () => {
+    const h = await monter(<PreparerTest platform="meta" externalId="vid-nue" />);
+    await act(async () => { bouton(h, /Préparer un test/).click(); });
+    await vider();
+    expect(h.querySelector('[role="status"]')!.textContent).toBe('Vidéo non qualifiée · choisis d’abord son format dans « Format », puis réessaie · rien n’a été créé dans Adsmap.');
+    expect(liens(h)).toEqual([]);
+    expect(bouton(h, /Préparer un test/).getAttribute('aria-disabled')).toBe('false');
+  });
+
+  it('réponse différée · le focus posé ailleurs par l’utilisateur n’est pas volé', async () => {
+    const d = differee();
+    sim.reponses = [d.lancer];
+    const h = await monter(<><PreparerTest platform="meta" externalId="x" /><input aria-label="ailleurs" /></>);
+    await act(async () => { bouton(h, /Préparer un test/).click(); });
+    const ailleurs = h.querySelector<HTMLInputElement>('input[aria-label="ailleurs"]')!;
+    ailleurs.focus();
+    await act(async () => { d.lacher({ ok: true, adId: 'ad-9' }); });
+    await vider();
+    expect(document.activeElement, 'la réponse a déplacé le focus').toBe(ailleurs);
+    expect(liens(h).map((l) => l.href)).toEqual(['/adsmap?ad=ad-9']);
+  });
+});
+
+describe('SavedBoards (Sauvegardes) · après « Suivre dans Adsmap », le lien vers la fiche', () => {
+  const items: SavedItem[] = [
+    { id: 's1', externalId: 'e1', platform: 'meta', folder: null, ad: { id: 'e1', platform: 'meta', status: 'active', mediaType: 'image', advertiserName: LONG } as InspoAd },
+    { id: 's2', externalId: 'e2', platform: 'meta', folder: null, ad: { id: 'e2', platform: 'meta', status: 'active', mediaType: 'video', advertiserName: 'B' } as InspoAd },
+  ];
+  const cellule = (h: HTMLElement, i: number) => [...h.querySelectorAll('button')].filter((b) => /Adsmap|Ajout…/.test(b.textContent ?? ''))[i]!.parentElement!;
+
+  it('suivi réussi (simulé, adId) · « Dans Adsmap » + href = /adsmap?ad=<adId> sur CETTE carte seulement', async () => {
+    sim.reponses = [() => Promise.resolve({ ok: true, adId: 'ad-777', conceptId: 'c' })];
+    const h = await monter(<SavedBoards items={items} followKeys={[]} adsmap />);
+    await act(async () => { cellule(h, 0).querySelector('button')!.click(); });
+    await vider();
+    expect(cellule(h, 0).querySelector('button')!.textContent).toBe('Dans Adsmap');
+    expect(liens(cellule(h, 0)), 'pas de lien vers la fiche après le suivi').toEqual([{ href: '/adsmap?ad=ad-777', texte: 'Ouvrir la fiche dans Adsmap', minHeight: '44px' }]);
+    expect(liens(cellule(h, 1))).toEqual([]);
+  });
+
+  it('refus puis reprise (#728 · suiviAdsmapRelancable) · une requête par essai, lien après succès, aucun doublon d’envoi', async () => {
+    sim.reponses = [() => Promise.resolve({ error: 'Vidéo non qualifiée · choisis d’abord son format dans « Format », puis réessaie · rien n’a été créé dans Adsmap.' }),
+      () => Promise.resolve({ ok: true, adId: 'ad-888', dejaSuivie: true })];
+    const h = await monter(<SavedBoards items={items} followKeys={[]} adsmap />);
+    await act(async () => { cellule(h, 1).querySelector('button')!.click(); });
+    await vider();
+    expect(cellule(h, 1).textContent).toContain('Vidéo non qualifiée');
+    expect(liens(cellule(h, 1))).toEqual([]);
+    const b = cellule(h, 1).querySelector('button')!;
+    await act(async () => { b.click(); b.click(); });
+    await vider();
+    expect(sim.n, 'reprise · nombre de requêtes').toBe(2);
+    expect(liens(cellule(h, 1)).map((l) => l.href)).toEqual(['/adsmap?ad=ad-888']);
+  });
+
+  it('réponse différée · le focus posé dans la recherche reste où l’utilisateur l’a mis', async () => {
+    const d = differee();
+    sim.reponses = [d.lancer];
+    const h = await monter(<SavedBoards items={items} followKeys={[]} adsmap />);
+    await act(async () => { cellule(h, 0).querySelector('button')!.click(); });
+    const recherche = h.querySelector<HTMLInputElement>('input[aria-label="Rechercher dans les créas gardées"]')!;
+    recherche.focus();
+    await act(async () => { d.lacher({ ok: true, adId: 'ad-1' }); });
+    await vider();
+    expect(document.activeElement, 'la réponse a déplacé le focus').toBe(recherche);
+    expect(liens(cellule(h, 0)).map((l) => l.href)).toEqual(['/adsmap?ad=ad-1']);
+  });
+
+  it('action RÉELLE (pglite) depuis Sauvegardes · le href porte l’id de la ligne', async () => {
+    const reel: SavedItem[] = [{ id: 's9', externalId: 'img-packshot', platform: 'meta', folder: null, ad: { id: 'img-packshot', platform: 'meta', status: 'active', mediaType: 'image', advertiserName: LONG } as InspoAd }];
+    const h = await monter(<SavedBoards items={reel} followKeys={[]} adsmap />);
+    await act(async () => { cellule(h, 0).querySelector('button')!.click(); });
+    await vider();
+    const { ads } = await lignes('img-packshot');
+    const neva = [];
+    for (const a of ads) if ((await marqueDe(a.id))!.brandId === ids.neva) neva.push(a.id);
+    expect(neva).toHaveLength(1);
+    expect(liens(cellule(h, 0)).map((l) => l.href)).toEqual([`/adsmap?ad=${neva[0]}`]);
   });
 });

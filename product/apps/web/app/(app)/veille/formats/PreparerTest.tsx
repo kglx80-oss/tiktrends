@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, lienFicheAdsmap } from '@tiktrends/core';
 import { trackSavedAdAction } from '../../../actions/adsmap-bridge';
 import { Icon } from '../../../../components/Icon';
 
@@ -11,9 +11,15 @@ import { Icon } from '../../../../components/Icon';
  * brouillon. Rien n'est lancé, rien n'est généré, aucune dépense · le libellé et
  * le retour le disent. Affiché seulement quand Adsmap est ouvert à l'espace et
  * qu'une marque est active (même condition que Sauvegardes).
+ *
+ * Lot 21 (R3) · le retour mène à LA fiche (`lienFicheAdsmap(adId)`, tiroir de
+ * cette ad), jamais à la carte nue · une annonce déjà suivie le dit et renvoie
+ * la même fiche. Un refus (format non décidable) est affiché tel quel et se
+ * retente. Rien ne déplace le focus à la réponse.
  */
 export function PreparerTest({ platform, externalId }: { platform: string; externalId: string }) {
   const [etat, setEtat] = useState<'repos' | 'envoi' | 'ok' | string>('repos');
+  const [fiche, setFiche] = useState<{ adId: string | null; deja: boolean }>({ adId: null, deja: false });
   const verrou = useRef(false);
   const lancer = async () => {
     if (verrou.current || etat === 'ok') return;
@@ -21,6 +27,7 @@ export function PreparerTest({ platform, externalId }: { platform: string; exter
     setEtat('envoi');
     try {
       const r = await trackSavedAdAction({ platform, externalId });
+      if (!r.error) setFiche({ adId: r.adId ?? null, deja: !!r.dejaSuivie });
       setEtat(r.error ? r.error : 'ok');
     } catch {
       setEtat('Échec · vérifie ta connexion puis réessaie.');
@@ -39,10 +46,10 @@ export function PreparerTest({ platform, externalId }: { platform: string; exter
           color: fait ? 'var(--accent-strong)' : 'var(--ink-2)', cursor: fait || etat === 'envoi' ? 'default' : 'pointer', fontSize: 12.5, fontWeight: 600,
         }}>
         <span style={{ display: 'inline-flex' }} aria-hidden><Icon name="map" size={15} /></span>
-        <span>{fait ? 'Brouillon de test créé dans Adsmap' : etat === 'envoi' ? 'Préparation…' : 'Préparer un test · Adsmap'}</span>
+        <span>{fait ? (fiche.deja ? 'Déjà suivie dans Adsmap' : 'Brouillon de test créé dans Adsmap') : etat === 'envoi' ? 'Préparation…' : 'Préparer un test · Adsmap'}</span>
       </button>
       <p role="status" aria-live="polite" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.4, color: erreur ? 'var(--danger, #e5484d)' : 'var(--muted)' }}>
-        {erreur ?? (fait ? <><a href="/adsmap" style={{ color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir Adsmap</a> · hypothèse et variable à compléter avant le test.</> : '')}
+        {erreur ?? (fait ? <>{fiche.adId ? <><a href={lienFicheAdsmap(fiche.adId)} data-fiche-adsmap style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir la fiche dans Adsmap</a> · </> : null}hypothèse et variable à compléter avant le test.</> : '')}
       </p>
     </div>
   );

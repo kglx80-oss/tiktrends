@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties, type FocusEvent } from 'react';
-import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute } from '@tiktrends/core';
+import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute, lienFicheAdsmap, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
@@ -77,6 +77,10 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
   // ne dépend pas du rendu · deux clics dans la même tâche n'envoient qu'UNE
   // requête. Une exception ne laisse plus le bouton figé sur « Ajout… ».
   const enCours = useRef(new Set<string>());
+  // Lot 21 (R3) · l'ad renvoyée par le pont (créée ou déjà suivie) · le lien
+  // mène à SA fiche, pas à la carte nue. À part de `suivi` · la règle de reprise
+  // (`suiviAdsmapRelancable`) lit toujours le même état.
+  const [fiches, setFiches] = useState<Record<string, string>>({});
   const suivre = async (it: SavedItem) => {
     const cle = `${it.platform}:${it.externalId}`;
     if (enCours.current.has(cle) || !suiviAdsmapRelancable(suivi[cle])) return;
@@ -84,6 +88,7 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
     setSuivi((x) => ({ ...x, [cle]: 'busy' }));
     try {
       const r = await trackSavedAdAction({ platform: it.platform, externalId: it.externalId });
+      if (!r.error && r.adId) { const adId = r.adId; setFiches((x) => ({ ...x, [cle]: adId })); }
       setSuivi((x) => ({ ...x, [cle]: r.error ?? 'done' }));
     } catch {
       setSuivi((x) => ({ ...x, [cle]: 'Ajout non enregistré · vérifie ta connexion puis réessaie.' }));
@@ -260,7 +265,7 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
                 de sa piste, il répartissait l'excédent entre ses lignes et son
                 champ descendait (mesuré · 4 px à 1440 et 1280). */}
             <div><FormatChoix platform={it.platform} externalId={it.externalId} mediaType={it.ad.mediaType} initial={it.format?.id ?? null} versionAncienne={it.format?.versionAncienne} indisponible={formatIndisponible} /></div>
-            {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
+            {adsmap && <TrackButton state={suivi[`${it.platform}:${it.externalId}`]} fiche={fiches[`${it.platform}:${it.externalId}`]} onClick={() => suivre(it)} cible={cible} />}
             {pontRefuse && <p data-pont-refus style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.45 }}>{refusAdsmap}</p>}
           </div>
         ))}
@@ -276,8 +281,11 @@ export function SavedBoards({ items, followKeys, adsmap = false, refusAdsmap = n
  * Le libellé dit ce qui se passe vraiment : rien n'est lancé, un brouillon entre
  * dans la carte. C'est important, parce qu'un bouton qui promet plus que ça se
  * traduit par des ads fantômes que personne n'assume.
+ *
+ * Lot 21 (R3) · une fois suivie, le lien mène à la fiche de CETTE ad
+ * (`lienFicheAdsmap`) · contenu et lien seulement, aucun cadre ajouté.
  */
-function TrackButton({ state, onClick, cible }: { state: string | undefined; onClick: () => void; cible: number }) {
+function TrackButton({ state, fiche, onClick, cible }: { state: string | undefined; fiche?: string; onClick: () => void; cible: number }) {
   const done = state === 'done';
   const busy = state === 'busy';
   const err = state && !done && !busy ? state : null;
@@ -293,6 +301,7 @@ function TrackButton({ state, onClick, cible }: { state: string | undefined; onC
         <span style={{ display: "inline-flex" }}><Icon name="map" size={15} /></span>
         <span>{done ? 'Dans Adsmap' : busy ? 'Ajout…' : 'Suivre dans Adsmap'}</span>
       </button>
+      {done && fiche && <a href={lienFicheAdsmap(fiche)} data-fiche-adsmap style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir la fiche dans Adsmap</a>}
       {err && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--danger, #e5484d)', lineHeight: 1.4 }}>{err}</p>}
     </div>
   );
