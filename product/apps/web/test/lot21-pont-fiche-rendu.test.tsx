@@ -447,6 +447,28 @@ describe('SavedBoards (Sauvegardes) · après « Suivre dans Adsmap », le lien 
     expect(liens(cellule(h, 0)).map((l) => l.href)).toEqual(['/adsmap?ad=ad-1']);
   });
 
+  it('chemin automatique · le focus reste sur « Suivre dans Adsmap » pendant ET après l’envoi (jamais sur body) · une seule requête', async () => {
+    const d = differee();
+    sim.reponses = [d.lancer];
+    const h = await monter(<SavedBoards items={items} followKeys={[]} adsmap />);
+    const b = cellule(h, 0).querySelector('button')!;
+    b.focus();
+    await act(async () => { b.click(); });
+    expect(b.textContent).toBe('Ajout…');
+    expect(b.matches(':disabled'), 'le bouton est désactivé pendant l’envoi · le navigateur fait tomber son focus sur body').toBe(false);
+    expect(b.getAttribute('aria-disabled')).toBe('true');
+    expect(document.activeElement, 'le focus a quitté le bouton pendant l’envoi').toBe(b);
+    await act(async () => { b.click(); });
+    await act(async () => { d.lacher({ ok: true, adId: 'ad-auto' }); });
+    await vider();
+    expect(sim.n, 'un clic pendant l’envoi a relancé la requête').toBe(1);
+    const apres = cellule(h, 0).querySelector('button')!;
+    expect(apres.textContent).toBe('Dans Adsmap');
+    expect(apres.matches(':disabled'), 'le bouton « Dans Adsmap » est désactivé · le focus tombe sur body').toBe(false);
+    expect(document.activeElement, 'le focus a quitté le bouton après le succès').toBe(apres);
+    expect(liens(cellule(h, 0)).map((l) => l.href)).toEqual(['/adsmap?ad=ad-auto']);
+  });
+
   it('vidéo ambiguë (action RÉELLE) depuis Sauvegardes · choix sans présélection · annuler n’appelle rien · choix → fiche', async () => {
     const it2: SavedItem[] = [{ id: 's7', externalId: 'saved-choix', platform: 'meta', folder: null, ad: { id: 'saved-choix', platform: 'meta', status: 'active', mediaType: 'video', advertiserName: 'Vidéo à choisir' } as InspoAd }];
     const h = await monter(<SavedBoards items={it2} followKeys={[]} adsmap />);

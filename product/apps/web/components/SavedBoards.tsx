@@ -342,7 +342,12 @@ function TrackButton({ cle, state, fiche, onClick, cible, enChoix, children }: {
   const err = state && !done && !busy ? state : null;
   return (
     <div data-pont-cle={cle}>
-      <button type="button" onClick={onClick} disabled={busy || done} aria-expanded={enChoix || undefined} title="Créer un concept « imitation » dans Adsmap" style={{
+      {/* Lot 21 (message 78) · `aria-disabled`, plus `disabled` · un bouton
+          désactivé pendant l'envoi faisait tomber le focus sur `body` (mesuré au
+          navigateur, souris et Entrée). Le verrou reste dans `suivre` (`enCours`
+          et `suiviAdsmapRelancable`) · un clic pendant l'envoi ou après le succès
+          n'envoie rien. */}
+      <button type="button" onClick={onClick} aria-disabled={busy || done || undefined} aria-expanded={enChoix || undefined} title="Créer un concept « imitation » dans Adsmap" style={{
         width: '100%', minHeight: cible, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 10px', borderRadius: 9,
         border: '1px solid ' + (done ? 'transparent' : 'var(--line-2)'),
         background: done ? 'var(--accent-soft)' : 'var(--paper)',

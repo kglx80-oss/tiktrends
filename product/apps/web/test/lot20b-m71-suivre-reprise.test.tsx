@@ -54,7 +54,7 @@ describe('Suivre dans Adsmap · une erreur ne bloque plus le nouvel essai', () =
     await vider();
     expect(appel.n).toBe(1);
     expect(erreur(h), 'l’erreur du serveur n’est pas dite').toBe(ERREUR);
-    expect(bouton(h).disabled, 'le bouton est désactivé après une erreur').toBe(false);
+    expect(bouton(h).getAttribute('aria-disabled'), 'le bouton est désactivé après une erreur').not.toBe('true');
     await act(async () => { bouton(h).click(); });
     await vider();
     expect(appel.n, 'le nouvel essai ne part pas · l’erreur bloque toute nouvelle tentative').toBe(2);
@@ -98,9 +98,14 @@ describe('Suivre dans Adsmap · une erreur ne bloque plus le nouvel essai', () =
     await vider();
     const b = bouton(h);
     expect(b.textContent).toBe('Dans Adsmap');
-    expect(b.disabled).toBe(true);
-    // Même en forçant l'événement (le bouton désactivé ne le reçoit pas) · on
-    // appelle le gestionnaire React directement.
+    // Lot 21 (message 78) · `aria-disabled` au lieu de `disabled` (le focus ne
+    // tombe plus sur `body`) · le bouton reçoit donc le clic · le verrou du
+    // composant, pas l'attribut, garantit qu'aucune requête ne part.
+    expect(b.getAttribute('aria-disabled')).toBe('true');
+    await act(async () => { b.click(); b.click(); });
+    await vider();
+    expect(appel.n, 'un clic sur « Dans Adsmap » renvoie une requête').toBe(1);
+    // Même en appelant le gestionnaire React directement.
     const props = Object.entries(b).find(([k]) => k.startsWith('__reactProps'))?.[1] as { onClick?: () => void } | undefined;
     await act(async () => { props?.onClick?.(); });
     await vider();
