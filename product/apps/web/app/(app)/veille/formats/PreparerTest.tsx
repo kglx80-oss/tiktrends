@@ -49,7 +49,9 @@ export function PreparerTest({ platform, externalId }: { platform: string; exter
         <span>{fait ? (fiche.deja ? 'Déjà suivie dans Adsmap' : 'Brouillon de test créé dans Adsmap') : etat === 'envoi' ? 'Préparation…' : 'Préparer un test · Adsmap'}</span>
       </button>
       <p role="status" aria-live="polite" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.4, color: erreur ? 'var(--danger, #e5484d)' : 'var(--muted)' }}>
-        {erreur ?? (fait ? <>{fiche.adId ? <><a href={lienFicheAdsmap(fiche.adId)} data-fiche-adsmap style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir la fiche dans Adsmap</a> · </> : null}hypothèse et variable à compléter avant le test.</> : '')}
+        {/* Le lien a sa propre ligne · en ligne, sa hauteur de 44 px écartait
+            la suite du texte (vu sur la capture à 1440 et 390). */}
+        {erreur ?? (fait ? <>{fiche.adId ? <><a href={lienFicheAdsmap(fiche.adId)} data-fiche-adsmap style={{ display: 'flex', width: 'fit-content', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir la fiche dans Adsmap</a>{' '}</> : null}Hypothèse et variable à compléter avant le test.</> : '')}
       </p>
     </div>
   );
