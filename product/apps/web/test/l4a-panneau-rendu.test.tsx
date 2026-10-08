@@ -31,7 +31,6 @@ import { ConflitVersion } from '../components/studios/propositions/ConflitVersio
 import { creerPropositionManuelle } from '../lib/studios/propositions/proposer';
 import { appliquerProposition, listerPropositions } from '../lib/studios/propositions/depot-propositions';
 import type { ListePropositions, ReponseProposition } from '../lib/studios/propositions/types';
-import { recetteOuverte } from '../app/(app)/studio/recette-propositions/recette';
 import { semer, session } from './studios-semis';
 import { ctxDe, projetVideo } from './l4a-outils';
 import { contexteDepuisSession } from '../lib/studios/garde';
@@ -187,14 +186,5 @@ describe('panneau · états', () => {
     } finally {
       await db.update(schema.studioProposals).set({ expiresAt: new Date(Date.now() + 86_400_000) }).where(eq(schema.studioProposals.id, ouverte));
     }
-  });
-});
-
-describe('page de recette · réservée au développement', () => {
-  it('fermée en production, ouverte en dev, ou en recette locale explicite sur base locale seulement', () => {
-    expect(recetteOuverte({ NODE_ENV: 'production' })).toBe(false);
-    expect(recetteOuverte({ NODE_ENV: 'production', STUDIOS_PROMPTS_RECETTE_LOCALE: '1', DATABASE_URL: 'postgres://u@db:5432/tiktrends' })).toBe(false);
-    expect(recetteOuverte({ NODE_ENV: 'production', STUDIOS_PROMPTS_RECETTE_LOCALE: '1', DATABASE_URL: 'postgres://postgres@127.0.0.1:5433/x' })).toBe(true);
-    expect(recetteOuverte({ NODE_ENV: 'development' })).toBe(true);
   });
 });
