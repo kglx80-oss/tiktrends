@@ -1,0 +1,60 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F01",
+  "titre": "Packshot et accessoire",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "efd59650-a488-4c8f-9baf-c2e6c3591d31",
+    "ea2ed9c9-c1d8-4316-a432-12b90a3b5b2a",
+    "a53a4bec-1b11-4227-8e5e-5896cf38a1dd",
+    "4debc0b3-72d6-4642-9b8e-761ae7571bf0"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "brief",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "brief",
+      "role": "system",
+      "sha256": "a376d8a4c8348a9be7ab4ca0588ed6b484cb8a30ecf4835cd439da51b87eca7d",
+      "caracteres": 2678
+    },
+    {
+      "etape": "brief",
+      "role": "user",
+      "sha256": "257988b54e9b16c689f4d688ffb39ff336c7c1b6821db099b391a65905adc83a",
+      "caracteres": 1623
+    },
+    {
+      "etape": "compile",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "compile",
+      "role": "system",
+      "sha256": "b1503ae73dee5e632eaa7a00f5df8654bffe9bb08e5913bca5239e733dc3da32",
+      "caracteres": 2770
+    },
+    {
+      "etape": "compile",
+      "role": "user",
+      "sha256": "e6be147320b8bae90bc4ee457afd34f061b0f78ee2447a13a66a0888a62bef82",
+      "caracteres": 1684
+    }
+  ]
+}

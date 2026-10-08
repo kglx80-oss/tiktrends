@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F22",
+  "titre": "Hypothèses bornées",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "707d67a9-276a-4ed0-abe6-6d5e692c4239"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "hypotheses",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "hypotheses",
+      "role": "system",
+      "sha256": "abcee0feea045917a42125deeb3fa10c05b7a7484b2d5e27a60471e03260fa03",
+      "caracteres": 2644
+    },
+    {
+      "etape": "hypotheses",
+      "role": "user",
+      "sha256": "b95685e7b55a9ba2ebac264dc98eb685d6583e288b8ec01a45f169ad04ada965",
+      "caracteres": 1337
+    }
+  ]
+}

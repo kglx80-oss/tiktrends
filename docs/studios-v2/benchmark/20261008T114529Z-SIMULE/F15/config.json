@@ -1,0 +1,41 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F15",
+  "titre": "Produit transparent",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "74a7d088-474b-4b1d-969e-aae97fcb1e0e",
+    "527104b0-bf4c-4538-b3b7-4dc3dc8cd658",
+    "38e11f30-6988-4911-abe8-8b302f70d38c"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "compile",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "compile",
+      "role": "system",
+      "sha256": "b1503ae73dee5e632eaa7a00f5df8654bffe9bb08e5913bca5239e733dc3da32",
+      "caracteres": 2770
+    },
+    {
+      "etape": "compile",
+      "role": "user",
+      "sha256": "9001b258767110ce50b8da4b53d3f26c6057a1638f826da7329110dfd438bef4",
+      "caracteres": 1402
+    }
+  ]
+}

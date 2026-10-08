@@ -1,0 +1,75 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F04",
+  "titre": "Proposer sans générer",
+  "etapes": [
+    {
+      "etapeId": "route",
+      "templateKey": "jarvis.route",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "intent": "revise",
+        "targetIds": [
+          "calque_montre"
+        ],
+        "proposedAction": "Proposer un patch du bracelet, sans générer",
+        "nextTemplateKey": "document.patch",
+        "reply": "Je te propose le changement avant toute génération."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "efc181ad-89dd-4eb8-a6d6-5fef54def2f5",
+      "resultSha256": "d8b68ad64c3f1577a7470eb0c7850137dd143e5ea11213558156be49b69a96db",
+      "fichiers": []
+    },
+    {
+      "etapeId": "patch",
+      "templateKey": "document.patch",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "baseVersion": "bench-F04-v1",
+        "changes": [
+          {
+            "path": "/calques/calque_montre/bracelet",
+            "newValue": "cuir marron",
+            "reason": "Demande de l’utilisateur",
+            "op": "replace"
+          }
+        ],
+        "preservedIds": [
+          "calque_fond"
+        ],
+        "impactSummary": "Seul le bracelet change ; rien n’est généré avant validation."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "5347540d-ed54-434c-b8ba-cd24810d6ba6",
+      "resultSha256": "f2ee6ec9ab143ff0e75f0df97daa54f1158f725ab9eb9753ed31d2ffb1cd63aa",
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

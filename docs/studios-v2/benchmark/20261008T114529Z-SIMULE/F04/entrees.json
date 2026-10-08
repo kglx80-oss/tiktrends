@@ -1,0 +1,72 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F04",
+  "titre": "Proposer sans générer",
+  "oracleAttendu": "Proposition seule ; zéro média/job/quota",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "route",
+      "sortie": 0,
+      "template": "jarvis.route",
+      "taskInputsSha256": "71bb02e258ebcfb8d81345b9368fca6c45e4f082e2107e87651278c6e5af9e36",
+      "taskInputs": {
+        "message": "Change le bracelet de la montre en cuir marron, mais montre-moi avant de générer quoi que ce soit.",
+        "availableActions": [
+          "document.patch"
+        ],
+        "selectionId": "calque_montre"
+      },
+      "contexte": {
+        "selectionIds": [
+          "calque_montre"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "patch",
+      "sortie": 0,
+      "template": "document.patch",
+      "taskInputsSha256": "1959de8e9d53a87a316e14197c7e2aa96e9b74727540eefb219672df255a7887",
+      "taskInputs": {
+        "baseVersion": "bench-F04-v1",
+        "request": "Bracelet en cuir marron, proposition seulement.",
+        "allowedPaths": [
+          "/calques/calque_montre/bracelet"
+        ],
+        "selectedIds": [
+          "calque_montre"
+        ]
+      },
+      "contexte": {
+        "projectVersionId": "bench-F04-v1",
+        "allowedPaths": [
+          "/calques/calque_montre/bracelet"
+        ],
+        "selectionIds": [
+          "calque_montre"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "document": {
+      "calques": {
+        "calque_montre": {
+          "bracelet": "acier"
+        },
+        "calque_fond": {
+          "couleur": "gris"
+        }
+      }
+    },
+    "allowedPaths": [
+      "/calques/calque_montre/bracelet"
+    ]
+  }
+}

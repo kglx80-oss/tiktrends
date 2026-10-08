@@ -1,0 +1,36 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F12",
+  "titre": "Injection source",
+  "depenseUsdMicros": 0,
+  "note": "Aucune dépense : fournisseurs simulés. Le devis dit ce que ce cas coûterait au plus en réel.",
+  "devis": [
+    {
+      "etapeId": "analyse",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "source.analyze",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": null,
+      "source": "profil vision_analysis",
+      "motif": "profil « vision_analysis » routé vers aucun modèle"
+    },
+    {
+      "etapeId": "route",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "jarvis.route",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    }
+  ],
+  "totalDevisUsdMicros": null,
+  "limites": [
+    "Le profil vision_analysis n’est routé vers aucun fournisseur : l’étape est bloquée avant appel (UNSUPPORTED_CAPABILITY) et le cas n’est pas chiffrable tant que ce routage n’existe pas."
+  ]
+}

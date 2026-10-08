@@ -1,0 +1,17 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F15",
+  "titre": "Produit transparent",
+  "statut": "bloque_capacite",
+  "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+  "invariants": [
+    {
+      "id": "F15.etiquette_protegee",
+      "description": "Étiquette fine protégée dans la consigne",
+      "passe": true,
+      "detail": "composants : flacon transparent, étiquette fine"
+    }
+  ],
+  "revueHumaine": "fiche-revue.json"
+}

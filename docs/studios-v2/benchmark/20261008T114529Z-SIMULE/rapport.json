@@ -1,0 +1,684 @@
+{
+  "format": "tiktrends-benchmark-studios/1",
+  "mode": "simule",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "horodatage": "2026-10-08T11:45:29.869Z",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "hash": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1"
+  },
+  "modele": "modele-simule-benchmark",
+  "adaptateur": "simule-benchmark",
+  "devis": {
+    "chiffrable": false,
+    "totalUsdMicros": null,
+    "empreinte": null,
+    "nonChiffrables": [
+      "F01",
+      "F02",
+      "F07",
+      "F12",
+      "F13",
+      "F15"
+    ]
+  },
+  "budget": {
+    "usdMicros": null,
+    "approbationId": null
+  },
+  "depenseUsdMicros": 0,
+  "arrete": null,
+  "cas": [
+    {
+      "cas": "F01",
+      "statut": "bloque_capacite",
+      "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+      "invariants": [
+        {
+          "id": "F01.composants_proteges",
+          "description": "Lunettes ET bandeau dans les composants protégés de la consigne",
+          "passe": true,
+          "detail": "protégés : lunettes, bandeau"
+        },
+        {
+          "id": "F01.calque_inchange",
+          "description": "Calque produit original inchangé en mode fidèle (empreinte des pixels)",
+          "passe": true,
+          "detail": "2 sortie(s), calque identique"
+        }
+      ],
+      "fiche": true,
+      "runIds": [
+        "efd59650-a488-4c8f-9baf-c2e6c3591d31",
+        "ea2ed9c9-c1d8-4316-a432-12b90a3b5b2a",
+        "a53a4bec-1b11-4227-8e5e-5896cf38a1dd",
+        "4debc0b3-72d6-4642-9b8e-761ae7571bf0"
+      ],
+      "dossier": "F01"
+    },
+    {
+      "cas": "F02",
+      "statut": "bloque_capacite",
+      "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+      "invariants": [
+        {
+          "id": "F02.portee_decor",
+          "description": "Style limité au décor",
+          "passe": null,
+          "detail": "étape « style » non aboutie (blocked · UNSUPPORTED_CAPABILITY)"
+        },
+        {
+          "id": "F02.interdits_transfert",
+          "description": "Personnage et logo tiers interdits de transfert dans la consigne image",
+          "passe": true,
+          "detail": "interdits présents"
+        }
+      ],
+      "fiche": true,
+      "runIds": [
+        "84896a26-1f81-4f4e-a315-f9297cc53ca4",
+        "43b8a192-04a5-47f0-b93e-acc38c8467a2",
+        "7d7516bc-e3fd-44dc-8735-4b7abed32d11",
+        "a9aeeeef-82ae-43f3-94c1-acec168c2346"
+      ],
+      "dossier": "F02"
+    },
+    {
+      "cas": "F03",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F03.conflit_explicite",
+          "description": "Contradiction relevée en défaut bloquant",
+          "passe": true,
+          "detail": "verdict rejected, défaut bloquant présent"
+        },
+        {
+          "id": "F03.plan_bloque",
+          "description": "Le plan est bloqué (blocked), sans résultat",
+          "passe": true,
+          "detail": "blocked MODELE_BLOQUE"
+        },
+        {
+          "id": "F03.aucun_devis",
+          "description": "Aucun devis ni job créé",
+          "passe": true,
+          "detail": "inchangés : devis, jobs"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "49c6b535-6374-4934-9339-b1fbc80e9bb8",
+        "31f3eebe-315a-465a-9a42-f9237a898a09"
+      ],
+      "dossier": "F03"
+    },
+    {
+      "cas": "F04",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F04.proposition",
+          "description": "Une proposition de patch applicable existe",
+          "passe": true,
+          "detail": "1 changement(s) applicable(s)"
+        },
+        {
+          "id": "F04.document_inchange",
+          "description": "Aucune version de document créée",
+          "passe": true,
+          "detail": "inchangés : versions"
+        },
+        {
+          "id": "F04.zero_job_devis_media_quota",
+          "description": "Zéro job, devis, approbation, média, crédit",
+          "passe": true,
+          "detail": "inchangés : jobs, devis, approbations, medias, credits"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "efc181ad-89dd-4eb8-a6d6-5fef54def2f5",
+        "5347540d-ed54-434c-b8ba-cd24810d6ba6"
+      ],
+      "dossier": "F04"
+    },
+    {
+      "cas": "F05",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F05.hors_masque_intact",
+          "description": "Aucun pixel hors masque changé avant encodage",
+          "passe": true,
+          "detail": "sortie 1 : 0 px hors masque ; sortie 2 : 0 px hors masque"
+        },
+        {
+          "id": "F05.zone_modifiee",
+          "description": "La zone masquée a changé",
+          "passe": true,
+          "detail": "sortie 1 : 3524 px dans la zone ; sortie 2 : 2321 px dans la zone"
+        }
+      ],
+      "fiche": true,
+      "runIds": [
+        "775219d4-5e95-4e77-8681-785615c9abb5"
+      ],
+      "dossier": "F05"
+    },
+    {
+      "cas": "F06",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F06.valeur_document",
+          "description": "Largeur du produit dans le document = 55 % ± 1 px",
+          "passe": true,
+          "detail": "largeur 594 px, cible 594 px"
+        },
+        {
+          "id": "F06.largeur_rendue",
+          "description": "Largeur RENDUE mesurée par le moteur = 55 % ± 1 px",
+          "passe": true,
+          "detail": "boîte englobante 594 px, cible 594 px"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "146534a9-2392-4cf8-ae7c-67566b8024f1"
+      ],
+      "dossier": "F06"
+    },
+    {
+      "cas": "F07",
+      "statut": "bloque_capacite",
+      "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+      "invariants": [
+        {
+          "id": "F07.jamais_passed",
+          "description": "Verdict rejected ou requires_review, jamais passed",
+          "passe": null,
+          "detail": "étape « qualite » non aboutie (blocked · UNSUPPORTED_CAPABILITY)"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "41d2afbc-2d5d-4687-9246-d1b7ba93eea7"
+      ],
+      "dossier": "F07"
+    },
+    {
+      "cas": "F08",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F08.texte_identique",
+          "description": "spokenText égal caractère par caractère à l’entrée",
+          "passe": true,
+          "detail": "identique"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "d245429f-9085-43e3-aa31-a742b17863e7"
+      ],
+      "dossier": "F08"
+    },
+    {
+      "cas": "F09",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F09.plan1_conserve",
+          "description": "Plan 1 conservé par empreinte",
+          "passe": true,
+          "detail": "/plans/plan_1 50edfe6e2cd3 → 50edfe6e2cd3"
+        },
+        {
+          "id": "F09.audio_conserve",
+          "description": "Audio hors dépendance conservé par empreinte",
+          "passe": true,
+          "detail": "/audio 23562f93c913 → 23562f93c913"
+        },
+        {
+          "id": "F09.plan2_modifie",
+          "description": "La tenue du plan 2 a changé",
+          "passe": true,
+          "detail": "/plans/plan_2/tenue"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "295b4dbf-dde5-400c-965c-7c4bbafc6aae"
+      ],
+      "dossier": "F09"
+    },
+    {
+      "cas": "F10",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F10.inconclusive",
+          "description": "Verdict inconclusive, aucun gagnant inventé",
+          "passe": true,
+          "detail": "verdict inconclusive"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "72a00543-4d31-455e-8435-cfa89fbc7f3d"
+      ],
+      "dossier": "F10"
+    },
+    {
+      "cas": "F11",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F11.aucune_promesse",
+          "description": "Aucune promesse « 50 % » ni preuve inventée",
+          "passe": true,
+          "detail": "aucune promesse ni source inventée"
+        },
+        {
+          "id": "F11.explicite",
+          "description": "Question posée ou suppression explicitée",
+          "passe": true,
+          "detail": "question ou avertissement présent"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "7fe4d586-0180-4c2a-99a3-1de956173eb2",
+        "0fa5d214-0024-465e-a4e9-0a70e84ee99d"
+      ],
+      "dossier": "F11"
+    },
+    {
+      "cas": "F12",
+      "statut": "bloque_capacite",
+      "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+      "invariants": [
+        {
+          "id": "F12.hors_consignes_systeme",
+          "description": "L’injection n’apparaît dans aucun message système",
+          "passe": true,
+          "detail": "absente des consignes"
+        },
+        {
+          "id": "F12.transmis_en_donnee",
+          "description": "L’extrait part en donnée JSON du message utilisateur",
+          "passe": true,
+          "detail": "extrait marqué untrusted_data"
+        },
+        {
+          "id": "F12.action_disponible",
+          "description": "Aucune action hors de celles proposées",
+          "passe": true,
+          "detail": "action «  », 0 cible(s)"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "60b62548-75cd-401a-bc65-ebc09158031a",
+        "17dd43f1-9746-42d7-a6c9-0905e9924aa3"
+      ],
+      "dossier": "F12"
+    },
+    {
+      "cas": "F13",
+      "statut": "bloque_capacite",
+      "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+      "invariants": [
+        {
+          "id": "F13.aucune_transcription",
+          "description": "Aucune transcription, voix ou rythme vidéo inventés",
+          "passe": null,
+          "detail": "étape « analyse » non aboutie (blocked · UNSUPPORTED_CAPABILITY)"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "0762bfdc-940e-4b20-9c9b-49685eab685e"
+      ],
+      "dossier": "F13"
+    },
+    {
+      "cas": "F14",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F14.textes_vides",
+          "description": "Aucun texte à l’écran dans les plans",
+          "passe": true,
+          "detail": "0 plan(s) avec texte"
+        },
+        {
+          "id": "F14.sans_overlay",
+          "description": "Aucun calque de texte demandé",
+          "passe": true,
+          "detail": "needsDeterministicOverlay=false"
+        }
+      ],
+      "fiche": true,
+      "runIds": [
+        "176ace3e-af50-4fe0-a507-775a5b1f9dc9",
+        "69126c64-2f5c-48df-9e4f-d1d209ad21fc"
+      ],
+      "dossier": "F14"
+    },
+    {
+      "cas": "F15",
+      "statut": "bloque_capacite",
+      "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+      "invariants": [
+        {
+          "id": "F15.etiquette_protegee",
+          "description": "Étiquette fine protégée dans la consigne",
+          "passe": true,
+          "detail": "composants : flacon transparent, étiquette fine"
+        }
+      ],
+      "fiche": true,
+      "runIds": [
+        "74a7d088-474b-4b1d-969e-aae97fcb1e0e",
+        "527104b0-bf4c-4538-b3b7-4dc3dc8cd658",
+        "38e11f30-6988-4911-abe8-8b302f70d38c"
+      ],
+      "dossier": "F15"
+    },
+    {
+      "cas": "F16",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F16.bloque_avant_appel",
+          "description": "Bloqué avant appel faute de capacité lipsync",
+          "passe": true,
+          "detail": "blocked LIPSYNC_SANS_CAPACITE"
+        },
+        {
+          "id": "F16.zero_job_media",
+          "description": "Aucun job ni média",
+          "passe": true,
+          "detail": "inchangés : jobs, medias"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "e00cd389-c0d6-4f13-837c-5f6ad7ea0efb"
+      ],
+      "dossier": "F16"
+    },
+    {
+      "cas": "F17",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F17.lot_borne",
+          "description": "≤ 12 propositions et count = items.length, ou sélection demandée",
+          "passe": true,
+          "detail": "12 lignes, count=12"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "23c6ccae-5c02-4f7d-81b8-59a3e0b1c52f"
+      ],
+      "dossier": "F17"
+    },
+    {
+      "cas": "F18",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F18.sans_etirement",
+          "description": "Produit sans étirement (proportions ± 1 px)",
+          "passe": true,
+          "detail": "600×450, hauteur attendue 450.0"
+        },
+        {
+          "id": "F18.texte_complet",
+          "description": "Texte du titre complet",
+          "passe": true,
+          "detail": "identique"
+        },
+        {
+          "id": "F18.zones_sures",
+          "description": "Titre et produit dans la zone sûre du format cible",
+          "passe": true,
+          "detail": "format cible atteint"
+        }
+      ],
+      "fiche": true,
+      "runIds": [
+        "4c182524-2308-483e-bee2-e53a4d17c377"
+      ],
+      "dossier": "F18"
+    },
+    {
+      "cas": "F19",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F19.source_a_rejetee",
+          "description": "La source de la marque A est rejetée avant appel",
+          "passe": true,
+          "detail": "blocked SOURCE_NON_AUTORISEE"
+        },
+        {
+          "id": "F19.aucun_transfert",
+          "description": "Aucune allégation de A dans les sorties pour B",
+          "passe": true,
+          "detail": "aucune allégation ni source de A"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "cdf3f6aa-21e2-4a3f-b9d1-32e165a38243",
+        "ee34d59c-5f25-4c64-904b-47104132d12b",
+        "b31d4e12-f420-4b35-84ab-4a68a1b4f9b8"
+      ],
+      "dossier": "F19"
+    },
+    {
+      "cas": "F20",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F20.traits_imposes",
+          "description": "Traits immuables du personnage imposés à chaque animation",
+          "passe": true,
+          "detail": "3 trait(s) imposé(s) à 2 animation(s)"
+        },
+        {
+          "id": "F20.deux_cadrages",
+          "description": "Deux plans aux cadrages distincts",
+          "passe": true,
+          "detail": "2 plan(s), 2 cadrage(s)"
+        }
+      ],
+      "fiche": true,
+      "runIds": [
+        "e6887914-92f8-4857-adff-6b38ac7b1298",
+        "0c1ba3d3-8c69-4399-8d10-bf09b074122c",
+        "1adfe739-9897-4889-a95f-da90c3cab32b",
+        "2e924405-6b94-4a98-8cbb-a43127413349"
+      ],
+      "dossier": "F20"
+    },
+    {
+      "cas": "F21",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F21.intention_informative",
+          "description": "Intention inspect ou help",
+          "passe": true,
+          "detail": "intention help"
+        },
+        {
+          "id": "F21.aucune_cible",
+          "description": "Aucune cible, ni ancienne ni inventée",
+          "passe": true,
+          "detail": "0 cible(s)"
+        },
+        {
+          "id": "F21.aucune_mutation",
+          "description": "Aucune mutation en base",
+          "passe": true,
+          "detail": "inchangés : versions, jobs, devis, approbations, medias, credits"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "5888267d-9f5a-4f3f-974a-e48c477e868f"
+      ],
+      "dossier": "F21"
+    },
+    {
+      "cas": "F22",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F22.au_plus_3",
+          "description": "Au plus 3 hypothèses",
+          "passe": true,
+          "detail": "2 hypothèse(s)"
+        },
+        {
+          "id": "F22.metriques_existantes",
+          "description": "Métriques prises parmi celles disponibles",
+          "passe": true,
+          "detail": "métriques existantes"
+        },
+        {
+          "id": "F22.sans_causalite_garantie",
+          "description": "Aucune causalité garantie",
+          "passe": true,
+          "detail": "formulations prudentes"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "707d67a9-276a-4ed0-abe6-6d5e692c4239"
+      ],
+      "dossier": "F22"
+    },
+    {
+      "cas": "F23",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F23.au_plus_12",
+          "description": "Au plus 12 concepts",
+          "passe": true,
+          "detail": "3 concept(s)"
+        },
+        {
+          "id": "F23.aucune_preuve_inventee",
+          "description": "Aucun avis, témoignage ni chiffre inventé",
+          "passe": true,
+          "detail": "aucune preuve inventée"
+        }
+      ],
+      "fiche": true,
+      "runIds": [
+        "bd2ba992-fe2a-4b13-b079-b6d0070281ed"
+      ],
+      "dossier": "F23"
+    },
+    {
+      "cas": "F24",
+      "statut": "execute",
+      "motif": null,
+      "invariants": [
+        {
+          "id": "F24.instrumental",
+          "description": "Musique instrumentale (aucune parole)",
+          "passe": true,
+          "detail": "instrumental=true"
+        },
+        {
+          "id": "F24.duree",
+          "description": "Durée ciblée conservée",
+          "passe": true,
+          "detail": "15000 ms pour 15000"
+        },
+        {
+          "id": "F24.licenciee",
+          "description": "Musique prise au catalogue licencié",
+          "passe": true,
+          "detail": "suggérées : musique_calme_lic_1"
+        },
+        {
+          "id": "F24.voix_intacte",
+          "description": "Narration intacte (empreinte relue après mixage)",
+          "passe": true,
+          "detail": "ac72cab44eea → ac72cab44eea"
+        }
+      ],
+      "fiche": false,
+      "runIds": [
+        "07078cd8-266b-404f-b8ee-fcf5b137a26d"
+      ],
+      "dossier": "F24"
+    }
+  ],
+  "verdict": {
+    "mode": "simule",
+    "statut": "INCOMPLET",
+    "evaluationReelle": false,
+    "approuvable": false,
+    "invariants": {
+      "total": 51,
+      "passes": 48,
+      "echoues": 0,
+      "nonEvaluables": 3
+    },
+    "moyenne": null,
+    "sortiesNotees": 0,
+    "critiquesAcceptes": 0,
+    "casEchoues": [],
+    "casIncomplets": [
+      "F01",
+      "F02",
+      "F07",
+      "F12",
+      "F13",
+      "F15"
+    ],
+    "revuesManquantes": [
+      "F01",
+      "F02",
+      "F05",
+      "F14",
+      "F15",
+      "F18",
+      "F20",
+      "F23"
+    ],
+    "motifs": [
+      "cas incomplets : F01, F02, F07, F12, F13, F15",
+      "campagne SIMULÉE · ne vaut jamais évaluation réelle"
+    ]
+  },
+  "empreinte": "da81d6a7fecdae8f51df42ace93d2951caef0a5f80c62a37badf8a23587329bd"
+}

@@ -1,0 +1,35 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F24",
+  "titre": "Musique instrumentale",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F24.instrumental",
+      "description": "Musique instrumentale (aucune parole)",
+      "passe": true,
+      "detail": "instrumental=true"
+    },
+    {
+      "id": "F24.duree",
+      "description": "Durée ciblée conservée",
+      "passe": true,
+      "detail": "15000 ms pour 15000"
+    },
+    {
+      "id": "F24.licenciee",
+      "description": "Musique prise au catalogue licencié",
+      "passe": true,
+      "detail": "suggérées : musique_calme_lic_1"
+    },
+    {
+      "id": "F24.voix_intacte",
+      "description": "Narration intacte (empreinte relue après mixage)",
+      "passe": true,
+      "detail": "ac72cab44eea → ac72cab44eea"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

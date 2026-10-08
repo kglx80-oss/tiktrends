@@ -1,0 +1,231 @@
+{
+  "format": "jeu-synthetique-benchmark-studios/1",
+  "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+  "medias": [
+    {
+      "id": "f01-lunettes-bleues",
+      "fichier": "f01-lunettes-bleues.png",
+      "mime": "image/png",
+      "description": "Lunettes synthétiques bleues (calque produit)",
+      "cas": [
+        "F01",
+        "F07"
+      ],
+      "largeur": 240,
+      "hauteur": 120,
+      "dureeMs": null,
+      "octets": 687,
+      "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+      "contenuSha256": "eed502da43ab376d52b8e1fd6e9c6f0567ff052d1dd5f618c6b13283e3de84df",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f01-bandeau-bleu",
+      "fichier": "f01-bandeau-bleu.png",
+      "mime": "image/png",
+      "description": "Bandeau bleu requis (accessoire)",
+      "cas": [
+        "F01"
+      ],
+      "largeur": 240,
+      "hauteur": 60,
+      "dureeMs": null,
+      "octets": 231,
+      "sha256": "8592ace707e40fe83b0b620fde016e7bd4d301d78a5a0d3bcf1accf46466d060",
+      "contenuSha256": "a938468d387907503649812f8aac531d7ac4b6e508959db5043f08eadf0d3610",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f02-produit-bleu",
+      "fichier": "f02-produit-bleu.png",
+      "mime": "image/png",
+      "description": "Produit bleu à la matière protégée",
+      "cas": [
+        "F02"
+      ],
+      "largeur": 160,
+      "hauteur": 160,
+      "dureeMs": null,
+      "octets": 684,
+      "sha256": "fe13d627f211414434a4becdfbad8d053787815366bcf9037ebc3d77add52671",
+      "contenuSha256": "5ca7be09c9f403bce2c14e151ace76ab4a84f463db5c9a3d0956230eaf686521",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f02-reference-clay",
+      "fichier": "f02-reference-clay.png",
+      "mime": "image/png",
+      "description": "Référence clay contaminante : silhouette et logo tiers dessinés",
+      "cas": [
+        "F02"
+      ],
+      "largeur": 256,
+      "hauteur": 256,
+      "dureeMs": null,
+      "octets": 1059,
+      "sha256": "e0cbb5f65d315e45aaf5f434b061d75d0ea45c7a188639d41bd8aa95a8d4f88c",
+      "contenuSha256": "cc635c8390b030a60009da186188c67f77005ce88a758ecb83d9e17a1685f738",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f05-etalon",
+      "fichier": "f05-etalon.png",
+      "mime": "image/png",
+      "description": "Image étalon : quadrillage interne et rectangle gauche",
+      "cas": [
+        "F05"
+      ],
+      "largeur": 256,
+      "hauteur": 256,
+      "dureeMs": null,
+      "octets": 1293,
+      "sha256": "ada53e82e424d5c6f15246334078f580859fce2711920d23018c8d695a8ee887",
+      "contenuSha256": "d2df6c4f100317b692178295953b98255a5f9ac972140a1421f8ca84256cd7e7",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f05-masque",
+      "fichier": "f05-masque.png",
+      "mime": "image/png",
+      "description": "Masque du rectangle gauche (blanc = zone retouchable)",
+      "cas": [
+        "F05"
+      ],
+      "largeur": 256,
+      "hauteur": 256,
+      "dureeMs": null,
+      "octets": 903,
+      "sha256": "0488b9b0556272fe1a107eb7a4857dbebbfdf3d4ef451d00908972375d143282",
+      "contenuSha256": "057a28fb44cde3b385828e492504bdc03bc3fa561475d245facaebacb0d3f820",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f06-produit",
+      "fichier": "f06-produit.png",
+      "mime": "image/png",
+      "description": "Produit 400×300 pour la géométrie exacte",
+      "cas": [
+        "F06",
+        "F14"
+      ],
+      "largeur": 400,
+      "hauteur": 300,
+      "dureeMs": null,
+      "octets": 1054,
+      "sha256": "fe8e558cffa3aaa1525e932775e99c608357398728947e726fa3e5d32cb6cc2f",
+      "contenuSha256": "38253538ebe2d36934d420b5a1e434055e90940e008b1843df1635ae4eed295e",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f07-boite",
+      "fichier": "f07-boite.png",
+      "mime": "image/png",
+      "description": "Sortie fautive : une boîte au lieu des lunettes",
+      "cas": [
+        "F07"
+      ],
+      "largeur": 256,
+      "hauteur": 256,
+      "dureeMs": null,
+      "octets": 942,
+      "sha256": "e27473d60f5035036ac236a593d670fd7cc54f1ef6eb1ee45f66dd85c10f11d9",
+      "contenuSha256": "a7df4dc6df270decac672436a78ee16966ba216c3d61d8316f57a0ace936295c",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f13-affiche",
+      "fichier": "f13-affiche.png",
+      "mime": "image/png",
+      "description": "Source image seule, sans audio ni vidéo",
+      "cas": [
+        "F13"
+      ],
+      "largeur": 256,
+      "hauteur": 256,
+      "dureeMs": null,
+      "octets": 1068,
+      "sha256": "cfe1f7fd83f1aff80514f62bc700602d0e9aad9fe580fe4facc56c4c842e4a72",
+      "contenuSha256": "a0f141d6191211409b5b364d3220609aa7e547673659cb6332db97244c8132cf",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f15-flacon",
+      "fichier": "f15-flacon.png",
+      "mime": "image/png",
+      "description": "Flacon transparent à l’étiquette fine",
+      "cas": [
+        "F15"
+      ],
+      "largeur": 200,
+      "hauteur": 300,
+      "dureeMs": null,
+      "octets": 906,
+      "sha256": "7cf266ba3cbcf6336f2847d25a2951dab7588614d15e5c437f975d0803b65071",
+      "contenuSha256": "6b6d9811c09d1b4e0d387654ff5e857db9e6c84699b8f908ca1b639d13c43031",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f20-personnage",
+      "fichier": "f20-personnage.png",
+      "mime": "image/png",
+      "description": "Personnage original : cheveux courts noirs, veste verte, flacon tenu",
+      "cas": [
+        "F16",
+        "F20"
+      ],
+      "largeur": 200,
+      "hauteur": 300,
+      "dureeMs": null,
+      "octets": 989,
+      "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+      "contenuSha256": "2de6cb21f18aedf000fc8d13bcf9e0568e23356dad5831d4bb12a1774c333ab7",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "raster du noyau (packages/core/src/studios/benchmark/raster.ts) + sharp PNG"
+    },
+    {
+      "id": "f09-narration",
+      "fichier": "f09-narration.wav",
+      "mime": "audio/wav",
+      "description": "Narration existante du projet de F09 (sinusoïde 440 Hz, 1 s)",
+      "cas": [
+        "F09"
+      ],
+      "largeur": null,
+      "hauteur": null,
+      "dureeMs": 1000,
+      "octets": 16044,
+      "sha256": "03bdffca899373ff48458ba2c658718abf3e83544a9989e873e05cb990e230b9",
+      "contenuSha256": "03bdffca899373ff48458ba2c658718abf3e83544a9989e873e05cb990e230b9",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "WAV PCM écrit par code"
+    },
+    {
+      "id": "f24-narration",
+      "fichier": "f24-narration.wav",
+      "mime": "audio/wav",
+      "description": "Narration à conserver de F24 (sinusoïde 330 Hz, 1 s)",
+      "cas": [
+        "F16",
+        "F24"
+      ],
+      "largeur": null,
+      "hauteur": null,
+      "dureeMs": 1000,
+      "octets": 16044,
+      "sha256": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5",
+      "contenuSha256": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5",
+      "droits": "Créé pour le test par le lot F-C · synthétique, dessiné par code · aucune source client, marque, personne ni contenu tiers · usage interne de recette.",
+      "generateur": "WAV PCM écrit par code"
+    }
+  ]
+}

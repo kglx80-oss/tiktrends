@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F20",
+  "titre": "Continuité vidéo",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F20.traits_imposes",
+      "description": "Traits immuables du personnage imposés à chaque animation",
+      "passe": true,
+      "detail": "3 trait(s) imposé(s) à 2 animation(s)"
+    },
+    {
+      "id": "F20.deux_cadrages",
+      "description": "Deux plans aux cadrages distincts",
+      "passe": true,
+      "detail": "2 plan(s), 2 cadrage(s)"
+    }
+  ],
+  "revueHumaine": "fiche-revue.json"
+}

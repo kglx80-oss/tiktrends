@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F23",
+  "titre": "Concepts sourcés",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F23.au_plus_12",
+      "description": "Au plus 12 concepts",
+      "passe": true,
+      "detail": "3 concept(s)"
+    },
+    {
+      "id": "F23.aucune_preuve_inventee",
+      "description": "Aucun avis, témoignage ni chiffre inventé",
+      "passe": true,
+      "detail": "aucune preuve inventée"
+    }
+  ],
+  "revueHumaine": "fiche-revue.json"
+}

@@ -1,0 +1,74 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F18",
+  "titre": "Format mobile",
+  "oracleAttendu": "Aucun étirement produit, texte complet zones sûres",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "adaptation",
+      "sortie": 0,
+      "template": "format.adapt",
+      "taskInputsSha256": "be2f5fe98debe299f47d1cc073cd60df5dbffd996b416dfcde0fd232d6b93feb",
+      "taskInputs": {
+        "documentVersion": "bench-F18-v1",
+        "targetFormat": "9:16",
+        "allowedPaths": [
+          "/canvas/hauteur",
+          "/calques/produit/y",
+          "/calques/titre/y"
+        ],
+        "safeZoneProfileId": "mobile-9-16"
+      },
+      "contexte": {
+        "projectVersionId": "bench-F18-v1",
+        "allowedPaths": [
+          "/canvas/hauteur",
+          "/calques/produit/y",
+          "/calques/titre/y"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "document": {
+      "canvas": {
+        "largeur": 1080,
+        "hauteur": 1080
+      },
+      "calques": {
+        "produit": {
+          "x": 240,
+          "y": 300,
+          "largeur": 600,
+          "hauteur": 450
+        },
+        "titre": {
+          "x": 90,
+          "y": 60,
+          "largeur": 900,
+          "hauteur": 160,
+          "texte": "Une crème légère qui tient toute la journée, sans effet gras, pour toutes les peaux."
+        }
+      }
+    },
+    "allowedPaths": [
+      "/canvas/hauteur",
+      "/calques/produit/y",
+      "/calques/titre/y"
+    ],
+    "zoneSure": {
+      "x": 60,
+      "y": 220,
+      "largeur": 960,
+      "hauteur": 1480
+    },
+    "cible": {
+      "largeur": 1080,
+      "hauteur": 1920
+    }
+  }
+}

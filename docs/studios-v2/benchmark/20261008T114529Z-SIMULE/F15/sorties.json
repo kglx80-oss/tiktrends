@@ -1,0 +1,127 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F15",
+  "titre": "Produit transparent",
+  "etapes": [
+    {
+      "etapeId": "compile",
+      "templateKey": "image.compile",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "generationInstruction": "Fond minéral clair derrière le flacon, transparence conservée.",
+        "negativeConstraints": [
+          "ne pas opacifier le flacon"
+        ],
+        "referenceBindings": [
+          {
+            "referenceId": "f15-flacon",
+            "role": "product",
+            "scope": "product"
+          }
+        ],
+        "protectedComponents": [
+          "flacon transparent",
+          "étiquette fine"
+        ],
+        "needsDeterministicOverlay": false
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "74a7d088-474b-4b1d-969e-aae97fcb1e0e",
+      "resultSha256": "d6977b4b01b3a2ed7084a0a51603199be27156209a0aa825308a3f239c4f628b",
+      "fichiers": []
+    },
+    {
+      "etapeId": "generation",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/generation-1-1.png",
+          "sha256": "c904c47e545b64f8ec018211772ba399c0ec78e5aad6dc13466b3a65d6f60adb",
+          "largeur": 160,
+          "hauteur": 200
+        }
+      ]
+    },
+    {
+      "etapeId": "qualite",
+      "templateKey": "quality.visual",
+      "sortie": 0,
+      "statut": "blocked",
+      "code": "UNSUPPORTED_CAPABILITY",
+      "result": null,
+      "questions": [
+        "Profil « vision_analysis » non routé dans ce lot · aucun fournisseur de repli."
+      ],
+      "warnings": [],
+      "runId": "527104b0-bf4c-4538-b3b7-4dc3dc8cd658",
+      "resultSha256": null,
+      "fichiers": []
+    },
+    {
+      "etapeId": "generation",
+      "templateKey": null,
+      "sortie": 1,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/generation-2-1.png",
+          "sha256": "ef8f3ce3b7ecfc6a1d0cee17c826a44187baad61851a47b54b842ff05cb915a7",
+          "largeur": 160,
+          "hauteur": 200
+        }
+      ]
+    },
+    {
+      "etapeId": "qualite",
+      "templateKey": "quality.visual",
+      "sortie": 1,
+      "statut": "blocked",
+      "code": "UNSUPPORTED_CAPABILITY",
+      "result": null,
+      "questions": [
+        "Profil « vision_analysis » non routé dans ce lot · aucun fournisseur de repli."
+      ],
+      "warnings": [],
+      "runId": "38e11f30-6988-4911-abe8-8b302f70d38c",
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

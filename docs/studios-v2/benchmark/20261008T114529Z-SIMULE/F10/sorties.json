@@ -1,0 +1,57 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F10",
+  "titre": "Données insuffisantes",
+  "etapes": [
+    {
+      "etapeId": "relecture",
+      "templateKey": "learning.review",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "verdict": "inconclusive",
+        "observations": [
+          {
+            "id": "observation_1",
+            "claim": "Aucune impression mesurée sur la période.",
+            "sourceIds": [],
+            "kind": "declared",
+            "confidence": "high"
+          }
+        ],
+        "confounders": [
+          "dépense non fiable"
+        ],
+        "learning": "Rien ne peut être conclu sans exposition.",
+        "nextVariable": "",
+        "recommendedAction": "Relancer le test avec une diffusion mesurée."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "72a00543-4d31-455e-8435-cfa89fbc7f3d",
+      "resultSha256": "2a4b51b308c7115141ee97cdb0e9bcc5ec788a31793eb975e76d464f5aeb5473",
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

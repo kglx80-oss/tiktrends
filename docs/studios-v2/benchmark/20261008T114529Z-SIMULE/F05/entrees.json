@@ -1,0 +1,73 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F05",
+  "titre": "Retouche masquée",
+  "oracleAttendu": "Aucun pixel hors masque changé avant encodage",
+  "jeuSynthetique": [
+    {
+      "id": "f05-etalon",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f05-etalon.png",
+      "sha256": "ada53e82e424d5c6f15246334078f580859fce2711920d23018c8d695a8ee887",
+      "contenuSha256": "d2df6c4f100317b692178295953b98255a5f9ac972140a1421f8ca84256cd7e7"
+    },
+    {
+      "id": "f05-masque",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f05-masque.png",
+      "sha256": "0488b9b0556272fe1a107eb7a4857dbebbfdf3d4ef451d00908972375d143282",
+      "contenuSha256": "057a28fb44cde3b385828e492504bdc03bc3fa561475d245facaebacb0d3f820"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "consigne",
+      "sortie": 0,
+      "template": "edit.mask",
+      "taskInputsSha256": "bc2dc752e9d2b641473831698fb037348565e2bfc47c18eebbc1cecd86720832",
+      "taskInputs": {
+        "assetId": "f05-etalon",
+        "maskAssetId": "f05-masque",
+        "request": "Ajouter une étoile dans le rectangle gauche.",
+        "allowedChanges": [
+          "étoile dans la zone masquée"
+        ]
+      },
+      "contexte": {
+        "mediaBindings": [
+          {
+            "bindingId": "b_f05-etalon",
+            "assetId": "f05-etalon",
+            "assetVersion": "v1",
+            "sha256": "ada53e82e424d5c6f15246334078f580859fce2711920d23018c8d695a8ee887",
+            "role": "source",
+            "modality": "image",
+            "derivation": "original",
+            "nativeAttachmentIndex": 0,
+            "coverageDescription": "image entière"
+          },
+          {
+            "bindingId": "b_f05-masque",
+            "assetId": "f05-masque",
+            "assetVersion": "v1",
+            "sha256": "0488b9b0556272fe1a107eb7a4857dbebbfdf3d4ef451d00908972375d143282",
+            "role": "masque",
+            "modality": "image",
+            "derivation": "original",
+            "nativeAttachmentIndex": 1,
+            "coverageDescription": "image entière"
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "zone": {
+      "x": 16,
+      "y": 64,
+      "largeur": 96,
+      "hauteur": 128
+    }
+  }
+}

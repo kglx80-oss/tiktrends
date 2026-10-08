@@ -1,0 +1,122 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F19",
+  "titre": "Sources concurrentes",
+  "oracleAttendu": "Aucun transfert allégation A→B ; source non autorisée rejetée",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "extraction_a",
+      "sortie": 0,
+      "template": "brand.extract",
+      "taskInputsSha256": "ddb1d4df0be06d7acffb59c104b5b5a416a0d395e22a45106f3e2fd52438ef49",
+      "taskInputs": {
+        "sourceIds": [
+          "src_marque_A"
+        ],
+        "declaredFacts": []
+      },
+      "contexte": {
+        "sources": [
+          {
+            "sourceId": "src_marque_B",
+            "version": "v1",
+            "titre": "Fiche produit B",
+            "text": "Fiche produit de la marque B : sérum hydratant, flacon de 30 ml."
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "extraction_b",
+      "sortie": 0,
+      "template": "brand.extract",
+      "taskInputsSha256": "b75ae1f6606077c18dd7afd55f055ce09e8519ecf9f1da160fc1b523aae09bbb",
+      "taskInputs": {
+        "sourceIds": [
+          "src_marque_B"
+        ],
+        "declaredFacts": []
+      },
+      "contexte": {
+        "sources": [
+          {
+            "sourceId": "src_marque_B",
+            "version": "v1",
+            "titre": "Fiche produit B",
+            "text": "Fiche produit de la marque B : sérum hydratant, flacon de 30 ml."
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "fact_1",
+            "entityType": "fact",
+            "ordinal": 0
+          },
+          {
+            "id": "fact_2",
+            "entityType": "fact",
+            "ordinal": 1
+          },
+          {
+            "id": "fact_3",
+            "entityType": "fact",
+            "ordinal": 2
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "brief",
+      "sortie": 0,
+      "template": "brief.build",
+      "taskInputsSha256": "b3699723f6c8054cff4571656efe82e6dc0815042f1d825eb7cbae7b79cfabf5",
+      "taskInputs": {
+        "request": "Brief pour le sérum de la marque B.",
+        "hypothesisId": null,
+        "selectedReferences": [],
+        "requestedFormats": [
+          "4:5"
+        ]
+      },
+      "contexte": {
+        "sources": [
+          {
+            "sourceId": "src_marque_B",
+            "version": "v1",
+            "titre": "Fiche produit B",
+            "text": "Fiche produit de la marque B : sérum hydratant, flacon de 30 ml."
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "fact_1",
+            "entityType": "fact",
+            "ordinal": 0
+          },
+          {
+            "id": "fact_2",
+            "entityType": "fact",
+            "ordinal": 1
+          },
+          {
+            "id": "fact_3",
+            "entityType": "fact",
+            "ordinal": 2
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "sourceA": "src_marque_A",
+    "allegationA": "rides réduites en 7 jours"
+  }
+}

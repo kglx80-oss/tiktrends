@@ -1,0 +1,42 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F13",
+  "titre": "Image seule",
+  "etapes": [
+    {
+      "etapeId": "analyse",
+      "templateKey": "source.analyze",
+      "sortie": 0,
+      "statut": "blocked",
+      "code": "UNSUPPORTED_CAPABILITY",
+      "result": null,
+      "questions": [
+        "Profil « vision_analysis » non routé dans ce lot · aucun fournisseur de repli."
+      ],
+      "warnings": [],
+      "runId": "0762bfdc-940e-4b20-9c9b-49685eab685e",
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

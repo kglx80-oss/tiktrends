@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F14",
+  "titre": "Sans texte",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F14.textes_vides",
+      "description": "Aucun texte à l’écran dans les plans",
+      "passe": true,
+      "detail": "0 plan(s) avec texte"
+    },
+    {
+      "id": "F14.sans_overlay",
+      "description": "Aucun calque de texte demandé",
+      "passe": true,
+      "detail": "needsDeterministicOverlay=false"
+    }
+  ],
+  "revueHumaine": "fiche-revue.json"
+}

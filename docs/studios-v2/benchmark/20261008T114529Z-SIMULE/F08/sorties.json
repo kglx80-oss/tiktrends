@@ -1,0 +1,51 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F08",
+  "titre": "Narration exacte",
+  "etapes": [
+    {
+      "etapeId": "voix",
+      "templateKey": "voice.prepare",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "spokenText": "Lumea Verre 3 · 92 % des testeuses la recommandent (étude interne Lumea, 2026).",
+        "voiceId": "voix-claire-fr",
+        "language": "fr",
+        "deliveryNotes": "Débit posé, pause après « Verre 3 ».",
+        "pronunciations": [
+          {
+            "text": "Lumea",
+            "pronunciation": "lu-mé-a"
+          }
+        ]
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "d245429f-9085-43e3-aa31-a742b17863e7",
+      "resultSha256": "bd3071eca07f942e5642f67b8456356b2aea27e2001a1c6b8a36042c5522ef6e",
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

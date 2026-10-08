@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F10",
+  "titre": "Données insuffisantes",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "72a00543-4d31-455e-8435-cfa89fbc7f3d"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "relecture",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "relecture",
+      "role": "system",
+      "sha256": "8cf71605d9cfe8b2fd113d701deebbbaf61d11267c27ab0fd7868e2d36a5babf",
+      "caracteres": 2639
+    },
+    {
+      "etape": "relecture",
+      "role": "user",
+      "sha256": "9a0821c53c2bab9fa46f7a2175edd7e75ad58714b770bee31bb35f3912837c34",
+      "caracteres": 1648
+    }
+  ]
+}

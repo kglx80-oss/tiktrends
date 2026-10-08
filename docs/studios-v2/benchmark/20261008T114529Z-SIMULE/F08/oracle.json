@@ -1,0 +1,17 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F08",
+  "titre": "Narration exacte",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F08.texte_identique",
+      "description": "spokenText égal caractère par caractère à l’entrée",
+      "passe": true,
+      "detail": "identique"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

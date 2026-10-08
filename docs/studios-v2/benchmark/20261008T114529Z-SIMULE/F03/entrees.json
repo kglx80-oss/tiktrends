@@ -1,0 +1,125 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F03",
+  "titre": "Contradiction identité",
+  "oracleAttendu": "blocked avant devis ; conflit explicite",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "coherence",
+      "sortie": 0,
+      "template": "quality.consistency",
+      "taskInputsSha256": "75b05f4cba98b9886060bc4d9d1d9f0c69254e324ffdd463bfb44a8ca96d0bd3",
+      "taskInputs": {
+        "targetIds": [
+          "fiche_identite_F03",
+          "plan_F03"
+        ],
+        "validatedFacts": [
+          {
+            "id": "fait_tenue_verte",
+            "claim": "La tenue du personnage est verte.",
+            "sourceIds": [],
+            "kind": "declared",
+            "confidence": "high"
+          }
+        ],
+        "protectedAttributes": [
+          "tenue verte"
+        ]
+      },
+      "contexte": {
+        "facts": [
+          {
+            "id": "fait_tenue_verte",
+            "claim": "La tenue du personnage est verte.",
+            "sourceIds": [],
+            "kind": "declared",
+            "confidence": "high"
+          }
+        ],
+        "resolvedDocuments": [
+          {
+            "id": "fiche_identite_F03",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "fiche_identite_F03",
+              "claim": "Fiche identité validée : tenue verte.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "eb812659b1266979cd74e7e93e2499ae67c1c284f51b6b53ba17c3e556230e62"
+          },
+          {
+            "id": "plan_F03",
+            "version": "v1",
+            "schemaKey": "Shot",
+            "content": {
+              "shotId": "plan_F03",
+              "purpose": "Plan du benchmark",
+              "subject": "Personnage en tenue jaune",
+              "action": "Tenu en main",
+              "framing": "plan moyen",
+              "camera": "fixe",
+              "lighting": "lumière douce",
+              "environment": "studio neutre",
+              "referenceIds": [],
+              "narration": "Elle porte sa tenue jaune.",
+              "onScreenText": [],
+              "speechMode": "none",
+              "estimatedDurationMs": 3000
+            },
+            "sha256": "f469159e8e14c97eec22f11c18800b4a8c14ca8f62af23c7a9b1698c6686fb7b"
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "plan",
+      "sortie": 0,
+      "template": "shot.image",
+      "taskInputsSha256": "1fae53261609fb721a62cb1dacf75864daaba075b086091a02f573d120379fef",
+      "taskInputs": {
+        "shotId": "plan_F03",
+        "referenceIds": [],
+        "identityVersion": "identite-v1"
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "plan_F03",
+            "version": "v1",
+            "schemaKey": "Shot",
+            "content": {
+              "shotId": "plan_F03",
+              "purpose": "Plan du benchmark",
+              "subject": "Personnage en tenue jaune",
+              "action": "Tenu en main",
+              "framing": "plan moyen",
+              "camera": "fixe",
+              "lighting": "lumière douce",
+              "environment": "studio neutre",
+              "referenceIds": [],
+              "narration": "",
+              "onScreenText": [],
+              "speechMode": "none",
+              "estimatedDurationMs": 3000
+            },
+            "sha256": "25946fb45dc1e552a11592d7679ed36b079605dd3300b6ab8b9a89f4cc3ef92f"
+          }
+        ],
+        "invariants": [
+          "Tenue verte (fiche identité validée)"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}

@@ -1,0 +1,102 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F20",
+  "titre": "Continuité vidéo",
+  "depenseUsdMicros": 0,
+  "note": "Aucune dépense : fournisseurs simulés. Le devis dit ce que ce cas coûterait au plus en réel.",
+  "devis": [
+    {
+      "etapeId": "personnage",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "character.spec",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "storyboard",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "storyboard.plan",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "images_cles",
+      "sortie": 0,
+      "nature": "media",
+      "cle": "image_generation",
+      "modele": null,
+      "unites": 2,
+      "usdMicros": 160000,
+      "source": "CREDIT_COSTS.image · FIXED_COSTS.fal_image",
+      "motif": null
+    },
+    {
+      "etapeId": "animation",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "animation.compile",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "clips",
+      "sortie": 0,
+      "nature": "media",
+      "cle": "animation",
+      "modele": null,
+      "unites": 2,
+      "usdMicros": 1200000,
+      "source": "CREDIT_COSTS.video · FIXED_COSTS.fal_video",
+      "motif": null
+    },
+    {
+      "etapeId": "images_cles",
+      "sortie": 1,
+      "nature": "media",
+      "cle": "image_generation",
+      "modele": null,
+      "unites": 2,
+      "usdMicros": 160000,
+      "source": "CREDIT_COSTS.image · FIXED_COSTS.fal_image",
+      "motif": null
+    },
+    {
+      "etapeId": "animation",
+      "sortie": 1,
+      "nature": "tache",
+      "cle": "animation.compile",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "clips",
+      "sortie": 1,
+      "nature": "media",
+      "cle": "animation",
+      "modele": null,
+      "unites": 2,
+      "usdMicros": 1200000,
+      "source": "CREDIT_COSTS.video · FIXED_COSTS.fal_video",
+      "motif": null
+    }
+  ],
+  "totalDevisUsdMicros": 3248000,
+  "limites": [
+    "animation.compile est appelé une fois par sortie et couvre les deux cadrages par ses contraintes."
+  ]
+}

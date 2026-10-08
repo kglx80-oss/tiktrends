@@ -1,0 +1,120 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F19",
+  "titre": "Sources concurrentes",
+  "etapes": [
+    {
+      "etapeId": "extraction_a",
+      "templateKey": "brand.extract",
+      "sortie": 0,
+      "statut": "blocked",
+      "code": "SOURCE_NON_AUTORISEE",
+      "result": null,
+      "questions": [
+        "Source « src_marque_A » non autorisée pour cette tâche."
+      ],
+      "warnings": [],
+      "runId": "cdf3f6aa-21e2-4a3f-b9d1-32e165a38243",
+      "resultSha256": null,
+      "fichiers": []
+    },
+    {
+      "etapeId": "extraction_b",
+      "templateKey": "brand.extract",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "facts": [
+          {
+            "id": "fact_1",
+            "claim": "Sérum hydratant en flacon de 30 ml.",
+            "sourceIds": [
+              "src_marque_B"
+            ],
+            "kind": "observed",
+            "confidence": "high"
+          }
+        ],
+        "tone": "sobre",
+        "audiences": [
+          "peaux sèches"
+        ],
+        "objections": [
+          "prix"
+        ],
+        "missingEvidence": [
+          "Aucun avis client fourni pour la marque B."
+        ]
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "ee34d59c-5f25-4c64-904b-47104132d12b",
+      "resultSha256": "5c2e5a177892d24b7768abd36e0f608e91dbf4be355ff9b81c9c2a31349d4021",
+      "fichiers": []
+    },
+    {
+      "etapeId": "brief",
+      "templateKey": "brief.build",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "objective": "Faire connaître le sérum B",
+        "audience": "peaux sèches",
+        "hypothesisId": null,
+        "testedVariable": "accroche",
+        "facts": [
+          {
+            "id": "fact_1",
+            "claim": "Sérum hydratant en flacon de 30 ml.",
+            "sourceIds": [
+              "src_marque_B"
+            ],
+            "kind": "observed",
+            "confidence": "high"
+          }
+        ],
+        "invariants": [],
+        "variables": [
+          "accroche"
+        ],
+        "references": [],
+        "composition": "Flacon au centre",
+        "styleIntent": "sobre",
+        "texts": [],
+        "formats": [
+          "4:5"
+        ],
+        "exclusions": [
+          "allégations de la marque A"
+        ]
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "b31d4e12-f420-4b35-84ab-4a68a1b4f9b8",
+      "resultSha256": "99a1c49f775fbba3e1fe0f10b679ac9d49bce10d20164289ee099e6f539d67f3",
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

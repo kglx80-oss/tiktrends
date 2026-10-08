@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F11",
+  "titre": "Allégation absente",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F11.aucune_promesse",
+      "description": "Aucune promesse « 50 % » ni preuve inventée",
+      "passe": true,
+      "detail": "aucune promesse ni source inventée"
+    },
+    {
+      "id": "F11.explicite",
+      "description": "Question posée ou suppression explicitée",
+      "passe": true,
+      "detail": "question ou avertissement présent"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

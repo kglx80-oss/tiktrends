@@ -1,0 +1,64 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F24",
+  "titre": "Musique instrumentale",
+  "etapes": [
+    {
+      "etapeId": "musique",
+      "templateKey": "music.prepare",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "generationInstruction": "Nappe instrumentale calme sous la narration.",
+        "instrumental": true,
+        "durationMs": 15000,
+        "suggestedAssetIds": [
+          "musique_calme_lic_1"
+        ]
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "07078cd8-266b-404f-b8ee-fcf5b137a26d",
+      "resultSha256": "1326942627e5937723f3eb67dba25fb8e9624212a679e6474e85cd1c04ee25b7",
+      "fichiers": []
+    },
+    {
+      "etapeId": "mixage",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {
+    "voixAvant": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5",
+    "mixSha256": "31b0570313922556e484fa84a3c86acf5bc6370576a24263a875c3ae161793c2",
+    "voixApres": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5"
+  },
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F06",
+  "titre": "Géométrie exacte",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "146534a9-2392-4cf8-ae7c-67566b8024f1"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "patch",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "patch",
+      "role": "system",
+      "sha256": "ef99574d61887f65a9451fcfd6b79903a5cf8e4f868bebe7734a18135fdb7565",
+      "caracteres": 2915
+    },
+    {
+      "etape": "patch",
+      "role": "user",
+      "sha256": "4317e4a36e16fbc22dc64d0c5e533ff059f690d21854d7c088abf5c4e65c5c75",
+      "caracteres": 832
+    }
+  ]
+}

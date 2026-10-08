@@ -1,0 +1,58 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F11",
+  "titre": "Allégation absente",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "7fe4d586-0180-4c2a-99a3-1de956173eb2",
+    "0fa5d214-0024-465e-a4e9-0a70e84ee99d"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "textes",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "textes",
+      "role": "system",
+      "sha256": "da736b055228500e605c97fa9dad5dee7671e3e6f399da10725bebf3c56d020a",
+      "caracteres": 2550
+    },
+    {
+      "etape": "textes",
+      "role": "user",
+      "sha256": "924b2ad31aa842d78d2845cae6f273a2c1ad5213f72810a0fe04c6413bd3531a",
+      "caracteres": 1053
+    },
+    {
+      "etape": "brief",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "brief",
+      "role": "system",
+      "sha256": "a376d8a4c8348a9be7ab4ca0588ed6b484cb8a30ecf4835cd439da51b87eca7d",
+      "caracteres": 2678
+    },
+    {
+      "etape": "brief",
+      "role": "user",
+      "sha256": "a63698ff36dc38df15bba1d8b0ec0c0e085fb24bced3e4cd33304b9af97f8268",
+      "caracteres": 642
+    }
+  ]
+}

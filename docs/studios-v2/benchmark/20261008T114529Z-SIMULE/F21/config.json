@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F21",
+  "titre": "Orientation sans sélection",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "5888267d-9f5a-4f3f-974a-e48c477e868f"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "route",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "route",
+      "role": "system",
+      "sha256": "45f46c7ca58584e879f8e62056c105f9a20664f62e7060b3d23de3483d6eca50",
+      "caracteres": 2653
+    },
+    {
+      "etape": "route",
+      "role": "user",
+      "sha256": "b3e1790a660c87627a1a53f1d94adb336e6b03c4e81cfbbe411314b2ba81f782",
+      "caracteres": 610
+    }
+  ]
+}
