@@ -28,7 +28,7 @@ import { CLE_CONSIGNES_PLANS, consigneRetenueDuPlan, entreesKeyframe } from '../
 import type { ConsigneImage } from '../produit/compilation';
 import { lireReferenceEpinglee } from '../produit/epinglage';
 import { parametresImageDuDevis, lireParametresImage, type ParametresImageSnapshot, type ReferenceParametres } from '../fournisseurs/fal-image';
-import type { ProfilOperation } from '../execution/tarifs';
+import { estLigneDeProduction, type ProfilLigne, type ProfilOperation } from '../execution/tarifs';
 import type { CodeErreurStudio } from '../erreurs';
 import type { ResolutionReference } from '../image/parcours';
 import { PLAN_IMAGE } from '../image/parcours';
@@ -264,10 +264,11 @@ export function verdictConsignePlan(e: {
 /* ──────────────────────────────── Devis ──────────────────────────────────── */
 
 /** Un devis qui contient l'image clé d'un plan vidéo se raccorde à sa consigne. */
-export function exigencePlansDuDevis(lignes: ReadonlyArray<{ operation: string; profil: ProfilOperation }>): { concerne: false } | { concerne: true; plans: string[]; horsImage: string[] } {
+export function exigencePlansDuDevis(lignes: ReadonlyArray<{ operation: string; profil: ProfilOperation | ProfilLigne }>): { concerne: false } | { concerne: true; plans: string[]; horsImage: string[] } {
   const plans = lignes.map((l) => planDeKeyframe(l.operation)).filter((x): x is string => x !== null);
   if (!plans.length) return { concerne: false };
-  return { concerne: true, plans, horsImage: lignes.filter((l) => planDeKeyframe(l.operation) === null && l.profil !== 'calcul').map((l) => l.operation) };
+  // R3 · la ligne du contrôle visuel accompagne les images clés, elle n'est pas « hors image ».
+  return { concerne: true, plans, horsImage: lignes.filter((l) => planDeKeyframe(l.operation) === null && l.profil !== 'calcul' && estLigneDeProduction(l)).map((l) => l.operation) };
 }
 
 /** Ce que le fournisseur recevrait, sans la trace · deux consignes équivalentes rendent la même requête. */

@@ -275,6 +275,8 @@ export function EcranEvaluations({ evaluations }: { evaluations: VueEvaluation[]
 export interface VueBenchmark {
   devis: {
     chiffrable: boolean; total: number | null; totalLisible: string; partielLisible: string | null; nonChiffrables: string[]; empreinte: string | null; refus: string[];
+    /** R3 · « maximum » seulement si toutes les lignes sont des bornes ; sinon estimation, avec la raison. */
+    qualification: { maximum: boolean; libelle: string; raison: string | null };
     cas: Array<{ cas: string; appels: number; medias: number; totalLisible: string; chiffrable: boolean; motif: string | null }>;
   };
   releases: Array<{ id: string; statut: string; empreinte: string; revoquee: boolean; benchmarkApprouve: boolean }>;
@@ -295,11 +297,16 @@ export function EcranBenchmark({ b, peutEvaluer }: { b: VueBenchmark; peutEvalue
     <div style={{ display: 'grid', gap: 14, marginBottom: 14 }}>
       <Bloc titre="Benchmark F01-F24 · devis" id="titre-devis-benchmark">
         <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-          Ce que la campagne réelle coûterait AU PLUS, calculé par le serveur avant tout appel (bornes de jetons, images jointes en vision, barème des médias). Afficher ce devis ne dépense rien.
+          {d.qualification.maximum
+            ? 'Ce que la campagne réelle coûterait AU PLUS, calculé par le serveur avant tout appel (bornes de jetons, images jointes en vision, barème des médias). Afficher ce devis ne dépense rien.'
+            : 'Ce que la campagne réelle devrait coûter, ESTIMÉ par le serveur avant tout appel (budget de jetons, images jointes en vision, barème des médias). Ce n’est pas un maximum garanti · chaque appel reste borné par la barrière de dépense. Afficher ce devis ne dépense rien.'}
         </p>
         {d.chiffrable ? (
           <>
             <p style={{ margin: '0 0 4px', fontSize: 16 }}><b>Total · {d.totalLisible}</b></p>
+            <p style={{ margin: '0 0 4px', fontSize: 13.5, color: d.qualification.maximum ? 'var(--ink-2)' : 'var(--warn)' }} data-qualification={d.qualification.maximum ? 'maximum' : 'estimation'}>
+              {d.qualification.maximum ? 'Maximum · chaque ligne est une borne.' : `Estimation · maximum non garanti · ${d.qualification.raison ?? ''}`}
+            </p>
             <p style={{ ...mono, margin: '0 0 10px', color: 'var(--muted)' }}>empreinte du devis {d.empreinte?.slice(0, 16)}…</p>
           </>
         ) : (
@@ -327,7 +334,7 @@ export function EcranBenchmark({ b, peutEvaluer }: { b: VueBenchmark; peutEvalue
         {!peutEvaluer ? <p style={{ margin: 0, fontSize: 14 }}>Réservé à la permission prompt.evaluate (accès total d’équipe).</p>
           : !d.chiffrable || d.total === null ? <p role="note" style={{ margin: 0, fontSize: 14 }}>Aucune approbation possible tant que le devis n’est pas chiffrable.</p>
           : evaluables.length === 0 ? <p style={{ margin: 0, fontSize: 14 }}>Aucune release en attente ou publiée à évaluer.</p>
-          : <FormulaireBudgetBenchmark releases={evaluables.map((r) => ({ id: r.id, libelle: `${r.statut === 'staged' ? 'En attente' : 'Publiée'} · ${r.empreinte.slice(0, 12)}…` }))} devisLisible={d.totalLisible} devisUsd={d.total / 1_000_000} />}
+          : <FormulaireBudgetBenchmark releases={evaluables.map((r) => ({ id: r.id, libelle: `${r.statut === 'staged' ? 'En attente' : 'Publiée'} · ${r.empreinte.slice(0, 12)}…` }))} devisLisible={d.totalLisible} devisUsd={d.total / 1_000_000} devisMaximum={d.qualification.maximum} />}
         <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           Nominative, valable 24 h, utilisable par UNE campagne. Elle ne lance rien : la campagne réelle part de la commande <code style={mono}>bench:studios -- --reel --budget-usd X --release ID</code>, qui revérifie budget, devis, reste du plafond et approbation avant le premier appel.
         </p>

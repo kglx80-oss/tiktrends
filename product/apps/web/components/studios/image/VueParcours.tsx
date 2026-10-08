@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import {
-  libellePrix, libelleCredits, libelleUsd, LIBELLES_ROLE, LIBELLES_PORTEE, VALIDITE_DEVIS_MS,
+  libellePrix, libelleCredits, LIBELLES_ROLE, LIBELLES_PORTEE, VALIDITE_DEVIS_MS, phraseCoutDevis, libelleCaseControleVision, libelleUsd,
   type ModeImage, type RoleReference, type PorteeReference,
 } from '@tiktrends/core';
 import type { ConsigneVue, JobImageVue, VueParcoursImage } from '../../../lib/studios/image/parcours';
@@ -23,7 +23,8 @@ export interface GestesParcours {
   surMode: (m: ModeImage) => void;
   surCompiler: () => void;
   surRetenir: (runId: string) => void;
-  surDevis: () => void;
+  /** R3 · `controleVision: false` si la case du contrôle visuel a été décochée. */
+  surDevis: (o?: { controleVision: boolean }) => void;
   surLancer: () => void;
   surAnnuler: (jobId: string) => void;
   surRelire: (jobId: string, constats: Array<{ composant: string; present: boolean | null }>) => void;
@@ -147,6 +148,8 @@ export function VueParcours(p: ProprietesVueParcours) {
   const id = useId();
   const v = p.vue;
   const d = v.disponibilite;
+  // R3 · contrôle visuel coché par défaut (décision du propriétaire), décochable avant le devis.
+  const [controleVision, setControleVision] = useState(true);
   const modeChoisi = v.modes.find((m) => m.mode === p.mode);
   const compilable = d.compilation.disponible && !!modeChoisi?.pret && !p.enCours;
   const verdictOk = !!v.retenue && v.retenue.verdict.ok;
@@ -223,13 +226,26 @@ export function VueParcours(p: ProprietesVueParcours) {
       <div style={carte} data-etape="devis">
         <h3 style={{ ...titre, fontSize: 16 }}>2 · Devis</h3>
         <p style={texte} data-prix="annonce">Une image · {libellePrix(v.prix)} · barème du produit.</p>
+        {v.controleVision?.disponible && (
+          <label style={{ ...texte, display: 'flex', gap: 8, alignItems: 'center', minHeight: 44 }} data-case="controle-vision">
+            <input type="checkbox" checked={controleVision} onChange={(e) => setControleVision(e.target.checked)} style={{ width: 20, height: 20 }} />
+            <span>{libelleCaseControleVision(v.controleVision.borneParImageUsdMicros)}</span>
+          </label>
+        )}
         <div style={rangee}>
-          <Bouton nom="devis" primaire={false} actif={verdictOk && d.devis.disponible && !p.enCours} enCours={p.enCours === 'devis'} libelle="Demander un devis" libelleEnCours="Devis…" surClic={p.surDevis} />
+          <Bouton nom="devis" primaire={false} actif={verdictOk && d.devis.disponible && !p.enCours} enCours={p.enCours === 'devis'} libelle="Demander un devis" libelleEnCours="Devis…" surClic={() => p.surDevis({ controleVision: !!v.controleVision?.disponible && controleVision })} />
           <span style={mini}>{raisonDevis || `Le devis ne débite rien · il fige le prix pendant ${minutes} minutes.`}</span>
         </div>
         {v.devis && (
           <div style={{ ...carte, background: 'var(--surface)' }} data-devis={v.devis.id}>
-            <p style={{ ...texte, color: 'var(--ink)' }} data-prix="devis">Devis · {libelleCredits(v.devis.credits)} · {libelleUsd(v.devis.usdMicros)} au plus de coût fournisseur · valable jusqu’à {heure(v.devis.expiresAt)}.</p>
+            <p style={{ ...texte, color: 'var(--ink)' }} data-prix="devis">Devis · {libelleCredits(v.devis.credits)} · {phraseCoutDevis(v.devis.usdMicros, v.devis.qualification)} · valable jusqu’à {heure(v.devis.expiresAt)}.</p>
+            {v.devis.lignes.length > 1 && (
+              <ul style={{ ...mini, margin: 0, paddingLeft: 18 }} data-lignes="devis">
+                {v.devis.lignes.map((l, i) => (
+                  <li key={i} data-ligne-nature={l.natureCout}>{l.libelle} · {libelleUsd(l.usdMicros)} · {l.natureCout === 'borne' ? 'borne' : `estimation (${l.motifEstimation ?? 'non bornée'})`}</li>
+                ))}
+              </ul>
+            )}
             <div style={rangee}>
               <Bouton nom="lancer" actif={d.lancement.disponible && !p.enCours} enCours={p.enCours === 'lancer'} libelle={`Approuver et lancer · ${libelleCredits(v.devis.credits)}`} libelleEnCours="Lancement…" surClic={p.surLancer} />
               <span style={mini}>{d.lancement.disponible ? `Débite ${libelleCredits(v.devis.credits)} maintenant · rendus si aucune image n’est livrée.` : d.lancement.raison}</span>

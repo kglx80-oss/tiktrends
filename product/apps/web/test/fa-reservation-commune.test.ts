@@ -35,16 +35,20 @@ vi.mock('@tiktrends/ai', async (importOriginal) => {
 });
 
 import { db, schema, eq, reglerDepense, annulerDepense, reserverDepense, type BaseDepense } from '@tiktrends/db';
-import { estimateCallCost, costOfTokens, reservationTexteLiberable, REFUS_CERTAINS_TEXTE } from '@tiktrends/core';
-import { guardedAnthropic, sousPlafond, annuleCoutFixe, guardFixedCost, spentUsd, SpendBlockedError } from '../lib/spend-guard';
+import { costOfTokens, reservationTexteLiberable, REFUS_CERTAINS_TEXTE } from '@tiktrends/core';
+import { guardedAnthropic, sousPlafond, annuleCoutFixe, guardFixedCost, spentUsd, SpendBlockedError, coutMaximalAppel } from '../lib/spend-guard';
 
 const CLE = 'AI_SPEND_CAP_USD';
 const avant = process.env[CLE];
 const base = db as unknown as BaseDepense;
 
-/** max_tokens 5000 sur Sonnet : 5000 × 15 $/M + 1 jeton d'entrée × 3 $/M. */
+/**
+ * max_tokens 5000 sur Sonnet : 5000 × 15 $/M + l'entrée à sa BORNE (R3,
+ * `borneMaxAppel`) : 64 jetons de cadre de requête + 2 blocs × 32 + 1 octet =
+ * 129 jetons × 3 $/M. (Avant R3 : 1 jeton estimé à 3,5 caractères ⇒ 0,075003 $.)
+ */
 const APPEL = { model: 'claude-sonnet-5', max_tokens: 5000, messages: [{ role: 'user' as const, content: 'x' }] };
-const MAX = estimateCallCost({ model: 'claude-sonnet-5', promptChars: 3, maxTokens: 5000 });
+const MAX = coutMaximalAppel(APPEL);
 const REPONSE = (entree: number, sortie: number) => ({ id: 'msg_simule', type: 'message', role: 'assistant', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: entree, output_tokens: sortie } });
 
 const lignes = async (action: string) => db!.select().from(schema.aiSpend).where(eq(schema.aiSpend.action, action));
@@ -59,8 +63,8 @@ beforeEach(async () => {
 afterEach(() => { if (avant === undefined) delete process.env[CLE]; else process.env[CLE] = avant; });
 
 describe('Anthropic · le maximum est réservé AVANT l’appel', () => {
-  it('le maximum vaut 0,075003 $ (5000 × 15 $/M + 1 × 3 $/M) · dérivé des tarifs du noyau', () => {
-    expect(MAX).toBe(0.075003);
+  it('le maximum vaut 0,075387 $ (5000 × 15 $/M + 129 × 3 $/M, entrée à sa borne R3) · dérivé des tarifs du noyau', () => {
+    expect(MAX).toBe(0.075387);
   });
 
   it('pendant l’appel, la ligne existe déjà au maximum ; après, elle est réglée au réel, une seule ligne', async () => {

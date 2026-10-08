@@ -481,7 +481,7 @@ async function composeBatch(o: {
         tendancesMarche: o.tendancesMarche,
       }) + exclusions;
     }
-    for (let attempt = 0; attempt < 2; attempt++) { // 1 réessai sur échec transitoire (rate-limit)
+    for (let attempt = 0; attempt < 2; attempt++) { // réessai seulement si `inutileDeReessayer` le permet (R3 : jamais sur un échec possiblement facturé)
       try {
         // L'endpoint dépend de la présence d'une référence · appeler `.../edit`
         // sans image renvoie une erreur du fournisseur, et le modèle a l'air
@@ -498,6 +498,9 @@ async function composeBatch(o: {
         const vide = new Error('Le fournisseur n’a renvoyé aucune image.');
         logFailure('ads:scene', vide, o.workspaceId);
         o.echec.dernier = vide;
+        // R3 · une réponse acceptée sans image a pu être facturée : on ne la
+        // rejoue pas (`inutileDeReessayer`, famille « autre » · jamais permis).
+        if (inutileDeReessayer(vide)) break;
       } catch (e) {
         // On réessaie, mais on ne se tait plus · un catch vide transformait une
         // panne diagnosticable (modèle inconnu, quota, référence illisible) en

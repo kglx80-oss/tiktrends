@@ -1,3 +1,6 @@
+import { reessaiPermis } from '@tiktrends/core';
+import { errorFamily } from './user-error';
+
 /**
  * Ce qu'on rejoue, et ce qu'on ne rejoue pas.
  *
@@ -38,15 +41,27 @@ export function refusDefinitif(e: unknown): boolean {
  *
  * ── Ce qui reste rejouable ───────────────────────────────────────────────────
  *
- * Les `5xx` et les coupures réseau · là, rien n'a été produit, et la seconde
- * tentative part sur un serveur qui va peut-être mieux.
+ * Plus rien depuis R3 (voir `inutileDeReessayer`) : une `5xx` ou une coupure
+ * réseau ne prouvent pas que rien n'a été produit ni facturé.
  */
 export function delaiDepasse(e: unknown): boolean {
   const m = (e instanceof Error ? `${e.name} ${e.message}` : String(e ?? '')).toLowerCase();
   return /timeout|timedout|aborted|abort ?error|etimedout|deadline/.test(m);
 }
 
-/** Les deux raisons de ne pas retenter · la demande est fautive, ou l'attente est déjà payée. */
+/**
+ * Les raisons de ne pas retenter · la demande est fautive, l'attente est déjà
+ * payée, ou la première tentative a PU être facturée.
+ *
+ * ── R3 · aucun réessai payant implicite ──────────────────────────────────────
+ *
+ * Une 5xx, une coupure réseau, une erreur non classée : rien ne prouve que fal
+ * n'a pas produit (et facturé) l'image avant que la réponse se perde. Le
+ * rejouer soumettait une SECONDE génération, payée elle aussi. La règle vit
+ * dans le noyau (`reessaiPermis`) : un réessai n'est permis que si l'échec est
+ * un refus certain avant traitement (`rienNaEteFacture`) ou si la requête est
+ * idempotente côté fournisseur · un appel synchrone `fal.run` ne l'est pas.
+ */
 export function inutileDeReessayer(e: unknown): boolean {
-  return refusDefinitif(e) || delaiDepasse(e);
+  return refusDefinitif(e) || delaiDepasse(e) || !reessaiPermis({ famille: errorFamily(e), idempotent: false });
 }

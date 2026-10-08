@@ -156,11 +156,12 @@ export async function vueBenchmark(): Promise<VueBenchmark> {
   const [evs, releases] = await Promise.all([depot.listerEvaluations(), depot.listerReleases()]);
   const pd = planEtDevis(null);
   const devis: VueBenchmark['devis'] = !pd.ok
-    ? { chiffrable: false, total: null, totalLisible: 'non chiffrable', partielLisible: null, nonChiffrables: [], empreinte: null, cas: [], refus: pd.refus.map((c) => `${c.code} · ${c.message}`) }
+    ? { chiffrable: false, total: null, totalLisible: 'non chiffrable', partielLisible: null, nonChiffrables: [], empreinte: null, cas: [], refus: pd.refus.map((c) => `${c.code} · ${c.message}`), qualification: { maximum: false, libelle: 'non chiffrable', raison: null } }
     : {
       chiffrable: pd.devis.ok, total: pd.devis.ok ? pd.devis.totalUsdMicros : null, totalLisible: pd.devis.ok ? usdLisible(pd.devis.totalUsdMicros) : 'non chiffrable',
       partielLisible: pd.devis.ok ? null : usdLisible(pd.devis.totalPartielUsdMicros), nonChiffrables: pd.devis.ok ? [] : pd.devis.nonChiffrables,
       empreinte: pd.devis.ok ? pd.devis.empreinte : null, refus: [],
+      qualification: { maximum: pd.devis.qualification.nature === 'borne', libelle: pd.devis.qualification.libelle, raison: pd.devis.qualification.raison },
       cas: pd.devis.cas.map((c) => ({ cas: c.cas, appels: c.appels, medias: c.medias, totalLisible: usdLisible(c.totalUsdMicros), chiffrable: c.chiffrable, motif: c.lignes.find((l) => l.motif)?.motif ?? null })),
     };
   const parRelease = new Map(releases.map((r) => [r.id, r]));

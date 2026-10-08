@@ -20,8 +20,17 @@ import { verdictQualiteAuto, type ConstatSortie } from '../execution/media';
 import { OPERATION_IMAGE } from '../image/parcours';
 import { estParametresRetouche } from './retouche';
 
-/** Le worker doit-il poser le contrôle des composants à la finalisation de ce job ? */
-export function controleComposantsAFinalisation(e: { operations: ReadonlyArray<{ operation: string }>; parametres: unknown }): boolean {
+/**
+ * Le worker doit-il poser le contrôle des composants à la finalisation de ce job ?
+ *
+ * R3 · non quand un contrôle VISUEL a été approuvé au devis
+ * (`controleVisionApprouve`) : le média reste `pending` pour que ce contrôle,
+ * déjà payé dans le devis accepté, tranche (`controlerMediaPour`, déclenché par
+ * l'écran sur un média livré `pending`). Le poser `requires_review` ici le
+ * rendrait inexécutable · une ligne approuvée pour rien.
+ */
+export function controleComposantsAFinalisation(e: { operations: ReadonlyArray<{ operation: string }>; parametres: unknown; controleVisionApprouve?: boolean }): boolean {
+  if (e.controleVisionApprouve === true) return false;
   return estParametresRetouche(e.parametres) || e.operations.some((o) => o.operation === OPERATION_IMAGE);
 }
 

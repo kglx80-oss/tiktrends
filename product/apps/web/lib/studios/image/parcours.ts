@@ -14,6 +14,16 @@ import { controlerComposantsSortie } from '../produit/qualite';
 import { creerDevis, approuverEtMettreEnFile, etatJob, type DevisPresente, type JobPresente, type OptionsApprobation } from '../execution/commandes';
 import { ROUTE_APERCU_MEDIA } from '../editeur/apercus';
 import { derniereConsigneCompilee, formatImageDuContenu, verifierConsigne } from './verification';
+// R3 · ligne du contrôle visuel, nature des montants, contrôle visuel routé quand il est au devis.
+import {
+  borneControleVisionParImageMicros, controleVisionApprouve, qualifierDevis, vueLignesDevis,
+  type LigneDevisVue, type QualificationTotal,
+} from '@tiktrends/core';
+import { controlerSortieParVision } from '../produit/qualite';
+import type { ResolveurMediasTache } from '../prompts/resolveur';
+import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
+import { environnementPrompts } from '../prompts/environnement';
+import { spendStatus } from '../../spend-guard';
 
 /**
  * Studios · F-B · le parcours image vu de l'écran, et ses gestes.
@@ -77,7 +87,12 @@ export interface JobImageVue {
   creeLe: string;
 }
 
-export interface DevisImageVue { id: string; inputHash: string; credits: number; usdMicros: number; expiresAt: string }
+export interface DevisImageVue {
+  id: string; inputHash: string; credits: number; usdMicros: number; expiresAt: string;
+  /** R3 · « maximum » seulement si toutes les lignes sont des bornes. */
+  qualification: QualificationTotal;
+  lignes: LigneDevisVue[];
+}
 
 export interface VueParcoursImage {
   projet: { id: string };
@@ -92,6 +107,8 @@ export interface VueParcoursImage {
   retenue: (ConsigneVue & { verdict: VerdictConsigne }) | null;
   devis: DevisImageVue | null;
   jobs: JobImageVue[];
+  /** R3 · ligne optionnelle du devis, cochée par défaut. */
+  controleVision: { disponible: boolean; borneParImageUsdMicros: number };
   composantsObligatoires: string[];
   peutRelire: boolean;
 }
@@ -134,7 +151,10 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
     eq(Q.projectVersionId, cat.version.id), gt(Q.expiresAt, o.maintenant), isNull(AP.id),
   )).orderBy(desc(Q.createdAt)).limit(10);
   const d = devisLignes.map((x) => x.q).find((q) => estDevisImage(q.lines));
-  const devis: DevisImageVue | null = d ? { id: d.id, inputHash: d.inputHash, credits: d.maximumCredits, usdMicros: Number(d.maximumUsdMicros), expiresAt: d.expiresAt.toISOString() } : null;
+  const devis: DevisImageVue | null = d ? {
+    id: d.id, inputHash: d.inputHash, credits: d.maximumCredits, usdMicros: Number(d.maximumUsdMicros), expiresAt: d.expiresAt.toISOString(),
+    qualification: qualifierDevis(d.lines), lignes: vueLignesDevis(d.lines),
+  } : null;
 
   // Jobs de l'image du studio (toutes versions), les plus récents d'abord.
   const J = schema.studioJobs;
@@ -169,14 +189,17 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
       format: formatImageDuContenu(contenu), disponibilite, coutCompilationUsd: o.coutCompilationUsd, prix: prixImage(),
       enAttente, retenue: etat.consigne ? { ...vueConsigne(etat.consigne, cat.fichiers), verdict: etat.verdict } : null,
       devis, jobs, composantsObligatoires: ref ? [...ref.composantsObligatoires] : [],
+      // R3 · la case « contrôle visuel » n'existe que si la vision peut s'exécuter ici.
+      controleVision: { disponible: o.fournisseurTexte, borneParImageUsdMicros: borneControleVisionParImageMicros(modeleTexte()) },
       peutRelire: aPermissionEspace(ctx.permissions, 'studio.propose'),
     },
   };
 }
 
 /** Devis de l'image du studio · lecture de la consigne d'abord (message clair), puis le devis L3. */
-export async function devisImagePour(ctx: ContexteStudio, e: { projectId: unknown }, maintenant: Date = new Date()): Promise<Resultat<{ devis: DevisPresente }>> {
-  const d = await creerDevis(ctx, { projectId: e.projectId, operations: [OPERATION_IMAGE], variante: true }, db, maintenant);
+export async function devisImagePour(ctx: ContexteStudio, e: { projectId: unknown; controleVision?: unknown }, maintenant: Date = new Date()): Promise<Resultat<{ devis: DevisPresente }>> {
+  // R3 · contrôle visuel coché par défaut ; `false` seulement s'il a été décoché.
+  const d = await creerDevis(ctx, { projectId: e.projectId, operations: [OPERATION_IMAGE], variante: true, controleVision: e.controleVision === false ? false : undefined }, db, maintenant);
   if (!d.ok) {
     // Sans plan `s_image` (aucune consigne retenue), L3 répond « opération absente du plan » : on dit pourquoi.
     if (d.code === 'INVALID_SCHEMA' && d.violations?.some((v) => v.chemin === 'operations' && v.raison.startsWith('opérations absentes'))) {
@@ -204,12 +227,21 @@ export async function approuverImagePour(
  * (job `completed`, statut `pending`). Le contrôle visuel n'est pas routé :
  * `null` ⇒ `requires_review`. Idempotent : déjà tranché ⇒ rendu tel quel.
  */
-export async function controlerMediaPour(ctx: ContexteStudio, e: { jobId: unknown }): Promise<Resultat<{ qualite: StatutQualite }>> {
+export async function controlerMediaPour(ctx: ContexteStudio, e: { jobId: unknown }, o: { medias?: ResolveurMediasTache } = {}): Promise<Resultat<{ qualite: StatutQualite }>> {
   const j = await lireJob(ctx, e.jobId);
   if (!j.ok) return j;
   if (!estDevisImage(lireSnapshotJob(j.job.snapshot)?.lignes)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   if (j.job.state !== 'completed') return erreurStudio('INVARIANT_CONFLICT', { traceId: ctx.traceId, targetIds: [j.job.id], message: 'Le média n’est pas encore enregistré · attends la fin du job.' });
   if (j.job.qualityStatus !== 'pending') return { ok: true, qualite: j.job.qualityStatus as StatutQualite };
+  // R3 · contrôle visuel APPROUVÉ au devis ⇒ il s'exécute, dans sa borne ; sinon, aucun appel payant.
+  if (controleVisionApprouve(lireSnapshotJob(j.job.snapshot)?.lignes) && aPermissionEspace(ctx.permissions, 'studio.generate')) {
+    const v = await controlerSortieParVision(ctx, { jobId: j.job.id }, {
+      adaptateur: adaptateurAnthropicGarde(), environnement: environnementPrompts(process.env),
+      plafondAtteint: async () => (await spendStatus()).blocked, ...(o.medias ? { medias: o.medias } : {}),
+    });
+    if (!v.ok) return v;
+    return { ok: true, qualite: v.qualite };
+  }
   const r = await controlerComposantsSortie(ctx, { jobId: j.job.id }, null);
   if (!r.ok) return r;
   return { ok: true, qualite: r.qualite };

@@ -63,11 +63,14 @@ export function costOfTokens(model: string, inputTokens: number, outputTokens: n
 }
 
 /**
- * Coût MAXIMAL d'un appel avant de le lancer.
+ * Coût ESTIMÉ d'un appel avant de le lancer · PAS une borne.
  *
- * On ne connaît pas encore les jetons d'entrée · on borne par la taille du
- * prompt annoncée, et on suppose que la sortie atteint `max_tokens` en entier.
- * C'est volontairement pessimiste : l'estimation sert à refuser, pas à facturer.
+ * On ne connaît pas encore les jetons d'entrée · on les estime à 3,5
+ * caractères par jeton, et on suppose que la sortie atteint `max_tokens` en
+ * entier. MESURÉ (R3, `depense-prudente.ts`) : le texte français ordinaire
+ * dépasse déjà cette estimation (×1,02), un texte adverse jusqu'à ×8,74. Elle
+ * sert à AFFICHER un ordre de grandeur ; la RÉSERVATION du plafond utilise
+ * `borneMaxAppel` (octets UTF-8, borne stricte).
  */
 export function estimateCallCost(opts: {
   model: string;

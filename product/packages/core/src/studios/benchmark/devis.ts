@@ -25,6 +25,19 @@ import { GRILLE_STUDIO } from '../execution/tarifs';
 import { empreinteContenu } from '../version';
 import { VISION_JETONS_IMAGE_MAX, VISION_PIECES_PAR_APPEL_MAX } from '../../prompts/vision';
 import type { PlanCas, ProfilMedia } from './plan';
+import { qualifierTotal, type NatureCout, type QualificationTotal } from '../../depense-prudente';
+import { NATURE_PROFIL } from '../execution/tarifs';
+
+/**
+ * R3 · pourquoi une tâche texte du benchmark n'est qu'une ESTIMATION : ses
+ * 24 000 jetons d'entrée sont un budget de contexte compté à 3,5 caractères
+ * par jeton (`compterJetonsParDefaut`), qui n'est pas une borne (mesures dans
+ * `depense-prudente.ts` : jusqu'à ×8,74 sur un texte adverse), et les messages
+ * fixes vivent dans une réserve elle aussi estimée. La réservation de CHAQUE
+ * appel reste bornée en octets (`borneMaxAppel`, barrière de dépense) : c'est
+ * le TOTAL annoncé qui n'est pas garanti.
+ */
+export const MOTIF_ESTIMATION_TACHE = 'entrée comptée à 3,5 caractères par jeton · pas une borne';
 
 export interface TarifsBenchmark {
   /** templateKey → profil logique (`modelProfile` du pack). */
@@ -91,6 +104,9 @@ export interface LigneDevisBench {
   usdMicros: number | null;
   source: string;
   motif: string | null;
+  /** R3 · borne prouvée (prix fixe, calcul local) ou estimation (tâche texte, forfait vidéo). */
+  natureCout: NatureCout;
+  motifEstimation: string | null;
 }
 
 export interface DevisCas {
@@ -104,25 +120,28 @@ export interface DevisCas {
 
 export function devisCas(plan: PlanCas, t: TarifsBenchmark): DevisCas {
   const lignes: LigneDevisBench[] = plan.deroule.map(({ etape: e, sortie }): LigneDevisBench => {
-    if (e.nature === 'calcul') return { etapeId: e.id, sortie, nature: 'calcul', cle: e.id, modele: null, unites: 1, usdMicros: 0, source: 'moteur déterministe local · inclus', motif: null };
+    if (e.nature === 'calcul') return { etapeId: e.id, sortie, nature: 'calcul', cle: e.id, modele: null, unites: 1, usdMicros: 0, source: 'moteur déterministe local · inclus', motif: null, natureCout: 'borne', motifEstimation: null };
     if (e.nature === 'media') {
       const m = t.medias[e.profil];
-      if (!m || m.usdMicros === null) return { etapeId: e.id, sortie, nature: 'media', cle: e.profil, modele: null, unites: e.unites, usdMicros: null, source: m?.source ?? 'aucun tarif', motif: `aucun tarif pour le média « ${e.profil} »` };
-      return { etapeId: e.id, sortie, nature: 'media', cle: e.profil, modele: null, unites: e.unites, usdMicros: m.usdMicros * e.unites, source: m.source, motif: null };
+      const n = NATURE_PROFIL[e.profil];
+      const nat = { natureCout: n.nature, motifEstimation: n.motif };
+      if (!m || m.usdMicros === null) return { etapeId: e.id, sortie, nature: 'media', cle: e.profil, modele: null, unites: e.unites, usdMicros: null, source: m?.source ?? 'aucun tarif', motif: `aucun tarif pour le média « ${e.profil} »`, ...nat };
+      return { etapeId: e.id, sortie, nature: 'media', cle: e.profil, modele: null, unites: e.unites, usdMicros: m.usdMicros * e.unites, source: m.source, motif: null, ...nat };
     }
+    const est = { natureCout: 'estimation' as const, motifEstimation: MOTIF_ESTIMATION_TACHE };
     const profil = t.profils[e.templateKey];
-    if (!profil) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele: null, unites: 1, usdMicros: null, source: 'pack', motif: `template « ${e.templateKey} » absent du pack` };
+    if (!profil) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele: null, unites: 1, usdMicros: null, source: 'pack', motif: `template « ${e.templateKey} » absent du pack`, ...est };
     const modele = t.routage[profil] ?? null;
-    if (!modele) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele: null, unites: 1, usdMicros: null, source: `profil ${profil}`, motif: `profil « ${profil} » routé vers aucun modèle` };
+    if (!modele) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele: null, unites: 1, usdMicros: null, source: `profil ${profil}`, motif: `profil « ${profil} » routé vers aucun modèle`, ...est };
     const tarif = tarifConnu(modele, t.tarifsModeles);
-    if (!tarif) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: null, source: 'MODEL_RATES', motif: `modèle « ${modele} » sans tarif répertorié` };
+    if (!tarif) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: null, source: 'MODEL_RATES', motif: `modèle « ${modele} » sans tarif répertorié`, ...est };
     const images = t.imagesParProfil?.[profil] ?? 0;
     const jetonsImages = images * (t.jetonsParImage ?? 0);
-    if (images > 0 && !(jetonsImages > 0)) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: null, source: `profil ${profil}`, motif: `images jointes sans borne de jetons par image` };
+    if (images > 0 && !(jetonsImages > 0)) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: null, source: `profil ${profil}`, motif: `images jointes sans borne de jetons par image`, ...est };
     const bornes = { jetonsEntree: t.bornes.jetonsEntree + jetonsImages, jetonsSortie: t.bornes.jetonsSortie };
     return {
       etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: borneAppelMicros(tarif, bornes),
-      source: `${t.bornes.jetonsEntree} jetons entrée${images ? ` + ${images} images × ${t.jetonsParImage} jetons` : ''} + ${t.bornes.jetonsSortie} sortie au tarif ${modele} (MODEL_RATES)`, motif: null,
+      source: `${t.bornes.jetonsEntree} jetons entrée${images ? ` + ${images} images × ${t.jetonsParImage} jetons` : ''} + ${t.bornes.jetonsSortie} sortie au tarif ${modele} (MODEL_RATES)`, motif: null, ...est,
     };
   });
   const chiffrable = lignes.every((l) => l.usdMicros !== null);
@@ -135,8 +154,25 @@ export function devisCas(plan: PlanCas, t: TarifsBenchmark): DevisCas {
 }
 
 export type DevisAgrege =
-  | { ok: true; cas: DevisCas[]; totalUsdMicros: number; empreinte: string }
-  | { ok: false; code: 'NON_CHIFFRABLE'; cas: DevisCas[]; nonChiffrables: string[]; totalPartielUsdMicros: number; empreinte: null };
+  | { ok: true; cas: DevisCas[]; totalUsdMicros: number; empreinte: string; qualification: QualificationTotal }
+  | { ok: false; code: 'NON_CHIFFRABLE'; cas: DevisCas[]; nonChiffrables: string[]; totalPartielUsdMicros: number; empreinte: null; qualification: QualificationTotal };
+
+/**
+ * R3 · « maximum » seulement si TOUTES les lignes de tous les cas sont des
+ * bornes ; sinon « estimation · maximum non garanti », avec la raison
+ * (regroupée par nature de ligne : 24 cas ne se lisent pas ligne à ligne).
+ */
+export function qualifierDevisBenchmark(cas: readonly DevisCas[]): QualificationTotal {
+  const lignes = cas.flatMap((c) => c.lignes);
+  const groupes = new Map<string, { nom: string; natureCout: NatureCout; motifEstimation: string | null; n: number }>();
+  for (const l of lignes) {
+    const k = `${l.nature}|${l.natureCout}|${l.motifEstimation ?? ''}`;
+    const g = groupes.get(k);
+    if (g) g.n += 1;
+    else groupes.set(k, { nom: l.nature === 'tache' ? 'tâches texte' : l.nature === 'media' ? `médias (${l.cle})` : 'calculs', natureCout: l.natureCout, motifEstimation: l.motifEstimation, n: 1 });
+  }
+  return qualifierTotal([...groupes.values()].map((g) => ({ nom: `${g.n} ${g.nom}`, natureCout: g.natureCout, motifEstimation: g.motifEstimation })));
+}
 
 /** Empreinte d'un devis · ce que l'approbation ADMIN vise, ligne par ligne. */
 export function empreinteDevis(cas: readonly DevisCas[], totalUsdMicros: number, bornes: TarifsBenchmark['bornes']): string {
@@ -148,10 +184,10 @@ export function devisAgrege(plans: readonly PlanCas[], t: TarifsBenchmark): Devi
   const cas = plans.map((p) => devisCas(p, t));
   const nonChiffrables = cas.filter((c) => !c.chiffrable).map((c) => c.cas);
   if (nonChiffrables.length || cas.length === 0) {
-    return { ok: false, code: 'NON_CHIFFRABLE', cas, nonChiffrables, totalPartielUsdMicros: cas.reduce((s, c) => s + (c.totalUsdMicros ?? 0), 0), empreinte: null };
+    return { ok: false, code: 'NON_CHIFFRABLE', cas, nonChiffrables, totalPartielUsdMicros: cas.reduce((s, c) => s + (c.totalUsdMicros ?? 0), 0), empreinte: null, qualification: qualifierDevisBenchmark(cas) };
   }
   const totalUsdMicros = cas.reduce((s, c) => s + c.totalUsdMicros!, 0);
-  return { ok: true, cas, totalUsdMicros, empreinte: empreinteDevis(cas, totalUsdMicros, t.bornes) };
+  return { ok: true, cas, totalUsdMicros, empreinte: empreinteDevis(cas, totalUsdMicros, t.bornes), qualification: qualifierDevisBenchmark(cas) };
 }
 
 /** Affichage · « 0,132 $ » (trois décimales : les bornes d'un appel tombent au millième). */

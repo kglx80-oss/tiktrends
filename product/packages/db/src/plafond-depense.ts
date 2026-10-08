@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import * as schema from './schema';
 
@@ -27,12 +27,15 @@ import * as schema from './schema';
  *    0, UNE fois, la ligne reste (l'essai demeure lisible) ;
  *  · issue incertaine : rien, la réservation reste comptée.
  *
- * ── Les états d'une ligne, sans colonne nouvelle ─────────────────────────────
+ * ── Les états d'une ligne ─────────────────────────────────────────────────────
  *
  *  · réservée · `actual_usd = estimated_usd`, `input_tokens` et
  *    `output_tokens` nuls (c'est ainsi que `reserverDepense` l'écrit) ;
  *  · réglée   · jetons renseignés (`reglerDepense` les écrit toujours, 0 compris) ;
- *  · rendue   · `actual_usd = 0`, jetons nuls.
+ *  · rendue   · `actual_usd = 0`, jetons nuls ;
+ *  · à réconcilier (R3, colonne `reconcile_reason`, migration 0055) · issue
+ *    incertaine : montant inchangé (le maximum), cause écrite, plus aucune
+ *    transition automatique (`marquerAReconcilier`).
  * Chaque transition part de « réservée » et seulement d'elle : rejouer un
  * règlement, régler après une annulation, annuler après un règlement ne change
  * rien (`apps/web/test/fa-reservation-commune.test.ts`).
@@ -105,10 +108,15 @@ export async function reserverDepense(
   });
 }
 
-/** La ligne est-elle encore à l'état « réservée » ? (seul point de départ des transitions) */
+/**
+ * La ligne est-elle encore à l'état « réservée » ? (seul point de départ des
+ * transitions). Une ligne « à réconcilier » (R3) n'en part plus : ni règlement
+ * ni libération automatiques, elle reste au maximum jusqu'au rapprochement.
+ */
 const reservee = () => and(
   isNull(schema.aiSpend.inputTokens), isNull(schema.aiSpend.outputTokens),
   sql`${schema.aiSpend.actualUsd} = ${schema.aiSpend.estimatedUsd}`,
+  isNull(schema.aiSpend.reconcileReason),
 );
 
 /**
@@ -139,7 +147,37 @@ export async function annulerDepense(base: BaseDepense, id: string): Promise<boo
     .where(and(
       eq(schema.aiSpend.id, id), sql`${schema.aiSpend.actualUsd} > 0`,
       isNull(schema.aiSpend.inputTokens), isNull(schema.aiSpend.outputTokens),
+      isNull(schema.aiSpend.reconcileReason),
     ))
     .returning({ id: schema.aiSpend.id });
   return r.length > 0;
+}
+
+/* ── R3 · issue incertaine : visible et réconciliable ────────────────────────── */
+
+/**
+ * Marque une réservation « à réconcilier » avec sa CAUSE (`causeIncertaine`,
+ * noyau). Le montant n'est PAS touché : la ligne reste comptée au maximum
+ * réservé (le côté prudent), et plus aucune transition automatique ne la
+ * règle ni ne la libère (`reservee`, `annulerDepense`). Seule une ligne encore
+ * réservée se marque, une fois · rend vrai si CET appel l'a marquée.
+ */
+export async function marquerAReconcilier(base: BaseDepense, id: string, cause: string): Promise<boolean> {
+  const r = await base.update(schema.aiSpend).set({ reconcileReason: cause.slice(0, 200) })
+    .where(and(eq(schema.aiSpend.id, id), reservee()))
+    .returning({ id: schema.aiSpend.id });
+  return r.length > 0;
+}
+
+/** Les lignes « à réconcilier » de la fenêtre, les plus récentes d'abord · lecture seule. */
+export async function lireDepensesAReconcilier(base: BaseDepense, depuis: Date, limite = 200) {
+  const A = schema.aiSpend;
+  const rows = await base.select({
+    id: A.id, createdAt: A.createdAt, provider: A.provider, model: A.model, action: A.action,
+    workspaceId: A.workspaceId, estimatedUsd: A.estimatedUsd, actualUsd: A.actualUsd, cause: A.reconcileReason,
+  }).from(A)
+    .where(and(isNotNull(A.reconcileReason), gte(A.createdAt, depuis)))
+    .orderBy(desc(A.createdAt))
+    .limit(Math.max(1, Math.min(1000, Math.trunc(limite))));
+  return rows.map((r) => ({ ...r, cause: r.cause ?? '', estimatedUsd: Number(r.estimatedUsd), actualUsd: Number(r.actualUsd) }));
 }

@@ -66,10 +66,11 @@ export async function retenirConsigneImage(entree: { projectId: unknown; baseVer
   return r.ok ? { ok: true, version: r.version, inchange: r.inchange } : r;
 }
 
-export async function demanderDevisImage(entree: { projectId: unknown }): Promise<Reponse<{ devis: DevisPresente }>> {
+export async function demanderDevisImage(entree: { projectId: unknown; controleVision?: unknown }): Promise<Reponse<{ devis: DevisPresente }>> {
   const g = await gardeStudio('studio.generate');
   if (!g.ok) return g;
-  return devisImagePour(g.ctx, { projectId: entree?.projectId });
+  // R3 · la case « contrôle visuel » (cochée par défaut) · seul `false` la retire du devis.
+  return devisImagePour(g.ctx, { projectId: entree?.projectId, controleVision: entree?.controleVision === false ? false : undefined });
 }
 
 export async function approuverEtLancerImage(entree: { quoteId: unknown; inputHash: unknown; creditsAnnonces: unknown; idempotencyKey: unknown }): Promise<Reponse<{ job: JobPresente; deja: boolean }>> {

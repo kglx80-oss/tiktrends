@@ -11,6 +11,8 @@ import { estUuid, lireAsset, lireJob, lireVersion } from '../depot';
 // L6-B · contrôle visuel routé (F-D) branché sur la même règle des composants.
 import { executerTache, type ResolveurMediasTache } from '../prompts/resolveur';
 import type { AdaptateurModele } from '../prompts/adaptateur';
+// R3 · contrôle visuel = ligne du devis approuvé, borne appliquée avant l'appel.
+import { borneMaxAppel, controleVisionApprouve, depasseMontantApprouve, lireSnapshotJob, requeteDepuisMessagesCompiles } from '@tiktrends/core';
 import type { EnvironnementPrompts } from '../prompts/environnement';
 
 /**
@@ -134,14 +136,45 @@ export interface ResultatVision {
  * `passed`, et le motif est rendu. La réussite technique du job n'entre
  * nulle part dans la décision.
  *
- * Coût : une tâche vision (≤ 0,218 $ avec le modèle routé par défaut, F-D) ·
- * l'appelant l'annonce avant le geste ; rien ici ne se déclenche seul.
+ * Coût (R3) : le contrôle est une LIGNE du devis accepté avant génération
+ * (`controle:vision`, borne par image, `avecControleVision`). Sans cette ligne
+ * dans l'instantané approuvé du job ⇒ REFUS, avant tout appel : 0 requête,
+ * 0 ligne `ai_spend` · jamais un débit ajouté après coup. Avec elle, la requête
+ * réelle est bornée (`borneMaxAppel`) et refusée AVANT l'envoi si sa borne
+ * dépasse le montant approuvé : la ligne est une borne, pas une estimation.
+ * Un seul contrôle par job : un média déjà tranché n'est pas re-contrôlé.
  */
+
+/** L'adaptateur, borné au montant approuvé · refuse AVANT l'appel ce qui pourrait le dépasser. */
+function adaptateurBorne(a: AdaptateurModele, approuveMicros: number): AdaptateurModele {
+  return {
+    nom: a.nom, simule: a.simule, modelePour: (p) => a.modelePour(p),
+    async appeler(x) {
+      const modele = a.modelePour(x.profil) ?? 'modele-non-route';
+      const borne = borneMaxAppel(requeteDepuisMessagesCompiles({ modele, messages: x.messages, images: x.pieces?.length ?? 0, maxJetonsSortie: x.maxJetonsSortie }));
+      const refus = depasseMontantApprouve(borne, approuveMicros);
+      if (refus) {
+        const e = new Error(`Contrôle visuel refusé avant envoi · ${refus}.`);
+        e.name = 'SpendBlockedError';
+        throw e;
+      }
+      return a.appeler(x);
+    },
+  };
+}
 export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: unknown }, d: DependancesVision): Promise<Resultat<ResultatVision>> {
   if (!aPermissionEspace(ctx.permissions, 'studio.generate')) return erreurStudio('FORBIDDEN', { traceId: ctx.traceId });
   const j = await lireJob(ctx, e.jobId);
   if (!j.ok) return j;
   const job = j.job;
+  // R3 · jamais un débit hors devis : sans ligne « contrôle visuel » approuvée, rien ne part.
+  const ligne = controleVisionApprouve(lireSnapshotJob(job.snapshot)?.lignes);
+  if (!ligne) {
+    return erreurStudio('BUDGET_EXCEEDED', { traceId: ctx.traceId, targetIds: [job.id], message: 'Contrôle visuel hors devis · aucune ligne « contrôle visuel » n’a été approuvée pour ce média. Rien n’est envoyé ni dépensé · relis la sortie toi-même.' });
+  }
+  if (job.qualityStatus !== 'pending') {
+    return erreurStudio('INVARIANT_CONFLICT', { traceId: ctx.traceId, targetIds: [job.id], message: 'Ce média a déjà été tranché · le contrôle visuel du devis a déjà servi.' });
+  }
   const v = await lireVersion(ctx, job.projectVersionId);
   if (!v.ok) return v;
   const ref = lireReferenceEpinglee((v.version.content as { productRef?: unknown }).productRef);
@@ -168,7 +201,7 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
         taskInputs: { outputAssetIds: ids.map((id) => `sta_${id}`), referenceIds: ref ? [ref.photo.assetId] : [], criteria: criteresComposants(requis) },
         contexte: { connaissances: false, references: ref ? [associationProduit(ref)] : [], mediaBindings: liaisons as never },
         liens: { projectId: job.projectId, jobId: job.id, documentVersionId: job.projectVersionId },
-        adaptateur: d.adaptateur!, environnement: d.environnement, ...(d.medias ? { medias: d.medias } : {}),
+        adaptateur: adaptateurBorne(d.adaptateur!, ligne.totalUsdMicros), environnement: d.environnement, ...(d.medias ? { medias: d.medias } : {}),
       });
       runId = r.runId;
       if (!r.ok) {

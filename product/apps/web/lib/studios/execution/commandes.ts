@@ -10,6 +10,9 @@ import {
   type ContenuVersion, type PlanImpact, type LigneDevis, type ErreurStudio, type SnapshotJob, type VueJob,
   type EtatJob, type StatutQualite, type EpinglageDevis,
 } from '@tiktrends/core';
+// R3 · ligne du contrôle visuel et nature des montants (borne / estimation).
+import { avecControleVision, controleVisionActif, exigenceImageDuDevis, qualifierDevis, type QualificationTotal } from '@tiktrends/core';
+import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
 import { estUuid } from '../depot';
@@ -141,7 +144,12 @@ export async function estimerImpact(ctx: ContexteStudio, e: EntreeImpact, base: 
 
 /* ──────────────────────────────── creerDevis ─────────────────────────────── */
 
-export interface EntreeDevis { projectId: unknown; versionAvantId?: unknown; operations?: unknown; validiteMs?: unknown; variante?: unknown }
+/**
+ * `controleVision: false` · décoché par la personne avant d'accepter (R3). Par
+ * défaut, la ligne du contrôle visuel est AJOUTÉE (décision du propriétaire),
+ * quand le contrôle est exécutable ici (`controleVisionActif`).
+ */
+export interface EntreeDevis { projectId: unknown; versionAvantId?: unknown; operations?: unknown; validiteMs?: unknown; variante?: unknown; controleVision?: unknown }
 
 export interface DevisPresente {
   id: string;
@@ -154,6 +162,8 @@ export interface DevisPresente {
   maximumUsdMicros: number;
   expiresAt: string;
   promptReleaseId: string | null;
+  /** R3 · « maximum » seulement si toutes les lignes sont des bornes. */
+  qualification: QualificationTotal;
 }
 
 function presenter(q: Devis): DevisPresente {
@@ -161,6 +171,7 @@ function presenter(q: Devis): DevisPresente {
     id: q.id, projectVersionId: q.projectVersionId, inputHash: q.inputHash, impactPlanHash: q.impactPlanHash,
     pricingVersion: q.pricingVersion, lignes: q.lines as LigneDevis[], maximumCredits: q.maximumCredits,
     maximumUsdMicros: Number(q.maximumUsdMicros), expiresAt: q.expiresAt.toISOString(), promptReleaseId: q.promptReleaseId,
+    qualification: qualifierDevis(q.lines),
   };
 }
 
@@ -212,6 +223,13 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       const plans = await raccordPlansDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!plans.ok) throw new Refus(plans);
       const empreinteImage = image.empreinte ?? plans.empreinte;
+      // R3 · le contrôle visuel est une LIGNE du devis accepté (jamais un débit
+      // ajouté après coup) · ajoutée par défaut, retirée si décochée, absente
+      // quand il ne peut pas s'exécuter ici. Les totaux l'incluent.
+      const v = avecControleVision(l.lignes, {
+        actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne }),
+        modele: modeleTexte(),
+      });
 
       const [ip] = await tx.insert(schema.studioImpactPlans).values({
         workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id,
@@ -222,19 +240,19 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       const entrees = {
         workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id,
         projectVersionId: courante.id, contentHash: courante.contentHash, impactPlanHash: plan.empreinte,
-        pricingVersion: PRICING_VERSION, lignes: l.lignes, epinglage: ep.epinglage,
+        pricingVersion: PRICING_VERSION, lignes: v.lignes, epinglage: ep.epinglage,
       };
       const inputHash = empreinteImage ? empreinteEntreesDevisImage(entrees, empreinteImage) : empreinteEntreesDevis(entrees);
       const [q] = await tx.insert(schema.studioQuotes).values({
         workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id, projectVersionId: courante.id,
         impactPlanId: ip!.id, impactPlanHash: plan.empreinte, inputHash, promptReleaseId: ep.epinglage?.promptReleaseId ?? null,
-        pricingVersion: PRICING_VERSION, lines: l.lignes, maximumCredits: l.totalCredits, maximumUsdMicros: l.totalUsdMicros,
+        pricingVersion: PRICING_VERSION, lines: v.lignes, maximumCredits: v.totalCredits, maximumUsdMicros: v.totalUsdMicros,
         expiresAt: expirationDevis(maintenant, dureeValidite(e.validiteMs)), createdBy: ctx.userId,
       }).returning();
       await ajouterAudit(tx, ctx, {
         action: 'quote.create', brandId: projet.brandId, targetType: 'studio_quote', targetId: q!.id,
         versionBefore: null, versionAfter: courante.id, reason: 'devis',
-        details: { credits: l.totalCredits, usdMicros: l.totalUsdMicros, pricingVersion: PRICING_VERSION, releaseHash: ep.epinglage?.releaseHash ?? null, ...(image.empreinte ? { consigneImage: image.empreinte } : {}), ...(plans.empreinte ? { consignesPlans: plans.empreinte } : {}) },
+        details: { credits: v.totalCredits, usdMicros: v.totalUsdMicros, pricingVersion: PRICING_VERSION, releaseHash: ep.epinglage?.releaseHash ?? null, ...(image.empreinte ? { consigneImage: image.empreinte } : {}), ...(plans.empreinte ? { consignesPlans: plans.empreinte } : {}) },
       });
       return { ok: true as const, devis: presenter(q!), plan };
     });

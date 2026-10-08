@@ -32,7 +32,7 @@ vi.mock('../app/actions/studios/execution', () => ({ annulerJob: m.annuler }));
 vi.mock('../app/actions/studios/produit', () => ({ trancherComposants: m.trancher }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
 
-import { disponibiliteImage, verdictConsigne, type VerdictConsigne } from '@tiktrends/core';
+import { disponibiliteImage, verdictConsigne, qualifierDevis, type VerdictConsigne } from '@tiktrends/core';
 import type { VueParcoursImage, JobImageVue, ConsigneVue } from '../lib/studios/image/parcours';
 import { VueParcours, type ProprietesVueParcours } from '../components/studios/image/VueParcours';
 import { ParcoursImage } from '../components/studios/image/ParcoursImage';
@@ -45,6 +45,8 @@ const CONSIGNE: ConsigneVue = {
   format: { largeur: 1080, hauteur: 1350 }, compileeLe: '2026-10-08T10:00:00Z',
 };
 const OK: VerdictConsigne = { ok: true };
+/** R3 · un devis d'une image (prix fixe connu) : une ligne, une BORNE · « au plus » reste vrai. */
+const DEVIS_R3 = { qualification: qualifierDevis([{ operation: 'keyframe:s_image', profil: 'image_generation', unites: 1, usdMicros: 80_000, natureCout: 'borne' }]), lignes: [{ libelle: 'Image · keyframe:s_image', usdMicros: 80_000, natureCout: 'borne' as const, motifEstimation: null }] };
 const job = (o: Partial<JobImageVue> = {}): JobImageVue => ({
   id: 'j1', etat: 'queued', libelleEtat: 'En file', message: 'En file · rien n’est encore envoyé au fournisseur.', raisonEchec: null, annulable: true, terminal: false,
   qualite: 'pending', libelleQualite: 'Aucun média livré pour l’instant', creditsReserves: 4, creditsRendus: null, media: null, creeLe: '2026-10-08T10:05:00Z', ...o,
@@ -55,7 +57,8 @@ function vue(o: Partial<VueParcoursImage> = {}, dispo = TOUT): VueParcoursImage 
     modes: [{ mode: 'faithful_composite', libelle: 'Produit fidèle', pret: false }, { mode: 'generative_scene', libelle: 'Mise en scène générée', pret: true }],
     format: { largeur: 1080, hauteur: 1350, libelle: 'Portrait · 4:5', depuisBrief: false },
     disponibilite: disponibiliteImage(dispo), coutCompilationUsd: 0.14, prix: { credits: 4, usdMicros: 80_000 },
-    enAttente: null, retenue: null, devis: null, jobs: [], composantsObligatoires: ['lunettes', 'bandeau'], peutRelire: dispo.peutProposer, ...o,
+    enAttente: null, retenue: null, devis: null, jobs: [], composantsObligatoires: ['lunettes', 'bandeau'], peutRelire: dispo.peutProposer,
+    controleVision: { disponible: false, borneParImageUsdMicros: 0 }, ...o,
   };
 }
 const gestes = () => ({ surMode: vi.fn(), surCompiler: vi.fn(), surRetenir: vi.fn(), surDevis: vi.fn(), surLancer: vi.fn(), surAnnuler: vi.fn(), surRelire: vi.fn() });
@@ -112,13 +115,13 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(bouton(d0, 'devis')!.disabled).toBe(false);
     expect(d0.textContent).toContain('Le devis ne débite rien · il fige le prix pendant 30 minutes.');
     expect(bouton(d0, 'lancer')).toBeNull();
-    const d = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z' } }));
+    const d = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 } }));
     expect(txt(d, '[data-prix="devis"]')).toBe('Devis · 4 crédits · 0,08 $ au plus de coût fournisseur · valable jusqu’à 12:30.');
     expect(bouton(d, 'lancer')!.textContent).toBe('Approuver et lancer · 4 crédits');
     expect(bouton(d, 'lancer')!.disabled).toBe(false);
     expect(d.textContent).toContain('Débite 4 crédits maintenant · rendus si aucune image n’est livrée.');
     // Fournisseur d'images absent : le bouton reste visible, inactif, avec sa raison.
-    const d2 = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h', credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z' } }, { ...TOUT, fournisseurImage: false }));
+    const d2 = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h', credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 } }, { ...TOUT, fournisseurImage: false }));
     expect(bouton(d2, 'lancer')!.disabled).toBe(true);
     expect(d2.querySelector('[data-devis]')!.textContent).toContain('Le fournisseur d’images n’est pas branché sur ce serveur · aucun lancement possible, rien n’est débité.');
   });
@@ -152,7 +155,7 @@ describe('états de l’écran · au HTML rendu', () => {
   });
 
   it('lecteur à studio.read · aucun bouton de geste actif, aucune relecture, aucune annulation', () => {
-    const d = rendre(vue({ enAttente: CONSIGNE, retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h', credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z' }, jobs: [job()] }, { ...TOUT, peutGenerer: false, peutProposer: false }));
+    const d = rendre(vue({ enAttente: CONSIGNE, retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h', credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 }, jobs: [job()] }, { ...TOUT, peutGenerer: false, peutProposer: false }));
     for (const n of ['compiler', 'retenir', 'devis', 'lancer']) expect(bouton(d, n)!.disabled, n).toBe(true);
     expect(bouton(d, 'annuler')).toBeNull();
     expect(d.textContent).toContain('Ton rôle permet de consulter, pas de compiler (appel texte payant).');
@@ -214,7 +217,7 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
   });
 
   it('« Approuver et lancer » · devis affiché transmis tel quel, même clé d’un clic à l’autre (aucun second débit)', async () => {
-    await monter(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z' } }));
+    await monter(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 } }));
     m.lancer.mockResolvedValue({ ok: false, code: 'BUDGET_EXCEEDED', status: 402, message: 'Crédits insuffisants', targetIds: [], recoverable: false, traceId: 't' });
     await act(async () => { bouton(conteneur, 'lancer')!.click(); });
     await act(async () => { bouton(conteneur, 'lancer')!.click(); });

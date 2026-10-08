@@ -31,7 +31,7 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { createHash, randomUUID } from 'node:crypto';
 import { db, schema, eq, and } from '@tiktrends/db';
-import { imageVide } from '@tiktrends/core';
+import { imageVide, borneControleVisionParImageMicros, OPERATION_CONTROLE_VISION, PROFIL_CONTROLE_VISION } from '@tiktrends/core';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { resolveurMediasStudio } from '../lib/studios/prompts/resolveur';
 import { exigerPiecesConformes, type AdaptateurModele, type AppelModele } from '../lib/studios/prompts/adaptateur';
@@ -68,6 +68,21 @@ const sortieVision = (sortieId: string, o: { verdict: 'passed' | 'requires_revie
   result: { verdict: o.verdict, issues: (o.issues ?? []).map((i) => ({ code: 'COMPOSANT', severity: 'blocking', targetId: sortieId, observation: '', expected: '', evidenceIds: [], ...i })), unverifiable: o.unverifiable ?? [], summary: 'Contrôle de la sortie' },
 });
 
+/**
+ * R3 · le contrôle visuel n'est exécuté que s'il a été APPROUVÉ au devis :
+ * l'instantané du job porte donc l'image et la ligne `controle:vision` (borne
+ * au tarif du modèle simulé, inconnu donc présumé cher). Sans elle, refus
+ * avant tout appel (`r3-controle-vision-db.test.ts`).
+ */
+const snapshotApprouve = (versionId: string) => ({
+  v: 1, quoteId: randomUUID(), projectVersionId: versionId, contentHash: '', impactPlanHash: '', pricingVersion: 'v', epinglage: null, parametres: {},
+  lignes: [
+    { operation: 'keyframe:s_image', nature: 'generation', profil: 'image_generation', unites: 1, credits: 4, usdMicros: 80_000, inclus: false, natureCout: 'borne', motifEstimation: null },
+    { operation: OPERATION_CONTROLE_VISION, nature: 'generation', profil: PROFIL_CONTROLE_VISION, unites: 1, credits: 0, usdMicros: borneControleVisionParImageMicros('modele-simule'), inclus: true, natureCout: 'borne', motifEstimation: null },
+  ],
+  reserve: { credits: 4, usdMicros: 80_000 + borneControleVisionParImageMicros('modele-simule') },
+});
+
 let cat: Catalogue;
 async function jobLivre(): Promise<{ jobId: string; sortieId: string; octets: Uint8Array }> {
   const { projectId } = await projetStatique(db, ids, cat);
@@ -85,7 +100,7 @@ async function jobLivre(): Promise<{ jobId: string; sortieId: string; octets: Ui
   stockage.set(cle, octets);
   const [j] = await db.insert(schema.studioJobs).values({
     workspaceId: ids.wsA, brandId: ids.brandA1, projectId, projectVersionId: e.version.id, operation: 'image_generate', state: 'completed',
-    idempotencyKey: `l6b-${randomUUID()}`, inputHash: 'a'.repeat(64), snapshot: {}, result: { assets: { 'keyframe:s_image': assetId } },
+    idempotencyKey: `l6b-${randomUUID()}`, inputHash: 'a'.repeat(64), snapshot: snapshotApprouve(e.version.id), result: { assets: { 'keyframe:s_image': assetId } },
   }).returning();
   return { jobId: j!.id, sortieId: `sta_${assetId}`, octets };
 }
