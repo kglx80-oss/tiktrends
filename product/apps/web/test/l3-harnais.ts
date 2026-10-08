@@ -11,6 +11,7 @@ import type { DecodeurMedia } from '@tiktrends/core';
 import type { EntreeJournal } from '../../workers/src/studios/types';
 import { FournisseurSimule, StockageSimule, DRAPEAU_SIMULE, type OptionsFournisseurSimule } from '../../../packages/integrations/src/studios-simule';
 import { contenuVideo } from '../../../packages/core/test/studios-fixtures';
+import { avecConsignesPlans, attesterConsignesPlans } from './l6a-outils';
 
 /**
  * Harnais des tests L3 · semis, contexte, moteur simulé, lecture de l'état
@@ -34,9 +35,13 @@ export async function solde(base: BaseStudio, workspaceId: string): Promise<numb
   return w!.c;
 }
 
-/** Projet vidéo de démonstration directement en base (même forme que `creerProjet`). */
+/**
+ * Projet vidéo de démonstration directement en base (même forme que `creerProjet`).
+ * L6-A · chaque plan porte une consigne `shot.image` attestée (semis) : une
+ * image clé de plan ne se devise plus sans elle (plus jamais `parametres: {}`).
+ */
 export async function projetTest(base: BaseStudio, ids: IdsStudios, brandId: string, userId: string): Promise<{ projectId: string; versionId: string }> {
-  const contenu = contenuVideo();
+  const { contenu, consignes } = avecConsignesPlans(contenuVideo());
   const { empreinteContenu, SCHEMA_VERSION_CONTENU } = await import('@tiktrends/core');
   const [p] = await base.insert(schema.studioProjects).values({ workspaceId: brandId === ids.brandB1 ? ids.wsB : ids.wsA, brandId, kind: 'video', title: `Projet ${randomUUID().slice(0, 6)}`, ownerId: userId }).returning();
   const [v] = await base.insert(schema.studioProjectVersions).values({
@@ -44,6 +49,7 @@ export async function projetTest(base: BaseStudio, ids: IdsStudios, brandId: str
     content: contenu, contentHash: empreinteContenu(contenu), authorId: userId, reason: 'test',
   }).returning();
   await base.update(schema.studioProjects).set({ currentVersionId: v!.id, rowVersion: 1 }).where(eq(schema.studioProjects.id, p!.id));
+  await attesterConsignesPlans(base, { workspaceId: p!.workspaceId, brandId, projectId: p!.id, userId }, consignes);
   return { projectId: p!.id, versionId: v!.id };
 }
 
