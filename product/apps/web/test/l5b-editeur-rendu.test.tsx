@@ -95,8 +95,11 @@ describe('éditer · le texte reste du texte, chaque geste se voit, annuler/rét
     expect(q('[data-surface="document"]').querySelectorAll('img').length).toBe(0);
     expect(texte('[data-calque="l_fond"] [data-apercu="absent"]')).toBe('FondImage · aperçu indisponible');
     expect(texte('[data-statut]')).toBe('Enregistré');
-    expect(bouton('Enregistrer').disabled).toBe(true);
-    expect(bouton('Annuler').disabled).toBe(true);
+    // Inactifs mais FOCALISABLES · `disabled` ferait perdre le focus (vu dans Chromium, pas dans jsdom).
+    for (const l of ['Enregistrer', 'Annuler', 'Rétablir']) {
+      expect(bouton(l).getAttribute('aria-disabled'), l).toBe('true');
+      expect(bouton(l).hasAttribute('disabled'), `${l} porte disabled · il perdrait le focus`).toBe(false);
+    }
   });
 
   it('IMG-07 · changer le texte et déplacer le CTA · l’aperçu suit, le calque reste un texte, aucune génération annoncée', async () => {
@@ -205,6 +208,7 @@ describe('enregistrer · patch base → présent, version suivante, 409 sans éc
     expect(texte('[data-differences]')).toBe('Calque « Titre » · couleur du texte : « #111111 » → « #ff0000 »');
     expect(document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
     expect(texte('[data-statut]')).toBe('Conflit · une autre session a enregistré');
+    expect(enregistrer.hasAttribute('disabled'), 'Enregistrer porte disabled pendant le conflit · le focus rendu tomberait sur <body>').toBe(false);
     const reapp = bouton('Recharger et réappliquer mes modifications');
     expect(reapp.disabled).toBe(false);
     await cliquer(reapp);

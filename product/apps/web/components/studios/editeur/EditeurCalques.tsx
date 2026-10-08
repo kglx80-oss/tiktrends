@@ -300,13 +300,15 @@ export function EditeurCalques(props: PropsEditeur) {
           </span>
           {present && editable && (
             <>
-              <button type="button" onClick={annuler} disabled={!libelleAnnuler} aria-keyshortcuts="Control+Z Meta+Z"
+              {/* `aria-disabled`, jamais `disabled` · un bouton désactivé PERD le focus (Chromium le rend à <body>) :
+                  après le dernier « Annuler », ou pendant un enregistrement qui finit en 409, le clavier repartait en haut de page. */}
+              <button type="button" onClick={annuler} aria-disabled={!libelleAnnuler} aria-keyshortcuts="Control+Z Meta+Z"
                 title={libelleAnnuler ? `Annuler · ${libelleAnnuler} (Ctrl+Z)` : 'Rien à annuler'} data-action="annuler"
                 style={{ ...bouton, ...(!libelleAnnuler ? boutonInactif : {}) }}>Annuler</button>
-              <button type="button" onClick={retablir} disabled={!libelleRetablir} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y"
+              <button type="button" onClick={retablir} aria-disabled={!libelleRetablir} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y"
                 title={libelleRetablir ? `Rétablir · ${libelleRetablir} (Ctrl+Maj+Z)` : 'Rien à rétablir'} data-action="retablir"
                 style={{ ...bouton, ...(!libelleRetablir ? boutonInactif : {}) }}>Rétablir</button>
-              <button type="button" onClick={() => void enregistrer()} disabled={!modifie || enCours || conflit !== null} aria-keyshortcuts="Control+S Meta+S"
+              <button type="button" onClick={() => void enregistrer()} aria-disabled={!modifie || enCours || conflit !== null} aria-keyshortcuts="Control+S Meta+S"
                 data-action="enregistrer" style={{ ...boutonPrimaire, ...(!modifie || enCours || conflit !== null ? boutonInactif : {}) }}>
                 <Icon name="save" size={15} />{enCours ? 'Enregistrement…' : 'Enregistrer'}
               </button>
