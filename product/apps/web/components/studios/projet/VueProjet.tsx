@@ -63,6 +63,17 @@ export function VueProjet({ detail, exportAutorise, variantes = null }: { detail
           <span aria-hidden>·</span><span data-version={version.id}>Version {version.n} du {dateCourteUtc(version.createdAt)}</span>
           <PastilleEtape etape={completude.etape} libelle={completude.libelleEtape} />
         </div>
+        <nav aria-label="Atelier du projet" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { href: `/studio/projets/${projet.id}/image`, libelle: 'Éditer l’image' },
+            { href: `/studio/projets/${projet.id}/produit`, libelle: 'Produit et références' },
+            { href: `/studio/projets/${projet.id}/textes`, libelle: 'Textes liés au brief' },
+          ].map((l) => (
+            <Link key={l.href} href={l.href} data-atelier={l.href.split('/').pop()} style={{ ...tuile, padding: '0 14px', fontSize: 13, fontWeight: 650, color: 'var(--ink)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>
+              {l.libelle}
+            </Link>
+          ))}
+        </nav>
         {ancienne && (
           <p role="status" style={{ ...discret, ...tuile, padding: '8px 12px', background: 'rgba(59,130,246,.10)' }}>
             Tu consultes une version antérieure · lecture seule. <Link href={`/studio/projets/${projet.id}`} style={{ color: 'var(--accent-strong)' }}>Revenir à la version courante</Link>

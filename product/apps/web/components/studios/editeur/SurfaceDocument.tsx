@@ -138,6 +138,8 @@ export function SurfaceDocument({
 }
 
 function ContenuCalque({ c, doc, apercu }: { c: CalqueStudio; doc: DocumentStudio; apercu: string | null }) {
+  // Une adresse qui ne répond pas (média retiré, hors portée) retombe sur le cadre nommé · jamais une image cassée.
+  const [casse, setCasse] = useState(false);
   if (c.kind === 'text') {
     const p = stylePolice(c.fontId);
     return (
@@ -147,6 +149,8 @@ function ContenuCalque({ c, doc, apercu }: { c: CalqueStudio; doc: DocumentStudi
           width: '100%', height: '100%', color: c.color, textAlign: c.align, lineHeight: c.lineHeight,
           fontFamily: p.fontFamily, fontWeight: p.fontWeight, fontSize: `${(c.fontSizePx / doc.width) * 100}cqw`,
           whiteSpace: 'pre-wrap', overflowWrap: 'break-word', overflow: 'visible',
+          // Le rendu L5-A place chaque glyphe sans crénage · l'aperçu fait de même pour coïncider.
+          fontKerning: 'none',
         }}
       >{c.text}</div>
     );
@@ -154,8 +158,8 @@ function ContenuCalque({ c, doc, apercu }: { c: CalqueStudio; doc: DocumentStudi
   if (c.kind === 'shape') {
     return <div aria-hidden style={{ width: '100%', height: '100%', background: c.fill, borderRadius: c.shape === 'ellipse' ? '50%' : 0 }} />;
   }
-  if (apercu) {
-    return <img src={apercu} alt={c.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }} />;
+  if (apercu && !casse) {
+    return <img src={apercu} alt={c.name} draggable={false} onError={() => setCasse(true)} style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }} />;
   }
   return (
     <div

@@ -288,7 +288,7 @@ describe('profils · lecture seule, hors portée', () => {
     expect((await relireDocumentEditeur(projetA2)).ok).toBe(false);
   });
 
-  it('membre · la page rend la surface du document aux bonnes proportions, le texte en texte, la photo sans aperçu en cadre nommé', async () => {
+  it('membre · la page rend la surface du document aux bonnes proportions, le texte en texte, la photo servie par la route média', async () => {
     qui('ua');
     const d = await page(projet);
     const s = d.querySelector('[data-surface="document"]')!;
@@ -296,8 +296,10 @@ describe('profils · lecture seule, hors portée', () => {
     expect(s.getAttribute('style')).toContain('aspect-ratio:1080 / 1920');
     const t = s.querySelector('[data-calque="texte_1"] [data-texte="editable"]');
     expect(t?.textContent).toBe('-20 % ce soir');
-    expect(s.querySelectorAll('img').length).toBe(0);
-    expect(s.querySelector('[data-calque="produit"] [data-apercu="absent"]')?.textContent).toBe('Photo produitImage · aperçu indisponible');
+    expect(t?.getAttribute('style'), 'aperçu avec crénage, le rendu L5-A n’en applique aucun').toContain('font-kerning:none');
+    // Intégration L5 · la photo produit (média studio) est servie par la route L5-A, le texte reste du texte.
+    expect([...s.querySelectorAll('img')].map((i) => [i.getAttribute('alt'), i.getAttribute('src')])).toEqual([['Photo produit', `/api/studios/media/${assetProduit}`]]);
+    expect(s.querySelector('[data-calque="produit"] [data-apercu="absent"]')).toBeNull();
     expect(d.querySelector('[data-statut]')?.textContent).toBe('Enregistré');
   });
 });

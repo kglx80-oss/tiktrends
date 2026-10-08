@@ -7,6 +7,7 @@ import {
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { lireAsset, lireProjet, lireVersion, estUuid } from '../depot';
+import { estFichierCatalogue, lireFichierCatalogue } from '../rendu/catalogue-medias';
 import type { DonneesEditeur, MediaEditeur, ReponseEditeur } from './types';
 
 /**
@@ -75,6 +76,10 @@ export async function lireEditeurPour(ctx: ContexteStudio, projectId: unknown): 
     const a = await lireAsset(ctx, assetProduit);
     const d = a.ok && a.asset.mime.startsWith('image/') && a.asset.storageState === 'stored' ? dimensions(a.asset) : null;
     if (d) produit = { assetId: assetProduit, sourceWidth: d.width, sourceHeight: d.height, nom: 'Photo produit' };
+  } else if (estFichierCatalogue(assetProduit)) {
+    // Photo du catalogue épinglée par L5-C · dimensions relues dans ses octets (raccord d'intégration).
+    const f = await lireFichierCatalogue(ctx, projet.id, assetProduit);
+    if (f.ok) produit = { assetId: assetProduit, sourceWidth: f.largeur, sourceHeight: f.hauteur, nom: 'Photo produit' };
   }
 
   return {

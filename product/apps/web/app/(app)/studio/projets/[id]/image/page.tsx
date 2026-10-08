@@ -69,7 +69,7 @@ export default async function EditeurImagePage({ params }: { params: Promise<{ i
         formatPropose={d.formatPropose}
         produit={d.produit}
         medias={d.medias}
-        apercus={urlsApercu(ids)}
+        apercus={urlsApercu(ids, d.projet.id)}
         peutEnregistrer={d.peutEnregistrer}
       />
     </main>

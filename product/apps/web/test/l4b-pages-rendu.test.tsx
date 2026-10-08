@@ -150,6 +150,13 @@ describe('/studio/projets/[id] · la page projet', () => {
     expect(d.querySelector('[data-emplacement="variantes-tests"]')).not.toBeNull();
     // Intégration L4-C · « Variantes et tests » est RENDU dans son emplacement.
     expect(d.querySelector('[data-emplacement="variantes-tests"] #titre-variantes')?.textContent, 'variantes et tests absents de la page projet').toBe('Variantes et tests');
+    // Intégration L5 · l'atelier du projet mène aux trois écrans des lots L5-B et L5-C.
+    const atelier = [...d.querySelectorAll('nav[aria-label="Atelier du projet"] a')].map((a) => [a.textContent, a.getAttribute('href')]);
+    expect(atelier, 'liens de l’atelier absents de la page projet').toEqual([
+      ['Éditer l’image', `/studio/projets/${projet}/image`],
+      ['Produit et références', `/studio/projets/${projet}/produit`],
+      ['Textes liés au brief', `/studio/projets/${projet}/textes`],
+    ]);
     expect(d.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
     expect(d.innerHTML).not.toMatch(/Trendtrack/i);
   });

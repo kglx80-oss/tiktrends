@@ -5,6 +5,7 @@ import { erreurStudio, inspecterMedia, type DocumentStudio, type ErreurStudio } 
 import type { schema } from '@tiktrends/db';
 import type { ContexteStudio } from '../garde';
 import { lireAsset } from '../depot';
+import { estFichierCatalogue, lireFichierCatalogue } from './catalogue-medias';
 
 /**
  * Studios · L5-A · lecture sûre des médias studio (`studio_assets`).
@@ -98,6 +99,8 @@ export async function lireMediaDansPortee(ctx: ContexteStudio, id: unknown, lect
   return { ok: true, asset: a.asset, octets, mime: entete.mime };
 }
 
+const MANQUANT = 'Un média du document est introuvable ou n’appartient pas à la marque du projet · remplace-le puis réessaie.';
+
 /**
  * Médias d'un document, pour un rendu : chacun lu dans la portée ET dans la
  * marque du projet. Un seul manquant ⇒ `MISSING_REFERENCE` (sans dire lequel
@@ -105,18 +108,25 @@ export async function lireMediaDansPortee(ctx: ContexteStudio, id: unknown, lect
  */
 export async function chargerMediasDocument(
   ctx: ContexteStudio,
-  projet: { brandId: string },
+  projet: { id: string; brandId: string },
   doc: DocumentStudio,
   lecteur: LecteurMedias = lecteurMedias(),
 ): Promise<{ ok: true; medias: Map<string, Uint8Array> } | ErreurStudio> {
   const ids = [...new Set(Object.values(doc.layers).filter((l) => l.visible && (l.kind === 'image' || l.kind === 'logo')).map((l) => (l as { assetId: string }).assetId))].sort();
   const medias = new Map<string, Uint8Array>();
   for (const id of ids) {
+    if (estFichierCatalogue(id)) {
+      // Photo ou logo du catalogue épinglé par L5-C · lu dans la marque DU projet par construction.
+      const f = await lireFichierCatalogue(ctx, projet.id, id);
+      if (!f.ok) return erreurStudio('MISSING_REFERENCE', { traceId: ctx.traceId, message: MANQUANT });
+      medias.set(id, f.octets);
+      continue;
+    }
     const m = await lireMediaDansPortee(ctx, id, lecteur);
     if (!m.ok || m.asset.brandId !== projet.brandId || !m.mime.startsWith('image/')) {
       return erreurStudio('MISSING_REFERENCE', {
         traceId: ctx.traceId,
-        message: 'Un média du document est introuvable ou n’appartient pas à la marque du projet · remplace-le puis réessaie.',
+        message: MANQUANT,
       });
     }
     medias.set(id, m.octets);
