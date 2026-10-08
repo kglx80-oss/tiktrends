@@ -149,7 +149,7 @@ function ImageCle({ sid, rang, k, p }: { sid: string; rang: number; k: KeyframeV
       {k.retenue ? (
         <div style={{ display: 'grid', gap: 6 }} data-consigne="retenue" data-pret={k.retenue.verdict.ok ? 'oui' : 'non'}>
           <p style={texte}><span style={{ fontWeight: 600, color: 'var(--ink)' }}>Consigne · </span>{k.retenue.instruction}</p>
-          <p style={mini}>À éviter : {k.retenue.interdits.join(' · ')}{k.retenue.composants.length ? ` · composants protégés : ${k.retenue.composants.join(', ')}` : ''}.</p>
+          <p style={mini} data-champ="interdits">{`À éviter : ${k.retenue.interdits.map((x) => x.replace(/\.$/, '')).join(' · ')}${k.retenue.composants.length ? ` · composants protégés : ${k.retenue.composants.join(', ')}` : ''}.`}</p>
           {!k.retenue.verdict.ok && <p style={signal('warn')} data-champ="verdict">{k.retenue.verdict.motif}</p>}
         </div>
       ) : !k.enAttente && <p style={mini} data-consigne="aucune">Aucune consigne d’image pour ce plan.</p>}

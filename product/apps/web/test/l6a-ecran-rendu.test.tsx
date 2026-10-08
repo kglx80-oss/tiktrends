@@ -56,7 +56,7 @@ function contenu(): ContenuVersion {
 }
 
 const kf = (o: Partial<KeyframeVue> = {}): KeyframeVue => ({ etat: 'a_produire', media: null, retenue: null, enAttente: null, devis: null, ...o });
-const CONSIGNE = { runId: '11111111-1111-4111-8111-111111111111', instruction: 'Léa en veste jaune devant le miroir.', interdits: ['Aucun texte dans l’image'], composants: [], compileeLe: '2026-10-08T10:00:00Z' };
+const CONSIGNE = { runId: '11111111-1111-4111-8111-111111111111', instruction: 'Léa en veste jaune devant le miroir.', interdits: ['Aucun texte dans l’image : les textes sont posés au montage.'], composants: [], compileeLe: '2026-10-08T10:00:00Z' };
 
 function vue(o: Partial<DonneesVideo> = {}, dispo: EntreeDisponibiliteVideo = TOUT): DonneesVideo {
   const c = o.contenu ?? contenu();
@@ -114,6 +114,8 @@ describe('rendu · storyboard, animation, prix, indisponibilités', () => {
     expect(q(d, '[data-bouton="lancer-s3"]')!.textContent).toBe('Approuver et lancer · 4 crédits');
     expect(q(d, '[data-cout="consigne"]')!.textContent).toBe('Appel texte payant · 0,14 $ au plus · aucun crédit, aucune image.');
     expect(q(d, '[data-bouton="devis-s1"]')!.textContent).toBe('Devis d’une nouvelle variante');
+    // Ponctuation : l'interdit du serveur finit déjà par un point, l'écran n'en double pas.
+    expect(q(d, '[data-image-cle="s1"] [data-champ="interdits"]')!.textContent).toBe('À éviter : Aucun texte dans l’image : les textes sont posés au montage.');
   });
 
   it('sans release · storyboard et consigne inactifs avec leur raison, chemin manuel ouvert', () => {
