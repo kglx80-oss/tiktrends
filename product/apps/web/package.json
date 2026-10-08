@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "bench:studios": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/bench-studios.ts"
+    "bench:studios": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/bench-studios.ts",
+    "recette:semer": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/recette/semer.ts",
+    "recette:pas1": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/recette/pas1.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

@@ -1,0 +1,121 @@
+# Recette Studios · environnement d'essai réel ISOLÉ (budget autorisé 15 $).
+#
+# Projet compose distinct de la production : rien n'est partagé, ni base, ni
+# volume, ni réseau, ni Redis, ni fichier d'environnement, ni Caddy public.
+# Mode d'emploi complet : ops/recette/README.md.
+#
+#   docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette up -d --build
+#   docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette down -v
+#
+# Les clés payantes (FAL_KEY, ANTHROPIC_API_KEY) ne sont JAMAIS dans
+# ops/recette/.env.recette : elles ne vont qu'au service d'outils, le temps
+# d'une commande, depuis le shell du propriétaire. Chaque service applicatif
+# charge APRÈS .env.recette le fichier versionné ops/recette/neutralise.env,
+# qui vide le stockage S3, les clés IA, CRON_SECRET et toutes les clés de
+# services externes : le web et le worker de recette ne peuvent rien dépenser
+# ni rien écrire hors de la recette.
+#
+# Garde : apps/web/test/e-compose-recette.test.ts (lit ce fichier et refuse
+# tout partage avec docker-compose.yml, tout port public, tout plafond absent
+# ou au-delà de 15 $).
+name: tiktrends-recette
+
+services:
+  db_recette:
+    image: pgvector/pgvector:pg16
+    restart: "no"
+    environment:
+      POSTGRES_DB: tiktrends_recette
+      POSTGRES_USER: recette
+      # Le mot de passe vient de ops/recette/.env.recette (POSTGRES_PASSWORD, hexadécimal).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?absent}
+    volumes:
+      - pgdata_recette:/var/lib/postgresql/data
+    networks: [recette]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recette -d tiktrends_recette"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis_recette:
+    image: redis:7-alpine
+    restart: "no"
+    networks: [recette]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web_recette:
+    build: { context: ., dockerfile: Dockerfile.web, args: { BUILD_SHA: "recette" } }
+    restart: "no"
+    env_file: [ops/recette/.env.recette, ops/recette/neutralise.env]
+    environment:
+      TIKTRENDS_ENV: recette
+      AI_SPEND_CAP_USD: "15"
+      DATABASE_URL: postgres://recette:${POSTGRES_PASSWORD:?absent}@db_recette:5432/tiktrends_recette
+      REDIS_URL: redis://redis_recette:6379
+      APP_URL: http://localhost:3101
+    # Lisible depuis la machine seulement (tunnel SSH sur le VPS), jamais sur 0.0.0.0.
+    ports: ["127.0.0.1:3101:3000"]
+    networks: [recette]
+    depends_on:
+      db_recette: { condition: service_healthy }
+      redis_recette: { condition: service_healthy }
+
+  # Point d'entrée DÉDIÉ (pas src/index.ts) : boucle Studios seule, aucun cron,
+  # aucune ingestion, aucun job de démonstration. Sans FAL_KEY ni S3, la boucle
+  # elle-même ne démarre pas (« jobs laissés en file, rien facturé ») : le seul
+  # exécuteur du pas 1 est la commande d'outils, jamais deux sur un même job.
+  workers_recette:
+    build: { context: ., dockerfile: Dockerfile.workers }
+    command: ["pnpm", "exec", "tsx", "src/recette/worker-recette.ts"]
+    restart: "no"
+    env_file: [ops/recette/.env.recette, ops/recette/neutralise.env]
+    environment:
+      TIKTRENDS_ENV: recette
+      AI_SPEND_CAP_USD: "15"
+      DATABASE_URL: postgres://recette:${POSTGRES_PASSWORD:?absent}@db_recette:5432/tiktrends_recette
+      REDIS_URL: redis://redis_recette:6379
+    networks: [recette]
+    depends_on:
+      db_recette: { condition: service_healthy }
+      redis_recette: { condition: service_healthy }
+
+  # Commandes de recette (migrations, semis, pas 1, benchmark) · lancées une à
+  # une par `run --rm`, jamais au démarrage (profil « outils »). Le conteneur
+  # partage l'espace réseau de la base de recette : il la joint en 127.0.0.1,
+  # ce qui ouvre l'environnement « test » du registre de prompts
+  # (STUDIOS_PROMPTS_RECETTE_LOCALE) pour CETTE base seulement.
+  outils_recette:
+    build: { context: ., dockerfile: Dockerfile.workers }
+    # Sans commande explicite, rien ne démarre (jamais src/index.ts et ses crons).
+    command: ["echo", "Outils de recette · passe une commande explicite, voir ops/recette/README.md"]
+    profiles: [outils]
+    restart: "no"
+    network_mode: "service:db_recette"
+    env_file: [ops/recette/.env.recette, ops/recette/neutralise.env]
+    environment:
+      TIKTRENDS_ENV: recette
+      AI_SPEND_CAP_USD: "15"
+      STUDIOS_PROMPTS_RECETTE_LOCALE: "1"
+      DATABASE_URL: postgres://recette:${POSTGRES_PASSWORD:?absent}@127.0.0.1:5432/tiktrends_recette
+      RECETTE_SORTIE: /sorties
+      # Seules clés payantes admises, ici seulement : copiées du shell du
+      # propriétaire au lancement, jamais écrites dans un fichier.
+      FAL_KEY: ${FAL_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      STUDIO_FOURNISSEUR_REEL: ${STUDIO_FOURNISSEUR_REEL:-}
+    volumes:
+      - ./ops/recette/sorties:/sorties
+    depends_on:
+      db_recette: { condition: service_healthy }
+
+# Noms explicites préfixés : `down -v` du projet ne peut viser qu'eux.
+networks:
+  recette: { name: tiktrends-recette-reseau }
+
+volumes:
+  pgdata_recette: { name: tiktrends-recette-pgdata }
