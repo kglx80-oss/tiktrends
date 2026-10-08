@@ -245,6 +245,8 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     // Qualité : le worker laisse `pending` (aucun constat) ; le contrôle L5-C ⇒ requires_review, jamais passed.
     expect(fini.qualityStatus).toBe('pending');
     const vue1 = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
+    // La consigne retenue se lit avec le NOM du fichier transmis (catalogue de la marque), pas son identifiant.
+    expect(vue1.ok && vue1.vue.retenue).toMatchObject({ verdict: { ok: true }, liaisons: [{ referenceId: id5, libelle: 'Lunettes Sport Bandeau · photo 5', role: 'product' }] });
     expect(vue1.ok && vue1.vue.jobs[0]).toMatchObject({ id: a.job.id, etat: 'completed', qualite: 'pending', media: { assetId, url: `/api/studios/media/${assetId}` } });
     expect((await jobDe(a.job.id)).qualityStatus).toBe('pending'); // la lecture n'écrit rien
     expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId: a.job.id })).toEqual({ ok: true, qualite: 'requires_review' });

@@ -41,7 +41,7 @@ const TOUT = { peutGenerer: true, peutProposer: true, briefPresent: true, prepar
 const CONSIGNE: ConsigneVue = {
   runId: '11111111-1111-4111-8111-111111111111', mode: 'generative_scene', libelleMode: 'Mise en scène générée',
   generationInstruction: 'Coureur portant les lunettes et le bandeau, piste au lever du jour.', negativeConstraints: ['Pas de texte dans l’image'],
-  protectedComponents: ['lunettes', 'bandeau'], liaisons: [{ referenceId: 'pph_0123456789abcdef01234567', role: 'product', scope: 'product' }],
+  protectedComponents: ['lunettes', 'bandeau'], liaisons: [{ referenceId: 'pph_0123456789abcdef01234567', libelle: 'Lunettes Sport Bandeau · photo 5', role: 'product', scope: 'product' }],
   format: { largeur: 1080, hauteur: 1350 }, compileeLe: '2026-10-08T10:00:00Z',
 };
 const OK: VerdictConsigne = { ok: true };
@@ -89,7 +89,7 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(txt(c, '[data-champ="instruction"]')).toBe(CONSIGNE.generationInstruction);
     expect(txt(c, '[data-champ="proteges"]')).toBe('Composants protégés : lunettes, bandeau.');
     expect(txt(c, '[data-champ="interdits"]')).toBe('Pas de texte dans l’image');
-    expect(txt(c, '[data-champ="liaisons"]')).toBe('Fichiers transmis au fournisseur : pph_0123456789abcdef01234567 (Produit, Produit).');
+    expect(txt(c, '[data-champ="liaisons"]')).toBe('Fichiers transmis au fournisseur : Lunettes Sport Bandeau · photo 5 (rôle Produit, portée Produit).');
     expect(bouton(d, 'retenir')!.disabled).toBe(false);
     expect(c.textContent).toContain('Crée une nouvelle version du projet · aucun appel, aucun coût.');
     expect(bouton(d, 'devis')!.disabled).toBe(true);
@@ -203,6 +203,14 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     expect(m.compiler).toHaveBeenCalledWith({ projectId: 'p1', mode: 'generative_scene' });
     expect(txt(conteneur, '[data-champ="questions"]')).toContain('Quel décor ?');
     expect(m.lancer).not.toHaveBeenCalled();
+  });
+
+  it('mode proposé · celui de la consigne retenue, pas le premier de la liste', async () => {
+    const deuxPrets = vue({ retenue: { ...CONSIGNE, verdict: OK } });
+    deuxPrets.modes = deuxPrets.modes.map((x) => ({ ...x, pret: true }));
+    await monter(deuxPrets);
+    expect(conteneur.querySelector('[data-mode="generative_scene"]')!.getAttribute('aria-checked')).toBe('true');
+    expect(conteneur.querySelector('[data-mode="faithful_composite"]')!.getAttribute('aria-checked')).toBe('false');
   });
 
   it('« Approuver et lancer » · devis affiché transmis tel quel, même clé d’un clic à l’autre (aucun second débit)', async () => {

@@ -53,7 +53,8 @@ export interface ConsigneVue {
   generationInstruction: string;
   negativeConstraints: string[];
   protectedComponents: string[];
-  liaisons: Array<{ referenceId: string; role: string; scope: string }>;
+  /** Les fichiers transmis, avec leur nom dans le catalogue de la marque (l'identifiant sinon). */
+  liaisons: Array<{ referenceId: string; libelle: string; role: string; scope: string }>;
   format: { largeur: number; hauteur: number };
   compileeLe: string;
 }
@@ -95,11 +96,11 @@ export interface VueParcoursImage {
   peutRelire: boolean;
 }
 
-function vueConsigne(c: ConsigneImagePersistee): ConsigneVue {
+function vueConsigne(c: ConsigneImagePersistee, noms: ReadonlyMap<string, { libelle: string }>): ConsigneVue {
   return {
     runId: c.runId, mode: c.mode, libelleMode: LIBELLES_MODE_IMAGE[c.mode],
     generationInstruction: c.consigne.generationInstruction, negativeConstraints: [...c.consigne.negativeConstraints],
-    protectedComponents: [...c.consigne.protectedComponents], liaisons: c.consigne.referenceBindings.map((b) => ({ ...b })),
+    protectedComponents: [...c.consigne.protectedComponents], liaisons: c.consigne.referenceBindings.map((b) => ({ ...b, libelle: noms.get(b.referenceId)?.libelle ?? b.referenceId })),
     format: { ...c.format }, compileeLe: c.compileeLe,
   };
 }
@@ -123,7 +124,7 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
 
   const etat = await verifierConsigne(db, portee, contenu);
   const compilee = await derniereConsigneCompilee(db, portee, cat.version.id);
-  const enAttente = compilee && compilee.empreinte !== etat.empreinte ? vueConsigne(compilee.consigne) : null;
+  const enAttente = compilee && compilee.empreinte !== etat.empreinte ? vueConsigne(compilee.consigne, cat.fichiers) : null;
 
   // Devis image encore valide de la version courante, pas encore approuvé.
   const Q = schema.studioQuotes;
@@ -166,7 +167,7 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
     vue: {
       projet: { id: projet.id }, version: { id: cat.version.id, n: cat.version.n }, modes,
       format: formatImageDuContenu(contenu), disponibilite, coutCompilationUsd: o.coutCompilationUsd, prix: prixImage(),
-      enAttente, retenue: etat.consigne ? { ...vueConsigne(etat.consigne), verdict: etat.verdict } : null,
+      enAttente, retenue: etat.consigne ? { ...vueConsigne(etat.consigne, cat.fichiers), verdict: etat.verdict } : null,
       devis, jobs, composantsObligatoires: ref ? [...ref.composantsObligatoires] : [],
       peutRelire: aPermissionEspace(ctx.permissions, 'studio.propose'),
     },

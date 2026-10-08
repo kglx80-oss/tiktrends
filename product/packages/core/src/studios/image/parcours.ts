@@ -330,11 +330,17 @@ const MOTIF_MAX = 300;
 /** La raison d'un échec, dite en mots · jamais vide, jamais un secret (les motifs du worker sont expurgés). */
 export function raisonEchec(erreur: unknown): string {
   const m = estObjet(erreur) && typeof erreur.motif === 'string' ? erreur.motif : '';
+  if (/refus certain/i.test(m)) {
+    const http = /HTTP (\d{3})/.exec(m);
+    return `Le fournisseur a refusé la demande${http ? ` (HTTP ${http[1]})` : ''} · rien n’a été livré, les crédits sont rendus.`;
+  }
   if (/MISSING_REFERENCE/.test(m)) return 'Une référence a disparu ou changé avant l’envoi · rien n’a été envoyé au fournisseur, aucune substitution.';
   if (/Plafond de dépense/i.test(m)) return 'Le plafond de dépense était atteint au moment de l’envoi · rien n’est parti.';
   if (/studio_image\/1|consigne image compilée/.test(m)) return 'Le job ne portait pas de consigne compilée · rien n’est parti.';
   if (!m) return 'Le fournisseur a refusé ou échoué · aucun détail n’a été transmis.';
-  return m.length > MOTIF_MAX ? `${m.slice(0, MOTIF_MAX)}…` : m;
+  // Le nom du prestataire technique ne s'affiche pas : « le fournisseur ».
+  const dit = m.replace(/\bfal(\.ai)?\b/gi, 'le fournisseur');
+  return dit.length > MOTIF_MAX ? `${dit.slice(0, MOTIF_MAX)}…` : dit;
 }
 
 /** Bornes du format demandé à la compilation · reprises du contrat, pas inventées. */

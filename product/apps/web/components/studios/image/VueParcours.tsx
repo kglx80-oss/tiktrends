@@ -73,7 +73,7 @@ function DetailsConsigne({ c }: { c: ConsigneVue }) {
       )}
       <p style={mini} data-champ="liaisons">
         {c.liaisons.length
-          ? `Fichiers transmis au fournisseur : ${c.liaisons.map((l) => `${l.referenceId} (${libelleRole(l.role)}, ${libellePortee(l.scope)})`).join(' ; ')}.`
+          ? `Fichiers transmis au fournisseur : ${c.liaisons.map((l) => `${l.libelle} (rôle ${libelleRole(l.role)}, portée ${libellePortee(l.scope)})`).join(' ; ')}.`
           : 'Aucun fichier transmis au fournisseur · génération à partir du texte seul.'}
       </p>
     </div>
@@ -88,8 +88,8 @@ function Relecture({ job, composants, surRelire, occupe }: { job: JobImageVue; c
     <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 8 }} data-relecture={job.id}>
       <legend style={etiquette}>Relire les composants obligatoires</legend>
       {composants.map((c) => (
-        <div key={c} role="radiogroup" aria-label={`Composant ${c}`} style={rangee}>
-          <span style={{ ...texte, minWidth: 120 }}>{c}</span>
+        <div key={c} role="radiogroup" aria-label={`Composant ${c}`} style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, alignItems: 'center' }}>
+          <span style={{ ...texte, color: 'var(--ink)', flex: '1 0 100%' }}>{c}</span>
           {([true, false] as const).map((v) => (
             <label key={String(v)} style={{ display: 'inline-flex', gap: 8, alignItems: 'center', minHeight: CIBLE, fontSize: 14, color: 'var(--ink-2)' }}>
               <input type="radio" name={`${id}-${c}`} checked={choix[c] === v} onChange={() => setChoix((p) => ({ ...p, [c]: v }))} style={{ width: 20, height: 20 }} />

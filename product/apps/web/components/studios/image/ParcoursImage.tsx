@@ -70,7 +70,12 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   useEffect(() => { void charger(); }, [charger, versionId]);
 
   useEffect(() => {
-    if (vue && !mode) { const m = vue.modes.find((x) => x.pret); if (m) setMode(m.mode); }
+    // Le mode de la consigne en cours (retenue ou compilée), sinon le premier que le contrôle laisse passer.
+    if (vue && !mode) {
+      const voulu = vue.enAttente?.mode ?? vue.retenue?.mode;
+      const m = vue.modes.find((x) => x.mode === voulu && x.pret) ?? vue.modes.find((x) => x.pret);
+      if (m) setMode(m.mode);
+    }
   }, [vue, mode]);
 
   useEffect(() => {

@@ -178,6 +178,8 @@ describe('écran · disponibilités et mots', () => {
   it('raison d’échec et qualité en mots', () => {
     expect(raisonEchec({ motif: 'MISSING_REFERENCE · référence indisponible, aucune substitution · pph_x : retirée' })).toContain('aucune substitution');
     expect(raisonEchec(null)).toBe('Le fournisseur a refusé ou échoué · aucun détail n’a été transmis.');
+    expect(raisonEchec({ motif: 'refus certain du fournisseur · fal a refusé la demande (HTTP 422)' })).toBe('Le fournisseur a refusé la demande (HTTP 422) · rien n’a été livré, les crédits sont rendus.');
+    expect(raisonEchec({ motif: 'sortie keyframe:s_image non décodable via fal.ai' })).toBe('sortie keyframe:s_image non décodable via le fournisseur');
     expect(libelleQualiteImage('completed', 'requires_review')).toContain('À relire');
     expect(libelleQualiteImage('running', 'pending')).toBe('Aucun média livré pour l’instant');
   });
