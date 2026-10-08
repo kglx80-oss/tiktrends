@@ -20,6 +20,7 @@
 
 import { sha256Hex } from '../version';
 import { GRILLE_STUDIO, type ProfilOperation } from '../execution/tarifs';
+import { rienNaEteFacture } from '../../spend-refund';
 
 /** Défaut en dur de `apps/web/lib/spend-guard.ts` (`DEFAULT_CAP_USD`) · même valeur, comparée par test. */
 export const PLAFOND_DEFAUT_USD = 50;
@@ -84,4 +85,34 @@ export function idDepenseDuJob(jobId: string): string {
 export function jobDeCleFournisseur(cle: string): string | null {
   const m = /^tt-studio-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(cle);
   return m ? m[1]!.toLowerCase() : null;
+}
+
+/* ── R2 · appel texte (Anthropic) · quand une réservation se libère ────────── */
+
+/**
+ * Statuts HTTP d'un REFUS CERTAIN du fournisseur texte, et leur famille
+ * (`ErrorFamily` du site, classée par `spend-refund.ts`).
+ *
+ * La réservation d'un appel texte (son coût MAXIMAL) est prise avant l'envoi.
+ * Elle ne se libère que si l'on SAIT que rien n'a été facturé. Le client
+ * `@anthropic-ai/sdk` (0.27.3, `core.js` · `shouldRetry`) rejoue de lui-même
+ * les statuts 408, 409, 429, ≥ 500 et les coupures réseau : un échec final sur
+ * l'un d'eux peut suivre une tentative incertaine (coupure après envoi) ; il
+ * n'est donc PAS certain, la réservation reste. Les statuts ci-dessous ne sont
+ * jamais rejoués : la requête a été refusée à la porte, avant tout calcul, et
+ * une tentative antérieure du même corps l'aurait été aussi.
+ *  · 400, 422 · demande malformée · famille `requete` ;
+ *  · 401, 403 · clé absente ou refusée · famille `acces`.
+ * Une erreur sans statut (coupure, délai, abandon, erreur inconnue) garde la
+ * réservation : le doute se paie.
+ */
+export const REFUS_CERTAINS_TEXTE: Readonly<Record<number, 'requete' | 'acces'>> = {
+  400: 'requete', 422: 'requete', 401: 'acces', 403: 'acces',
+};
+
+/** La réservation d'un appel texte échoué peut-elle être rendue ? */
+export function reservationTexteLiberable(statut: unknown): boolean {
+  if (typeof statut !== 'number' || !Number.isInteger(statut)) return false;
+  const famille = REFUS_CERTAINS_TEXTE[statut];
+  return famille !== undefined && rienNaEteFacture(famille);
 }

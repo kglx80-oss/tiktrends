@@ -1,10 +1,10 @@
 /**
  * Barrière de dépense des processus hors web (worker des studios).
  *
- * `apps/web/lib/spend-guard.ts` reste LA barrière du web et n'est pas modifiée.
- * Le worker ne peut pas l'importer (`server-only`) : il applique ici la MÊME
- * règle sur la MÊME table, à travers un port vers la base
- * (`@tiktrends/db` · `reserverDepense` / `annulerDepense`) :
+ * Le worker ne peut pas importer `apps/web/lib/spend-guard.ts` (`server-only`) :
+ * il applique ici la MÊME règle, par la MÊME réservation que le site, à travers
+ * un port vers la base (`@tiktrends/db` · `reserverDepense` / `annulerDepense`,
+ * celles que `spend-guard.ts` appelle aussi depuis la correction R2) :
  *
  *  · plafond `AI_SPEND_CAP_USD` lu comme `spendCapUsd()` (`plafondDepenseUsd`) ;
  *  · fenêtre glissante de 30 jours, somme de `ai_spend.actual_usd` ;
@@ -12,8 +12,10 @@
  *  · coût pris AVANT l'appel, rendu (`actual_usd = 0`) seulement si l'échec est
  *    CERTAIN, gardé si l'issue est incertaine (la requête a pu être facturée).
  *
- * Les lignes web et worker tombent dans la même somme : UN seul plafond. Ce
- * cumul est prouvé en base par `apps/web/test/fa-plafond-commun.test.ts`.
+ * Les lignes web et worker tombent dans la même somme ET passent par le même
+ * verrou consultatif : UN seul plafond, qu'aucune course site/worker ne dépasse.
+ * Cumul prouvé en base par `apps/web/test/fa-plafond-commun.test.ts`, course
+ * mixte sur PostgreSQL réel par `apps/web/test/fa-course-mixte-pg.test.ts`.
  */
 
 import {

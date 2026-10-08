@@ -1,12 +1,12 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
-import { eq, gte, sql } from 'drizzle-orm';
-import { db, schema } from '@tiktrends/db';
+import { gte, sql } from 'drizzle-orm';
+import { db, schema, reserverDepense, reglerDepense, annulerDepense, type BaseDepense } from '@tiktrends/db';
 import { anthropicFromEnv } from '@tiktrends/ai';
 import { errorFamily } from './user-error';
 import {
   checkBudget, costOfTokens, estimateCallCost, summarizeBudget, FIXED_COSTS, rienNaEteFacture,
-  type FixedCostKind,
+  reservationTexteLiberable, type FixedCostKind,
 } from '@tiktrends/core';
 
 /**
@@ -69,31 +69,71 @@ export async function spendStatus(): Promise<SpendStatus> {
   return { spentUsd: total, capUsd: cap, summary: summarizeBudget({ spentUsd: total, capUsd: cap }), blocked: total >= cap };
 }
 
-/** Écrit une ligne de dépense · best-effort, jamais bloquant pour l'appelant. */
-async function record(row: {
-  workspaceId?: string | null; provider: string; model?: string | null; action: string;
-  estimatedUsd: number; actualUsd: number; inputTokens?: number | null; outputTokens?: number | null;
-}): Promise<string | null> {
-  if (!db) return null;
-  try {
-    const [ligne] = await db.insert(schema.aiSpend).values({
-      workspaceId: row.workspaceId ?? null,
-      provider: row.provider, model: row.model ?? null, action: row.action,
-      estimatedUsd: row.estimatedUsd, actualUsd: row.actualUsd,
-      inputTokens: row.inputTokens ?? null, outputTokens: row.outputTokens ?? null,
-    }).returning({ id: schema.aiSpend.id });
-    return ligne?.id ?? null;
-  } catch (e) {
-    // Une écriture ratée fait perdre la trace d'une dépense · c'est grave, et
-    // ça se voit dans les journaux plutôt que de casser la requête en cours.
-    console.error('[spend] écriture impossible', (e as Error).message);
-    return null;
-  }
-}
-
 /** Levée quand le plafond refuse un appel · message affichable tel quel. */
 export class SpendBlockedError extends Error {
   constructor(message: string) { super(message); this.name = 'SpendBlockedError'; }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Réservation commune (site + worker)                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Réserve une dépense AVANT l'appel payant · rend l'identifiant de la ligne.
+ *
+ * ── Le défaut réparé (contre-recette du 8 octobre, P1) ───────────────────────
+ *
+ * Cette barrière lisait la somme (`spendStatus`) puis écrivait sa ligne dans
+ * une AUTRE requête, sans verrou ; le worker, lui, réservait sous verrou dans
+ * la même table. Les deux ne s'attendaient pas : plafond 0,20 $, déjà 0,08 $,
+ * le site et le worker passaient chacun 0,08 $ ⇒ 0,24 $ (reproduit sur
+ * PostgreSQL réel, `test/fa-course-mixte-pg.test.ts`). Une table commune n'est
+ * pas un verrou commun.
+ *
+ * Désormais le site réserve par la MÊME fonction que le worker
+ * (`reserverDepense`, `@tiktrends/db`) : même verrou consultatif, même somme,
+ * même insertion, dans la même transaction. La décision reste `checkBudget`,
+ * au plafond `spendCapUsd()` et sur la fenêtre `WINDOW_DAYS`.
+ *
+ * En cas de doute, on refuse : base absente ou injoignable ⇒ le même refus que
+ * « plafond atteint », rien ne part (sans ligne, pas d'appel).
+ */
+async function reserverSousPlafond(ligne: {
+  workspaceId: string; provider: string; model: string; action: string; usd: number;
+}): Promise<string> {
+  const cap = spendCapUsd();
+  const refus = () => new SpendBlockedError(checkBudget({ spentUsd: cap, capUsd: cap }, ligne.usd).reason);
+  if (!db) throw refus();
+  let r: Awaited<ReturnType<typeof reserverDepense>>;
+  try {
+    r = await reserverDepense(db as unknown as BaseDepense, ligne, {
+      depuis: new Date(Date.now() - WINDOW_DAYS * 86_400_000),
+      decider: (depense) => checkBudget({ spentUsd: depense, capUsd: cap }, ligne.usd),
+    });
+  } catch (e) {
+    console.error('[spend] réservation impossible', (e as Error).message);
+    throw refus();
+  }
+  if (!r.ok) throw new SpendBlockedError(r.raison);
+  return r.id;
+}
+
+/**
+ * Règle une réservation au coût réel des jetons, une seule fois. Un règlement
+ * impossible laisse la réservation (le maximum) comptée : le côté prudent.
+ */
+async function reglerAuReel(id: string, modele: string, entree: number, sortie: number): Promise<void> {
+  if (!db) return;
+  try {
+    await reglerDepense(db as unknown as BaseDepense, id, { usd: costOfTokens(modele, entree, sortie), inputTokens: entree, outputTokens: sortie });
+  } catch (e) {
+    console.error('[spend] règlement impossible · la réservation reste comptée', (e as Error).message);
+  }
+}
+
+/** Statut HTTP d'une erreur du client Anthropic · `undefined` hors réponse HTTP. */
+function statutHttp(e: unknown): number | undefined {
+  return e instanceof Anthropic.APIError ? e.status : undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -115,9 +155,14 @@ function promptChars(p: CreateParams): number {
 /**
  * Client Anthropic sous plafond.
  *
- * `messages.create` est remplacé : on estime, on demande l'autorisation, puis on
- * réconcilie avec les jetons réellement consommés. Tout le reste du client passe
- * inchangé · on n'intercepte que la méthode qui coûte.
+ * `messages.create` est remplacé : on RÉSERVE le coût maximal de l'appel
+ * (`estimateCallCost` : `max_tokens` au tarif de sortie, plus l'entrée estimée
+ * au tarif d'entrée) sous le verrou commun, AVANT l'envoi ; puis on règle au
+ * coût réel des jetons, une fois. Le plafond refuse avant l'appel quand le
+ * maximum ne tient pas. Un refus CERTAIN du fournisseur
+ * (`reservationTexteLiberable`) rend la réservation ; une issue incertaine la
+ * garde. Tout le reste du client passe inchangé · on n'intercepte que la
+ * méthode qui coûte.
  */
 /**
  * L'espace qui paie · OBLIGATOIRE (L0-B §4). Vingt-quatre appels l'omettaient,
@@ -143,9 +188,23 @@ export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
       maxTokens: Number(params.max_tokens ?? 1024),
     });
 
-    const status = await spendStatus();
-    const decision = checkBudget({ spentUsd: status.spentUsd, capUsd: status.capUsd }, estime);
-    if (!decision.allowed) throw new SpendBlockedError(decision.reason);
+    // Réservation du MAXIMUM, sous le verrou commun, AVANT l'envoi.
+    const id = await reserverSousPlafond({
+      workspaceId: opts.workspaceId, provider: 'anthropic', model: modele, action: opts.action, usd: estime,
+    });
+
+    let res: unknown;
+    try {
+      res = await (brut as (p: CreateParams, o?: unknown) => Promise<unknown>)(params, options);
+    } catch (e) {
+      // Refus CERTAIN (400, 401, 403, 422 · jamais rejoués par le client) :
+      // rien n'est facturé, la réservation est rendue. Tout autre échec
+      // (coupure, délai, 429, 5xx) peut suivre une tentative facturée : elle reste.
+      if (db && reservationTexteLiberable(statutHttp(e))) {
+        await annulerDepense(db as unknown as BaseDepense, id).catch((x) => console.error('[spend] libération impossible', (x as Error).message));
+      }
+      throw e;
+    }
 
     // ── Flux ────────────────────────────────────────────────────────────────
     //
@@ -154,47 +213,37 @@ export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
     // l'exactitude de la comptabilité, sans quoi le plafond fuirait par ce
     // chemin-là.
     //
-    // Les jetons d'entrée arrivent sur `message_start`, ceux de sortie sur le
-    // `message_delta` final. On enveloppe l'itération pour les relever au
-    // passage et écrire la dépense quand le flux se termine — y compris s'il
-    // est interrompu, `finally` s'en charge.
+    // Le maximum est déjà réservé. Les jetons d'entrée arrivent sur
+    // `message_start`, ceux de sortie sur le `message_delta` final : le
+    // règlement au réel n'a lieu que si ce dernier est arrivé. Un flux coupé
+    // avant, ou jamais lu, garde la réservation (la sortie produite est
+    // facturée, et on ne sait pas combien).
     if (params.stream) {
-      const flux = await (brut as (p: CreateParams, o?: unknown) => Promise<AsyncIterable<unknown>>)(params, options);
+      const flux = res as AsyncIterable<unknown>;
       return (async function* () {
         let entree = 0;
         let sortie = 0;
+        let final = false;
         try {
           for await (const ev of flux) {
             const e = ev as { type?: string; message?: { usage?: { input_tokens?: number } }; usage?: { output_tokens?: number } };
             if (e.type === 'message_start') entree = e.message?.usage?.input_tokens ?? 0;
-            if (e.type === 'message_delta') sortie = e.usage?.output_tokens ?? sortie;
+            if (e.type === 'message_delta' && typeof e.usage?.output_tokens === 'number') { sortie = e.usage.output_tokens; final = true; }
             yield ev;
           }
         } finally {
-          const reel = costOfTokens(modele, entree, sortie);
-          await record({
-            workspaceId: opts.workspaceId, provider: 'anthropic', model: modele, action: opts.action,
-            // Un flux coupé avant le premier événement ne doit pas compter pour
-            // zéro · l'estimation prend le relais, comme sur le chemin normal.
-            estimatedUsd: estime, actualUsd: entree || sortie ? reel : estime,
-            inputTokens: entree || null, outputTokens: sortie || null,
-          });
+          if (final) await reglerAuReel(id, modele, entree, sortie);
         }
       })();
     }
 
-    const res = await (brut as (p: CreateParams, o?: unknown) => Promise<Anthropic.Message>)(params, options);
-
+    // Une réponse sans `usage` ne compte pas pour zéro : la réservation (le
+    // maximum) reste, sinon le plafond fuit sur ce chemin-là.
     const usage = (res as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
-    const reel = costOfTokens(modele, usage?.input_tokens ?? 0, usage?.output_tokens ?? 0);
-    await record({
-      workspaceId: opts.workspaceId, provider: 'anthropic', model: modele, action: opts.action,
-      // On enregistre au moins l'estimation : une réponse sans `usage` ne doit
-      // pas compter pour zéro, sinon le plafond fuit sur ce chemin-là.
-      estimatedUsd: estime, actualUsd: usage ? reel : estime,
-      inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null,
-    });
-    return res;
+    if (usage && (typeof usage.input_tokens === 'number' || typeof usage.output_tokens === 'number')) {
+      await reglerAuReel(id, modele, usage.input_tokens ?? 0, usage.output_tokens ?? 0);
+    }
+    return res as Anthropic.Message;
   };
 
   // On remplace la méthode sur une copie du sous-objet · le client d'origine
@@ -211,7 +260,7 @@ export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Autorise une dépense à coût fixe, puis l'enregistre.
+ * Réserve une dépense à coût fixe · sous le verrou commun (`reserverSousPlafond`).
  *
  * Les générations d'image et de vidéo ne se comptent pas en jetons · on applique
  * un coût forfaitaire, pris haut. La vidéo est le poste qui peut faire déraper
@@ -221,16 +270,9 @@ export async function guardFixedCost(
   kind: FixedCostKind, opts: ImputationDepense & { units?: number },
 ): Promise<string | null> {
   const cout = FIXED_COSTS[kind] * Math.max(1, Math.round(opts.units ?? 1));
-  const status = await spendStatus();
-  const decision = checkBudget({ spentUsd: status.spentUsd, capUsd: status.capUsd }, cout);
-  if (!decision.allowed) throw new SpendBlockedError(decision.reason);
-
   // On renvoie l'identifiant de la ligne · c'est ce qui rend la dépense
   // annulable quand l'appel qui suit est refusé sans rien produire.
-  return record({
-    workspaceId: opts.workspaceId, provider: 'fal', model: kind, action: opts.action,
-    estimatedUsd: cout, actualUsd: cout,
-  });
+  return reserverSousPlafond({ workspaceId: opts.workspaceId, provider: 'fal', model: kind, action: opts.action, usd: cout });
 }
 
 /**
@@ -260,8 +302,8 @@ export async function guardFixedCost(
 export async function annuleCoutFixe(id: string | null, famille: string): Promise<boolean> {
   if (!id || !db || !rienNaEteFacture(famille)) return false;
   try {
-    await db.update(schema.aiSpend).set({ actualUsd: 0 }).where(eq(schema.aiSpend.id, id));
-    return true;
+    // Idempotent (`annulerDepense`) : une seconde annulation ne change rien.
+    return await annulerDepense(db as unknown as BaseDepense, id);
   } catch (e) {
     // Ne rien rendre est le côté prudent de l'erreur · on le dit sans casser
     // l'action, qui vient déjà d'échouer pour une autre raison.
