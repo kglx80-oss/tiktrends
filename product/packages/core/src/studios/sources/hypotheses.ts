@@ -1,3 +1,4 @@
+import { JETONS_ENTREE_MAX_PROPOSITION, JETONS_SORTIE_MAX_PROPOSITION } from '../bornes-taches';
 /**
  * Studios · L4 · hypothèses de test (cahier 01 §4.2 point 4, contrat
  * `test_hypothesize_output` de 03-CONTRATS).
@@ -161,13 +162,11 @@ export function saisieSuffisante(h: HypotheseTest): boolean {
 /**
  * Plafond de coût d'UNE demande de propositions, annoncé AVANT le clic.
  *
- * Recopie des bornes du résolveur (`lib/studios/prompts/resolveur.ts` :
+ * Bornes du résolveur (`bornes-taches.ts`, source unique :
  * budget de contexte 24 000 jetons, sortie 4 000) · le pire cas, au tarif du
  * modèle routé. C'est un plafond (la barrière de dépense refuse au-delà), pas
  * le prix réel, qui est journalisé après coup.
  */
-export const JETONS_ENTREE_MAX_PROPOSITION = 24_000;
-export const JETONS_SORTIE_MAX_PROPOSITION = 4_000;
 export function plafondPropositionUsd(tarif: { inputPerMTok: number; outputPerMTok: number }): number {
   const usd = (JETONS_ENTREE_MAX_PROPOSITION * tarif.inputPerMTok + JETONS_SORTIE_MAX_PROPOSITION * tarif.outputPerMTok) / 1_000_000;
   return Math.ceil(usd * 100) / 100;

@@ -9,6 +9,7 @@ import { surface, tuile, h1 } from '../../ui';
 import { RetourVeille } from '../../RetourVeille';
 import { PastilleEtape } from './CarteProjet';
 import { ExporterBrief } from './ExporterBrief';
+import { PropositionsProjet } from './PropositionsProjet';
 
 /**
  * La page projet (cahier 01 §4.1, §4.2 point 7, §5) · marque et version
@@ -45,6 +46,7 @@ export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; ex
   const { projet, version, brief, hypothese, produit, sources, completude, versions } = detail;
   const retour = sources.find((s) => s.statut === 'active' && s.retourVeille)?.retourVeille ?? null;
   const ancienne = !versions.find((v) => v.id === version.id)?.courante;
+  const courante = versions.find((v) => v.courante) ?? null;
   const faitsSansHypothese = (k: NatureFait): FaitBrief[] => (brief?.facts ?? []).filter((f) => f.kind === k && !(hypothese && (f.id === hypothese.id || f.id.startsWith(`${hypothese.id}.`))));
 
   return (
@@ -124,11 +126,12 @@ export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; ex
             ) : <p style={{ ...discret, color: '#ffcf8f' }}>Aucun produit choisi · le scénario attendra un produit de la marque.</p>}
           </section>
 
-          {/* ═══ EMPLACEMENT « propositions » · agent L4-A ═══════════════════════
-              L'intégrateur monte ici <PanneauPropositions projectId={projet.id}
-              versionId={version.id} /> (components/studios/PanneauPropositions.tsx).
-              Rien n'est importé d'ici · le conteneur reste vide tant qu'il n'est pas monté. */}
-          <div data-emplacement="propositions" />
+          {/* Propositions (L4-A) · ciblent la version COURANTE, pas celle affichée. */}
+          {courante && (
+            <div data-emplacement="propositions">
+              <PropositionsProjet projectId={projet.id} versionCourante={{ id: courante.id, n: courante.n }} />
+            </div>
+          )}
 
           {/* ═══ EMPLACEMENT « variantes-tests » · agent L4-C ════════════════════
               L'intégrateur monte ici <VariantesEtTests projectId={projet.id}

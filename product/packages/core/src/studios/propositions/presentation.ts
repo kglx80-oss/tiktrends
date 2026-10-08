@@ -20,6 +20,7 @@ import type { EtatProposition } from '../machines';
 import { GRILLE_STUDIO, profilDuNoeud } from '../execution/tarifs';
 import { costOfTokens } from '../../spend-guard';
 import { libelleChemin, libelleCible, type CibleProposition } from './cible';
+import { JETONS_ENTREE_MAX_PROPOSITION, JETONS_SORTIE_MAX_PROPOSITION } from '../bornes-taches';
 
 export const MENTION_SANS_GENERATION =
   'Appliquer crée une nouvelle version du document. Rien n’est généré et rien n’est débité · un devis reste nécessaire avant toute génération.';
@@ -136,8 +137,6 @@ export function libelleNoeud(id: string, contenu: ContenuVersion | null): string
  * (`resolveur.ts` : budget de contexte 24 000 jetons, sortie 4 000). Le coût
  * maximal en découle, pessimiste : entrée pleine, sortie pleine.
  */
-export const JETONS_ENTREE_MAX_PROPOSITION = 24_000;
-export const JETONS_SORTIE_MAX_PROPOSITION = 4_000;
 
 export function coutMaximalDemandeJarvis(modele: string): number {
   return costOfTokens(modele, JETONS_ENTREE_MAX_PROPOSITION, JETONS_SORTIE_MAX_PROPOSITION);

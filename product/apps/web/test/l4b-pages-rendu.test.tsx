@@ -28,7 +28,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => h.active, listBrands: async () => [] }));
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); } }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
 import { session, semer } from './studios-semis';
@@ -145,6 +145,8 @@ describe('/studio/projets/[id] · la page projet', () => {
     expect(d.querySelector('[data-version-n="1"]')?.textContent).toContain('courante');
     expect(d.textContent).toContain('Exporter le brief');
     expect(d.querySelector('[data-emplacement="propositions"]')).not.toBeNull();
+    // Intégration L4-A · le panneau des propositions est RENDU dans son emplacement, pas seulement réservé.
+    expect(d.querySelector('[data-emplacement="propositions"] [data-panneau="propositions"]')?.textContent, 'panneau des propositions absent de la page projet').toContain('Propositions');
     expect(d.querySelector('[data-emplacement="variantes-tests"]')).not.toBeNull();
     expect(d.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
     expect(d.innerHTML).not.toMatch(/Trendtrack/i);

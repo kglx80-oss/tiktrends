@@ -170,3 +170,13 @@ test/l4a-concurrence-pg.test.ts` depuis `apps/web`.
    transmettre ces cibles en documents résolus validés plutôt qu'en résumé.
 6. **Bornes du résolveur** · `PORTEE_DEFAUT_BUDGET` et `MAX_JETONS_SORTIE` (`resolveur.ts`) non exportés : le coût
    annoncé recopie 24 000 / 4 000 (sortie vérifiée au résultat, entrée non). À exporter pour une seule source.
+
+## Intégration (intégrateur)
+
+- Le panneau est monté dans la page projet de L4-B (`components/studios/projet/PropositionsProjet.tsx`, enveloppe
+  client qui recharge la page après application). Il vise toujours la version COURANTE du projet, même quand la page
+  affiche une version ancienne.
+- La page de recette `/studio/recette-propositions` et son test d'ouverture sont retirés : le panneau est visible dans
+  la vraie page, et une page de développement dans `ROUTES` serait apparue dans la recherche des utilisateurs.
+- Bornes de jetons (24 000 / 4 000) : source unique `packages/core/src/studios/bornes-taches.ts`, lue par le
+  résolveur, ce panneau et les hypothèses de L4-B (besoin 6 fermé).

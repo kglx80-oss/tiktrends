@@ -7,6 +7,7 @@ import {
   type Constat, type EntreeTache, type SortieTache, type TemplatePrompt, type RapportBudget, type Couche,
 } from './noyau';
 import { releaseActive, releaseChargee, type ReleaseChargee } from './depot-prompts';
+import { JETONS_ENTREE_MAX_PROPOSITION, JETONS_RESERVE_CONTEXTE, JETONS_SORTIE_MAX_PROPOSITION } from '@tiktrends/core';
 import { construireContexte, type EntreeContexte, type SourceSnapshot } from './contexte';
 import { CLE_CONVERSATION_JARVIS, validerPolitiqueConversation, type PolitiqueConversation } from './conversation';
 import { POLITIQUE_JARVIS_1_0_0 } from './complement-tiktrends';
@@ -38,9 +39,9 @@ import type { EnvironnementPrompts } from './environnement';
  * dépense qu'avant.
  */
 
-const PORTEE_DEFAUT_BUDGET = { budgetJetons: 24000, reserveJetons: 4000 } as const;
+const PORTEE_DEFAUT_BUDGET = { budgetJetons: JETONS_ENTREE_MAX_PROPOSITION, reserveJetons: JETONS_RESERVE_CONTEXTE } as const;
 /** Plafond de sortie d'une tâche structurée · le schéma borne déjà chaque champ. */
-const MAX_JETONS_SORTIE = 4000;
+const MAX_JETONS_SORTIE = JETONS_SORTIE_MAX_PROPOSITION;
 
 export interface DemandeTache {
   templateKey: string;
