@@ -170,7 +170,7 @@ function ImageCle({ sid, rang, k, p }: { sid: string; rang: number; k: KeyframeV
           </div>
         </div>
       )}
-      <p style={signal('info')} data-animation={sid}><span style={{ fontWeight: 600 }}>Animation · {LIBELLE_ANIMATION_INDISPONIBLE}.</span> Aucun clip n’est proposé ni facturé pour ce plan.</p>
+      {!d.animation.disponible && <p style={signal('info')} data-animation={sid}><span style={{ fontWeight: 600 }}>Animation · {LIBELLE_ANIMATION_INDISPONIBLE}.</span> Aucun clip n’est proposé ni facturé pour ce plan.</p>}
     </div>
   );
 }
@@ -395,7 +395,7 @@ export function VueVideo(p: ProprietesVueVideo) {
         <h2 id={`${id}-titre`} style={titre}>Storyboard et montage</h2>
         <p style={sousTitre}>Version {v.version.n} · {ordre.length} plan{ordre.length > 1 ? 's' : ''} · {dureeLisible(v.dureeTotaleMs)} · images clés {v.format.largeur} × {v.format.hauteur} ({v.format.libelle}{v.format.depuisBrief ? ', lu dans le brief' : ', défaut'}). Chaque changement montre son impact avant d’être enregistré ; rien de payant ne part sans ton clic.</p>
       </div>
-      <p style={signal('warn')} data-zone="animation" data-indisponible="animation"><span style={{ fontWeight: 600 }}>{LIBELLE_ANIMATION_INDISPONIBLE}.</span> {v.disponibilite.animation.raison}</p>
+      {!v.disponibilite.animation.disponible && <p style={signal('warn')} data-zone="animation" data-indisponible="animation"><span style={{ fontWeight: 600 }}>{LIBELLE_ANIMATION_INDISPONIBLE}.</span> {v.disponibilite.animation.raison}</p>}
       {p.retour && (
         <div role={p.retour.ok ? 'status' : 'alert'} style={signal(p.retour.ok ? 'ok' : 'err')} data-retour={p.retour.ok ? 'ok' : 'refus'}>
           <span style={{ fontWeight: 600 }}>{p.retour.ok ? 'Fait · ' : 'Refusé · '}</span>{p.retour.texte}

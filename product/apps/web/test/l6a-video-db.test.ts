@@ -108,7 +108,6 @@ const courante = async (projectId: string) => {
   const [v] = await db.select().from(schema.studioProjectVersions).where(eq(schema.studioProjectVersions.id, p!.currentVersionId!));
   return v!;
 };
-const contenuDe = async (projectId: string) => (await courante(projectId)).content as ContenuVersion;
 const compte = async (projectId: string) => ({
   devis: (await db.select().from(schema.studioQuotes).where(eq(schema.studioQuotes.projectId, projectId))).length,
   jobs: (await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.projectId, projectId))).length,
