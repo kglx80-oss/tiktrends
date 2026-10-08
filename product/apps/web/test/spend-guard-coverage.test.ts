@@ -80,3 +80,66 @@ describe('aucun chemin ne contourne le plafond de dépense', () => {
     }
   });
 });
+
+/* ── F-A · le worker et `packages/integrations` sont couverts aussi ─────────── */
+
+/**
+ * Le worker des studios dépense désormais (fournisseur fal réel). Il ne peut
+ * pas importer `sousPlafond` du web : sa barrière est `sousPlafondStudio`
+ * (`packages/integrations/src/plafond-depense.ts`, même règle, même table).
+ * Ce bloc étend la garde à `apps/workers/src` et `packages/integrations/src` :
+ *  · un appel aux fonctions payantes historiques hors de leur définition doit
+ *    passer par une barrière (`sousPlafond` ou `sousPlafondStudio`) ;
+ *  · tout fournisseur studio RÉEL (`implements FournisseurStudio`, `simule =
+ *    false`) n'a qu'UNE soumission (`method: 'POST'`), et elle est DANS
+ *    l'enveloppe `sousPlafondStudio` ;
+ *  · un `fetch` vers la file fal (`queue.fal.run`, `urlSoumissionFal`) ailleurs
+ *    que dans un fournisseur couvert est un contournement.
+ * Le RÉSULTAT (plafond atteint ⇒ 0 requête) est prouvé par
+ * `packages/integrations/test/fa-studios-fal.test.ts` et
+ * `apps/workers/test/fa-worker-fal.test.ts`.
+ */
+const PRODUIT = join(RACINE, '..', '..');
+const sourcesHorsWeb = [...fichiers(join(PRODUIT, 'apps', 'workers', 'src')), ...fichiers(join(PRODUIT, 'packages', 'integrations', 'src'))]
+  .map((p) => ({ p: p.slice(PRODUIT.length + 1), s: readFileSync(p, 'utf8') }));
+
+describe('aucun chemin du worker ni des intégrations ne contourne le plafond', () => {
+  it('les dossiers sont bien lus (garde non vide)', () => {
+    expect(sourcesHorsWeb.map((f) => f.p)).toEqual(expect.arrayContaining([
+      join('apps', 'workers', 'src', 'studios', 'fournisseurs.ts'),
+      join('packages', 'integrations', 'src', 'studios-fal.ts'),
+    ]));
+  });
+
+  it('un appel payant historique hors de sa définition passe par une barrière', () => {
+    const APPEL = /(?<!function\s)\b(falGenerateImage|falSubmitVideo|falSubmitImageVideo|hfSubmitVideo|hfSubmitImageVideo)\(/;
+    const coupables = sourcesHorsWeb.filter((f) => APPEL.test(f.s) && !/sousPlafond(Studio)?\(/.test(f.s)).map((f) => f.p);
+    expect(coupables, `appelle un moteur payant sans barrière : ${coupables.join(', ')}`).toEqual([]);
+  });
+
+  it('chaque fournisseur studio réel soumet UNE fois, et dans `sousPlafondStudio`', () => {
+    const reels = sourcesHorsWeb.filter((f) => /implements\s+FournisseurStudio/.test(f.s) && /simule\s*=\s*false/.test(f.s));
+    expect(reels.length, 'aucun fournisseur réel trouvé · la garde regarde-t-elle le bon endroit ?').toBeGreaterThan(0);
+    for (const f of reels) {
+      const posts = [...f.s.matchAll(/method:\s*'POST'/g)].map((m) => m.index!);
+      const enveloppe = f.s.indexOf('sousPlafondStudio(');
+      expect(posts.length, `${f.p} · une seule soumission attendue`).toBe(1);
+      expect(enveloppe, `${f.p} · soumission sans sousPlafondStudio`).toBeGreaterThan(-1);
+      // La soumission est dans le corps de l'appel enveloppé : après l'ouverture,
+      // avant la fin de la méthode `soumettre` (la méthode suivante, `statut`).
+      const finSoumettre = f.s.indexOf('async statut(');
+      expect(posts[0]! > enveloppe && posts[0]! < finSoumettre, `${f.p} · la soumission est hors de l'enveloppe de dépense`).toBe(true);
+    }
+  });
+
+  it('aucune soumission à la file fal en dehors d’un fournisseur couvert', () => {
+    const coupables = sourcesHorsWeb
+      // `fal.ts` (bibliothèque historique) porte l'URL par défaut ; ses points
+      // d'appel sont gardés plus haut. Ici : le constructeur d'URL de soumission
+      // studio, et toute adresse fal écrite dans le worker.
+      .filter((f) => /urlSoumissionFal\(/.test(f.s) || (f.p.startsWith(join('apps', 'workers')) && /fal\.run/.test(f.s)))
+      .filter((f) => !(/implements\s+FournisseurStudio/.test(f.s) && /sousPlafondStudio\(/.test(f.s)))
+      .map((f) => f.p);
+    expect(coupables, `soumet à la file fal hors barrière : ${coupables.join(', ')}`).toEqual([]);
+  });
+});
