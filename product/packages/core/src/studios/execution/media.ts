@@ -1,19 +1,30 @@
 /**
- * Studios · L3 · « décodable » et contrôle qualité automatique (cahier 01 §9.1).
+ * Studios · L3 · premier filtre des médias, règles du décodage réel, contrôle
+ * qualité automatique (cahier 01 §9.1).
  *
- * Pur. `completed` veut dire : fichier stocké, DÉCODABLE, relié. Le statut HTTP
- * du fournisseur ne suffit pas. On lit les octets réels (pas le type annoncé)
- * et on exige un fichier COMPLET, pas seulement un en-tête valide :
+ * Pur. Ce module ne DÉCODE rien et ne dit donc jamais « décodable » : il dit
+ * « structure plausible ». `completed` exige en plus un décodage RÉEL, fait
+ * par le worker (`DecodeurMedia`, pixels complets), dont ce module juge le
+ * résultat (`verdictDecodage`). Recette du 8 octobre : un MP4 de 88 octets
+ * (ftyp + moov et mdat remplis de zéros, aucune piste) passait pour lisible, et
+ * une image aux CRC justes mais à la charge utile abîmée aussi.
+ *
+ * Le premier filtre lit les octets réels (pas le type annoncé) et exige un
+ * fichier COMPLET et COHÉRENT, pas seulement un en-tête valide :
  *  - PNG · chaque bloc dans les bornes, CRC juste, IHDR en tête, au moins un
  *    IDAT, IEND exactement en fin de fichier ;
  *  - JPEG · segments dans les bornes, un SOFn, un SOS, fin EOI (FFD9) ;
  *  - WebP · taille RIFF égale à la taille réelle, blocs dans les bornes ;
- *  - MP4 · boîtes de premier niveau qui couvrent exactement le fichier, avec
- *    `ftyp`, `moov` et des données (`mdat` ou `moof`).
- * Un fichier tronqué, altéré ou suivi d'octets parasites = pas décodable
- * (recette Codex du 8 octobre : un fichier coupé passait sur son seul en-tête).
+ *  - MP4 · boîtes de premier niveau qui couvrent exactement le fichier, `ftyp`,
+ *    `moov`, `mdat`, et dans `moov` au moins une piste VIDÉO complète :
+ *    `trak/mdia/hdlr` de type `vide`, description d'échantillon (`stsd`) non
+ *    vide aux dimensions non nulles, nombre d'échantillons > 0 (`stsz`/`stz2`),
+ *    décalages de morceaux (`stco`/`co64`) qui tombent tous dans un `mdat`, et
+ *    des échantillons qui tiennent dans les données.
+ * Un CRC juste ne prouve pas que les pixels se décodent (le flux zlib d'un PNG,
+ * le flux entropique d'un JPEG peuvent être abîmés) : seul le décodeur le dit.
  *
- * La QUALITÉ est séparée : un fichier parfaitement décodable peut montrer le
+ * La QUALITÉ est séparée : un fichier parfaitement décodé peut montrer le
  * mauvais produit. Le contrôle automatique ne fait que lever le doute
  * (`requires_review`) ; il ne relance jamais une génération payante.
  */
@@ -41,15 +52,15 @@ export function inspecterMedia(o: Uint8Array): EnteteMedia | null {
 }
 
 /**
- * Le diagnostic qui décide de la suite au worker :
- *  - `complet` · livrable ;
- *  - `incomplet` · format reconnu mais fichier tronqué ou abîmé, le plus
- *    souvent un transfert coupé : on RETÉLÉCHARGE (échec de persistance), on
- *    ne conclut ni au succès, ni à l'échec facturé ;
+ * Le diagnostic du PREMIER FILTRE, qui décide de la suite au worker :
+ *  - `structure_plausible` · à confier au décodeur réel, jamais livrable seul ;
+ *  - `incomplet` · format reconnu mais fichier tronqué, abîmé ou sans contenu
+ *    (MP4 sans piste) : on RETÉLÉCHARGE, en nombre borné
+ *    (`decisionMediaRefuse`), rien n'est livré ni réglé entre-temps ;
  *  - `illisible` · ce n'est pas un média (page d'erreur, texte) : échec.
  */
-export function etatFichierMedia(o: Uint8Array): 'complet' | 'incomplet' | 'illisible' {
-  if (inspecterMedia(o)) return 'complet';
+export function etatFichierMedia(o: Uint8Array): 'structure_plausible' | 'incomplet' | 'illisible' {
+  if (inspecterMedia(o)) return 'structure_plausible';
   const reconnu = (o.length >= 8 && PNG.every((b, i) => o[i] === b))
     || (o.length >= 3 && o[0] === 0xff && o[1] === 0xd8 && o[2] === 0xff)
     || (o.length >= 12 && ascii(o, 0, 4) === 'RIFF' && ascii(o, 8, 4) === 'WEBP')
@@ -154,26 +165,199 @@ function inspecterWebp(o: Uint8Array): EnteteMedia | null {
   return i === o.length && image ? entete : null;
 }
 
-function inspecterMp4(o: Uint8Array): EnteteMedia | null {
-  let i = 0;
-  const vus = new Set<string>();
-  while (i < o.length) {
-    if (i + 8 > o.length) return null;
+interface Boite { type: string; debut: number; fin: number }
+
+/**
+ * Boîtes ISO-BMFF entre `debut` et `fin`, qui doivent couvrir EXACTEMENT la
+ * plage (`debut` = première boîte, `fin` = fin des données utiles). `null` si
+ * une boîte déborde ou ne tombe pas juste.
+ */
+function boites(o: Uint8Array, debut: number, fin: number): Boite[] | null {
+  const r: Boite[] = [];
+  let i = debut;
+  while (i < fin) {
+    if (i + 8 > fin) return null;
     let taille = u32be(o, i);
     const type = ascii(o, i + 4, 4);
+    let entete = 8;
     if (taille === 1) {
-      if (i + 16 > o.length) return null;
-      const haut = u32be(o, i + 8);
-      if (haut !== 0) return null;
+      if (i + 16 > fin) return null;
+      if (u32be(o, i + 8) !== 0) return null;
       taille = u32be(o, i + 12);
+      entete = 16;
     } else if (taille === 0) {
-      taille = o.length - i;
+      taille = fin - i;
     }
-    if (taille < 8 || i + taille > o.length) return null;
-    vus.add(type);
+    if (taille < entete || i + taille > fin) return null;
+    r.push({ type, debut: i + entete, fin: i + taille });
     i += taille;
   }
-  return vus.has('ftyp') && vus.has('moov') && (vus.has('mdat') || vus.has('moof')) ? { mime: 'video/mp4', largeur: null, hauteur: null } : null;
+  return r;
+}
+
+const enfant = (o: Uint8Array, b: Boite | undefined, type: string): Boite | undefined =>
+  b ? boites(o, b.debut, b.fin)?.find((x) => x.type === type) : undefined;
+
+/** Une piste vidéo complète · ses dimensions, ou `null`. */
+function pisteVideo(o: Uint8Array, trak: Boite, mdats: ReadonlyArray<Boite>): { largeur: number; hauteur: number } | null {
+  const mdia = enfant(o, trak, 'mdia');
+  const hdlr = enfant(o, mdia, 'hdlr');
+  // hdlr : version+drapeaux (4), pre_defined (4), handler_type (4).
+  if (!hdlr || hdlr.fin - hdlr.debut < 12 || ascii(o, hdlr.debut + 8, 4) !== 'vide') return null;
+  const stbl = enfant(o, enfant(o, mdia, 'minf'), 'stbl');
+  if (!stbl) return null;
+  const table = boites(o, stbl.debut, stbl.fin);
+  if (!table) return null;
+  const de = (t: string) => table.find((x) => x.type === t);
+
+  // stsd : version+drapeaux (4), nombre d'entrées (4), puis des entrées dont la
+  // première est une VisualSampleEntry (8 + 78 octets au moins) aux
+  // dimensions non nulles (largeur, hauteur à +24 et +26 de ses données).
+  const stsd = de('stsd');
+  if (!stsd || stsd.fin - stsd.debut < 8 || u32be(o, stsd.debut + 4) === 0) return null;
+  const entrees = boites(o, stsd.debut + 8, stsd.fin);
+  const e = entrees?.[0];
+  if (!e || e.fin - e.debut < 78) return null;
+  const largeur = u16be(o, e.debut + 24);
+  const hauteur = u16be(o, e.debut + 26);
+  if (largeur === 0 || hauteur === 0) return null;
+
+  // Nombre et taille des échantillons.
+  let echantillons = 0;
+  let octetsEchantillons = 0;
+  const stsz = de('stsz');
+  const stz2 = de('stz2');
+  if (stsz) {
+    if (stsz.fin - stsz.debut < 12) return null;
+    const taille = u32be(o, stsz.debut + 4);
+    echantillons = u32be(o, stsz.debut + 8);
+    if (taille !== 0) octetsEchantillons = taille * echantillons;
+    else {
+      if (stsz.debut + 12 + 4 * echantillons > stsz.fin) return null;
+      for (let k = 0; k < echantillons; k++) octetsEchantillons += u32be(o, stsz.debut + 12 + 4 * k);
+    }
+  } else if (stz2) {
+    if (stz2.fin - stz2.debut < 12) return null;
+    const champ = o[stz2.debut + 7]!;
+    echantillons = u32be(o, stz2.debut + 8);
+    if (![4, 8, 16].includes(champ) || stz2.debut + 12 + Math.ceil((champ * echantillons) / 8) > stz2.fin) return null;
+    for (let k = 0; k < echantillons; k++) {
+      const p = stz2.debut + 12;
+      octetsEchantillons += champ === 16 ? u16be(o, p + 2 * k) : champ === 8 ? o[p + k]! : (o[p + (k >> 1)]! >> (k % 2 ? 0 : 4)) & 0x0f;
+    }
+  } else return null;
+  if (echantillons === 0 || octetsEchantillons === 0) return null;
+
+  // Décalages de morceaux : tous dans les données d'un `mdat`.
+  const stco = de('stco');
+  const co64 = de('co64');
+  const decalages: number[] = [];
+  if (stco) {
+    if (stco.fin - stco.debut < 8) return null;
+    const n = u32be(o, stco.debut + 4);
+    if (stco.debut + 8 + 4 * n > stco.fin) return null;
+    for (let k = 0; k < n; k++) decalages.push(u32be(o, stco.debut + 8 + 4 * k));
+  } else if (co64) {
+    if (co64.fin - co64.debut < 8) return null;
+    const n = u32be(o, co64.debut + 4);
+    if (co64.debut + 8 + 8 * n > co64.fin) return null;
+    for (let k = 0; k < n; k++) {
+      if (u32be(o, co64.debut + 8 + 8 * k) !== 0) return null;
+      decalages.push(u32be(o, co64.debut + 12 + 8 * k));
+    }
+  } else return null;
+  if (decalages.length === 0) return null;
+  if (!decalages.every((d) => mdats.some((m) => d >= m.debut && d < m.fin))) return null;
+  const donnees = mdats.reduce((t, m) => t + (m.fin - m.debut), 0);
+  if (octetsEchantillons > donnees) return null;
+  return { largeur, hauteur };
+}
+
+function inspecterMp4(o: Uint8Array): EnteteMedia | null {
+  const haut = boites(o, 0, o.length);
+  if (!haut || haut[0]?.type !== 'ftyp') return null;
+  const moov = haut.find((b) => b.type === 'moov');
+  const mdats = haut.filter((b) => b.type === 'mdat' && b.fin > b.debut);
+  if (!moov || mdats.length === 0) return null;
+  const pistes = boites(o, moov.debut, moov.fin);
+  if (!pistes) return null;
+  for (const trak of pistes.filter((b) => b.type === 'trak')) {
+    const v = pisteVideo(o, trak, mdats);
+    if (v) return { mime: 'video/mp4', ...v };
+  }
+  return null;
+}
+
+/* ─────────────────────────── Décodage réel ──────────────────────────────── */
+
+/**
+ * Résultat d'un décodage RÉEL (pixels complets pour une image, images
+ * décodées pour une vidéo). `cause: 'decodeur'` = l'outil lui-même manque ou
+ * plante (binaire absent) : c'est l'infrastructure, pas le fichier.
+ */
+export type ResultatDecodage =
+  | { ok: true; largeur: number; hauteur: number; canaux: number; octetsPixels: number }
+  | { ok: false; cause: 'contenu' | 'decodeur'; raison: string };
+
+/**
+ * Le décodeur du worker. `decoderVideo` ABSENT = aucun décodeur vidéo : une
+ * vidéo n'est alors jamais vérifiable, donc jamais livrable, et la capacité
+ * vidéo n'est jamais offerte (`operationsNonVerifiables`).
+ */
+export interface DecodeurMedia {
+  decoderImage(octets: Uint8Array): Promise<ResultatDecodage>;
+  decoderVideo?: (octets: Uint8Array) => Promise<ResultatDecodage>;
+}
+
+export type VerdictDecodage =
+  | { livrable: true; largeur: number; hauteur: number }
+  /** `retelecharger` · fichier abîmé, retéléchargé en nombre borné · `attendre` · décodeur indisponible, rien n'est compté · `refuser` · jamais vérifiable ici. */
+  | { livrable: false; suite: 'retelecharger' | 'attendre' | 'refuser'; raison: string };
+
+/**
+ * Juge un décodage réel contre l'en-tête lu par le premier filtre. Livrable
+ * seulement si le décodeur a rendu TOUS les pixels (largeur × hauteur ×
+ * canaux) aux dimensions annoncées par l'en-tête. Un décodage absent (vidéo
+ * sans décodeur) n'est jamais une réussite.
+ */
+export function verdictDecodage(entete: EnteteMedia, d: ResultatDecodage | 'decodeur_absent'): VerdictDecodage {
+  if (d === 'decodeur_absent') {
+    return { livrable: false, suite: 'refuser', raison: `${entete.mime} non vérifiable · aucun décodeur ${entete.mime.startsWith('video/') ? 'vidéo' : 'image'} dans le worker` };
+  }
+  if (!d.ok) return { livrable: false, suite: d.cause === 'decodeur' ? 'attendre' : 'retelecharger', raison: d.raison };
+  if (d.largeur !== entete.largeur || d.hauteur !== entete.hauteur) {
+    return { livrable: false, suite: 'retelecharger', raison: `décodé en ${d.largeur}×${d.hauteur}, en-tête ${entete.largeur}×${entete.hauteur}` };
+  }
+  if (entete.mime.startsWith('image/') && (d.canaux < 1 || d.octetsPixels !== d.largeur * d.hauteur * d.canaux)) {
+    return { livrable: false, suite: 'retelecharger', raison: `pixels incomplets · ${d.octetsPixels} octets pour ${d.largeur}×${d.hauteur}×${d.canaux}` };
+  }
+  return { livrable: true, largeur: d.largeur, hauteur: d.hauteur };
+}
+
+/**
+ * Téléchargements d'un même résultat avant de conclure qu'il est abîmé chez
+ * le fournisseur. Politique, pas une mesure : un transfert coupé se rattrape
+ * au deuxième essai, un fichier abîmé à la source reste abîmé ; trois laisse
+ * une marge sans boucler. Le test de troncature (deux coupures puis le fichier
+ * complet) tient dans cette borne.
+ */
+export const TELECHARGEMENTS_MEDIA_MAX = 3;
+
+/** Après `essais` téléchargements refusés (celui-ci compris) : retenter ou conclure. */
+export function decisionMediaRefuse(essais: number): 'retelecharger' | 'echec' {
+  return essais < TELECHARGEMENTS_MEDIA_MAX ? 'retelecharger' : 'echec';
+}
+
+/**
+ * Opérations dont la sortie ne pourrait PAS être vérifiée par ce worker : une
+ * animation sans décodeur vidéo. Elles ne sont jamais soumises au fournisseur
+ * (rien n'est dépensé pour un résultat qu'on refuserait).
+ */
+export function operationsNonVerifiables(
+  operations: ReadonlyArray<{ operation: string; profil: string }>,
+  decodeur: { video: boolean },
+): string[] {
+  return operations.filter((op) => op.profil === 'animation' && !decodeur.video).map((op) => op.operation);
 }
 
 /** Ce que le fournisseur (ou un contrôle automatique) dit d'une sortie. */
