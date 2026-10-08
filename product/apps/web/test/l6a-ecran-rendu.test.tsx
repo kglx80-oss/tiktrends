@@ -199,7 +199,8 @@ describe('chaque geste montre son impact AVANT tout envoi', () => {
     await clic('[data-bouton="monter-s2"]');
     expect(m.appliquer).not.toHaveBeenCalled();
     expect(q(racine, '[data-apercu="resume"]')!.textContent).toBe('Aucune image, animation ni voix à refaire · seuls montage, mix audio, sous-titres, export sont recalculés, sans fournisseur payant.');
-    expect(q(racine, '[data-apercu="conserve"]')!.textContent).toContain('Image clé · plan 2');
+    // Le seul média produit (image clé du plan 1, désormais plan 2) est nommé conservé.
+    expect(q(racine, '[data-apercu="conserve"]')!.textContent).toBe('Image clé · plan 2');
     await clic('[data-bouton="confirmer"]');
     expect(m.appliquer).toHaveBeenCalledTimes(1);
     expect(m.appliquer).toHaveBeenCalledWith({ projectId: 'p1', baseVersionId: 'v3', operation: { type: 'ordre', ordre: ['s2', 's1', 's3'] } });

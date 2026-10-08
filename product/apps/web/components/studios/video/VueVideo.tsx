@@ -79,7 +79,7 @@ function Bouton({ actif, enCours, libelle, libelleEnCours, surClic, primaire = t
 function Apercu({ a, p }: { a: ApercuGeste; p: ProprietesVueVideo }) {
   const payantes = a.impact?.aRefaire.filter((l) => l.payant) ?? [];
   const calculs = a.impact?.aRefaire.filter((l) => !l.payant) ?? [];
-  const conservees = a.impact?.conservees.filter((l) => l.payant) ?? [];
+  const conservees = a.impact?.mediasConserves ?? [];
   return (
     <div style={{ ...carte, border: '2px solid var(--accent-strong)' }} data-zone="apercu-impact" role="region" aria-label="Impact du changement avant enregistrement">
       <h3 style={{ ...titre, fontSize: 16 }}>Avant d’enregistrer · {a.libelle}</h3>
@@ -93,8 +93,8 @@ function Apercu({ a, p }: { a: ApercuGeste; p: ProprietesVueVideo }) {
               {calculs.map((l) => <li key={l.id} style={texte}>{l.libelle} · recalcul, sans fournisseur payant</li>)}
               {payantes.length + calculs.length === 0 && <li style={texte}>Rien.</li>}
             </ul>
-            <p style={{ ...texte, color: 'var(--ink)' }}>Conservé</p>
-            <p style={mini} data-apercu="conserve">{conservees.length ? conservees.map((l) => l.libelle).join(' · ') : 'Aucune image, animation ni voix n’existait à conserver.'}</p>
+            <p style={{ ...texte, color: 'var(--ink)' }}>Médias déjà produits conservés</p>
+            <p style={mini} data-apercu="conserve">{conservees.length ? conservees.map((l) => l.libelle).join(' · ') : 'Aucun média n’a encore été produit pour ce projet · rien à conserver ni à refaire côté fournisseur.'}</p>
             {a.impact.mediasObsoletes.length > 0 && <p style={signal('warn')} data-apercu="obsoletes">Médias déjà produits qui deviendront obsolètes (ils restent consultables) : {a.impact.mediasObsoletes.map((l) => l.libelle).join(', ')}.</p>}
           </div>
           {a.durees && <p style={texte} data-apercu="durees">{a.durees.phrase}</p>}
@@ -324,7 +324,7 @@ function Timeline({ p }: { p: ProprietesVueVideo }) {
   const [gain, setGain] = useState(t?.music?.gainDb ?? -12);
   const libre = !p.enCours && !p.apercu && v.disponibilite.montage.disponible;
   const pistes = t ? Object.values(t.tracks).sort((a, b) => a.z - b.z) : [];
-  const NOMS: Record<string, string> = { video: 'Images', audio: 'Voix', overlay: 'Texte écran', subtitle: 'Sous-titres' };
+  const NOMS: Record<string, string> = { video: 'Piste images', audio: 'Piste voix', overlay: 'Piste texte écran', subtitle: 'Piste sous-titres' };
   return (
     <div style={carte} data-zone="timeline">
       <h3 style={{ ...titre, fontSize: 16 }}>Timeline · {dureeLisible(v.dureeTotaleMs)}{t ? ` · ${t.fps.num}/${t.fps.den} images par seconde` : ''}</h3>
@@ -340,7 +340,7 @@ function Timeline({ p }: { p: ProprietesVueVideo }) {
       <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 2 }} data-pistes>
         {pistes.map((pi) => <li key={pi.id} style={mini}>{NOMS[pi.kind] ?? pi.kind} · {Object.keys(pi.items).length} segment{Object.keys(pi.items).length > 1 ? 's' : ''}</li>)}
         <li style={mini} data-musique>{t?.music ? `Musique · gain ${String(t.music.gainDb).replace('.', ',')} dB` : 'Musique · aucune'}</li>
-        <li style={mini} data-sous-titres>{t?.subtitles.enabled === false ? 'Sous-titres · coupés' : 'Sous-titres · sur la narration validée'}</li>
+        <li style={mini} data-sous-titres>{t?.subtitles.enabled === false ? 'Sous-titres coupés' : 'Sous-titres activés · posés sur la narration validée'}</li>
       </ul>
       {v.sansTexte
         ? <p style={signal('info')} data-sans-texte="oui">Vidéo sans texte · aucune surimpression ni sous-titre ne sera posé. Les images clés à venir interdisent le texte dans les pixels.</p>

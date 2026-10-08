@@ -20,6 +20,8 @@ export interface ImpactVideo {
   conservees: LigneImpactVideo[];
   /** Médias RÉELLEMENT produits que le geste rend obsolètes (ils restent consultables). */
   mediasObsoletes: LigneImpactVideo[];
+  /** Médias RÉELLEMENT produits que le geste laisse valides (rien n'est refait pour eux). */
+  mediasConserves: LigneImpactVideo[];
   /** Générations payantes que le geste exigerait (images, animations, voix, fiches). */
   generations: string[];
   aucuneGeneration: boolean;
@@ -60,12 +62,13 @@ export function impactVideo(avant: ContenuVersion, apres: ContenuVersion, o: { m
   const conservees = plan.reutilisees.map((id) => ligne(id, ga.get(id)!.nature)).sort(tri);
   const existants = new Set(o.mediasExistants ?? []);
   const mediasObsoletes = plan.obsoletes.filter((id) => existants.has(id)).map((id) => ligne(id, ga.get(id)!.nature));
+  const mediasConserves = plan.reutilisees.filter((id) => existants.has(id)).map((id) => ligne(id, ga.get(id)!.nature));
   const generations = aRefaire.filter((l) => l.payant).map((l) => l.id);
   const calculs = aRefaire.filter((l) => !l.payant).map((l) => l.libelle.toLowerCase());
   const resume = generations.length === 0
     ? (calculs.length ? `Aucune image, animation ni voix à refaire · seuls ${calculs.join(', ')} sont recalculés, sans fournisseur payant.` : 'Rien à refaire.')
     : `À refaire : ${aRefaire.filter((l) => l.payant).map((l) => l.libelle).join(', ')}. Conservé : ${conservees.filter((l) => l.payant).length} sortie${conservees.filter((l) => l.payant).length > 1 ? 's' : ''} payante${conservees.filter((l) => l.payant).length > 1 ? 's' : ''}.`;
-  return { plan, aRefaire, conservees, mediasObsoletes, generations, aucuneGeneration: generations.length === 0, resume };
+  return { plan, aRefaire, conservees, mediasObsoletes, mediasConserves, generations, aucuneGeneration: generations.length === 0, resume };
 }
 
 /** Empreinte de chaque image clé d'un contenu · « identiques par empreinte » se vérifie là. */

@@ -238,6 +238,7 @@ describe('VIDEO-03 · tenue changée sur les plans 1 et 2 · images et clips li�
     for (const r of ['keyframe:s3', 'clip:s3', 'voix:s1', 'voix:s2']) expect(p.reutilisees, r).toContain(r);
     const i = impactVideo(a, b, { mediasExistants: ['keyframe:s1', 'keyframe:s2', 'keyframe:s3', 'voix:s1'] });
     expect(i.mediasObsoletes.map((l) => l.libelle)).toEqual(['Image clé · plan 1', 'Image clé · plan 2']);
+    expect(i.mediasConserves.map((l) => l.id)).toEqual(['keyframe:s3', 'voix:s1']);
   });
 });
 
