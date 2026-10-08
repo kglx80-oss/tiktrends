@@ -7,6 +7,7 @@ import { FEATURES, denyReason } from '../../../../../lib/rbac';
 import { roleAtLeast } from '../../../../../lib/rbac';
 import { lireProjetDetail } from '../../../../actions/studios/sources';
 import { VueProjet } from '../../../../../components/studios/projet/VueProjet';
+import { VariantesEtTests } from '../../../../../components/studios/VariantesEtTests';
 import { Icon } from '../../../../../components/Icon';
 import { cadrePage, h1, surface } from '../../../../../components/ui';
 
@@ -49,9 +50,12 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
     );
   }
 
+  // « Variantes et tests » (L4-C) relit sa propre garde et sa portée · rendu
+  // ici, côté serveur, puis placé dans son emplacement de la vue.
+  const variantes = await VariantesEtTests({ projectId: r.detail.projet.id });
   return (
     <main style={cadrePage}>
-      <VueProjet detail={r.detail} exportAutorise={roleAtLeast(s.role, 'member')} />
+      <VueProjet detail={r.detail} exportAutorise={roleAtLeast(s.role, 'member')} variantes={variantes} />
     </main>
   );
 }

@@ -1,3 +1,4 @@
+import { METRIQUES_TEST, LIBELLE_METRIQUE, type MetriqueTest } from '../variantes/test';
 import { JETONS_ENTREE_MAX_PROPOSITION, JETONS_SORTIE_MAX_PROPOSITION } from '../bornes-taches';
 /**
  * Studios · L4 · hypothèses de test (cahier 01 §4.2 point 4, contrat
@@ -34,21 +35,16 @@ export interface HypotheseTest {
 export type OrigineHypothese = 'proposee' | 'saisie';
 
 /**
- * Métriques qu'un test publicitaire peut réellement lire (Adsmap, régies) ·
- * passées au gabarit comme `availableMetrics` : une hypothèse qui en cite une
- * autre est rejetée par le registre (`METRIQUE_INDISPONIBLE`).
+ * Métriques qu'un test publicitaire peut réellement lire · celles du moteur de
+ * verdict Adsmap (`variantes/test.ts`, source unique), avec leurs libellés.
+ * Passées au gabarit comme `availableMetrics` : une hypothèse qui en cite une
+ * autre est rejetée par le registre (`METRIQUE_INDISPONIBLE`). Une hypothèse
+ * mesurée sur une métrique qu'aucun test ne lit ne pourrait jamais conclure.
  */
-export const METRIQUES_TEST: readonly string[] = [
-  'Taux de clic (CTR)',
-  'Coût par clic (CPC)',
-  'Taux de conversion',
-  'Coût par achat (CPA)',
-  'Retour sur dépense publicitaire (ROAS)',
-];
-export const METRIQUE_ACCROCHE_VIDEO = 'Taux d’accroche vidéo (3 secondes)';
+const METRIQUES_VIDEO_SEULEMENT: ReadonlySet<MetriqueTest> = new Set(['hook_rate', 'hold_rate']);
 
 export function metriquesDisponibles(video: boolean): string[] {
-  return video ? [...METRIQUES_TEST, METRIQUE_ACCROCHE_VIDEO] : [...METRIQUES_TEST];
+  return METRIQUES_TEST.filter((m) => video || !METRIQUES_VIDEO_SEULEMENT.has(m)).map((m) => LIBELLE_METRIQUE[m]);
 }
 
 /** Identifiants alloués aux propositions · le modèle ne les invente pas. */

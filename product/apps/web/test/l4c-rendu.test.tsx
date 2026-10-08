@@ -34,7 +34,6 @@ import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
 import { enregistrerVersion } from '../lib/studios/depot';
 import { PanneauVariantes } from '../components/studios/variantes/PanneauVariantes';
 import { VariantesEtTests } from '../components/studios/VariantesEtTests';
-import { recetteAutorisee } from '../app/(app)/studio/recette-variantes/autorisation';
 
 const ids = etat.ids;
 const scene = { projectId: '', vide: '', v1: '', image3: '' };
@@ -164,13 +163,6 @@ describe('Rendu · variantes, versions, statuts, test, apprentissage', () => {
     expect(texteVisible(renderToStaticMarkup(await VariantesEtTests({ projectId: scene.projectId })))).toContain('Ta session a expiré');
     etat.session = session(ids, 'ua', { plan: 'plus' });
     expect(texteVisible(renderToStaticMarkup(await VariantesEtTests({ projectId: scene.projectId })))).toContain('Image 3 du lot 4');
-  });
-
-  it('page de recette · refusée en production, sauf drapeau ET base locale', () => {
-    expect(recetteAutorisee({ NODE_ENV: 'production' })).toBe(false);
-    expect(recetteAutorisee({ NODE_ENV: 'production', STUDIOS_RECETTE_PAGES: '1', DATABASE_URL: 'postgres://u@db:5432/tiktrends' })).toBe(false);
-    expect(recetteAutorisee({ NODE_ENV: 'production', STUDIOS_RECETTE_PAGES: '1', DATABASE_URL: 'postgres://postgres@127.0.0.1:5433/tiktrends_l4c' })).toBe(true);
-    expect(recetteAutorisee({ NODE_ENV: 'test' })).toBe(true);
   });
 
   it('aucun tiret cadratin, aucune marque tierce à l’écran', async () => {

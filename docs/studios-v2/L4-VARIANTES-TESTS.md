@@ -154,3 +154,14 @@ La portée est une double garde : retirer seulement le filtre SQL laisse la rev�
    (aujourd'hui rendus en `Fact`).
 7. Route de lecture des médias studio (`studio_assets` → URL signée courte) pour les vignettes.
 8. `studio_projects.test_refs` · forme écrite ici (`type: 'test' | 'iteration'`) à confirmer avec L4-B s'il y écrit.
+
+## Intégration (intégrateur)
+
+- `VariantesEtTests` est rendu côté serveur par la page projet (`app/(app)/studio/projets/[id]/page.tsx`) et placé
+  dans l'emplacement `variantes-tests` de `VueProjet`. Garde : `l4b-pages-rendu` (montage retiré ⇒ `expected null
+  not to be null`).
+- Page de recette `/studio/recette-variantes` et son test d'ouverture retirés (le composant vit dans la vraie page) ;
+  le semis de recette reste, ignoré hors base locale.
+- `test_refs` : L4-B ne lit pas ce champ, la forme `type: 'test' | 'iteration'` de ce lot fait foi.
+- Métriques : les hypothèses de L4-B dérivent désormais de `METRIQUES_TEST` / `LIBELLE_METRIQUE` (ce lot), source
+  unique. « Taux de conversion », que le verdict Adsmap ne lit pas, n'est plus proposé.

@@ -46,7 +46,7 @@ vi.mock('../lib/studios/prompts/adaptateur', async (importOriginal) => {
 });
 
 import { db, schema, eq } from '@tiktrends/db';
-import { idSource, ID_HYPOTHESE_SAISIE, type HypotheseQualifiee } from '@tiktrends/core';
+import { idSource, ID_HYPOTHESE_SAISIE, LIBELLE_METRIQUE, type HypotheseQualifiee } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { acteurPlateforme, publierRegistreDeTest } from './l2-outils';
 import { adaptateurSimule } from './l2-adaptateur-simule';
@@ -142,7 +142,7 @@ describe('préparer · lecture, ressources réellement disponibles (FLOW-02)', (
     if (!r.ok) throw new Error(r.code);
     expect(r.sources[0]).toMatchObject({ type: 'saved_ad', savedAdId: SAUV.a1, annonceur: 'Lumière Botanique', format: { id: 'avant_apres', libelle: 'Avant / après' } });
     expect(r.sources[0]!.modalites).toContain('video');
-    expect(r.metriques).toContain('Taux d’accroche vidéo (3 secondes)');
+    expect(r.metriques).toContain(LIBELLE_METRIQUE.hook_rate);
   });
 });
 

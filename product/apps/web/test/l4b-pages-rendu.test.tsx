@@ -148,6 +148,8 @@ describe('/studio/projets/[id] · la page projet', () => {
     // Intégration L4-A · le panneau des propositions est RENDU dans son emplacement, pas seulement réservé.
     expect(d.querySelector('[data-emplacement="propositions"] [data-panneau="propositions"]')?.textContent, 'panneau des propositions absent de la page projet').toContain('Propositions');
     expect(d.querySelector('[data-emplacement="variantes-tests"]')).not.toBeNull();
+    // Intégration L4-C · « Variantes et tests » est RENDU dans son emplacement.
+    expect(d.querySelector('[data-emplacement="variantes-tests"] #titre-variantes')?.textContent, 'variantes et tests absents de la page projet').toBe('Variantes et tests');
     expect(d.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
     expect(d.innerHTML).not.toMatch(/Trendtrack/i);
   });

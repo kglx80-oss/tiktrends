@@ -42,7 +42,7 @@ const Liste = ({ items }: { items: string[] }) => (
   <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>{items.map((t, i) => <li key={`${i}-${t}`} style={texte}>{t}</li>)}</ul>
 );
 
-export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; exportAutorise: boolean }) {
+export function VueProjet({ detail, exportAutorise, variantes = null }: { detail: DetailProjet; exportAutorise: boolean; variantes?: ReactNode }) {
   const { projet, version, brief, hypothese, produit, sources, completude, versions } = detail;
   const retour = sources.find((s) => s.statut === 'active' && s.retourVeille)?.retourVeille ?? null;
   const ancienne = !versions.find((v) => v.id === version.id)?.courante;
@@ -133,11 +133,8 @@ export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; ex
             </div>
           )}
 
-          {/* ═══ EMPLACEMENT « variantes-tests » · agent L4-C ════════════════════
-              L'intégrateur monte ici <VariantesEtTests projectId={projet.id}
-              versionId={version.id} /> (components/studios/variantes/**) · c'est
-              aussi là que vit le lien vers le test Adsmap. Rien n'est importé d'ici. */}
-          <div data-emplacement="variantes-tests" />
+          {/* Variantes, tests et apprentissage (L4-C) · rendu serveur par la page. */}
+          {variantes && <div data-emplacement="variantes-tests">{variantes}</div>}
         </div>
 
         <aside style={{ flex: '1 1 300px', minWidth: 0, display: 'grid', gap: 18 }}>

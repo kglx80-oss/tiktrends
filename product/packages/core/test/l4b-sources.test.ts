@@ -6,6 +6,7 @@ import { observerSource, affirmeNarration, controlerNarrationObservee, modalites
 import {
   validerHypotheses, validerHypothese, changementIsole, hypotheseSaisie, saisieSuffisante, MAX_HYPOTHESES, metriquesDisponibles, type HypotheseTest,
 } from '../src/studios/sources/hypotheses';
+import { LIBELLE_METRIQUE } from '../src/studios/variantes/test';
 import { structureImportable, fuitesConcurrent } from '../src/studios/sources/import';
 import { faitsProduit, referenceProduit } from '../src/studios/sources/produit';
 import { reponseApplicable, scellerPropositions, propositionValidePour } from '../src/studios/sources/concurrence';
@@ -163,8 +164,13 @@ describe('hypothèses · au plus trois, changement isolé', () => {
   });
 
   it('métriques · l’accroche vidéo seulement pour une vidéo', () => {
-    expect(metriquesDisponibles(false)).not.toContain('Taux d’accroche vidéo (3 secondes)');
-    expect(metriquesDisponibles(true)).toContain('Taux d’accroche vidéo (3 secondes)');
+    expect(metriquesDisponibles(false)).not.toContain(LIBELLE_METRIQUE.hook_rate);
+    expect(metriquesDisponibles(true)).toContain(LIBELLE_METRIQUE.hook_rate);
+  });
+
+  it('métriques · seulement celles que le verdict Adsmap sait lire (une hypothèse doit pouvoir conclure)', () => {
+    const lisibles = Object.values(LIBELLE_METRIQUE);
+    for (const m of metriquesDisponibles(true)) expect(lisibles, `métrique illisible par le test : ${m}`).toContain(m);
   });
 });
 
