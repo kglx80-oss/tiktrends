@@ -14,7 +14,9 @@
  * Il sait jouer les cas de la recette COST : succès, échec certain, réponse
  * perdue après acceptation, webhooks dupliqués ou inversés (il fabrique et
  * signe les événements), stockage indisponible, résultat tardif après
- * annulation, produit faux (constat qualité), résultat illisible.
+ * annulation, produit faux (constat qualité), résultat illisible, et une
+ * sortie aux octets IMPOSÉS par le test (faux MP4, image à charge corrompue)
+ * pour éprouver le décodage réel du worker.
  */
 
 import { createHmac, randomUUID } from 'node:crypto';
@@ -49,7 +51,9 @@ export type ScenarioSimule =
   /** Réussit, mais le fichier rendu n'est pas une image. */
   | 'resultat_illisible'
   /** Réussit, mais le téléchargement est coupé à mi-fichier (la requête garde son fichier intact). */
-  | 'resultat_tronque';
+  | 'resultat_tronque'
+  /** Réussit, et le téléchargement rend `octetsImposes` à chaque fois (faux MP4, PNG à IDAT corrompu…). */
+  | 'sortie_imposee';
 
 export interface OptionsFournisseurSimule {
   drapeau: unknown;
@@ -74,7 +78,7 @@ interface RequeteSimulee {
 }
 
 /** PNG uni 8×8 avec un bloc tEXt « SIMULE » · décodable par n'importe quel lecteur. */
-export function pngSimule(couleur: [number, number, number] = [255, 92, 138]): Uint8Array {
+export function pngSimule(couleur: [number, number, number] = [255, 92, 138], o: { corrompreIdat?: boolean } = {}): Uint8Array {
   const crcTable = Array.from({ length: 256 }, (_, n) => {
     let c = n;
     for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -99,7 +103,12 @@ export function pngSimule(couleur: [number, number, number] = [255, 92, 138]): U
   const brut = new Uint8Array(l * (1 + 3 * l));
   for (let y = 0; y < l; y++) for (let x = 0; x < l; x++) brut.set(couleur, y * (1 + 3 * l) + 1 + 3 * x);
   const texte = new TextEncoder().encode('Comment\0SIMULE · média de test, jamais réel');
-  const parties = [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), bloc('IHDR', ihdr), bloc('tEXt', texte), bloc('IDAT', new Uint8Array(deflateSync(brut))), bloc('IEND', new Uint8Array())];
+  const idat = new Uint8Array(deflateSync(brut));
+  // Charge utile abîmée APRÈS compression, CRC recalculé sur les octets
+  // abîmés : la structure du fichier reste parfaite, seuls les pixels sont
+  // illisibles (le flux zlib et sa somme Adler-32 ne concordent plus).
+  if (o.corrompreIdat) for (let k = 2; k < idat.length - 4; k++) idat[k]! ^= 0x5a;
+  const parties = [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), bloc('IHDR', ihdr), bloc('tEXt', texte), bloc('IDAT', idat), bloc('IEND', new Uint8Array())];
   const total = new Uint8Array(parties.reduce((s, p) => s + p.length, 0));
   let i = 0;
   for (const p of parties) { total.set(p, i); i += p.length; }
@@ -116,6 +125,10 @@ export class FournisseurSimule implements FournisseurStudio {
   appelsSoumettre = 0;
   /** Scénario `resultat_tronque` · nombre de téléchargements coupés avant le fichier complet. */
   troncatures = 1;
+  /** Scénario `sortie_imposee` · les octets rendus à chaque téléchargement. */
+  octetsImposes: Uint8Array | null = null;
+  /** Téléchargements servis (toutes requêtes) · mesure du re-téléchargement borné. */
+  telechargements = 0;
   private readonly file: ScenarioSimule[] = [];
   private readonly o: Required<Omit<OptionsFournisseurSimule, 'drapeau' | 'env'>>;
 
@@ -189,6 +202,11 @@ export class FournisseurSimule implements FournisseurStudio {
   async telecharger(requestId: string, ref: string): Promise<{ octets: Uint8Array; mimeAnnonce: string }> {
     const r = this.requetes.get(requestId);
     if (!r || !ref.startsWith(`${requestId}/`)) throw new ErreurFournisseurCertaine('résultat inconnu');
+    this.telechargements += 1;
+    if (r.scenario === 'sortie_imposee') {
+      if (!this.octetsImposes) throw new Error('scénario sortie_imposee sans octetsImposes');
+      return { octets: new Uint8Array(this.octetsImposes), mimeAnnonce: 'application/octet-stream' };
+    }
     if (r.scenario === 'resultat_illisible') return { octets: new TextEncoder().encode('<html>502</html>'), mimeAnnonce: 'image/png' };
     if (r.scenario === 'resultat_tronque' && this.troncatures > 0) {
       this.troncatures -= 1;

@@ -141,6 +141,9 @@ importers:
       ioredis:
         specifier: ^5.4.1
         version: 5.11.1
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
     devDependencies:
       '@electric-sql/pglite':
         specifier: ^0.5.8

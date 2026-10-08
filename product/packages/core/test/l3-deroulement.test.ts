@@ -145,7 +145,7 @@ function png(l: number, h: number): Uint8Array {
   return o;
 }
 
-describe('décodable · lire l’en-tête réel, pas le type annoncé', () => {
+describe('premier filtre · lire la structure réelle, pas le type annoncé', () => {
   it('un en-tête seul n’est pas un fichier · PNG, JPEG, MP4 refusés (fichiers complets : l3-media-complet)', () => {
     expect(inspecterMedia(png(2, 3))).toBeNull();
     const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xc0, 0, 11, 8, 0, 5, 0, 4, 1, 1, 0x11, 0]);
@@ -153,7 +153,7 @@ describe('décodable · lire l’en-tête réel, pas le type annoncé', () => {
     const mp4 = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
     expect(inspecterMedia(mp4)).toBeNull();
   });
-  it('octets tronqués, dimensions nulles, texte ⇒ pas décodable', () => {
+  it('octets tronqués, dimensions nulles, texte ⇒ pas même plausible', () => {
     expect(inspecterMedia(png(0, 3))).toBeNull();
     expect(inspecterMedia(png(2, 3).subarray(0, 20))).toBeNull();
     expect(inspecterMedia(new TextEncoder().encode('<html>erreur 502</html>'))).toBeNull();

@@ -6,7 +6,7 @@ import {
   calculerPlanImpact, lignesDuDevis, empreinteEntreesDevis, expirationDevis, dureeValidite, verifierApprobation,
   decisionIdempotence, cleIdempotenceValide, refsDuJob, refusPlafondDollars, bilanRegistre, preuveSoumission,
   vueJob, transitionJob, transitionQualite, jobTerminal, objetDansPortee, erreurStudio,
-  PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
+  operationsNonVerifiables, DECODEUR_VIDEO_WORKER, PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
   type ContenuVersion, type PlanImpact, type LigneDevis, type ErreurStudio, type SnapshotJob, type VueJob,
   type EtatJob, type StatutQualite, type EpinglageDevis,
 } from '@tiktrends/core';
@@ -182,6 +182,12 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
           ? erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: l.cibles, message: `Opération sans tarif ni fournisseur branché · ${l.cibles.join(', ')}. Retire-la du devis.` })
           : erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'operations', raison: `${l.motif}${l.cibles.length ? ` · ${l.cibles.join(', ')}` : ''}` }] }));
       }
+      // Une sortie que le worker ne saurait pas vérifier n'est jamais devisée :
+      // aucun devis pour un échec certain (contre-recette du 8 octobre).
+      const nonVerifiables = operationsNonVerifiables(l.lignes, { video: DECODEUR_VIDEO_WORKER });
+      if (nonVerifiables.length) {
+        throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: nonVerifiables, message: `Vidéo indisponible · le service ne sait pas encore vérifier une vidéo produite · ${nonVerifiables.join(', ')}. Retire-la du devis.` }));
+      }
       const ep = await epinglerReleaseDuDevis(tx, projet.workspaceId, projet.brandId);
       if (!ep.ok) throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: `Consigne indisponible pour ce devis · ${ep.motif}` }));
       // F-B · image du studio : consigne retenue, attestée, à jour, références intactes.
@@ -292,6 +298,10 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
       const AP = schema.studioApprovals;
       const [approbation] = await tx.select().from(AP).where(eq(AP.quoteId, q.id)).limit(1);
       if (approbation) {
+        // Clic jumeau commité entre la recherche par clé et cette lecture (READ
+        // COMMITTED) : même clé ⇒ même job, jamais un refus.
+        const jumeau = await jobParCle(tx, ctx.workspaceId, cle);
+        if (jumeau) return rejouer(ctx, jumeau, quoteId, e.inputHash);
         throw new Refus(erreurStudio('VERSION_CONFLICT', {
           traceId: ctx.traceId, targetIds: approbation.consumedJobId ? [approbation.consumedJobId] : [],
           message: 'Ce devis a déjà été approuvé · pour une nouvelle variante, demande un nouveau devis.',

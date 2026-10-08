@@ -83,7 +83,7 @@ fournisseur dépasse le reste. Une reconnexion avec la même clé retrouve son j
 | soumission | Succès ⇒ `provider_request_id` enregistré. Refus certain ⇒ `failed`, tout rendu. Réponse incertaine ⇒ recherche par clé si le fournisseur sait, sinon `reconciliation_required`. |
 | bail expiré | `claimed` (aucune clé) ⇒ `queued`, tentative `abandoned`. `running` avec requête ⇒ reprise du suivi. `running` sans requête ⇒ recherche par clé ou réconciliation. Jamais de resoumission. |
 | `running → persisting` | Statut fournisseur `reussi` (sondage, webhook ou réconciliation). |
-| `persisting → completed` | Téléchargement, en-tête décodable (`inspecterMedia`), dépôt, RELECTURE (sha256 identique), `studio_assets` stocké et relié, règlement, contrôle qualité automatique. Échec de stockage ⇒ reste `persisting` (`PERSISTENCE_FAILED`), seule la finalisation est rejouée. |
+| `persisting → completed` | Téléchargement, premier filtre pur (structure plausible, `inspecterMedia`), DÉCODAGE RÉEL (`DecodeurMedia`, pixels complets aux dimensions de l'en-tête), dépôt, RELECTURE (sha256 identique), `studio_assets` stocké et relié, règlement, contrôle qualité automatique. Échec de stockage ou décodeur indisponible ⇒ reste `persisting` (`PERSISTENCE_FAILED`), seule la finalisation est rejouée. Fichier refusé ⇒ retéléchargé 3 fois au plus puis `failed` sans débit (§5 bis). |
 | annulation | Rien parti ⇒ `cancelled`, tout rendu. Requête en cours ⇒ annulation distante puis statut : sans frais ⇒ `cancelled` ; résultat arrivé ⇒ conservé (`annulationDemandee`), réglé, non appliqué. |
 | réconciliation | `reconciliation_required → persisting/failed/cancelled` par l'acteur `reconciliateur`, sur preuve fournisseur (identifiant, clé, ou webhook portant la clé). Aucune soumission. |
 | webhooks | `x-studio-signature: v1=<HMAC-SHA256(secret, "<horodatage>.<corps>")>`, `x-studio-timestamp`, fenêtre ±300 s, comparaison à temps constant. Le statut AUTORITAIRE est relu chez le fournisseur ; doublons et désordre sont absorbés par la machine d'états et la référence unique de règlement. |
@@ -161,6 +161,67 @@ Le premier passage a laissé TROIS mutations au vert (relecture par clé avant l
 relu) : les gardes ont été renforcées (reconnexion avec plafond atteint, `etape` dirigée sur un bail valide, stockage
 qui acquitte sans conserver), puis les trois mutations sont tombées.
 
+## 5 bis. Contre-recette du 8 octobre · P1 décodabilité média
+
+**Constat reproduit avant correction** (`a8b98b2`). Noyau : le MP4 de 88 octets de la recette (ftyp 24 + moov 24 à
+zéro + mdat 40 à zéro, sha256 `7b8ce73e…`) ⇒ `inspecterMedia` = `{"mime":"video/mp4"}`, `etatFichierMedia` =
+`complet`. Worker : la garde `l3-decodage` rejouée sur l'ancien moteur tombe sur 7 cas sur 9, dont le MP4 de 88 octets,
+le PNG à IDAT corrompu (CRC recalculés) et le JPEG au scan coupé : `un média non décodé a terminé le job: expected
+'completed' to be 'persisting'` · l'ancien worker les livrait, les reliait et les réglait.
+
+**Ce qui est tranché.**
+
+- Le noyau ne décode rien et ne dit plus « décodable » : `inspecterMedia` / `etatFichierMedia` rendent une
+  **structure plausible**. MP4 : piste `trak/mdia/hdlr` de type `vide`, `stsd` non vide (VisualSampleEntry aux
+  dimensions non nulles), `stsz`/`stz2` > 0, décalages `stco`/`co64` tous dans un `mdat`, échantillons qui tiennent
+  dans les données. Un MP4 fragmenté (échantillons dans `moof`) est refusé par ce filtre : aucune sortie de ce type
+  n'est attendue, et aucune vidéo n'est livrable de toute façon (ci-dessous).
+- Le worker exige un **décodage réel** : `MoteurStudio` refuse de se construire sans `DecodeurMedia`. Production :
+  `DecodeurSharp` (`apps/workers/src/studios/decodeur.ts`), `sharp(o, { failOn: 'warning' }).raw().toBuffer()`,
+  verdict pur `verdictDecodage` (pixels = largeur × hauteur × canaux, dimensions = en-tête). `sharp 0.34.5` ajouté à
+  `apps/workers` : même version et même paquet que `apps/web` (lockfile : 3 lignes, `pnpm install --offline
+  --lockfile-only`).
+- Fichier refusé (structure ou décodage) : `persisting`, rien déposé, relié ni réglé ; retéléchargé
+  `TELECHARGEMENTS_MEDIA_MAX` = 3 fois au plus (politique, pas une mesure : un transfert coupé se rattrape au deuxième
+  essai, un fichier abîmé à la source reste abîmé), puis `failed` `facture_sans_livrable` : crédits rendus au client,
+  coût fournisseur réglé. Décodeur indisponible (binaire absent) : attente, rien n'est compté.
+- **Vidéo** : aucun décodeur (ni ffmpeg ni ffprobe, dans le worker ni sur la machine). Une sortie vidéo est refusée
+  comme **non vérifiable** (motif écrit, jamais « lisible ») et une opération d'animation n'est **jamais soumise**
+  (`failed` `echec_sans_frais` avant soumission, 0 $, réserve rendue). Point d'injection :
+  `new DecodeurSharp({ video })`. **Aucune vraie vidéo positive n'est prouvée** : le MP4 « plausible » des tests est
+  fabriqué (données à zéro) et nommé comme tel.
+
+**Preuves au résultat** (`l3-decodage` site + worker complet sur pglite ; `studios-moteur`, `studios-decodeur` worker ;
+`l3-media-complet` noyau) :
+
+| Cas | Résultat compté |
+| --- | --- |
+| MP4 de 88 octets | noyau `null` / `incomplet` ; worker `persisting` (`PERSISTENCE_FAILED`, 0 média, 0 dépôt, 0 règlement) puis `failed`, 3 téléchargements, `settle` = 0 crédit, solde rendu |
+| 8 variantes MP4 (sans trak, `soun`, `stsd` vide, 0 échantillon, dimensions nulles, décalage hors `mdat`, données trop courtes, octets parasites) | noyau `null` |
+| PNG à IDAT corrompu, CRC recalculés (réel sharp et simulé) | structure plausible au noyau ; décodeur `cause: contenu` ; worker idem MP4 |
+| JPEG au scan coupé, EOI conservé | structure plausible au noyau ; décodeur `Corrupt JPEG data: premature end of data segment` ; worker idem MP4 |
+| PNG, JPEG, WebP réels (sharp, 32×24) | pixels complets ; worker `completed`, 1 média 32×24, 1 règlement, 1 téléchargement |
+| MP4 à structure plausible | worker `failed`, motif `video/mp4 non vérifiable · aucun décodeur vidéo dans le worker`, 0 média |
+| Opération `clip:` | 0 soumission, `failed` `echec_sans_frais`, `settle` 0 crédit 0 µ$ |
+| Décodeur indisponible | `persisting` sans compteur, puis `completed` quand il revient |
+
+Limite assumée : un flux abîmé qui reste syntaxiquement valide (scan JPEG mis à zéro) se décode en pixels faux sans
+erreur ; le décodage prouve « lisible », pas « juste ». La justesse reste au contrôle qualité (`requires_review`).
+
+Mutations (chaque garde cassée, échec constaté, code restauré) :
+
+| Mutation | Garde | Phrase d'échec |
+| --- | --- | --- |
+| Décodeur retiré du moteur | `l3-decodage` | `un média non décodé a terminé le job: expected 'completed' to be 'persisting'` (5 cas) |
+| Décodage réduit à l'en-tête (`metadata()`) | `studios-decodeur` / `l3-decodage` | `PNG à pixels illisibles décodé: expected { ok: true, … } to match object { ok: false, cause: 'contenu' }` / `un média non décodé a terminé le job: expected 'completed' to be 'persisting'` |
+| Vidéo acceptée sans décodeur | `l3-decodage` | `expected 'completed' to be 'failed'` |
+| Animation soumise sans décodeur vidéo | `l3-decodage` | `expected 'completed' to be 'failed'` |
+| Filtre MP4 sans exigence de piste | `l3-media-complet` / `l3-decodage` | `MP4 sans piste accepté comme vidéo: expected { mime: 'video/mp4', … } to be null` / `expected 'failed' to be 'persisting'` (le worker le refuse alors comme vidéo non vérifiable : jamais livré) |
+| Re-téléchargement sans borne | `l3-decodage` | `expected 'persisting' to be 'failed'` (4 cas) |
+| Pixels non comptés | `l3-media-complet` | `expected { livrable: true, largeur: 6, … } to match object { livrable: false, … }` |
+| Moteur construit sans décodeur | `studios-moteur` | `expected [Function] to throw an error` |
+| Panne du décodeur comptée comme fichier abîmé | `l3-decodage` | `expected 'failed' to be 'persisting'` |
+
 ## 6. Reprise après fermeture du navigateur et suivi vidéo historique
 
 Le navigateur doit garder la clé du clic (`idempotencyKey`, à générer côté client au clic et à conserver en `sessionStorage` · aucun écran L3).
@@ -204,6 +265,8 @@ Plan pour faire passer `app/actions/video.ts` (hors liste L3, NON modifié) sur 
 - Le plafond dollars est contrôlé à l'approbation (barrière globale existante, non par espace) ; la dépense réelle d'un
   futur adaptateur doit passer par `sousPlafond`.
 - Pas d'écran : L3 livre commandes et worker ; l'interface (devis affiché, bouton, suivi) appartient aux lots studio.
+- Vidéo : aucun décodeur vidéo ⇒ aucune sortie vidéo livrable, aucune animation soumise par le worker. Aucune vraie
+  vidéo positive n'est prouvée ici (§5 bis).
 
 ## 8. Besoins hors périmètre (l'intégrateur tranche)
 
@@ -221,3 +284,13 @@ Plan pour faire passer `app/actions/video.ts` (hors liste L3, NON modifié) sur 
 6. **`porteeSql` de `depot.ts`** n'est pas exporté : recopié (4 lignes) dans `commandes.ts`, avec la même double garde.
 7. **Fichier de harnais** `apps/web/test/l3-harnais.ts` (hors motif `l3-*.test.ts`), et `apps/workers/package.json` :
    script `test` + dépendances de dev déjà présentes dans le lockfile (`vitest`, `@electric-sql/pglite`, `drizzle-orm`).
+8. **Décodeur vidéo** · ffprobe (ou ffmpeg) sur le VPS et dans l'image du worker, décision du propriétaire ; puis un
+   `decoderVideo` réel (décodage d'images, pas seulement l'en-tête) injecté dans `DecodeurSharp({ video })`, prouvé
+   sur une vraie vidéo positive et sur le MP4 de 88 octets négatif.
+9. **Capacité vidéo au devis** · le worker refuse les animations, mais `creerDevis` (`tarifs.ts`, `commandes.ts`,
+   hors liste) les devise encore : l'utilisateur verrait un devis puis un échec sans frais. À bloquer au devis
+   (`UNSUPPORTED_CAPABILITY`) tant qu'aucun décodeur vidéo n'est déclaré.
+10. **COST-01 Postgres réel intermittent** · `l3-concurrence-pg` (double clic même clé sur deux connexions) rend parfois
+   `VERSION_CONFLICT « Ce devis a déjà été approuvé »` au second clic au lieu du même job (1 échec sur 2 passages sur
+   `a8b98b2`, 1 sur 7 après correction) : un seul job et un seul débit, mais pas la réponse idempotente promise. Hors
+   liste (`commandes.ts`).

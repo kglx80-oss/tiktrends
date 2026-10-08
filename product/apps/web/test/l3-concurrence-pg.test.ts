@@ -29,6 +29,7 @@ import { ctxDe, poserSolde, solde, projetTest, banc, secondWorker, etatEnBase, j
 import { creerDevis, approuverEtMettreEnFile, annulerJob } from '../lib/studios/execution/commandes';
 import type { BaseStudio } from '../lib/studios/execution/types';
 import { MoteurStudio } from '../../workers/src/studios/moteur';
+import { DecodeurSharp } from '../../workers/src/studios/decodeur';
 
 const IMAGE = CREDIT_COSTS.image;
 const ids = idsStudios();
@@ -98,8 +99,10 @@ describe.skipIf(!LOCALE)('Postgres réel · deux connexions', () => {
   });
 
   it('COST-01 · double clic même clé sur deux connexions ⇒ un job, une approbation, une réserve, un débit', async () => {
-    await poserSolde(c1, ids.wsA, 100);
-    for (let manche = 0; manche < 10; manche++) {
+    await poserSolde(c1, ids.wsA, 400);
+    // 40 manches : la course (clic jumeau commité entre la recherche par clé et la
+    // lecture de l'approbation) ne sortait qu'une manche sur ~20 · 10 ne suffisaient pas.
+    for (let manche = 0; manche < 40; manche++) {
       const q = await devis(c1);
       const e = { quoteId: q.id, inputHash: q.inputHash, creditsAnnonces: q.maximumCredits, idempotencyKey: `double-${q.id}` };
       const s0 = await solde(c1, ids.wsA);
@@ -128,7 +131,7 @@ describe.skipIf(!LOCALE)('Postgres réel · deux connexions', () => {
       jobsIds.push(r.job.id);
     }
     const A = banc(c1, { workerId: 'pg-A' });
-    const B = new MoteurStudio({ base: c2, fournisseur: A.fournisseur, stockage: A.stockage, workerId: 'pg-B', bailMs: 30_000, horloge: A.horloge, journal: (e) => A.journal.push(e) });
+    const B = new MoteurStudio({ base: c2, fournisseur: A.fournisseur, stockage: A.stockage, decodeur: new DecodeurSharp(), workerId: 'pg-B', bailMs: 30_000, horloge: A.horloge, journal: (e) => A.journal.push(e) });
     const prises = await Promise.all([...Array(8)].map((_, i) => (i % 2 ? B : A.moteur).reclamer()));
     const prisesIds = prises.filter(Boolean).map((j) => j!.id);
     expect(new Set(prisesIds).size).toBe(prisesIds.length);

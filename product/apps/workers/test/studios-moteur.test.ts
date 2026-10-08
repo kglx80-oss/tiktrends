@@ -2,14 +2,16 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { schema, eq } from '@tiktrends/db';
 import {
-  cleFournisseurDuJob, refsDuJob, inspecterMedia, empreinteContenu, contenuVide, SCHEMA_VERSION_CONTENU,
+  cleFournisseurDuJob, refsDuJob, inspecterMedia, TELECHARGEMENTS_MEDIA_MAX, empreinteContenu, contenuVide, SCHEMA_VERSION_CONTENU,
   OPERATION_JOB_STUDIO, type SnapshotJob,
 } from '@tiktrends/core';
 import { MoteurStudio } from '../src/studios/moteur';
+import { DecodeurSharp } from '../src/studios/decodeur';
 import { relayerOutbox } from '../src/studios/boucle';
 import type { BaseStudio, EntreeJournal } from '../src/studios/types';
 import { FournisseurSimule, StockageSimule, DRAPEAU_SIMULE, pngSimule, signerWebhookSimule } from '../../../packages/integrations/src/studios-simule';
 import { pgMemoire } from './pg-memoire';
+import { mp4Recette88, mp4StructurePlausible } from '../../../packages/core/test/l3-fixtures-media';
 
 /**
  * Worker des studios · au résultat en base (pglite, migrations réelles).
@@ -37,8 +39,9 @@ beforeAll(async () => {
   version = v!.id;
 });
 
-async function semerJob(o: { reserve?: boolean } = {}): Promise<string> {
-  const lignes = [{ operation: 'keyframe:s1', nature: 'generation' as const, profil: 'image_generation' as const, unites: 1, credits: 4, usdMicros: 80_000, inclus: false }];
+async function semerJob(o: { reserve?: boolean; profil?: 'image_generation' | 'animation' } = {}): Promise<string> {
+  const op = o.profil === 'animation' ? 'clip:s1' : 'keyframe:s1';
+  const lignes = [{ operation: op, nature: 'generation' as const, profil: o.profil ?? 'image_generation' as const, unites: 1, credits: 4, usdMicros: 80_000, inclus: false }];
   const h = 'c'.repeat(64);
   const [q] = await base.insert(schema.studioQuotes).values({ workspaceId: ws, brandId: brand, projectId: projet, projectVersionId: version, impactPlanHash: h, inputHash: h, pricingVersion: 'v', lines: lignes, maximumCredits: 4, maximumUsdMicros: 80_000, expiresAt: new Date(Date.now() + 60_000), createdBy: user }).returning();
   const [a] = await base.insert(schema.studioApprovals).values({ quoteId: q!.id, workspaceId: ws, brandId: brand, inputHash: h, approvedBy: user }).returning();
@@ -56,7 +59,7 @@ function moteur(o: { fournisseur?: FournisseurSimule; stockage?: StockageSimule;
   const stockage = o.stockage ?? new StockageSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' } });
   const decalage = o.decalage ?? { ms: 0 };
   const journal: EntreeJournal[] = [];
-  const m = new MoteurStudio({ base, fournisseur, stockage, workerId: o.workerId, bailMs: 10_000, horloge: () => new Date(Date.now() + decalage.ms), secretWebhook: o.secret ?? null, journal: (e) => journal.push(e) });
+  const m = new MoteurStudio({ base, fournisseur, stockage, decodeur: new DecodeurSharp(), workerId: o.workerId, bailMs: 10_000, horloge: () => new Date(Date.now() + decalage.ms), secretWebhook: o.secret ?? null, journal: (e) => journal.push(e) });
   return { m, fournisseur, stockage, journal, decalage };
 }
 
@@ -150,10 +153,58 @@ describe('outbox · publiée une fois, dans l’ordre, échec conservé', () => 
   });
 });
 
-describe('médias simulés · décodables et marqués', () => {
+describe('médias simulés · structure plausible et marqués (décodage réel : studios-decodeur)', () => {
   it('le PNG simulé est un vrai PNG 8×8 portant « SIMULE »', () => {
     const p = pngSimule();
     expect(inspecterMedia(p)).toEqual({ mime: 'image/png', largeur: 8, hauteur: 8 });
     expect(Buffer.from(p).toString('latin1')).toContain('SIMULE');
+  });
+});
+
+describe('contre-recette du 8 octobre · décodage réel avant completed et règlement', () => {
+  const settles = async (id: string) => (await base.select().from(schema.studioBudgetLedger).where(eq(schema.studioBudgetLedger.jobId, id))).filter((m) => m.kind === 'settle');
+  const medias = async (id: string) => (await base.select().from(schema.studioAssets)).filter((a) => (a.rights as { jobId?: string }).jobId === id);
+
+  it('le MP4 de 88 octets ⇒ persisting, puis failed après le re-téléchargement borné · 0 média, 0 crédit réglé', async () => {
+    const id = await semerJob();
+    const { m, fournisseur, stockage } = moteur();
+    fournisseur.prochaine('sortie_imposee');
+    fournisseur.octetsImposes = mp4Recette88();
+    for (let i = 0; i < 6 && (await job(id)).state !== 'persisting'; i++) await m.tour();
+    expect((await job(id)).state, 'le MP4 sans piste a terminé le job').toBe('persisting');
+    for (let i = 0; i < 6 && !['completed', 'failed'].includes((await job(id)).state); i++) await m.tour();
+    const j = await job(id);
+    expect(j.state).toBe('failed');
+    expect((j.error as { motif?: string }).motif).toMatch(/88 octets.*3 téléchargements refusés/);
+    expect(fournisseur.telechargements).toBe(TELECHARGEMENTS_MEDIA_MAX);
+    expect([stockage.depots, (await medias(id)).length]).toEqual([0, 0]);
+    expect((await settles(id)).map((x) => x.credits)).toEqual([0]);
+  });
+
+  it('un MP4 à structure plausible ⇒ refusé comme non vérifiable (aucun décodeur vidéo), jamais livré', async () => {
+    const id = await semerJob();
+    const { m, fournisseur, stockage } = moteur();
+    fournisseur.prochaine('sortie_imposee');
+    fournisseur.octetsImposes = mp4StructurePlausible();
+    while (!['completed', 'failed'].includes((await job(id)).state)) await m.tour();
+    const j = await job(id);
+    expect(j.state).toBe('failed');
+    expect((j.error as { motif?: string }).motif).toMatch(/non vérifiable · aucun décodeur vidéo/);
+    expect([stockage.depots, (await medias(id)).length]).toEqual([0, 0]);
+  });
+
+  it('une opération d’animation ⇒ refusée AVANT soumission, aucune requête payante', async () => {
+    const id = await semerJob({ profil: 'animation' });
+    const { m, fournisseur } = moteur();
+    while (!['completed', 'failed'].includes((await job(id)).state)) await m.tour();
+    expect((await job(id)).state).toBe('failed');
+    expect([fournisseur.soumissions, fournisseur.appelsSoumettre]).toEqual([0, 0]);
+    expect((await settles(id)).map((x) => [x.credits, Number(x.usdMicros)])).toEqual([[0, 0]]);
+  });
+
+  it('sans décodeur, le moteur refuse de se construire', () => {
+    const fournisseur = new FournisseurSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' } });
+    const stockage = new StockageSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' } });
+    expect(() => new MoteurStudio({ base, fournisseur, stockage } as unknown as ConstructorParameters<typeof MoteurStudio>[0])).toThrow(/sans décodeur/);
   });
 });
