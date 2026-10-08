@@ -11,6 +11,7 @@ import type { VueProduit } from '../../../lib/studios/produit/vue';
 import { vide } from '../../ui';
 import { epinglerProduit, associerReference, retirerReference } from '../../../app/actions/studios/produit';
 import { panneau, carte, titre, sousTitre, etiquette, texte, mini, boutonPrimaire, boutonSecondaire, desactive, champ, signal, pastille, rangee, CIBLE } from '../propositions/styles';
+import { ParcoursImage } from '../image/ParcoursImage';
 
 /**
  * Écran « Produit et références » d'un projet (cahier §4.4 points 1 et 2).
@@ -260,6 +261,9 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
           );
         })}
       </section>
+
+      {/* F-B · consigne compilée → devis → approbation → job → média, après le contrôle qu'elle exige. */}
+      <ParcoursImage projectId={vue.projet.id} versionId={vue.version.id} />
     </div>
   );
 }

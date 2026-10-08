@@ -6,7 +6,7 @@ import {
   calculerPlanImpact, lignesDuDevis, empreinteEntreesDevis, expirationDevis, dureeValidite, verifierApprobation,
   decisionIdempotence, cleIdempotenceValide, refsDuJob, refusPlafondDollars, bilanRegistre, preuveSoumission,
   vueJob, transitionJob, transitionQualite, jobTerminal, objetDansPortee, erreurStudio,
-  PRICING_VERSION, OPERATION_JOB_STUDIO,
+  PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
   type ContenuVersion, type PlanImpact, type LigneDevis, type ErreurStudio, type SnapshotJob, type VueJob,
   type EtatJob, type StatutQualite, type EpinglageDevis,
 } from '@tiktrends/core';
@@ -15,6 +15,8 @@ import { ajouterAudit } from '../audit';
 import { estUuid } from '../depot';
 import { debiterCreditsDans } from '../../credits';
 import { epinglerReleaseDuDevis, revocationDe } from './epinglage';
+// F-B · raccord de l'image du studio (`keyframe:s_image`) · sans effet sur les autres opérations.
+import { raccordImageDevis, parametresImageApprobation } from '../image/raccord';
 import type { BaseStudio, ExecStudio, TxStudio } from './types';
 
 /**
@@ -182,6 +184,9 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       }
       const ep = await epinglerReleaseDuDevis(tx, projet.workspaceId, projet.brandId);
       if (!ep.ok) throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: `Consigne indisponible pour ce devis · ${ep.motif}` }));
+      // F-B · image du studio : consigne retenue, attestée, à jour, références intactes.
+      const image = await raccordImageDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
+      if (!image.ok) throw new Refus(image);
 
       const [ip] = await tx.insert(schema.studioImpactPlans).values({
         workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id,
@@ -189,11 +194,12 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
         changedInputs: plan.entreesModifiees, reused: plan.reutilisees, obsolete: plan.obsoletes, redo: plan.aRefaire,
         planHash: plan.empreinte, createdBy: ctx.userId,
       }).returning();
-      const inputHash = empreinteEntreesDevis({
+      const entrees = {
         workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id,
         projectVersionId: courante.id, contentHash: courante.contentHash, impactPlanHash: plan.empreinte,
         pricingVersion: PRICING_VERSION, lignes: l.lignes, epinglage: ep.epinglage,
-      });
+      };
+      const inputHash = image.empreinte ? empreinteEntreesDevisImage(entrees, image.empreinte) : empreinteEntreesDevis(entrees);
       const [q] = await tx.insert(schema.studioQuotes).values({
         workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id, projectVersionId: courante.id,
         impactPlanId: ip!.id, impactPlanHash: plan.empreinte, inputHash, promptReleaseId: ep.epinglage?.promptReleaseId ?? null,
@@ -203,7 +209,7 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       await ajouterAudit(tx, ctx, {
         action: 'quote.create', brandId: projet.brandId, targetType: 'studio_quote', targetId: q!.id,
         versionBefore: null, versionAfter: courante.id, reason: 'devis',
-        details: { credits: l.totalCredits, usdMicros: l.totalUsdMicros, pricingVersion: PRICING_VERSION, releaseHash: ep.epinglage?.releaseHash ?? null },
+        details: { credits: l.totalCredits, usdMicros: l.totalUsdMicros, pricingVersion: PRICING_VERSION, releaseHash: ep.epinglage?.releaseHash ?? null, ...(image.empreinte ? { consigneImage: image.empreinte } : {}) },
       });
       return { ok: true as const, devis: presenter(q!), plan };
     });
@@ -272,6 +278,9 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
   if (refusDollars) return erreurStudio('BUDGET_EXCEEDED', { traceId: ctx.traceId, message: `Le plafond de dépense ne permet pas ce lancement · ${refusDollars}.` });
 
   try {
+    // F-B · paramètres natifs de l'image du studio, relus côté serveur (hors transaction : lecture seule) ;
+    // le refus éventuel est rendu APRÈS les contrôles du devis, dans la transaction. `{}` pour les autres opérations.
+    const image = await parametresImageApprobation(base, ctx, q);
     return await base.transaction(async (tx) => {
       const enCours = await jobParCle(tx, ctx.workspaceId, cle);
       if (enCours) return rejouer(ctx, enCours, quoteId, e.inputHash);
@@ -300,6 +309,7 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
         { maintenant, versionCouranteId: projet!.currentVersionId, revocationRelease: revocation },
       );
       if (!v.ok) throw new Refus(erreurStudio(v.code, { traceId: ctx.traceId, targetIds: [q.id], message: v.motif }));
+      if (!image.ok) throw new Refus(image);
 
       const lignes = q.lines as LigneDevis[];
       const creditsDebites = o.illimite ? 0 : q.maximumCredits;
@@ -313,7 +323,7 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
         v: 1, quoteId: q.id, projectVersionId: q.projectVersionId, contentHash: version?.contentHash ?? '', impactPlanHash: q.impactPlanHash,
         pricingVersion: q.pricingVersion, lignes, epinglage,
         reserve: { credits: creditsDebites, usdMicros: Number(q.maximumUsdMicros) },
-        parametres: {},
+        parametres: image.parametres,
       };
       const [job] = await tx.insert(schema.studioJobs).values({
         workspaceId: q.workspaceId, brandId: q.brandId, projectId: q.projectId, projectVersionId: q.projectVersionId,

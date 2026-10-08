@@ -175,3 +175,4 @@ export * from './studios/rendu';
 export * from './studios/calques';
 export * from './studios/produit';
 export * from './studios/fournisseurs';
+export * from './studios/image';
