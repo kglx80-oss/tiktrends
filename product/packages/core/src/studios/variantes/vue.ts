@@ -133,7 +133,8 @@ export interface CarteLot {
   jobId: string;
   titre: string;
   etatTechnique: string;
-  qualite: string;
+  /** Statut qualité · seulement pour un lot dont le fichier est enregistré (sinon rien à relire). */
+  qualite: string | null;
   actif: boolean;
   sorties: CarteSortie[];
   message: string | null;
@@ -233,7 +234,7 @@ export function vueVariantes(d: DonneesVariantes): VueVariantes {
       let message: string | null = null;
       if (actif) message = `${l.attendues} sortie${l.attendues > 1 ? 's' : ''} en préparation · elles apparaîtront ici, tu peux fermer la page.`;
       else if (l.etat === 'failed' || l.etat === 'cancelled') message = 'Aucune sortie livrée par ce lot.';
-      return { jobId: l.jobId, titre: `Lot ${l.lot}`, etatTechnique: LIBELLE_ETAT_TECHNIQUE[l.etat], qualite: LIBELLE_QUALITE[l.qualite], actif, sorties, message };
+      return { jobId: l.jobId, titre: `Lot ${l.lot}`, etatTechnique: LIBELLE_ETAT_TECHNIQUE[l.etat], qualite: l.etat === 'completed' ? LIBELLE_QUALITE[l.qualite] : null, actif, sorties, message };
     });
     return {
       id: vid,

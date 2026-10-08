@@ -49,7 +49,7 @@ export default async function RecetteVariantes({ searchParams }: { searchParams:
   return (
     <main style={cadrePage}>
       <div style={{ marginBottom: 16, display: 'grid', gap: 6 }}>
-        <h1 style={h1}>Variantes et tests</h1>
+        <h1 style={h1}>Recette locale</h1>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>Page de recette locale · absente en production. Le composant sera monté dans la page projet.</p>
       </div>
       {sp.projet ? <VariantesEtTests projectId={sp.projet} recette={recette} /> : (

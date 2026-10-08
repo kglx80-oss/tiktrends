@@ -245,6 +245,7 @@ describe('Vue · états, statuts séparés, rangement', () => {
     const v = vueVariantes(d);
     expect(v.enCours).toBe(1);
     expect(v.versions[0]!.lots[0]!.message).toContain('4 sorties en préparation');
+    expect(v.versions[0]!.lots[0]!.qualite, 'rien à relire tant que le fichier n’est pas enregistré').toBeNull();
   });
 });
 

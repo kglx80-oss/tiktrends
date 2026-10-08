@@ -47,7 +47,7 @@ export const point = (ton: string): CSSProperties => ({ width: 7, height: 7, bor
 /** Vignette neutre aux proportions du média (jamais déformée). */
 export function vignette(ratio: string): CSSProperties {
   return {
-    aspectRatio: ratio, width: '100%', maxHeight: 220, borderRadius: 12, border: '1px solid var(--line)', boxSizing: 'border-box',
-    background: 'linear-gradient(135deg, var(--paper), var(--surface))', display: 'flex', alignItems: 'flex-end', padding: 10, overflow: 'hidden',
+    aspectRatio: ratio, width: '100%', borderRadius: 12, border: '1px solid var(--line)', boxSizing: 'border-box',
+    background: 'linear-gradient(135deg, var(--paper), var(--surface))', overflow: 'hidden',
   };
 }

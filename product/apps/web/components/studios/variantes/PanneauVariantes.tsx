@@ -42,12 +42,9 @@ function Pastille({ ton, children }: { ton: string; children: string }) {
 
 const tonQualite = (q: string) => (q === 'Accepté' ? 'ok' : q === 'Écarté' ? 'err' : 'warn');
 
+/** Aucune route ne sert encore les médias studio · cadre aux proportions exactes, identifié par son empreinte. */
 function Vignette({ ratio, legende }: { ratio: string; legende: string }) {
-  return (
-    <div style={vignette(ratio)} role="img" aria-label={legende}>
-      <span style={{ ...petit, color: 'var(--ink-2)' }}>Aperçu à brancher · média identifié par son empreinte</span>
-    </div>
-  );
+  return <div style={vignette(ratio)} role="img" aria-label={`${legende} · aperçu à brancher`} />;
 }
 
 export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVariantes; recette?: EtatRecette }) {
@@ -113,6 +110,7 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
     <section aria-labelledby="titre-variantes" style={{ display: 'grid', gap: 16, minWidth: 0 }}>
       <header style={{ display: 'grid', gap: 6 }}>
         <h2 id="titre-variantes" style={{ ...titre2, margin: 0 }}>Variantes et tests</h2>
+        <p style={{ ...petit, overflowWrap: 'anywhere' }}>Projet · {vue.titreProjet}</p>
         <p style={texte}>{vue.message}</p>
         <div style={rangee}>
           {vue.enCours > 0 && <Pastille ton="info">{`${vue.enCours} lot${vue.enCours > 1 ? 's' : ''} en cours`}</Pastille>}
@@ -144,15 +142,14 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
             {vue.variantes.map((c) => {
               const lue = parVariante.get(c.id)!;
               return (
-                <article key={c.id} aria-labelledby={`var-${c.id}`} data-variante={c.id} style={{ ...bloc, display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', alignItems: 'start' }}>
-                  <div style={{ display: 'grid', gap: 8, maxWidth: 320 }}>
+                <article key={c.id} aria-labelledby={`var-${c.id}`} data-variante={c.id} style={{ ...bloc, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
+                  <div style={{ flex: '0 0 clamp(72px, 18vw, 200px)', minWidth: 0 }}>
                     <Vignette ratio={c.ratio} legende={`${c.libelle} · ${c.dimensions}`} />
-                    <p style={{ ...mono, color: 'var(--muted)' }}>{c.empreinte}</p>
-                    <p style={petit}>{c.dimensions}</p>
                   </div>
-                  <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
+                  <div style={{ display: 'grid', gap: 10, flex: '1 1 200px', minWidth: 0 }}>
                     <div style={{ display: 'grid', gap: 6 }}>
                       <h4 id={`var-${c.id}`} style={titre3}>{c.libelle}</h4>
+                      <p style={{ ...mono, color: 'var(--muted)' }}>{c.empreinte} · {c.dimensions} · aperçu à brancher</p>
                       <div style={rangee}>
                         <Pastille ton={c.rangement === 'courante' ? 'accent' : 'neutre'}>{`${c.versionTitre}${c.rangement === 'courante' ? ' · courante' : ' · antérieure'}`}</Pastille>
                         <Pastille ton="ok">{`Technique · ${c.statutTechnique}`}</Pastille>
@@ -264,7 +261,7 @@ function BlocDeVersion({ b, choisir, occupe, horsLigne }: { b: BlocVersion; choi
           <div style={rangee}>
             <p style={{ ...texte, color: 'var(--ink)', fontWeight: 600 }}>{l.titre}</p>
             <Pastille ton={l.actif ? 'info' : l.etatTechnique === 'Fichier enregistré' ? 'ok' : 'err'}>{`Technique · ${l.etatTechnique}`}</Pastille>
-            <Pastille ton={tonQualite(l.qualite)}>{`Qualité · ${l.qualite}`}</Pastille>
+            {l.qualite && <Pastille ton={tonQualite(l.qualite)}>{`Qualité · ${l.qualite}`}</Pastille>}
           </div>
           {l.message && <p style={petit}>{l.message}</p>}
           {l.sorties.length > 0 && (
