@@ -464,7 +464,7 @@ export function EcranExecutions({ runs, detail }: { runs: VueRun[]; detail: VueR
           {detail.pieces.length > 0 && (<>
             <h3 style={{ margin: '14px 0 6px', fontSize: 14, fontWeight: 600 }}>Pièces natives envoyées</h3>
             <p style={{ margin: '0 0 6px', fontSize: 12.5, color: 'var(--ink-2)' }}>Chaque image a été lue par le serveur dans la portée de la tâche ; la trace garde son empreinte, jamais ses octets ni son adresse.</p>
-            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{detail.pieces.map((p) => (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, display: 'grid', gap: 8 }}>{detail.pieces.map((p) => (
               <li key={`${p.nativeAttachmentIndex}-${p.bindingId}`} style={{ overflowWrap: 'anywhere' }}>
                 index {p.nativeAttachmentIndex} · <code style={mono}>{p.bindingId || '·'}</code> → <code style={mono}>{p.assetId || '·'}</code>{p.assetVersion ? <> @ <code style={mono}>{p.assetVersion}</code></> : null}
                 <span style={{ color: 'var(--muted)' }}> · {p.mime || 'type ?'}{p.octets !== null ? ` · ${p.octets} octets` : ''}{p.largeur !== null && p.hauteur !== null ? ` · ${p.largeur}×${p.hauteur}` : ''}{p.jetonsMax !== null ? ` · au plus ${p.jetonsMax} jetons` : ''} · sha256 <code style={mono}>{p.sha256 || '·'}</code></span>
