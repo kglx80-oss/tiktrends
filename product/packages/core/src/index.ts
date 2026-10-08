@@ -178,3 +178,4 @@ export * from './studios/fournisseurs';
 export * from './studios/benchmark';
 export * from './studios/image';
 export * from './studios/identites';
+export * from './studios/video';

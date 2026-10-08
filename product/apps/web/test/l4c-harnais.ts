@@ -7,6 +7,7 @@ import type { BaseStudio } from '../lib/studios/execution/types';
 import { creerDevis, approuverEtMettreEnFile } from '../lib/studios/execution/commandes';
 import { banc, jusquAuBout } from './l3-harnais';
 import { plan } from '../../../packages/core/test/studios-fixtures';
+import { avecConsignesPlans, attesterConsignesPlans } from './l6a-outils';
 
 /**
  * Harnais L4-C · projets à brief canonique, lots RÉELS (devis → approbation →
@@ -37,8 +38,13 @@ export function contenuImages(brief: Record<string, unknown> = briefCanonique(),
   };
 }
 
+/**
+ * L6-A · chaque plan porte une consigne `shot.image` attestée (semis, la même
+ * pour les N plans d'un lot) : une image clé de plan ne se devise plus sans
+ * elle (plus jamais `parametres: {}`).
+ */
 export async function projetAvecBrief(base: BaseStudio, o: { workspaceId: string; brandId: string; userId: string; titre?: string; contenu?: ContenuVersion; sources?: unknown[] }): Promise<{ projectId: string; versionId: string }> {
-  const contenu = o.contenu ?? contenuImages();
+  const { contenu, consignes } = avecConsignesPlans(o.contenu ?? contenuImages());
   const [p] = await base.insert(schema.studioProjects).values({
     workspaceId: o.workspaceId, brandId: o.brandId, kind: 'ads', title: o.titre ?? `Sérum ${randomUUID().slice(0, 6)}`, ownerId: o.userId,
     sourceRefs: o.sources ?? [],
@@ -48,6 +54,7 @@ export async function projetAvecBrief(base: BaseStudio, o: { workspaceId: string
     content: contenu, contentHash: empreinteContenu(contenu), authorId: o.userId, reason: 'test',
   }).returning();
   await base.update(schema.studioProjects).set({ currentVersionId: v!.id, rowVersion: 1 }).where(eq(schema.studioProjects.id, p!.id));
+  await attesterConsignesPlans(base, { workspaceId: p!.workspaceId, brandId: o.brandId, projectId: p!.id, userId: o.userId }, consignes);
   return { projectId: p!.id, versionId: v!.id };
 }
 

@@ -42,7 +42,9 @@ import { enregistrerIdentitePour, lierIdentitePour, resoudreContradictionPour, l
 import { preparerTexteVoixPour } from '../lib/studios/voix/voix';
 import * as actions from '../app/actions/studios/identites';
 import { semer, session } from './studios-semis';
-import { ctxDe, projetVideo, compter, delta } from './l4a-outils';
+import { ctxDe, projetVideo as projetVideoSansConsigne, compter, delta } from './l4a-outils';
+import { avecConsignesPlans, attesterConsignesPlans } from './l6a-outils';
+import { enregistrerVersion as enregistrerVersionDepot } from '../lib/studios/depot';
 import { poserSolde, solde } from './l3-harnais';
 import { publierRegistreDeTest } from './l2-outils';
 import { adaptateurSimule } from './l2-adaptateur-simule';
@@ -59,6 +61,29 @@ const courante = async (projectId: string) => {
   const [v] = await db.select().from(V).where(eq(V.id, p!.currentVersionId!));
   return v!;
 };
+
+
+/**
+ * Intégration L6-A × L6-B · une image clé de plan exige désormais une consigne
+ * attestée (L6-A). Ces tests portent sur le contrôle d'identité : chaque plan
+ * reçoit une consigne de semis attestée, comme le ferait « Retenir ».
+ */
+async function projetVideo(...a: Parameters<typeof projetVideoSansConsigne>) {
+  const [base, i, brandId, userId, contenu] = a;
+  const { contenu: avec, consignes } = avecConsignesPlans(contenu!);
+  const p = await projetVideoSansConsigne(base, i, brandId, userId, avec);
+  await attesterConsignesPlans(base, { workspaceId: i.wsA, brandId, projectId: p.projectId, userId }, consignes);
+  return p;
+}
+/** Après une modification d'un plan, sa consigne est périmée : on en retient une neuve. */
+async function consigneNeuve(projectId: string, plans: string[]) {
+  const v = await courante(projectId);
+  const { contenu, consignes } = avecConsignesPlans(v.content as ContenuVersion, { plans });
+  const r = await enregistrerVersionDepot(ctxDe(ids, 'ua'), { projectId, baseVersionId: v.id, changes: [{ op: 'replace', path: '/styleRef', newValue: contenu.styleRef, reason: 'consigne retenue (semis)' }], raison: 'consigne retenue (semis)' });
+  if (!r.ok) throw new Error(JSON.stringify(r));
+  await attesterConsignesPlans(db, { workspaceId: ids.wsA, brandId: ids.brandA1, projectId, userId: ids.ua }, consignes);
+  return r.version;
+}
 
 beforeAll(async () => {
   await semer(db, schema, ids);
@@ -94,9 +119,11 @@ describe('VIDEO-02 · contradiction fiche ↔ plan bloquée AVANT devis et débi
     const [a] = await db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, projectId), eq(schema.studioAuditEvents.versionAfter, v2.id)));
     expect(a!.reason).toBe('Contradiction résolue sur le plan s2 · « veste jaune » corrigé selon la fiche de Léa');
 
+    // Le plan s2 a changé : sa consigne d'image (L6-A) est périmée, on en retient une neuve.
+    const v3 = await consigneNeuve(projectId, ['s2']);
     const d = await creerDevis(ctxDe(ids, 'ua'), { projectId, operations: ['keyframe:s1', 'keyframe:s2'], variante: true });
     if (!d.ok) throw new Error(`${d.code} ${d.message}`);
-    expect(d.devis.projectVersionId).toBe(v2.id);
+    expect(d.devis.projectVersionId).toBe(v3.id);
     expect(d.devis.maximumCredits).toBe(2 * CREDIT_COSTS.image);
     expect(await solde(db, ids.wsA)).toBe(s0);
     const j = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: d.devis.maximumCredits, idempotencyKey: `l6b-${randomUUID()}` }, { illimite: false });

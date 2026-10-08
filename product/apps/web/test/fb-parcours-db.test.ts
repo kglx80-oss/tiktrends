@@ -31,7 +31,7 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 import { randomUUID } from 'node:crypto';
 import { db, schema, eq, and } from '@tiktrends/db';
 import {
-  consigneDuContenu, parametresDepuisConsigne, empreinteConsigne, empreinteEntreesDevisImage, lireParametresImage, promptFal,
+  consigneDuContenu, parametresDepuisConsigne, parametresDepuisConsignePlan, empreinteConsigne, empreinteEntreesDevisImage, lireParametresImage, promptFal,
   OPERATION_IMAGE, PLAN_IMAGE, ACTION_CONSIGNE_COMPILEE, PRICING_VERSION,
   type ContenuVersion, type BriefCanonique, type SnapshotJob, type DecisionFournisseur, type StockageStudio, type LigneDevis,
 } from '@tiktrends/core';
@@ -55,6 +55,7 @@ import { MoteurStudio } from '../../workers/src/studios/moteur';
 import { DecodeurSharp } from '../../workers/src/studios/decodeur';
 import { construireFournisseurFal } from '../../workers/src/studios/fournisseurs';
 import { pngSimule } from '../../../packages/integrations/src/studios-simule';
+import { avecConsignesPlans, attesterConsignesPlans } from './l6a-outils';
 
 const ids = etat.ids;
 const base = db as unknown as BaseStudio;
@@ -436,19 +437,48 @@ describe('négatifs · rien d’approuvé, rien de débité', () => {
   });
 });
 
-describe('les autres opérations gardent leur comportement L3', () => {
-  it('un devis sans keyframe:s_image garde l’empreinte L3 et parametres: {}', async () => {
+describe('les autres opérations gardent leur comportement L3 · L6-A : une image clé de plan exige sa consigne', () => {
+  /** Un plan s1 ajouté par le chemin de l'éditeur, à côté de l'image du studio. */
+  async function avecPlanS1(projectId: string, baseVersionId: string, contenu: ContenuVersion) {
+    const plan = { shotId: 's1', purpose: '', subject: 'autre', action: '', framing: '', camera: '', lighting: '', environment: '', referenceIds: [], narration: '', onScreenText: [], speechMode: 'none', estimatedDurationMs: 0 };
+    const w = await enregistrerVersion(ctxDe(ids, 'ua'), { projectId, baseVersionId, changes: [{ op: 'add', path: '/shots/byId/s1', newValue: plan, reason: 'x' }, { op: 'replace', path: '/shots/order', newValue: [...contenu.shots.order, 's1'], reason: 'x' }] });
+    if (!w.ok) throw new Error('version');
+    return w.version;
+  }
+
+  it('keyframe:s1 sans consigne · devis refusé, et un devis inséré à la main est refusé à l’approbation (plus jamais parametres: {})', async () => {
     const { projectId } = await projetEpingle();
     const { version } = await consigneRetenue(projectId);
-    const plan = { shotId: 's1', purpose: '', subject: 'autre', action: '', framing: '', camera: '', lighting: '', environment: '', referenceIds: [], narration: '', onScreenText: [], speechMode: 'none', estimatedDurationMs: 0 };
-    const w = await enregistrerVersion(ctxDe(ids, 'ua'), { projectId, baseVersionId: version.id, changes: [{ op: 'add', path: '/shots/byId/s1', newValue: plan, reason: 'x' }, { op: 'replace', path: '/shots/order', newValue: [...(version.content as ContenuVersion).shots.order, 's1'], reason: 'x' }] });
-    if (!w.ok) throw new Error('version');
+    const v = await avecPlanS1(projectId, version.id, version.content as ContenuVersion);
+    const avantDevis = await compter(db);
+    expect(await creerDevis(ctxDe(ids, 'ua'), { projectId, operations: ['keyframe:s1'], variante: true }, base, T)).toMatchObject({ ok: false, code: 'MISSING_REFERENCE', targetIds: ['keyframe:s1'] });
+    expect(delta(avantDevis, await compter(db))).toEqual({});
+    const lignes = [{ operation: 'keyframe:s1', nature: 'generation', profil: 'image_generation', unites: 1, credits: 4, usdMicros: 80_000, inclus: false }];
+    const [q] = await db.insert(schema.studioQuotes).values({ workspaceId: ids.wsA, brandId: ids.brandA1, projectId, projectVersionId: v.id, impactPlanHash: 'e'.repeat(64), inputHash: 'e'.repeat(64), pricingVersion: PRICING_VERSION, lines: lignes, maximumCredits: 4, maximumUsdMicros: 80_000, expiresAt: new Date(T.getTime() + 600_000), createdBy: ids.ua }).returning();
+    const avant = await compter(db);
+    const s0 = await solde();
+    const r = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: q!.id, inputHash: q!.inputHash, creditsAnnonces: 4, idempotencyKey: `fb-${randomUUID()}` }, { illimite: false, maintenant: T });
+    expect(r).toMatchObject({ ok: false, code: 'MISSING_REFERENCE' });
+    expect(delta(avant, await compter(db))).toEqual({});
+    expect(await solde()).toBe(s0);
+  });
+
+  it('keyframe:s1 avec sa consigne attestée · paramètres studio_image/1 de CETTE consigne, empreinte de devis image, pas de consigneImage', async () => {
+    const { projectId } = await projetEpingle();
+    const { version } = await consigneRetenue(projectId);
+    const v = await avecPlanS1(projectId, version.id, version.content as ContenuVersion);
+    const { contenu, consignes } = avecConsignesPlans(v.content as ContenuVersion, { plans: ['s1'] });
+    const w = await enregistrerVersion(ctxDe(ids, 'ua'), { projectId, baseVersionId: v.id, changes: [{ op: 'replace', path: '/styleRef', newValue: contenu.styleRef, reason: 'semis' }] });
+    if (!w.ok) throw new Error(JSON.stringify(w));
+    await attesterConsignesPlans(base, { workspaceId: ids.wsA, brandId: ids.brandA1, projectId, userId: ids.ua }, consignes);
     const d = await creerDevis(ctxDe(ids, 'ua'), { projectId, operations: ['keyframe:s1'], variante: true }, base, T);
     if (!d.ok) throw new Error(JSON.stringify(d));
     const a = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: 4, idempotencyKey: `fb-${randomUUID()}` }, { illimite: true, maintenant: T });
     if (!a.ok) throw new Error(JSON.stringify(a));
-    expect(((await jobDe(a.job.id)).snapshot as SnapshotJob).parametres).toEqual({});
+    expect(((await jobDe(a.job.id)).snapshot as SnapshotJob).parametres).toEqual(parametresDepuisConsignePlan(consignes[0]!));
     const [audit] = await db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, d.devis.id), eq(schema.studioAuditEvents.action, 'quote.create')));
     expect(audit!.details).not.toHaveProperty('consigneImage');
+    expect(audit!.details).toHaveProperty('consignesPlans');
   });
 });
+

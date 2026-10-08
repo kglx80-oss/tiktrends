@@ -156,6 +156,10 @@ describe('/studio/projets/[id] · la page projet', () => {
       ['Éditer l’image', `/studio/projets/${projet}/image`],
       ['Produit et références', `/studio/projets/${projet}/produit`],
       ['Textes liés au brief', `/studio/projets/${projet}/textes`],
+      // L6-A · le studio vidéo du projet.
+      ['Vidéo · storyboard et montage', `/studio/projets/${projet}/video`],
+      // L6-B · identités des personnages et voix.
+      ['Identités et voix', `/studio/projets/${projet}/identites`],
     ]);
     expect(d.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
     expect(d.innerHTML).not.toMatch(/Trendtrack/i);
