@@ -66,6 +66,51 @@ function dependDuProduit(p: PlanStudio, c: ContenuVersion): boolean {
   return refs.has(c.productRef.productId) || (typeof c.productRef.assetId === 'string' && refs.has(c.productRef.assetId));
 }
 
+/**
+ * L6-A · consignes d'image des plans vidéo (`shot.image`), rangées par plan
+ * dans `styleRef.consignesPlans`. Elles ne font PAS partie du style commun :
+ * retenir la consigne du plan 1 ne rend obsolète que l'image clé du plan 1.
+ */
+export const CLE_CONSIGNES_PLANS = 'consignesPlans' as const;
+
+const estObjetSimple = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
+
+/** Le style commun lu par les images clés · sans les consignes par plan ; un style vide vaut « aucun ». */
+export function styleCommun(styleRef: ContenuVersion['styleRef']): Record<string, unknown> | null {
+  if (!estObjetSimple(styleRef)) return null;
+  const reste: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(styleRef)) if (k !== CLE_CONSIGNES_PLANS) reste[k] = v;
+  return Object.keys(reste).length ? reste : null;
+}
+
+/** La consigne retenue pour un plan · `null` si aucune (forme vérifiée ailleurs, `video/consigne-plan.ts`). */
+export function consigneRetenueDuPlan(c: Pick<ContenuVersion, 'styleRef'>, shotId: string): unknown {
+  const s = c.styleRef;
+  if (!estObjetSimple(s)) return null;
+  const m = s[CLE_CONSIGNES_PLANS];
+  if (!estObjetSimple(m) || !Object.prototype.hasOwnProperty.call(m, shotId)) return null;
+  return m[shotId] ?? null;
+}
+
+/**
+ * Ce que l'image clé d'un plan LIT, hors sa consigne : le visuel du plan, le
+ * style commun, le produit s'il est cité, les fiches d'identité citées. Une
+ * consigne `shot.image` compilée sur d'autres entrées est périmée.
+ */
+export function entreesKeyframe(c: ContenuVersion, shotId: string): Record<string, unknown> | null {
+  const p = Object.prototype.hasOwnProperty.call(c.shots.byId, shotId) ? c.shots.byId[shotId] : undefined;
+  if (!p) return null;
+  const visuel: Record<string, unknown> = {};
+  for (const k of VISUEL_PLAN) visuel[k] = p[k];
+  const refsIdentite = p.referenceIds.filter((r) => Object.prototype.hasOwnProperty.call(c.characterRefs, r)).sort();
+  return {
+    visuel,
+    style: styleCommun(c.styleRef),
+    produit: dependDuProduit(p, c) ? c.productRef : null,
+    identites: refsIdentite.map((r) => empreinteContenu(c.characterRefs[r])),
+  };
+}
+
 /** Le graphe des sorties d'une version, empreintes comprises. */
 export function grapheImpact(c: ContenuVersion): Map<string, NoeudImpact> {
   const g = new Map<string, NoeudImpact>();
@@ -84,14 +129,10 @@ export function grapheImpact(c: ContenuVersion): Map<string, NoeudImpact> {
   const keyframes = new Map<string, string>();
   const voix = new Map<string, string>();
   for (const [sid, p] of Object.entries(c.shots.byId)) {
-    const visuel: Record<string, unknown> = {};
-    for (const k of VISUEL_PLAN) visuel[k] = p[k];
-    keyframes.set(sid, pose(`keyframe:${sid}`, 'generation', 1, {
-      visuel,
-      style: c.styleRef,
-      produit: dependDuProduit(p, c) ? c.productRef : null,
-      identites: p.referenceIds.filter((r) => identites.has(r)).sort().map((r) => identites.get(r)),
-    }));
+    // La consigne retenue du plan (L6-A) entre dans SA seule image clé.
+    const entrees = entreesKeyframe(c, sid)!;
+    const consigne = consigneRetenueDuPlan(c, sid);
+    keyframes.set(sid, pose(`keyframe:${sid}`, 'generation', 1, consigne === null ? entrees : { ...entrees, consigne }));
     if (parleAvecVoix(p)) {
       voix.set(sid, pose(`voix:${sid}`, 'generation', 1, { narration: p.narration, voix: c.timeline?.voice ?? null }));
     }
