@@ -261,9 +261,13 @@ describe('téléchargement · borné, hôte fal seulement, type relu dans les oc
   });
 
   it('sortie hors des hôtes fal, adresse non publique, redirection : refus, aucune requête vers l’hôte', async () => {
-    route(estResultat, resultatFal('https://169.254.169.254/latest/meta-data'));
-    expect(estErreurCertaine(await erreurDe(fournisseur().telecharger(id, 'image:0')))).toBe(true);
-    expect(appels.map((a) => a.url)).toEqual([BASE_REQ]);
+    for (const url of ['https://169.254.169.254/latest/meta-data', 'https://cdn.evil.test/sortie.png', 'https://fal.media.evil.test/sortie.png']) {
+      appels = []; routes = [];
+      route(estResultat, resultatFal(url));
+      route((a) => a.url === url, new Response(PNG as unknown as BodyInit, { status: 200 }));
+      expect(estErreurCertaine(await erreurDe(fournisseur().telecharger(id, 'image:0'))), url).toBe(true);
+      expect(appels.map((a) => a.url), url).toEqual([BASE_REQ]);
+    }
     appels = []; routes = [];
     route(estResultat, resultatFal());
     expect(estErreurCertaine(await erreurDe(fournisseur({ verifierAdresse: async () => false }).telecharger(id, 'image:0')))).toBe(true);

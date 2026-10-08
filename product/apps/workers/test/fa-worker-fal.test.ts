@@ -279,6 +279,25 @@ describe('échecs · certain ou incertain, et ce que chacun coûte', () => {
     expect(audit.length).toBe(1);
   });
 
+  it('photo d’un produit d’une AUTRE marque du même espace : hors portée, bloqué, 0 appel', async () => {
+    const autreMarque = randomUUID();
+    const autre = randomUUID();
+    const photo = `data:image/png;base64,${Buffer.from(pngSimule([9, 9, 9])).toString('base64')}`;
+    await base.insert(schema.brands).values({ id: autreMarque, workspaceId: ws, name: 'Autre' });
+    await base.insert(schema.products).values({ id: autre, brandId: autreMarque, workspaceId: ws, name: 'Ailleurs', imageUrl: photo } as typeof schema.products.$inferInsert);
+    const [ph] = photosDuProduit({ id: autre, name: 'Ailleurs', imageUrl: photo, imageUrls: null }, hacherImage);
+    const p = parametresOk();
+    p.consigne.referenceBindings = [{ referenceId: ph!.assetId, role: 'product', scope: 'product' }];
+    p.references = [{ assetId: ph!.assetId, assetVersion: 'v', sha256: ph!.sha256, role: 'product' }];
+    const id = await semerJob(p as unknown as Record<string, unknown>);
+    scenario = falNominal();
+    const { m } = moteur();
+    await tours(m, id);
+    expect((await job(id)).state).toBe('failed');
+    expect(((await job(id)).error as { motif: string }).motif).toContain('MISSING_REFERENCE');
+    expect(appels).toEqual([]);
+  });
+
   it('instantané sans consigne (`parametres: {}`, approbation actuelle) : bloqué, la raison le dit, 0 appel', async () => {
     const id = await semerJob({});
     scenario = falNominal();
@@ -350,9 +369,16 @@ describe('démarrage du worker studio', () => {
   const S3 = { S3_ENDPOINT: 's3.test', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'a', S3_SECRET_ACCESS_KEY: 's' };
   it('sans clé réelle, hors production ou sans stockage : ne démarre pas et le dit (jobs en file, rien facturé)', async () => {
     const id = await semerJob();
-    for (const env of [{}, { FAL_KEY: 'simule-local-sans-reseau', NODE_ENV: 'production', ...S3 }, { FAL_KEY: 'id:secret', NODE_ENV: 'test', ...S3 }, { FAL_KEY: 'id:secret', NODE_ENV: 'production' }]) {
+    const cas: Array<[Record<string, string>, string]> = [
+      [{}, 'FAL_KEY absente'],
+      [{ FAL_KEY: 'simule-local-sans-reseau', NODE_ENV: 'production', ...S3 }, 'simulation locale'],
+      [{ FAL_KEY: 'id:secret', NODE_ENV: 'test', ...S3 }, 'hors production sans STUDIO_FOURNISSEUR_REEL=autorise'],
+      [{ FAL_KEY: 'id:secret', NODE_ENV: 'production' }, 'stockage objet non configuré'],
+    ];
+    for (const [env, raison] of cas) {
       const logs: string[] = [];
       expect(demarrerWorkerStudio({ env, base, fetch: fetchRejoue, log: (l) => logs.push(l) })).toBeNull();
+      expect(logs.join(' '), raison).toContain(raison);
       expect(logs.join(' ')).toContain(MESSAGE_SANS_FOURNISSEUR);
     }
     expect((await job(id)).state).toBe('queued');

@@ -76,6 +76,7 @@ describe('web + worker · une seule somme, un seul plafond', () => {
     process.env[CLE] = '0.2';
     await barriere().rendrePourJob(jobA);
     expect(await spentUsd()).toBeCloseTo(0.08, 10);
+    expect(await depenseDepuis(db as unknown as BaseDepense, debutFenetrePlafond(new Date()))).toBeCloseTo(0.08, 10);
     await expect(sousPlafond('fal_image', { workspaceId: ESPACE, action: 'fa:web' }, async () => 'ok')).resolves.toBe('ok');
 
     const lignes = await db!.select().from(schema.aiSpend);
