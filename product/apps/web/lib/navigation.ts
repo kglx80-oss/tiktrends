@@ -97,6 +97,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/studio/textes', label: 'Textes IA', parent: '/studio', section: 'Atelier' },
   { path: '/studio/projets', label: 'Projets', parent: '/studio', section: 'Atelier' },
   { path: '/studio/projets/[id]', label: 'Projet', parent: '/studio/projets', section: 'Atelier', dynamic: 'segment' },
+  { path: '/studio/projets/[id]/image', label: 'Éditer l’image', parent: '/studio/projets/[id]', section: 'Atelier' },
 
   { path: '/assets', label: 'Assets', section: 'Atelier' },
 
