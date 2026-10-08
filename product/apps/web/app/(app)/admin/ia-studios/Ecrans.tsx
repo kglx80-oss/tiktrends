@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
-import { BoutonCommande, BoutonConfirme, EditeurBrouillon, FormulaireRelease, type ChampEditable } from './Commandes';
+import { BoutonCommande, BoutonConfirme, BoutonRevoquer, EditeurBrouillon, FormulaireRelease, type ChampEditable } from './Commandes';
 
 /**
  * Les onglets de « IA et Studios », rendus côté serveur à partir de données
@@ -177,6 +177,8 @@ function DetailVersion({ onglet, d, peutEditer }: { onglet: string; d: VueDetail
 export interface VueRelease {
   id: string; statut: string; empreinte: string; packHash: string; creeLe: string; motif: string; pointee: boolean;
   tests: boolean | null; benchmark: boolean; versions: number; conversation: string | null;
+  /** Motif de révocation · `null` si la release n'est pas révoquée. */
+  revocation: string | null;
 }
 
 export function EcranReleases({ releases, pointee, environnement, peutPublier, peutRevenir, peutEvaluer, peutCreer, selection }: {
@@ -204,8 +206,10 @@ export function EcranReleases({ releases, pointee, environnement, peutPublier, p
             <article key={r.id} aria-label={`Release ${r.empreinte.slice(0, 12)}`} style={{ ...surfaceBloc, borderColor: r.pointee ? 'var(--accent)' : 'var(--line)' }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Pastille statut={r.statut} />
-                {r.pointee && <Pastille statut="active" texte="Sert maintenant" />}
+                {r.pointee && <Pastille statut="active" texte={r.revocation ? 'Pointée · non servie' : 'Sert maintenant'} />}
+                {r.revocation && <Pastille statut="retired" texte="Révoquée" />}
               </div>
+              {r.revocation && <p role="note" style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ink)', overflowWrap: 'anywhere' }}>Révoquée · {r.revocation}. Aucune tâche ni nouveau devis ne l’utilise ; Jarvis garde sa consigne 1.0.0.</p>}
               <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '5px 10px', margin: '10px 0 0', fontSize: 13 }}>
                 <dt style={{ color: 'var(--muted)' }}>Empreinte</dt><dd style={{ margin: 0, ...mono }} title={r.empreinte}>{r.empreinte.slice(0, 20)}…</dd>
                 <dt style={{ color: 'var(--muted)' }}>Créée</dt><dd style={{ margin: 0 }}>{r.creeLe}</dd>
@@ -216,11 +220,12 @@ export function EcranReleases({ releases, pointee, environnement, peutPublier, p
               </dl>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
                 {r.statut === 'staged' && peutEvaluer && <BoutonCommande commande="evaluer" charge={{ releaseId: r.id }} libelle="Évaluer" succes="Évaluation enregistrée · voir l’onglet Évaluations." secondaire />}
-                {r.statut === 'staged' && peutPublier && (
+                {r.statut === 'staged' && peutPublier && !r.revocation && (
                   <BoutonConfirme geste="publier" releaseId={r.id} attendue={pointee} libelle="Publier la release" titre="Publier cette release ?"
                     explication={['Les prochaines conversations Jarvis et résolutions studio l’utiliseront.', 'Les jobs déjà devisés gardent leur release épinglée.', regle, 'Le geste est tracé dans l’audit.']} />
                 )}
-                {r.statut === 'active' && !r.pointee && peutRevenir && (
+                {!r.revocation && peutRevenir && <BoutonRevoquer releaseId={r.id} />}
+                {r.statut === 'active' && !r.pointee && peutRevenir && !r.revocation && (
                   <BoutonConfirme geste="rollback" releaseId={r.id} attendue={pointee} libelle="Revenir à cette release" titre="Revenir à cette release ?" secondaire
                     explication={['Seul le pointeur change · aucune version n’est modifiée.', 'Les prochaines résolutions utiliseront cette release, les traces passées restent inchangées.', 'Le geste est tracé dans l’audit.']} />
                 )}

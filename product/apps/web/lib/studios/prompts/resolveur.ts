@@ -111,6 +111,7 @@ async function releaseDeLaTache(d: DemandeTache): Promise<{ ok: true; release: R
   }
   const c = await releaseActive();
   if (!c) return { ok: false, constats: [constat('RELEASE_ACTIVE_ABSENTE', d.templateKey, 'Aucune release globale publiée · aucun prompt de repli.')] };
+  if (c.noyau.revocation) return { ok: false, constats: [constat('RELEASE_REVOQUEE', c.ligne.id, `Release active révoquée · ${c.noyau.revocation.motif}`)] };
   return { ok: true, release: c, epinglee: false };
 }
 
@@ -189,6 +190,7 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
 export async function epinglerDevis(): Promise<{ ok: true; promptReleaseId: string; releaseHash: string } | { ok: false; constats: Constat[] }> {
   const c = await releaseActive();
   if (!c) return { ok: false, constats: [constat('RELEASE_ACTIVE_ABSENTE', '', 'Aucune release active · aucun repli.')] };
+  if (c.noyau.revocation) return { ok: false, constats: [constat('RELEASE_REVOQUEE', c.ligne.id, `Release active révoquée · ${c.noyau.revocation.motif}`)] };
   return { ok: true, promptReleaseId: c.ligne.id, releaseHash: c.ligne.releaseHash };
 }
 
@@ -196,7 +198,7 @@ export async function epinglerDevis(): Promise<{ ok: true; promptReleaseId: stri
 
 export type ResolutionConversation =
   | { ok: true; origine: 'release'; release: ReleaseChargee; politique: PolitiqueConversation; versionId: string | null; contentHash: string }
-  | { ok: true; origine: 'repli_1_0_0'; release: null; politique: PolitiqueConversation; versionId: null; contentHash: string }
+  | { ok: true; origine: 'repli_1_0_0' | 'repli_revocation'; release: null; politique: PolitiqueConversation; versionId: null; contentHash: string }
   | { ok: false; code: 'POLITIQUE_ABSENTE' | 'REPLI_INVALIDE' };
 
 /**
@@ -217,10 +219,12 @@ export type ResolutionConversation =
  */
 export async function resoudreConversationJarvis(): Promise<ResolutionConversation> {
   const release = await releaseActive();
-  if (!release) {
+  // Aucune release, ou release active RÉVOQUÉE : jamais servie, Jarvis garde
+  // la 1.0.0 migrée (recette du 8 octobre · la révocation vaut partout).
+  if (!release || release.noyau.revocation) {
     const v = validerPolitiqueConversation(POLITIQUE_JARVIS_1_0_0);
     if (!v.ok) return { ok: false, code: 'REPLI_INVALIDE' };
-    return { ok: true, origine: 'repli_1_0_0', release: null, politique: v.politique, versionId: null, contentHash: v.contentHash };
+    return { ok: true, origine: release ? 'repli_revocation' : 'repli_1_0_0', release: null, politique: v.politique, versionId: null, contentHash: v.contentHash };
   }
   const i = release.entrees.conversations.findIndex((c) => c.cle === CLE_CONVERSATION_JARVIS);
   const politique = release.contenu.conversations[i];

@@ -186,6 +186,18 @@ export function lireEvaluation(brut: unknown): EvaluationStockee | null {
   return { ...(o as unknown as EvaluationStockee), testsStructurels: o.testsStructurels === true, benchmarkApprouve: o.benchmarkApprouve === true };
 }
 
+/**
+ * Révocation d'une release · lue dans `evaluation.revocation` (colonne mobile,
+ * aucune migration). SEULE lecture du dépôt : le noyau (`release.revocation`),
+ * l'épinglage des devis (L3), les tâches studio et Jarvis passent tous par
+ * `releaseDeLigne`. Une révocation vaut quelle que soit l'empreinte évaluée.
+ */
+export function lireRevocation(evaluation: unknown): { motif: string; par: string | null; le: string | null } | null {
+  const r = (evaluation as { revocation?: Record<string, unknown> } | null)?.revocation;
+  if (!r || typeof r !== 'object' || typeof r.motif !== 'string' || !r.motif.trim()) return null;
+  return { motif: r.motif, par: typeof r.par === 'string' ? r.par : null, le: typeof r.le === 'string' ? r.le : null };
+}
+
 /** Ligne de `studio_prompt_releases` · colonnes lues. */
 export interface LigneRelease {
   id: string;
@@ -216,6 +228,7 @@ export function releaseDeLigne(l: LigneRelease): Release | null {
     id: l.id, portee: { niveau: 'plateforme' }, statut: l.status as StatutRelease, hash: e.packHash,
     templates: e.templates, recettes: e.recettes, socle: e.socle, rendu: e.rendu,
     ...(evaluation ? { evaluation } : {}),
+    ...(lireRevocation(l.evaluation) ? { revocation: { motif: lireRevocation(l.evaluation)!.motif } } : {}),
   };
 }
 

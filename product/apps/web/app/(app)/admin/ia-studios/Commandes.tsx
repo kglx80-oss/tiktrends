@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Modal } from '../../../../components/Modal';
 import {
   importerPackAction, validerVersionAction, evaluerReleaseAction, retirerReleaseAction, creerReleaseAction,
-  publierReleaseAction, rollbackReleaseAction, enregistrerBrouillonAction, type ReponseAdmin,
+  publierReleaseAction, rollbackReleaseAction, revoquerReleaseAction, enregistrerBrouillonAction, type ReponseAdmin,
 } from '../../../actions/studios/prompts';
 
 /**
@@ -98,6 +98,41 @@ export function BoutonConfirme({ geste, releaseId, attendue, libelle, titre, exp
         </div>
       </Modal>
       <Retour r={r} succes={geste === 'publier' ? 'Release publiée · les prochaines résolutions l’utilisent.' : 'Retour effectué · les prochaines résolutions utilisent cette release.'} />
+    </div>
+  );
+}
+
+/** Révoquer une release · geste d'urgence, motif obligatoire, tracé dans l'audit. */
+export function BoutonRevoquer({ releaseId }: { releaseId: string }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [motif, setMotif] = useState('');
+  const [r, setR] = useState<ReponseAdmin<Record<string, unknown>> | null>(null);
+  const [enCours, demarrer] = useTransition();
+  const router = useRouter();
+  const id = useId();
+  const confirmer = () => demarrer(async () => {
+    const x = await revoquerReleaseAction({ releaseId, motif, confirme: true });
+    setR(x as ReponseAdmin<Record<string, unknown>>);
+    if (x.ok) { setOuvert(false); router.refresh(); }
+  });
+  return (
+    <div>
+      <button type="button" style={boutonSecondaire} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Révoquer</button>
+      <Modal open={ouvert} onClose={() => setOuvert(false)} title="Révoquer cette release ?" subtitle="Geste d’urgence · tracé dans l’audit." maxWidth={520}>
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+          <li>Plus aucune tâche studio ni nouveau devis ne l’utilise, même les jobs déjà épinglés sur elle.</li>
+          <li>Jarvis garde sa consigne 1.0.0 tant qu’elle reste pointée · publie ou reviens à une autre release.</li>
+          <li>Rien n’est effacé, et une révocation ne se défait pas.</li>
+        </ul>
+        <label htmlFor={id} style={{ display: 'block', marginTop: 14, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>Motif</label>
+        <textarea id={id} value={motif} onChange={(e) => setMotif(e.target.value)} rows={3} style={{ ...champ, marginTop: 6, resize: 'vertical' }} />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 16 }}>
+          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
+          <button type="button" style={{ ...bouton, opacity: enCours || !motif.trim() ? 0.6 : 1 }} disabled={enCours || !motif.trim()} onClick={confirmer}>{enCours ? 'En cours…' : 'Révoquer'}</button>
+        </div>
+        <Retour r={r} succes="Release révoquée." />
+      </Modal>
+      {r?.ok && <Retour r={r} succes="Release révoquée · plus aucune résolution ne l’utilise." />}
     </div>
   );
 }
