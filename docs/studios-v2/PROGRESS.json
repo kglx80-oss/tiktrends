@@ -2,8 +2,8 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "66c2e8a (claude/studios-integration = L0 à L5 + F-A à F-D + correctifs contre-recette f2fd4bb ; portes vertes : core 2659, web 3186 dont 22 ignorés, workers 34 dont 1 ignoré, ai 8, integrations 127, build ; 9 bancs Postgres réel verts en local)",
-  "lotCourant": "F (fournisseurs réels et benchmark, vague 5) puis L6",
+  "shaCourant": "0f6f836 (claude/studios-integration = L0 à L6 partiel + F-A à F-D + G-A/G-B + correctifs contre-recette ; portes vertes : core 2726, web 3260 dont 23 ignorés, workers 45 dont 1 ignoré, ai 8, integrations 127, build)",
+  "lotCourant": "L6 (VIDEO-11 à 13 en attente d'un décodeur vidéo) puis L7",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
@@ -11,7 +11,7 @@
     "L3": "LOCAL_VERIFIED",
     "L4": "LOCAL_VERIFIED",
     "L5": "LOCAL_VERIFIED",
-    "L6": "TODO",
+    "L6": "IN_PROGRESS",
     "L7": "TODO",
     "L8": "TODO",
     "L9": "TODO",
@@ -43,7 +43,12 @@
     "claude/studios-base-vague5b": "base F-B = bf99691",
     "claude/studios-base-vague5c": "base F-D = f2fd4bb",
     "claude/studios-f-parcours-image": "F-B parcours image bout en bout (en cours)",
-    "claude/studios-f-evaluation": "F-D vision, évaluation staged, ADMIN, exécuteur image (en cours)"
+    "claude/studios-f-evaluation": "F-D vision, évaluation staged, ADMIN, exécuteur image (en cours)",
+    "claude/studios-base-vague6": "base figée vague 6 = 66c2e8a",
+    "claude/studios-g-raccords-web": "G-A (c670641, PR #749)",
+    "claude/studios-g-retouche-worker": "G-B (8e95948, PR #750)",
+    "claude/studios-l6-identites-voix": "L6-B (75b6a25, PR #751)",
+    "claude/studios-l6-storyboard": "L6-A (fd6b7ed, PR #752)"
   },
   "prEnAttente": {
     "729": {
@@ -590,121 +595,121 @@
       "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "VIDEO-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-IDENTITES-VOIX.md · PR #751",
+      "sha": "75b6a25",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-IDENTITES-VOIX.md · PR #751",
+      "sha": "75b6a25",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-06": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-IDENTITES-VOIX.md · PR #751",
+      "sha": "75b6a25",
+      "limites": "Aucun tarif ni fournisseur voix/lipsync : capacité déclarée indisponible ; contrat et mesure de durée prouvés."
     },
     "VIDEO-07": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-IDENTITES-VOIX.md · PR #751",
+      "sha": "75b6a25",
+      "limites": "Aucun tarif ni fournisseur voix/lipsync : capacité déclarée indisponible ; contrat et mesure de durée prouvés."
     },
     "VIDEO-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-11": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L6",
       "implementation": null,
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": null
+      "limites": "Aucun décodeur vidéo (ffprobe absent) : rien ne peut être prouvé lisible."
     },
     "VIDEO-12": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L6",
       "implementation": null,
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": null
+      "limites": "Aucun décodeur vidéo (ffprobe absent) : rien ne peut être prouvé lisible."
     },
     "VIDEO-13": {
-      "statut": "IN_PROGRESS",
+      "statut": "BLOCKED",
       "lot": "L6",
       "implementation": "etatJob par clé du clic : même job, même progrès, aucun débit (L3)",
       "test": "apps/web/test/l3-commandes.test.ts",
       "proofPath": "docs/studios-v2/L3-EXECUTION.md §6",
       "sha": "e3f3bcfd",
-      "limites": "Écran vidéo pas encore basculé sur le worker (plan L3 §6)"
+      "limites": "Aucun décodeur vidéo (ffprobe absent) : rien ne peut être prouvé lisible."
     },
     "EXPORT-01": {
       "statut": "TODO",
@@ -952,15 +957,18 @@
       "solutionPreparee": "Commande de benchmark avec devis agrégé, budget explicite et approbation ADMIN (vague 5) ; exécution réelle seulement après accord chiffré du propriétaire."
     },
     {
-      "id": "B-EXECUTEURS-BENCHMARK",
+      "id": "B-DECODEUR-VIDEO",
       "exigences": [
+        "VIDEO-11",
+        "VIDEO-12",
+        "VIDEO-13",
         "UX-07"
       ],
-      "cause": "Aucun exécuteur animation (F20) ni retouche masquée (F05) ; aucun décodeur vidéo (ffprobe absent).",
-      "solutionPreparee": "Devis agrégé 9,925 $ pour les 24 cas ; 22 cas exécutables en réel dès budget et approbation ADMIN."
+      "cause": "Aucun décodeur vidéo (ffprobe) sur la machine ni dans l’image worker ; F20 sans exécuteur.",
+      "solutionPreparee": "Point d’injection decoderVideo prévu ; décision du propriétaire : installer ffprobe sur le VPS et dans Dockerfile.workers."
     }
   ],
-  "prochaineAction": "Recette Codex des correctifs (#736 824d8a6, #737 aa60b84, #745 c3ea7ee) et des lots F-B #747, F-D #748, intégration #741 66c2e8a. Décision du propriétaire : budget du premier passage réel (devis 9,925 $ au plus pour 24 cas ; F05/F20 sans exécuteur) et installation de ffprobe pour la vidéo. Puis L6.",
+  "prochaineAction": "Recette Codex : correctifs (#736 824d8a6, #737 aa60b84, #745 c3ea7ee), lots F-B #747, F-D #748, G-A #749, G-B #750, L6-B #751, L6-A #752, intégration #741 0f6f836. Décisions du propriétaire : budget du passage réel restreint, ffprobe sur le VPS, politique de déclenchement du contrôle vision (0,218 $ max par image). Puis L7 export.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -1122,6 +1130,26 @@
       "id": "D-F-08",
       "decision": "Vision : pièces natives base64 lues par le serveur dans la portée ; release staged exécutable seulement dans une campagne de benchmark approuvée, jamais servie ailleurs.",
       "source": "#748"
+    },
+    {
+      "id": "D-L6-01",
+      "decision": "Contradiction identité ↔ plan détectée par règle fixe (couleur à ≤ 3 mots de l’élément, fenêtre mesurée sur 20 phrases) et bloquée dans creerDevis avant toute écriture.",
+      "source": "PR #751"
+    },
+    {
+      "id": "D-L6-02",
+      "decision": "Voix et lipsync indisponibles (ni tarif ni fournisseur) : jamais simulés, voix off proposée ; durée audio mesurée par lecture pure de l’en-tête.",
+      "source": "PR #751"
+    },
+    {
+      "id": "D-L6-03",
+      "decision": "Images clés de plan : consigne shot.image attestée puis retenue (styleRef.consignesPlans), interdit de texte posé par le serveur, parametres studio_image/1.",
+      "source": "PR #752"
+    },
+    {
+      "id": "D-G-01",
+      "decision": "Retouche masquée : masque PNG gris 8 bits ; la sortie fal est recomposée sur la source sous le masque, jamais livrée brute ; qualité requires_review posée par le worker.",
+      "source": "PR #750"
     }
   ],
   "prOuvertes": {
@@ -1141,7 +1169,11 @@
     "745": "F-A fournisseur image, réservation commune (c3ea7ee)",
     "746": "F-C benchmark F01-F24 (e164b58, base vague 5)",
     "747": "F-B parcours image (4bd2f37, base vague 5b)",
-    "748": "F-D vision, évaluation staged, ADMIN, exécuteur image (a4359ac, base vague 5c)"
+    "748": "F-D vision, évaluation staged, ADMIN, exécuteur image (a4359ac, base vague 5c)",
+    "749": "G-A raccords site (c670641, base vague 6)",
+    "750": "G-B retouche masquée réelle F05 (8e95948, base vague 6)",
+    "751": "L6-B identités, contradictions, substitution, voix (75b6a25, base vague 6)",
+    "752": "L6-A storyboard et timeline vidéo (fd6b7ed, base vague 6)"
   },
   "besoinsIntegrateur": [
     "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
