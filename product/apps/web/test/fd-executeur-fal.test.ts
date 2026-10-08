@@ -122,14 +122,14 @@ describe('exécuteur fal · issue incertaine', () => {
   }, 60_000);
 });
 
-describe('exécuteur fal · ce qu’il ne sait pas faire est refusé AVANT la barrière', () => {
-  it('F05 (retouche masquée, aucune consigne image.compile) : 0 requête, 0 ligne de dépense', async () => {
+describe('exécuteur fal · F05 retouche masquée (G-B) exécutée par la campagne', () => {
+  it('F05 : la consigne edit.mask atteint l’exécuteur · deux sorties, une ligne de dépense par média, aucun refus', async () => {
     appels = []; soumission = soumissionOk;
     const { r } = await campagne(['F05'], '0.292');
     const etapes = r.resultat.observations[0]!.etapes.filter((e) => e.etapeId === 'retouche');
-    expect(etapes.map((e) => e.code)).toEqual(['EXECUTEUR_REFUS', 'EXECUTEUR_REFUS']);
-    expect(appels).toEqual([]);
-    expect(await depenses('studio-benchmark:F05:retouche')).toEqual([]);
+    expect(etapes.map((e) => e.code), 'F05 refusé : la consigne edit.mask n’atteint pas l’exécuteur').toEqual([null, null]);
+    expect(appels.filter((a) => a.methode === 'POST')).toHaveLength(2);
+    expect((await depenses('studio-benchmark:F05:retouche')).map((l) => l.actualUsd)).toEqual([0.08, 0.08]);
   }, 60_000);
 });
 
