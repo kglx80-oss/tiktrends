@@ -1,6 +1,6 @@
 import 'server-only';
 import {
-  controlerAvantCompilation, etatPhotoEpinglee, erreurStudio, LIBELLES_ETAT_PHOTO, LIBELLES_PROVENANCE, LIBELLES_ROLE, LIBELLES_PORTEE,
+  controlerAvantCompilation, etatPhotoEpinglee, erreurStudio, aPermissionEspace, LIBELLES_ETAT_PHOTO, LIBELLES_PROVENANCE, LIBELLES_ROLE, LIBELLES_PORTEE,
   type EtatPhotoEpinglee, type FichierCatalogue, type PreparationCompilation, type ReferenceProduitEpinglee,
   type RoleReference, type PorteeReference, type ProvenanceFichier, type NatureEmpreinte, type ErreurStudio,
 } from '@tiktrends/core';
@@ -60,6 +60,8 @@ export interface VueProduit {
   fichiers: FichierVue[];
   associations: AssociationVue[];
   preparation: Record<'faithful_composite' | 'generative_scene', PreparationCompilation>;
+  /** Le rôle permet-il d'épingler et d'associer (`studio.propose`) ? */
+  peutModifier: boolean;
 }
 
 export function adresseApercu(projectId: string, f: Pick<FichierCatalogue, 'assetId' | 'provenance'> & { url: string | null }): string | null {
@@ -68,7 +70,7 @@ export function adresseApercu(projectId: string, f: Pick<FichierCatalogue, 'asse
   return null;
 }
 
-export function construireVueProduit(c: CatalogueProjet): VueProduit {
+export function construireVueProduit(c: CatalogueProjet, peutModifier: boolean): VueProduit {
   const pid = c.projet.id;
   const e = c.epingle;
   const produitEpingle = e ? c.produits.find((p) => p.produit.id === e.productId) ?? null : null;
@@ -100,13 +102,14 @@ export function construireVueProduit(c: CatalogueProjet): VueProduit {
       faithful_composite: controlerAvantCompilation({ mode: 'faithful_composite', brief: c.brief, produit: e, fichiers: c.fichiers }),
       generative_scene: controlerAvantCompilation({ mode: 'generative_scene', brief: c.brief, produit: e, fichiers: c.fichiers }),
     },
+    peutModifier,
   };
 }
 
 export async function lireVueProduitPour(ctx: ContexteStudio, projectId: unknown, o: { veilleOuverte: boolean; maintenant: Date }): Promise<({ ok: true; vue: VueProduit }) | ErreurStudio> {
   const c = await chargerCatalogueProjet(ctx, projectId, o);
   if (!c.ok) return c;
-  return { ok: true, vue: construireVueProduit(c.catalogue) };
+  return { ok: true, vue: construireVueProduit(c.catalogue, aPermissionEspace(ctx.permissions, 'studio.propose')) };
 }
 
 /** Le fichier servi par la route d'aperçu · photo produit ou logo de la marque du projet. */
