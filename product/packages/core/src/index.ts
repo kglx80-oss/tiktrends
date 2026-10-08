@@ -170,3 +170,4 @@ export * from './studios/suppression-marque';
 export * from './studios/propositions';
 export * from './studios/sources';
 export * from './studios/bornes-taches';
+export * from './studios/variantes';
