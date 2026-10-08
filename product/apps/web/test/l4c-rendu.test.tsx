@@ -73,7 +73,13 @@ beforeAll(async () => {
 
 describe('Rendu · variantes, versions, statuts, test, apprentissage', () => {
   it('l’image 3 du lot 4 est nommée, rangée dans sa version antérieure, statuts technique et qualité séparés', async () => {
-    const t = texteVisible(html(await donnees()));
+    const h = html(await donnees());
+    const t = texteVisible(h);
+    // La CARTE de la variante elle-même (pas les lots) porte les deux statuts, séparés.
+    const debut = h.indexOf(`data-variante="${scene.image3}"`);
+    const carte = texteVisible(h.slice(debut, h.indexOf('</article>', debut)));
+    expect(carte).toContain('Technique · Fichier enregistré');
+    expect(carte).toContain('Qualité · À relire');
     expect(t).toContain('Image 3 du lot 4');
     expect(t).toContain('Version 1 · antérieure');
     expect(t).toContain('Rangée dans Version 1 · la version courante n’est pas modifiée.');

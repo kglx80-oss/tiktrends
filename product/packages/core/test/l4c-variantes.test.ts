@@ -32,6 +32,9 @@ describe('FLOW-08 · une génération de quatre images donne quatre variantes no
     const s = sortiesOrdonnees(lignes, assets);
     expect(s.map((x) => [x.position, x.assetId])).toEqual([[1, 'asset-a'], [2, 'asset-b'], [3, 'asset-c'], [4, 'asset-d']]);
     expect(new Set(s.map((x) => x.assetId)).size, 'quatre sorties distinctes').toBe(4);
+    // L'ordre du DEVIS, pas l'ordre alphabétique des opérations.
+    const s2 = sortiesOrdonnees([{ operation: 'image:z' }, { operation: 'image:m' }, { operation: 'image:a' }], { 'image:a': 'A', 'image:m': 'M', 'image:z': 'Z' });
+    expect(s2.map((x) => `${x.position}:${x.assetId}`)).toEqual(['1:Z', '2:M', '3:A']);
   });
 
   it('le rang du lot compte tous les lancements, dans l’ordre de création, et ne bouge jamais', () => {
@@ -152,7 +155,8 @@ describe('FLOW-09 · lecture du résultat · les règles Adsmap, comparées à l
     for (const computed of ['inconclusive', 'insufficient_delivery'] as const) {
       const l = lireResultat({ variable: 'hook', isolation: 'isole', verdict: V({ computed }), parent: { verdict: V({ computed: 'loser' }) } });
       expect(l.conclusion).toBe('inconclusif');
-      expect(l.phrase).toMatch(/^Inconclusif/);
+      expect(l.motif, 'les seuils Adsmap (minimum d’effectif) tranchent avant tout le reste').toBe('donnees_insuffisantes');
+      expect(l.phrase).toMatch(/^Inconclusif · (non concluant|sous-diffusée) : pas assez de données/);
       expect(l.variableSuivante).toBe('hook');
     }
   });
@@ -182,7 +186,7 @@ describe('Relecture IA · la règle pure prime sur le modèle', () => {
   const inconclusif = lireResultat({ variable: 'hook', isolation: 'sans_parent', verdict: V({ computed: 'inconclusive' }), parent: null });
   const soutenue = lireResultat({ variable: 'hook', isolation: 'sans_parent', verdict: V({ computed: 'winner' }), parent: null });
   it('données insuffisantes · le modèle ne peut pas conclure', () => {
-    expect(arbitrerRelecture(inconclusif, 'supported')).toMatchObject({ conclusion: 'inconclusif', modeleSuivi: false });
+    expect(arbitrerRelecture(inconclusif, 'supported')).toMatchObject({ conclusion: 'inconclusif', modeleSuivi: false, ecart: expect.stringContaining('les données ne le permettent pas') });
   });
   it('désaccord · inconclusif ; prudence du modèle acceptée ; accord · suivi', () => {
     expect(arbitrerRelecture(soutenue, 'not_supported')).toMatchObject({ conclusion: 'inconclusif', modeleSuivi: false });
