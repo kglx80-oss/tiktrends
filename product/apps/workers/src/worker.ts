@@ -1,15 +1,20 @@
 import { Worker } from 'bullmq';
+import { db } from '@tiktrends/db';
 import { connection } from './queue';
+import { demarrerWorkerStudio } from './studios/fournisseurs';
 
 /**
- * Studios · le worker des jobs `studio_jobs` (lots L3+). Il ne démarre QUE si
- * un fournisseur RÉEL est branché : aucun ne l'est encore (lots L5/L6). Le
- * fournisseur simulé des tests n'est jamais importé ici et refuse la
- * production. Sans fournisseur, les jobs approuvés restent `queued` (réserve
- * intacte, rien de facturé) et l'écran le dit.
+ * Studios · le worker des jobs `studio_jobs` (lots L3+, branchement F-A).
+ *
+ * Il démarre la boucle L3 (`boucle.ts`) avec le fournisseur fal RÉEL et le
+ * stockage S3 existant SEULEMENT si la règle `decisionFournisseurStudio` le
+ * permet (vraie `FAL_KEY`, production ou `STUDIO_FOURNISSEUR_REEL=autorise`,
+ * `S3_*` posés). Sinon il ne démarre pas et le dit : jobs approuvés laissés
+ * `queued`, réserve intacte, rien facturé. Le fournisseur simulé des tests
+ * n'est jamais importé ici et refuse la production.
  */
-export function startStudioWorker(): void {
-  console.log('[studios] aucun fournisseur de génération branché · worker studio non démarré, jobs laissés en file.');
+export function startStudioWorker(): ReturnType<typeof demarrerWorkerStudio> {
+  return demarrerWorkerStudio({ env: process.env, base: db ?? null, fetch: globalThis.fetch });
 }
 
 /** Règle CDC : aucun job IA dans une requête HTTP — tout passe ici. */
