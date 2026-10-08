@@ -220,18 +220,20 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
                     {donnees.droits.proposer && !donnees.adsmap.acces && !c.test && (
                       <p style={petit}>Le rattachement à un test passe par Adsmap, disponible à partir de l’offre Plus.</p>
                     )}
-                    {ouvert === c.id && (
-                      <FormulaireTest
-                        idVariante={c.id}
-                        initial={valeursInitiales({ hypothese: lue.hypothese, variable: lue.variable, protocole: donnees.adsmap.protocoleMarque, aujourdHui: aujourdHui() })}
-                        options={{ protocoleDefaut: donnees.adsmap.protocoleMarque, offres: donnees.adsmap.offres, pages: donnees.adsmap.pages, aUnParent: lue.parentVariantId !== null }}
-                        envoyer={envoyerTest(c.id)}
-                        annuler={() => setOuvert(null)}
-                        horsLigne={horsLigne}
-                        erreurInitiale={recette.formulaireOuvert === c.id ? recette.erreurFormulaire ?? null : null}
-                      />
-                    )}
                   </div>
+                  {ouvert === c.id && (
+                    <div style={{ flex: '1 1 100%', minWidth: 0 }}>
+                    <FormulaireTest
+                      idVariante={c.id}
+                      initial={valeursInitiales({ hypothese: lue.hypothese, variable: lue.variable, protocole: donnees.adsmap.protocoleMarque, aujourdHui: aujourdHui() })}
+                      options={{ protocoleDefaut: donnees.adsmap.protocoleMarque, offres: donnees.adsmap.offres, pages: donnees.adsmap.pages, aUnParent: lue.parentVariantId !== null }}
+                      envoyer={envoyerTest(c.id)}
+                      annuler={() => setOuvert(null)}
+                      horsLigne={horsLigne}
+                      erreurInitiale={recette.formulaireOuvert === c.id ? recette.erreurFormulaire ?? null : null}
+                    />
+                    </div>
+                  )}
                 </article>
               );
             })}
@@ -265,7 +267,7 @@ function BlocDeVersion({ b, choisir, occupe, horsLigne }: { b: BlocVersion; choi
           </div>
           {l.message && <p style={petit}>{l.message}</p>}
           {l.sorties.length > 0 && (
-            <ul style={{ ...grille(170), listStyle: 'none', margin: 0, padding: 0 }}>
+            <ul style={{ ...grille(130), listStyle: 'none', margin: 0, padding: 0 }}>
               {l.sorties.map((s) => (
                 <li key={s.assetId} style={{ display: 'grid', gap: 6, minWidth: 0 }}>
                   <Vignette ratio={s.ratio} legende={`${s.libelle} · ${s.dimensions}`} />
