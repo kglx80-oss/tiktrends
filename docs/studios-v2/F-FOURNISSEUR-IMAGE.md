@@ -67,7 +67,7 @@ sa ligne `ai_spend`.
 **Webhooks : non utilisés.** La vérification d'une signature de webhook fal exige les clés publiques de fal (réseau) et
 une route HTTP que ce lot ne possède pas. Le moteur sait déjà sonder ; l'adaptateur sonde avec RECUL (politique, pas
 une mesure : 2 s, doublé à chaque lecture « en cours », plafonné à 15 s, mémoire du processus). Preuve
-(`fa-worker-fal`, « sondage avec recul ») : 3 minutes de calcul simulé, 90 tours de boucle à 2 s, le job finit
+(`fa-worker-fal`, « sondage avec recul ») : 3 minutes de calcul simulé, un tour de boucle toutes les 2 s, le job finit
 `completed` au 97ᵉ tour, 1 seule soumission, 15 lectures de statut (borne de la garde : 16). Une erreur passagère (429, 5xx, réseau) laisse le job
 `running` et sera relue ; une requête que fal ne connaît pas (404, 410) ou refuse de montrer (401, 403) ⇒ `inconnu`
 ⇒ réconciliation. `STUDIO_WEBHOOK_SECRET` reste documenté (sans valeur) pour le webhook L3 signé, inutilisé tant
