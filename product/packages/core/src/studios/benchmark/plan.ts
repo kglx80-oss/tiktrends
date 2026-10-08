@@ -45,7 +45,7 @@ const T = (id: string, templateKey: string, but: string, o: { parSortie?: boolea
 const M = (id: string, profil: ProfilMedia, but: string, unites = 1): EtapeBench => ({ nature: 'media', id, profil, parSortie: true, unites, but });
 const C = (id: string, but: string, parSortie = false): EtapeBench => ({ nature: 'calcul', id, parSortie, but });
 
-const LIMITE_VISION = 'Le profil vision_analysis n’est routé vers aucun fournisseur : l’étape est bloquée avant appel (UNSUPPORTED_CAPABILITY) et le cas n’est pas chiffrable tant que ce routage n’existe pas.';
+const LIMITE_VISION = 'Étape vision_analysis : chaque image passe en pièce native lue par le serveur dans la portée (liaison ↔ index ↔ empreinte tracée), au plus 6 images de 4 784 jetons comptées dans le devis. Un média non joint ou hors portée bloque l’étape avant appel.';
 
 /**
  * Les 24 plans. Chaque choix est écrit ici une fois ; le devis, l'exécution

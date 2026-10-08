@@ -23,6 +23,7 @@ import { MODEL_RATES, type ModelRate } from '../../spend-guard';
 import { JETONS_ENTREE_MAX_PROPOSITION, JETONS_SORTIE_MAX_PROPOSITION } from '../bornes-taches';
 import { GRILLE_STUDIO } from '../execution/tarifs';
 import { empreinteContenu } from '../version';
+import { VISION_JETONS_IMAGE_MAX, VISION_PIECES_PAR_APPEL_MAX } from '../../prompts/vision';
 import type { PlanCas, ProfilMedia } from './plan';
 
 export interface TarifsBenchmark {
@@ -35,6 +36,12 @@ export interface TarifsBenchmark {
   /** Plafond fournisseur par unité de média, micro-dollars · `null` = aucun tarif. */
   medias: Readonly<Record<ProfilMedia, { usdMicros: number | null; source: string }>>;
   bornes: { jetonsEntree: number; jetonsSortie: number };
+  /**
+   * Images natives jointes AU PLUS par appel, par profil (vision) · chaque image
+   * compte `jetonsParImage` jetons d'entrée EN PLUS des bornes texte. Absent = 0.
+   */
+  imagesParProfil?: Readonly<Record<string, number>>;
+  jetonsParImage?: number;
 }
 
 /** Tarifs du produit : modèle routé pour `reasoning_structured`, barème média existant. */
@@ -48,6 +55,10 @@ export function tarifsDuProduit(a: { profils: Readonly<Record<string, string>>; 
       animation: { usdMicros: GRILLE_STUDIO.animation.usdMicros, source: GRILLE_STUDIO.animation.source },
     },
     bornes: { jetonsEntree: JETONS_ENTREE_MAX_PROPOSITION, jetonsSortie: JETONS_SORTIE_MAX_PROPOSITION },
+    // Vision : au plus VISION_PIECES_PAR_APPEL_MAX images, chacune au plus
+    // VISION_JETONS_IMAGE_MAX jetons · la borne que l'adaptateur fait respecter.
+    imagesParProfil: { vision_analysis: VISION_PIECES_PAR_APPEL_MAX },
+    jetonsParImage: VISION_JETONS_IMAGE_MAX,
   };
 }
 
@@ -105,9 +116,13 @@ export function devisCas(plan: PlanCas, t: TarifsBenchmark): DevisCas {
     if (!modele) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele: null, unites: 1, usdMicros: null, source: `profil ${profil}`, motif: `profil « ${profil} » routé vers aucun modèle` };
     const tarif = tarifConnu(modele, t.tarifsModeles);
     if (!tarif) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: null, source: 'MODEL_RATES', motif: `modèle « ${modele} » sans tarif répertorié` };
+    const images = t.imagesParProfil?.[profil] ?? 0;
+    const jetonsImages = images * (t.jetonsParImage ?? 0);
+    if (images > 0 && !(jetonsImages > 0)) return { etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: null, source: `profil ${profil}`, motif: `images jointes sans borne de jetons par image` };
+    const bornes = { jetonsEntree: t.bornes.jetonsEntree + jetonsImages, jetonsSortie: t.bornes.jetonsSortie };
     return {
-      etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: borneAppelMicros(tarif, t.bornes),
-      source: `${t.bornes.jetonsEntree} jetons entrée + ${t.bornes.jetonsSortie} sortie au tarif ${modele} (MODEL_RATES)`, motif: null,
+      etapeId: e.id, sortie, nature: 'tache', cle: e.templateKey, modele, unites: 1, usdMicros: borneAppelMicros(tarif, bornes),
+      source: `${t.bornes.jetonsEntree} jetons entrée${images ? ` + ${images} images × ${t.jetonsParImage} jetons` : ''} + ${t.bornes.jetonsSortie} sortie au tarif ${modele} (MODEL_RATES)`, motif: null,
     };
   });
   const chiffrable = lignes.every((l) => l.usdMicros !== null);
