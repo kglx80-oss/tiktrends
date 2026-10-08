@@ -2,14 +2,14 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "119d2bf (claude/studios-integration = beac17c + SEC + L3 + L2 serveur + raccords ; portes vertes : core 2334, web 2808 dont 7 ignorés, workers 7, ai 8, integrations 88, build)",
-  "lotCourant": "L4",
+  "shaCourant": "2ce211f (claude/studios-integration = vague 2 + L4-A + L4-B + L4-C + raccords ; portes vertes : core 2438, web 2921 dont 15 ignorés, workers 7, ai 8, integrations 88, build)",
+  "lotCourant": "L5",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
     "L2": "LOCAL_VERIFIED",
     "L3": "LOCAL_VERIFIED",
-    "L4": "TODO",
+    "L4": "LOCAL_VERIFIED",
     "L5": "TODO",
     "L6": "TODO",
     "L7": "TODO",
@@ -24,11 +24,15 @@
     "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (c981fe9d, PR #734)",
     "claude/studios-l1-fondations": "L1 · modèle canonique, migration 0054, ACL (400e634c, PR #732)",
     "claude/studios-l2-noyau-prompts": "L2 · noyau pur du registre (a5c6ea34, 201 tests, 64 mutations tuées, portes vertes) · à brancher après L1",
-    "claude/studios-integration": "intégration continue (119d2bf)",
+    "claude/studios-integration": "intégration continue (2ce211f)",
     "claude/studios-l1-securite": "SEC (2f6dec59, PR #735)",
     "claude/studios-l2-serveur-admin": "L2 serveur (9ca57cab, PR #737)",
     "claude/studios-l3-execution": "L3 (e3f3bcfd, PR #736)",
-    "claude/studios-base-vague2": "base figée beac17c, cible des PR de vague 2"
+    "claude/studios-base-vague2": "base figée beac17c, cible des PR de vague 2",
+    "claude/studios-base-vague3": "base figée 119d2bf, cible des PR de vague 3",
+    "claude/studios-l4-propositions": "L4-A (9094086, PR #738)",
+    "claude/studios-l4-filiation": "L4-B (ae633c8, PR #739)",
+    "claude/studios-l4-variantes": "L4-C (PR à ouvrir)"
   },
   "prEnAttente": {
     "729": {
@@ -395,93 +399,93 @@
       "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "FLOW-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Veille → Préparer une création → projet (source_refs avec droit, date, empreinte ; hypothèse et variable dans le brief) ; portées jusqu’à la variante (filiation L4-C)",
+      "test": "l4b-parcours-db, l4b-concurrence-pg (4 clics ⇒ 1 projet), l4c-variantes-db",
+      "proofPath": "L4-SOURCES-PROJET.md · PR #739 ; L4-VARIANTES-TESTS.md",
+      "sha": "ae633c8 + fe21883+",
+      "limites": "Une annonce par carte Veille ; aucun appel modèle réel"
     },
     "FLOW-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Modalités observables ; sans transcription ni audio, narration et son marqués absents",
+      "test": "l4b-sources, l4b-panneau-rendu",
+      "proofPath": "PR #739",
+      "sha": "ae633c8",
       "limites": null
     },
     "FLOW-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Propositions et hypothèses scellées par espace/marque/sélection ; relecture de portée après l’appel ; réponses tardives ignorées côté client",
+      "test": "l4a-propositions-db, l4a-panneau-rendu, l4b-parcours-db, l4b-panneau-rendu (jsdom)",
+      "proofPath": "PR #738, PR #739",
+      "sha": "9094086 + ae633c8",
       "limites": null
     },
     "FLOW-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Proposition ciblée (plan, version de base) aux chemins bornés ; avant/après et impact serveur",
+      "test": "l4a-propositions, l4a-propositions-db, l4a-panneau-rendu",
+      "proofPath": "L4-PROPOSITIONS.md · PR #738",
+      "sha": "9094086",
+      "limites": "Fournisseur simulé ; route Jarvis pas encore branchée sur proposerPatch"
     },
     "FLOW-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Page projet relue du serveur : brief, hypothèse, produit, sources, historique",
+      "test": "l4b-parcours-db (seconde session), l4b-pages-rendu",
+      "proofPath": "PR #739",
+      "sha": "ae633c8",
+      "limites": "Calques et timeline : lots L5/L6"
     },
     "FLOW-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Application par compare-and-set ; 409 + différences, jamais d’écrasement",
+      "test": "l4a-propositions-db, l4a-concurrence-pg (15 manches, 2 connexions)",
+      "proofPath": "PR #738",
+      "sha": "9094086",
+      "limites": "Fusion de champs non conflictuels non proposée (choix : recharger)"
     },
     "FLOW-07": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Résultat d’un lot ancien rangé dans sa version, courante intacte",
+      "test": "l4c-variantes-db",
+      "proofPath": "L4-VARIANTES-TESTS.md · PR L4-C",
+      "sha": "fe21883+",
       "limites": null
     },
     "FLOW-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Variante = média exact ; fiche Adsmap porte asset, position, lot, job, version, parente, release",
+      "test": "l4c-variantes-db, l4c-concurrence-pg",
+      "proofPath": "PR L4-C",
+      "sha": "fe21883+",
+      "limites": "Aucune route de lecture des médias studio (vignettes sans pixels)"
     },
     "FLOW-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Inconclusif par règles Adsmap (référence = parente) ; itérer garde sources, variable, parent",
+      "test": "l4c-variantes-db, l4c-relecture-db",
+      "proofPath": "PR L4-C",
+      "sha": "fe21883+",
+      "limites": "Résultats manuels non implémentés ; relecture IA sans release = règles pures seules"
     },
     "FLOW-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Export du brief Markdown/JSON sans génération ni crédit",
+      "test": "l4b-parcours-db",
+      "proofPath": "PR #739",
+      "sha": "ae633c8",
       "limites": null
     },
     "IMG-01": {
@@ -923,7 +927,7 @@
       "besoinKevin": "Budget explicite d'évaluation et exécution hors session (fal et Anthropic non joignables depuis la session pour fal)."
     }
   ],
-  "prochaineAction": "Recette Codex de #731 à #737 (et #729/#730). Pendant ce temps : L4 (Jarvis commun par propositions, Veille → brief → projet → test, filiation, FLOW-*), puis L5/L6.",
+  "prochaineAction": "Recette Codex de #731 à #739 et de la PR L4-C (et #729/#730). Puis L5 : studios Image/Pubs/Textes sur le projet canonique (canvas, calques, masques, lots), avec route de lecture des médias.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -995,6 +999,31 @@
       "id": "D-L3-02",
       "decision": "Devis valable 30 minutes ; prix dérivés de CREDIT_COSTS/FIXED_COSTS ; voix sans tarif refusée (UNSUPPORTED_CAPABILITY).",
       "source": "L3-EXECUTION.md §3"
+    },
+    {
+      "id": "D-L4-01",
+      "decision": "Proposition : expiration 7 jours (politique), base périmée refusée avant l’appel payant ; application = nouvelle version par compare-and-set, jamais de devis ni de job.",
+      "source": "L4-PROPOSITIONS.md"
+    },
+    {
+      "id": "D-L4-02",
+      "decision": "L’hypothèse et son protocole vivent dans le brief (faits hypothesis) ; idempotence de création par clé de clic dans l’audit, sous verrou consultatif.",
+      "source": "L4-SOURCES-PROJET.md"
+    },
+    {
+      "id": "D-L4-03",
+      "decision": "Le test est la fiche Adsmap existante (pas de second modèle) ; champs absents dans studio_projects.test_refs ; lecture par les règles Adsmap, référence = variante parente.",
+      "source": "L4-VARIANTES-TESTS.md"
+    },
+    {
+      "id": "D-L4-04",
+      "decision": "Métriques d’hypothèse dérivées de celles que le verdict Adsmap lit (source unique variantes/test.ts) ; bornes de jetons d’une tâche studio dans bornes-taches.ts.",
+      "source": "intégration 2eb54ea, 2ce211f"
+    },
+    {
+      "id": "D-INT-01",
+      "decision": "Supprimer une marque : traces d’exécution supprimées avec elle ; historique studio et restrictions de membre bloquent avec motif.",
+      "source": "commit 3d4db87 (porté sur #737)"
     }
   ],
   "prOuvertes": {
@@ -1004,7 +1033,9 @@
     "733": "L2 noyau prompts (a5c6ea34, base #731)",
     "735": "SEC (2f6dec59, base vague 2)",
     "736": "L3 exécution (e3f3bcfd, base vague 2)",
-    "737": "L2 serveur, registre, ADMIN, Jarvis (9ca57cab, base vague 2)"
+    "737": "L2 serveur, registre, ADMIN, Jarvis (9ca57cab, base vague 2)",
+    "738": "L4-A propositions (base vague 3)",
+    "739": "L4-B Veille, brief, projet (base vague 3)"
   },
   "besoinsIntegrateur": [
     "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
@@ -1014,6 +1045,13 @@
     "porteeSql exporté de lib/studios/depot.ts (recopié dans commandes.ts)",
     "ajouterAudit avec workspaceId null pour la portée plateforme",
     "deleteBrandAction face aux FK RESTRICT des projets studio",
-    "Écran de restriction de marques par membre"
+    "Écran de restriction de marques par membre",
+    "Route Jarvis → proposerPatch (intention « modifier »)",
+    "schemaKey Layer, Brief, CharacterRef, Test, MetricSnapshot au registre",
+    "Contrainte unique studio_variants.media_asset_id (aujourd’hui verrou) ; colonne job_id éventuelle",
+    "ensureGraphPath / nextVariant (lib/adsmap-path.ts) acceptant une transaction",
+    "Route de lecture des médias studio (URL signée courte) pour les vignettes",
+    "Index d’expression studio_audit_events (workspace_id, action, details->>cleClic) si l’audit grossit",
+    "Sélection multiple de sources dans la Veille"
   ]
 }
