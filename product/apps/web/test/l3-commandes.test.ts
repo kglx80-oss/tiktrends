@@ -264,8 +264,12 @@ describe('portée et droits', () => {
     const d = await actions.creerDevis({ projectId: projet.projectId, operations: ['keyframe:s_fin'] });
     expect(d.ok, JSON.stringify(d)).toBe(true);
     if (!d.ok) return;
-    const r = await actions.approuverEtMettreEnFile({ quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: d.devis.maximumCredits, idempotencyKey: `action-${d.devis.id}` });
-    expect(r.ok, JSON.stringify(r)).toBe(true);
+    // G-A · l'action refuse sans fournisseur d'images branché (ga-approbation-fournisseur-db) : on le branche, valeurs factices.
+    for (const [k, v] of Object.entries({ FAL_KEY: 'cle-factice-l3:sans-valeur', STUDIO_FOURNISSEUR_REEL: 'autorise', S3_ENDPOINT: 'http://stockage.invalide', S3_BUCKET: 'seau-factice', S3_ACCESS_KEY_ID: 'factice', S3_SECRET_ACCESS_KEY: 'factice' })) vi.stubEnv(k, v);
+    try {
+      const r = await actions.approuverEtMettreEnFile({ quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: d.devis.maximumCredits, idempotencyKey: `action-${d.devis.id}` });
+      expect(r.ok, JSON.stringify(r)).toBe(true);
+    } finally { vi.unstubAllEnvs(); }
   });
 });
 
