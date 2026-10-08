@@ -7,6 +7,7 @@ import {
   type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan, type ImpactVideo, type BilanDurees,
 } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo, KeyframeVue, JobVideoVue } from '../../../lib/studios/video/lecture';
+import { tuile } from '../../ui';
 import { panneau, carte, titre, sousTitre, etiquette, texte, mini, boutonPrimaire, boutonSecondaire, desactive, signal, pastille, rangee, champ, CIBLE } from '../propositions/styles';
 
 /**
@@ -261,7 +262,7 @@ function FormulaireScenario({ p }: { p: ProprietesVueVideo }) {
       {saisies && (
         <div style={{ display: 'grid', gap: 12 }} data-zone="saisie-plans">
           {saisies.map((s, i) => (
-            <fieldset key={ids[i]} style={{ border: '1px solid var(--line-2)', borderRadius: 12, padding: 12, margin: 0, minWidth: 0, display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            <fieldset key={ids[i]} style={{ ...tuile, padding: 12, margin: 0, minWidth: 0, display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
               <legend style={{ ...etiquette, padding: '0 6px' }}>Plan {i + 1}</legend>
               {(['purpose', 'subject', 'action', 'framing', 'camera', 'lighting', 'environment', 'narration'] as const).map((c) => (
                 <div key={c}><label htmlFor={`${id}-${i}-${c}`} style={etiquette}>{({ purpose: 'Fonction narrative', subject: 'Sujet *', action: 'Action *', framing: 'Cadrage', camera: 'Caméra *', lighting: 'Lumière', environment: 'Décor', narration: 'Narration (dite)' })[c]}</label>
@@ -319,7 +320,6 @@ function Timeline({ p }: { p: ProprietesVueVideo }) {
   const v = p.vue;
   const id = useId();
   const t = v.contenu.timeline;
-  const total = Math.max(1, v.dureeTotaleMs);
   const [musique, setMusique] = useState(t?.music?.assetId ?? v.musiques[0]?.assetId ?? '');
   const [gain, setGain] = useState(t?.music?.gainDb ?? -12);
   const libre = !p.enCours && !p.apercu && v.disponibilite.montage.disponible;
@@ -329,7 +329,7 @@ function Timeline({ p }: { p: ProprietesVueVideo }) {
     <div style={carte} data-zone="timeline">
       <h3 style={{ ...titre, fontSize: 16 }}>Timeline · {dureeLisible(v.dureeTotaleMs)}{t ? ` · ${t.fps.num}/${t.fps.den} images par seconde` : ''}</h3>
       {v.segments.length === 0 ? <p style={texte}>Aucun plan · la timeline se construit avec le scénario.</p> : (
-        <div style={{ display: 'flex', width: '100%', minHeight: CIBLE, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line-2)' }} role="list" aria-label="Ordre et durée des plans">
+        <div style={{ ...tuile, display: 'flex', width: '100%', minHeight: CIBLE, overflow: 'hidden' }} role="list" aria-label="Ordre et durée des plans">
           {v.segments.map((s) => (
             <div key={s.shotId} role="listitem" data-segment={s.shotId} style={{ flex: `${s.dureeMs} 0 0`, minWidth: 0, padding: '6px 8px', background: s.rang % 2 ? 'var(--rail)' : 'var(--surface)', borderRight: '1px solid var(--line-2)', fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
               {s.rang} · {dureeLisible(s.dureeMs)}
