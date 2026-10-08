@@ -741,6 +741,8 @@ export async function approuverBenchmark(a: Acteur, e: { releaseId: unknown; eva
   if (!motif) return refusUn('INVALID_SCHEMA', 'motif', 'Indique pourquoi le benchmark est approuvé.');
   const plans = plansBenchmark();
   return db.transaction(async (tx) => {
+    // Verrou de ligne pris AVANT de lire la release (contre-recette du 8 octobre, P2) :
+    // une révocation concurrente attend la fin de cette transaction, ou est lue ici.
     const [l] = await tx.select().from(R).where(eq(R.id, e.releaseId as string)).for('update');
     if (!l || l.scope !== 'platform') return refusUn('NOT_FOUND', '', 'Release introuvable.');
     const ev = estUuid(e.evaluationId) ? (await tx.select().from(EV).where(eq(EV.id, e.evaluationId)).limit(1))[0] ?? null : null;
@@ -751,7 +753,10 @@ export async function approuverBenchmark(a: Acteur, e: { releaseId: unknown; eva
       approbateur: a.userId, plans,
     });
     if (refus.length || !ev) return refus.length ? refus2(refus) : refusUn('NOT_FOUND', '', 'Évaluation introuvable.');
-    const evaluation = { ...((l.evaluation as Record<string, unknown> | null) ?? {}), benchmarkApprouve: true, approuvePar: a.userId, benchmarkEvaluationId: ev.id, benchmarkApprouveLe: new Date().toISOString() };
+    // Tout ce que la ligne VERROUILLÉE porte est conservé ; une révocation présente est reprise
+    // explicitement (une release révoquée est déjà refusée ci-dessus : jamais effacée).
+    const rev = (l.evaluation as { revocation?: unknown } | null)?.revocation;
+    const evaluation = { ...((l.evaluation as Record<string, unknown> | null) ?? {}), benchmarkApprouve: true, approuvePar: a.userId, benchmarkEvaluationId: ev.id, benchmarkApprouveLe: new Date().toISOString(), ...(rev ? { revocation: rev } : {}) };
     const maj = await tx.update(R).set({ evaluation, updatedAt: new Date() }).where(and(eq(R.id, l.id), eq(R.status, 'staged'), eq(R.releaseHash, l.releaseHash))).returning({ id: R.id });
     if (maj.length !== 1) return refusUn('VERSION_CONFLICT', l.id, 'La release a changé pendant l’approbation.');
     await audit(tx, a, { action: 'prompt.benchmark.approuver', targetType: 'prompt_release', targetId: l.id, avant: 'benchmark_non_approuve', apres: 'benchmark_approuve', raison: motif, details: { evaluationId: ev.id, releaseHash: l.releaseHash } });
