@@ -92,7 +92,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
   const [kind, setKind] = useState('ads');
   const [titre, setTitre] = useState('');
   const [cleClic, setCleClic] = useState('');
-  const [creation, setCreation] = useState<{ etat: 'repos' | 'encours' | 'ok'; projetId?: string; deja?: boolean }>({ etat: 'repos' });
+  const [creation, setCreation] = useState<{ etat: 'repos' | 'encours' | 'ok'; projetId?: string; deja?: boolean; garde?: string }>({ etat: 'repos' });
 
   const marqueRef = useRef<string | null>(null);
   const seqPrep = useRef(0);
@@ -174,7 +174,10 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
       setErreur({ message: detail ? `${r.message} (${detail})` : r.message, traceId: r.traceId });
       return;
     }
-    setCreation({ etat: 'ok', projetId: r.projet.id, deja: r.deja });
+    // Ce que le projet garde VRAIMENT · on ne dit pas « le produit » quand aucun n'a été choisi.
+    const garde = ['la source', ...(hypothese ? ['l’hypothèse'] : []), ...(productId ? ['le produit'] : [])];
+    const liste = garde.length > 1 ? `${garde.slice(0, -1).join(', ')} et ${garde[garde.length - 1]}` : garde[0]!;
+    setCreation({ etat: 'ok', projetId: r.projet.id, deja: r.deja, garde: `${liste} ${garde.length > 1 ? 'y sont gardés' : 'y est gardée'}${productId ? '' : ' · le produit reste à choisir'}` });
   }
 
   const s = prep?.sources[0] ?? null;
@@ -200,11 +203,11 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
         {creation.etat === 'ok' && creation.projetId ? (
           <div role="status" style={{ display: 'grid', gap: 12 }}>
             <p style={{ ...note, fontSize: 14, color: 'var(--ink)' }}>
-              {creation.deja ? 'Ce projet existait déjà pour ce clic · rien n’a été créé en double.' : 'Projet créé · la source, l’hypothèse et le produit y sont gardés.'}
+              {creation.deja ? 'Ce projet existait déjà pour ce clic · rien n’a été créé en double.' : `Projet créé · ${creation.garde ?? 'la source y est gardée'}.`}
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <a href={`/studio/projets/${creation.projetId}`} style={{ ...btn, textDecoration: 'none' }}>Ouvrir le projet</a>
-              <button type="button" onClick={() => setOuvert(false)} style={btnGhost}>Revenir à la Veille</button>
+              <button type="button" onClick={() => setOuvert(false)} style={btnGhost}>{sauvegardeId ? 'Fermer' : 'Revenir à la Veille'}</button>
             </div>
           </div>
         ) : prep && s ? (
@@ -234,13 +237,13 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
                   );
                 })}
               </ul>
-              <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3 }}>
+              <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>
                 {s.observations.map((o) => <li key={o.id} style={note}><b style={{ color: 'var(--ink)' }}>{LIBELLES_ELEMENT[o.element]}</b> · {o.claim}</li>)}
               </ul>
               {s.absents.length > 0 && (
                 <details>
                   <summary style={{ ...note, cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center' }}>Non observable dans cette source ({s.absents.length})</summary>
-                  <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3 }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>
                     {s.absents.map((a) => <li key={a.element} data-absent={a.element} style={note}><b style={{ color: 'var(--ink)' }}>{LIBELLES_ELEMENT[a.element]}</b> · absente · {a.raison}</li>)}
                   </ul>
                 </details>
@@ -277,7 +280,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
               )}
               {refusIa && <p role="alert" style={{ ...note, color: '#ffcf8f' }}>{refusIa.message}{refusIa.traceId ? ` · identifiant support : ${refusIa.traceId}` : ''}</p>}
               {questions.length > 0 && (
-                <div style={{ ...note }}>Jarvis a besoin de précisions avant de proposer :<ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{questions.map((q) => <li key={q}>{q}</li>)}</ul></div>
+                <div style={{ ...note }}>Jarvis a besoin de précisions avant de proposer :<ul style={{ margin: '4px 0 0', paddingLeft: 18, listStyle: 'disc' }}>{questions.map((q) => <li key={q}>{q}</li>)}</ul></div>
               )}
               <div role="radiogroup" aria-label="Hypothèse retenue" style={{ display: 'grid', gap: 8 }}>
                 {propositions && propositions.brandId === brandId && propositions.hypotheses.map((h) => (

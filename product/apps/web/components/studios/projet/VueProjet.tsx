@@ -38,7 +38,7 @@ function Champ({ nom, children, vide = 'Non renseigné' }: { nom: string; childr
 }
 
 const Liste = ({ items }: { items: string[] }) => (
-  <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3 }}>{items.map((t, i) => <li key={`${i}-${t}`} style={texte}>{t}</li>)}</ul>
+  <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>{items.map((t, i) => <li key={`${i}-${t}`} style={texte}>{t}</li>)}</ul>
 );
 
 export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; exportAutorise: boolean }) {
@@ -102,7 +102,7 @@ export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; ex
                   const f = faitsSansHypothese(k);
                   return f.length ? (
                     <Champ key={k} nom={`Faits · ${LIBELLES_NATURE_FAIT[k].toLowerCase()}s`}>
-                      <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3 }}>{f.map((x) => <li key={x.id} style={discret}>{x.claim}</li>)}</ul>
+                      <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>{f.map((x) => <li key={x.id} style={discret}>{x.claim}</li>)}</ul>
                     </Champ>
                   ) : null;
                 })}
@@ -115,7 +115,7 @@ export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; ex
             {produit ? (
               <>
                 <p style={{ ...texte, fontWeight: 600 }}>{produit.nom}</p>
-                <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3 }}>
+                <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>
                   {produit.faits.filter((f) => f.cle !== 'nom').map((f) => <li key={f.cle} style={discret}>{f.libelle} · {f.valeur}</li>)}
                   {produit.manques.map((m) => <li key={m.cle} style={{ ...discret, color: '#ffcf8f' }}>{m.libelle} · manquant</li>)}
                 </ul>
@@ -141,7 +141,7 @@ export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; ex
           <section aria-labelledby="pj-manques" style={section}>
             <h2 id="pj-manques" style={titre}>Ce qui manque</h2>
             {completude.manques.length === 0 ? <p style={discret}>Rien · le brief est complet.</p> : (
-              <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 4 }}>
+              <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 4 }}>
                 {completude.manques.map((m) => (
                   <li key={m.cle} data-manque={m.cle} style={discret}>{m.libelle}{m.bloquant ? <b style={{ color: '#ffcf8f' }}> · à faire</b> : <span style={{ color: 'var(--muted)' }}> · conseillé</span>}</li>
                 ))}
@@ -180,15 +180,15 @@ export function VueProjet({ detail, exportAutorise }: { detail: DetailProjet; ex
 
           <section aria-labelledby="pj-versions" style={section}>
             <h2 id="pj-versions" style={titre}>Historique des versions</h2>
-            <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 4 }}>
+            <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 4, minWidth: 0 }}>
               {versions.map((v) => (
-                <li key={v.id} data-version-n={v.n}>
+                <li key={v.id} data-version-n={v.n} style={{ minWidth: 0 }}>
                   <a href={v.courante ? `/studio/projets/${projet.id}` : `/studio/projets/${projet.id}?version=${v.id}`}
                     aria-current={v.id === version.id ? 'page' : undefined}
-                    style={{ display: 'flex', gap: 8, alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 13, color: v.id === version.id ? 'var(--ink)' : 'var(--ink-2)', textDecoration: 'none', fontWeight: v.id === version.id ? 600 : 400 }}>
+                    style={{ display: 'flex', flexWrap: 'wrap', columnGap: 8, rowGap: 0, alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, minWidth: 0, fontSize: 13, color: v.id === version.id ? 'var(--ink)' : 'var(--ink-2)', textDecoration: 'none', fontWeight: v.id === version.id ? 600 : 400 }}>
                     <span>Version {v.n}</span><span aria-hidden>·</span><span>{dateCourteUtc(v.createdAt)}</span>
                     {v.courante && <span style={{ color: 'var(--muted)' }}>· courante</span>}
-                    {v.reason && <span style={{ color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.reason}>· {v.reason}</span>}
+                    {v.reason && <span style={{ color: 'var(--muted)', overflowWrap: 'anywhere', minWidth: 0 }}>· {v.reason}</span>}
                   </a>
                 </li>
               ))}

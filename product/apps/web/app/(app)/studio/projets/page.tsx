@@ -78,7 +78,7 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
       {r.cartes.length === 0 ? (
         <section data-etat="premier-usage" style={{ ...vide, padding: 24, display: 'grid', gap: 12, maxWidth: 720 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 500, color: 'var(--ink)' }}>Ton premier projet part d’une annonce</h2>
-          <ol style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 6, color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.5 }}>
+          <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal', display: 'grid', gap: 6, color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.5 }}>
             <li>Dans la Veille, choisis une annonce qui t’inspire.</li>
             <li>« Préparer une création » montre ce qu’on peut vraiment observer, et ce qui manque.</li>
             <li>Choisis une hypothèse et un produit de ta marque · le projet garde tout, rien n’est généré.</li>
