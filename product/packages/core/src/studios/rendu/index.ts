@@ -10,3 +10,4 @@ export * from './produit-fidele';
 export * from './declinaisons';
 export * from './detourage';
 export * from './plan';
+export * from './retouche';
