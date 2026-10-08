@@ -17,6 +17,8 @@ import { debiterCreditsDans } from '../../credits';
 import { epinglerReleaseDuDevis, revocationDe } from './epinglage';
 // F-B · raccord de l'image du studio (`keyframe:s_image`) · sans effet sur les autres opérations.
 import { raccordImageDevis, parametresImageApprobation } from '../image/raccord';
+// L6-B · contradictions identité ↔ plan, refusées avant devis et débit.
+import { refusIdentitesDevis } from '../identites/devis';
 import type { BaseStudio, ExecStudio, TxStudio } from './types';
 
 /**
@@ -188,6 +190,9 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       if (nonVerifiables.length) {
         throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: nonVerifiables, message: `Vidéo indisponible · le service ne sait pas encore vérifier une vidéo produite · ${nonVerifiables.join(', ')}. Retire-la du devis.` }));
       }
+      // L6-B · identités : un plan qui contredit sa fiche ne se devise pas (VIDEO-02).
+      const identites = refusIdentitesDevis(ctx, courante.content as ContenuVersion, l.lignes);
+      if (identites) throw new Refus(identites);
       const ep = await epinglerReleaseDuDevis(tx, projet.workspaceId, projet.brandId);
       if (!ep.ok) throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: `Consigne indisponible pour ce devis · ${ep.motif}` }));
       // F-B · image du studio : consigne retenue, attestée, à jour, références intactes.

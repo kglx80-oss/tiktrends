@@ -2,12 +2,16 @@ import 'server-only';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  verdictComposants, lireReferenceEpinglee, transitionQualite, erreurStudio,
+  verdictComposants, lireReferenceEpinglee, transitionQualite, erreurStudio, associationProduit, criteresComposants, versionDepuisEmpreinte, aPermissionEspace,
   type ControleVisuel, type ConstatComposant, type VerdictComposants, type StatutQualite, type EtatJob, type ErreurStudio,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
-import { lireJob, lireVersion } from '../depot';
+import { estUuid, lireAsset, lireJob, lireVersion } from '../depot';
+// L6-B · contrôle visuel routé (F-D) branché sur la même règle des composants.
+import { executerTache, type ResolveurMediasTache } from '../prompts/resolveur';
+import type { AdaptateurModele } from '../prompts/adaptateur';
+import type { EnvironnementPrompts } from '../prompts/environnement';
 
 /**
  * Statut QUALITÉ d'une sortie au regard des composants obligatoires du produit
@@ -94,4 +98,91 @@ export async function trancherComposants(ctx: ContexteStudio, e: { jobId: unknow
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: verdict.nonVerifies.length ? verdict.nonVerifies.map((n) => ({ chemin: 'constats', raison: `composant « ${n} » non coché` })) : [{ chemin: 'constats', raison: 'aucun composant obligatoire déclaré · accepte ou rejette le média depuis sa carte' }] });
   }
   return poser(ctx, j.job, verdict.statut, 'relecteur', verdict, verdict.statut === 'passed' ? 'media.accept' : 'media.reject');
+}
+
+/* ───────────────────── L6-B · contrôle visuel routé (VIDEO-04) ───────────── */
+
+export interface DependancesVision {
+  adaptateur: AdaptateurModele | null;
+  environnement: EnvironnementPrompts;
+  plafondAtteint: () => Promise<boolean>;
+  /** Lecture des médias liés · défaut : `studio_assets` de l'espace ET de la marque (F-D). */
+  medias?: ResolveurMediasTache;
+}
+
+export interface ResultatVision {
+  qualite: StatutQualite;
+  verdict: VerdictComposants;
+  /** `vision` si `quality.visual` a conclu ; `aucun` sinon (la raison est dans `motif`). */
+  controle: 'vision' | 'aucun';
+  motif: string | null;
+  runId: string | null;
+}
+
+/**
+ * VIDEO-04 · « une boîte à la place des lunettes est un échec qualité, même si
+ * le job fournisseur réussit ». Après un job `completed`, la sortie livrée
+ * (médias `sta_` du résultat, octets relus par le serveur dans la portée) part
+ * en `quality.visual` (vision routée par F-D, barrière de dépense de
+ * l'adaptateur réel) avec la référence Produit épinglée et un critère par
+ * composant obligatoire. La sortie VALIDÉE du registre devient le contrôle de
+ * `verdictComposants` : composant absent ⇒ `rejected`, douteux ⇒
+ * `requires_review`, `passed` seulement si tout est confirmé.
+ *
+ * Sans release publiée, sans fournisseur, plafond atteint, média illisible,
+ * sortie bloquée ou invalide : AUCUN contrôle ⇒ `requires_review`, jamais
+ * `passed`, et le motif est rendu. La réussite technique du job n'entre
+ * nulle part dans la décision.
+ *
+ * Coût : une tâche vision (≤ 0,218 $ avec le modèle routé par défaut, F-D) ·
+ * l'appelant l'annonce avant le geste ; rien ici ne se déclenche seul.
+ */
+export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: unknown }, d: DependancesVision): Promise<Resultat<ResultatVision>> {
+  if (!aPermissionEspace(ctx.permissions, 'studio.generate')) return erreurStudio('FORBIDDEN', { traceId: ctx.traceId });
+  const j = await lireJob(ctx, e.jobId);
+  if (!j.ok) return j;
+  const job = j.job;
+  const v = await lireVersion(ctx, job.projectVersionId);
+  if (!v.ok) return v;
+  const ref = lireReferenceEpinglee((v.version.content as { productRef?: unknown }).productRef);
+  const requis = ref ? [...ref.composantsObligatoires] : [];
+
+  let controle: ControleVisuel | null = null;
+  let motif: string | null = null;
+  let runId: string | null = null;
+  const ids = Object.values((job.result as { assets?: Record<string, unknown> } | null)?.assets ?? {}).filter(estUuid);
+  if (job.state !== 'completed') motif = 'le média n’est pas encore enregistré';
+  else if (ids.length === 0) motif = 'aucun média livré par ce job';
+  else if (!d.adaptateur) motif = 'le fournisseur de vision n’est pas configuré sur ce serveur';
+  else if (await d.plafondAtteint()) motif = 'le plafond de dépense est atteint';
+  if (motif === null) {
+    const liaisons: Array<Record<string, unknown>> = [];
+    for (const [i, id] of ids.entries()) {
+      const a = await lireAsset(ctx, id);
+      if (!a.ok || a.asset.brandId !== job.brandId) { motif = 'média livré introuvable dans la portée du job'; break; }
+      liaisons.push({ bindingId: `sortie_${i + 1}`, assetId: `sta_${id}`, assetVersion: versionDepuisEmpreinte(a.asset.sha256), sha256: a.asset.sha256, role: 'sortie', modality: 'image', derivation: 'original', nativeAttachmentIndex: i, coverageDescription: 'média livré entier' });
+    }
+    if (motif === null) {
+      const r = await executerTache({
+        templateKey: 'quality.visual', portee: { workspaceId: job.workspaceId, brandId: job.brandId }, acteur: { userId: ctx.userId, traceId: ctx.traceId },
+        taskInputs: { outputAssetIds: ids.map((id) => `sta_${id}`), referenceIds: ref ? [ref.photo.assetId] : [], criteria: criteresComposants(requis) },
+        contexte: { connaissances: false, references: ref ? [associationProduit(ref)] : [], mediaBindings: liaisons as never },
+        liens: { projectId: job.projectId, jobId: job.id, documentVersionId: job.projectVersionId },
+        adaptateur: d.adaptateur!, environnement: d.environnement, ...(d.medias ? { medias: d.medias } : {}),
+      });
+      runId = r.runId;
+      if (!r.ok) {
+        motif = r.code === 'RELEASE_ACTIVE_ABSENTE' ? 'aucune version des consignes n’est publiée · contrôle visuel indisponible' : `contrôle visuel non conclu (${r.code})`;
+      } else {
+        const s = r.sortie as { status: string; result: (ControleVisuel & { summary?: string }) | null };
+        if (s.status !== 'ready' || !s.result) motif = 'le contrôle visuel s’est déclaré bloqué';
+        else controle = { verdict: s.result.verdict, issues: s.result.issues, unverifiable: s.result.unverifiable };
+      }
+    }
+  }
+  const verdict = verdictComposants({ requis, controle });
+  const raison = controle ? verdict.raison : `${verdict.raison} Aucun contrôle visuel : ${motif}.`;
+  const p = await poser(ctx, job, verdict.statut, 'controle', { ...verdict, raison }, 'media.quality.control');
+  if (!p.ok) return p;
+  return { ok: true, qualite: p.qualite, verdict: p.verdict, controle: controle ? 'vision' : 'aucun', motif, runId };
 }
