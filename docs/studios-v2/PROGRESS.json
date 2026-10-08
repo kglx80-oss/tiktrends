@@ -2,7 +2,7 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "f2fd4bb (claude/studios-integration = L0 à L5 + F-A + F-C + raccords ; portes vertes : core 2609, web 3093 dont 16 ignorés, workers 21 dont 1 ignoré, ai 8, integrations 127, build)",
+  "shaCourant": "66c2e8a (claude/studios-integration = L0 à L5 + F-A à F-D + correctifs contre-recette f2fd4bb ; portes vertes : core 2659, web 3186 dont 22 ignorés, workers 34 dont 1 ignoré, ai 8, integrations 127, build ; 9 bancs Postgres réel verts en local)",
   "lotCourant": "F (fournisseurs réels et benchmark, vague 5) puis L6",
   "lots": {
     "L0": "LOCAL_VERIFIED",
@@ -15,7 +15,7 @@
     "L7": "TODO",
     "L8": "TODO",
     "L9": "TODO",
-    "F": "IN_PROGRESS"
+    "F": "LOCAL_VERIFIED"
   },
   "proprietaires": {
     "integrateur": "session principale (contrats communs, migrations, shell, navigation, tokens, releases)"
@@ -952,15 +952,15 @@
       "solutionPreparee": "Commande de benchmark avec devis agrégé, budget explicite et approbation ADMIN (vague 5) ; exécution réelle seulement après accord chiffré du propriétaire."
     },
     {
-      "id": "B-VISION",
+      "id": "B-EXECUTEURS-BENCHMARK",
       "exigences": [
         "UX-07"
       ],
-      "cause": "vision_analysis non routé : F01, F02, F07, F12, F13, F15 non chiffrables, devis agrégé refusé.",
-      "solutionPreparee": "Lot F-D en cours (routage vision sous la barrière)."
+      "cause": "Aucun exécuteur animation (F20) ni retouche masquée (F05) ; aucun décodeur vidéo (ffprobe absent).",
+      "solutionPreparee": "Devis agrégé 9,925 $ pour les 24 cas ; 22 cas exécutables en réel dès budget et approbation ADMIN."
     }
   ],
-  "prochaineAction": "Recette Codex des PR #742 à #746 et de l'intégration #741 (f2fd4bb). En cours : F-B (parcours image consigne → devis → approbation → job → média) et F-D (vision routée, évaluation staged, ADMIN benchmark, exécuteur image réel). Ensuite : devis agrégé complet présenté au propriétaire pour autorisation du benchmark réel, puis L6.",
+  "prochaineAction": "Recette Codex des correctifs (#736 824d8a6, #737 aa60b84, #745 c3ea7ee) et des lots F-B #747, F-D #748, intégration #741 66c2e8a. Décision du propriétaire : budget du premier passage réel (devis 9,925 $ au plus pour 24 cas ; F05/F20 sans exécuteur) et installation de ffprobe pour la vidéo. Puis L6.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -1102,6 +1102,26 @@
       "id": "D-F-04",
       "decision": "Approbation du benchmark réel = évaluation de release manual nominative (prompt.evaluate), 24 h, usage unique, devis recalculé par le serveur ; rapport joint sans publication automatique, passed seulement pour un rapport réel aux traces non simulées.",
       "source": "F-BENCHMARK.md, PR #746"
+    },
+    {
+      "id": "D-F-05",
+      "decision": "Une seule réservation de dépense (reserverDepense, verrou consultatif) pour sousPlafond, guardedAnthropic et le worker ; Anthropic réservé au maximum avant l’appel puis réglé une fois ; libération seulement sur 400/401/403/422.",
+      "source": "#745 bf4a825"
+    },
+    {
+      "id": "D-F-06",
+      "decision": "Décodage réel des pixels (sharp) obligatoire dans le worker avant completed et règlement ; vidéo indisponible (aucun décodeur vidéo) et refusée dès le devis (DECODEUR_VIDEO_WORKER=false).",
+      "source": "#736 537aac8, 824d8a6"
+    },
+    {
+      "id": "D-F-07",
+      "decision": "Consigne image attestée par le serveur (studio_audit_events) puis retenue par runId ; snapshot.parametres construit à l’approbation depuis les seules données serveur, jamais {} pour keyframe:s_image.",
+      "source": "#747"
+    },
+    {
+      "id": "D-F-08",
+      "decision": "Vision : pièces natives base64 lues par le serveur dans la portée ; release staged exécutable seulement dans une campagne de benchmark approuvée, jamais servie ailleurs.",
+      "source": "#748"
     }
   ],
   "prOuvertes": {
@@ -1110,16 +1130,18 @@
     "732": "L1 fondations (400e634c, base #731)",
     "733": "L2 noyau prompts (a5c6ea34, base #731)",
     "735": "SEC (2f6dec59, base vague 2)",
-    "736": "L3 exécution (e3f3bcfd, base vague 2)",
-    "737": "L2 serveur, registre, ADMIN, Jarvis (9ca57cab, base vague 2)",
+    "736": "L3 exécution (824d8a6 : + décodage réel, COST-01, vidéo refusée au devis)",
+    "737": "L2 serveur (aa60b84 : + verrou évaluation/révocation)",
     "738": "L4-A propositions (base vague 3)",
     "739": "L4-B Veille, brief, projet (base vague 3)",
     "741": "intégration de référence, brouillon (ad883e7)",
     "742": "L5-A rendu, masques, déclinaisons, médias (ebf4215, base vague 4)",
     "743": "L5-B éditeur de calques (c865e47, base vague 4)",
     "744": "L5-C produit épinglé, références, Textes (de70ca6, base vague 4)",
-    "745": "F-A fournisseur image fal, barrière worker (8ce5ece, base vague 5)",
-    "746": "F-C benchmark F01-F24 (e164b58, base vague 5)"
+    "745": "F-A fournisseur image, réservation commune (c3ea7ee)",
+    "746": "F-C benchmark F01-F24 (e164b58, base vague 5)",
+    "747": "F-B parcours image (4bd2f37, base vague 5b)",
+    "748": "F-D vision, évaluation staged, ADMIN, exécuteur image (a4359ac, base vague 5c)"
   },
   "besoinsIntegrateur": [
     "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
@@ -1169,6 +1191,34 @@
       "constat": "P2 50 réconciliations affament le suivi",
       "correctif": "#736 a8b98b2",
       "garde": "l3-worker"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "contre-recette f2fd4bb",
+      "constat": "P1 MP4 sans piste accepté comme lisible",
+      "correctif": "#736 537aac8, 824d8a6",
+      "garde": "l3-media-complet, l3-decodage, studios-decodeur"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "contre-recette f2fd4bb",
+      "constat": "P1 site et worker sans verrou commun de dépense",
+      "correctif": "#745 bf4a825",
+      "garde": "fa-course-mixte-pg (Postgres réel), fa-reservation-commune"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "contre-recette f2fd4bb",
+      "constat": "P2 évaluation concurrente efface une révocation",
+      "correctif": "#737 aa60b84 ; #748 a4359ac",
+      "garde": "l2-revocation-course-pg, fd-revocation-pg, l2-revocation-db"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "trouvé en route",
+      "constat": "COST-01 double clic sur deux connexions ⇒ 409 intermittent",
+      "correctif": "#736 824d8a6",
+      "garde": "l3-concurrence-pg (40 manches)"
     }
   ]
 }
