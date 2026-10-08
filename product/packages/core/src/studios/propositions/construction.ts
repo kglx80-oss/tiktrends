@@ -209,7 +209,7 @@ export interface DemandePatchPreparee {
  * document résolu `Shot` validé par le registre ; les autres cibles, faute de
  * schéma métier au registre, partent en résumé JSON borné.
  */
-export function preparerDemandePatch(d: { cible: CibleProposition; baseVersionId: string; contenuBase: ContenuVersion; demande: string; allowedPaths?: readonly unknown[] | null }):
+export function preparerDemandePatch(d: { cible: CibleProposition; baseVersionId: string; contenuBase: ContenuVersion; demande: unknown; allowedPaths?: readonly unknown[] | null }):
   { ok: true; demande: DemandePatchPreparee } | { ok: false; violations: ViolationStudio[] } {
   if (typeof d.demande !== 'string' || d.demande.trim().length === 0 || d.demande.length > 4000) return { ok: false, violations: [{ chemin: 'demande', raison: 'demande de 1 à 4000 caractères' }] };
   if (!cibleExiste(d.cible, d.contenuBase)) return { ok: false, violations: [{ chemin: 'target', raison: 'cible absente de la version de base' }] };
@@ -239,7 +239,7 @@ export function preparerDemandePatch(d: { cible: CibleProposition; baseVersionId
 }
 
 /** Entrées de `brief.build` · la demande, aucune hypothèse ni référence inventée. */
-export function preparerDemandeBrief(d: { baseVersionId: string; demande: string; formats?: readonly unknown[] | null }):
+export function preparerDemandeBrief(d: { baseVersionId: string; demande: unknown; formats?: readonly unknown[] | null }):
   { ok: true; taskInputs: { request: string; hypothesisId: null; selectedReferences: never[]; requestedFormats: string[] }; contexte: { projectVersionId: string } } | { ok: false; violations: ViolationStudio[] } {
   if (typeof d.demande !== 'string' || d.demande.trim().length === 0 || d.demande.length > 4000) return { ok: false, violations: [{ chemin: 'demande', raison: 'demande de 1 à 4000 caractères' }] };
   const formats = textes(d.formats ?? [], 10).map((f) => f.trim()).filter((f) => f.length > 0 && f.length <= 40);
