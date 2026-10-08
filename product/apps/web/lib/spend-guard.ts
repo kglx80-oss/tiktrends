@@ -6,7 +6,7 @@ import { anthropicFromEnv } from '@tiktrends/ai';
 import { errorFamily } from './user-error';
 import {
   checkBudget, costOfTokens, estimateCallCost, summarizeBudget, FIXED_COSTS, rienNaEteFacture,
-  reservationTexteLiberable, type FixedCostKind,
+  reservationTexteLiberable, VISION_JETONS_IMAGE_MAX, type FixedCostKind,
 } from '@tiktrends/core';
 
 /**
@@ -142,14 +142,52 @@ function statutHttp(e: unknown): number | undefined {
 
 type CreateParams = Anthropic.MessageCreateParams;
 
-/** Taille du prompt en caractères · sert l'estimation d'entrée. */
-function promptChars(p: CreateParams): number {
+/**
+ * Entrée d'un appel, telle que l'estimation la compte · les caractères du
+ * texte (convertis en jetons par `estimateCallCost`, 3,5 caractères par jeton)
+ * et le nombre d'images natives.
+ *
+ * ── Le défaut réparé (G-A, besoin F-D n° 2) ──────────────────────────────────
+ *
+ * Une image jointe (bloc `image`, octets en base64) comptait la longueur de
+ * son base64 comme du texte. MESURÉ (`test/ga-estimation-vision.test.ts`,
+ * `claude-sonnet-5`, `max_tokens` 4000) : image de 1 000 000 octets ⇒
+ * 1 333 336 caractères de base64 ⇒ 1,203039 $ réservés, quand le fournisseur
+ * facture l'image au plus 4 784 jetons (0,014352 $) ⇒ 0,074466 $ désormais.
+ * Le plafond refusait à tort des appels vision qui tenaient largement.
+ *
+ * Désormais un bloc `image` compte sa BORNE de jetons, `VISION_JETONS_IMAGE_MAX`
+ * (F-D, `packages/core/src/prompts/vision.ts`, source unique), quelle que soit
+ * sa taille : le fournisseur réduit une image plus grande, la borne tient. Le
+ * reste ne change pas : texte, système et outils comptés comme avant, et un
+ * contenu sans image est mesuré exactement comme avant (même `JSON.stringify`).
+ */
+export function entreeAppel(p: CreateParams): { caracteres: number; images: number } {
+  let images = 0;
+  const contenu = (c: unknown): number => {
+    if (typeof c === 'string') return c.length;
+    if (!Array.isArray(c)) return JSON.stringify(c).length;
+    const sansImage = c.filter((b) => (b as { type?: unknown } | null)?.type !== 'image');
+    images += c.length - sansImage.length;
+    return JSON.stringify(sansImage.length === c.length ? c : sansImage).length;
+  };
   let n = typeof p.system === 'string' ? p.system.length : JSON.stringify(p.system ?? '').length;
-  for (const m of p.messages ?? []) {
-    n += typeof m.content === 'string' ? m.content.length : JSON.stringify(m.content).length;
-  }
+  for (const m of p.messages ?? []) n += contenu(m.content);
   if (p.tools) n += JSON.stringify(p.tools).length;
-  return n;
+  return { caracteres: n, images };
+}
+
+/**
+ * Coût MAXIMAL d'un appel, celui qu'on réserve · `estimateCallCost` (noyau)
+ * pour le texte et `max_tokens`, plus chaque image à sa borne de jetons au
+ * tarif d'entrée. Sans image : exactement `estimateCallCost`, comme avant.
+ */
+export function coutMaximalAppel(p: CreateParams): number {
+  const modele = String(p.model);
+  const e = entreeAppel(p);
+  const texte = estimateCallCost({ model: modele, promptChars: e.caracteres, maxTokens: Number(p.max_tokens ?? 1024) });
+  if (!e.images) return texte;
+  return Math.round((texte + costOfTokens(modele, e.images * VISION_JETONS_IMAGE_MAX, 0)) * 1e6) / 1e6;
 }
 
 /**
@@ -182,11 +220,7 @@ export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
 
   const garde = async (params: CreateParams, options?: unknown) => {
     const modele = String(params.model);
-    const estime = estimateCallCost({
-      model: modele,
-      promptChars: promptChars(params),
-      maxTokens: Number(params.max_tokens ?? 1024),
-    });
+    const estime = coutMaximalAppel(params);
 
     // Réservation du MAXIMUM, sous le verrou commun, AVANT l'envoi.
     const id = await reserverSousPlafond({
