@@ -5,6 +5,7 @@ import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
+import { PreparerCreation } from './studios/PreparerCreation';
 
 export const compact = (n?: number) => {
   if (n == null) return 'n/c';
@@ -141,6 +142,16 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
             color: (gagnant && !ctaSobre) ? 'var(--on-accent)' : (ctaSobre ? 'var(--ink-2)' : 'var(--ink)'), textDecoration: 'none' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {gagnant ? 'Décline cette piste' : 'Génère ta version'}</span>
         </a>
+        {/* Studios L4 · « Préparer une création » · un projet durable (source,
+            hypothèse, produit, brief) au lieu d'un passage par l'URL. Seulement
+            là où la carte est une source accessible : Veille (contexte de
+            retour) et Sauvegardes / Formats (identifiant de sauvegarde). Le
+            lien historique ci-dessus reste inchangé. */}
+        {(contexteRetour != null || cloneRef) && (
+          <PreparerCreation
+            annonce={{ id: ad.id, platform: ad.platform, mediaType: ad.mediaType ?? null, thumbnailUrl: ad.thumbnailUrl ?? null, mediaUrl: ad.mediaUrl ?? null, advertiserName: ad.advertiserName ?? null, body: ad.body ?? null, callToAction: ad.callToAction ?? null, landingDomain: ad.landingDomain ?? null, landingUrl: ad.landingUrl ?? null, daysRunning: ad.daysRunning ?? null }}
+            sauvegardeId={cloneRef ?? null} retour={retour} cibles44={cibles44} />
+        )}
       </div>
     </div>
   );
