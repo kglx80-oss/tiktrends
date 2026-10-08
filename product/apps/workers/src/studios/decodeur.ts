@@ -9,22 +9,34 @@ import type { DecodeurMedia, ResultatDecodage } from '@tiktrends/core';
  * son marqueur de fin… Lire seulement l'en-tête (`metadata()`) ne prouverait
  * rien : c'est exactement ce que faisait le premier filtre.
  *
- * Vidéo · AUCUN décodeur : ni ffmpeg ni ffprobe dans le worker ni sur la
- * machine de développement. `decoderVideo` est donc absent : une vidéo n'est
- * jamais déclarée lisible, elle est refusée comme non vérifiable, et le worker
- * ne soumet aucune opération d'animation. Le point d'injection existe
- * (`options.video`) ; le brancher demande un décodeur réel sur le VPS
- * (ffprobe/ffmpeg, décision du propriétaire), jamais un faux.
+ * Vidéo · décodeur RÉEL ffmpeg/ffprobe (`decodeur-video.ts`, L7-B), branché
+ * par la boucle du worker SEULEMENT quand la sonde du démarrage l'a prouvé
+ * (`videoActif`) : version lue, échantillon généré puis décodé en entier.
+ * Sans preuve fraîche, `decoderVideo` est ABSENT : une vidéo n'est jamais
+ * déclarée lisible, elle est refusée comme non vérifiable, et le worker ne
+ * soumet aucune opération d'animation. Jamais un faux décodeur.
  *
  * `sharp` est chargé à la demande : c'est un module natif, et un binaire absent
  * ne doit pas faire tomber le worker. Il rend alors `cause: 'decodeur'` : le
  * média reste en attente (`persisting`), il n'est ni livré ni compté abîmé.
  */
 export class DecodeurSharp implements DecodeurMedia {
-  readonly decoderVideo?: (octets: Uint8Array) => Promise<ResultatDecodage>;
+  readonly #video?: (octets: Uint8Array) => Promise<ResultatDecodage>;
+  readonly #videoActif: () => boolean;
 
-  constructor(options: { video?: (octets: Uint8Array) => Promise<ResultatDecodage> } = {}) {
-    if (options.video) this.decoderVideo = options.video;
+  /**
+   * `video` · le décodeur vidéo réel ; `videoActif` · la preuve qu'il marche
+   * MAINTENANT (sonde fraîche). Sans `videoActif`, un décodeur fourni est
+   * toujours actif (tests, injection explicite).
+   */
+  constructor(options: { video?: (octets: Uint8Array) => Promise<ResultatDecodage>; videoActif?: () => boolean } = {}) {
+    if (options.video) this.#video = options.video;
+    this.#videoActif = options.videoActif ?? (() => true);
+  }
+
+  /** Absent tant que la capacité vidéo n'est pas prouvée · le moteur refuse alors l'animation avant soumission. */
+  get decoderVideo(): ((octets: Uint8Array) => Promise<ResultatDecodage>) | undefined {
+    return this.#video && this.#videoActif() ? this.#video : undefined;
   }
 
   async decoderImage(octets: Uint8Array): Promise<ResultatDecodage> {

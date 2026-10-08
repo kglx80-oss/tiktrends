@@ -63,8 +63,8 @@ describe('structure parfaite, charge utile abîmée ⇒ refus du DÉCODEUR', () 
   });
 });
 
-describe('vidéo · aucun décodeur', () => {
-  it('le décodeur de production n’a PAS de décodeur vidéo ⇒ une vidéo n’est jamais vérifiable', async () => {
+describe('vidéo · aucun décodeur injecté', () => {
+  it('sans décodeur vidéo injecté (ni sonde prouvée, L7-B) ⇒ une vidéo n’est jamais vérifiable', async () => {
     expect(d.decoderVideo).toBeUndefined();
     const entete = inspecterMedia(mp4StructurePlausible())!;
     expect(entete.mime).toBe('video/mp4');

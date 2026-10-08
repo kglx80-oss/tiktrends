@@ -45,6 +45,37 @@ sudo systemctl enable  --now tiktrends-deploy.timer   # relance
 
 ---
 
+## Worker · décodage vidéo (ffmpeg, Studios L7-B)
+
+L'image `workers` installe `ffmpeg` (Alpine, paquet `ffmpeg` : `ffmpeg` et
+`ffprobe`). Aucune variable ni aucun secret à poser. La capacité vidéo n'est
+**jamais déclarée à la main** : au démarrage puis toutes les 5 min, le worker
+studio (s'il tourne) sonde ffmpeg · version, encodeurs `libx264`/`aac`,
+échantillon 32×32 de 12 images généré puis décodé en entier · et publie le
+résultat dans `app_settings` (clé `studio:capacite-video`). Le site ne propose
+une vidéo que sur une sonde de moins de 15 min dont l'échantillon a été décodé ;
+sinon il refuse au devis, comme avant.
+
+Vérifier après déploiement (propriétaire, sur le VPS) :
+
+```bash
+cd ~/tiktrends/product
+docker compose exec workers ffmpeg -hide_banner -version | head -1
+docker compose exec workers ffprobe -hide_banner -version | head -1
+docker compose exec workers sh -c 'ffmpeg -hide_banner -encoders | grep -E " (libx264|aac) "'
+docker compose logs workers --since 15m | grep "sonde vidéo"
+docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+select updated_at, value from app_settings where key = 'studio:capacite-video';
+SQL
+```
+
+Lecture : `decodage.ok = true` et `updated_at` récent ⇒ décodage prouvé ;
+`encodeurs.libx264 = false` ⇒ aucun export MP4 H.264 n'est annoncé. Même
+décodage prouvé, l'animation reste refusée au devis tant qu'aucun fournisseur
+d'animation n'est branché.
+
+---
+
 ## Sauvegardes de la base (quotidiennes)
 
 Dump `pg_dump` compressé chaque nuit à 03h30, gardé 14 jours dans `~/backups`.

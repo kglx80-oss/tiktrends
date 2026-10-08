@@ -8,3 +8,4 @@ export * from './operations';
 export * from './impact-video';
 export * from './consigne-plan';
 export * from './ecran';
+export * from './export-video';
