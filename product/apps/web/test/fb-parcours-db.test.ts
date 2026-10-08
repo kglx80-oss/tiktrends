@@ -52,6 +52,7 @@ import { semerCatalogue, projetStatique, compter, delta, PHOTOS, type Catalogue 
 import type { AppelModele } from '../lib/studios/prompts/adaptateur';
 import type { BaseStudio } from '../lib/studios/execution/types';
 import { MoteurStudio } from '../../workers/src/studios/moteur';
+import { DecodeurSharp } from '../../workers/src/studios/decodeur';
 import { construireFournisseurFal } from '../../workers/src/studios/fournisseurs';
 import { pngSimule } from '../../../packages/integrations/src/studios-simule';
 
@@ -147,7 +148,7 @@ const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey:
 const horloge = { ms: T.getTime() };
 async function executer(jobId: string): Promise<string> {
   const fournisseur = construireFournisseurFal({ base, decision: DECISION, fetch: fetchRejoue, env: { AI_SPEND_CAP_USD: '10' }, stockage: null, horloge: () => new Date(horloge.ms), verifierAdresse: async () => true });
-  const m = new MoteurStudio({ base, fournisseur, stockage: new StockageMemoire(), bailMs: 60_000, horloge: () => new Date(horloge.ms) });
+  const m = new MoteurStudio({ base, fournisseur, stockage: new StockageMemoire(), decodeur: new DecodeurSharp(), bailMs: 60_000, horloge: () => new Date(horloge.ms) });
   for (let i = 0; i < 20; i++) {
     const s = (await jobDe(jobId)).state;
     if (['completed', 'failed', 'cancelled', 'reconciliation_required'].includes(s)) return s;

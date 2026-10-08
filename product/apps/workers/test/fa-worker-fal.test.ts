@@ -12,6 +12,7 @@ import { MoteurStudio } from '../src/studios/moteur';
 import { construireFournisseurFal, hacherImage, demarrerWorkerStudio, MESSAGE_SANS_FOURNISSEUR } from '../src/studios/fournisseurs';
 import type { BaseStudio, EntreeJournal } from '../src/studios/types';
 import { pngSimule } from '../../../packages/integrations/src/studios-simule';
+import { DecodeurSharp } from '../src/studios/decodeur';
 import { pgMemoire } from './pg-memoire';
 
 /**
@@ -125,7 +126,7 @@ function moteur(o: { cap?: string; workerId?: string; stockage?: StockageMemoire
   const stockage = o.stockage ?? new StockageMemoire();
   const fournisseur = construireFournisseurFal({ base, decision: DECISION, fetch: fetchRejoue, env: { AI_SPEND_CAP_USD: o.cap ?? '10' }, stockage: null, horloge: () => new Date(horloge.ms), verifierAdresse: async () => true });
   const journal: EntreeJournal[] = [];
-  const m = new MoteurStudio({ base, fournisseur, stockage, workerId: o.workerId, bailMs: 60_000, horloge: () => new Date(horloge.ms), journal: (e) => journal.push(e) });
+  const m = new MoteurStudio({ base, fournisseur, stockage, decodeur: new DecodeurSharp(), workerId: o.workerId, bailMs: 60_000, horloge: () => new Date(horloge.ms), journal: (e) => journal.push(e) });
   return { m, stockage, journal, fournisseur };
 }
 async function tours(m: MoteurStudio, id: string, n = 20, pasMs = 16_000) {

@@ -117,6 +117,7 @@ describe.skipIf(!ACTIF)('Semis de recette visuelle F-B', () => {
     const { compilerEtAttesterPour, retenirConsignePour } = await import('../lib/studios/image/consigne');
     const { devisImagePour, approuverImagePour, controlerMediaPour } = await import('../lib/studios/image/parcours');
     const { MoteurStudio } = await import('../../workers/src/studios/moteur');
+    const { DecodeurSharp } = await import('../../workers/src/studios/decodeur');
     const { construireFournisseurFal } = await import('../../workers/src/studios/fournisseurs');
     const ctx = () => contexteDepuisSession({ user: { id: s.demo, email: 'demo@tiktrends.co', name: 'Camille' }, workspaceId: s.ws, role: 'owner', plan: 'business', equipe: null }, [s.brand], [], `st_semis_${randomUUID()}`);
     const texte = adaptateurSimule((a: AppelModele) => {
@@ -156,7 +157,7 @@ describe.skipIf(!ACTIF)('Semis de recette visuelle F-B', () => {
     } as StockageStudio & { memo: Map<string, Uint8Array> };
     const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-de-semis-locale', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit' } };
     const fournisseur = construireFournisseurFal({ base, decision: DECISION, fetch: fetchRejoue, env: { AI_SPEND_CAP_USD: '10' }, stockage: null, verifierAdresse: async () => true });
-    const moteur = new MoteurStudio({ base, fournisseur, stockage, bailMs: 60_000 });
+    const moteur = new MoteurStudio({ base, fournisseur, stockage, decodeur: new DecodeurSharp(), bailMs: 60_000 });
     const lancer = async () => {
       const d = await devisImagePour(ctx(), { projectId: s.principal });
       if (!d.ok) throw new Error(JSON.stringify(d));
