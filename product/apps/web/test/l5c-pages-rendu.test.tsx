@@ -52,7 +52,7 @@ const qui = (q: 'ua' | 'uv' | 'ur' | 'ub') => { h.session = session(ids, q); };
 const O = { veilleOuverte: true, maintenant: new Date('2026-10-08T10:00:00Z') };
 let cat: Catalogue;
 
-async function rendre(el: Promise<JSX.Element>) {
+async function rendre(el: Promise<import('react').ReactElement>) {
   const d = document.createElement('div');
   d.innerHTML = renderToStaticMarkup(await el);
   return d;

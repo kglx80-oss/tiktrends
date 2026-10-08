@@ -215,8 +215,9 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
             {faits.length > 0 && (
               <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
                 <legend style={etiquette}>Faits qui fondent les allégations (facultatif)</legend>
+                <p style={{ ...mini, marginBottom: 6 }}>Faits déclarés du produit et mesures · une observation d’une annonce concurrente ne fonde aucune allégation de la marque.</p>
                 <div style={{ display: 'grid', gap: 2, maxHeight: 220, overflowY: 'auto' }}>
-                  {faits.filter((f) => f.kind !== 'hypothesis').map((f) => (
+                  {faits.filter((f) => f.kind === 'declared' || f.kind === 'measured').map((f) => (
                     <label key={f.id} style={{ display: 'flex', gap: 10, alignItems: 'center', minHeight: CIBLE, fontSize: 14, color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>
                       <input type="checkbox" style={{ width: 20, height: 20, flex: '0 0 auto' }} checked={manuel.sources.includes(f.id)} onChange={(e) => setManuel((m) => ({ ...m, sources: e.target.checked ? [...m.sources, f.id] : m.sources.filter((x) => x !== f.id) }))} />
                       {f.claim}
