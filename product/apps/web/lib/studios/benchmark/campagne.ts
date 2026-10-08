@@ -266,7 +266,7 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
           obs = { ...base, statut: s.status, code: s.status === 'blocked' ? 'MODELE_BLOQUE' : null, result: s.result, questions: s.questions ?? [], warnings: s.warnings ?? [] };
           if (s.status === 'ready' && s.result) {
             etat.resultats.set(cle, s.result);
-            if (/compile$/.test(etape.templateKey)) {
+            if (/compile$/.test(etape.templateKey) || etape.templateKey === 'edit.mask') {
               derniereConsigne = s.result;
               const w = Number(entree.taskInputs.width), h = Number(entree.taskInputs.height);
               dernierFormat = Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0 ? { largeur: w, hauteur: h } : null;

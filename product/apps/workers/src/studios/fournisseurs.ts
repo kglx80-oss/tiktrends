@@ -4,14 +4,15 @@ import {
 } from '@tiktrends/db';
 import {
   decisionFournisseurStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsImageDuJob,
-  photosDuProduit, empreinteAdresse, idLogoMarque, estEmpreinte,
-  type DecisionFournisseur, type DemandeFournisseur, type EmpreinteFichier, type FournisseurStudio, type MediaResolu, type StockageStudio,
+  photosDuProduit, empreinteAdresse, idLogoMarque, estEmpreinte, estParametresRetouche, lireParametresRetouche, requeteFalRetouche,
+  type DecisionFournisseur, type DemandeFournisseur, type EmpreinteFichier, type FournisseurStudio, type MediaResolu, type RequeteFal, type StockageStudio,
 } from '@tiktrends/core';
 import {
   FournisseurFal, BarriereDepenseStudio, storageFromEnv, putObject, publicUrlFor,
   type PortDepense, type PreparationFal, type StorageConfig,
 } from '@tiktrends/integrations';
 import { demarrerBoucleStudio } from './boucle';
+import { relireMasque } from './retouche';
 import type { BaseStudio } from './types';
 
 /**
@@ -115,17 +116,39 @@ export async function resoudreMedias(
 
 /* ───────────────────────── Préparation d'une soumission ──────────────────── */
 
-export function preparateurFal(base: BaseStudio, o: { modeles: { generation: string; edition: string }; stockage: StorageConfig | null }) {
+/**
+ * Lecture des octets d'un média stocké, pour la préparation d'une retouche
+ * (source et masque relus AVANT la soumission) · `null` = stockage non
+ * configuré : la retouche est alors bloquée, rien ne part.
+ */
+export type LecteurOctets = (cle: string) => Promise<Uint8Array | null>;
+
+export function preparateurFal(base: BaseStudio, o: { modeles: { generation: string; edition: string }; stockage: StorageConfig | null; lire?: LecteurOctets | null }) {
   return async (d: DemandeFournisseur, jobId: string): Promise<PreparationFal> => {
     const J = schema.studioJobs;
     const [job] = await base.select().from(J).where(eq(J.id, jobId)).limit(1);
     if (!job) return { ok: false, motif: 'job introuvable' };
     const snap = lireSnapshotJob(job.snapshot);
     if (!snap) return { ok: false, motif: 'instantané illisible' };
-    const lu = lireParametresImage(snap.parametres);
-    const ids = lu.ok ? lu.parametres.references.map((r) => r.assetId) : [];
-    const medias = await resoudreMedias(base, job, ids, o.stockage);
-    const r = requeteFalImage({ operations: operationsDuSnapshot(snap), parametres: snap.parametres, medias, modeles: o.modeles });
+    let r: RequeteFal;
+    let ids: string[];
+    if (estParametresRetouche(snap.parametres)) {
+      // Retouche masquée (G-B) : source ET masque relus maintenant, octet pour octet.
+      const lr = lireParametresRetouche(snap.parametres);
+      ids = lr.ok ? [lr.parametres.source.assetId, lr.parametres.masque.assetId] : [];
+      const [source] = lr.ok ? await resoudreMedias(base, job, [lr.parametres.source.assetId], o.stockage) : [];
+      const relu = lr.ok && o.lire
+        ? await relireMasque({ ex: base, job, parametres: lr.parametres, lire: o.lire })
+        : { masque: null, dimensionsSource: null };
+      r = lr.ok && !o.lire
+        ? { ok: false, code: 'MISSING_REFERENCE', motif: 'stockage objet non configuré · source et masque illisibles, rien n’est envoyé', cibles: ids }
+        : requeteFalRetouche({ operations: operationsDuSnapshot(snap), parametres: snap.parametres, source: source ?? null, dimensionsSource: relu.dimensionsSource, masque: relu.masque, modeles: o.modeles });
+    } else {
+      const lu = lireParametresImage(snap.parametres);
+      ids = lu.ok ? lu.parametres.references.map((x) => x.assetId) : [];
+      const medias = await resoudreMedias(base, job, ids, o.stockage);
+      r = requeteFalImage({ operations: operationsDuSnapshot(snap), parametres: snap.parametres, medias, modeles: o.modeles });
+    }
     await base.insert(schema.studioAuditEvents).values({
       actorId: null, effectiveRole: 'systeme:worker', workspaceId: job.workspaceId, brandId: job.brandId,
       action: r.ok ? 'job.provider.payload' : 'job.provider.blocked', targetType: 'studio_job', targetId: job.id,
@@ -183,13 +206,16 @@ export function construireFournisseurFal(o: {
   fetch: typeof fetch;
   env?: Readonly<Record<string, string | undefined>>;
   stockage: StorageConfig | null;
+  /** Lecture des octets stockés (retouche) · défaut : la relecture S3 du worker si le stockage est configuré. */
+  lire?: LecteurOctets | null;
   horloge?: () => Date;
   verifierAdresse?: (u: URL) => Promise<boolean>;
 }): FournisseurStudio {
   const barriere = new BarriereDepenseStudio({ port: portDepenseBase(o.base), env: o.env, horloge: o.horloge });
+  const lire = o.lire !== undefined ? o.lire : o.stockage ? stockageS3(o.stockage, o.fetch).relire : null;
   return new FournisseurFal({
     apiKey: o.decision.apiKey, queueUrl: o.decision.queueUrl, fetch: o.fetch, barriere,
-    preparer: preparateurFal(o.base, { modeles: o.decision.modeles, stockage: o.stockage }),
+    preparer: preparateurFal(o.base, { modeles: o.decision.modeles, stockage: o.stockage, lire }),
     operationsDuJob: operationsDuJobBase(o.base),
     horloge: o.horloge, verifierAdresse: o.verifierAdresse,
   });

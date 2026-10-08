@@ -243,17 +243,19 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     const ed = await lireEditeurPour(ctxDe(ids, 'ua'), projectId);
     expect(ed.ok && ed.donnees.medias.map((m) => m.assetId)).toEqual([assetId]);
 
-    // Qualité : le worker laisse `pending` (aucun constat) ; le contrôle L5-C ⇒ requires_review, jamais passed.
-    expect(fini.qualityStatus).toBe('pending');
+    // Qualité : posée par le WORKER à la finalisation (G-B), sans écran · contrôle L5-C ⇒ requires_review, jamais passed.
+    expect(fini.qualityStatus).toBe('requires_review');
+    const ctls = async () => db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, a.job.id), eq(schema.studioAuditEvents.action, 'media.quality.control')));
+    const [ctl] = await ctls();
+    expect([ctl!.effectiveRole, ctl!.versionAfter]).toEqual(['systeme:controle', 'requires_review']);
+    expect((ctl!.details as { nonVerifies: string[] }).nonVerifies).toEqual(['lunettes', 'bandeau']);
     const vue1 = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
     // La consigne retenue se lit avec le NOM du fichier transmis (catalogue de la marque), pas son identifiant.
     expect(vue1.ok && vue1.vue.retenue).toMatchObject({ verdict: { ok: true }, liaisons: [{ referenceId: id5, libelle: 'Lunettes Sport Bandeau · photo 5', role: 'product' }] });
-    expect(vue1.ok && vue1.vue.jobs[0]).toMatchObject({ id: a.job.id, etat: 'completed', qualite: 'pending', media: { assetId, url: `/api/studios/media/${assetId}` } });
-    expect((await jobDe(a.job.id)).qualityStatus).toBe('pending'); // la lecture n'écrit rien
+    expect(vue1.ok && vue1.vue.jobs[0]).toMatchObject({ id: a.job.id, etat: 'completed', qualite: 'requires_review', media: { assetId, url: `/api/studios/media/${assetId}` } });
+    // Le POST de l'écran reste idempotent : déjà tranché par le worker, rien n'est réécrit.
     expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId: a.job.id })).toEqual({ ok: true, qualite: 'requires_review' });
-    expect((await jobDe(a.job.id)).qualityStatus).toBe('requires_review');
-    const [ctl] = await db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, a.job.id), eq(schema.studioAuditEvents.action, 'media.quality.control')));
-    expect((ctl!.details as { nonVerifies: string[] }).nonVerifies).toEqual(['lunettes', 'bandeau']);
+    expect((await ctls()).length).toBe(1);
     // Idempotent : une seconde demande ne retranche rien.
     expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId: a.job.id })).toEqual({ ok: true, qualite: 'requires_review' });
     const vue2 = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
