@@ -12,3 +12,4 @@ export { schema };
 export * from './schema';
 // Ré-export des opérateurs courants pour les consommateurs sans dépendance directe à drizzle-orm.
 export { eq, and, or, not, desc, asc, inArray, isNull, isNotNull, sql, count } from 'drizzle-orm';
+export * from './plafond-depense';
