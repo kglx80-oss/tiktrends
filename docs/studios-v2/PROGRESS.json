@@ -3,7 +3,7 @@
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
   "shaCourant": "0f6f836 (claude/studios-integration = L0 à L6 partiel + F-A à F-D + G-A/G-B + correctifs contre-recette ; portes vertes : core 2726, web 3260 dont 23 ignorés, workers 45 dont 1 ignoré, ai 8, integrations 127, build)",
-  "lotCourant": "vague 7 · R3 budget, L7-A export image, L7-B décodage vidéo ffmpeg (base 0f6f836)",
+  "lotCourant": "vague 7 · R3 budget, L7-A export image, L7-B décodage vidéo ffmpeg, E kit d'essai réel isolé (base 0f6f836)",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
@@ -923,7 +923,9 @@
   ],
   "depenses": {
     "autorisees": "aucun budget de recette fournisseur explicitement autorisé pour ce chantier ; plafond global AI_SPEND_CAP_USD du dépôt",
-    "reelles": 0
+    "reelles": 0,
+    "budgetEssaiReelAutoriseUsd": 15,
+    "depenseEssaiReelUsd": 0
   },
   "blocages": [
     {
@@ -1150,6 +1152,24 @@
       "id": "D-G-01",
       "decision": "Retouche masquée : masque PNG gris 8 bits ; la sortie fal est recomposée sur la source sous le masque, jamais livrée brute ; qualité requires_review posée par le worker.",
       "source": "PR #750"
+    },
+    {
+      "id": "D-PROP-01",
+      "date": "2026-10-08",
+      "par": "propriétaire",
+      "decision": "Budget d'essai réel autorisé : 15 $ maximum au total (premier rendu image réel + benchmark), exécuté dans un environnement de recette isolé (plafond AI_SPEND_CAP_USD=15 sur une base vide), après clôture R3 (réessais, borne d'entrée)."
+    },
+    {
+      "id": "D-PROP-02",
+      "date": "2026-10-08",
+      "par": "propriétaire",
+      "decision": "Contrôle par vision activé par défaut : ligne visible et chiffrée du devis, acceptée avant génération, décochable ; aucun débit ajouté après coup."
+    },
+    {
+      "id": "D-PROP-03",
+      "date": "2026-10-08",
+      "par": "propriétaire",
+      "decision": "ffmpeg/ffprobe intégrés à l'image Docker du worker ; arrivée sur le VPS par le déploiement normal après fusion."
     }
   ],
   "prOuvertes": {
