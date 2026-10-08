@@ -307,6 +307,22 @@ function dateOuNull(d: Date | string | null | undefined): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
+/**
+ * Écrire l'équipe interne (`/admin/equipe` : inscrire, changer de rôle,
+ * retirer, éditer la matrice) exige l'accès total ET l'admissibilité.
+ *
+ * Recette Codex du 8 octobre : un compte qui a capté un e-mail staff préinscrit
+ * (donc NON admissible) gardait l'accès total sur l'équipe ; il inscrivait un
+ * second compte, créé avant cette nouvelle inscription, qui devenait admissible
+ * par la règle d'antériorité. Exiger l'admissibilité à l'attribution ferme la
+ * chaîne : un compte non admissible ne peut plus rendre quiconque admissible.
+ * Les fondateurs codés restent admissibles ; un admin légitime dont le compte
+ * est postérieur à son inscription se fait réinscrire par un fondateur.
+ */
+export function peutEcrireEquipe(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined, accesTotalDuRole: (role: string) => boolean): boolean {
+  return !!equipe && accesTotalDuRole(equipe.role) && equipe.plateformeAdmissible === true;
+}
+
 /** Retire toute permission de portée plateforme si le compte n'est pas admissible. */
 export function restreindrePlateforme(p: PermissionsStudio, admissible: boolean): PermissionsStudio {
   return admissible ? p : { espace: p.espace, plateforme: new Set() };

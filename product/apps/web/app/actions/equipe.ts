@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  accesTotal, estRolePlateforme, estRoleMatriciel, nettoyerRubriques,
+  accesTotal, estRolePlateforme, estRoleMatriciel, nettoyerRubriques, peutEcrireEquipe,
   type RolePlateforme,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -12,7 +12,10 @@ import { getSession } from '../../lib/auth';
 const HOME = '/admin/equipe';
 
 /**
- * Écriture de l'équipe interne · réservée à l'ACCÈS TOTAL (adminplus/admin).
+ * Écriture de l'équipe interne · réservée à l'ACCÈS TOTAL (adminplus/admin)
+ * d'un compte ADMISSIBLE (`peutEcrireEquipe`, SEC-10) : un compte qui a capté un
+ * e-mail préinscrit ne peut plus inscrire un second compte pour le rendre
+ * admissible (recette du 8 octobre).
  *
  * Le garde lit le rôle d'équipe de la session (posé par getSession), pas le rôle
  * d'espace ni « fondateur » : c'est ce qui permet à un admin ajouté ICI de gérer
@@ -23,6 +26,7 @@ async function exigerAccesTotal() {
   const s = await getSession();
   if (!s || !db) redirect('/login');
   if (!s.equipe || !accesTotal(s.equipe.role)) redirect('/dashboard');
+  if (!peutEcrireEquipe(s.equipe, (r) => accesTotal(r as RolePlateforme))) redirect(`${HOME}?e=admissible`);
   return s;
 }
 

@@ -14,6 +14,7 @@ const OK: Record<string, string> = {
 };
 const ERR: Record<string, string> = {
   email: 'Email invalide.', role: 'Rôle inconnu.', soi: 'Vous ne pouvez pas vous retirer vous-même.',
+  admissible: 'Votre compte a été créé après son inscription dans l’équipe : il ne peut pas modifier l’équipe. Un fondateur doit vous réinscrire.',
 };
 
 const rang = (r: RolePlateforme) => ROLES_PLATEFORME.indexOf(r);
