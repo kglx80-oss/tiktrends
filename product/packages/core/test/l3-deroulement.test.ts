@@ -136,7 +136,7 @@ describe('registre · un règlement, settle + release = réserve, jamais de flot
   });
 });
 
-/** PNG 2×3 minimal (signature + IHDR), JPEG SOF0 4×5, MP4 ftyp. */
+/** En-têtes SEULS (signature + IHDR) · ce qui passait avant la recette du 8 octobre. */
 function png(l: number, h: number): Uint8Array {
   const o = new Uint8Array(33);
   o.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
@@ -146,12 +146,12 @@ function png(l: number, h: number): Uint8Array {
 }
 
 describe('décodable · lire l’en-tête réel, pas le type annoncé', () => {
-  it('PNG, JPEG, MP4, WebP', () => {
-    expect(inspecterMedia(png(2, 3))).toEqual({ mime: 'image/png', largeur: 2, hauteur: 3 });
+  it('un en-tête seul n’est pas un fichier · PNG, JPEG, MP4 refusés (fichiers complets : l3-media-complet)', () => {
+    expect(inspecterMedia(png(2, 3))).toBeNull();
     const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xc0, 0, 11, 8, 0, 5, 0, 4, 1, 1, 0x11, 0]);
-    expect(inspecterMedia(jpeg)).toEqual({ mime: 'image/jpeg', largeur: 4, hauteur: 5 });
+    expect(inspecterMedia(jpeg)).toBeNull();
     const mp4 = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
-    expect(inspecterMedia(mp4)?.mime).toBe('video/mp4');
+    expect(inspecterMedia(mp4)).toBeNull();
   });
   it('octets tronqués, dimensions nulles, texte ⇒ pas décodable', () => {
     expect(inspecterMedia(png(0, 3))).toBeNull();

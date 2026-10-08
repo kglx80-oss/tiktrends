@@ -47,7 +47,9 @@ export type ScenarioSimule =
   /** Réussit, mais le produit visible n'est pas le bon. */
   | 'produit_faux'
   /** Réussit, mais le fichier rendu n'est pas une image. */
-  | 'resultat_illisible';
+  | 'resultat_illisible'
+  /** Réussit, mais le téléchargement est coupé à mi-fichier (la requête garde son fichier intact). */
+  | 'resultat_tronque';
 
 export interface OptionsFournisseurSimule {
   drapeau: unknown;
@@ -112,6 +114,8 @@ export class FournisseurSimule implements FournisseurStudio {
   readonly requetes = new Map<string, RequeteSimulee>();
   /** Appels à `soumettre`, y compris ceux dédupliqués par la clé. */
   appelsSoumettre = 0;
+  /** Scénario `resultat_tronque` · nombre de téléchargements coupés avant le fichier complet. */
+  troncatures = 1;
   private readonly file: ScenarioSimule[] = [];
   private readonly o: Required<Omit<OptionsFournisseurSimule, 'drapeau' | 'env'>>;
 
@@ -186,6 +190,11 @@ export class FournisseurSimule implements FournisseurStudio {
     const r = this.requetes.get(requestId);
     if (!r || !ref.startsWith(`${requestId}/`)) throw new ErreurFournisseurCertaine('résultat inconnu');
     if (r.scenario === 'resultat_illisible') return { octets: new TextEncoder().encode('<html>502</html>'), mimeAnnonce: 'image/png' };
+    if (r.scenario === 'resultat_tronque' && this.troncatures > 0) {
+      this.troncatures -= 1;
+      const complet = pngSimule();
+      return { octets: complet.subarray(0, Math.floor(complet.length / 2)), mimeAnnonce: 'image/png' };
+    }
     return { octets: pngSimule(r.scenario === 'produit_faux' ? [40, 40, 40] : [255, 92, 138]), mimeAnnonce: 'image/png' };
   }
 
