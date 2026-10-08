@@ -23,14 +23,15 @@ refus). Aucune migration, aucun appel réseau réel, aucune dépense : 0 $. Tout
 
 ## 2. Décisions et pourquoi
 
-**Barrière du worker : deux modules, une règle.** `spend-guard.ts` (web) est `server-only` et n'est pas modifié. La règle
+**Barrière du worker : deux modules, une règle.** `spend-guard.ts` (web) est `server-only` (le worker ne peut pas
+l'importer ; depuis le correctif R2, §8, il réserve par la MÊME fonction de `packages/db` que le worker). La règle
 reste celle du noyau (`checkBudget`), le plafond se lit comme `spendCapUsd()` (`plafondDepenseUsd` : absent ⇒ 50 $,
 illisible ou négatif ⇒ 50 $), la fenêtre est de 30 jours glissants sur `ai_spend.actual_usd`. Elle vit dans
 `packages/integrations` (qui dépend du noyau) ; l'accès à la table vit dans `packages/db` (qui a le schéma). Aucune
 dépendance ajoutée : `db` ne dépend pas du noyau, `integrations` ne dépend pas de la base, d'où le port
 (`PortDepense`) que le worker réalise avec `reserverDepense` / `annulerDepense`. Deux écarts voulus, du côté prudent :
 réservation sous verrou consultatif de transaction (deux workers ne passent pas le même reste ; prouvé sur Postgres
-réel), et une écriture impossible REFUSE la dépense (le web journalise et laisse passer).
+réel), et une écriture impossible REFUSE la dépense (depuis R2, le web aussi : sans ligne, pas d'appel).
 
 **Une ligne `ai_spend` par job, sans colonne.** Son identifiant est dérivé du job (`idDepenseDuJob`, SHA-256 au format
 UUID). Une seconde réservation pour le même job retombe sur la même clé : refusée en INCERTAIN (réconciliation, jamais
@@ -168,8 +169,7 @@ le service (le proxy de la session bloque fal, 0 $). Les médias sont des PNG d�
 - **Les jobs actuels sont bloqués honnêtement.** L'approbation L3 écrit `parametres: {}` : tant qu'elle n'écrit pas la
   consigne compilée (voir §7.1), chaque job image réel finit `failed` avec la raison « la consigne image compilée
   n'est pas dans l'instantané du job », 0 appel, 0 $, crédits rendus.
-- **Course web/worker.** La barrière web n'utilise pas le verrou consultatif : une dépense web et une dépense worker
-  simultanées peuvent passer le même reste (comme deux dépenses web aujourd'hui). Worker contre worker : sérialisé.
+- **Course web/worker** : levée par le correctif R2 (§8). Les limites qui restent sont listées en §8.5.
 - **Plafond atteint ⇒ `failed`** et non retour en file (le moteur L3 a déjà posé `running`).
 - **Recul du sondage en mémoire** : un redémarrage relit tout de suite ; une erreur passagère persistante laisse le job
   `running` sans borne de durée (le moteur n'a pas de compteur de lectures).
@@ -188,3 +188,74 @@ le service (le proxy de la session bloque fal, 0 $). Les médias sont des PNG d�
 3. **`safe-fetch.ts`** : un `fetch` injectable et une lecture en flux bornée permettraient de réutiliser `safeFetch`
    tel quel.
 4. **`apps/workers/tsconfig.json`** n'inclut pas `test/` : les tests du worker sont vérifiés par vitest, pas par tsc.
+
+## 8. Correctif R2 · réservation commune site/worker (contre-recette du 8 octobre, P1)
+
+### 8.1 Le constat, reproduit avant correction
+
+« Une table commune n'est pas un verrou commun. » `reserverDepense` verrouillait le worker, mais `guardFixedCost`
+(`sousPlafond`) lisait la somme puis insérait sans ce verrou, et `guardedAnthropic` n'écrivait qu'APRÈS l'appel.
+Reproduit sur PostgreSQL 16 réel (`tiktrends_fa`), site et worker dans DEUX processus (le worker composé comme en
+production : `portDepenseBase` + `BarriereDepenseStudio`, `apps/workers/test/fa-course-worker.ts` lancé par tsx) :
+
+| Scénario (`fa-course-mixte-pg.test.ts`, code d'origine `8ce5ece`) | Résultat lu en base |
+| --- | --- |
+| Recette : plafond 0,20 $, déjà 0,08 $, worker tient sa décision 1,5 s après lecture, le site dépense 0,08 $ | `web 1, worker 1, total 0.24 $` |
+| Même chose, le site appelle Anthropic (max 0,075003 $, réponse coupée à `max_tokens`) | `Anthropic 1, worker 1, total 0.235003 $` |
+| 5 manches simultanées (8 fixes web + 6 Anthropic + 8 worker), plafond 0,50 $ | totaux 1,170018 · 0,8154 · 1,095015 · 0,8154 · 1,090018 $ |
+
+### 8.2 La correction
+
+- **Une seule réservation.** `reserverDepense` (`packages/db/src/plafond-depense.ts`) est la seule écriture de
+  réservation pour TOUS les chemins payants : site fixe (`guardFixedCost`, donc `sousPlafond`), site Anthropic
+  (`guardedAnthropic`), worker (`BarriereDepenseStudio`). Même verrou consultatif (`VERROU_PLAFOND`), même somme, même
+  insertion, même transaction. L'identifiant est imposé côté worker (dérivé du job), tiré par la base côté site.
+  Décision : `checkBudget`, plafond `spendCapUsd()`, fenêtre 30 jours. Base absente ou réservation impossible ⇒ refus
+  (`SpendBlockedError`, même phrase que « plafond atteint »), rien ne part.
+- **Anthropic réservé AVANT l'appel.** Montant réservé = `estimateCallCost` du noyau (`max_tokens` × tarif de sortie +
+  entrée estimée à 3,5 caractères par jeton × tarif d'entrée), aucune valeur nouvelle. Le maximum ne tient pas ⇒ refus
+  avant l'appel. Puis : usage lu ⇒ `reglerDepense` (coût réel, jetons écrits, une fois) ; flux ⇒ réglé seulement au
+  `message_delta` final, coupé ou jamais lu ⇒ la réservation reste ; réponse sans usage ⇒ la réservation reste.
+- **Libération seulement si certain.** `reservationTexteLiberable` (noyau, `fournisseurs/plafond.ts`) : 400/422
+  (`requete`), 401/403 (`acces`), statuts que le client 0.27.3 ne rejoue jamais (`core.js`, `shouldRetry`). 429, 408,
+  409, ≥ 500, coupure, délai, erreur sans statut : la réservation reste (le client a pu rejouer après une tentative
+  incertaine).
+- **Idempotence sans colonne.** États lus sur les colonnes existantes : réservée (`actual = estimated`, jetons nuls),
+  réglée (jetons écrits), rendue (`actual = 0`, jetons nuls). Règlement et libération ne partent que de « réservée » :
+  rejouer ne change rien, une ligne réglée n'est jamais rendue, une ligne rendue n'est jamais réglée.
+
+### 8.3 Preuves après correction
+
+| Garde | Ce qui est lu |
+| --- | --- |
+| `fa-course-mixte-pg` (PostgreSQL réel, 2 processus, 3 exécutions) | scénario recette : 1 seul passage, total 0,16 $ ; variante Anthropic : 0 appel, total 0,16 $ ; 15 manches mixtes au plafond 0,50 $ : total maximal 0,48 $, le worker obtient des réservations dans 11 manches sur 15 |
+| `fa-reservation-commune` (pglite, CI) | ligne visible PENDANT l'appel au maximum (0,075003 $, jetons nuls) puis réglée au réel ; 3 appels simultanés pour un plafond de 2 ⇒ 2 en vol, 1 refus ; refus avant appel ; base en panne ⇒ refus ; 10 issues d'erreur (4 rendues, 6 gardées) ; flux complet / coupé / jamais lu ; règlement et libération rejoués |
+| `spend-guard-coverage` (ajouts) | aucune écriture `ai_spend` hors de `packages/db/src/plafond-depense.ts` (site, worker, paquets) ; `spend-guard.ts` appelle `reserverDepense` et `reglerDepense` ; aucune méthode payante du client hors `messages.create` |
+| Existants inchangés | `fa-plafond-commun`, `fa-plafond-pg` (20 réservations, 5 passent), `sec-ai-spend-espace`, toute la suite web |
+
+### 8.4 Mutations R2
+
+| Mutation | Garde qui tombe | Phrase |
+| --- | --- | --- |
+| R2-M1 verrou retiré côté site (lignes sans identifiant imposé) | `fa-course-mixte-pg` | `dépassement · web 1, worker 1, total 0.24 $ pour un plafond de 0,20 $` · `plafond 0,50 $ dépassé : [...]` (pglite ne le voit pas : une seule connexion) |
+| R2-M2 Anthropic réservé après l'appel | `fa-reservation-commune`, `fa-course-mixte-pg` | `aucune réservation visible pendant l’appel · la dépense est écrite après` · `les trois appels sont partis ensemble · le plafond ne réserve pas avant l’appel: expected { appelsEnVol: 3, refus: 1 }` |
+| R2-M3 règlement sans condition d'état | `fa-reservation-commune` | `second règlement appliqué · le règlement n’est pas idempotent` · `une ligne rendue a été réglée de nouveau` |
+| R2-M4 libération d'une ligne réglée | `fa-reservation-commune` | `une ligne réglée au coût réel a été rendue` |
+| R2-M5 `guardFixedCost` revenu à lecture puis insertion | `spend-guard-coverage`, `fa-course-mixte-pg` | `écrit ai_spend hors de la réservation commune (verrou, règlement, libération) : apps/web/lib/spend-guard.ts` · `total 0.24 $` |
+| R2-M6 429 libérable | `fa-reservation-commune` | `réservation non gardée après « 429 saturation (rejouée par le client) »` |
+| R2-M7 flux réglé sur un usage partiel | `fa-reservation-commune` | `flux coupé réglé sur un usage partiel · la sortie facturée est sous-comptée` |
+| R2-M8 libération rejouée | `fa-reservation-commune` | `seconde libération appliquée · la libération n’est pas idempotente` |
+| R2-M9 `client.beta.messages` dans un fichier du site | `spend-guard-coverage` | `appelle une méthode payante non gardée du client Anthropic : apps/web/lib/studios/prompts/adaptateur.ts` |
+
+### 8.5 Limites restantes
+
+- **Entrée estimée, pas bornée.** L'entrée d'un appel texte est estimée à 3,5 caractères par jeton (estimateur
+  existant). Un texte plus dense en jetons (langues non latines, symboles) peut coûter plus que la réservation ; le
+  règlement écrit alors le coût RÉEL, qui peut dépasser le plafond de cet écart. Une borne stricte (octets UTF-8, ou
+  comptage préalable des jetons) changerait le montant réservé de tous les appels : décision du propriétaire.
+- **Course réelle limitée à un processus site et un processus worker** sur une même machine ; la propriété repose sur
+  le verrou consultatif de PostgreSQL, indépendant du nombre de processus.
+- **Un flux coupé garde le maximum** : prudent, il peut surcompter jusqu'au `max_tokens` de l'appel coupé.
+- **Lignes antérieures** : une ligne Anthropic écrite avant R2 porte ses jetons ; elle n'est ni réglable ni rendable, ce
+  qui est l'état voulu.
+- `messages.stream()` du client n'est pas utilisé ; le garde rend un itérateur, pas un `Stream` du client (inchangé).
