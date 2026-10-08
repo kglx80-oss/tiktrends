@@ -2,19 +2,20 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "2ce211f (claude/studios-integration = vague 2 + L4-A + L4-B + L4-C + raccords ; portes vertes : core 2438, web 2921 dont 15 ignorés, workers 7, ai 8, integrations 88, build)",
-  "lotCourant": "L5",
+  "shaCourant": "ad883e7 (claude/studios-integration = L0 à L5 + corrections de la recette du 8 octobre + raccords ; portes vertes : core 2548, web 3039 dont 16 ignorés, workers 7, ai 8, integrations 88, build)",
+  "lotCourant": "F (fournisseurs réels et benchmark, vague 5) puis L6",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
     "L2": "LOCAL_VERIFIED",
     "L3": "LOCAL_VERIFIED",
     "L4": "LOCAL_VERIFIED",
-    "L5": "TODO",
+    "L5": "LOCAL_VERIFIED",
     "L6": "TODO",
     "L7": "TODO",
     "L8": "TODO",
-    "L9": "TODO"
+    "L9": "TODO",
+    "F": "IN_PROGRESS"
   },
   "proprietaires": {
     "integrateur": "session principale (contrats communs, migrations, shell, navigation, tokens, releases)"
@@ -32,7 +33,13 @@
     "claude/studios-base-vague3": "base figée 119d2bf, cible des PR de vague 3",
     "claude/studios-l4-propositions": "L4-A (9094086, PR #738)",
     "claude/studios-l4-filiation": "L4-B (ae633c8, PR #739)",
-    "claude/studios-l4-variantes": "L4-C (PR à ouvrir)"
+    "claude/studios-l4-variantes": "L4-C (PR à ouvrir)",
+    "claude/studios-l5-rendu": "L5-A (ebf4215, PR #742)",
+    "claude/studios-l5-calques": "L5-B (c865e47, PR #743)",
+    "claude/studios-l5-produit-textes": "L5-C (de70ca6, PR #744)",
+    "claude/studios-base-vague5": "base figée vague 5 = ad883e7",
+    "claude/studios-f-fournisseur-image": "F-A fournisseur image réel, barrière worker (en cours)",
+    "claude/studios-f-benchmark": "F-C benchmark F01-F24 (en cours)"
   },
   "prEnAttente": {
     "729": {
@@ -489,94 +496,94 @@
       "limites": null
     },
     "IMG-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5",
+      "test": "l5c-produit, l5c-produit-db, l5c-pages-rendu ; intégration l5-raccord-db",
+      "proofPath": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5 · PR #744",
+      "sha": "de70ca6",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md",
+      "test": "l5a-produit-fidele, l5a-compositeur",
+      "proofPath": "docs/studios-v2/L5-RENDU.md · PR #742",
+      "sha": "ebf4215",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5",
+      "test": "l5c-produit, l5c-produit-db",
+      "proofPath": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5 · PR #744",
+      "sha": "de70ca6",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5",
+      "test": "l5c-produit, l5c-produit-db, l5c-pages-rendu",
+      "proofPath": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5 · PR #744",
+      "sha": "de70ca6",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md, L5-EDITEUR.md",
+      "test": "l5a-geometrie, l5a-compositeur, l5b-calques",
+      "proofPath": "docs/studios-v2/L5-RENDU.md, L5-EDITEUR.md · PR #742, #743",
+      "sha": "ebf4215 + c865e47",
+      "limites": "Zones sûres Meta issues de relevés concordants, à reconfirmer par le propriétaire ; aucun profil TikTok."
     },
     "IMG-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md",
+      "test": "l5a-masque, l5a-masque-pixels",
+      "proofPath": "docs/studios-v2/L5-RENDU.md · PR #742",
+      "sha": "ebf4215",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-07": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-EDITEUR.md §3",
+      "test": "l5b-calques, l5b-editeur-db, l5b-editeur-rendu",
+      "proofPath": "docs/studios-v2/L5-EDITEUR.md §3 · PR #743",
+      "sha": "c865e47",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-EDITEUR.md §3",
+      "test": "l5b-calques, l5b-editeur-db, l5b-editeur-rendu",
+      "proofPath": "docs/studios-v2/L5-EDITEUR.md §3 · PR #743",
+      "sha": "c865e47",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-09": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md",
+      "test": "l5a-detourage, l5a-masque-pixels",
+      "proofPath": "docs/studios-v2/L5-RENDU.md · PR #742",
+      "sha": "ebf4215",
+      "limites": "Aucun moteur de détourage déployé : capacité déclarée indisponible avec raison et deux replis (PNG détouré importé, masque tracé)."
     },
     "IMG-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md",
+      "test": "l5a-declinaisons, l5a-compositeur, l5a-actions-db",
+      "proofPath": "docs/studios-v2/L5-RENDU.md · PR #742",
+      "sha": "ebf4215",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "VIDEO-01": {
       "statut": "TODO",
@@ -925,9 +932,18 @@
       "cause": "Une release ne peut devenir active en production sans benchmark F01-F24 approuvé ; l'exécuter appelle des modèles payants.",
       "solutionPreparee": "Évaluation par commande ADMIN dédiée, données synthétiques, budget séparé (cahier §8.2).",
       "besoinKevin": "Budget explicite d'évaluation et exécution hors session (fal et Anthropic non joignables depuis la session pour fal)."
+    },
+    {
+      "id": "B-BUDGET-BENCHMARK",
+      "exigences": [
+        "PROMPT-05",
+        "UX-07"
+      ],
+      "cause": "Aucun budget fournisseur TikTrends explicitement autorisé pour le benchmark réel F01-F24 ni pour le premier passage réel des fournisseurs.",
+      "solutionPreparee": "Commande de benchmark avec devis agrégé, budget explicite et approbation ADMIN (vague 5) ; exécution réelle seulement après accord chiffré du propriétaire."
     }
   ],
-  "prochaineAction": "Recette Codex de #731 à #739 et de la PR L4-C (et #729/#730). Puis L5 : studios Image/Pubs/Textes sur le projet canonique (canvas, calques, masques, lots), avec route de lecture des médias.",
+  "prochaineAction": "Recette Codex des PR #742 à #744 au SHA indiqué, et de l'intégration #741 (ad883e7). En parallèle, vague 5 : F-A (adaptateur fal du moteur, barrière de dépense partagée web/worker, démarrage du worker) et F-C (benchmark F01-F24 : devis agrégé, campagne simulée, mode réel refusé sans budget et approbation ADMIN). L'exécution réelle attend un budget explicite du propriétaire. Puis L6.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -1024,6 +1040,31 @@
       "id": "D-INT-01",
       "decision": "Supprimer une marque : traces d’exécution supprimées avec elle ; historique studio et restrictions de membre bloquent avec motif.",
       "source": "commit 3d4db87 (porté sur #737)"
+    },
+    {
+      "id": "D-L5-01",
+      "decision": "Rendu du texte par table d’avances mesurée dans les polices embarquées, sans crénage ; police inconnue refusée (UNSUPPORTED_CAPABILITY), jamais substituée. L’aperçu de l’éditeur désactive aussi le crénage.",
+      "source": "L5-RENDU.md, intégration ad883e7"
+    },
+    {
+      "id": "D-L5-02",
+      "decision": "Une déclinaison de format est une nouvelle version (enregistrerVersion, 409) ; une extension de décor est seulement proposée.",
+      "source": "L5-RENDU.md"
+    },
+    {
+      "id": "D-L5-03",
+      "decision": "Éditeur : enregistrement explicite (version immuable), pas d’autosave serveur ; copie de secours locale ; historique borné à 100 étapes (mesuré).",
+      "source": "L5-EDITEUR.md"
+    },
+    {
+      "id": "D-L5-04",
+      "decision": "Photo produit = identité dérivée du contenu (pph_…) dans le catalogue existant, jamais recopiée ; l’éditeur et le rendu la lisent par le chemin de la route d’aperçu L5-C ; photo distante jamais téléchargée.",
+      "source": "L5-PRODUIT-TEXTES.md, intégration ad883e7"
+    },
+    {
+      "id": "D-L5-05",
+      "decision": "Composants obligatoires : passed exige chaque composant confirmé ; sans contrôle visuel routé, requires_review.",
+      "source": "L5-PRODUIT-TEXTES.md"
     }
   ],
   "prOuvertes": {
@@ -1035,7 +1076,11 @@
     "736": "L3 exécution (e3f3bcfd, base vague 2)",
     "737": "L2 serveur, registre, ADMIN, Jarvis (9ca57cab, base vague 2)",
     "738": "L4-A propositions (base vague 3)",
-    "739": "L4-B Veille, brief, projet (base vague 3)"
+    "739": "L4-B Veille, brief, projet (base vague 3)",
+    "741": "intégration de référence, brouillon (ad883e7)",
+    "742": "L5-A rendu, masques, déclinaisons, médias (ebf4215, base vague 4)",
+    "743": "L5-B éditeur de calques (c865e47, base vague 4)",
+    "744": "L5-C produit épinglé, références, Textes (de70ca6, base vague 4)"
   },
   "besoinsIntegrateur": [
     "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
@@ -1050,8 +1095,41 @@
     "schemaKey Layer, Brief, CharacterRef, Test, MetricSnapshot au registre",
     "Contrainte unique studio_variants.media_asset_id (aujourd’hui verrou) ; colonne job_id éventuelle",
     "ensureGraphPath / nextVariant (lib/adsmap-path.ts) acceptant une transaction",
-    "Route de lecture des médias studio (URL signée courte) pour les vignettes",
     "Index d’expression studio_audit_events (workspace_id, action, details->>cleClic) si l’audit grossit",
-    "Sélection multiple de sources dans la Veille"
+    "Sélection multiple de sources dans la Veille",
+    "Lecture S3 signée (GET SigV4) dans packages/integrations/src/storage.ts pour les médias studio",
+    "Format de fichier de MasqueStudio.assetId (PNG gris 8 bits proposé) et chemin d’import",
+    "appliquerMasqueAuxPixels dans finaliser du worker L3 pour les retouches",
+    "Zones sûres TikTok d’une source officielle ; reconfirmer les profils Meta",
+    "validerRelationsBrief : dédoublonner par fichier + rôle",
+    "schemaKey Brief et Concept au registre",
+    "Variantes du catalogue produit (migration additive)",
+    "controlerComposantsSortie en fin de job de mise en scène ; acceptation par trancherComposants"
+  ],
+  "recetteCodex": [
+    {
+      "date": "2026-10-08",
+      "constat": "P1 SEC-10 · un compte capté rend un second compte admissible",
+      "correctif": "#735 609aeea",
+      "garde": "sec-equipe-chaine-db"
+    },
+    {
+      "date": "2026-10-08",
+      "constat": "P1 médias tronqués acceptés",
+      "correctif": "#736 a8b98b2",
+      "garde": "l3-media-complet, l3-worker"
+    },
+    {
+      "date": "2026-10-08",
+      "constat": "P1 révocation de release non propagée",
+      "correctif": "#737 52d3765 / 88025b2",
+      "garde": "l2-revocation-db"
+    },
+    {
+      "date": "2026-10-08",
+      "constat": "P2 50 réconciliations affament le suivi",
+      "correctif": "#736 a8b98b2",
+      "garde": "l3-worker"
+    }
   ]
 }
