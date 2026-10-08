@@ -160,6 +160,8 @@ describe('/studio/projets/[id] · la page projet', () => {
       ['Vidéo · storyboard et montage', `/studio/projets/${projet}/video`],
       // L6-B · identités des personnages et voix.
       ['Identités et voix', `/studio/projets/${projet}/identites`],
+      // L7-A · export image vérifié de la version.
+      ['Exporter l’image', `/studio/projets/${projet}/export`],
     ]);
     expect(d.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
     expect(d.innerHTML).not.toMatch(/Trendtrack/i);

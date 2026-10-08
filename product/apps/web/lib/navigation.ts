@@ -101,6 +101,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/studio/projets/[id]/produit', label: 'Produit et références', parent: '/studio/projets/[id]', section: 'Atelier' },
   { path: '/studio/projets/[id]/textes', label: 'Textes liés au brief', parent: '/studio/projets/[id]', section: 'Atelier' },
   { path: '/studio/projets/[id]/identites', label: 'Identités et voix', parent: '/studio/projets/[id]', section: 'Atelier' },
+  { path: '/studio/projets/[id]/export', label: 'Exporter l’image', parent: '/studio/projets/[id]', section: 'Atelier' },
   { path: '/studio/projets/[id]/video', label: 'Vidéo · storyboard et montage', parent: '/studio/projets/[id]', section: 'Atelier' },
 
   { path: '/assets', label: 'Assets', section: 'Atelier' },
