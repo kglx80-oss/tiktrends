@@ -111,7 +111,7 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
       <header style={{ display: 'grid', gap: 6 }}>
         <h2 id="titre-variantes" style={{ ...titre2, margin: 0 }}>Variantes et tests</h2>
         <p style={{ ...petit, overflowWrap: 'anywhere' }}>Projet · {vue.titreProjet}</p>
-        <p style={texte}>{vue.message}</p>
+        {vue.etat !== 'vide' && <p style={texte}>{vue.message}</p>}
         <div style={rangee}>
           {vue.enCours > 0 && <Pastille ton="info">{`${vue.enCours} lot${vue.enCours > 1 ? 's' : ''} en cours`}</Pastille>}
           {!donnees.droits.proposer && <Pastille ton="neutre">Lecture seule</Pastille>}
