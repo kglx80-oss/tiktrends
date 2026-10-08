@@ -143,3 +143,60 @@ describe('aucun chemin du worker ni des intégrations ne contourne le plafond', 
     expect(coupables, `soumet à la file fal hors barrière : ${coupables.join(', ')}`).toEqual([]);
   });
 });
+
+/* ── R2 · UNE réservation pour tous les chemins payants ─────────────────────── */
+
+/**
+ * Contre-recette du 8 octobre (P1) : le site lisait la somme puis écrivait sa
+ * ligne `ai_spend` sans le verrou du worker, et Anthropic l'écrivait APRÈS
+ * l'appel. « Une table commune n'est pas un verrou commun. »
+ *
+ * Le RÉSULTAT (course mixte : la somme ne dépasse jamais le plafond ; la
+ * réservation existe pendant l'appel) est prouvé par
+ * `fa-reservation-commune.test.ts` (pglite) et `fa-course-mixte-pg.test.ts`
+ * (PostgreSQL réel). Cette garde-ci rend le contournement visible partout, y
+ * compris dans un fichier ajouté demain :
+ *  · une ligne `ai_spend` ne s'ÉCRIT (insertion, mise à jour) que dans
+ *    `packages/db/src/plafond-depense.ts` (réservation sous verrou, règlement,
+ *    libération) ;
+ *  · la barrière du site passe par `reserverDepense` ;
+ *  · aucune méthode payante du client Anthropic autre que `messages.create`
+ *    (seule gardée) n'est appelée.
+ */
+const MODULE_RESERVATION = join('packages', 'db', 'src', 'plafond-depense.ts');
+const toutesSources = [
+  ...fichiers(join(RACINE, 'app')), ...fichiers(join(RACINE, 'lib')),
+  ...fichiers(join(PRODUIT, 'apps', 'workers', 'src')),
+  ...['core', 'db', 'integrations', 'ai', 'ui'].flatMap((p) => fichiers(join(PRODUIT, 'packages', p, 'src'))),
+].map((p) => ({ p: p.slice(PRODUIT.length + 1), s: readFileSync(p, 'utf8') }));
+
+describe('une seule réservation pour tous les chemins payants', () => {
+  it('les dossiers sont bien lus (garde non vide)', () => {
+    expect(toutesSources.map((f) => f.p)).toEqual(expect.arrayContaining([
+      join('apps', 'web', 'lib', 'spend-guard.ts'), MODULE_RESERVATION,
+      join('apps', 'workers', 'src', 'studios', 'fournisseurs.ts'),
+      join('packages', 'integrations', 'src', 'plafond-depense.ts'),
+    ]));
+  });
+
+  it('une ligne ai_spend ne s’écrit que dans le module de réservation', () => {
+    const ECRITURE = /\.(insert|update)\(\s*(schema\.)?aiSpend\b|(insert\s+into|update)\s+"?ai_spend"?/i;
+    const coupables = toutesSources.filter((f) => f.p !== MODULE_RESERVATION && ECRITURE.test(f.s)).map((f) => f.p);
+    expect(coupables, `écrit ai_spend hors de la réservation commune (verrou, règlement, libération) : ${coupables.join(', ')}`).toEqual([]);
+    // Le module de réservation lui-même écrit bien sous le verrou commun.
+    const m = toutesSources.find((f) => f.p === MODULE_RESERVATION)!.s;
+    expect(m, 'la réservation ne prend plus le verrou consultatif').toMatch(/pg_advisory_xact_lock\(\$\{VERROU_PLAFOND\}\)/);
+  });
+
+  it('la barrière du site réserve par la fonction commune', () => {
+    const g = readFileSync(join(RACINE, GARDE), 'utf8');
+    expect(g, 'spend-guard.ts ne passe plus par reserverDepense').toMatch(/\breserverDepense\(/);
+    expect(g, 'spend-guard.ts règle Anthropic hors de reglerDepense').toMatch(/\breglerDepense\(/);
+  });
+
+  it('aucune méthode payante du client Anthropic hors de messages.create', () => {
+    const AUTRE = /\.beta\.(messages|prompt)|\.messages\.batches\b|\.completions\.create\(/;
+    const coupables = toutesSources.filter((f) => AUTRE.test(f.s)).map((f) => f.p);
+    expect(coupables, `appelle une méthode payante non gardée du client Anthropic : ${coupables.join(', ')}`).toEqual([]);
+  });
+});
