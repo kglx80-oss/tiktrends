@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useId, useState } from 'react';
 import {
-  TYPES_TEXTE, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, VARIANTES_MAX, VARIANTES_DEFAUT, formatUsd,
+  libelleCoutTexteEstime, NOTE_BORNE_TEXTE, TYPES_TEXTE, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, VARIANTES_MAX, VARIANTES_DEFAUT,
   type TexteStudio, type TypeTexte, type VarianteTexte, type ErreurStudio,
 } from '@tiktrends/core';
 import type { VueTextes } from '../../../lib/studios/textes/textes';
@@ -166,7 +166,7 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
           </div>
         </div>
         <p id={`${id}-max-aide`} style={mini}>{limite.mesuree ? `${limite.max} : palier mesuré où la police de l’accroche atteint son plancher.` : `${limite.max} : borne du contrat, aucune limite mesurée pour ce type · resserre-la si besoin.`}</p>
-        <p style={mini} data-cout="texte">Appel texte payant · {formatUsd(d.coutMaxUsd)} au plus, imputé au plafond de dépense. Aucun média, aucun crédit, rien d’enregistré sans « Retenir ».</p>
+        <p style={mini} data-cout="texte">Appel texte payant · {libelleCoutTexteEstime(d.coutMaxUsd)} · {NOTE_BORNE_TEXTE}, imputé au plafond de dépense. Aucun média, aucun crédit, rien d’enregistré sans « Retenir ».</p>
         {!d.disponible && <p role="note" style={{ ...texte, color: 'var(--ink)' }}><span style={{ color: 'var(--warn)', fontWeight: 600 }}>Indisponible · </span>{d.raison}</p>}
         <div style={rangee}>
           <button type="button" disabled={ecritureBloquee} aria-busy={enCours === 'ecrire'} style={{ ...boutonPrimaire, ...(ecritureBloquee ? desactive : {}) }} onClick={ecrire}>

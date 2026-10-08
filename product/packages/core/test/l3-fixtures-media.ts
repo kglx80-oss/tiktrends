@@ -7,8 +7,8 @@
  *  · `mp4StructurePlausible` · un MP4 FABRIQUÉ dont les boîtes sont cohérentes
  *    (piste `vide`, `stsd` avc1, échantillons, décalage dans `mdat`) mais dont
  *    les données sont des zéros : il passe le premier filtre et N'EST PAS une
- *    vidéo décodable. Aucune vraie vidéo n'existe dans ce dépôt ni sur la
- *    machine (pas de ffmpeg) : aucun cas positif vidéo n'est prétendu ici ;
+ *    vidéo décodable. Aucune vraie vidéo n'est versionnée dans ce dépôt : les
+ *    cas positifs vidéo vivent au worker (ffmpeg, `l7b-decodeur-video`), pas ici ;
  *  · `pngIdatCorrompu` · un PNG réel dont le flux zlib est abîmé APRÈS
  *    compression, CRC recalculés : structure parfaite, pixels illisibles ;
  *  · `jpegScanCoupe` · un JPEG réel dont le flux entropique est coupé au tiers,

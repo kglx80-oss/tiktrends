@@ -369,3 +369,23 @@ export function depasseMontantApprouve(borneUsd: number, approuveMicros: number)
   if (Number.isFinite(borne) && Number.isFinite(approuveMicros) && borne <= approuveMicros) return null;
   return `la requête peut coûter jusqu’à ${(borne / 1e6).toFixed(3).replace('.', ',')} $, au-delà des ${(approuveMicros / 1e6).toFixed(3).replace('.', ',')} $ approuvés au devis`;
 }
+
+/* ───────────── Annonce d'un appel texte avant le clic (raccord vague 7) ───── */
+
+/**
+ * Coût d'un appel TEXTE annoncé avant le clic, dans les écrans Studios.
+ *
+ * Contre-recette du 8 octobre sur 0f6f836 : « devis présenté comme estimation
+ * sauf borne prouvée ». Le montant affiché (`coutMaximalTexte`,
+ * `plafondPropositionUsd`) compte l'entrée à 3,5 caractères par jeton : c'est
+ * une ESTIMATION. Mesuré plus haut, une tâche au budget plein peut réserver
+ * 0,355 $ (texte français) à 0,825 $ (pire cas) pour 0,132 $ annoncés. Il ne
+ * se dit donc jamais « au plus ». Ce qui EST garanti : la borne exacte de la
+ * requête réelle est réservée avant l'envoi sous le plafond commun, et réglée
+ * au coût réel ensuite.
+ */
+export function libelleCoutTexteEstime(usd: number): string {
+  // Arrondi au centime SUPÉRIEUR (côté prudent), comme les autres montants annoncés.
+  return `environ ${(Math.ceil(usd * 100 - 1e-9) / 100).toFixed(2).replace('.', ',')} $ (estimation)`;
+}
+export const NOTE_BORNE_TEXTE = 'borne exacte réservée avant l’envoi, sous le plafond';

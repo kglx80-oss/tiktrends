@@ -16,7 +16,7 @@ validés**. Ne pas les annoncer opérationnels avant parcours réel recetté.
 | --- | --- |
 | **15 $** pour l'ensemble de l'essai (pas 1 + pas 2) | **Approuvé** par le propriétaire le 8 octobre. Posé comme plafond dur de tout l'environnement (`AI_SPEND_CAP_USD=15` dans le compose, vérifié par test). |
 | **1 $** au plus pour une passe du pas 1 | **PROPOSITION, à approuver avant lancement.** Ce n'est pas une dépense approuvée. Tu peux la baisser (`--plafond-passe-usd`), jamais la monter. |
-| **0,22 $** au plus pour le pas 1 tel qu'il est chiffré aujourd'hui | Annonce calculée par le code (compilation texte 0,14 $ + image 0,08 $). C'est ce montant que tu recopies pour confirmer. Rien ne part sans cette saisie. |
+| **0,36 $** au plus pour le pas 1 tel qu'il est chiffré aujourd'hui | Annonce calculée par le code : compilation texte 0,14 $ ESTIMÉE (la borne exacte est réservée avant l'envoi ; si elle ne tient pas dans le total, rien ne part) + image 0,08 $ + contrôle visuel 0,15 $ (ligne du devis cochée par défaut, décision du propriétaire du 8 octobre). Le TOTAL est un plafond DUR de la passe : la réservation commune refuse toute dépense au-delà. C'est ce montant que tu recopies pour confirmer. Rien ne part sans cette saisie. |
 | Pas 2 · **15 $ moins tout ce qui est déjà compté** | Le devis benchmark annoncé (9,925 $) est **en cours de recalcul par R3** (réessais, borne d'entrée). **Le pas 2 attend ce recalcul.** |
 
 Barrières qui tiennent même si une consigne est oubliée :
@@ -127,7 +127,7 @@ affiche le coût maximal puis refuse. Rien n'est dépensé.
 docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:pas1
 ```
 
-Tu lis : compilation 0,14 $, image 0,08 $, **TOTAL 0,22 $ au plus**, plafond de
+Tu lis : compilation 0,14 $ (estimée), image 0,08 $, contrôle visuel 0,15 $, **TOTAL 0,36 $ au plus** (plafond dur de la passe), plafond de
 passe PROPOSÉ 1,00 $. C'est le moment d'approuver (ou non) la proposition.
 
 **4.6 · Pas 1, lancement réel** · clés saisies sans écho, puis confirmation du
@@ -137,7 +137,7 @@ TOTAL recopié :
 read -rs FAL_KEY && export FAL_KEY
 read -rs ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY
 export STUDIO_FOURNISSEUR_REEL=autorise
-docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:pas1 -- --confirmer-usd 0,22
+docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:pas1 -- --confirmer-usd 0,36
 unset FAL_KEY ANTHROPIC_API_KEY STUDIO_FOURNISSEUR_REEL
 ```
 
@@ -163,7 +163,7 @@ nouvelle confirmation).
 1. la commande rend le code 0 ;
 2. le rapport dit `État · completed` ;
 3. SHA-256 enregistré et SHA-256 du fichier relu `identique`, dimensions `identiques` ;
-4. le total réglé ne dépasse pas 0,22 $ ;
+4. le total réglé ne dépasse pas 0,36 $ ; le rapport dit si le contrôle visuel a tourné et son verdict (qualité `passed`, `requires_review` ou `rejected`) ;
 5. **toi seul** : en ouvrant l'image, le produit (lunettes et bandeau bleus) est présent et reconnaissable, la scène suit la consigne, aucun texte parasite ni logo ni marque réelle.
 
 ## 5. Pas 2 · benchmark (en attente du recalcul R3)

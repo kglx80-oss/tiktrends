@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type CSSProperties } from 'react';
-import {
+import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
   reponseApplicable, LIBELLES_MODALITE, LIBELLES_ELEMENT, MODALITES_SOURCE, LIBELLES_TYPE_PROJET, dateCourteUtc, CIBLE_TACTILE_MIN,
   type HypotheseQualifiee, type DemandeEnCours,
 } from '@tiktrends/core';
@@ -273,7 +273,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
                   <button type="button" onClick={proposer} disabled={proposant || !brandId} style={{ ...btnGhost, fontSize: 13 }}>
                     {proposant ? 'Propositions en cours…' : 'Proposer des hypothèses'}
                   </button>
-                  <span style={{ ...note, color: 'var(--muted)' }}>Appel texte facturé au plafond de dépense · {prep.ia.plafondUsd.toFixed(2).replace('.', ',')} $ au plus · aucun crédit débité.</span>
+                  <span style={{ ...note, color: 'var(--muted)' }}>Appel texte facturé au plafond de dépense · {libelleCoutTexteEstime(prep.ia.plafondUsd)} · {NOTE_BORNE_TEXTE} · aucun crédit débité.</span>
                 </div>
               ) : (
                 <p data-ia="indisponible" style={{ ...note, ...cadreSignal('rgba(245,166,35,.4)', 'tuile'), padding: '8px 10px', background: 'rgba(245,166,35,.08)' }}>{prep.ia.raison}</p>

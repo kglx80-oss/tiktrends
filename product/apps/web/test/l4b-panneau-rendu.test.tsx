@@ -87,7 +87,7 @@ describe('Préparer une création · ce qui est montré avant toute écriture', 
     expect(corps().querySelector('[data-modalite="transcription"]')?.textContent).toBe('Transcription · absente');
     expect(corps().querySelector('[data-absent="narration"]')?.textContent).toContain('Narration · absente · Aucune transcription ni piste audio');
     expect(selectMarque().value).toBe('b_a1');
-    expect(txt).toContain('0,14 $ au plus · aucun crédit débité');
+    expect(txt).toContain('environ 0,14 $ (estimation) · borne exacte réservée avant l’envoi, sous le plafond · aucun crédit débité');
     expect(bouton('Créer le projet').textContent).toBe('Créer le projet pour Marque A1');
     expect(h.appels.creer).toHaveLength(0);
   });

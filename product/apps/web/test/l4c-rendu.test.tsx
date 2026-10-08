@@ -110,7 +110,7 @@ describe('Rendu · variantes, versions, statuts, test, apprentissage', () => {
     expect(off).not.toContain('Relire avec l’IA');
     expect(off).toContain('Relecture IA indisponible');
     const on = texteVisible(html(await donnees('ua', scene.projectId, { relecture: { disponible: true, raison: null, coutMaxUsd: 0.14 } })));
-    expect(on).toContain('Relire avec l’IA · au plus 0,14 $ sur le plafond IA, aucun crédit');
+    expect(on).toContain('Relire avec l’IA · environ 0,14 $ (estimation) sur le plafond IA, aucun crédit');
   });
 
   it('génération active, sorties à choisir, itérer sans génération', async () => {

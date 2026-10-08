@@ -1,6 +1,6 @@
 /**
  * Recette Studios · PAS 1 · premier rendu image RÉEL, de bout en bout ·
- * `pnpm --filter @tiktrends/web recette:pas1 -- [--confirmer-usd 0,22] [--plafond-passe-usd 1] [--nouveau-rendu]`
+ * `pnpm --filter @tiktrends/web recette:pas1 -- [--confirmer-usd 0,36] [--plafond-passe-usd 1] [--nouveau-rendu]`
  * (dans le service d'outils du projet compose `tiktrends-recette`, voir
  * `ops/recette/README.md`).
  *
@@ -153,7 +153,9 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   if (!(await lirePointeur().catch(() => null))) return refuser(['Aucune release de prompts publiée dans la base de recette · lance d’abord `recette:semer`.']);
 
   // L'annonce, AVANT tout appel et avant tout refus de configuration.
-  const annonce = annoncePas1({ compilationUsd: core.coutMaximalTexte(modeleTexte()), imageUsdMicros: core.prixImage().usdMicros });
+  const annonce = annoncePas1({ compilationUsd: core.coutMaximalTexte(modeleTexte()), imageUsdMicros: core.prixImage().usdMicros, visionUsdMicros: core.borneControleVisionParImageMicros(modeleTexte()) });
+  /** Le devis image tel qu'il sera présenté : l'image ET son contrôle visuel (coché par défaut, R3). */
+  const devisAnnonceUsdMicros = annonce.imageUsdMicros + annonce.visionUsdMicros;
   dire(texteAnnonce(annonce, opt.options.plafondPasseUsdMicros));
 
   const J = schema.studioJobs;
@@ -185,10 +187,11 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   let capPasseUsd: number;
   let confirmeUsdMicros = 0;
   const envAvant = process.env.AI_SPEND_CAP_USD;
+  const ctx = contexteDepuisSession({ user: { id: RECETTE.userId, email: RECETTE.email, name: 'Recette' }, workspaceId: RECETTE.workspaceId, role: 'owner', plan: 'business', equipe: null }, [RECETTE.brandId], [], `st_recette_${randomUUID()}`);
   try {
     if (enCours) {
       if (!fal.ok) return refuser([fal.raison], annonce);
-      capPasseUsd = Math.min(budget.capUsd, budget.depenseUsd + annonce.imageUsdMicros / 1_000_000);
+      capPasseUsd = Math.min(budget.capUsd, budget.depenseUsd + devisAnnonceUsdMicros / 1_000_000);
       dire(`Reprise du job ${enCours.id} (${enCours.state}) approuvé lors d’une passe précédente · aucune compilation, aucun devis, aucune approbation nouvelle. Barrière de la passe : ${capPasseUsd} $.`);
       jobId = enCours.id;
       ids.devisId = enCours.quoteId;
@@ -201,7 +204,6 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       process.env.AI_SPEND_CAP_USD = String(capPasseUsd);
       dire(`Confirmé · ${usdAffiche(confirmeUsdMicros)} au plus. Barrière de la passe : ${capPasseUsd} $ (déjà compté ${budget.depenseUsd} $).`);
 
-      const ctx = contexteDepuisSession({ user: { id: RECETTE.userId, email: RECETTE.email, name: 'Recette' }, workspaceId: RECETTE.workspaceId, role: 'owner', plan: 'business', equipe: null }, [RECETTE.brandId], [], `st_recette_${randomUUID()}`);
       const { compilerEtAttesterPour, retenirConsignePour } = await import('../../lib/studios/image/consigne');
       const { devisImagePour, approuverImagePour } = await import('../../lib/studios/image/parcours');
       const arreter = async (arret: string, code: 1): Promise<ResultatPas1> => {
@@ -221,7 +223,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       const dv = await devisImagePour(ctx, { projectId: RECETTE.projectId }, horloge());
       if (!dv.ok) return arreter(`Devis refusé · ${dv.code}${dv.message ? ` · ${dv.message}` : ''}`, 1);
       ids.devisId = dv.devis.id;
-      if (dv.devis.maximumUsdMicros > annonce.imageUsdMicros) return arreter(`Devis image ${usdAffiche(dv.devis.maximumUsdMicros)} > image annoncée ${usdAffiche(annonce.imageUsdMicros)} · rien n’est approuvé (seule la compilation a été dépensée).`, 1);
+      if (dv.devis.maximumUsdMicros > devisAnnonceUsdMicros) return arreter(`Devis image ${usdAffiche(dv.devis.maximumUsdMicros)} > devis annoncé ${usdAffiche(devisAnnonceUsdMicros)} (image + contrôle visuel) · rien n’est approuvé (seule la compilation a été dépensée).`, 1);
 
       const s1 = await spendStatus();
       const a = await approuverImagePour(ctx, {
@@ -259,6 +261,19 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       await dormir(attente.pasMs);
     }
     const termine = core.jobTerminal(etat as Parameters<typeof core.jobTerminal>[0]);
+    /* ── Contrôle visuel (ligne approuvée au devis) · l'écran le lance d'ordinaire ; ici, la commande ── */
+    const [jv] = etat === 'completed' ? await db.select({ snapshot: J.snapshot }).from(J).where(eq(J.id, jobId)) : [];
+    const visionAuDevis = jv ? core.controleVisionApprouve(core.lireSnapshotJob(jv.snapshot)?.lignes) : null;
+    if (etat === 'completed' && !visionAuDevis) dire('Contrôle visuel · aucune ligne au devis approuvé (fournisseur IA absent au devis, ou décochée) · aucun appel, aucune dépense · relecture humaine.');
+    if (etat === 'completed' && visionAuDevis && d.adaptateur) {
+      const { controlerSortieParVision } = await import('../../lib/studios/produit/qualite');
+      const { resolveurMediasStudio } = await import('../../lib/studios/prompts/resolveur');
+      const v = await controlerSortieParVision(ctx, { jobId }, {
+        adaptateur: d.adaptateur, environnement: environnementPrompts(d.env), plafondAtteint: async () => (await spendStatus()).blocked,
+        medias: resolveurMediasStudio({ lire: (m) => stockage.relire(m.storageKey) }),
+      });
+      dire(v.ok ? `Contrôle visuel · qualité « ${v.qualite} »` : `Contrôle visuel non exécuté · ${v.code}${'message' in v && v.message ? ` · ${v.message}` : ''}`);
+    }
     const arret = termine ? null : `Job ${jobId} toujours « ${etat} » après ${Math.round(attente.maxMs / 60_000)} min · relance la même commande : elle REPREND ce job, sans nouvelle dépense.`;
     const rapport = await ecrireRapport(jobId, { capPasseUsd, confirmeUsdMicros, arret });
     return { code: !termine ? 3 : etat === 'completed' ? 0 : 1, refus: arret ? [arret] : [], annonce, rapport, jobId };

@@ -1,3 +1,4 @@
+import { libelleCoutTexteEstime } from '../../depense-prudente';
 /**
  * Studios · L4-C · boucle d'apprentissage (cahier 01 §4.8, recette FLOW-09).
  *
@@ -207,5 +208,5 @@ export function coutMaxRelectureUsd(modele: string): number {
 }
 
 export function libelleCoutRelecture(usd: number): string {
-  return `au plus ${usd.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $ sur le plafond IA, aucun crédit`;
+  return `${libelleCoutTexteEstime(usd)} sur le plafond IA, aucun crédit`;
 }

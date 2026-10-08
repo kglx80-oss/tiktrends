@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import {
+import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
   libellePrix, libelleCredits, LIBELLES_ROLE, LIBELLES_PORTEE, VALIDITE_DEVIS_MS, phraseCoutDevis, libelleCaseControleVision, libelleUsd,
   type ModeImage, type RoleReference, type PorteeReference,
 } from '@tiktrends/core';
@@ -187,7 +187,7 @@ export function VueParcours(p: ProprietesVueParcours) {
         </div>
         <div style={rangee}>
           <Bouton nom="compiler" actif={compilable} enCours={p.enCours === 'compiler'} libelle="Compiler la consigne" libelleEnCours="Compilation…" surClic={p.surCompiler} />
-          <span style={mini} data-cout="compilation">Appel texte payant · {v.coutCompilationUsd.toFixed(2).replace('.', ',')} $ au plus · aucun crédit débité, aucun média produit.</span>
+          <span style={mini} data-cout="compilation">Appel texte payant · {libelleCoutTexteEstime(v.coutCompilationUsd)} · {NOTE_BORNE_TEXTE} · aucun crédit débité, aucun média produit.</span>
         </div>
         {!d.compilation.disponible && <p style={signal('warn')} data-indisponible="compilation">Indisponible · {d.compilation.raison}</p>}
         {p.questions.length > 0 && (

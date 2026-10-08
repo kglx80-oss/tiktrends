@@ -96,24 +96,27 @@ export function lireMontantUsd(brut: string | undefined | null): number | null {
 export interface AnnoncePas1 {
   compilationUsdMicros: number;
   imageUsdMicros: number;
+  /** Contrôle visuel de l'image livrée (R3 · ligne du devis cochée par défaut, borne par image). */
+  visionUsdMicros: number;
   /** Somme exacte des maximums. */
   totalUsdMicros: number;
   /** Ce que le propriétaire lit et recopie · centime supérieur. */
   afficheUsdMicros: number;
 }
 
-export function annoncePas1(e: { compilationUsd: number; imageUsdMicros: number }): AnnoncePas1 {
+export function annoncePas1(e: { compilationUsd: number; imageUsdMicros: number; visionUsdMicros: number }): AnnoncePas1 {
   const compilationUsdMicros = Math.round(e.compilationUsd * 1_000_000);
-  const totalUsdMicros = compilationUsdMicros + e.imageUsdMicros;
-  return { compilationUsdMicros, imageUsdMicros: e.imageUsdMicros, totalUsdMicros, afficheUsdMicros: centimeSuperieur(totalUsdMicros) };
+  const totalUsdMicros = compilationUsdMicros + e.imageUsdMicros + e.visionUsdMicros;
+  return { compilationUsdMicros, imageUsdMicros: e.imageUsdMicros, visionUsdMicros: e.visionUsdMicros, totalUsdMicros, afficheUsdMicros: centimeSuperieur(totalUsdMicros) };
 }
 
 export function texteAnnonce(a: AnnoncePas1, plafondPasseUsdMicros: number = PLAFOND_PASSE_MAX_USD_MICROS): string {
   return [
     'Pas 1 · premier rendu image réel · coût MAXIMAL annoncé avant tout appel',
-    `  compilation de la consigne (texte) · ${usdAffiche(centimeSuperieur(a.compilationUsdMicros))} au plus`,
+    `  compilation de la consigne (texte) · ${usdAffiche(centimeSuperieur(a.compilationUsdMicros))} ESTIMÉ (la borne exacte est calculée sur la requête réelle et réservée avant l’envoi ; si elle ne tient pas dans le TOTAL, rien ne part)`,
     `  génération de l’image (fal)        · ${usdAffiche(centimeSuperieur(a.imageUsdMicros))} au plus`,
-    `  TOTAL                              · ${usdAffiche(a.afficheUsdMicros)} au plus`,
+    `  contrôle visuel de l’image (IA)    · ${usdAffiche(centimeSuperieur(a.visionUsdMicros))} au plus (ligne du devis cochée par défaut)`,
+    `  TOTAL                              · ${usdAffiche(a.afficheUsdMicros)} au plus · plafond DUR de la passe (réservation commune : aucune dépense au-delà)`,
     `  plafond de passe PROPOSÉ           · ${usdAffiche(plafondPasseUsdMicros)} (proposition à approuver par le propriétaire, pas une dépense approuvée)`,
     'Rien ne part sans --confirmer-usd suivi du TOTAL ci-dessus, recopié.',
   ].join('\n');
@@ -263,7 +266,7 @@ export function rapportPas1(d: DonneesRapportPas1): string {
     '',
     '## Coût',
     '',
-    `Annoncé avant tout appel · ${usdAffiche(d.annonce.afficheUsdMicros)} au plus (compilation ${usdAffiche(centimeSuperieur(d.annonce.compilationUsdMicros))}, image ${usdAffiche(centimeSuperieur(d.annonce.imageUsdMicros))}).`,
+    `Annoncé avant tout appel · ${usdAffiche(d.annonce.afficheUsdMicros)} au plus (compilation ${usdAffiche(centimeSuperieur(d.annonce.compilationUsdMicros))}, image ${usdAffiche(centimeSuperieur(d.annonce.imageUsdMicros))}, contrôle visuel ${usdAffiche(centimeSuperieur(d.annonce.visionUsdMicros))}).`,
     `Confirmé par saisie · ${usdAffiche(d.confirmeUsdMicros)}. Barrière de la passe (plafond du processus) · ${d.capPasseUsd} $.`,
     '',
     '| Fournisseur | Modèle | Action | Réservé | Réglé |',

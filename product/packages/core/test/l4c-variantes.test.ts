@@ -255,6 +255,6 @@ describe('Coût d’une relecture · annoncé avant le clic, jamais gratuit', ()
     // 24 000 jetons × 3 $/M + 4 000 × 15 $/M = 0,132 $ → 0,14 $.
     expect(coutMaxRelectureUsd('claude-sonnet-5')).toBe(0.14);
     expect(coutMaxRelectureUsd('modele-simule')).toBeGreaterThan(0);
-    expect(libelleCoutRelecture(0.14)).toBe('au plus 0,14 $ sur le plafond IA, aucun crédit');
+    expect(libelleCoutRelecture(0.14)).toBe('environ 0,14 $ (estimation) sur le plafond IA, aucun crédit');
   });
 });

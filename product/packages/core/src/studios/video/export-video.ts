@@ -52,7 +52,7 @@ export type CodeViolationExport =
   | 'sous_titres_absents' | 'texte_ecran_absent' | 'musique_absente' | 'audio_sature'
   | 'capacite_video_absente' | 'encodeur_h264_absent';
 
-export interface ViolationExport {
+export interface ViolationExportVideo {
   code: CodeViolationExport;
   /** Le plan, l'élément ou le média visé · `timeline` / `worker` sinon. */
   cible: string;
@@ -71,7 +71,7 @@ export interface ParametresEncodageMp4 {
 
 export interface PreflightExportVideo {
   statut: 'pret' | 'a_corriger' | 'bloque';
-  violations: ViolationExport[];
+  violations: ViolationExportVideo[];
   dureeTicks: number;
   /** Nombre d'images à `fps` (division entière). */
   images: number;
@@ -105,8 +105,8 @@ export function parametresEncodageMp4(capacite: CapaciteVideo, format: { largeur
 }
 
 export function preflightExportVideo(e: EntreePreflightExport): PreflightExportVideo {
-  const v: ViolationExport[] = [];
-  const a = (code: CodeViolationExport, cible: string, raison: string, nature: ViolationExport['nature'] = 'a_corriger') => v.push({ code, cible, raison, nature });
+  const v: ViolationExportVideo[] = [];
+  const a = (code: CodeViolationExport, cible: string, raison: string, nature: ViolationExportVideo['nature'] = 'a_corriger') => v.push({ code, cible, raison, nature });
   const c = e.contenu;
   const format = e.format ?? formatVideo(c);
   const t = c.timeline;
@@ -199,7 +199,7 @@ export function preflightExportVideo(e: EntreePreflightExport): PreflightExportV
   return conclure(v, somme, images, parametresEncodageMp4(e.capacite, format, t.fps));
 }
 
-function conclure(v: ViolationExport[], dureeTicks: number, images: number, parametres: ParametresEncodageMp4 | null): PreflightExportVideo {
+function conclure(v: ViolationExportVideo[], dureeTicks: number, images: number, parametres: ParametresEncodageMp4 | null): PreflightExportVideo {
   const statut = v.some((x) => x.nature === 'bloque') ? 'bloque' : v.length ? 'a_corriger' : 'pret';
   return { statut, violations: v, dureeTicks, images, parametres, rendu: RENDU_VIDEO_FINAL };
 }

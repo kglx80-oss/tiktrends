@@ -120,3 +120,13 @@ describe('issue incertaine · cause et lecture', () => {
     expect(reessaiPermis({ famille: 'service', idempotent: true })).toBe(true);
   });
 });
+
+describe('raccord vague 7 · coût d’un appel texte annoncé comme ESTIMATION', () => {
+  it('jamais « au plus », arrondi au centime supérieur', async () => {
+    const { libelleCoutTexteEstime } = await import('../src/depense-prudente');
+    expect(libelleCoutTexteEstime(0.132)).toBe('environ 0,14 $ (estimation)');
+    expect(libelleCoutTexteEstime(0.14)).toBe('environ 0,14 $ (estimation)');
+    expect(libelleCoutTexteEstime(0.1401)).toBe('environ 0,15 $ (estimation)');
+    expect(libelleCoutTexteEstime(0.132), 'une estimation se présente comme un maximum').not.toMatch(/au plus/);
+  });
+});

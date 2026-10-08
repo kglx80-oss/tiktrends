@@ -94,21 +94,21 @@ afterAll(() => { if (sortie) rmSync(sortie, { recursive: true, force: true }); }
 
 describe('Pas 1 · règles pures', () => {
   it('annonce au centime supérieur, confirmation exacte, plafond de passe ≤ 1 $', () => {
-    const a = annoncePas1({ compilationUsd: 0.132, imageUsdMicros: 80_000 });
-    expect(a).toEqual({ compilationUsdMicros: 132_000, imageUsdMicros: 80_000, totalUsdMicros: 212_000, afficheUsdMicros: 220_000 });
+    const a = annoncePas1({ compilationUsd: 0.132, imageUsdMicros: 80_000, visionUsdMicros: 147_024 });
+    expect(a).toEqual({ compilationUsdMicros: 132_000, imageUsdMicros: 80_000, visionUsdMicros: 147_024, totalUsdMicros: 359_024, afficheUsdMicros: 360_000 });
     const budget = { capUsd: 15, depenseUsd: 0 };
-    expect(deciderPas1({ annonce: a, confirmation: '0,22', plafondPasseUsdMicros: 1_000_000, budget })).toEqual({ ok: true, capPasseUsd: 0.22, confirmeUsdMicros: 220_000 });
-    expect(deciderPas1({ annonce: a, confirmation: '0.22 $', plafondPasseUsdMicros: 1_000_000, budget }).ok).toBe(true);
+    expect(deciderPas1({ annonce: a, confirmation: '0,36', plafondPasseUsdMicros: 1_000_000, budget })).toEqual({ ok: true, capPasseUsd: 0.36, confirmeUsdMicros: 360_000 });
+    expect(deciderPas1({ annonce: a, confirmation: '0.36 $', plafondPasseUsdMicros: 1_000_000, budget }).ok).toBe(true);
     const codes = (c: string | null, p = 1_000_000, b = budget) => { const d = deciderPas1({ annonce: a, confirmation: c, plafondPasseUsdMicros: p, budget: b }); return d.ok ? [] : d.refus.map((r) => r.code); };
     expect(codes(null)).toEqual(['CONFIRMATION_ABSENTE']);
     expect(codes('0,21')).toEqual(['CONFIRMATION_DIFFERENTE']);
     expect(codes('0,212')).toEqual(['CONFIRMATION_DIFFERENTE']);
-    expect(codes('0,22', 100_000)).toEqual(['DEVIS_AU_DELA_DU_PLAFOND_DE_PASSE']);
-    expect(codes('0,22', 2_000_000)).toEqual(['PLAFOND_PASSE_INVALIDE']);
-    expect(codes('0,22', 1_000_000, { capUsd: 15, depenseUsd: 14.9 })).toEqual(['BUDGET_ESSAI_INSUFFISANT']);
+    expect(codes('0,36', 100_000)).toEqual(['DEVIS_AU_DELA_DU_PLAFOND_DE_PASSE']);
+    expect(codes('0,36', 2_000_000)).toEqual(['PLAFOND_PASSE_INVALIDE']);
+    expect(codes('0,36', 1_000_000, { capUsd: 15, depenseUsd: 14.9 })).toEqual(['BUDGET_ESSAI_INSUFFISANT']);
     // La barrière ne dépasse jamais le plafond de l'environnement.
-    const d = deciderPas1({ annonce: a, confirmation: '0,22', plafondPasseUsdMicros: 1_000_000, budget: { capUsd: 15, depenseUsd: 14.7 } });
-    expect(d.ok && d.capPasseUsd).toBe(14.92);
+    const d = deciderPas1({ annonce: a, confirmation: '0,36', plafondPasseUsdMicros: 1_000_000, budget: { capUsd: 15, depenseUsd: 14.6 } });
+    expect(d.ok && d.capPasseUsd).toBe(14.96);
     expect(lireMontantUsd('abc')).toBeNull();
     expect(texteAnnonce(a)).toContain('plafond de passe PROPOSÉ           · 1,00 $ (proposition à approuver par le propriétaire, pas une dépense approuvée)');
     expect(masquerSecrets(`clé ${SECRETS.FAL_KEY} base ${ENV.DATABASE_URL} mdp ${SECRETS.POSTGRES_PASSWORD}`, ENV)).toBe('clé [masqué] base [masqué] mdp [masqué]');
@@ -119,7 +119,7 @@ describe('Pas 1 · règles pures', () => {
     const d: DonneesRapportPas1 = {
       mode: 'SIMULE', horodatage: '2026-10-08T10:00:00.000Z',
       ids: { workspaceId: 'w', brandId: 'b', projectId: 'p', versionId: 'v', runId: 'r', devisId: 'q', jobId: 'j', assetId: 'a' },
-      annonce: annoncePas1({ compilationUsd: 0.132, imageUsdMicros: 80_000 }), confirmeUsdMicros: 220_000, capPasseUsd: 0.22,
+      annonce: annoncePas1({ compilationUsd: 0.132, imageUsdMicros: 80_000, visionUsdMicros: 147_024 }), confirmeUsdMicros: 360_000, capPasseUsd: 0.36,
       etatJob: 'completed', raisonEchec: null, qualite: 'requires_review',
       depenses: [{ provider: 'fal', modele: 'fal_image', action: 'studio.generation', reserveUsd: 0.08, regleUsd: 0.08 }], registre: [],
       livrable: { chemin: '/sorties/livrables/x.png', aTransmettre: '/sorties/a-transmettre/recette-pas1-j.png', cle: 'x.png', mime: 'image/png', octets: 10, sha256Base: 'aa', sha256Fichier: 'bb', largeurBase: 1080, hauteurBase: 1350, largeurDecodee: 1080, hauteurDecodee: 1350 },
@@ -139,38 +139,40 @@ describe('Pas 1 · commande en mode simulé sur une vraie base', () => {
   it('sans confirmation ⇒ refus, annonce affichée, RIEN écrit ni appelé', async () => {
     const r = await lancer([]);
     expect(r.code).toBe(2);
-    expect(r.refus).toEqual(['CONFIRMATION_ABSENTE · Aucune confirmation · relance avec --confirmer-usd 0,22 (le montant maximal affiché, recopié).']);
-    expect(journal[0]).toContain('TOTAL                              · 0,22 $ au plus');
+    expect(r.refus).toEqual(['CONFIRMATION_ABSENTE · Aucune confirmation · relance avec --confirmer-usd 0,36 (le montant maximal affiché, recopié).']);
+    expect(journal[0]).toContain('TOTAL                              · 0,36 $ au plus');
     expect(await rien()).toEqual({ depenses: 0, devis: 0, jobs: 0, runs: 0 });
     expect(fal.appels).toBe(0);
     expect(texte.recues).toHaveLength(0);
   });
 
   it('devis au-delà du plafond de passe ⇒ refus, RIEN écrit ni appelé', async () => {
-    const r = await lancer(['--plafond-passe-usd', '0,10', '--confirmer-usd', '0,22']);
+    const r = await lancer(['--plafond-passe-usd', '0,10', '--confirmer-usd', '0,36']);
     expect(r.code).toBe(2);
-    expect(r.refus).toEqual(['DEVIS_AU_DELA_DU_PLAFOND_DE_PASSE · Devis 0,22 $ au plus > plafond de passe 0,10 $ · rien n’est lancé.']);
+    expect(r.refus).toEqual(['DEVIS_AU_DELA_DU_PLAFOND_DE_PASSE · Devis 0,36 $ au plus > plafond de passe 0,10 $ · rien n’est lancé.']);
     expect(await rien()).toEqual({ depenses: 0, devis: 0, jobs: 0, runs: 0 });
     expect(fal.appels).toBe(0);
   });
 
   it('confirmation exacte, fal encore en cours ⇒ code 3 · relancée, elle REPREND le job sans seconde soumission', async () => {
     fal.mode = 'en_cours';
-    const r1 = await lancer(['--confirmer-usd', '0,22'], ENV, 1_500);
+    const r1 = await lancer(['--confirmer-usd', '0,36'], ENV, 1_500);
     expect(r1.code).toBe(3);
     expect(fal.soumissions).toBe(1);
-    // La barrière de la passe était posée au moment de soumettre : dépense 0 + 0,22 confirmés.
-    expect(fal.plafondsVus).toEqual(['0.22']);
+    // La barrière de la passe était posée au moment de soumettre : dépense 0 + 0,36 confirmés.
+    expect(fal.plafondsVus).toEqual(['0.36']);
     expect(process.env.AI_SPEND_CAP_USD).toBeUndefined();
     expect(readFileSync(r1.rapport!, 'utf8')).toContain('toujours « running »');
 
     fal.mode = 'termine';
-    const r2 = await lancer(['--confirmer-usd', '0,22']);
+    const r2 = await lancer(['--confirmer-usd', '0,36']);
     expect(r2.code).toBe(0);
     expect(r2.jobId).toBe(r1.jobId);
     expect(fal.soumissions).toBe(1);
     expect(await compte(schema.studioJobs)).toBe(1);
     expect(await compte(schema.studioQuotes)).toBe(1);
+    // Sans fournisseur IA au devis, la ligne vision n'existe pas : la commande le DIT et n'appelle rien.
+    expect(journal.filter((l) => l.startsWith('Contrôle visuel'))).toEqual(['Contrôle visuel · aucune ligne au devis approuvé (fournisseur IA absent au devis, ou décochée) · aucun appel, aucune dépense · relecture humaine.']);
     expect(texte.recues).toHaveLength(1); // une seule compilation
 
     const [job] = await db.select().from(schema.studioJobs);
@@ -198,7 +200,7 @@ describe('Pas 1 · commande en mode simulé sur une vraie base', () => {
 
   it('livrable déjà produit ⇒ rapport réécrit, AUCUN appel, aucun job nouveau', async () => {
     const avant = { appels: fal.appels, soumissions: fal.soumissions };
-    const r = await lancer(['--confirmer-usd', '0,22']);
+    const r = await lancer(['--confirmer-usd', '0,36']);
     expect(r.code).toBe(0);
     expect(journal.some((l) => l.startsWith('Un livrable existe déjà'))).toBe(true);
     expect(fal).toMatchObject(avant);
@@ -216,7 +218,7 @@ describe('Pas 1 · commande en mode simulé sur une vraie base', () => {
   });
 
   it('cible hors recette ⇒ refus avant toute lecture', async () => {
-    const r = await lancer(['--confirmer-usd', '0,22'], { ...ENV, TIKTRENDS_ENV: undefined, DATABASE_URL: 'postgres://tiktrends:x@db:5432/tiktrends' });
+    const r = await lancer(['--confirmer-usd', '0,36'], { ...ENV, TIKTRENDS_ENV: undefined, DATABASE_URL: 'postgres://tiktrends:x@db:5432/tiktrends' });
     expect(r.code).toBe(2);
     expect(r.annonce).toBeNull();
     expect(r.refus[0]).toBe('TIKTRENDS_ENV=recette absent · cette commande ne tourne que dans l’environnement de recette.');

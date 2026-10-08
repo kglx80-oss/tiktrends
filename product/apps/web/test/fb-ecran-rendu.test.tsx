@@ -75,7 +75,7 @@ describe('états de l’écran · au HTML rendu', () => {
     const d = rendre(vue({}, { ...TOUT, releasePubliee: false, fournisseurImage: false }));
     expect(bouton(d, 'compiler')!.disabled).toBe(true);
     expect(txt(d, '[data-indisponible="compilation"]')).toBe('Indisponible · La compilation de la consigne image n’est pas encore activée : aucune version des consignes n’est publiée. Rien n’est facturé.');
-    expect(txt(d, '[data-cout="compilation"]')).toBe('Appel texte payant · 0,14 $ au plus · aucun crédit débité, aucun média produit.');
+    expect(txt(d, '[data-cout="compilation"]')).toBe('Appel texte payant · environ 0,14 $ (estimation) · borne exacte réservée avant l’envoi, sous le plafond · aucun crédit débité, aucun média produit.');
     expect(txt(d, '[data-indisponible="lancement"]')).toContain('Le fournisseur d’images n’est pas branché sur ce serveur');
     expect(bouton(d, 'devis')!.disabled).toBe(true);
     expect(bouton(d, 'lancer')).toBeNull();

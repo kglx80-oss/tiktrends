@@ -28,7 +28,7 @@ vi.mock('../app/actions/studios/video', () => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
 
 import {
-  disponibiliteVideo, timelineDesPlans, segmentsPlans, verdictConsignePlan, prixImage, LIBELLE_ANIMATION_INDISPONIBLE,
+  disponibiliteVideo, timelineDesPlans, segmentsPlans, verdictConsignePlan, prixImage, LIBELLE_ANIMATION_INDISPONIBLE, LIBELLE_ANIMATION_SANS_FOURNISSEUR,
   type ContenuVersion, type PlanStudio, type EntreeDisponibiliteVideo,
 } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo, KeyframeVue } from '../lib/studios/video/lecture';
@@ -106,13 +106,22 @@ describe('rendu · storyboard, animation, prix, indisponibilités', () => {
     expect([...d.querySelectorAll('button')].some((b) => /anim|clip/i.test(b.textContent ?? ''))).toBe(false);
   });
 
+  it('raccord vague 7 · décodeur sondé, aucun fournisseur ⇒ le libellé dit la vraie cause, pas « aucun décodeur »', () => {
+    const d = html(props(vue({}, { ...TOUT, decodeurVideo: true })));
+    const zone = q(d, '[data-zone="animation"]')!.textContent!;
+    expect(zone, 'le libellé contredit la raison affichée').toContain(`${LIBELLE_ANIMATION_SANS_FOURNISSEUR}.`);
+    expect(zone).not.toContain('aucun décodeur');
+    expect(q(d, '[data-animation="s1"]')!.textContent).toBe('Animation · Vidéo indisponible · aucun fournisseur d’animation. Aucun clip n’est proposé ni facturé pour ce plan.');
+    expect([...d.querySelectorAll('button')].some((b) => /anim|clip/i.test(b.textContent ?? ''))).toBe(false);
+  });
+
   it('prix d’une image clé annoncé avant le clic · crédits et dollars ; devis et lancement séparés', () => {
     const d = html(props(vue()));
     expect(q(d, '[data-image-cle="s2"] [data-prix="annonce"]')!.textContent).toBe('Une image clé · 4 crédits · 0,08 $ au plus de coût fournisseur · Retiens d’abord une consigne compilée pour ce plan.');
     expect((q(d, '[data-bouton="devis-s2"]') as HTMLButtonElement).disabled).toBe(true);
     expect(q(d, '[data-image-cle="s3"] [data-prix="devis"]')!.textContent).toMatch(/^Devis · 4 crédits · 0,08 \$ au plus de coût fournisseur · valable jusqu’à/);
     expect(q(d, '[data-bouton="lancer-s3"]')!.textContent).toBe('Approuver et lancer · 4 crédits');
-    expect(q(d, '[data-cout="consigne"]')!.textContent).toBe('Appel texte payant · 0,14 $ au plus · aucun crédit, aucune image.');
+    expect(q(d, '[data-cout="consigne"]')!.textContent).toBe('Appel texte payant · environ 0,14 $ (estimation) · borne exacte réservée avant l’envoi, sous le plafond · aucun crédit, aucune image.');
     expect(q(d, '[data-bouton="devis-s1"]')!.textContent).toBe('Devis d’une nouvelle variante');
     // Ponctuation : l'interdit du serveur finit déjà par un point, l'écran n'en double pas.
     expect(q(d, '[data-image-cle="s1"] [data-champ="interdits"]')!.textContent).toBe('À éviter : Aucun texte dans l’image : les textes sont posés au montage.');

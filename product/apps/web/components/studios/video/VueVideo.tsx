@@ -1,9 +1,9 @@
 'use client';
 
 import { useId, useState } from 'react';
-import {
+import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
   libellePrix, libelleCredits, libelleUsd, dureeLisible, idsPlansAlloues, saisieVierge, referencesDuProjet,
-  LIBELLES_MODE_PAROLE, LIBELLE_ANIMATION_INDISPONIBLE, MODES_PAROLE, VALIDITE_DEVIS_MS, GAIN_MUSIQUE_MIN_DB, GAIN_MUSIQUE_MAX_DB,
+  LIBELLES_MODE_PAROLE, libelleAnimationIndisponible, MODES_PAROLE, VALIDITE_DEVIS_MS, GAIN_MUSIQUE_MIN_DB, GAIN_MUSIQUE_MAX_DB,
   type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan, type ImpactVideo, type BilanDurees,
 } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo, KeyframeVue, JobVideoVue } from '../../../lib/studios/video/lecture';
@@ -57,7 +57,7 @@ export interface ProprietesVueVideo extends GestesVideo {
 
 const date = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 const heure = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
-const coutTexte = (usd: number) => `${usd.toFixed(2).replace('.', ',')} $ au plus`;
+const coutTexte = (usd: number) => `${libelleCoutTexteEstime(usd)} · ${NOTE_BORNE_TEXTE}`;
 
 const ETATS_KEYFRAME: Record<KeyframeVue['etat'], { mot: string; couleur: string }> = {
   valide: { mot: 'Image clé valide', couleur: 'var(--ok)' },
@@ -170,7 +170,7 @@ function ImageCle({ sid, rang, k, p }: { sid: string; rang: number; k: KeyframeV
           </div>
         </div>
       )}
-      {!d.animation.disponible && <p style={signal('info')} data-animation={sid}><span style={{ fontWeight: 600 }}>Animation · {LIBELLE_ANIMATION_INDISPONIBLE}.</span> Aucun clip n’est proposé ni facturé pour ce plan.</p>}
+      {!d.animation.disponible && <p style={signal('info')} data-animation={sid}><span style={{ fontWeight: 600 }}>Animation · {libelleAnimationIndisponible(d.animation)}.</span> Aucun clip n’est proposé ni facturé pour ce plan.</p>}
     </div>
   );
 }
@@ -395,7 +395,7 @@ export function VueVideo(p: ProprietesVueVideo) {
         <h2 id={`${id}-titre`} style={titre}>Storyboard et montage</h2>
         <p style={sousTitre}>Version {v.version.n} · {ordre.length} plan{ordre.length > 1 ? 's' : ''} · {dureeLisible(v.dureeTotaleMs)} · images clés {v.format.largeur} × {v.format.hauteur} ({v.format.libelle}{v.format.depuisBrief ? ', lu dans le brief' : ', défaut'}). Chaque changement montre son impact avant d’être enregistré ; rien de payant ne part sans ton clic.</p>
       </div>
-      {!v.disponibilite.animation.disponible && <p style={signal('warn')} data-zone="animation" data-indisponible="animation"><span style={{ fontWeight: 600 }}>{LIBELLE_ANIMATION_INDISPONIBLE}.</span> {v.disponibilite.animation.raison}</p>}
+      {!v.disponibilite.animation.disponible && <p style={signal('warn')} data-zone="animation" data-indisponible="animation"><span style={{ fontWeight: 600 }}>{libelleAnimationIndisponible(v.disponibilite.animation)}.</span> {v.disponibilite.animation.raison}</p>}
       {p.retour && (
         <div role={p.retour.ok ? 'status' : 'alert'} style={signal(p.retour.ok ? 'ok' : 'err')} data-retour={p.retour.ok ? 'ok' : 'refus'}>
           <span style={{ fontWeight: 600 }}>{p.retour.ok ? 'Fait · ' : 'Refusé · '}</span>{p.retour.texte}

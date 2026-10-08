@@ -174,7 +174,7 @@ describe('/studio/projets/[id]/textes', () => {
     expect(bouton.textContent).toBe('Écrire 3 hooks');
     expect(bouton.hasAttribute('disabled')).toBe(true);
     expect(ia.querySelector('[role="note"]')?.textContent).toContain('L’écriture par l’IA n’est pas encore activée');
-    expect(ia.querySelector('[data-cout="texte"]')?.textContent).toContain('Appel texte payant · 0,14 $ au plus');
+    expect(ia.querySelector('[data-cout="texte"]')?.textContent).toContain('Appel texte payant · environ 0,14 $ (estimation) · borne exacte réservée avant l’envoi, sous le plafond');
     expect(d.textContent?.toLowerCase()).not.toContain('gratuit');
     expect(d.querySelector('[data-zone="ecrire-main"] textarea')).not.toBeNull();
     expect([...d.querySelectorAll('[data-zone="export"] button')].map((b) => b.textContent)).toEqual(['Copier tous les textes', 'Exporter en Markdown', 'Exporter en CSV', 'Exporter en JSON']);

@@ -20,6 +20,15 @@ import { idsPlansAlloues, PLANS_MAX, DUREE_CIBLE_MIN_MS, DUREE_CIBLE_MAX_MS } fr
 export const LIBELLE_ANIMATION_INDISPONIBLE = 'Vidéo indisponible · aucun décodeur vidéo';
 export const RAISON_ANIMATION_INDISPONIBLE = 'Le service ne sait pas encore vérifier une vidéo produite : aucune animation n’est proposée, devisée ni facturée. Les images clés, le montage et le texte restent utilisables.';
 export const RAISON_ANIMATION_SANS_FOURNISSEUR = 'Le service sait vérifier une vidéo produite, mais aucun fournisseur d’animation n’est branché : aucune animation n’est proposée, devisée ni facturée. Les images clés, le montage et le texte restent utilisables.';
+export const LIBELLE_ANIMATION_SANS_FOURNISSEUR = 'Vidéo indisponible · aucun fournisseur d’animation';
+
+/**
+ * Le libellé court suit la CAUSE (raccord vague 7) : une fois le décodeur
+ * sondé, dire « aucun décodeur » contredirait la raison affichée à côté.
+ */
+export function libelleAnimationIndisponible(a: { raison: string }): string {
+  return a.raison === RAISON_ANIMATION_SANS_FOURNISSEUR ? LIBELLE_ANIMATION_SANS_FOURNISSEUR : LIBELLE_ANIMATION_INDISPONIBLE;
+}
 
 export interface EntreeDisponibiliteVideo {
   peutGenerer: boolean;
