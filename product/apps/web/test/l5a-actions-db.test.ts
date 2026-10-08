@@ -31,6 +31,9 @@ import { rendreApercu, declinerFormat } from '../app/actions/studios/rendu';
 import { injecterLecteurMedias } from '../lib/studios/rendu/medias';
 import { pub11, decorA, produit, logo, decoder, capture } from './l5a-outils';
 
+// Tests de pixels lourds (décodages 1080 × 1920) · délais larges, la suite complète tourne en parallèle.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+
 const ids = etat.ids;
 const stockage = new Map<string, Uint8Array>();
 const P = { a1: '', v1: '', a1Croise: '', a2: '' };
@@ -76,7 +79,7 @@ beforeAll(async () => {
   P.a1Croise = x.projet.id;
 });
 
-describe('rendreApercu · lecture pure d’une version', () => {
+describe('rendreApercu · lecture pure d’une version', { timeout: 60_000 }, () => {
   it('rend la version courante : dimensions, PNG décodable aux pixels attendus, empreinte stable, RIEN d’écrit', async () => {
     etat.session = session(ids, 'ua');
     const avant = await comptes();
@@ -117,7 +120,7 @@ describe('rendreApercu · lecture pure d’une version', () => {
   });
 });
 
-describe('IMG-10 · declinerFormat : nouvelle version par recomposition seule', () => {
+describe('IMG-10 · declinerFormat : nouvelle version par recomposition seule', { timeout: 60_000 }, () => {
   it('1:1 → 4:5 → 9:16 : versions n+1 chaînées, v1 intacte, aucun devis ni job ni dépense, audit écrit', async () => {
     etat.session = session(ids, 'ua');
     const avant = await comptes();

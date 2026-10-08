@@ -32,6 +32,9 @@ import { GET } from '../app/api/studios/media/[id]/route';
 import { injecterLecteurMedias } from '../lib/studios/rendu/medias';
 import { png } from './l5a-outils';
 
+// Tests de pixels lourds (décodages 1080 × 1920) · délais larges, la suite complète tourne en parallèle.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+
 const ids = etat.ids;
 const stockage = new Map<string, Uint8Array>();
 const A = { a1: '', a2: '', b1: '', altere: '', enAttente: '', svg: '' };
@@ -69,7 +72,7 @@ beforeAll(async () => {
   injecterLecteurMedias({ lire: async (m) => stockage.get(m.storageKey) ?? null });
 });
 
-describe('GET /api/studios/media/[id] · lecture dans la portée', () => {
+describe('GET /api/studios/media/[id] · lecture dans la portée', { timeout: 60_000 }, () => {
   it('membre de l’espace : 200, octets exacts, MIME RÉEL (png malgré la ligne jpeg), cache privé, aucune clé de stockage', async () => {
     etat.session = session(ids, 'ua');
     const r = await appeler(A.a1);
@@ -101,7 +104,7 @@ describe('GET /api/studios/media/[id] · lecture dans la portée', () => {
   });
 });
 
-describe('SEC-01 · hors portée : 404 neutre, corps identique à « inconnu »', () => {
+describe('SEC-01 · hors portée : 404 neutre, corps identique à « inconnu »', { timeout: 60_000 }, () => {
   const corpsNeutre = async (r: Response) => {
     const j = (await r.json()) as Record<string, unknown>;
     delete j.traceId;

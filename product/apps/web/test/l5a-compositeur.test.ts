@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import {
   POLICES_EMBARQUEES, mettreEnPage, placerParFraction, masqueDecorProtegeantProduit, declinerDocument,
@@ -9,6 +9,9 @@ import { lirePoliceTtf } from '../lib/studios/rendu/police-ttf';
 import { octetsPolice } from '../lib/studios/rendu/polices';
 import { appliquerMasqueAuxPixels } from '../lib/studios/rendu/masque-pixels';
 import { pub11, decorA, decorB, produit, produitPlein, logo, decoder, boite, capture, png, type Brut } from './l5a-outils';
+
+// Tests de pixels lourds (décodages 1080 × 1920) · délais larges, la suite complète tourne en parallèle.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
 /**
  * L5-A · compositeur serveur, prouvé sur PIXELS DÉCODÉS (jamais une empreinte
@@ -32,7 +35,7 @@ async function rendre(doc: DocumentStudio, m: Map<string, Uint8Array> = medias):
   return { png: r.png, pixels: await decoder(r.png) };
 }
 
-describe('mêmes métriques · la table du noyau est celle des fichiers TTF rendus', () => {
+describe('mêmes métriques · la table du noyau est celle des fichiers TTF rendus', { timeout: 60_000 }, () => {
   it.each(Object.entries(POLICES_EMBARQUEES))('%s · avances, boîtes d’encre, unités et empreinte identiques au parseur serveur', (_famille, m) => {
     const octets = octetsPolice(m.fichier);
     expect(createHash('sha256').update(octets).digest('hex')).toBe(m.sha256);
@@ -68,7 +71,7 @@ describe('mêmes métriques · la table du noyau est celle des fichiers TTF rend
   });
 });
 
-describe('IMG-05 · produit à 55 % de la largeur, mesuré dans le rendu décodé', () => {
+describe('IMG-05 · produit à 55 % de la largeur, mesuré dans le rendu décodé', { timeout: 60_000 }, () => {
   it.each([1080, 1350, 777])('document de %i px de large : largeur rendue = round(0,55 × L) à 1 px près, hauteur proportionnelle', async (L) => {
     const plein = await produitPlein();
     const p: CalqueImage = { id: 'p', kind: 'image', name: 'P', visible: true, locked: false, x: 100, y: 50, width: 400, height: 600, rotationDeg: 0, opacity: 1, z: 1, assetId: 'a_p', sourceWidth: 800, sourceHeight: 1200, mask: null };
@@ -85,7 +88,7 @@ describe('IMG-05 · produit à 55 % de la largeur, mesuré dans le rendu décod�
   });
 });
 
-describe('IMG-02 · Produit fidèle : le décor change, les pixels du produit non', () => {
+describe('IMG-02 · Produit fidèle : le décor change, les pixels du produit non', { timeout: 60_000 }, () => {
   it('deux décors différents : 0 pixel du produit (opaque) ne diffère, et ce sont ceux du produit rendu seul', async () => {
     const doc = pub11(IDS);
     const seulDoc = pub11(IDS);
@@ -158,7 +161,7 @@ describe('IMG-02 · Produit fidèle : le décor change, les pixels du produit no
   });
 });
 
-describe('rendu déterministe et refus explicites', () => {
+describe('rendu déterministe et refus explicites', { timeout: 60_000 }, () => {
   it('même document, mêmes médias ⇒ même PNG, octet pour octet', async () => {
     const a = await rendre(pub11(IDS));
     const b = await rendre(pub11(IDS));

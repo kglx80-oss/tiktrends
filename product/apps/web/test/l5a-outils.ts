@@ -3,6 +3,10 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DocumentStudio, CalqueImage, CalqueTexte, CalqueLogo } from '@tiktrends/core';
 
+// Un seul fil libvips par processus de test : les tests de pixels restent lourds
+// (rendus 1080 × 1920), ils ne doivent pas affamer les autres fichiers en parallèle.
+sharp.concurrency(1);
+
 /**
  * Outils des tests L5-A · images de recette fabriquées par `sharp` (aucun
  * fichier binaire versionné) et document publicitaire 1:1.

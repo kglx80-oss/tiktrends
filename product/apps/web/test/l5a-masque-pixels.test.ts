@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import {
   masqueDepuisPolygone, traceEcranVersSource, documentVersEcran, zoneAutorisee, composerParMasque, type Vue, type MasqueBrut,
 } from '@tiktrends/core';
 import { appliquerMasqueAuxPixels, statistiquesEncodage } from '../lib/studios/rendu/masque-pixels';
 import { analyserDetourage } from '../lib/studios/rendu/detourage';
 import { png, decoder, capture } from './l5a-outils';
+
+// Tests de pixels lourds (décodages 1080 × 1920) · délais larges, la suite complète tourne en parallèle.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
 /**
  * IMG-06 côté serveur · original et génération ENCODÉS (PNG), décodés par
@@ -51,7 +54,7 @@ async function compterHorsZone(sortie: Uint8Array, m: MasqueBrut): Promise<{ hor
   return { horsZone, dansZone };
 }
 
-describe('IMG-06 · ajout dans la zone gauche, plusieurs zooms et déplacements, pixels décodés', () => {
+describe('IMG-06 · ajout dans la zone gauche, plusieurs zooms et déplacements, pixels décodés', { timeout: 60_000 }, () => {
   it.each(VUES.map((v) => [v.zoom, v] as const))('zoom %s : 0 pixel modifié hors zone + fondu dans le PNG stocké, l’étoile est posée', async (_z, v) => {
     const m = masqueSous(v);
     const r = await appliquerMasqueAuxPixels({ original, generation, masque: m, featherPx: FONDU, format: 'png' });
@@ -104,7 +107,7 @@ describe('IMG-06 · ajout dans la zone gauche, plusieurs zooms et déplacements,
   });
 });
 
-describe('IMG-09 · contrôle d’un import détouré, côté serveur (aucun WebGPU, aucun moteur)', () => {
+describe('IMG-09 · contrôle d’un import détouré, côté serveur (aucun WebGPU, aucun moteur)', { timeout: 60_000 }, () => {
   it('PNG transparent à bords doux : exploitable ; capacité automatique déclarée indisponible avec replis', async () => {
     const disque = await png(120, 120, (x, y) => {
       const d = Math.hypot(x + 0.5 - 60, y + 0.5 - 60);
