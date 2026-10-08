@@ -1,0 +1,42 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F16",
+  "titre": "Lipsync absent",
+  "etapes": [
+    {
+      "etapeId": "animation",
+      "templateKey": "animation.compile",
+      "sortie": 0,
+      "statut": "blocked",
+      "code": "LIPSYNC_SANS_CAPACITE",
+      "result": null,
+      "questions": [
+        "Parole synchronisée demandée sans capacité fournisseur attestée."
+      ],
+      "warnings": [],
+      "runId": "e00cd389-c0d6-4f13-837c-5f6ad7ea0efb",
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

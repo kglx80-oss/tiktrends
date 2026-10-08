@@ -1,0 +1,268 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F01",
+  "titre": "Packshot et accessoire",
+  "oracleAttendu": "Lunettes ET bandeau présents ; calque original inchangé en mode fidèle",
+  "jeuSynthetique": [
+    {
+      "id": "f01-lunettes-bleues",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f01-lunettes-bleues.png",
+      "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+      "contenuSha256": "eed502da43ab376d52b8e1fd6e9c6f0567ff052d1dd5f618c6b13283e3de84df"
+    },
+    {
+      "id": "f01-bandeau-bleu",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f01-bandeau-bleu.png",
+      "sha256": "8592ace707e40fe83b0b620fde016e7bd4d301d78a5a0d3bcf1accf46466d060",
+      "contenuSha256": "a938468d387907503649812f8aac531d7ac4b6e508959db5043f08eadf0d3610"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "brief",
+      "sortie": 0,
+      "template": "brief.build",
+      "taskInputsSha256": "e90f48111208d4b30630a25756dbae03a5fcb7eecd68f1dbf3003355d4e4c654",
+      "taskInputs": {
+        "request": "Packshot des lunettes bleues avec leur bandeau bleu ; changer uniquement le décor.",
+        "hypothesisId": null,
+        "selectedReferences": [
+          {
+            "assetId": "f01-lunettes-bleues",
+            "assetVersion": "v1",
+            "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "lunettes"
+            ]
+          },
+          {
+            "assetId": "f01-bandeau-bleu",
+            "assetVersion": "v1",
+            "sha256": "8592ace707e40fe83b0b620fde016e7bd4d301d78a5a0d3bcf1accf46466d060",
+            "role": "integrate",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "bandeau"
+            ]
+          }
+        ],
+        "requestedFormats": [
+          "1:1"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f01-lunettes-bleues",
+            "assetVersion": "v1",
+            "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "lunettes"
+            ]
+          },
+          {
+            "assetId": "f01-bandeau-bleu",
+            "assetVersion": "v1",
+            "sha256": "8592ace707e40fe83b0b620fde016e7bd4d301d78a5a0d3bcf1accf46466d060",
+            "role": "integrate",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "bandeau"
+            ]
+          }
+        ],
+        "invariants": [
+          "Lunettes ET bandeau présents",
+          "Calque produit original inchangé en mode fidèle"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "compile",
+      "sortie": 0,
+      "template": "image.compile",
+      "taskInputsSha256": "efff5bce5907302e103c1b180889d3323d5b005fb847d10ebdeaa24277807ddc",
+      "taskInputs": {
+        "briefId": "brief_F01",
+        "conceptId": "concept_F01",
+        "mode": "faithful_composite",
+        "referenceIds": [
+          "f01-lunettes-bleues",
+          "f01-bandeau-bleu"
+        ],
+        "width": 1080,
+        "height": 1080
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "brief_F01",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "brief_F01",
+              "claim": "Packshot lunettes bleues et bandeau bleu ; seul le décor change.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "11a00a97e965a64283fcd33f29892168ffe9937402a71831aac4c6c18c9768df"
+          },
+          {
+            "id": "concept_F01",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "concept_F01",
+              "claim": "Décor de plage douce, produit au centre.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "c27106144e6cce03fee6b32787fbaaa31b1621b45e844fd9146c82b1898d2594"
+          }
+        ],
+        "references": [
+          {
+            "assetId": "f01-lunettes-bleues",
+            "assetVersion": "v1",
+            "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "lunettes"
+            ]
+          },
+          {
+            "assetId": "f01-bandeau-bleu",
+            "assetVersion": "v1",
+            "sha256": "8592ace707e40fe83b0b620fde016e7bd4d301d78a5a0d3bcf1accf46466d060",
+            "role": "integrate",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "bandeau"
+            ]
+          }
+        ],
+        "invariants": [
+          "Lunettes ET bandeau présents"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "qualite",
+      "sortie": 0,
+      "template": "quality.visual",
+      "taskInputsSha256": "9ef0e1a674847898cd7aaad177c9ea864c539ffb25e3c14d03925104bfc95072",
+      "taskInputs": {
+        "outputAssetIds": [
+          "sortie_F01_1"
+        ],
+        "referenceIds": [
+          "f01-lunettes-bleues",
+          "f01-bandeau-bleu"
+        ],
+        "criteria": [
+          "Lunettes et bandeau présents",
+          "Décor seul modifié"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f01-lunettes-bleues",
+            "assetVersion": "v1",
+            "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "lunettes"
+            ]
+          },
+          {
+            "assetId": "f01-bandeau-bleu",
+            "assetVersion": "v1",
+            "sha256": "8592ace707e40fe83b0b620fde016e7bd4d301d78a5a0d3bcf1accf46466d060",
+            "role": "integrate",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "bandeau"
+            ]
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "qualite",
+      "sortie": 1,
+      "template": "quality.visual",
+      "taskInputsSha256": "3d20f6e32438abf88f6868469b60332d643245dfc3705004d7669e4b065559ff",
+      "taskInputs": {
+        "outputAssetIds": [
+          "sortie_F01_2"
+        ],
+        "referenceIds": [
+          "f01-lunettes-bleues",
+          "f01-bandeau-bleu"
+        ],
+        "criteria": [
+          "Lunettes et bandeau présents",
+          "Décor seul modifié"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f01-lunettes-bleues",
+            "assetVersion": "v1",
+            "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "lunettes"
+            ]
+          },
+          {
+            "assetId": "f01-bandeau-bleu",
+            "assetVersion": "v1",
+            "sha256": "8592ace707e40fe83b0b620fde016e7bd4d301d78a5a0d3bcf1accf46466d060",
+            "role": "integrate",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "bandeau"
+            ]
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "composantsRequis": [
+      "lunettes",
+      "bandeau"
+    ]
+  }
+}

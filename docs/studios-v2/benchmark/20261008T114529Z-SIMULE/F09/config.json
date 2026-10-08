@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F09",
+  "titre": "Révision isolée",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "295b4dbf-dde5-400c-965c-7c4bbafc6aae"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "patch",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "patch",
+      "role": "system",
+      "sha256": "ef99574d61887f65a9451fcfd6b79903a5cf8e4f868bebe7734a18135fdb7565",
+      "caracteres": 2915
+    },
+    {
+      "etape": "patch",
+      "role": "user",
+      "sha256": "2d9858e30fc39c6a665fde6e4662fec61790667a4590bc02ac657b107076123d",
+      "caracteres": 704
+    }
+  ]
+}

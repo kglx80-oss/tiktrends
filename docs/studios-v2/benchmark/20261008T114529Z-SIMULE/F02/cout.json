@@ -1,0 +1,80 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F02",
+  "titre": "Référence contaminante",
+  "depenseUsdMicros": 0,
+  "note": "Aucune dépense : fournisseurs simulés. Le devis dit ce que ce cas coûterait au plus en réel.",
+  "devis": [
+    {
+      "etapeId": "style",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "style.describe",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": null,
+      "source": "profil vision_analysis",
+      "motif": "profil « vision_analysis » routé vers aucun modèle"
+    },
+    {
+      "etapeId": "compile",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "image.compile",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "generation",
+      "sortie": 0,
+      "nature": "media",
+      "cle": "image_generation",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": 80000,
+      "source": "CREDIT_COSTS.image · FIXED_COSTS.fal_image",
+      "motif": null
+    },
+    {
+      "etapeId": "qualite",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "quality.visual",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": null,
+      "source": "profil vision_analysis",
+      "motif": "profil « vision_analysis » routé vers aucun modèle"
+    },
+    {
+      "etapeId": "generation",
+      "sortie": 1,
+      "nature": "media",
+      "cle": "image_generation",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": 80000,
+      "source": "CREDIT_COSTS.image · FIXED_COSTS.fal_image",
+      "motif": null
+    },
+    {
+      "etapeId": "qualite",
+      "sortie": 1,
+      "nature": "tache",
+      "cle": "quality.visual",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": null,
+      "source": "profil vision_analysis",
+      "motif": "profil « vision_analysis » routé vers aucun modèle"
+    }
+  ],
+  "totalDevisUsdMicros": null,
+  "limites": [
+    "Le profil vision_analysis n’est routé vers aucun fournisseur : l’étape est bloquée avant appel (UNSUPPORTED_CAPABILITY) et le cas n’est pas chiffrable tant que ce routage n’existe pas."
+  ]
+}

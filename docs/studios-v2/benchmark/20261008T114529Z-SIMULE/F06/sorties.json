@@ -1,0 +1,85 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F06",
+  "titre": "Géométrie exacte",
+  "etapes": [
+    {
+      "etapeId": "patch",
+      "templateKey": "document.patch",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "baseVersion": "bench-F06-v1",
+        "changes": [
+          {
+            "path": "/calques/produit/largeur",
+            "newValue": 594,
+            "reason": "55 % de 1080",
+            "op": "replace"
+          },
+          {
+            "path": "/calques/produit/hauteur",
+            "newValue": 446,
+            "reason": "proportions 4:3",
+            "op": "replace"
+          },
+          {
+            "path": "/calques/produit/x",
+            "newValue": 243,
+            "reason": "recentrage",
+            "op": "replace"
+          }
+        ],
+        "preservedIds": [],
+        "impactSummary": "Échelle du produit seulement."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "146534a9-2392-4cf8-ae7c-67566b8024f1",
+      "resultSha256": "6aecd301797f8680b5aa2b1c8774b3b4bbd692f0b392116de2917b8938ea6ca9",
+      "fichiers": []
+    },
+    {
+      "etapeId": "rendu",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {
+    "largeurRenduePx": 594,
+    "boite": {
+      "x": 243,
+      "y": 390,
+      "largeur": 594,
+      "hauteur": 446
+    }
+  },
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

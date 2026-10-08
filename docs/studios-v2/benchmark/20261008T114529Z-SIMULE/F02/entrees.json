@@ -1,0 +1,213 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F02",
+  "titre": "Référence contaminante",
+  "oracleAttendu": "Aucun personnage/logo importé ; matière produit protégée",
+  "jeuSynthetique": [
+    {
+      "id": "f02-produit-bleu",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f02-produit-bleu.png",
+      "sha256": "fe13d627f211414434a4becdfbad8d053787815366bcf9037ebc3d77add52671",
+      "contenuSha256": "5ca7be09c9f403bce2c14e151ace76ab4a84f463db5c9a3d0956230eaf686521"
+    },
+    {
+      "id": "f02-reference-clay",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f02-reference-clay.png",
+      "sha256": "e0cbb5f65d315e45aaf5f434b061d75d0ea45c7a188639d41bd8aa95a8d4f88c",
+      "contenuSha256": "cc635c8390b030a60009da186188c67f77005ce88a758ecb83d9e17a1685f738"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "style",
+      "sortie": 0,
+      "template": "style.describe",
+      "taskInputsSha256": "686ff356c1e2b6f913bdd1b45ab21fa7468a5ba1e095b8d087846c41dc0da3d6",
+      "taskInputs": {
+        "description": "Reprendre la matière clay du décor seulement.",
+        "referenceIds": [
+          "f02-reference-clay"
+        ],
+        "allowedScope": "background"
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f02-reference-clay",
+            "assetVersion": "v1",
+            "sha256": "e0cbb5f65d315e45aaf5f434b061d75d0ea45c7a188639d41bd8aa95a8d4f88c",
+            "role": "style",
+            "scope": "background",
+            "allowedChanges": [],
+            "requiredComponents": []
+          }
+        ],
+        "mediaBindings": [
+          {
+            "bindingId": "b_f02-reference-clay",
+            "assetId": "f02-reference-clay",
+            "assetVersion": "v1",
+            "sha256": "e0cbb5f65d315e45aaf5f434b061d75d0ea45c7a188639d41bd8aa95a8d4f88c",
+            "role": "style",
+            "modality": "image",
+            "derivation": "original",
+            "nativeAttachmentIndex": 0,
+            "coverageDescription": "image entière"
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "compile",
+      "sortie": 0,
+      "template": "image.compile",
+      "taskInputsSha256": "1d2d50c9831b8c21cbfceef6a3bb09986998588fa17dac85e0e36661b5e2e4c4",
+      "taskInputs": {
+        "briefId": "brief_F02",
+        "conceptId": "concept_F02",
+        "mode": "faithful_composite",
+        "referenceIds": [
+          "f02-produit-bleu",
+          "f02-reference-clay"
+        ],
+        "width": 1080,
+        "height": 1080
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "brief_F02",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "brief_F02",
+              "claim": "Produit bleu, décor au style clay de la référence.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "601103c3f756a1efb7eb9b4bb515622d7441f611c08f3dc79e2f436b298bf83c"
+          },
+          {
+            "id": "concept_F02",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "concept_F02",
+              "claim": "Décor clay, aucun élément de la référence hors matière.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "7b98be12b78599a29e9e8c6e20c38c80942afd222eb3c0cfb13a0479f7faa30f"
+          }
+        ],
+        "references": [
+          {
+            "assetId": "f02-produit-bleu",
+            "assetVersion": "v1",
+            "sha256": "fe13d627f211414434a4becdfbad8d053787815366bcf9037ebc3d77add52671",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "produit bleu"
+            ]
+          },
+          {
+            "assetId": "f02-reference-clay",
+            "assetVersion": "v1",
+            "sha256": "e0cbb5f65d315e45aaf5f434b061d75d0ea45c7a188639d41bd8aa95a8d4f88c",
+            "role": "style",
+            "scope": "background",
+            "allowedChanges": [],
+            "requiredComponents": []
+          }
+        ],
+        "invariants": [
+          "Aucun personnage ni logo tiers importé de la référence",
+          "Matière du produit bleu protégée"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "qualite",
+      "sortie": 0,
+      "template": "quality.visual",
+      "taskInputsSha256": "34cb98b9222efce129a5cb4589d5df0f9d075e6adf7565e02c1ff3cc0a7a5bec",
+      "taskInputs": {
+        "outputAssetIds": [
+          "sortie_F02_1"
+        ],
+        "referenceIds": [
+          "f02-produit-bleu"
+        ],
+        "criteria": [
+          "Aucun personnage ni logo tiers"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f02-produit-bleu",
+            "assetVersion": "v1",
+            "sha256": "fe13d627f211414434a4becdfbad8d053787815366bcf9037ebc3d77add52671",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "produit bleu"
+            ]
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "qualite",
+      "sortie": 1,
+      "template": "quality.visual",
+      "taskInputsSha256": "5db7d341ce9c1fe4f052919b636c4cde95a9d2b2c7105873e2195562b7ebc4d5",
+      "taskInputs": {
+        "outputAssetIds": [
+          "sortie_F02_2"
+        ],
+        "referenceIds": [
+          "f02-produit-bleu"
+        ],
+        "criteria": [
+          "Aucun personnage ni logo tiers"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f02-produit-bleu",
+            "assetVersion": "v1",
+            "sha256": "fe13d627f211414434a4becdfbad8d053787815366bcf9037ebc3d77add52671",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "produit bleu"
+            ]
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "interdits": [
+      "personnage",
+      "logo tiers"
+    ]
+  }
+}

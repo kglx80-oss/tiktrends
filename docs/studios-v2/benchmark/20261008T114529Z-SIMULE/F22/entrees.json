@@ -1,0 +1,82 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F22",
+  "titre": "Hypothèses bornées",
+  "oracleAttendu": "≤3hypothèses, métriques existantes, pas causalité garantie",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "hypotheses",
+      "sortie": 0,
+      "template": "test.hypothesize",
+      "taskInputsSha256": "a0d849346fb12e4040e4cb16803e035cb9aad1d8e8527df3f886fceff94db3bc",
+      "taskInputs": {
+        "observationIds": [
+          "obs_concurrent_1",
+          "obs_concurrent_2"
+        ],
+        "objective": "Choisir le prochain hook à tester",
+        "availableMetrics": [
+          "ctr",
+          "thumbstop_rate"
+        ]
+      },
+      "contexte": {
+        "sources": [
+          {
+            "sourceId": "src_veille_F22",
+            "version": "v1",
+            "text": "Trois pubs concurrentes ouvrent sur un gros plan produit ; deux posent une question.",
+            "titre": "Veille F22"
+          }
+        ],
+        "facts": [
+          {
+            "id": "obs_concurrent_1",
+            "claim": "Les pubs concurrentes ouvrent sur un gros plan produit.",
+            "sourceIds": [
+              "src_veille_F22"
+            ],
+            "kind": "observed",
+            "confidence": "medium"
+          },
+          {
+            "id": "obs_concurrent_2",
+            "claim": "Deux pubs concurrentes posent une question en ouverture.",
+            "sourceIds": [
+              "src_veille_F22"
+            ],
+            "kind": "observed",
+            "confidence": "medium"
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "hypothese_1",
+            "entityType": "hypothesis",
+            "ordinal": 0
+          },
+          {
+            "id": "hypothese_2",
+            "entityType": "hypothesis",
+            "ordinal": 1
+          },
+          {
+            "id": "hypothese_3",
+            "entityType": "hypothesis",
+            "ordinal": 2
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "metriques": [
+      "ctr",
+      "thumbstop_rate"
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F24",
+  "titre": "Musique instrumentale",
+  "depenseUsdMicros": 0,
+  "note": "Aucune dépense : fournisseurs simulés. Le devis dit ce que ce cas coûterait au plus en réel.",
+  "devis": [
+    {
+      "etapeId": "musique",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "music.prepare",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "mixage",
+      "sortie": 0,
+      "nature": "calcul",
+      "cle": "mixage",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": 0,
+      "source": "moteur déterministe local · inclus",
+      "motif": null
+    }
+  ],
+  "totalDevisUsdMicros": 132000,
+  "limites": [
+    "Aucune génération musicale : la musique vient du catalogue licencié (licensedAssetIds)."
+  ]
+}

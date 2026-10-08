@@ -1,0 +1,58 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F03",
+  "titre": "Contradiction identité",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "49c6b535-6374-4934-9339-b1fbc80e9bb8",
+    "31f3eebe-315a-465a-9a42-f9237a898a09"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "coherence",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "coherence",
+      "role": "system",
+      "sha256": "96c5c3096b484a3e5785c1f34430b851fabc8bb1705399f6c17a11e42249f339",
+      "caracteres": 2591
+    },
+    {
+      "etape": "coherence",
+      "role": "user",
+      "sha256": "e796734ecbfff8b52a902a35c31b449b8a1364cbc93fc81ed95f9f191440022b",
+      "caracteres": 1603
+    },
+    {
+      "etape": "plan",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "plan",
+      "role": "system",
+      "sha256": "09075bbda3af3f2bbbafca39406753464d5c2430cc1bd8b2c0850ba0d2c1c585",
+      "caracteres": 2579
+    },
+    {
+      "etape": "plan",
+      "role": "user",
+      "sha256": "4fe2aea3be2ecaee0c007d480fa11e2d163256c45cff8cf8ebe23374f03c58eb",
+      "caracteres": 1060
+    }
+  ]
+}

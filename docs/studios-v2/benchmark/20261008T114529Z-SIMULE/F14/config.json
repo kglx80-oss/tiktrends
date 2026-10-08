@@ -1,0 +1,58 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F14",
+  "titre": "Sans texte",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "176ace3e-af50-4fe0-a507-775a5b1f9dc9",
+    "69126c64-2f5c-48df-9e4f-d1d209ad21fc"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "storyboard",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "storyboard",
+      "role": "system",
+      "sha256": "e9fd37a9d6f2388b0d41d7cf027223564de4e06fecb66fa343e6d9c5b9e81530",
+      "caracteres": 2647
+    },
+    {
+      "etape": "storyboard",
+      "role": "user",
+      "sha256": "6e3fc865e61945389614fe1123323074cbf5af7874cc61f5824880e9cba05a37",
+      "caracteres": 958
+    },
+    {
+      "etape": "compile",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "compile",
+      "role": "system",
+      "sha256": "b1503ae73dee5e632eaa7a00f5df8654bffe9bb08e5913bca5239e733dc3da32",
+      "caracteres": 2770
+    },
+    {
+      "etape": "compile",
+      "role": "user",
+      "sha256": "ded50acccb489cbb73a56735b3ffcdd4ce9ca6462b80c59ae458b9bc9e249547",
+      "caracteres": 1395
+    }
+  ]
+}

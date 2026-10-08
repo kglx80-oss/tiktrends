@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F24",
+  "titre": "Musique instrumentale",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "07078cd8-266b-404f-b8ee-fcf5b137a26d"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "musique",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "musique",
+      "role": "system",
+      "sha256": "99858ea9a2de7670e86887674f9a9b07b4bf7e087c78c717cd3c8e1b6328c3ee",
+      "caracteres": 2519
+    },
+    {
+      "etape": "musique",
+      "role": "user",
+      "sha256": "f8bbc69fbe002335bc52e315b1e1a7a430a364b3828a648b37bb154600eb73a9",
+      "caracteres": 626
+    }
+  ]
+}

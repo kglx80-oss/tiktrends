@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F18",
+  "titre": "Format mobile",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "4c182524-2308-483e-bee2-e53a4d17c377"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "adaptation",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "adaptation",
+      "role": "system",
+      "sha256": "9cead94f4bb0ebbde8c8e0135e6d03f0285b214b4d03b4fd5b59eabc2acdbf0c",
+      "caracteres": 2862
+    },
+    {
+      "etape": "adaptation",
+      "role": "user",
+      "sha256": "2b7f0efafb8822322aabdb9f0739c95633d8b92d725dfdaa3d5aa71cd800d9fb",
+      "caracteres": 738
+    }
+  ]
+}

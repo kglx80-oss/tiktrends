@@ -1,0 +1,26 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F13",
+  "titre": "Image seule",
+  "depenseUsdMicros": 0,
+  "note": "Aucune dépense : fournisseurs simulés. Le devis dit ce que ce cas coûterait au plus en réel.",
+  "devis": [
+    {
+      "etapeId": "analyse",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "source.analyze",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": null,
+      "source": "profil vision_analysis",
+      "motif": "profil « vision_analysis » routé vers aucun modèle"
+    }
+  ],
+  "totalDevisUsdMicros": null,
+  "limites": [
+    "Le profil vision_analysis n’est routé vers aucun fournisseur : l’étape est bloquée avant appel (UNSUPPORTED_CAPABILITY) et le cas n’est pas chiffrable tant que ce routage n’existe pas.",
+    "Oracle lexical (vocabulaire audio et temporel absent) : une formulation détournée relève de la revue."
+  ]
+}

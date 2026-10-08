@@ -1,0 +1,46 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F21",
+  "titre": "Orientation sans sélection",
+  "etapes": [
+    {
+      "etapeId": "route",
+      "templateKey": "jarvis.route",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "intent": "help",
+        "targetIds": [],
+        "proposedAction": "Expliquer le studio image",
+        "nextTemplateKey": "",
+        "reply": "Le studio image part d’un brief, puis propose avant de générer."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "5888267d-9f5a-4f3f-974a-e48c477e868f",
+      "resultSha256": "49c8c478cc261ae055b35836fe49f1b56259ed0dbace8621bf296138da5fbc33",
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

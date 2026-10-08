@@ -1,0 +1,72 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F09",
+  "titre": "Révision isolée",
+  "oracleAttendu": "Plan1 et audio hors dépendance conservés par hash",
+  "jeuSynthetique": [
+    {
+      "id": "f09-narration",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f09-narration.wav",
+      "sha256": "03bdffca899373ff48458ba2c658718abf3e83544a9989e873e05cb990e230b9",
+      "contenuSha256": "03bdffca899373ff48458ba2c658718abf3e83544a9989e873e05cb990e230b9"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "patch",
+      "sortie": 0,
+      "template": "document.patch",
+      "taskInputsSha256": "6b67326c59a2d5868f18608092ee581ad16ae4cd79f406298fbfc1795fb12e1a",
+      "taskInputs": {
+        "baseVersion": "bench-F09-v1",
+        "request": "Changer seulement la tenue du plan 2 en veste rouge.",
+        "allowedPaths": [
+          "/plans/plan_2/tenue"
+        ],
+        "selectedIds": [
+          "plan_2"
+        ]
+      },
+      "contexte": {
+        "projectVersionId": "bench-F09-v1",
+        "allowedPaths": [
+          "/plans/plan_2/tenue"
+        ],
+        "selectionIds": [
+          "plan_2"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "document": {
+      "plans": {
+        "plan_1": {
+          "tenue": "veste bleue",
+          "image": "keyframe_plan_1_v1"
+        },
+        "plan_2": {
+          "tenue": "veste bleue",
+          "image": "keyframe_plan_2_v1"
+        }
+      },
+      "audio": {
+        "narration": {
+          "asset": "f09-narration",
+          "sha256": "03bdffca899373ff48458ba2c658718abf3e83544a9989e873e05cb990e230b9"
+        }
+      }
+    },
+    "allowedPaths": [
+      "/plans/plan_2/tenue"
+    ],
+    "chemins": {
+      "plan1": "/plans/plan_1",
+      "audio": "/audio",
+      "plan2": "/plans/plan_2/tenue"
+    }
+  }
+}

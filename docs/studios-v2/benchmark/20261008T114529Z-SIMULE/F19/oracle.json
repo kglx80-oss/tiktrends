@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F19",
+  "titre": "Sources concurrentes",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F19.source_a_rejetee",
+      "description": "La source de la marque A est rejetée avant appel",
+      "passe": true,
+      "detail": "blocked SOURCE_NON_AUTORISEE"
+    },
+    {
+      "id": "F19.aucun_transfert",
+      "description": "Aucune allégation de A dans les sorties pour B",
+      "passe": true,
+      "detail": "aucune allégation ni source de A"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

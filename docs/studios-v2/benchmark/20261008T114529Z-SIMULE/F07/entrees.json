@@ -1,0 +1,71 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F07",
+  "titre": "Faux succès",
+  "oracleAttendu": "rejected ou requires_review, jamais passed",
+  "jeuSynthetique": [
+    {
+      "id": "f01-lunettes-bleues",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f01-lunettes-bleues.png",
+      "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+      "contenuSha256": "eed502da43ab376d52b8e1fd6e9c6f0567ff052d1dd5f618c6b13283e3de84df"
+    },
+    {
+      "id": "f07-boite",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f07-boite.png",
+      "sha256": "e27473d60f5035036ac236a593d670fd7cc54f1ef6eb1ee45f66dd85c10f11d9",
+      "contenuSha256": "a7df4dc6df270decac672436a78ee16966ba216c3d61d8316f57a0ace936295c"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "qualite",
+      "sortie": 0,
+      "template": "quality.visual",
+      "taskInputsSha256": "906714458126ef332a44160d1a2dc0bbfa72579fb07aa824ce2555c51907ec3b",
+      "taskInputs": {
+        "outputAssetIds": [
+          "f07-boite"
+        ],
+        "referenceIds": [
+          "f01-lunettes-bleues"
+        ],
+        "criteria": [
+          "La sortie montre la paire de lunettes bleues de référence"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f01-lunettes-bleues",
+            "assetVersion": "v1",
+            "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "lunettes"
+            ]
+          }
+        ],
+        "mediaBindings": [
+          {
+            "bindingId": "b_f07-boite",
+            "assetId": "f07-boite",
+            "assetVersion": "v1",
+            "sha256": "e27473d60f5035036ac236a593d670fd7cc54f1ef6eb1ee45f66dd85c10f11d9",
+            "role": "sortie",
+            "modality": "image",
+            "derivation": "original",
+            "nativeAttachmentIndex": 0,
+            "coverageDescription": "image entière"
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}

@@ -1,0 +1,263 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F20",
+  "titre": "Continuité vidéo",
+  "etapes": [
+    {
+      "etapeId": "personnage",
+      "templateKey": "character.spec",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "identityId": "identite_1",
+        "immutableTraits": [
+          "cheveux courts noirs",
+          "veste verte",
+          "tient le flacon"
+        ],
+        "wardrobe": [
+          "veste verte"
+        ],
+        "hair": "courts noirs",
+        "requiredViews": [
+          "front",
+          "three_quarter"
+        ],
+        "referenceIds": [
+          "f20-personnage"
+        ],
+        "generationInstruction": "Personnage original, identique sur toutes les vues."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "e6887914-92f8-4857-adff-6b38ac7b1298",
+      "resultSha256": "eddcf8d4898a5a2dbba5b1cf2689395918018210b60921c3f26babb7134517ca",
+      "fichiers": []
+    },
+    {
+      "etapeId": "storyboard",
+      "templateKey": "storyboard.plan",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "shots": [
+          {
+            "shotId": "shot_1",
+            "purpose": "Présentation",
+            "subject": "Personnage",
+            "action": "tient le flacon",
+            "framing": "plan large",
+            "camera": "fixe",
+            "lighting": "douce",
+            "environment": "salle de bain",
+            "referenceIds": [
+              "f20-personnage"
+            ],
+            "narration": "",
+            "onScreenText": [],
+            "speechMode": "none",
+            "estimatedDurationMs": 3000
+          },
+          {
+            "shotId": "shot_2",
+            "purpose": "Détail",
+            "subject": "Personnage",
+            "action": "montre le flacon",
+            "framing": "gros plan",
+            "camera": "fixe",
+            "lighting": "douce",
+            "environment": "salle de bain",
+            "referenceIds": [
+              "f20-personnage"
+            ],
+            "narration": "",
+            "onScreenText": [],
+            "speechMode": "none",
+            "estimatedDurationMs": 3000
+          }
+        ],
+        "estimatedTotalMs": 6000,
+        "durationCaveat": "Durées indicatives."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "0c1ba3d3-8c69-4399-8d10-bf09b074122c",
+      "resultSha256": "fe62d2adb37551e1ccdea14dcce9beb86964177baca3ce3ae29b081e8f03f308",
+      "fichiers": []
+    },
+    {
+      "etapeId": "images_cles",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/images_cles-1-1.png",
+          "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+          "largeur": 200,
+          "hauteur": 300
+        },
+        {
+          "fichier": "sorties/images_cles-1-2.png",
+          "sha256": "bff4e74c5c5ac88452874d22fe0ff38bf7a8b4447238c064c0ff1bbb08ddb650",
+          "largeur": 300,
+          "hauteur": 450
+        }
+      ]
+    },
+    {
+      "etapeId": "animation",
+      "templateKey": "animation.compile",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "generationInstruction": "Mouvement lent, même identité sur les deux cadrages.",
+        "cameraConstraints": [
+          "Aucune caméra ni équipe visible dans le champ"
+        ],
+        "identityConstraints": [
+          "cheveux courts noirs",
+          "veste verte",
+          "tient le flacon"
+        ],
+        "audioRequired": false
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "1adfe739-9897-4889-a95f-da90c3cab32b",
+      "resultSha256": "828b1d9d186eff762bb8253afb616bb9f8b1a5fff95f46ef34408eb658a14efb",
+      "fichiers": []
+    },
+    {
+      "etapeId": "clips",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/clips-1-1.png",
+          "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+          "largeur": 200,
+          "hauteur": 300
+        },
+        {
+          "fichier": "sorties/clips-1-2.png",
+          "sha256": "bff4e74c5c5ac88452874d22fe0ff38bf7a8b4447238c064c0ff1bbb08ddb650",
+          "largeur": 300,
+          "hauteur": 450
+        }
+      ]
+    },
+    {
+      "etapeId": "images_cles",
+      "templateKey": null,
+      "sortie": 1,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/images_cles-2-1.png",
+          "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+          "largeur": 200,
+          "hauteur": 300
+        },
+        {
+          "fichier": "sorties/images_cles-2-2.png",
+          "sha256": "bff4e74c5c5ac88452874d22fe0ff38bf7a8b4447238c064c0ff1bbb08ddb650",
+          "largeur": 300,
+          "hauteur": 450
+        }
+      ]
+    },
+    {
+      "etapeId": "animation",
+      "templateKey": "animation.compile",
+      "sortie": 1,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "generationInstruction": "Mouvement lent, même identité sur les deux cadrages.",
+        "cameraConstraints": [
+          "Aucune caméra ni équipe visible dans le champ"
+        ],
+        "identityConstraints": [
+          "cheveux courts noirs",
+          "veste verte",
+          "tient le flacon"
+        ],
+        "audioRequired": false
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "2e924405-6b94-4a98-8cbb-a43127413349",
+      "resultSha256": "828b1d9d186eff762bb8253afb616bb9f8b1a5fff95f46ef34408eb658a14efb",
+      "fichiers": []
+    },
+    {
+      "etapeId": "clips",
+      "templateKey": null,
+      "sortie": 1,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/clips-2-1.png",
+          "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+          "largeur": 200,
+          "hauteur": 300
+        },
+        {
+          "fichier": "sorties/clips-2-2.png",
+          "sha256": "bff4e74c5c5ac88452874d22fe0ff38bf7a8b4447238c064c0ff1bbb08ddb650",
+          "largeur": 300,
+          "hauteur": 450
+        }
+      ]
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

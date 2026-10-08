@@ -1,0 +1,42 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F02",
+  "titre": "Référence contaminante",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "84896a26-1f81-4f4e-a315-f9297cc53ca4",
+    "43b8a192-04a5-47f0-b93e-acc38c8467a2",
+    "7d7516bc-e3fd-44dc-8735-4b7abed32d11",
+    "a9aeeeef-82ae-43f3-94c1-acec168c2346"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "compile",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "compile",
+      "role": "system",
+      "sha256": "b1503ae73dee5e632eaa7a00f5df8654bffe9bb08e5913bca5239e733dc3da32",
+      "caracteres": 2770
+    },
+    {
+      "etape": "compile",
+      "role": "user",
+      "sha256": "906047e58033de2f892f76a3a662a81d83b68dffa6c11d97134df85a4ddff036",
+      "caracteres": 1738
+    }
+  ]
+}

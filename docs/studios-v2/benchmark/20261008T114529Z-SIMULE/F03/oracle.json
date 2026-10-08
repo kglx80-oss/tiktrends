@@ -1,0 +1,29 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F03",
+  "titre": "Contradiction identité",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F03.conflit_explicite",
+      "description": "Contradiction relevée en défaut bloquant",
+      "passe": true,
+      "detail": "verdict rejected, défaut bloquant présent"
+    },
+    {
+      "id": "F03.plan_bloque",
+      "description": "Le plan est bloqué (blocked), sans résultat",
+      "passe": true,
+      "detail": "blocked MODELE_BLOQUE"
+    },
+    {
+      "id": "F03.aucun_devis",
+      "description": "Aucun devis ni job créé",
+      "passe": true,
+      "detail": "inchangés : devis, jobs"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

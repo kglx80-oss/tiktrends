@@ -26,6 +26,10 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 
 import { db, schema } from '@tiktrends/db';
 import type { AdaptateurModele } from '../lib/studios/prompts/adaptateur';
+import type { ExecuteurMedias } from '../lib/studios/benchmark/campagne';
+import { encoder } from '../lib/studios/benchmark/jeu-synthetique';
+import { imageVide } from '@tiktrends/core';
+import { eq } from '@tiktrends/db';
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { approuverBudgetBenchmark, lancerCampagneReelle, planEtDevis } from '../lib/studios/benchmark/programme';
 import { SCENARIOS } from '../lib/studios/benchmark/scenarios';
@@ -44,7 +48,9 @@ function espion(coutUsd = 0) {
       appels.push(x.action);
       const cle = x.action.replace('studio-prompt:', '');
       const rep = cle === 'jarvis.route' ? SCENARIOS.F21!.simule.route!(0, undefined as never)
-        : cle === 'document.patch' ? SCENARIOS.F04!.simule.patch!(0, undefined as never) : SCENARIOS.F17!.simule.lot!(0, undefined as never);
+        : cle === 'document.patch' ? SCENARIOS.F04!.simule.patch!(0, undefined as never)
+        : cle === 'storyboard.plan' ? SCENARIOS.F14!.simule.storyboard!(0, undefined as never)
+        : cle === 'image.compile' ? SCENARIOS.F14!.simule.compile!(0, undefined as never) : SCENARIOS.F17!.simule.lot!(0, undefined as never);
       return { texte: JSON.stringify(rep), modele: 'claude-sonnet-5', jetonsEntree: 100, jetonsSortie: 100, coutUsd };
     },
   };
@@ -162,6 +168,18 @@ describe('contrôle positif · la porte s’ouvre seulement avec les trois condi
     expect(await lignes()).toEqual(avant);
   });
 
+  it('deux campagnes lancées EN MÊME TEMPS sur une approbation : une seule part', async () => {
+    expect(await approuver('0.528')).toMatchObject({ ok: true });
+    const a = espion(); const b = espion();
+    const [x, y] = await Promise.all([
+      lancerCampagneReelle({ budgetBrut: '0.528', cas: CAS, adaptateur: a.a, medias: null, racine: null }),
+      lancerCampagneReelle({ budgetBrut: '0.528', cas: CAS, adaptateur: b.a, medias: null, racine: null }),
+    ]);
+    expect([x.ok, y.ok].sort()).toEqual([false, true]);
+    expect((x.ok ? y : x)).toMatchObject({ ok: false, refus: [{ code: 'APPROBATION_CONSOMMEE' }] });
+    expect(a.appels.length + b.appels.length).toBe(4);
+  });
+
   it('arrêt AVANT l’appel qui ferait dépasser le budget', async () => {
     expect(await approuver('0.528')).toMatchObject({ ok: true });
     const s = espion(0.3);
@@ -171,5 +189,23 @@ describe('contrôle positif · la porte s’ouvre seulement avec les trois condi
     expect(r.resultat.rapport.depenseUsdMicros).toBe(600_000);
     expect(r.resultat.rapport.arrete).toMatch(/^Arrêt avant F17\/lot#0/);
     expect(r.resultat.resultats.map((x) => [x.cas, x.statut])).toEqual([['F04', 'execute'], ['F17', 'arrete_budget'], ['F21', 'arrete_budget']]);
+  });
+});
+
+describe('médias réels · toujours sous la barrière de dépense', () => {
+  it('F14 avec un exécuteur média (espion) : chaque génération écrit sa ligne ai_spend au barème, sous sousPlafond', async () => {
+    expect(await approuver('0.424', ['F14'])).toMatchObject({ ok: true });
+    const produits: string[] = [];
+    const medias: ExecuteurMedias = {
+      nom: 'espion-medias', profils: ['image_generation'],
+      async produire(d) { produits.push(`${d.etapeId}#${d.sortie}`); return [{ octets: await encoder(imageVide(16, 16, [9, 9, 9, 255])), mime: 'image/png' }]; },
+    };
+    const s = espion();
+    const r = await lancerCampagneReelle({ budgetBrut: '0.424', cas: ['F14'], adaptateur: s.a, medias, racine: null });
+    if (!r.ok) throw new Error(JSON.stringify(r.refus));
+    expect(produits).toEqual(['generation#0', 'generation#1']);
+    const lignesDepense = await db.select().from(schema.aiSpend).where(eq(schema.aiSpend.action, 'studio-benchmark:F14:generation'));
+    expect(lignesDepense.map((l) => [l.provider, l.model, l.actualUsd])).toEqual([['fal', 'fal_image', 0.08], ['fal', 'fal_image', 0.08]]);
+    expect(r.resultat.rapport.depenseUsdMicros).toBe(2 * 80_000);
   });
 });

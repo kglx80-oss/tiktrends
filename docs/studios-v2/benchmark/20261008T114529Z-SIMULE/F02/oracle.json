@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F02",
+  "titre": "Référence contaminante",
+  "statut": "bloque_capacite",
+  "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+  "invariants": [
+    {
+      "id": "F02.portee_decor",
+      "description": "Style limité au décor",
+      "passe": null,
+      "detail": "étape « style » non aboutie (blocked · UNSUPPORTED_CAPABILITY)"
+    },
+    {
+      "id": "F02.interdits_transfert",
+      "description": "Personnage et logo tiers interdits de transfert dans la consigne image",
+      "passe": true,
+      "detail": "interdits présents"
+    }
+  ],
+  "revueHumaine": "fiche-revue.json"
+}

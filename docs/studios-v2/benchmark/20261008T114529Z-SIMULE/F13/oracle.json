@@ -1,0 +1,17 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F13",
+  "titre": "Image seule",
+  "statut": "bloque_capacite",
+  "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+  "invariants": [
+    {
+      "id": "F13.aucune_transcription",
+      "description": "Aucune transcription, voix ou rythme vidéo inventés",
+      "passe": null,
+      "detail": "étape « analyse » non aboutie (blocked · UNSUPPORTED_CAPABILITY)"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

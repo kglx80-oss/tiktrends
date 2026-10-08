@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F05",
+  "titre": "Retouche masquée",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "775219d4-5e95-4e77-8681-785615c9abb5"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "consigne",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "consigne",
+      "role": "system",
+      "sha256": "045f1d80889da29c0c308480c77b1c3a88cfae2d84dc8c01a4ec9335c8e9eea9",
+      "caracteres": 2620
+    },
+    {
+      "etape": "consigne",
+      "role": "user",
+      "sha256": "4c9c6d54fbab8d30e9e663abb4245e9bf29380b135ed1a0002a1f6058624035e",
+      "caracteres": 1204
+    }
+  ]
+}

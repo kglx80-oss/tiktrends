@@ -1,0 +1,65 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F23",
+  "titre": "Concepts sourcés",
+  "oracleAttendu": "≤12concepts, aucun avis ni chiffre inventé",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "concepts",
+      "sortie": 0,
+      "template": "concept.plan",
+      "taskInputsSha256": "9fa31d4bb11fa85d88febb1d23f85c9a9239d6265a73197fba0c772843701639",
+      "taskInputs": {
+        "briefId": "brief_F23",
+        "angleCount": 2,
+        "formats": [
+          "9:16"
+        ]
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "brief_F23",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "brief_F23",
+              "claim": "Crème mains, texture légère ; aucun témoignage ni chiffre fourni.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "699fb481e5c8e189a68b671200cf70454710d25631890c66fbef4e8cf38f351b"
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "concept_1",
+            "entityType": "concept",
+            "ordinal": 0
+          },
+          {
+            "id": "concept_2",
+            "entityType": "concept",
+            "ordinal": 1
+          },
+          {
+            "id": "concept_3",
+            "entityType": "concept",
+            "ordinal": 2
+          },
+          {
+            "id": "concept_4",
+            "entityType": "concept",
+            "ordinal": 3
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}

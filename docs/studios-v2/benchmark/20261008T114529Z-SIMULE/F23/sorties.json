@@ -1,0 +1,79 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F23",
+  "titre": "Concepts sourcés",
+  "etapes": [
+    {
+      "etapeId": "concepts",
+      "templateKey": "concept.plan",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "concepts": [
+          {
+            "conceptId": "concept_1",
+            "angle": "légèreté",
+            "format": "9:16",
+            "hook": "Des mains douces sans effet gras.",
+            "body": "La texture pénètre vite.",
+            "cta": "Découvrir",
+            "visualDirection": "Gros plan sur la texture",
+            "claimSourceIds": [],
+            "changedVariable": "angle",
+            "preservedInvariants": []
+          },
+          {
+            "conceptId": "concept_2",
+            "angle": "légèreté",
+            "format": "9:16",
+            "hook": "Tu peux toucher ton téléphone juste après.",
+            "body": "Aucune trace sur l’écran.",
+            "cta": "Essayer",
+            "visualDirection": "Mains sur un écran",
+            "claimSourceIds": [],
+            "changedVariable": "angle",
+            "preservedInvariants": []
+          },
+          {
+            "conceptId": "concept_3",
+            "angle": "routine",
+            "format": "9:16",
+            "hook": "Le geste du soir le plus simple.",
+            "body": "Une noisette suffit.",
+            "cta": "Découvrir",
+            "visualDirection": "Table de chevet",
+            "claimSourceIds": [],
+            "changedVariable": "angle",
+            "preservedInvariants": []
+          }
+        ]
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "bd2ba992-fe2a-4b13-b079-b6d0070281ed",
+      "resultSha256": "52e213dd7a900fe2458a432a92c51c52cd02988646133f9d9b0496f659a79ca7",
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

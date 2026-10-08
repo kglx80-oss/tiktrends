@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F23",
+  "titre": "Concepts sourcés",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "bd2ba992-fe2a-4b13-b079-b6d0070281ed"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "concepts",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "concepts",
+      "role": "system",
+      "sha256": "e94ae94383e3aa53979d612dbf614183ab99688817627bc06b86718d4d1d4ca2",
+      "caracteres": 2660
+    },
+    {
+      "etape": "concepts",
+      "role": "user",
+      "sha256": "5a547096c336e95e0c54b99966fb94038f957968ceb614920b570942848bf630",
+      "caracteres": 1064
+    }
+  ]
+}

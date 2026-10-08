@@ -1,0 +1,240 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F01",
+  "titre": "Packshot et accessoire",
+  "etapes": [
+    {
+      "etapeId": "brief",
+      "templateKey": "brief.build",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "objective": "Packshot fidèle",
+        "audience": "Acheteurs de lunettes",
+        "hypothesisId": null,
+        "testedVariable": "décor",
+        "facts": [],
+        "invariants": [
+          "Lunettes ET bandeau présents",
+          "Calque produit original inchangé en mode fidèle"
+        ],
+        "variables": [
+          "décor"
+        ],
+        "references": [
+          {
+            "assetId": "f01-lunettes-bleues",
+            "assetVersion": "v1",
+            "sha256": "5d91e2cbf00172e2e7febc09dba34647c3cdcb1a9e1c54d51268165ac94b6857",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "lunettes"
+            ]
+          },
+          {
+            "assetId": "f01-bandeau-bleu",
+            "assetVersion": "v1",
+            "sha256": "8592ace707e40fe83b0b620fde016e7bd4d301d78a5a0d3bcf1accf46466d060",
+            "role": "integrate",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "bandeau"
+            ]
+          }
+        ],
+        "composition": "Produit centré",
+        "styleIntent": "Décor doux",
+        "texts": [],
+        "formats": [
+          "1:1"
+        ],
+        "exclusions": []
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "efd59650-a488-4c8f-9baf-c2e6c3591d31",
+      "resultSha256": "b04328d5e9181be299ec3b447557c812a8c76351c0dfc3afcd699387308167e0",
+      "fichiers": []
+    },
+    {
+      "etapeId": "compile",
+      "templateKey": "image.compile",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "generationInstruction": "Décor de plage douce autour du produit, sans toucher au calque produit.",
+        "negativeConstraints": [
+          "ne pas redessiner les lunettes"
+        ],
+        "referenceBindings": [
+          {
+            "referenceId": "f01-lunettes-bleues",
+            "role": "product",
+            "scope": "product"
+          },
+          {
+            "referenceId": "f01-bandeau-bleu",
+            "role": "integrate",
+            "scope": "product"
+          }
+        ],
+        "protectedComponents": [
+          "lunettes",
+          "bandeau"
+        ],
+        "needsDeterministicOverlay": false
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "ea2ed9c9-c1d8-4316-a432-12b90a3b5b2a",
+      "resultSha256": "c2cc956b3138f1ac3e9eacde2c3be799a6aa3902416cb21658c56a95a95615a6",
+      "fichiers": []
+    },
+    {
+      "etapeId": "generation",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/generation-1-1.png",
+          "sha256": "34d4c7136ca83f798865a50665d28287cc45bdf6e1cccab3675b8257286b3b74",
+          "largeur": 256,
+          "hauteur": 256
+        }
+      ]
+    },
+    {
+      "etapeId": "composition",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/composition-1-1.png",
+          "sha256": "d52cba7998a9a1ae40a605d52c3832b15a351f82675ba8854f7cbdab3f38b153",
+          "largeur": 256,
+          "hauteur": 256
+        }
+      ]
+    },
+    {
+      "etapeId": "qualite",
+      "templateKey": "quality.visual",
+      "sortie": 0,
+      "statut": "blocked",
+      "code": "UNSUPPORTED_CAPABILITY",
+      "result": null,
+      "questions": [
+        "Profil « vision_analysis » non routé dans ce lot · aucun fournisseur de repli."
+      ],
+      "warnings": [],
+      "runId": "a53a4bec-1b11-4227-8e5e-5896cf38a1dd",
+      "resultSha256": null,
+      "fichiers": []
+    },
+    {
+      "etapeId": "generation",
+      "templateKey": null,
+      "sortie": 1,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/generation-2-1.png",
+          "sha256": "2745b5f15a79dd33f900c2f4670199f85eeabb7fcd934151cc3df9362149a251",
+          "largeur": 256,
+          "hauteur": 256
+        }
+      ]
+    },
+    {
+      "etapeId": "composition",
+      "templateKey": null,
+      "sortie": 1,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/composition-2-1.png",
+          "sha256": "f7a6f3cce3e2501beb8d4019b4f62dcb46f7b886b5121dcdab33b9869fc7261a",
+          "largeur": 256,
+          "hauteur": 256
+        }
+      ]
+    },
+    {
+      "etapeId": "qualite",
+      "templateKey": "quality.visual",
+      "sortie": 1,
+      "statut": "blocked",
+      "code": "UNSUPPORTED_CAPABILITY",
+      "result": null,
+      "questions": [
+        "Profil « vision_analysis » non routé dans ce lot · aucun fournisseur de repli."
+      ],
+      "warnings": [],
+      "runId": "4debc0b3-72d6-4642-9b8e-761ae7571bf0",
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {
+    "calques": [
+      {
+        "avant": "bad5fa20f37e0934335b4a85e6963ca56828cc560065c9486949fc2417df19f5",
+        "apres": "bad5fa20f37e0934335b4a85e6963ca56828cc560065c9486949fc2417df19f5"
+      },
+      {
+        "avant": "bad5fa20f37e0934335b4a85e6963ca56828cc560065c9486949fc2417df19f5",
+        "apres": "bad5fa20f37e0934335b4a85e6963ca56828cc560065c9486949fc2417df19f5"
+      }
+    ]
+  },
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

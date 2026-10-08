@@ -1,0 +1,154 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F15",
+  "titre": "Produit transparent",
+  "oracleAttendu": "Contours/transparence/texte produit contrôlés, revue si illisible",
+  "jeuSynthetique": [
+    {
+      "id": "f15-flacon",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f15-flacon.png",
+      "sha256": "7cf266ba3cbcf6336f2847d25a2951dab7588614d15e5c437f975d0803b65071",
+      "contenuSha256": "6b6d9811c09d1b4e0d387654ff5e857db9e6c84699b8f908ca1b639d13c43031"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "compile",
+      "sortie": 0,
+      "template": "image.compile",
+      "taskInputsSha256": "1356c2810548ff06ee2bcfe8b6cc0fd417623456ccc871ae6c6488a33fcd4335",
+      "taskInputs": {
+        "briefId": "brief_F15",
+        "conceptId": "concept_F15",
+        "mode": "faithful_composite",
+        "referenceIds": [
+          "f15-flacon"
+        ],
+        "width": 1080,
+        "height": 1350
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "brief_F15",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "brief_F15",
+              "claim": "Flacon transparent à l’étiquette fine ; seul le fond change.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "e2996203065586e6232184f80f300ff1bf59bb7dde9fa8d01e0a18cd808073f4"
+          },
+          {
+            "id": "concept_F15",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "concept_F15",
+              "claim": "Fond minéral clair.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "995e1755e04719fd6aca4694f96cfcfa86ed1795e7b3d88b139d5b3d6405c0dd"
+          }
+        ],
+        "references": [
+          {
+            "assetId": "f15-flacon",
+            "assetVersion": "v1",
+            "sha256": "7cf266ba3cbcf6336f2847d25a2951dab7588614d15e5c437f975d0803b65071",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "flacon transparent",
+              "étiquette fine"
+            ]
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "qualite",
+      "sortie": 0,
+      "template": "quality.visual",
+      "taskInputsSha256": "f620c043d8875477734a268471d69c2308728643ab19b8da938c605a04595bf7",
+      "taskInputs": {
+        "outputAssetIds": [
+          "sortie_F15_1"
+        ],
+        "referenceIds": [
+          "f15-flacon"
+        ],
+        "criteria": [
+          "Contours et transparence",
+          "Étiquette lisible"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f15-flacon",
+            "assetVersion": "v1",
+            "sha256": "7cf266ba3cbcf6336f2847d25a2951dab7588614d15e5c437f975d0803b65071",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "flacon transparent",
+              "étiquette fine"
+            ]
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "qualite",
+      "sortie": 1,
+      "template": "quality.visual",
+      "taskInputsSha256": "935cc09abcab4e9d3cf874dda9bb4a315d9b5447f758db28dcdc08df7e1abd26",
+      "taskInputs": {
+        "outputAssetIds": [
+          "sortie_F15_2"
+        ],
+        "referenceIds": [
+          "f15-flacon"
+        ],
+        "criteria": [
+          "Contours et transparence",
+          "Étiquette lisible"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f15-flacon",
+            "assetVersion": "v1",
+            "sha256": "7cf266ba3cbcf6336f2847d25a2951dab7588614d15e5c437f975d0803b65071",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "flacon transparent",
+              "étiquette fine"
+            ]
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "etiquette": "étiquette fine"
+  }
+}

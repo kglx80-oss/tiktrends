@@ -1,0 +1,39 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F08",
+  "titre": "Narration exacte",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "d245429f-9085-43e3-aa31-a742b17863e7"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "voix",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "voix",
+      "role": "system",
+      "sha256": "edec94c9f79de64a7f6668a0dee79338bcfb67f202e13d0e0cadf0fad87eb4f5",
+      "caracteres": 2584
+    },
+    {
+      "etape": "voix",
+      "role": "user",
+      "sha256": "ae732080760769755f590b024d47eb095396b1b4c458388291dd83f1ff2b0d5d",
+      "caracteres": 710
+    }
+  ]
+}

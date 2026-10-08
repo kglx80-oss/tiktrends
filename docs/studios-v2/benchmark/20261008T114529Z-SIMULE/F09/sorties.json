@@ -1,0 +1,68 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F09",
+  "titre": "Révision isolée",
+  "etapes": [
+    {
+      "etapeId": "patch",
+      "templateKey": "document.patch",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "baseVersion": "bench-F09-v1",
+        "changes": [
+          {
+            "path": "/plans/plan_2/tenue",
+            "newValue": "veste rouge",
+            "reason": "Tenue du plan 2 seulement",
+            "op": "replace"
+          }
+        ],
+        "preservedIds": [
+          "plan_1",
+          "narration"
+        ],
+        "impactSummary": "Plan 2 à régénérer ; plan 1 et audio conservés."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "295b4dbf-dde5-400c-965c-7c4bbafc6aae",
+      "resultSha256": "9e0b33efe19b905ac07b06c6f1f3fcb35cf26bf418ca66ca0dff64ffb1866eaa",
+      "fichiers": []
+    },
+    {
+      "etapeId": "application",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

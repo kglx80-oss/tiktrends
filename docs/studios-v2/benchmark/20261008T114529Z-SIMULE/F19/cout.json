@@ -1,0 +1,45 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F19",
+  "titre": "Sources concurrentes",
+  "depenseUsdMicros": 0,
+  "note": "Aucune dépense : fournisseurs simulés. Le devis dit ce que ce cas coûterait au plus en réel.",
+  "devis": [
+    {
+      "etapeId": "extraction_a",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "brand.extract",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "extraction_b",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "brand.extract",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "brief",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "brief.build",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    }
+  ],
+  "totalDevisUsdMicros": 396000,
+  "limites": []
+}
