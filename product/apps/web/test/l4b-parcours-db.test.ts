@@ -328,6 +328,16 @@ describe('SEC-01 / SEC-02 · hors portée, NOT_FOUND neutre et sans fuite', () =
     expect(await creerProjetDepuisSources({ sources: [SRC_VEILLE], brandId: ids.brandA1, cleClic: 'clic-lecteur-01' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     expect(await exporterBrief({ projectId: projetSaisie })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
   });
+
+  it('membre d’équipe invité en lecteur (studio ouvert par la matrice) · lit, mais ne crée ni n’exporte', async () => {
+    etat.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] } } as never });
+    const avant = await compte();
+    expect((await lireProjetDetail({ projectId: projetSaisie })).ok).toBe(true);
+    expect(await creerProjetDepuisSources({ sources: [{ type: 'sauvegarde', id: SAUV.a2 }], brandId: ids.brandA2, cleClic: 'clic-lecteur-02' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
+    expect(await exporterBrief({ projectId: projetSaisie })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
+    expect(await proposerHypotheses({ sources: [{ type: 'sauvegarde', id: SAUV.a2 }], brandId: ids.brandA2 })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
+    expect(await compte()).toEqual(avant);
+  });
 });
 
 describe('FLOW-10 · exporter le brief sans accès à la génération', () => {

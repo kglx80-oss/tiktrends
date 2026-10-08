@@ -71,7 +71,10 @@ export async function chargerSources(
     .map((e) => e.id);
   if (!idsSauvegardes.every(estUuid)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   const lignes = idsSauvegardes.length
-    ? await db.select().from(schema.savedAds).where(and(inArray(schema.savedAds.id, idsSauvegardes as string[]), porteeSauvegarde(ctx)))
+    ? await db.select({
+      id: schema.savedAds.id, workspaceId: schema.savedAds.workspaceId, brandId: schema.savedAds.brandId,
+      platform: schema.savedAds.platform, externalId: schema.savedAds.externalId, snapshot: schema.savedAds.snapshot,
+    }).from(schema.savedAds).where(and(inArray(schema.savedAds.id, idsSauvegardes as string[]), porteeSauvegarde(ctx)))
     : [];
   const parId = new Map(lignes.map((l) => [l.id, l]));
 
