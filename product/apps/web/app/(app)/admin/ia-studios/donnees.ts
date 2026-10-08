@@ -5,7 +5,7 @@ import * as depot from '../../../../lib/studios/prompts/depot-prompts';
 import { listerRuns, lireRun } from '../../../../lib/studios/prompts/resolveur';
 import { chargerSource } from '../../../../lib/studios/prompts/source';
 import { champsAffiches, variablesDe, diffVersions } from '../../../../lib/studios/prompts/vue';
-import { LIBELLE_TYPE, entierVersVersion, lireEntrees, lireEvaluation, typeDe, type TypeEntree } from '../../../../lib/studios/prompts/correspondance';
+import { LIBELLE_TYPE, entierVersVersion, lireEntrees, lireEvaluation, lireRevocation, typeDe, type TypeEntree } from '../../../../lib/studios/prompts/correspondance';
 import { expurgerRun, type LigneRun } from '../../../../lib/studios/prompts/traces';
 import { PROFILS_ROUTES_ANTHROPIC, modeleTexte } from '../../../../lib/studios/prompts/adaptateur';
 import { listerConnaissances } from '../../../../lib/jarvis-connaissances';
@@ -79,6 +79,7 @@ export async function vueReleases(): Promise<{ releases: VueRelease[]; pointee: 
       id: l.id, statut: l.status, empreinte: l.releaseHash, packHash: e?.packHash ?? '', creeLe: date(l.createdAt), motif: l.reason, pointee: l.id === pointee,
       tests: valide ? valide.testsStructurels : null, benchmark: !!valide?.benchmarkApprouve,
       versions: e ? e.templates.length + e.recettes.length + e.conversations.length + 2 : 0, conversation: conv ? conv.version : null,
+      revocation: lireRevocation(l.evaluation)?.motif ?? null,
     };
   });
   const selection = [...depot.selectionParDefaut(versions).entries()].map(([cle, l]) => ({ cle, version: entierVersVersion(l.version) })).sort((a, b) => a.cle.localeCompare(b.cle));

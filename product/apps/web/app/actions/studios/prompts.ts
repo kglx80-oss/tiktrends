@@ -73,6 +73,11 @@ export async function rollbackReleaseAction(e: { releaseId: unknown; attendue: u
   return avec('prompt.rollback', (g) => depot.rollbackRelease(g.acteur, { releaseId: e.releaseId, attendue: e.attendue, environnement: environnementPrompts(process.env) }));
 }
 
+export async function revoquerReleaseAction(e: { releaseId: unknown; motif: unknown; confirme: unknown }): Promise<ReponseAdmin<{ releaseId: string; deja: boolean }>> {
+  if (e?.confirme !== true) return { ok: false, message: 'Confirme la révocation avant de l’envoyer.', constats: [] };
+  return avec('prompt.rollback', (g) => depot.revoquerRelease(g.acteur, { releaseId: e.releaseId, motif: e.motif }));
+}
+
 export async function retirerReleaseAction(e: { releaseId: unknown; motif?: unknown }): Promise<ReponseAdmin<{ releaseId: string }>> {
   return avec('prompt.publish', (g) => depot.retirerRelease(g.acteur, { releaseId: e?.releaseId, motif: e?.motif }));
 }

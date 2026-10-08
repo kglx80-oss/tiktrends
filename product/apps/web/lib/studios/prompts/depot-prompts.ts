@@ -37,7 +37,7 @@ import {
 } from './noyau';
 import {
   CLE_RENDU, CLE_SOCLE, contenuDeRelease, contenuPourBase, empreinteDeContenu, empreintesRelease, entierVersVersion,
-  entreeDeLigne, lireEntrees, referencesRelease, registreNoyau, releaseDeLigne, versionSuivante, versionVersEntier,
+  entreeDeLigne, lireEntrees, lireRevocation, referencesRelease, registreNoyau, releaseDeLigne, versionSuivante, versionVersEntier,
   type ContenuComplet, type EntreeServeur, type EntreesRelease, type LigneRelease, type LigneVersion, type TypeEntree,
   kindDe, typeDe,
 } from './correspondance';
@@ -416,7 +416,12 @@ export async function releaseChargee(id: string, ex: Ex = db): Promise<ReleaseCh
   const enCache = cacheReleases.get(id);
   const ligne = await lireReleaseParId(id, ex);
   if (!ligne) return null;
-  if (enCache && enCache.ligne.releaseHash === ligne.releaseHash) return { ...enCache, ligne, noyau: { ...enCache.noyau, statut: ligne.status as Release['statut'] } };
+  // Statut et évaluation (donc révocation) sont mobiles : le noyau est TOUJOURS
+  // relu de la ligne courante, seul le contenu (immuable) vient du cache.
+  if (enCache && enCache.ligne.releaseHash === ligne.releaseHash) {
+    const noyau = releaseDeLigne(ligne as unknown as LigneRelease);
+    if (noyau) return { ...enCache, ligne, noyau };
+  }
   const c = await chargerRelease(id, ex);
   if (c) cacheReleases.set(id, c);
   return c;
@@ -563,7 +568,9 @@ export async function evaluerRelease(a: Acteur, e: { releaseId: unknown }): Prom
       releaseId: c.ligne.id, kind: 'structural', passed: passe, evaluatorId: a.userId,
       result: { releaseHash: c.ligne.releaseHash, packHash: c.entrees.packHash, donnees: 'synthetiques', budget: 'evaluation', depenseUsd: 0, tests, benchmark },
     }).returning({ id: schema.studioPromptEvaluations.id });
-    const evaluation = { releaseHash: c.ligne.releaseHash, testsStructurels: passe, benchmarkApprouve: false, evaluationId: ev!.id, evalueeLe: new Date().toISOString() };
+    // Une révocation n'est jamais effacée par une évaluation.
+    const rev = (c.ligne.evaluation as { revocation?: unknown } | null)?.revocation;
+    const evaluation = { releaseHash: c.ligne.releaseHash, testsStructurels: passe, benchmarkApprouve: false, evaluationId: ev!.id, evalueeLe: new Date().toISOString(), ...(rev ? { revocation: rev } : {}) };
     const maj = await tx.update(R).set({ evaluation, updatedAt: new Date() }).where(and(eq(R.id, c.ligne.id), eq(R.status, 'staged'))).returning({ id: R.id });
     if (maj.length !== 1) return refusUn('VERSION_CONFLICT', c.ligne.id, 'La release a changé pendant l’évaluation.');
     await audit(tx, a, { action: 'prompt.release.evaluer', targetType: 'prompt_release', targetId: c.ligne.id, apres: passe ? 'tests_structurels_reussis' : 'tests_structurels_echoues', details: { evaluationId: ev!.id, releaseHash: c.ligne.releaseHash, benchmark: 'non_execute' } });
@@ -646,6 +653,30 @@ export async function retirerRelease(a: Acteur, e: { releaseId: unknown; motif?:
     await tx.update(R).set({ status: 'retired', updatedAt: new Date() }).where(eq(R.id, c.ligne.id));
     await audit(tx, a, { action: 'prompt.release.retirer', targetType: 'prompt_release', targetId: c.ligne.id, avant: c.ligne.status, apres: 'retired', raison: typeof e.motif === 'string' ? e.motif : '' });
     return { ok: true as const, releaseId: c.ligne.id };
+  });
+}
+
+/**
+ * Révoque une release · erreur grave découverte après publication. Rien n'est
+ * effacé : la révocation est écrite dans `evaluation.revocation` (colonne
+ * mobile), et TOUS les chemins la voient au chargement suivant (`releaseDeLigne`) :
+ * plus de publication ni de rollback vers elle, plus de nouveau devis épinglé,
+ * plus d'exécution d'un job épinglé, plus de tâche studio servie par elle, et
+ * Jarvis retombe sur sa consigne 1.0.0 tant qu'elle est pointée. Motif obligatoire.
+ */
+export async function revoquerRelease(a: Acteur, e: { releaseId: unknown; motif: unknown }): Promise<Res<{ releaseId: string; deja: boolean }>> {
+  if (!autorise(a.octrois, 'prompt.rollback', PLATEFORME)) return interdit('prompt.rollback');
+  if (!estUuid(e.releaseId)) return refusUn('NOT_FOUND', '', 'Release introuvable.');
+  const motif = typeof e.motif === 'string' ? e.motif.trim().slice(0, 500) : '';
+  if (!motif) return refusUn('INVALID_SCHEMA', 'motif', 'Indique pourquoi la release est révoquée.');
+  return db.transaction(async (tx) => {
+    const [l] = await tx.select().from(R).where(eq(R.id, e.releaseId as string)).for('update');
+    if (!l) return refusUn('NOT_FOUND', '', 'Release introuvable.');
+    if (lireRevocation(l.evaluation)) return { ok: true as const, releaseId: l.id, deja: true };
+    const evaluation = { ...((l.evaluation as Record<string, unknown> | null) ?? {}), revocation: { motif, par: a.userId, le: new Date().toISOString() } };
+    await tx.update(R).set({ evaluation, updatedAt: new Date() }).where(eq(R.id, l.id));
+    await audit(tx, a, { action: 'prompt.release.revoquer', targetType: 'prompt_release', targetId: l.id, avant: l.status, apres: l.status, raison: motif, details: { releaseHash: l.releaseHash } });
+    return { ok: true as const, releaseId: l.id, deja: false };
   });
 }
 
