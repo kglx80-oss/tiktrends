@@ -2,8 +2,8 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "0f6f836 (claude/studios-integration = L0 à L6 partiel + F-A à F-D + G-A/G-B + correctifs contre-recette ; portes vertes : core 2726, web 3260 dont 23 ignorés, workers 45 dont 1 ignoré, ai 8, integrations 127, build)",
-  "lotCourant": "vague 7 · R3 budget, L7-A export image, L7-B décodage vidéo ffmpeg, E kit d'essai réel isolé (base 0f6f836)",
+  "shaCourant": "f2b9fc4",
+  "lotCourant": "vague 7 intégrée (f2b9fc4) · en attente de recette Codex",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
@@ -691,7 +691,7 @@
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": "Aucun décodeur vidéo (ffprobe absent) : rien ne peut être prouvé lisible."
+      "limites": "Décodeur vidéo réel prêt au worker (ffmpeg, capacité sondée, #755) ; bloqué faute de fournisseur d’animation : aucun clip devisé ni débité."
     },
     "VIDEO-12": {
       "statut": "BLOCKED",
@@ -700,7 +700,7 @@
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": "Aucun décodeur vidéo (ffprobe absent) : rien ne peut être prouvé lisible."
+      "limites": "Décodeur vidéo réel prêt au worker (ffmpeg, capacité sondée, #755) ; bloqué faute de fournisseur d’animation : aucun clip devisé ni débité."
     },
     "VIDEO-13": {
       "statut": "BLOCKED",
@@ -712,58 +712,58 @@
       "limites": "Aucun décodeur vidéo (ffprobe absent) : rien ne peut être prouvé lisible."
     },
     "EXPORT-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "apps/web/lib/studios/export, packages/core/src/studios/export, app/api/studios/export, components/studios/export",
+      "test": "packages/core/test/l7a-export.test.ts, apps/web/test/l7a-export-db.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "e7bda48",
+      "limites": "Image seulement ; police téléversée refusée (Sans et Sans Bold embarquées)."
     },
     "EXPORT-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "apps/web/lib/studios/export, packages/core/src/studios/export, app/api/studios/export, components/studios/export",
+      "test": "apps/web/test/l7a-export-db.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "e7bda48",
+      "limites": "Pixels identiques à l’aperçu (écart 0) en PNG ; JPEG décodé (dimensions, type), aplati sur fond blanc qualité 90."
     },
     "EXPORT-03": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/studios/video/export-video.ts (préflight), apps/workers/src/studios/decodeur-video.ts",
+      "test": "packages/core/test/l7b-export-video.test.ts, apps/workers/test/l7b-decodeur-video.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "9a5a13c",
+      "limites": "Décodage vidéo réel prêt (ffmpeg) mais aucun fournisseur d’animation ni de voix : montage final RENDU_VIDEO_FINAL.disponible = false."
     },
     "EXPORT-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "apps/web/lib/studios/export, packages/core/src/studios/export, app/api/studios/export, components/studios/export",
+      "test": "apps/web/test/l7a-export-db.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "e7bda48",
+      "limites": "Octets non conservés : re-rendu à la demande contre l’empreinte auditée."
     },
     "EXPORT-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "apps/web/lib/studios/export, packages/core/src/studios/export, app/api/studios/export, components/studios/export",
+      "test": "apps/web/test/l7a-export-db.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "e7bda48",
+      "limites": "V1 re-téléchargée et ré-exportée au même hash après V2 ; un média modifié rend l’ancien export non servi (voulu)."
     },
     "EXPORT-06": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L7",
       "implementation": null,
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": null
+      "limites": "Parcours réels avec fournisseurs : kit d’essai isolé prêt (#756), exécution par le propriétaire (budget 15 $ autorisé)."
     },
     "UX-01": {
       "statut": "TODO",
@@ -908,6 +908,13 @@
       "id": "0054_studios_fondations",
       "etat": "locale, jouée deux fois sans erreur, non publiée",
       "lot": "L1"
+    },
+    {
+      "numero": "0055",
+      "fichier": "0055_ai_spend_reconciliation.sql",
+      "nature": "additive · colonne ai_spend.reconcile_reason nullable, IF NOT EXISTS",
+      "pr": "#753",
+      "verifie": "base vide 55 + 0055 rejouée deux fois"
     }
   ],
   "versionsPrompts": {
@@ -959,18 +966,19 @@
       "solutionPreparee": "Commande de benchmark avec devis agrégé, budget explicite et approbation ADMIN (vague 5) ; exécution réelle seulement après accord chiffré du propriétaire."
     },
     {
-      "id": "B-DECODEUR-VIDEO",
+      "id": "B-FOURNISSEUR-ANIMATION",
       "exigences": [
         "VIDEO-11",
         "VIDEO-12",
         "VIDEO-13",
-        "UX-07"
+        "EXPORT-03"
       ],
-      "cause": "Aucun décodeur vidéo (ffprobe) sur la machine ni dans l’image worker ; F20 sans exécuteur.",
-      "solutionPreparee": "Point d’injection decoderVideo prévu ; décision du propriétaire : installer ffprobe sur le VPS et dans Dockerfile.workers."
+      "cause": "Aucun adaptateur d’animation ni de voix/lipsync dans le code ; le décodeur vidéo réel est prêt (#755).",
+      "solutionPreparee": "Refus au devis tant que FOURNISSEUR_ANIMATION_BRANCHE = false ; préflight export vidéo et décodage complet prêts.",
+      "besoinKevin": "Choix et budget d’un fournisseur d’animation et de voix."
     }
   ],
-  "prochaineAction": "Intégrer R3, L7-A, L7-B sur claude/studios-integration ; recette Codex ; décisions propriétaire : budget essai réel (Codex recommande ≤ 2 $), vision incluse au devis, ffmpeg sur le VPS (image worker)",
+  "prochaineAction": "Recette Codex de la vague 7 (#753–#756, intégration #741 f2b9fc4) ; puis le propriétaire lance l’essai réel isolé (pas 1, 0,36 $ annoncés) après contrôle du runbook ; L8 ensuite.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -1193,7 +1201,11 @@
     "749": "G-A raccords site (c670641, base vague 6)",
     "750": "G-B retouche masquée réelle F05 (8e95948, base vague 6)",
     "751": "L6-B identités, contradictions, substitution, voix (75b6a25, base vague 6)",
-    "752": "L6-A storyboard et timeline vidéo (fd6b7ed, base vague 6)"
+    "752": "L6-A storyboard et timeline vidéo (fd6b7ed, base vague 6)",
+    "753": "R3 budget réessais, borne, devis borne/estimation, vision au devis, migration 0055 (461800f, base vague 7)",
+    "754": "L7-A export image (e7bda48, base vague 7)",
+    "755": "L7-B décodage vidéo ffmpeg, capacité sondée (9a5a13c, base vague 7)",
+    "756": "E kit d’essai réel isolé (8e2a124, base vague 7)"
   },
   "besoinsIntegrateur": [
     "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
