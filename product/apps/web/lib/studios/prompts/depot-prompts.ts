@@ -558,6 +558,10 @@ export function casBenchmark(c: ReleaseChargee): CasNonExecute[] {
 export async function evaluerRelease(a: Acteur, e: { releaseId: unknown }): Promise<Res<{ evaluationId: string; testsStructurels: boolean; tests: TestStructurel[]; benchmark: CasNonExecute[] }>> {
   if (!estUuid(e.releaseId)) return refusUn('NOT_FOUND', '', 'Release introuvable.');
   return db.transaction(async (tx) => {
+    // Verrou de ligne AVANT la lecture (recette du 8 octobre, P2) : une révocation
+    // concurrente (`revoquerRelease` prend le même verrou) est soit déjà commitée
+    // et lue ici, soit attend la fin de cette évaluation.
+    await tx.select({ id: R.id }).from(R).where(eq(R.id, e.releaseId as string)).for('update');
     const c = await chargerRelease(e.releaseId as string, tx);
     if (!c) return refusUn('NOT_FOUND', '', 'Release introuvable.');
     const ok = resoudreReleaseEvaluation({ release: c.noyau, octrois: a.octrois, donneesSynthetiques: true });
@@ -570,7 +574,8 @@ export async function evaluerRelease(a: Acteur, e: { releaseId: unknown }): Prom
       releaseId: c.ligne.id, kind: 'structural', passed: passe, evaluatorId: a.userId,
       result: { releaseHash: c.ligne.releaseHash, packHash: c.entrees.packHash, donnees: 'synthetiques', budget: 'evaluation', depenseUsd: 0, tests, benchmark },
     }).returning({ id: schema.studioPromptEvaluations.id });
-    // Une révocation n'est jamais effacée par une évaluation.
+    // Une révocation n'est jamais effacée par une évaluation · lue sous le verrou
+    // de ligne pris en tête de transaction, donc à jour.
     const rev = (c.ligne.evaluation as { revocation?: unknown } | null)?.revocation;
     const evaluation = { releaseHash: c.ligne.releaseHash, testsStructurels: passe, benchmarkApprouve: false, evaluationId: ev!.id, evalueeLe: new Date().toISOString(), ...(rev ? { revocation: rev } : {}) };
     const maj = await tx.update(R).set({ evaluation, updatedAt: new Date() }).where(and(eq(R.id, c.ligne.id), eq(R.status, 'staged'))).returning({ id: R.id });

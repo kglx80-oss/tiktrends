@@ -28,7 +28,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }), redirect: (u: string) => { throw new Error(`REDIRECT ${u}`); } }));
 
-import { db, schema } from '@tiktrends/db';
+import { db, schema, eq } from '@tiktrends/db';
 import { vueReleases } from '../app/(app)/admin/ia-studios/donnees';
 import { EcranReleases } from '../app/(app)/admin/ia-studios/Ecrans';
 import * as depot from '../lib/studios/prompts/depot-prompts';
@@ -95,11 +95,29 @@ describe('révocation · propagée à tous les chemins (cache compris)', () => {
     expect(r).toMatchObject({ ok: true, origine: 'repli_revocation', release: null });
   });
 
-  it('publication ou rollback vers A ⇒ refusés ; une réévaluation ne l’efface pas', async () => {
+  it('publication ou rollback vers A ⇒ refusés, pointeur inchangé', async () => {
     const p = await depot.lirePointeur();
     expect(codes(await depot.rollbackRelease(A, { releaseId: relA, attendue: p?.releaseId ?? null, environnement: 'test' }))).toContain('RELEASE_REVOQUEE');
-    const [l] = await db.select().from(schema.studioPromptReleases);
+    expect(codes(await depot.publierRelease(A, { releaseId: relA, attendue: p?.releaseId ?? null, environnement: 'test' }))).toContain('RELEASE_REVOQUEE');
+    expect(await depot.lirePointeur()).toEqual(p);
+    const [l] = await db.select().from(schema.studioPromptReleases).where(eq(schema.studioPromptReleases.id, relA));
     expect((l!.evaluation as { revocation?: { motif: string } }).revocation?.motif).toBe('consigne fautive');
+  });
+
+  it('réévaluer une release révoquée (staged) ⇒ l’évaluation est écrite, la révocation reste', async () => {
+    const base = (await depot.listerVersions()).filter((v) => v.key === 'photo_clean' && v.status === 'validated').sort((x, y) => y.version - x.version)[0]!;
+    const b = await depot.enregistrerBrouillon(A, { baseId: base.id, champs: { lighting: 'lumière rasante' }, motif: 'release B' });
+    if (!b.ok) throw new Error(JSON.stringify(b));
+    expect((await depot.validerVersion(A, { id: b.id })).ok).toBe(true);
+    const relB = await depot.creerRelease(A, { motif: 'B' });
+    if (!relB.ok) throw new Error(JSON.stringify(relB));
+    expect((await depot.revoquerRelease(A, { releaseId: relB.id, motif: 'B fautive' })).ok).toBe(true);
+    const ev = await depot.evaluerRelease(A, { releaseId: relB.id });
+    expect(ev.ok, JSON.stringify(ev)).toBe(true);
+    const [l] = await db.select().from(schema.studioPromptReleases).where(eq(schema.studioPromptReleases.id, relB.id));
+    const evaluation = l!.evaluation as { revocation?: { motif: string }; evaluationId?: string };
+    expect(evaluation.evaluationId, 'la réévaluation n’a pas été écrite').toBe(ev.ok ? ev.evaluationId : '');
+    expect(evaluation.revocation?.motif, 'la réévaluation a effacé la révocation').toBe('B fautive');
   });
 });
 
