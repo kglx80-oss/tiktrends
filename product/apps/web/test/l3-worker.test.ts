@@ -31,7 +31,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 
 import { randomUUID } from 'node:crypto';
-import { db, schema, eq } from '@tiktrends/db';
+import { db, schema, eq, inArray } from '@tiktrends/db';
 import { CREDIT_COSTS, inspecterMedia, type FournisseurStudio } from '@tiktrends/core';
 import { semer } from './studios-semis';
 import { ctxDe, poserSolde, solde, projetTest, banc, secondWorker, jusquAuBout, etatEnBase } from './l3-harnais';
@@ -382,6 +382,59 @@ describe('COST-11 · fournisseur réussi, stockage indisponible', () => {
     expect([settle.credits, Number(settle.usdMicros)]).toEqual([0, 39_000]);
     expect(await solde(db, ids.wsA)).toBe(s0 + IMAGE);
     expect(e.violations).toEqual([]);
+  });
+});
+
+describe('recette du 8 octobre · un fichier tronqué n’est jamais livré', () => {
+  it('téléchargement coupé à mi-fichier ⇒ ni completed ni média ni règlement ; le fichier complet relu au tour suivant ⇒ livré, réglé une fois', async () => {
+    const id = await jobEnFile();
+    const w = banc(db);
+    w.fournisseur.prochaine('resultat_tronque');
+    w.fournisseur.troncatures = 2;
+    // Deux tours au plus loin : le fichier reste incomplet, rien n'est livré.
+    for (let i = 0; i < 6 && (await etatEnBase(db, id)).job.state !== 'persisting'; i++) await w.moteur.tour();
+    await w.moteur.tour();
+    let e = await etatEnBase(db, id);
+    expect(e.job.state, 'un fichier tronqué a terminé le job').toBe('persisting');
+    expect(e.assets, 'un fichier tronqué a été enregistré comme média').toEqual([]);
+    expect(e.registre.filter((m) => m.kind === 'settle')).toEqual([]);
+    expect((e.job.error as { code?: string } | null)?.code).toBe('PERSISTENCE_FAILED');
+    // Le transfert finit par aboutir : livré, une seule requête, un seul règlement.
+    expect(await jusquAuBout(db, w.moteur, id)).toBe('completed');
+    e = await etatEnBase(db, id);
+    expect(e.assets).toHaveLength(1);
+    expect(inspecterMedia(w.stockage.fichiers.get(e.assets[0]!.storageKey)!)).toMatchObject({ mime: 'image/png', largeur: 8, hauteur: 8 });
+    expect(e.registre.filter((m) => m.kind === 'settle')).toHaveLength(1);
+    expect(w.fournisseur.requetes.size).toBe(1);
+    expect(e.violations).toEqual([]);
+  });
+});
+
+describe('recette du 8 octobre · 50 réconciliations n’affament pas le suivi des autres jobs', () => {
+  it('50 jobs en réconciliation sans preuve (plus anciens) + 1 job lancé ⇒ le job lancé est suivi et livré', async () => {
+    const modele = await jobEnFile();
+    const [m] = await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, modele));
+    // Le modèle sert de gabarit puis part normalement au bout.
+    const w = banc(db, { rechercheParCle: false });
+    expect(await jusquAuBout(db, w.moteur, modele)).toBe('completed');
+    const bloques = Array.from({ length: 50 }, (_, i) => ({
+      workspaceId: m!.workspaceId, brandId: m!.brandId, projectId: m!.projectId, projectVersionId: m!.projectVersionId,
+      operation: m!.operation, state: 'reconciliation_required' as const, idempotencyKey: `famine-${randomUUID()}-${i}`,
+      inputHash: m!.inputHash, snapshot: m!.snapshot, updatedAt: new Date('2020-01-01T00:00:00Z'), createdAt: new Date('2020-01-01T00:00:00Z'),
+    }));
+    const ins = await db.insert(schema.studioJobs).values(bloques).returning({ id: schema.studioJobs.id });
+    try {
+      const id = await jobEnFile();
+      for (let i = 0; i < 8; i++) await w.moteur.tour();
+      const e = await etatEnBase(db, id);
+      expect(e.job.state, 'le job lancé n’a jamais été suivi : les 50 réconciliations prennent toutes les places').toBe('completed');
+      expect(e.reglements).toBe(1);
+      // Les réconciliations sans preuve restent où elles sont : aucune soumission, aucun règlement inventé.
+      const encore = await db.select({ s: schema.studioJobs.state }).from(schema.studioJobs).where(inArray(schema.studioJobs.id, ins.map((x) => x.id)));
+      expect(new Set(encore.map((x) => x.s))).toEqual(new Set(['reconciliation_required']));
+    } finally {
+      await db.delete(schema.studioJobs).where(inArray(schema.studioJobs.id, ins.map((x) => x.id)));
+    }
   });
 });
 

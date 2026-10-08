@@ -4,7 +4,7 @@ import {
   transitionJob, transitionQualite, jobTerminal,
   cleFournisseurDuJob, preuveSoumission, decisionBailExpire, decisionAnnulation, decisionStatut, decisionEvenement,
   acteurDepuis, fenetreWebhook, chaineSignee, lireEvenement, lireSnapshotJob, operationsDuSnapshot,
-  inspecterMedia, verdictQualiteAuto, estErreurCertaine,
+  inspecterMedia, etatFichierMedia, verdictQualiteAuto, estErreurCertaine,
   type ActeurJob, type EtatJob, type FournisseurStudio, type StockageStudio, type StatutFournisseur,
   type SnapshotJob, type IssueFinanciere, type SortieFournisseur,
 } from '@tiktrends/core';
@@ -64,7 +64,17 @@ export interface OptionsMoteur {
 /** Échec métier dans une transaction · la transaction est annulée. */
 class PerteDeCourse extends Error {}
 
-const ETATS_A_SUIVRE: EtatJob[] = ['claimed', 'running', 'persisting', 'cancel_requested', 'reconciliation_required'];
+const ETATS_A_SUIVRE: EtatJob[] = ['claimed', 'running', 'persisting', 'cancel_requested'];
+/**
+ * Jobs suivis par tour. Les réconciliations ont leur PROPRE file, plafonnée et
+ * tournante : un job sans preuve ne change rien en base, et dans une file
+ * commune les plus anciens reprenaient toutes les places à chaque tour ·
+ * 50 réconciliations suffisaient à ne plus jamais sonder un job lancé
+ * (recette du 8 octobre). Politique, pas une mesure : 50 suivis, 10
+ * réconciliations, les moins récemment examinés d'abord.
+ */
+const SUIVIS_PAR_TOUR = 50;
+const RECONCILIATIONS_PAR_TOUR = 10;
 
 interface ResultatJob {
   sorties?: SortieFournisseur[];
@@ -209,10 +219,14 @@ export class MoteurStudio {
   async tour(o: { maxNouveaux?: number } = {}): Promise<number> {
     let etapes = 0;
     const now = this.maintenant();
+    const libre = or(isNull(J.leaseOwner), eq(J.leaseOwner, this.workerId), avant(J.leaseExpiresAt, now));
     const actifs = await this.base.select().from(J)
-      .where(and(inArray(J.state, ETATS_A_SUIVRE), or(isNull(J.leaseOwner), eq(J.leaseOwner, this.workerId), avant(J.leaseExpiresAt, now))))
-      .orderBy(J.updatedAt).limit(50);
-    for (const j of actifs) if (await this.etape(j)) etapes += 1;
+      .where(and(inArray(J.state, ETATS_A_SUIVRE), libre))
+      .orderBy(sql`${J.heartbeatAt} asc nulls first`, J.updatedAt).limit(SUIVIS_PAR_TOUR);
+    const aReconcilier = await this.base.select().from(J)
+      .where(and(eq(J.state, 'reconciliation_required'), libre))
+      .orderBy(sql`${J.heartbeatAt} asc nulls first`, J.updatedAt).limit(RECONCILIATIONS_PAR_TOUR);
+    for (const j of [...actifs, ...aReconcilier]) if (await this.etape(j)) etapes += 1;
     for (let i = 0; i < (o.maxNouveaux ?? 5); i++) {
       const j = await this.reclamer();
       if (!j) break;
@@ -433,6 +447,12 @@ export class MoteurStudio {
       }
       const entete = inspecterMedia(octets);
       if (!entete) {
+        // Format reconnu mais fichier incomplet (transfert coupé) : on le
+        // retélécharge, rien n'est livré ni réglé. Pas un média : échec.
+        if (etatFichierMedia(octets) === 'incomplet') {
+          await this.noterEchecPersistance(job, `sortie ${s.operation} incomplète (${octets.length} octets)`);
+          return;
+        }
         await this.terminer(job, 'failed', 'finaliseur', 'facture_sans_livrable', `sortie ${s.operation} non décodable`, res.coutUsdMicros ?? null);
         return;
       }
@@ -541,10 +561,13 @@ export class MoteurStudio {
       requestId = await this.f.chercherParCle(t?.providerIdempotencyKey ?? cleFournisseurDuJob(job.id));
       if (requestId) await this.enregistrerRequete(job.id, requestId);
     }
-    if (!requestId) return;
+    // Examiné, sans issue : on le note, pour que la file tourne (les moins
+    // récemment examinés passent d'abord). Rien d'autre ne bouge.
+    const examine = () => this.base.update(J).set({ heartbeatAt: this.maintenant() }).where(and(eq(J.id, job.id), eq(J.state, 'reconciliation_required')));
+    if (!requestId) { await examine(); return; }
     const statut = await this.f.statut(requestId);
     this.noter({ t: this.maintenant().toISOString(), type: 'fournisseur', worker: this.workerId, jobId: job.id, appel: 'statut', detail: `réconciliation · ${statut.etat}` });
-    if (statut.etat === 'en_cours' || statut.etat === 'inconnu') return;
+    if (statut.etat === 'en_cours' || statut.etat === 'inconnu') { await examine(); return; }
     await this.appliquerStatut(job.id, statut, 'réconciliation');
   }
 
