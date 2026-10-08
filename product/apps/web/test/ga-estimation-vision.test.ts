@@ -14,6 +14,12 @@ import { randomUUID } from 'node:crypto';
  * On lit les RÉSULTATS : montant calculé, ligne `ai_spend` réservée (pglite,
  * migrations réelles), appel parti ou refusé. Client Anthropic remplacé par un
  * espion (aucun réseau, 0 $).
+ *
+ * R3 · la RÉSERVATION n'est plus cette estimation (3,5 caractères par jeton,
+ * pas une borne) mais `coutMaximalAppel` = `borneMaxAppel` (octets UTF-8 +
+ * cadres). L'estimation G-A reste lisible sous le nom `estimationAppel` ; les
+ * montants réservés ci-dessous sont ceux de la borne (adaptation mécanique :
+ * l'image garde sa borne de 4 784 jetons, plus le cadre de son bloc).
  */
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -41,8 +47,8 @@ vi.mock('@tiktrends/ai', async (importOriginal) => {
 
 import type Anthropic from '@anthropic-ai/sdk';
 import { db, schema, eq } from '@tiktrends/db';
-import { estimateCallCost, costOfTokens, VISION_JETONS_IMAGE_MAX } from '@tiktrends/core';
-import { guardedAnthropic, coutMaximalAppel, entreeAppel, SpendBlockedError } from '../lib/spend-guard';
+import { estimateCallCost, costOfTokens, VISION_JETONS_IMAGE_MAX, JETONS_CADRE_BLOC } from '@tiktrends/core';
+import { guardedAnthropic, coutMaximalAppel, estimationAppel, entreeAppel, SpendBlockedError } from '../lib/spend-guard';
 
 const CLE = 'AI_SPEND_CAP_USD';
 const MODELE = 'claude-sonnet-5';
@@ -73,18 +79,20 @@ describe('estimation · une image compte sa borne de jetons, pas la longueur de 
     const texteSeul = appel([]);
     expect(entreeAppel(p)).toEqual({ caracteres: entreeAppel(texteSeul).caracteres, images: 1 });
     const attendu = Math.round((estimateCallCost({ model: MODELE, promptChars: entreeAppel(texteSeul).caracteres, maxTokens: 4000 }) + costOfTokens(MODELE, VISION_JETONS_IMAGE_MAX, 0)) * 1e6) / 1e6;
-    expect(coutMaximalAppel(p), 'l’image n’est pas estimée à sa borne de 4 784 jetons').toBe(attendu);
+    expect(estimationAppel(p), 'l’image n’est pas estimée à sa borne de 4 784 jetons').toBe(attendu);
     // Tableau mesuré (claude-sonnet-5, max_tokens 4000) · écrit dans spend-guard.ts.
+    // R3 : la réservation est la BORNE (0,075168 $), l'estimation G-A reste 0,074466 $.
     const base64 = (p.messages[0]!.content as Array<{ source?: { data?: string } }>)[0]!.source!.data!.length;
-    expect({ base64, avant: ancienneEstimation(p), apres: coutMaximalAppel(p) })
-      .toEqual({ base64: 1_333_336, avant: 1.203039, apres: 0.074466 });
+    expect({ base64, avant: ancienneEstimation(p), estimation: estimationAppel(p), reserve: coutMaximalAppel(p) })
+      .toEqual({ base64: 1_333_336, avant: 1.203039, estimation: 0.074466, reserve: 0.075168 });
   });
 
   it('la borne ne dépend pas de la taille · 1 ko et 1 Mo coûtent pareil ; deux images, deux bornes', () => {
     expect(coutMaximalAppel(appel([image(1_000)]))).toBe(coutMaximalAppel(appel([image(UN_MO)])));
     const une = coutMaximalAppel(appel([image(UN_MO)]));
     const deux = coutMaximalAppel(appel([image(UN_MO), image(UN_MO)]));
-    expect(Math.round((deux - une) * 1e6)).toBe(Math.round(costOfTokens(MODELE, VISION_JETONS_IMAGE_MAX, 0) * 1e6));
+    // Borne R3 : une image de plus = sa borne de jetons + le cadre de son bloc.
+    expect(Math.round((deux - une) * 1e6)).toBe(Math.round(costOfTokens(MODELE, VISION_JETONS_IMAGE_MAX + JETONS_CADRE_BLOC, 0) * 1e6));
   });
 
   it('sans image · strictement l’estimation d’avant (texte simple, blocs texte, système en blocs, outils)', () => {
@@ -94,12 +102,16 @@ describe('estimation · une image compte sa borne de jetons, pas la longueur de 
       { model: MODELE, max_tokens: 1200, system: 'Système en texte', messages: [{ role: 'user', content: 'Bonjour' }, { role: 'assistant', content: [{ type: 'text', text: 'Oui ?' }] }] },
     ];
     cas.push({ ...appel([]), tools: [{ name: 'outil', description: 'd', input_schema: { type: 'object', properties: {} } }] });
-    for (const p of cas) expect(coutMaximalAppel(p), 'un appel sans image n’est plus estimé comme avant').toBe(ancienneEstimation(p));
+    for (const p of cas) {
+      expect(estimationAppel(p), 'un appel sans image n’est plus estimé comme avant').toBe(ancienneEstimation(p));
+      // R3 · ce qu'on réserve (la borne) ne descend jamais sous l'estimation affichée.
+      expect(coutMaximalAppel(p)).toBeGreaterThanOrEqual(estimationAppel(p));
+    }
   });
 });
 
 describe('barrière · le plafond n’est plus bloqué à tort par une image', () => {
-  it('plafond 0,50 $ · l’appel avec une image de 1 Mo part ; la réservation vaut la borne (0,074466 $), pas 1,20 $', async () => {
+  it('plafond 0,50 $ · l’appel avec une image de 1 Mo part ; la réservation vaut la borne (0,075168 $), pas 1,20 $', async () => {
     process.env[CLE] = '0.5';
     const c = guardedAnthropic({ workspaceId: randomUUID(), action: 'ga:vision' })!;
     const r = await c.messages.create(appel([image(UN_MO)])).then(() => 'parti', (e) => (e instanceof SpendBlockedError ? `refusé · ${e.message}` : `erreur · ${String(e)}`));
@@ -108,10 +120,10 @@ describe('barrière · le plafond n’est plus bloqué à tort par une image', (
     const lignes = await db!.select().from(schema.aiSpend).where(eq(schema.aiSpend.action, 'ga:vision'));
     // Réservée au maximum (borne), puis réglée au réel lu dans la réponse.
     expect(lignes.map((l) => ({ estime: l.estimatedUsd, reel: l.actualUsd, entree: l.inputTokens })))
-      .toEqual([{ estime: 0.074466, reel: costOfTokens(MODELE, 5000, 200), entree: 5000 }]);
+      .toEqual([{ estime: 0.075168, reel: costOfTokens(MODELE, 5000, 200), entree: 5000 }]);
   });
 
-  it('le plafond garde ses dents · plafond 0,05 $ ⇒ le même appel (max 0,074466 $) est refusé AVANT l’appel, aucune ligne', async () => {
+  it('le plafond garde ses dents · plafond 0,05 $ ⇒ le même appel (max 0,075168 $) est refusé AVANT l’appel, aucune ligne', async () => {
     process.env[CLE] = '0.05';
     const c = guardedAnthropic({ workspaceId: randomUUID(), action: 'ga:vision-refus' })!;
     const e = await c.messages.create(appel([image(UN_MO)])).catch((x) => x);

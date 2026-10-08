@@ -128,7 +128,7 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
         return r;
       }, 'Consigne compilée et validée par le serveur · relis-la puis retiens-la.')}
       surRetenir={(runId) => agir('retenir', () => retenirConsigneImage({ projectId, baseVersionId: vue.version.id, runId }), 'Consigne retenue · nouvelle version du projet.', () => router.refresh())}
-      surDevis={() => agir('devis', () => demanderDevisImage({ projectId }), 'Devis prêt · relis le prix avant d’approuver.')}
+      surDevis={(o) => agir('devis', () => demanderDevisImage({ projectId, controleVision: o?.controleVision }), 'Devis prêt · relis le prix avant d’approuver.')}
       surLancer={() => {
         const d = vue.devis;
         if (!d) return;

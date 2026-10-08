@@ -3,7 +3,7 @@ import { schema, eq, and, or, sql, inArray, isNull, desc } from '@tiktrends/db';
 import {
   transitionJob, transitionQualite, jobTerminal,
   cleFournisseurDuJob, preuveSoumission, decisionBailExpire, decisionAnnulation, decisionStatut, decisionEvenement,
-  acteurDepuis, fenetreWebhook, chaineSignee, lireEvenement, lireSnapshotJob, operationsDuSnapshot,
+  acteurDepuis, fenetreWebhook, chaineSignee, lireEvenement, lireSnapshotJob, operationsDuSnapshot, controleVisionApprouve,
   inspecterMedia, etatFichierMedia, estErreurCertaine,
   verdictDecodage, decisionMediaRefuse, operationsNonVerifiables,
   estParametresRetouche, lireParametresRetouche, controleComposantsAFinalisation, qualiteAFinalisation, lireReferenceEpinglee,
@@ -530,7 +530,8 @@ export class MoteurStudio {
       fichiers.push({ operation: s.operation, cle, mime: livre.mime, octets: octets.length, sha256, largeur: livre.largeur, hauteur: livre.hauteur, parentAssetId: livre.parentAssetId, retouche: livre.retouche });
     }
 
-    const concerne = controleComposantsAFinalisation({ operations: operationsDuSnapshot(snap), parametres: snap.parametres });
+    // R3 · contrôle visuel approuvé au devis ⇒ la qualité attend ce contrôle (posé par le site).
+    const concerne = controleComposantsAFinalisation({ operations: operationsDuSnapshot(snap), parametres: snap.parametres, controleVisionApprouve: controleVisionApprouve(snap.lignes) !== null });
     await this.tx(async (tx, journal) => {
       const assets: Record<string, string> = {};
       for (const f of fichiers) {

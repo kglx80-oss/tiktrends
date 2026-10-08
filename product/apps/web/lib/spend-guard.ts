@@ -1,12 +1,15 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { gte, sql } from 'drizzle-orm';
-import { db, schema, reserverDepense, reglerDepense, annulerDepense, type BaseDepense } from '@tiktrends/db';
+import {
+  db, schema, reserverDepense, reglerDepense, annulerDepense, marquerAReconcilier, lireDepensesAReconcilier, type BaseDepense,
+} from '@tiktrends/db';
 import { anthropicFromEnv } from '@tiktrends/ai';
 import { errorFamily } from './user-error';
 import {
   checkBudget, costOfTokens, estimateCallCost, summarizeBudget, FIXED_COSTS, rienNaEteFacture,
-  reservationTexteLiberable, VISION_JETONS_IMAGE_MAX, type FixedCostKind,
+  reservationTexteLiberable, VISION_JETONS_IMAGE_MAX, borneMaxAppel, causeIncertaine, vueReconciliation,
+  REESSAIS_AUTOMATIQUES_PAYANTS, type FixedCostKind, type CauseAReconcilier, type VueReconciliation,
 } from '@tiktrends/core';
 
 /**
@@ -178,11 +181,12 @@ export function entreeAppel(p: CreateParams): { caracteres: number; images: numb
 }
 
 /**
- * Coût MAXIMAL d'un appel, celui qu'on réserve · `estimateCallCost` (noyau)
- * pour le texte et `max_tokens`, plus chaque image à sa borne de jetons au
- * tarif d'entrée. Sans image : exactement `estimateCallCost`, comme avant.
+ * Coût ESTIMÉ d'un appel · `estimateCallCost` (noyau, 3,5 caractères par
+ * jeton) pour le texte et `max_tokens`, plus chaque image à sa borne de jetons
+ * au tarif d'entrée. C'est l'ancienne réservation (G-A), gardée pour AFFICHER
+ * un ordre de grandeur : MESURÉ (R3), ce n'est pas une borne.
  */
-export function coutMaximalAppel(p: CreateParams): number {
+export function estimationAppel(p: CreateParams): number {
   const modele = String(p.model);
   const e = entreeAppel(p);
   const texte = estimateCallCost({ model: modele, promptChars: e.caracteres, maxTokens: Number(p.max_tokens ?? 1024) });
@@ -191,16 +195,34 @@ export function coutMaximalAppel(p: CreateParams): number {
 }
 
 /**
+ * Coût MAXIMAL d'un appel, celui qu'on RÉSERVE · `borneMaxAppel` (noyau) :
+ * entrée bornée en octets UTF-8 (un jeton couvre au moins un octet), cadres et
+ * outils à leur marge documentée, chaque image à `VISION_JETONS_IMAGE_MAX`,
+ * sortie à `max_tokens` entier.
+ *
+ * ── Le défaut réparé (contre-recette du 8 octobre, R3) ───────────────────────
+ *
+ * La réservation divisait les caractères par 3,5 : une estimation, dépassée
+ * dès le texte français ordinaire (×1,02) et jusqu'à ×8,74 sur un texte
+ * adverse (mesures dans `packages/core/src/depense-prudente.ts`). Le plafond
+ * pouvait donc être percé par l'entrée. L'effet de la borne sur les appels les
+ * plus gros du dépôt est mesuré par `test/r3-borne-mesure.test.ts`.
+ */
+export function coutMaximalAppel(p: CreateParams): number {
+  return borneMaxAppel(p as unknown as Parameters<typeof borneMaxAppel>[0]);
+}
+
+/**
  * Client Anthropic sous plafond.
  *
  * `messages.create` est remplacé : on RÉSERVE le coût maximal de l'appel
- * (`estimateCallCost` : `max_tokens` au tarif de sortie, plus l'entrée estimée
- * au tarif d'entrée) sous le verrou commun, AVANT l'envoi ; puis on règle au
- * coût réel des jetons, une fois. Le plafond refuse avant l'appel quand le
- * maximum ne tient pas. Un refus CERTAIN du fournisseur
+ * (`coutMaximalAppel` : entrée bornée en octets UTF-8, `max_tokens` entier)
+ * sous le verrou commun, AVANT l'envoi, SANS réessai automatique ; puis on
+ * règle au coût réel des jetons, une fois. Le plafond refuse avant l'appel
+ * quand le maximum ne tient pas. Un refus CERTAIN du fournisseur
  * (`reservationTexteLiberable`) rend la réservation ; une issue incertaine la
- * garde. Tout le reste du client passe inchangé · on n'intercepte que la
- * méthode qui coûte.
+ * garde au maximum et la marque « à réconcilier » avec sa cause. Tout le reste
+ * du client passe inchangé · on n'intercepte que la méthode qui coûte.
  */
 /**
  * L'espace qui paie · OBLIGATOIRE (L0-B §4). Vingt-quatre appels l'omettaient,
@@ -211,6 +233,19 @@ export function coutMaximalAppel(p: CreateParams): number {
  * inchangés · le plafond reste global.
  */
 export interface ImputationDepense { workspaceId: string; action: string }
+
+/**
+ * Marque une réservation « à réconcilier » (R3) · jamais bloquant : un
+ * marquage impossible laisse la ligne au maximum, ce qui reste le côté prudent.
+ */
+async function aReconcilier(id: string, cause: CauseAReconcilier): Promise<void> {
+  if (!db) return;
+  await marquerAReconcilier(db as unknown as BaseDepense, id, cause)
+    .catch((x) => console.error('[spend] marquage à réconcilier impossible', (x as Error).message));
+}
+
+/** Nom et message d'une erreur, pour classer sa cause · jamais de clé (le SDK n'en met pas dans ses messages). */
+const texteErreur = (e: unknown) => (e instanceof Error ? `${e.name} ${e.message} ${String((e as { cause?: unknown }).cause ?? '')}` : String(e ?? ''));
 
 export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
   const client = anthropicFromEnv();
@@ -229,13 +264,20 @@ export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
 
     let res: unknown;
     try {
-      res = await (brut as (p: CreateParams, o?: unknown) => Promise<unknown>)(params, options);
+      // AUCUN réessai automatique (R3) : une option d'appel ne peut pas relever
+      // `maxRetries` au-dessus de `REESSAIS_AUTOMATIQUES_PAYANTS` (0). Une
+      // réservation couvre UNE tentative, jamais deux après une coupure ambiguë.
+      const o = { ...((options as Record<string, unknown> | undefined) ?? {}), maxRetries: REESSAIS_AUTOMATIQUES_PAYANTS };
+      res = await (brut as (p: CreateParams, o?: unknown) => Promise<unknown>)(params, o);
     } catch (e) {
-      // Refus CERTAIN (400, 401, 403, 422 · jamais rejoués par le client) :
-      // rien n'est facturé, la réservation est rendue. Tout autre échec
-      // (coupure, délai, 429, 5xx) peut suivre une tentative facturée : elle reste.
+      // Refus CERTAIN (400, 401, 403, 422) : rien n'est facturé, la réservation
+      // est rendue. Tout autre échec (coupure, délai, 429, 5xx) peut suivre une
+      // tentative facturée : elle reste au maximum ET se marque « à
+      // réconcilier » avec sa cause (R3), sans libération automatique.
       if (db && reservationTexteLiberable(statutHttp(e))) {
         await annulerDepense(db as unknown as BaseDepense, id).catch((x) => console.error('[spend] libération impossible', (x as Error).message));
+      } else {
+        await aReconcilier(id, causeIncertaine({ statut: statutHttp(e) ?? null, texte: texteErreur(e) }));
       }
       throw e;
     }
@@ -267,6 +309,7 @@ export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
           }
         } finally {
           if (final) await reglerAuReel(id, modele, entree, sortie);
+          else await aReconcilier(id, 'flux_coupe');
         }
       })();
     }
@@ -276,6 +319,8 @@ export function guardedAnthropic(opts: ImputationDepense): Anthropic | null {
     const usage = (res as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
     if (usage && (typeof usage.input_tokens === 'number' || typeof usage.output_tokens === 'number')) {
       await reglerAuReel(id, modele, usage.input_tokens ?? 0, usage.output_tokens ?? 0);
+    } else {
+      await aReconcilier(id, 'usage_absent');
     }
     return res as Anthropic.Message;
   };
@@ -374,6 +419,17 @@ export async function sousPlafond<T>(
     await annuleCoutFixe(ligne, errorFamily(e));
     throw e;
   }
+}
+
+/**
+ * Dépenses « à réconcilier » de la fenêtre (R3) · pour l'écran propriétaire.
+ * Lecture seule ; la règle de présentation est pure (`vueReconciliation`).
+ * Base absente ⇒ vue vide dite comme telle, jamais une erreur affichée.
+ */
+export async function depensesAReconcilier(limite = 200): Promise<VueReconciliation> {
+  if (!db) return vueReconciliation([]);
+  const depuis = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
+  return vueReconciliation(await lireDepensesAReconcilier(db as unknown as BaseDepense, depuis, limite));
 }
 
 /** Postes de dépense · dit OÙ part l'argent, pas seulement combien. */

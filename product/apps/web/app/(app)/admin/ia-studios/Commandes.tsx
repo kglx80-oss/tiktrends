@@ -212,7 +212,9 @@ function RetourBenchmark({ r, succes }: { r: ReponseBenchmark<Record<string, unk
 const etiquette: CSSProperties = { display: 'block', fontSize: 13, color: 'var(--ink-2)', marginBottom: 6, fontWeight: 600 };
 
 /** Approbation d'un budget · le prix (devis) est affiché AVANT le clic, la confirmation le répète. */
-export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd }: { releases: Array<{ id: string; libelle: string }>; devisLisible: string; devisUsd: number }) {
+export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd, devisMaximum = false }: { releases: Array<{ id: string; libelle: string }>; devisLisible: string; devisUsd: number; devisMaximum?: boolean }) {
+  // R3 · « au plus » seulement quand le devis est une borne ; sinon, une estimation qui le dit.
+  const nature = devisMaximum ? 'au plus' : '· estimation, maximum non garanti';
   const [releaseId, setReleaseId] = useState(releases[0]?.id ?? '');
   const [budget, setBudget] = useState((Math.ceil(devisUsd * 1000) / 1000).toFixed(3).replace('.', ','));
   const [motif, setMotif] = useState('');
@@ -229,7 +231,7 @@ export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd }: 
   });
   return (
     <div style={{ display: 'grid', gap: 10 }}>
-      <p style={{ margin: 0, fontSize: 14 }}>Devis du benchmark complet : <b>{devisLisible}</b> au plus.</p>
+      <p style={{ margin: 0, fontSize: 14 }}>Devis du benchmark complet : <b>{devisLisible}</b> {nature}.</p>
       <div><label htmlFor={`${id}-release`} style={etiquette}>Release évaluée</label>
         <select id={`${id}-release`} value={releaseId} onChange={(e) => setReleaseId(e.target.value)} style={champ}>{releases.map((x) => <option key={x.id} value={x.id}>{x.libelle}</option>)}</select></div>
       <div><label htmlFor={`${id}-budget`} style={etiquette}>Budget maximal (dollars)</label>
@@ -239,7 +241,7 @@ export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd }: 
       <div><button type="button" style={{ ...bouton, opacity: motif.trim() && releaseId ? 1 : 0.6 }} disabled={!motif.trim() || !releaseId} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Approuver ce budget…</button></div>
       <Modal open={ouvert} onClose={() => setOuvert(false)} title={`Approuver ${budget.replace('.', ',').trim()} $ ?`} subtitle="Dépense réelle possible · tracée dans l’audit." maxWidth={520}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-          <li>Devis recalculé par le serveur : {devisLisible} au plus.</li>
+          <li>Devis recalculé par le serveur : {devisLisible} {nature}.</li>
           <li>Budget approuvé : {budget.replace('.', ',')} $ · il doit couvrir le devis et tenir dans le reste du plafond de dépense.</li>
           <li>Valable 24 h, pour UNE campagne, sur cette release et ce devis seulement.</li>
           <li>Rien n’est lancé ici : la campagne part de la commande réelle, qui revérifie tout.</li>

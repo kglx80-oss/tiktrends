@@ -179,3 +179,4 @@ export * from './studios/benchmark';
 export * from './studios/image';
 export * from './studios/identites';
 export * from './studios/video';
+export * from './depense-prudente';

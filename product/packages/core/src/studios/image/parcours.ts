@@ -37,7 +37,7 @@ import {
   type ParametresImageSnapshot, type ReferenceParametres,
 } from '../fournisseurs/fal-image';
 import { empreinteEntreesDevis, type EntreesDevis } from '../execution/devis';
-import { GRILLE_STUDIO, type LigneDevis, type ProfilOperation } from '../execution/tarifs';
+import { GRILLE_STUDIO, estLigneDeProduction, type LigneDevis, type ProfilLigne, type ProfilOperation } from '../execution/tarifs';
 import type { CodeErreurStudio } from '../erreurs';
 import type { EtatJob, StatutQualite } from '../machines';
 
@@ -191,9 +191,10 @@ export function changementsConsigne(contenu: Pick<ContenuVersion, 'styleRef' | '
  * consigne. Il ne mélange pas d'autre génération : le fournisseur rendrait
  * autant d'images de LA MÊME consigne qu'il y a d'opérations image.
  */
-export function exigenceImageDuDevis(lignes: ReadonlyArray<{ operation: string; profil: ProfilOperation }>): { concerne: false } | { concerne: true; horsImage: string[] } {
+export function exigenceImageDuDevis(lignes: ReadonlyArray<{ operation: string; profil: ProfilOperation | ProfilLigne }>): { concerne: false } | { concerne: true; horsImage: string[] } {
   if (!lignes.some((l) => l.operation === OPERATION_IMAGE)) return { concerne: false };
-  return { concerne: true, horsImage: lignes.filter((l) => l.operation !== OPERATION_IMAGE && l.profil !== 'calcul').map((l) => l.operation) };
+  // R3 · la ligne du contrôle visuel accompagne l'image, elle n'est pas « hors image ».
+  return { concerne: true, horsImage: lignes.filter((l) => l.operation !== OPERATION_IMAGE && l.profil !== 'calcul' && estLigneDeProduction(l)).map((l) => l.operation) };
 }
 
 /** L'empreinte d'entrée d'un devis image · celle de L3, plus l'empreinte de la consigne. */

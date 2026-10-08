@@ -73,7 +73,10 @@ describe('ce que voit l’équipe plateforme', () => {
     expect(html).toMatch(/F07<\/td><td[^>]*>1<\/td><td[^>]*>0<\/td><td[^>]*>0,218 \$/);
     expect(html).not.toContain('non chiffrable ·');
     expect(html).toContain('Approuver ce budget…');
-    expect(html).toContain('Devis du benchmark complet : <b>9,925 $</b> au plus.');
+    // R3 · les tâches texte du benchmark sont des ESTIMATIONS (entrée comptée à 3,5 car./jeton) :
+    // le total ne se dit plus « au plus » (adaptation de la règle « maximum seulement si borne »).
+    expect(html).toContain('Devis du benchmark complet : <b>9,925 $</b> · estimation, maximum non garanti.');
+    expect(html).toContain('data-qualification="estimation">Estimation · maximum non garanti · 42 tâches texte, 2 médias (animation) · entrée comptée à 3,5 caractères par jeton · pas une borne ; forfait vidéo · le prix réel dépend de la durée et du modèle');
     expect(html).toMatch(/aria-label="Rapport SIMULÉ [^"]+"/);
     expect(html).toContain('SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité');
     expect(html).toContain('Ne vaut pas évaluation');

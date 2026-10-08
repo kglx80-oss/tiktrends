@@ -352,6 +352,10 @@ export const aiSpend = pgTable('ai_spend', {
   inputTokens: integer('input_tokens'),
   outputTokens: integer('output_tokens'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // R3 · issue incertaine (coupure, délai, 429, 5xx, flux coupé) : la réservation
+  // reste au maximum et la CAUSE est écrite ici · « à réconcilier » avec la facture.
+  // Nulle = ligne ordinaire. Migration 0055 (additive).
+  reconcileReason: text('reconcile_reason'),
 }, (t) => ({
   dateIdx: index('ai_spend_date_idx').on(t.createdAt),
   wsIdx: index('ai_spend_ws_idx').on(t.workspaceId, t.createdAt),

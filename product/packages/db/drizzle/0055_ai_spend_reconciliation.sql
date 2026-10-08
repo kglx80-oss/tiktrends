@@ -1,0 +1,13 @@
+-- R3 · dépense à réconcilier (migration ADDITIVE, une colonne nullable).
+--
+-- Une issue incertaine d'un appel payant (coupure après envoi, délai, 429,
+-- 5xx, flux coupé avant le décompte final, réponse sans décompte) garde la
+-- réservation au MAXIMUM : c'est le côté prudent. Elle doit aussi se VOIR et
+-- se rapprocher de la facture. Aucune colonne existante ne peut porter la
+-- cause sans fausser la comptabilité (`actual_usd`, jetons) ou le
+-- regroupement des postes (`action`) : d'où cette colonne.
+--
+-- `reconcile_reason` nulle = ligne ordinaire (toutes les lignes existantes) ;
+-- renseignée = « à réconcilier », avec la cause. Aucune donnée existante n'est
+-- modifiée. Rejouable (IF NOT EXISTS).
+ALTER TABLE "ai_spend" ADD COLUMN IF NOT EXISTS "reconcile_reason" text;

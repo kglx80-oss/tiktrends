@@ -6,7 +6,7 @@
  * (qui a pu changer) ni copier un secret fournisseur.
  */
 
-import type { LigneDevis, ProfilOperation } from './tarifs';
+import { estLigneDeProduction, type LigneDevis, type ProfilOperation } from './tarifs';
 import type { EpinglageDevis } from './devis';
 
 export const OPERATION_JOB_STUDIO = 'studio.generation';
@@ -26,8 +26,14 @@ export interface SnapshotJob {
   parametres: Record<string, unknown>;
 }
 
+/**
+ * Les opérations de PRODUCTION du job · celles que le fournisseur média
+ * exécute. La ligne du contrôle visuel (R3, `controle:vision`) n'en est pas :
+ * elle est approuvée avec le devis mais exécutée après livraison, par la
+ * vision, jamais envoyée au fournisseur d'images.
+ */
 export function operationsDuSnapshot(s: SnapshotJob): Array<{ operation: string; profil: ProfilOperation }> {
-  return s.lignes.map((l) => ({ operation: l.operation, profil: l.profil }));
+  return s.lignes.filter(estLigneDeProduction).map((l) => ({ operation: l.operation, profil: l.profil as ProfilOperation }));
 }
 
 const entier = (x: unknown) => typeof x === 'number' && Number.isInteger(x) && x >= 0;
