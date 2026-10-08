@@ -4,12 +4,14 @@ import {
   transitionJob, transitionQualite, jobTerminal,
   cleFournisseurDuJob, preuveSoumission, decisionBailExpire, decisionAnnulation, decisionStatut, decisionEvenement,
   acteurDepuis, fenetreWebhook, chaineSignee, lireEvenement, lireSnapshotJob, operationsDuSnapshot,
-  inspecterMedia, etatFichierMedia, verdictQualiteAuto, estErreurCertaine,
+  inspecterMedia, etatFichierMedia, estErreurCertaine,
   verdictDecodage, decisionMediaRefuse, operationsNonVerifiables,
+  estParametresRetouche, lireParametresRetouche, controleComposantsAFinalisation, qualiteAFinalisation, lireReferenceEpinglee,
   type DecodeurMedia, type EnteteMedia, type ResultatDecodage, type ActeurJob, type EtatJob, type FournisseurStudio, type StockageStudio, type StatutFournisseur,
   type SnapshotJob, type IssueFinanciere, type SortieFournisseur,
 } from '@tiktrends/core';
 import { reglerJob } from './registre';
+import { retoucherSortie, type TraceRetouche } from './retouche';
 import type { BaseStudio, ExecStudio, JobStudio, TentativeStudio, TxStudio, EntreeJournal } from './types';
 
 /**
@@ -42,7 +44,13 @@ import type { BaseStudio, ExecStudio, JobStudio, TentativeStudio, TxStudio, Entr
  *    décodeur vidéo, n'est jamais livrée ni même soumise ;
  *  · règlement unique (`settle`) et libération (`release`) dans la transaction
  *    de l'état final ;
- *  · la qualité ne relance jamais rien : un constat négatif ⇒ `requires_review`.
+ *  · la qualité ne relance jamais rien : un constat négatif ⇒ `requires_review` ;
+ *    l'image du studio Image et toute retouche reçoivent le contrôle des
+ *    composants (L5-C) DANS la transaction de `completed` : sans contrôle
+ *    visuel, `requires_review`, jamais `passed` (G-B) ;
+ *  · une retouche masquée n'est JAMAIS livrée brute : la sortie décodée est
+ *    recomposée sur la source sous le masque, contrôlée (0 pixel hors zone +
+ *    fondu), encodée, relue et recontrôlée avant le dépôt (G-B, IMG-06).
  */
 
 /** `col < d` · horloge injectée (jamais `now()` SQL) pour que les tests pilotent le temps. */
@@ -451,7 +459,14 @@ export class MoteurStudio {
       return;
     }
     const prefixe = this.f.simule ? 'simule' : 'studios';
-    const fichiers: Array<{ operation: string; cle: string; mime: string; octets: number; sha256: string; largeur: number | null; hauteur: number | null }> = [];
+    const snap = this.snapshot(job);
+    // Retouche masquée : la sortie n'est livrée qu'une fois recomposée sur la source.
+    const retouche = estParametresRetouche(snap.parametres) ? lireParametresRetouche(snap.parametres) : null;
+    if (retouche && !retouche.ok) {
+      await this.terminer(job, 'failed', 'finaliseur', 'facture_sans_livrable', `retouche illisible à la finalisation · ${retouche.violations.join(' · ')}`, res.coutUsdMicros ?? null);
+      return;
+    }
+    const fichiers: Array<{ operation: string; cle: string; mime: string; octets: number; sha256: string; largeur: number | null; hauteur: number | null; parentAssetId: string | null; retouche: TraceRetouche | null }> = [];
     for (const s of sorties) {
       let octets: Uint8Array;
       try {
@@ -489,32 +504,46 @@ export class MoteurStudio {
         await this.mediaRefuse(job, `sortie ${s.operation} non décodée · ${verdict.raison}`);
         return;
       }
+      let livre = { octets, mime: entete.mime as string, largeur: verdict.largeur, hauteur: verdict.hauteur, parentAssetId: null as string | null, retouche: null as TraceRetouche | null };
+      if (retouche) {
+        const r = await retoucherSortie({ ex: this.base, stockage: this.stockage, job, parametres: retouche.parametres, generation: octets });
+        if (!r.ok) {
+          if (r.suite === 'attendre') { await this.noterEchecPersistance(job, `retouche · ${r.raison}`); return; }
+          // La sortie brute n'est JAMAIS livrée à la place de la recomposition.
+          await this.terminer(job, 'failed', 'finaliseur', 'facture_sans_livrable', `sortie ${s.operation} non livrée · ${r.raison}`, res.coutUsdMicros ?? null);
+          return;
+        }
+        livre = { octets: r.octets, mime: r.mime, largeur: r.largeur, hauteur: r.hauteur, parentAssetId: r.parentAssetId, retouche: r.trace };
+      }
+      octets = livre.octets;
       const sha256 = createHash('sha256').update(octets).digest('hex');
-      const ext = entete.mime.split('/')[1];
+      const ext = livre.mime.split('/')[1];
       const cle = `${prefixe}/${job.workspaceId}/${job.id}/${s.operation.replace(/[^A-Za-z0-9_.-]/g, '_')}.${ext}`;
       try {
-        await this.stockage.deposer(cle, octets, entete.mime);
+        await this.stockage.deposer(cle, octets, livre.mime);
         const relu = await this.stockage.relire(cle);
         if (!relu || createHash('sha256').update(relu).digest('hex') !== sha256) throw new Error('relecture différente du dépôt');
       } catch (e) {
         await this.noterEchecPersistance(job, `stockage · ${(e as Error).message}`);
         return;
       }
-      fichiers.push({ operation: s.operation, cle, mime: entete.mime, octets: octets.length, sha256, largeur: verdict.largeur, hauteur: verdict.hauteur });
+      fichiers.push({ operation: s.operation, cle, mime: livre.mime, octets: octets.length, sha256, largeur: livre.largeur, hauteur: livre.hauteur, parentAssetId: livre.parentAssetId, retouche: livre.retouche });
     }
 
-    const snap = this.snapshot(job);
-    const qualite = verdictQualiteAuto(sorties.map((s) => s.constat));
+    const concerne = controleComposantsAFinalisation({ operations: operationsDuSnapshot(snap), parametres: snap.parametres });
     await this.tx(async (tx, journal) => {
       const assets: Record<string, string> = {};
       for (const f of fichiers) {
         const [a] = await tx.insert(schema.studioAssets).values({
           workspaceId: job.workspaceId, brandId: job.brandId, projectId: job.projectId,
           storageKey: f.cle, mime: f.mime, bytes: f.octets, width: f.largeur, height: f.hauteur,
-          sha256: f.sha256, origin: 'generated', storageState: 'stored', createdBy: job.createdBy,
-          rights: this.f.simule
-            ? { simule: true, mention: 'Média simulé · test local, jamais une génération réelle', jobId: job.id, operation: f.operation }
-            : { jobId: job.id, operation: f.operation, fournisseur: this.f.nom },
+          sha256: f.sha256, origin: 'generated', storageState: 'stored', createdBy: job.createdBy, parentAssetId: f.parentAssetId,
+          rights: {
+            ...(this.f.simule
+              ? { simule: true, mention: 'Média simulé · test local, jamais une génération réelle', jobId: job.id, operation: f.operation }
+              : { jobId: job.id, operation: f.operation, fournisseur: this.f.nom }),
+            ...(f.retouche ? { retouche: f.retouche } : {}),
+          },
         }).returning({ id: schema.studioAssets.id });
         assets[f.operation] = a!.id;
       }
@@ -522,16 +551,35 @@ export class MoteurStudio {
         result: { ...res, assets }, error: null,
       });
       await reglerJob(tx, j, snap, 'livre', { operationsLivrees: fichiers.map((f) => f.operation), coutFournisseurUsdMicros: res.coutUsdMicros ?? null, worker: this.workerId, journal });
-      if (qualite === 'requires_review') {
-        const v = transitionQualite('completed', 'pending', 'requires_review', 'controle');
+      // Qualité posée par le worker (G-B) · composants requis relus dans la version DU job.
+      const requis = concerne ? await this.composantsRequis(tx, j) : [];
+      const qualite = qualiteAFinalisation({ concerne, requis, constats: sorties.map((s) => s.constat) });
+      if (qualite.statut !== 'pending') {
+        const v = transitionQualite('completed', 'pending', qualite.statut, 'controle');
         if (!v.ok) throw new Error(v.raison);
-        const [q] = await tx.update(J).set({ qualityStatus: 'requires_review', rowVersion: j.rowVersion + 1 })
+        const [q] = await tx.update(J).set({ qualityStatus: qualite.statut, rowVersion: j.rowVersion + 1 })
           .where(and(eq(J.id, j.id), eq(J.rowVersion, j.rowVersion), eq(J.qualityStatus, 'pending'))).returning();
         if (!q) throw new PerteDeCourse('qualité');
         j = q;
-        journal.push({ t: this.maintenant().toISOString(), type: 'transition', worker: this.workerId, jobId: j.id, de: 'qualite:pending', vers: 'qualite:requires_review', acteur: 'controle', motif: 'constat négatif du contrôle · aucune relance' });
+        if (qualite.verdict) {
+          await tx.insert(schema.studioAuditEvents).values({
+            actorId: null, effectiveRole: 'systeme:controle', workspaceId: j.workspaceId, brandId: j.brandId,
+            action: 'media.quality.control', targetType: 'studio_job', targetId: j.id, versionBefore: 'pending', versionAfter: qualite.statut,
+            reason: qualite.verdict.raison.slice(0, 500), traceId: `wk:${this.workerId}`,
+            details: { manquants: qualite.verdict.manquants, nonVerifies: qualite.verdict.nonVerifies, confirmes: qualite.verdict.confirmes, controleVisuel: null },
+          });
+        }
+        journal.push({ t: this.maintenant().toISOString(), type: 'transition', worker: this.workerId, jobId: j.id, de: 'qualite:pending', vers: `qualite:${qualite.statut}`, acteur: 'controle', motif: qualite.motif });
       }
     });
+  }
+
+  /** Composants obligatoires du produit épinglé dans la version DU job · jamais reçus du client. */
+  private async composantsRequis(tx: TxStudio, job: JobStudio): Promise<string[]> {
+    const V = schema.studioProjectVersions;
+    const [v] = await tx.select({ content: V.content }).from(V).where(and(eq(V.id, job.projectVersionId), eq(V.workspaceId, job.workspaceId))).limit(1);
+    const ref = lireReferenceEpinglee((v?.content as { productRef?: unknown } | undefined)?.productRef);
+    return ref ? [...ref.composantsObligatoires] : [];
   }
 
   /** Décodage réel · une vidéo sans décodeur vidéo n'est JAMAIS décodée « par défaut ». */
