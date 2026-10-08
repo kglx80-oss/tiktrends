@@ -5,9 +5,14 @@
  *  - chaque tâche passe par `executerTache` (registre, release, contrôles,
  *    trace `studio_prompt_runs`) avec l'adaptateur de la campagne ;
  *  - chaque média passe, en RÉEL, par la barrière `sousPlafond` autour de
- *    l'exécuteur média injecté (le branchement des fournisseurs image réels se
- *    fait à l'intégration du lot F-A : ce module ne l'importe pas) ; en SIMULÉ,
+ *    l'exécuteur média injecté (`executeur-fal.ts`, lot F-D, branché par la
+ *    commande en `--reel` seulement : ce module ne l'importe pas) ; en SIMULÉ,
  *    par un générateur de pixels local ;
+ *  - chaque tâche vision reçoit ses images en PIÈCES NATIVES : le résolveur de
+ *    médias de la campagne relit, dans la portée synthétique, les médias du jeu
+ *    et les sorties produites par les étapes précédentes (empreinte des octets
+ *    réellement produits) · la correspondance liaison ↔ index ↔ empreinte est
+ *    tracée et écrite dans `config.json` ;
  *  - chaque calcul est un moteur déterministe local, identique dans les deux modes.
  *
  * En réel, AVANT chaque appel payant : dépense cumulée + plafond de l'appel
@@ -27,8 +32,10 @@ import {
   type DevisAgrege, type Image, type ModeCampagne, type ObservationCas, type ObservationEtape, type PlanCas, type ProfilMedia,
   type RapportCampagne, type ResultatCas, type StatutCas, type MessageObserve,
 } from '@tiktrends/core';
-import { executerTache } from '../prompts/resolveur';
-import type { AdaptateurModele } from '../prompts/adaptateur';
+import { executerTache, type ResolveurMediasTache } from '../prompts/resolveur';
+import { exigerPiecesConformes, type AdaptateurModele } from '../prompts/adaptateur';
+import { estPorteeBenchmark } from '@tiktrends/core';
+import type { MediaResoluVision } from '@tiktrends/core';
 import type { EnvironnementPrompts } from '../prompts/environnement';
 import { sousPlafond } from '../../spend-guard';
 import { SCENARIOS, type EntreeTacheBench, type EtatCas, type Jeu } from './scenarios';
@@ -44,6 +51,8 @@ export interface DemandeMedia {
   unites: number;
   /** Dernière consigne compilée du cas (`image.compile`, `animation.compile`…). */
   consigne: Record<string, unknown> | null;
+  /** Format demandé à la compilation (`width`/`height` de ses entrées) · `null` si inconnu. */
+  format?: { largeur: number; hauteur: number } | null;
 }
 
 export interface MediaProduit { octets: Buffer; mime: string }
@@ -56,6 +65,12 @@ export interface MediaProduit { octets: Buffer; mime: string }
 export interface ExecuteurMedias {
   readonly nom: string;
   readonly profils: readonly ProfilMedia[];
+  /**
+   * Contrôle AVANT la barrière de dépense · une demande que l'exécuteur ne sait
+   * pas servir (consigne absente, retouche masquée…) est refusée ici : aucune
+   * ligne `ai_spend`, aucun appel. Absent = toute demande du profil est servie.
+   */
+  preparer?(d: DemandeMedia): { ok: true } | { ok: false; motif: string };
   produire(d: DemandeMedia): Promise<MediaProduit[]>;
 }
 
@@ -70,8 +85,11 @@ export function adaptateurSimuleBenchmark(courant: () => Courant | null): Adapta
   return {
     nom: 'simule-benchmark',
     simule: true,
-    modelePour: (profil) => (profil === 'reasoning_structured' ? 'modele-simule-benchmark' : null),
+    // Même routage que l'adaptateur réel : texte structuré ET vision (pièces natives).
+    modelePour: (profil) => (profil === 'reasoning_structured' || profil === 'vision_analysis' ? 'modele-simule-benchmark' : null),
     async appeler(a) {
+      // Même contrat de pièces que l'adaptateur réel, vérifié avant de « répondre ».
+      exigerPiecesConformes(a);
       const c = courant();
       const f = c ? SCENARIOS[c.cas]?.simule[c.etapeId] : undefined;
       if (!c || !f) throw new Error('Aucune réponse simulée pour cet appel.');
@@ -81,18 +99,42 @@ export function adaptateurSimuleBenchmark(courant: () => Courant | null): Adapta
   };
 }
 
-/** Enveloppe un adaptateur pour relever les messages RÉELLEMENT envoyés (oracles F12). */
-function capturer(a: AdaptateurModele, sink: (m: MessageObserve[]) => void, etape: () => string): AdaptateurModele & { appels: number } {
+/** Ce qu'une tâche vision a RÉELLEMENT joint · relevé à l'entrée de l'adaptateur (preuve de la liaison). */
+export interface PieceObservee { etapeId: string; index: number; bindingId: string; assetId: string; mime: string; sha256: string; octets: number }
+
+/** Enveloppe un adaptateur pour relever les messages et les pièces RÉELLEMENT envoyés (oracles F12, preuves vision). */
+function capturer(a: AdaptateurModele, sink: (m: MessageObserve[]) => void, sinkPieces: (p: PieceObservee[]) => void, etape: () => string): AdaptateurModele & { appels: number } {
   const env = {
     nom: a.nom, simule: a.simule, appels: 0,
     modelePour: (p: string) => a.modelePour(p),
     async appeler(x: Parameters<AdaptateurModele['appeler']>[0]) {
       env.appels++;
       sink(x.messages.map((m) => ({ etapeId: etape(), role: m.role === 'system' ? 'system' as const : 'user' as const, contenu: m.contenu })));
+      sinkPieces((x.pieces ?? []).map((p) => ({ etapeId: etape(), index: p.index, bindingId: p.bindingId, assetId: p.assetId, mime: p.mime, sha256: p.sha256, octets: p.octets.length })));
       return a.appeler(x);
     },
   };
   return env;
+}
+
+/**
+ * Résolveur de médias de la campagne · portée SYNTHÉTIQUE du benchmark
+ * seulement : les médias du jeu, puis les sorties produites et jointes par le
+ * cas en cours. Toute autre portée, tout autre identifiant : non résolu.
+ */
+export function resolveurMediasCampagne(jeu: Jeu, etat: () => EtatCas | null): ResolveurMediasTache {
+  return async (portee, ids) => {
+    const out = new Map<string, MediaResoluVision>();
+    for (const assetId of ids) {
+      if (!estPorteeBenchmark(portee)) { out.set(assetId, { ok: false, assetId, motif: 'hors_portee' }); continue; }
+      const m = jeu.get(assetId);
+      const j = etat()?.joints?.get(assetId);
+      if (m) out.set(assetId, { ok: true, assetId, assetVersion: 'v1', octets: new Uint8Array(m.octets) });
+      else if (j) out.set(assetId, { ok: true, assetId, assetVersion: 'v1', octets: j });
+      else out.set(assetId, { ok: false, assetId, motif: 'absent' });
+    }
+    return out;
+  };
 }
 
 /* ─────────────────────────────── compteurs ──────────────────────────────── */
@@ -123,7 +165,8 @@ export interface OptionsCampagne {
   mode: ModeCampagne;
   plans: PlanCas[];
   devis: DevisAgrege;
-  release: { id: string; hash: string; epinglee: boolean };
+  /** `evaluation` : release `staged` exécutée en mode évaluation (exige `approbationId`, campagne consommée). */
+  release: { id: string; hash: string; epinglee: boolean; evaluation?: boolean };
   portee: { workspaceId: string; brandId: string };
   userId: string | null;
   /** Adaptateur texte · `'simule'` = fournisseur simulé du benchmark (recette locale seulement). */
@@ -159,8 +202,12 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
   const lignes = new Map<string, (typeof o.devis.cas)[number]["lignes"][number]>((o.devis.cas ?? []).flatMap((c) => c.lignes.map((l) => [`${c.cas}/${l.etapeId}#${l.sortie}`, l] as const)));
   let courant: Courant | null = null;
   let messages: MessageObserve[] = [];
+  let piecesObservees: PieceObservee[] = [];
+  let etatCourant: EtatCas | null = null;
   const brut = o.adaptateur === 'simule' ? adaptateurSimuleBenchmark(() => courant) : o.adaptateur;
-  const adaptateur = capturer(brut, (m) => messages.push(...m), () => courant?.etapeId ?? '');
+  const adaptateur = capturer(brut, (m) => messages.push(...m), (p) => piecesObservees.push(...p), () => courant?.etapeId ?? '');
+  const medias = resolveurMediasCampagne(o.jeu, () => etatCourant);
+  if (o.release.evaluation && !o.approbationId) throw new Error('Mode évaluation sans approbation de campagne.');
   let cumul = 0;
   let arrete: string | null = null;
   let appelsMedias = 0;
@@ -172,16 +219,19 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
     const sc = SCENARIOS[plan.id];
     if (!sc) throw new Error(`Scénario absent pour ${plan.id}`);
     messages = [];
+    piecesObservees = [];
     const avant = await compteurs(o.portee.workspaceId);
-    const etat: EtatCas = { jeu: o.jeu, resultats: new Map(), medias: new Map(), mesures: {} };
+    const etat: EtatCas = { jeu: o.jeu, resultats: new Map(), medias: new Map(), mesures: {}, octets: new Map(), joints: new Map() };
+    etatCourant = etat;
     const journal: Journal[] = [];
     let derniereConsigne: Record<string, unknown> | null = null;
+    let dernierFormat: { largeur: number; hauteur: number } | null = null;
     let depenseCas = 0;
 
     for (const { etape, sortie } of plan.deroule) {
       const cle = `${etape.id}#${sortie}`;
       const base: ObservationEtape = { etapeId: etape.id, templateKey: etape.nature === 'tache' ? etape.templateKey : null, sortie, statut: 'non_execute', code: null, result: null, questions: [], warnings: [] };
-      if (arrete) { journal.push({ etape: { ...base, code: 'ARRET_BUDGET' }, runId: null, fichiers: [] }); continue; }
+      if (arrete) { journal.push({ etape: { ...base, code: arrete.startsWith('Arrêt sur issue incertaine') ? 'ARRET_INCERTAIN_AVAL' : 'ARRET_BUDGET' }, runId: null, fichiers: [] }); continue; }
       const borne = lignes.get(`${plan.id}/${cle}`)?.usdMicros ?? null;
       const payant = o.mode === 'reel' && etape.nature !== 'calcul';
       if (payant && !peutLancer(cumul, borne, o.budgetUsdMicros ?? 0)) {
@@ -193,14 +243,15 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
       if (etape.nature === 'tache') {
         const fabrique = sc.taches[etape.id];
         if (!fabrique) throw new Error(`Entrée absente pour ${plan.id}/${etape.id}`);
-        const entree = fabrique(o.jeu, sortie);
+        const entree = fabrique(o.jeu, sortie, etat);
         courant = { cas: plan.id, etapeId: etape.id, sortie, entree };
         const appelsAvant = adaptateur.appels;
         const r = await executerTache({
           templateKey: etape.templateKey, portee: o.portee, acteur: { userId: o.userId, traceId: `bench_${randomUUID()}` },
           taskInputs: entree.taskInputs, contexte: { connaissances: false, ...entree.contexte },
           epinglage: o.release.epinglee ? { promptReleaseId: o.release.id } : null,
-          adaptateur, environnement: o.environnement,
+          evaluation: o.release.evaluation && o.approbationId ? { releaseId: o.release.id, approbationId: o.approbationId } : null,
+          medias, adaptateur, environnement: o.environnement,
           ...(entree.capacites ? { capacites: entree.capacites } : {}), ...(entree.sansTexte !== undefined ? { sansTexte: entree.sansTexte } : {}),
         });
         courant = null;
@@ -213,7 +264,14 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
         if (r.ok) {
           const s = r.sortie as unknown as { status: 'ready' | 'blocked'; result: Record<string, unknown> | null; questions: string[]; warnings: string[] };
           obs = { ...base, statut: s.status, code: s.status === 'blocked' ? 'MODELE_BLOQUE' : null, result: s.result, questions: s.questions ?? [], warnings: s.warnings ?? [] };
-          if (s.status === 'ready' && s.result) { etat.resultats.set(cle, s.result); if (/compile$/.test(etape.templateKey)) derniereConsigne = s.result; }
+          if (s.status === 'ready' && s.result) {
+            etat.resultats.set(cle, s.result);
+            if (/compile$/.test(etape.templateKey)) {
+              derniereConsigne = s.result;
+              const w = Number(entree.taskInputs.width), h = Number(entree.taskInputs.height);
+              dernierFormat = Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0 ? { largeur: w, hauteur: h } : null;
+            }
+          }
         } else {
           obs = { ...base, statut: r.statut === 'blocked' ? 'blocked' : 'erreur', code: r.constats[0]?.code ?? r.code, questions: r.constats.map((c) => c.message) };
         }
@@ -231,18 +289,32 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
           } else if (!o.medias || !o.medias.profils.includes(etape.profil)) {
             code = 'EXECUTEUR_NON_BRANCHE';
           } else {
-            const medias = o.medias;
-            const produits = await sousPlafond(etape.profil === 'animation' ? 'fal_video' : 'fal_image', { workspaceId: o.portee.workspaceId, action: `studio-benchmark:${plan.id}:${etape.id}`, units: etape.unites },
-              () => medias.produire({ cas: plan.id, etapeId: etape.id, sortie, profil: etape.profil, unites: etape.unites, consigne: derniereConsigne }));
-            cumul += borne ?? 0; depenseCas += borne ?? 0;
-            images = await Promise.all(produits.filter((p) => p.mime === 'image/png').map((p) => decoder(p.octets)));
+            const exec = o.medias;
+            const demande: DemandeMedia = { cas: plan.id, etapeId: etape.id, sortie, profil: etape.profil, unites: etape.unites, consigne: derniereConsigne, format: dernierFormat };
+            const prep = exec.preparer ? exec.preparer(demande) : { ok: true as const };
+            if (!prep.ok) code = 'EXECUTEUR_REFUS';
+            else {
+              // UNE barrière, UNE ligne `ai_spend` par média : l'exécuteur n'en repose pas une seconde.
+              const produits = await sousPlafond(etape.profil === 'animation' ? 'fal_video' : 'fal_image', { workspaceId: o.portee.workspaceId, action: `studio-benchmark:${plan.id}:${etape.id}`, units: etape.unites },
+                () => exec.produire(demande));
+              cumul += borne ?? 0; depenseCas += borne ?? 0;
+              images = await Promise.all(produits.filter((p) => p.mime === 'image/png' || p.mime === 'image/jpeg' || p.mime === 'image/webp').map((p) => decoder(p.octets)));
+            }
           }
         } catch (e) {
           code = (e as Error).name === 'SpendBlockedError' ? 'BUDGET_EXCEEDED' : 'PROVIDER_ERROR';
+          // Issue INCERTAINE (requête peut-être acceptée et facturée) : la campagne
+          // s'arrête ici, sans resoumission · la dépense reste comptée (réconciliation).
+          if ((e as { certaine?: unknown }).certaine === false) {
+            code = 'ARRET_INCERTAIN';
+            arrete = `Arrêt sur issue incertaine à ${plan.id}/${cle} : ${(e as Error).message.slice(0, 200)} · aucune resoumission, dépense gardée.`;
+          }
         }
         if (images.length) { etat.medias.set(cle, images); appelsMedias++; }
+        const encodes = await Promise.all(images.map((img) => encoder(img)));
+        if (encodes.length) etat.octets!.set(cle, encodes.map((b) => new Uint8Array(b)));
         const fichiers = await Promise.all(images.map(async (img, k) => {
-          const octets = await encoder(img);
+          const octets = encodes[k]!;
           const fichier = `sorties/${etape.id}-${sortie + 1}-${k + 1}.png`;
           if (dossier) { mkdirSync(join(dossier, plan.id, 'sorties'), { recursive: true }); writeFileSync(join(dossier, plan.id, fichier), octets); }
           return { fichier, sha256: sha(octets), largeur: img.largeur, hauteur: img.hauteur };
@@ -253,8 +325,10 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
 
       await sc.calculs?.[etape.id]?.(etat, sortie);
       const produites = etat.medias.get(cle) ?? [];
+      const encodesCalcul = await Promise.all(produites.map((img) => encoder(img)));
+      if (encodesCalcul.length) etat.octets!.set(cle, encodesCalcul.map((b) => new Uint8Array(b)));
       const fichiers = await Promise.all(produites.map(async (img, k) => {
-        const octets = await encoder(img);
+        const octets = encodesCalcul[k]!;
         const fichier = `sorties/${etape.id}-${sortie + 1}-${k + 1}.png`;
         if (dossier) { mkdirSync(join(dossier, plan.id, 'sorties'), { recursive: true }); writeFileSync(join(dossier, plan.id, fichier), octets); }
         return { fichier, sha256: sha(octets), largeur: img.largeur, hauteur: img.hauteur };
@@ -269,8 +343,9 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
     let statut: StatutCas = 'execute';
     let motif: string | null = null;
     const etapes = journal.map((j) => j.etape);
-    if (etapes.some((e) => e.code === 'ARRET_BUDGET')) { statut = 'arrete_budget'; motif = arrete; }
-    else if (etapes.some((e) => e.code === 'UNSUPPORTED_CAPABILITY' && attendus.get(e.etapeId) !== 'blocked')) { statut = 'bloque_capacite'; motif = 'Étape sur un profil non routé (vision_analysis) : bloquée avant appel.'; }
+    if (etapes.some((e) => e.code?.startsWith('ARRET_INCERTAIN'))) { statut = 'arrete_incertain'; motif = arrete; }
+    else if (etapes.some((e) => e.code === 'ARRET_BUDGET')) { statut = 'arrete_budget'; motif = arrete; }
+    else if (etapes.some((e) => e.code === 'UNSUPPORTED_CAPABILITY' && attendus.get(e.etapeId) !== 'blocked')) { statut = 'bloque_capacite'; motif = 'Étape sur un profil non routé : bloquée avant appel.'; }
     else if (etapes.some((e) => e.statut === 'erreur')) { statut = 'erreur'; motif = etapes.filter((e) => e.statut === 'erreur').map((e) => `${e.etapeId} ${e.code ?? ''}`).join(', '); }
     const fiche = ficheVierge(plan, RUBRIQUE_REFERENCE, o.mode);
     const res: ResultatCas = { cas: plan.id, statut, motif, invariants, fiche };
@@ -279,7 +354,8 @@ export async function executerCampagne(o: OptionsCampagne): Promise<ResultatCamp
     const runIds = journal.flatMap((j) => (j.runId ? [j.runId] : []));
     casRapport.push({ cas: plan.id, statut, motif, invariants, fiche: !!fiche, runIds, dossier: plan.id });
 
-    if (dossier) ecrireDossierCas(join(dossier, plan.id), { o, adaptateur: brut, plan, journal, invariants, statut, motif, fiche, runIds, depenseCas, observation });
+    if (dossier) ecrireDossierCas(join(dossier, plan.id), { o, adaptateur: brut, plan, journal, invariants, statut, motif, fiche, runIds, depenseCas, observation, pieces: piecesObservees });
+    etatCourant = null;
   }
 
   const verdict = verdictCampagne({ mode: o.mode, rubrique: RUBRIQUE_REFERENCE, resultats });
@@ -306,7 +382,7 @@ function json(p: string, v: unknown) { writeFileSync(p, `${JSON.stringify(v, nul
 
 function ecrireDossierCas(d: string, x: {
   o: OptionsCampagne; adaptateur: AdaptateurModele; plan: PlanCas; journal: Journal[]; invariants: ResultatCas['invariants']; statut: StatutCas; motif: string | null;
-  fiche: ResultatCas['fiche']; runIds: string[]; depenseCas: number; observation: ObservationCas;
+  fiche: ResultatCas['fiche']; runIds: string[]; depenseCas: number; observation: ObservationCas; pieces: PieceObservee[];
 }) {
   mkdirSync(d, { recursive: true });
   const { o, plan } = x;
@@ -318,10 +394,12 @@ function ecrireDossierCas(d: string, x: {
     donneesOracle: x.observation.donnees,
   });
   json(join(d, 'config.json'), {
-    ...tete, release: { id: o.release.id, empreinte: o.release.hash, epinglee: o.release.epinglee }, adaptateurTexte: x.adaptateur.nom, simule: x.adaptateur.simule,
+    ...tete, release: { id: o.release.id, empreinte: o.release.hash, epinglee: o.release.epinglee, evaluation: !!o.release.evaluation, approbationId: o.approbationId }, adaptateurTexte: x.adaptateur.nom, simule: x.adaptateur.simule,
     modele: x.adaptateur.modelePour('reasoning_structured'), environnement: o.environnement,
     medias: o.mode === 'simule' ? 'générateur de pixels local (simulé)' : o.medias?.nom ?? 'aucun exécuteur branché', runIds: x.runIds,
     messagesEnvoyes: x.observation.messages.map((m) => ({ etape: m.etapeId, role: m.role, sha256: sha(m.contenu), caracteres: m.contenu.length })),
+    // Vision : la pièce native réellement jointe à chaque appel (index natif, liaison, empreinte des octets lus).
+    piecesNatives: x.pieces,
   });
   json(join(d, 'sorties.json'), {
     ...tete,

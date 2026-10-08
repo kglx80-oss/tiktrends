@@ -42,11 +42,15 @@ export interface EtatCas {
   /** Images produites par les étapes média, clé `etape#sortie`. */
   medias: Map<string, Image[]>;
   mesures: Record<string, unknown>;
+  /** Octets PNG des images produites (étapes média et calcul), clé `etape#sortie` · écrits par la campagne. */
+  octets?: Map<string, Uint8Array[]>;
+  /** Sorties jointes à une tâche vision (identifiant → octets) · relues par le résolveur de médias de la campagne. */
+  joints?: Map<string, Uint8Array>;
 }
 
 export interface ScenarioCas {
   donnees: (jeu: Jeu) => Record<string, unknown>;
-  taches: Record<string, (jeu: Jeu, sortie: number) => EntreeTacheBench>;
+  taches: Record<string, (jeu: Jeu, sortie: number, etat: EtatCas) => EntreeTacheBench>;
   /** Réponse du fournisseur SIMULÉ · reçoit l'entrée pour recopier ce qui doit l'être (références, empreintes). */
   simule: Record<string, (sortie: number, entree: EntreeTacheBench) => unknown>;
   mediasSimules?: Record<string, (etat: EtatCas, sortie: number) => Image[]>;
@@ -80,6 +84,20 @@ function lien(jeu: Jeu, id: string, index: number, modality: 'image' | 'video' |
   const m = jeu.get(id);
   if (!m) throw new Error(`Média « ${id} » absent du jeu`);
   return { bindingId: `b_${id}`, assetId: id, assetVersion: 'v1', sha256: m.sha256, role, modality, derivation: 'original' as const, nativeAttachmentIndex: index, coverageDescription: modality === 'audio' ? 'fichier entier' : 'image entière' };
+}
+
+/**
+ * Liaison d'une SORTIE produite pendant la campagne (étape `cle`) à une tâche
+ * vision · l'empreinte est celle des octets réellement produits, enregistrés
+ * pour que le résolveur de médias de la campagne les relise. Sans sortie
+ * (étape non aboutie) : aucune liaison, et la tâche est bloquée avant appel
+ * (MEDIA_NON_JOINT) plutôt que de faire « voir » une image absente.
+ */
+function lienSortie(etat: EtatCas, cle: string, assetId: string, index: number, role: string) {
+  const o = etat.octets?.get(cle)?.[0];
+  if (!o) return [];
+  (etat.joints ??= new Map()).set(assetId, o);
+  return [{ bindingId: `b_${assetId}`, assetId, assetVersion: 'v1', sha256: sha(o), role, modality: 'image' as const, derivation: 'original' as const, nativeAttachmentIndex: index, coverageDescription: 'image entière produite par la campagne' }];
 }
 
 const alloues = (entityType: 'concept' | 'shot' | 'identity' | 'variant' | 'hypothesis' | 'batch_item' | 'fact', prefixe: string, n: number) =>
@@ -143,9 +161,12 @@ export const SCENARIOS: Readonly<Record<string, ScenarioCas>> = {
           references: [ref(jeu, 'f01-lunettes-bleues', 'product', 'product', ['lunettes']), ref(jeu, 'f01-bandeau-bleu', 'integrate', 'product', ['bandeau'])], invariants: ['Lunettes ET bandeau présents'],
         },
       }),
-      qualite: (jeu, s) => ({
+      qualite: (jeu, s, etat) => ({
         taskInputs: { outputAssetIds: [`sortie_F01_${s + 1}`], referenceIds: ['f01-lunettes-bleues', 'f01-bandeau-bleu'], criteria: ['Lunettes et bandeau présents', 'Décor seul modifié'] },
-        contexte: { references: [ref(jeu, 'f01-lunettes-bleues', 'product', 'product', ['lunettes']), ref(jeu, 'f01-bandeau-bleu', 'integrate', 'product', ['bandeau'])] },
+        contexte: {
+          references: [ref(jeu, 'f01-lunettes-bleues', 'product', 'product', ['lunettes']), ref(jeu, 'f01-bandeau-bleu', 'integrate', 'product', ['bandeau'])],
+          mediaBindings: [...lienSortie(etat, `composition#${s}`, `sortie_F01_${s + 1}`, 0, 'sortie'), lien(jeu, 'f01-lunettes-bleues', 1, 'image', 'référence produit'), lien(jeu, 'f01-bandeau-bleu', 2, 'image', 'référence produit')],
+        },
       }),
     },
     simule: {
@@ -194,9 +215,12 @@ export const SCENARIOS: Readonly<Record<string, ScenarioCas>> = {
           invariants: ['Aucun personnage ni logo tiers importé de la référence', 'Matière du produit bleu protégée'],
         },
       }),
-      qualite: (jeu, s) => ({
+      qualite: (jeu, s, etat) => ({
         taskInputs: { outputAssetIds: [`sortie_F02_${s + 1}`], referenceIds: ['f02-produit-bleu'], criteria: ['Aucun personnage ni logo tiers'] },
-        contexte: { references: [ref(jeu, 'f02-produit-bleu', 'product', 'product', ['produit bleu'])] },
+        contexte: {
+          references: [ref(jeu, 'f02-produit-bleu', 'product', 'product', ['produit bleu'])],
+          mediaBindings: [...lienSortie(etat, `generation#${s}`, `sortie_F02_${s + 1}`, 0, 'sortie'), lien(jeu, 'f02-produit-bleu', 1, 'image', 'référence produit')],
+        },
       }),
     },
     simule: {
@@ -327,7 +351,7 @@ export const SCENARIOS: Readonly<Record<string, ScenarioCas>> = {
     taches: {
       qualite: (jeu) => ({
         taskInputs: { outputAssetIds: ['f07-boite'], referenceIds: ['f01-lunettes-bleues'], criteria: ['La sortie montre la paire de lunettes bleues de référence'] },
-        contexte: { references: [ref(jeu, 'f01-lunettes-bleues', 'product', 'product', ['lunettes'])], mediaBindings: [lien(jeu, 'f07-boite', 0, 'image', 'sortie')] },
+        contexte: { references: [ref(jeu, 'f01-lunettes-bleues', 'product', 'product', ['lunettes'])], mediaBindings: [lien(jeu, 'f07-boite', 0, 'image', 'sortie'), lien(jeu, 'f01-lunettes-bleues', 1, 'image', 'référence produit')] },
       }),
     },
     simule: {
@@ -473,9 +497,12 @@ export const SCENARIOS: Readonly<Record<string, ScenarioCas>> = {
           references: [ref(jeu, 'f15-flacon', 'product', 'product', ['flacon transparent', 'étiquette fine'])],
         },
       }),
-      qualite: (jeu, s) => ({
+      qualite: (jeu, s, etat) => ({
         taskInputs: { outputAssetIds: [`sortie_F15_${s + 1}`], referenceIds: ['f15-flacon'], criteria: ['Contours et transparence', 'Étiquette lisible'] },
-        contexte: { references: [ref(jeu, 'f15-flacon', 'product', 'product', ['flacon transparent', 'étiquette fine'])] },
+        contexte: {
+          references: [ref(jeu, 'f15-flacon', 'product', 'product', ['flacon transparent', 'étiquette fine'])],
+          mediaBindings: [...lienSortie(etat, `generation#${s}`, `sortie_F15_${s + 1}`, 0, 'sortie'), lien(jeu, 'f15-flacon', 1, 'image', 'référence produit')],
+        },
       }),
     },
     simule: {

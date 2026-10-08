@@ -26,7 +26,8 @@ import * as depot from '../lib/studios/prompts/depot-prompts';
 
 const ENV = { STUDIOS_PROMPTS_RECETTE_LOCALE: '1', DATABASE_URL: 'postgres://postgres@127.0.0.1:5433/fc' };
 const VISION = ['F01', 'F02', 'F07', 'F12', 'F13', 'F15'];
-const EXECUTABLES = IDS_CAS.filter((c) => !VISION.includes(c));
+// Lot F-D : la vision est routée (pièces natives) · les 24 cas s'exécutent.
+const EXECUTABLES = IDS_CAS;
 const AVEC_REVUE = ['F01', 'F02', 'F05', 'F14', 'F15', 'F18', 'F20', 'F23'];
 const racine = mkdtempSync(join(tmpdir(), 'fc-campagne-'));
 let r: Awaited<ReturnType<typeof lancerCampagneSimulee>>;
@@ -84,7 +85,7 @@ describe('campagne simulée complète', () => {
     expect(existsSync(join(ok().resultat.dossier!, 'F05', 'sorties', 'retouche-1-1.png'))).toBe(true);
     const cout = lire('F20', 'cout.json');
     expect(cout).toMatchObject({ depenseUsdMicros: 0, totalDevisUsdMicros: 3_248_000 });
-    expect(lire('F07', 'cout.json').totalDevisUsdMicros).toBeNull();
+    expect(lire('F07', 'cout.json').totalDevisUsdMicros).toBe(218_112);
   });
 
   it('oracles déterministes : les 18 cas exécutables passent TOUS leurs invariants', () => {
@@ -95,13 +96,13 @@ describe('campagne simulée complète', () => {
     }
   });
 
-  it('vision non routée : 6 cas bloqués avant appel, dits tels, aucun invariant inventé', () => {
+  it('vision routée (lot F-D) : les 6 cas s’exécutent, chaque image jointe est tracée dans config.json', () => {
     for (const c of VISION) {
       const x = ok().resultat.resultats.find((y) => y.cas === c)!;
-      expect(x.statut, c).toBe('bloque_capacite');
-      expect(x.invariants.some((i) => i.passe === false), c).toBe(false);
+      expect(x.statut, c).toBe('execute');
     }
-    expect(lire('F07', 'oracle.json').invariants[0]).toMatchObject({ passe: null });
+    expect(lire('F07', 'oracle.json').invariants[0]).toMatchObject({ passe: true });
+    expect(lire('F07', 'config.json').piecesNatives.map((p: { index: number; assetId: string }) => [p.index, p.assetId])).toEqual([[0, 'f07-boite'], [1, 'f01-lunettes-bleues']]);
   });
 
   it('fiches humaines : générées vides, jamais notées par le code', () => {
@@ -115,7 +116,7 @@ describe('campagne simulée complète', () => {
 
   it('rapport : SIMULÉ, jamais approuvable, 0 $ dépensé, aucune ligne de dépense', async () => {
     const rap = ok().resultat.rapport;
-    expect(rap).toMatchObject({ mode: 'simule', depenseUsdMicros: 0, verdict: { statut: 'INCOMPLET', approuvable: false, evaluationReelle: false } });
+    expect(rap).toMatchObject({ mode: 'simule', depenseUsdMicros: 0, verdict: { statut: 'REVUE_HUMAINE_REQUISE', approuvable: false, evaluationReelle: false } });
     expect(rap.verdict.invariants).toMatchObject({ echoues: 0 });
     expect(await db.select().from(schema.aiSpend)).toEqual([]);
     expect(lire('rapport.json').empreinte).toBe(rap.empreinte);
@@ -126,7 +127,7 @@ describe('campagne simulée complète', () => {
     const runs = await db.select().from(schema.studioPromptRuns).where(eq(schema.studioPromptRuns.workspaceId, PORTEE_BENCHMARK.workspaceId));
     expect(runs.map((x) => x.id).sort()).toEqual([...runIds].sort());
     expect(runs.every((x) => (x.config as { simule: boolean }).simule === true && x.promptReleaseId === ok().release.id)).toBe(true);
-    expect(runs.filter((x) => x.status === 'blocked').map((x) => x.templateKey).sort()).toEqual(expect.arrayContaining(['animation.compile', 'brand.extract', 'quality.visual']));
+    expect(runs.filter((x) => x.status === 'blocked').map((x) => x.templateKey).sort()).toEqual(['animation.compile', 'brand.extract']);
   });
 });
 
