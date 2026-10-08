@@ -160,8 +160,21 @@ describe('vidéo · aucun décodeur vidéo ⇒ jamais livrée, jamais soumise', 
     expect(await solde(db, ids.wsA)).toBe(s0 + IMAGE);
   });
 
+  it('le devis refuse une animation tant que le worker ne sait pas la vérifier ⇒ UNSUPPORTED_CAPABILITY, aucun devis', async () => {
+    const avant = (await db.select().from(schema.studioQuotes)).length;
+    const d = await creerDevis(ctxDe(ids, 'ua'), { projectId: projet.projectId, operations: ['clip:s_ouverture'], variante: true });
+    expect(!d.ok && d.code, 'une animation invérifiable a été devisée').toBe('UNSUPPORTED_CAPABILITY');
+    expect((await db.select().from(schema.studioQuotes)).length).toBe(avant);
+  });
+
   it('une opération d’animation n’est PAS soumise sans décodeur vidéo ⇒ failed avant soumission, 0 $, tout rendu', async () => {
-    const id = await jobEnFile(['clip:s_ouverture']);
+    // Job d'animation approuvé AVANT que le devis ne les refuse (ou par un autre
+    // chemin) : le worker reste la seconde barrière. On réécrit le snapshot d'un
+    // job image en animation, comme une ligne héritée.
+    const id = await jobEnFile();
+    const [j0] = await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, id));
+    const snap = j0!.snapshot as { lignes: Array<Record<string, unknown>> };
+    await db.update(schema.studioJobs).set({ snapshot: { ...snap, lignes: snap.lignes.map((l) => ({ ...l, operation: 'clip:s_ouverture', profil: 'animation' })) } }).where(eq(schema.studioJobs.id, id));
     const s0 = await solde(db, ids.wsA);
     const [j] = await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, id));
     const reserve = (await etatEnBase(db, id)).registre.find((m) => m.kind === 'reserve')!;

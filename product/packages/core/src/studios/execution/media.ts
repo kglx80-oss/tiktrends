@@ -349,6 +349,14 @@ export function decisionMediaRefuse(essais: number): 'retelecharger' | 'echec' {
 }
 
 /**
+ * Le worker sait-il DÉCODER une vidéo ? Non : ni ffmpeg ni ffprobe dans son
+ * image (contre-recette du 8 octobre). Source unique pour le devis (refus dès
+ * le devis) et pour le worker (refus avant soumission) · à passer à `true`
+ * seulement avec un décodeur vidéo réel prouvé sur une vraie vidéo.
+ */
+export const DECODEUR_VIDEO_WORKER = false;
+
+/**
  * Opérations dont la sortie ne pourrait PAS être vérifiée par ce worker : une
  * animation sans décodeur vidéo. Elles ne sont jamais soumises au fournisseur
  * (rien n'est dépensé pour un résultat qu'on refuserait).
