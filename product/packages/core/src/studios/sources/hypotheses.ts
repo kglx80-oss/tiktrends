@@ -157,3 +157,18 @@ export function hypotheseSaisie(s: SaisieHypothese, sourceIds: readonly string[]
 export function saisieSuffisante(h: HypotheseTest): boolean {
   return h.statement.length > 0 && h.variable.length > 0;
 }
+
+/**
+ * Plafond de coût d'UNE demande de propositions, annoncé AVANT le clic.
+ *
+ * Recopie des bornes du résolveur (`lib/studios/prompts/resolveur.ts` :
+ * budget de contexte 24 000 jetons, sortie 4 000) · le pire cas, au tarif du
+ * modèle routé. C'est un plafond (la barrière de dépense refuse au-delà), pas
+ * le prix réel, qui est journalisé après coup.
+ */
+export const JETONS_ENTREE_MAX_PROPOSITION = 24_000;
+export const JETONS_SORTIE_MAX_PROPOSITION = 4_000;
+export function plafondPropositionUsd(tarif: { inputPerMTok: number; outputPerMTok: number }): number {
+  const usd = (JETONS_ENTREE_MAX_PROPOSITION * tarif.inputPerMTok + JETONS_SORTIE_MAX_PROPOSITION * tarif.outputPerMTok) / 1_000_000;
+  return Math.ceil(usd * 100) / 100;
+}

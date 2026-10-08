@@ -219,3 +219,13 @@ describe('FLOW-03 · une réponse tardive ne change pas de marque', () => {
     expect(propositionValidePour(s, { ...cible, maintenant: s.expireLe + 1 })).toBe('expiree');
   });
 });
+
+describe('coût annoncé avant le clic', () => {
+  it('plafond d’une demande de propositions · pire cas du résolveur au tarif du modèle', async () => {
+    const { plafondPropositionUsd } = await import('../src/studios/sources/hypotheses');
+    const { rateFor } = await import('../src/spend-guard');
+    // 24 000 × 3 $/M + 4 000 × 15 $/M = 0,072 + 0,060 = 0,132 $ → 0,14 $ arrondi au centime supérieur.
+    expect(plafondPropositionUsd(rateFor('claude-sonnet-5'))).toBe(0.14);
+    expect(plafondPropositionUsd(rateFor('modele-inconnu')), 'un modèle inconnu est compté au plus cher').toBe(0.66);
+  });
+});
