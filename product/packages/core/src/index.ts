@@ -167,3 +167,4 @@ export * from './lectures-pures';
 export * from './studios/securite';
 export * from './studios/execution';
 export * from './studios/suppression-marque';
+export * from './studios/propositions';
