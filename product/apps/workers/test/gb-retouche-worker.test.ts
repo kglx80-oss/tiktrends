@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { randomUUID, createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { schema, eq, and, sql } from '@tiktrends/db';
@@ -26,6 +26,11 @@ import { pgMemoire } from './pg-memoire';
  * changé AUCUN pixel hors zone + fondu, compté par force brute sur le PNG
  * stocké, redécodé, avec une zone calculée ici sans le code du noyau.
  */
+
+// Pglite rejoue les 55 migrations, sharp encode et décode : 10 s ont été dépassés au `beforeAll` pendant la porte
+// `pnpm -w run test` (machine chargée, constaté le 8 octobre) alors que le fichier seul tourne en 5 s. Mêmes limites
+// que la configuration du site (`apps/web/vitest.config.ts` : 30 s par test, 60 s par crochet).
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
 
 let base: BaseStudio;
 const ws = randomUUID();
@@ -157,7 +162,7 @@ beforeAll(async () => {
   SOURCE = await pngRvb(L, H, (x, y) => [(x * 2) & 255, (y * 3 + 40) & 255, (x ^ y) & 255]);
   MASQUE = await pngGris(L, H, (x, y) => (dansZone(x, y) ? 255 : 0));
   SORTIE_FAL = await pngRvb(200, 100, () => MAGENTA);
-});
+}, 60_000);
 
 beforeEach(async () => {
   appels = [];
