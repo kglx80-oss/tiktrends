@@ -9,7 +9,9 @@ import { LIBELLE_TYPE, entierVersVersion, lireEntrees, lireEvaluation, lireRevoc
 import { expurgerRun, type LigneRun } from '../../../../lib/studios/prompts/traces';
 import { PROFILS_ROUTES_ANTHROPIC, modeleTexte } from '../../../../lib/studios/prompts/adaptateur';
 import { listerConnaissances } from '../../../../lib/jarvis-connaissances';
-import type { VueCle, VueDetail, VueRelease, VueEvaluation, VueRun, VueVersion } from './Ecrans';
+import type { VueCle, VueDetail, VueRelease, VueEvaluation, VueRun, VueVersion, VueBenchmark } from './Ecrans';
+import { planEtDevis } from '../../../../lib/studios/benchmark/programme';
+import { usdLisible } from '@tiktrends/core';
 
 /**
  * Lectures des écrans « IA et Studios » · rows → vues SÉRIALISABLES.
@@ -90,7 +92,8 @@ export async function vueEvaluations(): Promise<VueEvaluation[]> {
   const [evs, releases, versions] = await Promise.all([depot.listerEvaluations(), depot.listerReleases(), depot.listerVersions()]);
   const r = new Map(releases.map((x) => [x.id, x]));
   const v = new Map(versions.map((x) => [x.id, x]));
-  return evs.map((e) => {
+  // Les évaluations de benchmark (approbations, rapports, fiches) ont leur propre section (`vueBenchmark`).
+  return evs.filter((e) => e.kind === 'structural').map((e) => {
     const res = (e.result ?? {}) as { tests?: Array<{ id: string; passe: boolean; detail: string }>; benchmark?: Array<{ id: string; titre: string; motif: string }> };
     const cible = e.releaseId ? `release ${r.get(e.releaseId)?.releaseHash.slice(0, 12) ?? e.releaseId.slice(0, 8)}…` : e.promptVersionId ? `version ${v.get(e.promptVersionId)?.key ?? ''}@${v.get(e.promptVersionId) ? entierVersVersion(v.get(e.promptVersionId)!.version) : ''}` : '·';
     return { id: e.id, cible, type: e.kind === 'structural' ? 'Structurelle' : e.kind === 'benchmark' ? 'Benchmark' : 'Manuelle', passe: e.passed, creeLe: date(e.createdAt), tests: res.tests ?? [], benchmark: res.benchmark ?? [] };
@@ -138,4 +141,50 @@ export async function vueConnaissances(): Promise<{ publiees: number; retirees: 
     if (e.etat === 'publie') publiees++; else if (e.etat === 'retire') retirees++; else brouillons++;
   }
   return { publiees, retirees, brouillons };
+}
+
+/**
+ * Onglet Évaluations · benchmark F01-F24 (lot F-D). Le devis est recalculé ici
+ * (aucun appel, aucune écriture) ; approbations, rapports joints et fiches sont
+ * relus dans `studio_prompt_evaluations`. Rien de ce qui est montré n'est
+ * reçu du navigateur.
+ */
+export async function vueBenchmark(): Promise<VueBenchmark> {
+  const [evs, releases] = await Promise.all([depot.listerEvaluations(), depot.listerReleases()]);
+  const pd = planEtDevis(null);
+  const devis: VueBenchmark['devis'] = !pd.ok
+    ? { chiffrable: false, total: null, totalLisible: 'non chiffrable', partielLisible: null, nonChiffrables: [], empreinte: null, cas: [], refus: pd.refus.map((c) => `${c.code} · ${c.message}`) }
+    : {
+      chiffrable: pd.devis.ok, total: pd.devis.ok ? pd.devis.totalUsdMicros : null, totalLisible: pd.devis.ok ? usdLisible(pd.devis.totalUsdMicros) : 'non chiffrable',
+      partielLisible: pd.devis.ok ? null : usdLisible(pd.devis.totalPartielUsdMicros), nonChiffrables: pd.devis.ok ? [] : pd.devis.nonChiffrables,
+      empreinte: pd.devis.ok ? pd.devis.empreinte : null, refus: [],
+      cas: pd.devis.cas.map((c) => ({ cas: c.cas, appels: c.appels, medias: c.medias, totalLisible: usdLisible(c.totalUsdMicros), chiffrable: c.chiffrable, motif: c.lignes.find((l) => l.motif)?.motif ?? null })),
+    };
+  const parRelease = new Map(releases.map((r) => [r.id, r]));
+  const court = (id: string | null) => (id ? `${parRelease.get(id)?.releaseHash.slice(0, 12) ?? id.slice(0, 8)}…` : '·');
+  const res = (r: unknown) => (r ?? {}) as Record<string, any>;
+  const consommees = new Set(evs.filter((e) => e.kind === 'benchmark' && res(e.result).type === 'campagne_reelle_demarree').map((e) => String(res(e.result).approbationId)));
+  return {
+    devis,
+    releases: releases.filter((r) => r.status === 'staged' || r.status === 'active').map((r) => {
+      const ev = lireEvaluation(r.evaluation);
+      return { id: r.id, statut: r.status, empreinte: r.releaseHash, revoquee: !!lireRevocation(r.evaluation), benchmarkApprouve: !!(ev && ev.releaseHash === r.releaseHash && ev.benchmarkApprouve) };
+    }),
+    approbations: evs.filter((e) => e.kind === 'manual' && res(e.result).type === 'approbation_budget_benchmark').map((e) => ({
+      id: e.id, release: court(e.releaseId), budgetLisible: usdLisible(Number(res(e.result).budgetUsdMicros)), devisLisible: usdLisible(Number(res(e.result).devisTotalUsdMicros)),
+      le: date(res(e.result).le), expireLe: date(res(e.result).expireLe), consommee: consommees.has(e.id), par: e.evaluatorId ?? '·',
+    })),
+    campagnes: evs.filter((e) => e.kind === 'benchmark' && res(e.result).type === 'campagne_benchmark').map((e) => {
+      const r = res(e.result);
+      return {
+        id: e.id, releaseId: e.releaseId ?? '', release: court(e.releaseId), mode: r.mode === 'reel' ? 'reel' as const : 'simule' as const, banniere: String(r.banniere ?? ''), passe: e.passed,
+        verdict: String(r.verdict?.statut ?? '·'), invariants: r.verdict?.invariants ? `${r.verdict.invariants.passes}/${r.verdict.invariants.total}` : '·',
+        refus: Array.isArray(r.refus) ? r.refus.map(String) : [], depenseLisible: usdLisible(Number(r.depenseUsdMicros ?? 0)), le: date(e.createdAt), empreinteRapport: String(r.empreinteRapport ?? ''),
+      };
+    }),
+    fiches: evs.filter((e) => e.kind === 'benchmark' && res(e.result).type === 'fiches_benchmark').map((e) => {
+      const r = res(e.result);
+      return { id: e.id, releaseId: e.releaseId ?? '', release: court(e.releaseId), passe: e.passed, verdict: String(r.verdict?.statut ?? '·'), refus: Array.isArray(r.refus) ? r.refus.map(String) : [], le: date(e.createdAt), fiches: Array.isArray(r.fiches) ? r.fiches.length : 0 };
+    }),
+  };
 }

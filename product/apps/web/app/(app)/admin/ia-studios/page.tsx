@@ -4,8 +4,8 @@ import { aPermissionPlateforme } from '@tiktrends/core';
 import { gardePlateforme } from '../../../../lib/studios/prompts/garde-prompts';
 import { environnementPrompts } from '../../../../lib/studios/prompts/environnement';
 import { cadrePage, h1 } from '../../../../components/ui';
-import { EcranVersions, EcranReleases, EcranEvaluations, EcranRoutage, EcranExecutions, EcranConnaissances, Erreur, surfaceBloc } from './Ecrans';
-import { vueVersions, vueReleases, vueEvaluations, vueRoutage, vueExecutions, vueConnaissances } from './donnees';
+import { EcranVersions, EcranReleases, EcranEvaluations, EcranBenchmark, EcranRoutage, EcranExecutions, EcranConnaissances, Erreur, surfaceBloc } from './Ecrans';
+import { vueVersions, vueReleases, vueEvaluations, vueBenchmark, vueRoutage, vueExecutions, vueConnaissances } from './donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,7 +81,7 @@ export default async function IaStudiosPage({ searchParams }: { searchParams: Pr
       contenu = <EcranReleases releases={r.releases} pointee={r.pointee} environnement={environnement} selection={r.selection}
         peutPublier={peut('prompt.publish')} peutRevenir={peut('prompt.rollback')} peutEvaluer={peut('prompt.evaluate')} peutCreer={peut('prompt.draft')} />;
     } else if (onglet === 'evaluations') {
-      contenu = <EcranEvaluations evaluations={await vueEvaluations()} />;
+      contenu = <><EcranBenchmark b={await vueBenchmark()} peutEvaluer={peut('prompt.evaluate')} /><EcranEvaluations evaluations={await vueEvaluations()} /></>;
     } else if (onglet === 'routage') {
       contenu = <EcranRoutage lignes={vueRoutage()} />;
     } else if (onglet === 'executions') {

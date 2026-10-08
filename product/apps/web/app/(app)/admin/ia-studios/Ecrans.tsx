@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
-import { BoutonCommande, BoutonConfirme, BoutonRevoquer, EditeurBrouillon, FormulaireRelease, type ChampEditable } from './Commandes';
+import { BoutonCommande, BoutonConfirme, BoutonRevoquer, EditeurBrouillon, FormulaireRelease, FormulaireBudgetBenchmark, FormulaireFichesBenchmark, BoutonBenchmarkApprouve, type ChampEditable } from './Commandes';
 
 /**
  * Les onglets de « IA et Studios », rendus côté serveur à partir de données
@@ -266,6 +266,126 @@ export function EcranEvaluations({ evaluations }: { evaluations: VueEvaluation[]
           )}
         </article>
       ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────── Benchmark F01-F24 ───────────────────────── */
+
+export interface VueBenchmark {
+  devis: {
+    chiffrable: boolean; total: number | null; totalLisible: string; partielLisible: string | null; nonChiffrables: string[]; empreinte: string | null; refus: string[];
+    cas: Array<{ cas: string; appels: number; medias: number; totalLisible: string; chiffrable: boolean; motif: string | null }>;
+  };
+  releases: Array<{ id: string; statut: string; empreinte: string; revoquee: boolean; benchmarkApprouve: boolean }>;
+  approbations: Array<{ id: string; release: string; budgetLisible: string; devisLisible: string; le: string; expireLe: string; consommee: boolean; par: string }>;
+  campagnes: Array<{ id: string; releaseId: string; release: string; mode: 'reel' | 'simule'; banniere: string; passe: boolean; verdict: string; invariants: string; refus: string[]; depenseLisible: string; le: string; empreinteRapport: string }>;
+  fiches: Array<{ id: string; releaseId: string; release: string; passe: boolean; verdict: string; refus: string[]; le: string; fiches: number }>;
+}
+
+/**
+ * Benchmark F01-F24 · devis (par cas et total), approbation de budget,
+ * rapports joints, fiches humaines, geste « Benchmark approuvé ». Rien ne part
+ * d'ici : la campagne réelle reste une commande explicite qui revérifie tout.
+ */
+export function EcranBenchmark({ b, peutEvaluer }: { b: VueBenchmark; peutEvaluer: boolean }) {
+  const d = b.devis;
+  const evaluables = b.releases.filter((r) => !r.revoquee);
+  return (
+    <div style={{ display: 'grid', gap: 14, marginBottom: 14 }}>
+      <Bloc titre="Benchmark F01-F24 · devis" id="titre-devis-benchmark">
+        <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+          Ce que la campagne réelle coûterait AU PLUS, calculé par le serveur avant tout appel (bornes de jetons, images jointes en vision, barème des médias). Afficher ce devis ne dépense rien.
+        </p>
+        {d.chiffrable ? (
+          <p style={{ margin: '0 0 10px', fontSize: 16 }}><b>Total · {d.totalLisible}</b> <span style={{ ...mono, color: 'var(--muted)' }}>empreinte {d.empreinte?.slice(0, 16)}…</span></p>
+        ) : (
+          <div role="alert" style={{ ...tuile, borderColor: 'var(--warn)', marginBottom: 10 }}>
+            <b>Devis non chiffrable · aucun total.</b> Cas en cause : {d.nonChiffrables.join(', ') || 'aucun'}.{d.partielLisible ? ` Chiffrage partiel des autres cas, pour information : ${d.partielLisible} (ce n’est pas un total).` : ''}
+            {d.refus.length > 0 && <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{d.refus.map((r) => <li key={r}>{r}</li>)}</ul>}
+          </div>
+        )}
+        <details><summary style={{ cursor: 'pointer', padding: '12px 0', fontSize: 14 }}>Devis par cas ({d.cas.length})</summary>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead><tr>{['Cas', 'Appels texte', 'Médias', 'Plafond'].map((h) => <th key={h} scope="col" style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--line)', color: 'var(--muted)', fontWeight: 600 }}>{h}</th>)}</tr></thead>
+              <tbody>{d.cas.map((c) => (
+                <tr key={c.cas}>
+                  <td style={{ padding: '6px 8px', ...mono }}>{c.cas}</td><td style={{ padding: '6px 8px' }}>{c.appels}</td><td style={{ padding: '6px 8px' }}>{c.medias}</td>
+                  <td style={{ padding: '6px 8px' }}>{c.chiffrable ? c.totalLisible : `non chiffrable · ${c.motif ?? ''}`}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </details>
+      </Bloc>
+
+      <Bloc titre="Approuver un budget de benchmark" id="titre-budget-benchmark">
+        {!peutEvaluer ? <p style={{ margin: 0, fontSize: 14 }}>Réservé à la permission prompt.evaluate (accès total d’équipe).</p>
+          : !d.chiffrable || d.total === null ? <p role="note" style={{ margin: 0, fontSize: 14 }}>Aucune approbation possible tant que le devis n’est pas chiffrable.</p>
+          : evaluables.length === 0 ? <p style={{ margin: 0, fontSize: 14 }}>Aucune release en attente ou publiée à évaluer.</p>
+          : <FormulaireBudgetBenchmark releases={evaluables.map((r) => ({ id: r.id, libelle: `${r.statut === 'staged' ? 'En attente' : 'Publiée'} · ${r.empreinte.slice(0, 12)}…` }))} devisLisible={d.totalLisible} devisUsd={d.total / 1_000_000} />}
+        <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+          Nominative, valable 24 h, utilisable par UNE campagne. Elle ne lance rien : la campagne réelle part de la commande <code style={mono}>bench:studios -- --reel --budget-usd X --release ID</code>, qui revérifie budget, devis, reste du plafond et approbation avant le premier appel.
+        </p>
+        {b.approbations.length > 0 && (
+          <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 13 }}>
+            {b.approbations.map((a) => <li key={a.id} style={{ marginTop: 4 }}>Release {a.release} · budget {a.budgetLisible} pour un devis de {a.devisLisible} · {a.le} → {a.expireLe} · {a.consommee ? 'utilisée par une campagne' : 'non utilisée'}</li>)}
+          </ul>
+        )}
+      </Bloc>
+
+      <Bloc titre="Rapports de campagne joints" id="titre-rapports-benchmark">
+        {b.campagnes.length === 0 ? <p style={{ margin: 0, fontSize: 14 }}>Aucun rapport joint.</p> : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {b.campagnes.map((c) => (
+              <article key={c.id} aria-label={`Rapport ${c.mode === 'simule' ? 'SIMULÉ' : 'RÉEL'} ${c.release}`} style={{ ...tuile, borderColor: c.mode === 'simule' ? 'var(--warn)' : 'var(--line)' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Pastille statut={c.mode === 'simule' ? 'draft' : 'active'} texte={c.mode === 'simule' ? 'SIMULÉ' : 'RÉEL'} />
+                  <Pastille statut={c.passe ? 'succeeded' : 'failed'} texte={c.passe ? 'Évaluation réelle passée' : 'Ne vaut pas évaluation'} />
+                  <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>release {c.release} · {c.le}</span>
+                </div>
+                {c.mode === 'simule' && <p role="note" style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 600 }}>{c.banniere || 'SIMULÉ · aucune évaluation réelle de la qualité'}</p>}
+                <p style={{ margin: '6px 0 0', fontSize: 13 }}>Verdict {c.verdict} · invariants {c.invariants} · dépense {c.depenseLisible}{c.refus.length ? ` · motifs : ${c.refus.join(', ')}` : ''}</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </Bloc>
+
+      <Bloc titre="Fiches de revue humaine" id="titre-fiches-benchmark">
+        <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>Le code ne note jamais. Après une campagne RÉELLE, les relecteurs remplissent les fiches (une note 0, 1 ou 2 par dimension, leur nom) ; le serveur recalcule le verdict sur le rapport scellé et les traces relues en base.</p>
+        {peutEvaluer && evaluables.length > 0 && <FormulaireFichesBenchmark releases={evaluables.map((r) => ({ id: r.id, libelle: `${r.statut === 'staged' ? 'En attente' : 'Publiée'} · ${r.empreinte.slice(0, 12)}…` }))} />}
+        {b.fiches.length > 0 && (
+          <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 13 }}>
+            {b.fiches.map((f) => <li key={f.id} style={{ marginTop: 4 }}>Release {f.release} · {f.fiches} fiche(s) · verdict {f.verdict} · {f.passe ? 'passée' : `non passée (${f.refus.join(', ')})`} · {f.le}</li>)}
+          </ul>
+        )}
+      </Bloc>
+
+      <Bloc titre="Benchmark approuvé" id="titre-benchmark-approuve">
+        <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>Décision humaine, nominative. Exige une évaluation RÉELLE passée sur l’empreinte de la release et des fiches remplies. Ne publie rien : la publication reste un geste séparé.</p>
+        {b.releases.filter((r) => r.statut === 'staged').length === 0 ? <p style={{ margin: 0, fontSize: 14 }}>Aucune release en attente.</p> : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {b.releases.filter((r) => r.statut === 'staged').map((r) => {
+              const eligibles = b.fiches.filter((f) => f.releaseId === r.id && f.passe);
+              return (
+                <div key={r.id} style={tuile}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={mono}>{r.empreinte.slice(0, 16)}…</span>
+                    <Pastille statut={r.benchmarkApprouve ? 'succeeded' : 'staged'} texte={r.benchmarkApprouve ? 'Benchmark approuvé' : 'Benchmark non approuvé'} />
+                  </div>
+                  {!r.benchmarkApprouve && peutEvaluer && !r.revoquee && (
+                    eligibles.length === 0
+                      ? <p style={{ margin: '8px 0 0', fontSize: 13 }}>Aucune évaluation réelle passée avec fiches remplies pour cette release · le geste est indisponible.</p>
+                      : <BoutonBenchmarkApprouve releaseId={r.id} evaluations={eligibles.map((f) => ({ id: f.id, libelle: `${f.le} · ${f.fiches} fiche(s)` }))} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Bloc>
     </div>
   );
 }

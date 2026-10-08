@@ -81,3 +81,14 @@ export async function revoquerReleaseAction(e: { releaseId: unknown; motif: unkn
 export async function retirerReleaseAction(e: { releaseId: unknown; motif?: unknown }): Promise<ReponseAdmin<{ releaseId: string }>> {
   return avec('prompt.publish', (g) => depot.retirerRelease(g.acteur, { releaseId: e?.releaseId, motif: e?.motif }));
 }
+
+/**
+ * Geste « Benchmark approuvé » (lot F-D) · `prompt.evaluate`, plateforme
+ * seulement, confirmation explicite. Le dépôt exige une évaluation benchmark
+ * RÉELLE passée sur l'empreinte de la release et des fiches remplies ; rien
+ * n'est publié.
+ */
+export async function approuverBenchmarkAction(e: { releaseId: unknown; evaluationId: unknown; motif: unknown; confirme: unknown }): Promise<ReponseAdmin<{ releaseId: string; evaluationId: string }>> {
+  if (e?.confirme !== true) return { ok: false, message: 'Confirme l’approbation du benchmark avant de l’envoyer.', constats: [] };
+  return avec('prompt.evaluate', (g) => depot.approuverBenchmark(g.acteur, { releaseId: e.releaseId, evaluationId: e.evaluationId, motif: e.motif }));
+}
