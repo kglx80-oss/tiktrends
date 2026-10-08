@@ -137,9 +137,14 @@ export async function proposerAvecJarvis(ctx: ContexteStudio, e: EntreeProposer,
   const ctx2 = g2.ctx;
   const memePortee = ctx2.workspaceId === projet.workspaceId && ctx2.userId === ctx.userId
     && objetDansPortee({ workspaceId: ctx2.workspaceId, marquesDuWorkspace: ctx2.marquesDuWorkspace, restrictionsMarque: ctx2.restrictionsMarque }, projet);
-  if (!memePortee || !aPermissionEspace(ctx2.permissions, 'studio.propose')) {
+  if (!memePortee) {
     console.warn(`[studios:l4a] ${ctx.traceId} réponse tardive hors portée · non stockée (run ${r.runId})`);
     return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
+  }
+  // Droit retiré pendant l'appel (rôle rétrogradé) · seule garde de ce cas : le stockage relit la portée, pas le rôle.
+  if (!aPermissionEspace(ctx2.permissions, 'studio.propose')) {
+    console.warn(`[studios:l4a] ${ctx.traceId} droit de proposer retiré pendant l'appel · non stockée (run ${r.runId})`);
+    return erreurStudio('FORBIDDEN', { traceId: ctx.traceId });
   }
 
   // 6 · construction (seconde garde) puis stockage.
