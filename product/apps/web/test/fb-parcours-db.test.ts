@@ -340,6 +340,7 @@ describe('négatifs · rien d’approuvé, rien de débité', () => {
     const avant = await compter(db);
     expect(await retenirConsignePour(ctxDe(ids, 'ua'), { projectId: b.projectId, baseVersionId: vb.id, runId: ca.runId })).toMatchObject({ ok: false, code: 'MISSING_REFERENCE' });
     expect(await retenirConsignePour(ctxDe(ids, 'ua'), { projectId: a.projectId, baseVersionId: a.versionId, runId: ca.runId })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
+    expect(delta(avant, await compter(db))).toEqual({});
     // Le brief bouge après la compilation · la consigne compilée est périmée.
     const va = await courante(a.projectId);
     const brief = (va.content as ContenuVersion).brief as unknown as BriefCanonique;
