@@ -19,8 +19,15 @@
  *    consigne `image.compile` validée, des références du jeu synthétique
  *    transmises en data URI (jamais une URL fournie de l'extérieur), et la
  *    règle pure `requeteFalImage` du noyau (modèle routé, corps natif). Une
- *    retouche masquée (F05) ou une image clé sans consigne compilée (F20) est
- *    refusée ici : ce fournisseur ne sait pas les faire honnêtement.
+ *    image clé sans consigne compilée (F20) est refusée ici.
+ *  - Retouche masquée (F05, lot G-B) : MÊME chemin que le worker. La consigne
+ *    est le `result` validé de `edit.mask` ; la règle pure `requeteFalRetouche`
+ *    décide le corps (modèle d'édition existant, source en image de départ,
+ *    zone décrite, masque jamais transmis) ; la sortie téléchargée est ramenée
+ *    explicitement à la résolution de la source et recomposée sous le masque
+ *    par `appliquerMasqueAuxPixels` (L5-A) : 0 pixel hors zone avant encodage,
+ *    contrôlé puis recontrôlé sur le PNG. La sortie brute n'est jamais rendue.
+ *    Sans consigne `edit.mask` dans la demande : refus avant la barrière.
  *  - `produire` : UNE soumission ; sondage avec le recul de l'adaptateur F-A,
  *    borné en durée ; téléchargement borné, type relu dans les octets.
  *  - Issue INCERTAINE (réponse perdue, délai dépassé, requête inconnue) :
@@ -31,12 +38,15 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import {
   ErreurFournisseurCertaine, ErreurFournisseurIncertaine, MODELE_FAL_EDITION_DEFAUT, MODELE_FAL_GENERATION_DEFAUT, PORTEE_BENCHMARK,
-  cleFournisseurDuJob, inspecterMedia, parametresImageDuDevis, requeteFalImage,
-  type ConsigneImage, type MediaResolu, type ModelesRoutes, type RequeteFal,
+  cleFournisseurDuJob, inspecterMedia, parametresImageDuDevis, requeteFalImage, requeteFalRetouche, parametresRetoucheDuDevis,
+  masqueDepuisRvba, boiteDuMasque, versionDepuisEmpreinte,
+  type ConsigneImage, type ConsigneRetouche, type MasqueBrut, type MediaResolu, type ModelesRoutes, type RequeteFal,
 } from '@tiktrends/core';
 import { BarriereDepenseStudio, FournisseurFal, type PortDepense } from '@tiktrends/integrations';
+import { appliquerMasqueAuxPixels } from '../rendu/masque-pixels';
 import type { DemandeMedia, ExecuteurMedias, MediaProduit } from './campagne';
 import type { Jeu } from './scenarios';
 
@@ -75,6 +85,31 @@ export function portDejaCompte(): PortDepense & { reservations: string[] } {
   };
 }
 
+/**
+ * Retouches masquées du benchmark · la source et le masque du jeu synthétique,
+ * MÊMES identifiants que l'entrée `edit.mask` du scénario (garde de cohérence
+ * dans `gb-executeur-f05.test.ts`). Fondu 0 : l'oracle F05 compte comme
+ * « hors masque » tout pixel changé hors du rectangle (`comparerSousMasque`).
+ */
+export interface RetoucheBenchmark { source: string; masque: string; fonduPx: number }
+export const RETOUCHES_BENCHMARK: Readonly<Record<string, RetoucheBenchmark>> = {
+  F05: { source: 'f05-etalon', masque: 'f05-masque', fonduPx: 0 },
+};
+
+/**
+ * Identifiant `sta_<uuid>` SYNTHÉTIQUE d'un média du jeu (portée du benchmark
+ * seulement) · dérivé de son identifiant, stable d'une campagne à l'autre.
+ */
+export function idStudioSynthetique(idJeu: string): string {
+  const h = createHash('sha256').update(`benchmark:${idJeu}`).digest('hex');
+  return `sta_${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
+const estConsigneRetouche = (x: unknown): x is ConsigneRetouche => {
+  const c = x as Partial<ConsigneRetouche> | null;
+  return !!c && typeof c.generationInstruction === 'string' && Array.isArray(c.preserve) && Array.isArray(c.expectedChanges);
+};
+
 const estConsigne = (x: unknown): x is ConsigneImage => {
   const c = x as Partial<ConsigneImage> | null;
   return !!c && typeof c.generationInstruction === 'string' && Array.isArray(c.negativeConstraints) && Array.isArray(c.referenceBindings)
@@ -92,8 +127,35 @@ export function executeurMediasFal(o: OptionsExecuteurFal): ExecuteurMedias & { 
   const horloge = o.horloge ?? (() => new Date());
   const attenteMax = o.attenteMaxMs ?? ATTENTE_MAX_MS;
 
-  const preparerRequete = (d: DemandeMedia): RequeteFal | { ok: false; motif: string } => {
+  type Retouche = { octetsSource: Uint8Array; masque: MasqueBrut; fonduPx: number };
+  const preparerRetouche = (d: DemandeMedia, def: RetoucheBenchmark): (Extract<RequeteFal, { ok: true }> & { retouche: Retouche }) | { ok: false; motif: string } => {
+    if (!estConsigneRetouche(d.consigne)) return { ok: false, motif: 'aucune consigne edit.mask validée dans la demande de retouche · rien n’est envoyé' };
+    if (d.unites !== 1) return { ok: false, motif: 'une retouche rend exactement une image' };
+    const src = o.jeu.get(def.source);
+    const msk = o.jeu.get(def.masque);
+    if (!src?.image || !msk?.image || src.mime !== 'image/png') return { ok: false, motif: 'source ou masque absent du jeu synthétique · aucune substitution' };
+    // Le masque du jeu (RVBA noir/blanc, antérieur au format canonique) est converti EXPLICITEMENT.
+    const masque = masqueDepuisRvba(msk.image.largeur, msk.image.hauteur, msk.image.pixels);
+    const dims = { largeur: src.image.largeur, hauteur: src.image.hauteur };
+    const source = { assetId: idStudioSynthetique(src.id), assetVersion: versionDepuisEmpreinte(src.sha256), sha256: src.sha256, ...dims };
+    const masqueMedia = { assetId: idStudioSynthetique(msk.id), assetVersion: versionDepuisEmpreinte(msk.sha256), sha256: msk.sha256, largeur: masque.largeur, hauteur: masque.hauteur };
+    const parametres = parametresRetoucheDuDevis({ consigne: d.consigne, source, masque: masqueMedia, fonduPx: def.fonduPx });
+    const violations = masque.largeur === dims.largeur && masque.hauteur === dims.hauteur ? [] : [`le masque (${masque.largeur}×${masque.hauteur}) doit avoir la résolution de la source (${dims.largeur}×${dims.hauteur})`];
+    const r = requeteFalRetouche({
+      operations: [{ operation: `${d.cas}:${d.etapeId}#${d.sortie}:0`, profil: 'image_generation' }],
+      parametres,
+      source: { assetId: source.assetId, etat: 'autorise', url: `data:image/png;base64,${Buffer.from(src.octets).toString('base64')}`, sha256: src.sha256 },
+      dimensionsSource: dims,
+      masque: { violations, boite: boiteDuMasque(masque) },
+      modeles,
+    });
+    return r.ok ? { ...r, retouche: { octetsSource: new Uint8Array(src.octets), masque, fonduPx: def.fonduPx } } : { ok: false, motif: `${r.code} · ${r.motif}` };
+  };
+
+  const preparerRequete = (d: DemandeMedia): (Extract<RequeteFal, { ok: true }> & { retouche?: Retouche }) | { ok: false; motif: string } => {
     if (d.profil !== 'image_generation') return { ok: false, motif: `profil ${d.profil} hors du fournisseur image` };
+    const def = RETOUCHES_BENCHMARK[d.cas];
+    if (def) return preparerRetouche(d, def);
     if (!estConsigne(d.consigne)) return { ok: false, motif: 'aucune consigne image.compile validée pour cette étape (retouche masquée ou image clé sans compilation)' };
     const consigne = d.consigne;
     const references = consigne.referenceBindings.map((b) => {
@@ -147,6 +209,17 @@ export function executeurMediasFal(o: OptionsExecuteurFal): ExecuteurMedias & { 
             const t = await f.telecharger(requestId, s.ref);
             const mime = inspecterMedia(t.octets)?.mime;
             if (!mime || !mime.startsWith('image/')) throw new ErreurFournisseurIncertaine('sortie téléchargée illisible · réconciliation');
+            if (r.retouche) {
+              // Même chemin que le worker : redimension explicite, composition stricte, contrôle avant encodage.
+              const c = await appliquerMasqueAuxPixels({
+                original: r.retouche.octetsSource, generation: t.octets, masque: r.retouche.masque, featherPx: r.retouche.fonduPx,
+                format: 'png', redimensionnerGeneration: true,
+              });
+              // Générée et facturée, mais jamais rendue brute : la dépense reste comptée.
+              if (!c.ok) throw new ErreurFournisseurCertaine(`retouche non livrée après génération · ${c.raison}`);
+              sorties.push({ octets: c.octets, mime: c.mime });
+              continue;
+            }
             sorties.push({ octets: Buffer.from(t.octets), mime });
           }
           return sorties;
