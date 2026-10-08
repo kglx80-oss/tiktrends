@@ -173,3 +173,4 @@ export * from './studios/bornes-taches';
 export * from './studios/variantes';
 export * from './studios/rendu';
 export * from './studios/calques';
+export * from './studios/produit';

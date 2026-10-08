@@ -98,6 +98,8 @@ export const ROUTES: RouteNode[] = [
   { path: '/studio/projets', label: 'Projets', parent: '/studio', section: 'Atelier' },
   { path: '/studio/projets/[id]', label: 'Projet', parent: '/studio/projets', section: 'Atelier', dynamic: 'segment' },
   { path: '/studio/projets/[id]/image', label: 'Éditer l’image', parent: '/studio/projets/[id]', section: 'Atelier' },
+  { path: '/studio/projets/[id]/produit', label: 'Produit et références', parent: '/studio/projets/[id]', section: 'Atelier' },
+  { path: '/studio/projets/[id]/textes', label: 'Textes liés au brief', parent: '/studio/projets/[id]', section: 'Atelier' },
 
   { path: '/assets', label: 'Assets', section: 'Atelier' },
 
