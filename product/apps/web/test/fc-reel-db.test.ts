@@ -97,7 +97,8 @@ describe('approbation ADMIN', () => {
     const avant = await lignes();
     expect(await approuverBudgetBenchmark(acteurSans(ADMIN), { releaseId, cas: CAS, budgetUsd: '1', motif: 'x' })).toMatchObject({ ok: false, refus: [{ code: 'FORBIDDEN' }] });
     expect(await approuverBudgetBenchmark(acteurPlateforme(null), { releaseId, cas: CAS, budgetUsd: '1', motif: 'x' })).toMatchObject({ ok: false, refus: [{ code: 'FORBIDDEN' }] });
-    expect(await approuver('100', null)).toMatchObject({ ok: false, refus: [{ code: 'DEVIS_NON_CHIFFRABLE' }] });
+    // Lot F-D : le devis complet est chiffrable (9,925 $) · un budget de 9 $ ne le couvre pas.
+    expect(await approuver('9', null)).toMatchObject({ ok: false, refus: [{ code: 'BUDGET_INFERIEUR_AU_DEVIS' }] });
     expect(await approuver('0.5')).toMatchObject({ ok: false, refus: [{ code: 'BUDGET_INFERIEUR_AU_DEVIS' }] });
     expect(await lignes()).toEqual(avant);
   });
@@ -127,8 +128,8 @@ describe('--reel refusé · 0 appel, 0 ligne, 0 dossier', () => {
     expect(await refusSansTrace({ budgetBrut: '2' })).toEqual(['APPROBATION_BUDGET_INFERIEUR']);
   });
 
-  it('devis complet non chiffrable (vision non routée)', async () => {
-    expect(await refusSansTrace({ cas: null, budgetBrut: '100' })).toEqual(['DEVIS_NON_CHIFFRABLE', 'BUDGET_AU_DELA_DU_PLAFOND', 'APPROBATION_ABSENTE', 'EXECUTEUR_NON_BRANCHE']);
+  it('devis complet : chiffrable depuis le lot F-D, mais refusé sans plafond, approbation ni exécuteur', async () => {
+    expect(await refusSansTrace({ cas: null, budgetBrut: '100' })).toEqual(['BUDGET_AU_DELA_DU_PLAFOND', 'APPROBATION_ABSENTE', 'EXECUTEUR_NON_BRANCHE']);
   });
 
   it('aucun adaptateur réel configuré, ou un adaptateur simulé', async () => {

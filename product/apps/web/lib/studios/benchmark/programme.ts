@@ -32,9 +32,9 @@ import { randomUUID } from 'node:crypto';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  autoriserCampagneReelle, constatBench, devisAgrege, lireBenchmark, lireBudgetUsd, planCampagne, refusEvaluationReelle, tarifsDuProduit,
-  PERMISSIONS_PLATEFORME, VALIDITE_APPROBATION_MS,
-  type ApprobationBudget, type BenchmarkLu, type ConstatBench, type DevisAgrege, type PlanCas, type RapportCampagne,
+  autoriserCampagneReelle, constatBench, devisAgrege, empreinteContenu, empreinteRapport, lireBenchmark, lireBudgetUsd, planCampagne, refusEvaluationReelle, tarifsDuProduit,
+  verdictAvecFiches, PERMISSIONS_PLATEFORME, PORTEE_BENCHMARK, VALIDITE_APPROBATION_MS,
+  type ApprobationBudget, type BenchmarkLu, type ConstatBench, type DevisAgrege, type FicheRevue, type PlanCas, type RapportCampagne, type ResultatFichesBenchmark,
 } from '@tiktrends/core';
 import { autorise } from '../prompts/noyau';
 import { PACK_EMBARQUE } from '../prompts/pack-embarque';
@@ -78,12 +78,8 @@ export function planEtDevis(cas?: readonly string[] | null): Res<{ plans: PlanCa
 
 /* ─────────────────────────────── portée ─────────────────────────────────── */
 
-/** Espace, marque et personne SYNTHÉTIQUES du benchmark · identifiants fixes, semis rejouable. */
-export const PORTEE_BENCHMARK = {
-  workspaceId: 'b3c00000-0000-4000-8000-00000000f0c1',
-  brandId: 'b3c00000-0000-4000-8000-00000000f0c2',
-  userId: 'b3c00000-0000-4000-8000-00000000f0c3',
-} as const;
+/** Espace, marque et personne SYNTHÉTIQUES du benchmark · définis dans le noyau (le résolveur les exige en mode évaluation). */
+export { PORTEE_BENCHMARK };
 
 export async function semerPorteeBenchmark(): Promise<void> {
   await db.insert(schema.workspaces).values({ id: PORTEE_BENCHMARK.workspaceId, name: 'Benchmark Studios (synthétique)', plan: 'core' }).onConflictDoNothing();
@@ -98,27 +94,30 @@ export function acteurScriptLocal(): Acteur {
 
 /* ─────────────────────────────── release ────────────────────────────────── */
 
-export interface EtatRelease { id: string; hash: string; executable: boolean; motif: string | null; epinglee: boolean }
+export interface EtatRelease { id: string; hash: string; executable: boolean; motif: string | null; epinglee: boolean; evaluation: boolean }
 
 /**
  * La release que la campagne exécute. Sans identifiant : celle du pointeur.
- * Avec un identifiant : une release PUBLIÉE (épinglée, comme un job) ; une
- * release `staged` n'est pas exécutable par `executerTache` (RELEASE_NON_PUBLIEE).
+ * Avec un identifiant : une release PUBLIÉE (épinglée, comme un job), ou une
+ * release `staged` en MODE ÉVALUATION (lot F-D) : le résolveur ne l'exécute
+ * que dans la campagne dont l'approbation vient d'être consommée, dans la
+ * portée synthétique. Une release retirée ou révoquée n'est jamais exécutée.
  */
 export async function etatRelease(releaseId?: string | null): Promise<EtatRelease | null> {
   if (releaseId) {
     if (!depot.estUuid(releaseId)) return null;
     const c = await depot.releaseChargee(releaseId);
     if (!c) return null;
-    const executable = c.ligne.status === 'active' && !c.noyau.revocation;
+    const statutOk = c.ligne.status === 'active' || c.ligne.status === 'staged';
+    const executable = statutOk && !c.noyau.revocation;
     return {
-      id: c.ligne.id, hash: c.ligne.releaseHash, executable, epinglee: true,
-      motif: executable ? null : c.noyau.revocation ? `Release révoquée · ${c.noyau.revocation.motif}` : `Release ${c.ligne.status} · le registre n’exécute qu’une release publiée (évaluer une release staged demande un mode évaluation dans executerTache).`,
+      id: c.ligne.id, hash: c.ligne.releaseHash, executable, epinglee: c.ligne.status === 'active', evaluation: c.ligne.status === 'staged',
+      motif: executable ? null : c.noyau.revocation ? `Release révoquée · ${c.noyau.revocation.motif}` : `Release ${c.ligne.status} · jamais exécutée (seules une release publiée ou une release staged en évaluation le sont).`,
     };
   }
   const c = await depot.releaseActive();
   if (!c) return null;
-  return { id: c.ligne.id, hash: c.ligne.releaseHash, executable: !c.noyau.revocation, epinglee: false, motif: c.noyau.revocation ? `Release révoquée · ${c.noyau.revocation.motif}` : null };
+  return { id: c.ligne.id, hash: c.ligne.releaseHash, executable: !c.noyau.revocation, epinglee: false, evaluation: false, motif: c.noyau.revocation ? `Release révoquée · ${c.noyau.revocation.motif}` : null };
 }
 
 /** Recette locale : la release pointée, sinon import → validation → release → évaluation → publication en « test ». */
@@ -182,6 +181,7 @@ export async function approuverBudgetBenchmark(a: Acteur, e: { releaseId: unknow
   const ligne = await depot.lireReleaseParId(e.releaseId);
   if (!ligne) return refus('NOT_FOUND', 'release', 'Release introuvable.');
   if ((ligne.evaluation as { revocation?: unknown } | null)?.revocation) return refus('RELEASE_REVOQUEE', ligne.id, 'Release révoquée.');
+  if (ligne.status !== 'staged' && ligne.status !== 'active') return refus('RELEASE_NON_EVALUABLE', ligne.id, `Release ${ligne.status} · seules une release en attente ou publiée s’évaluent.`);
   const expireLe = new Date(maintenant.getTime() + VALIDITE_APPROBATION_MS).toISOString();
   const result: ResultatApprobation = {
     type: 'approbation_budget_benchmark', releaseHash: ligne.releaseHash, devisEmpreinte: pd.devis.empreinte, devisTotalUsdMicros: pd.devis.totalUsdMicros,
@@ -222,21 +222,25 @@ export async function consommerApprobation(ap: ApprobationBudget, budgetUsdMicro
 
 /* ─────────────────────────────── rattachement ───────────────────────────── */
 
+async function tracesVerifiees(rapport: RapportCampagne, releaseId: string) {
+  const runIds = [...new Set(rapport.cas.flatMap((c) => c.runIds))].filter(depot.estUuid);
+  const runs = runIds.length ? await db.select({ id: schema.studioPromptRuns.id, release: schema.studioPromptRuns.promptReleaseId, config: schema.studioPromptRuns.config }).from(schema.studioPromptRuns).where(inArray(schema.studioPromptRuns.id, runIds)) : [];
+  return {
+    attendus: runIds.length, trouves: runs.length,
+    reels: runs.filter((r) => (r.config as { simule?: unknown } | null)?.simule === false).length,
+    autreRelease: runs.filter((r) => r.release !== releaseId).length,
+  };
+}
+
 export async function joindreCampagne(a: Acteur, e: { releaseId: string; rapport: RapportCampagne }): Promise<Res<{ evaluationId: string; evaluationReelle: boolean; motifs: string[] }>> {
   if (!autorise(a.octrois, 'prompt.evaluate', PLATEFORME)) return refus('FORBIDDEN', 'prompt.evaluate', 'Réservé à l’ADMIN « IA et Studios » (prompt.evaluate).');
   const ligne = depot.estUuid(e.releaseId) ? await depot.lireReleaseParId(e.releaseId) : null;
   if (!ligne) return refus('NOT_FOUND', 'release', 'Release introuvable.');
-  const runIds = [...new Set(e.rapport.cas.flatMap((c) => c.runIds))].filter(depot.estUuid);
-  const runs = runIds.length ? await db.select({ id: schema.studioPromptRuns.id, release: schema.studioPromptRuns.promptReleaseId, config: schema.studioPromptRuns.config }).from(schema.studioPromptRuns).where(inArray(schema.studioPromptRuns.id, runIds)) : [];
-  const verifies = {
-    attendus: runIds.length, trouves: runs.length,
-    reels: runs.filter((r) => (r.config as { simule?: unknown } | null)?.simule === false).length,
-    autreRelease: runs.filter((r) => r.release !== ligne.id).length,
-  };
+  const verifies = await tracesVerifiees(e.rapport, ligne.id);
   const motifs = refusEvaluationReelle(e.rapport, { id: ligne.id, hash: ligne.releaseHash }, verifies);
   const evaluationReelle = motifs.length === 0;
   const result = {
-    type: 'campagne_benchmark', mode: e.rapport.mode, banniere: e.rapport.banniere, empreinteRapport: e.rapport.empreinte, horodatage: e.rapport.horodatage,
+    type: 'campagne_benchmark', mode: e.rapport.mode, approbationId: e.rapport.budget.approbationId, banniere: e.rapport.banniere, empreinteRapport: e.rapport.empreinte, horodatage: e.rapport.horodatage,
     evaluationReelle, refus: motifs.map((m) => m.code), traces: verifies,
     verdict: { statut: e.rapport.verdict.statut, approuvable: e.rapport.verdict.approuvable, invariants: e.rapport.verdict.invariants, moyenne: e.rapport.verdict.moyenne },
     cas: e.rapport.cas.map((c) => ({ cas: c.cas, statut: c.statut, invariantsPasses: c.invariants.filter((i) => i.passe === true).length, invariants: c.invariants.length })),
@@ -246,6 +250,72 @@ export async function joindreCampagne(a: Acteur, e: { releaseId: string; rapport
     const [l] = await tx.insert(E).values({ releaseId: ligne.id, kind: 'benchmark', passed: evaluationReelle, evaluatorId: a.userId, result }).returning({ id: E.id });
     await auditer(tx, a, 'prompt.benchmark.joindre', ligne.id, { evaluationId: l!.id, mode: e.rapport.mode, evaluationReelle, refus: result.refus });
     return { ok: true as const, evaluationId: l!.id, evaluationReelle, motifs: motifs.map((m) => `${m.code} · ${m.message}`) };
+  });
+}
+
+/* ─────────────────────────────── fiches humaines ─────────────────────────── */
+
+const estObjet = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
+
+/** Lecture prudente des fiches reçues · forme seulement, les notes sont jugées par le noyau. */
+function lireFiches(x: unknown): FicheRevue[] | null {
+  if (!Array.isArray(x) || x.length > 50) return null;
+  const out: FicheRevue[] = [];
+  for (const f of x) {
+    if (!estObjet(f) || typeof f.cas !== 'string' || !Array.isArray(f.sorties) || f.sorties.length > 10) return null;
+    const sorties = [];
+    for (const s of f.sorties) {
+      if (!estObjet(s) || typeof s.sortie !== 'number' || !estObjet(s.notes)) return null;
+      const notes = Object.fromEntries(Object.entries(s.notes).map(([k, v]) => [k, typeof v === 'number' ? v : null]));
+      const defauts = Array.isArray(s.defautsCritiques) ? s.defautsCritiques.filter(estObjet).map((d) => ({ description: String(d.description ?? '').slice(0, 500), accepte: d.accepte === true })) : [];
+      sorties.push({ sortie: s.sortie, notes: notes as FicheRevue['sorties'][number]['notes'], defautsCritiques: defauts, relecteur: typeof s.relecteur === 'string' && s.relecteur.trim() ? s.relecteur.trim().slice(0, 160) : null, commentaire: String(s.commentaire ?? '').slice(0, 2000) });
+    }
+    out.push({
+      cas: f.cas, titre: String(f.titre ?? ''), mode: f.mode === 'reel' ? 'reel' : 'simule', criteres: Array.isArray(f.criteres) ? f.criteres.map(String) : [],
+      oracleAttendu: String(f.oracleAttendu ?? ''), dimensions: Array.isArray(f.dimensions) ? (f.dimensions.map(String) as FicheRevue['dimensions'][number][]) : [],
+      echelle: Array.isArray(f.echelle) ? f.echelle.map(Number) : [], sorties,
+    });
+  }
+  return out;
+}
+
+/**
+ * Joint les fiches de revue HUMAINE remplies à une campagne RÉELLE déjà jointe
+ * (même rapport scellé, mêmes traces relues en base) et recalcule le verdict.
+ * `passed` n'est vrai que si plus rien ne s'y oppose : rapport réel intègre,
+ * traces réelles de cette release, fiches complètes et nommées, verdict
+ * CONFORME et approuvable. Rien d'autre ne bouge (ni pointeur, ni statut, ni
+ * `benchmarkApprouve`) : la décision reste le geste « Benchmark approuvé ».
+ */
+export async function joindreFichesRevue(a: Acteur, e: { releaseId: unknown; rapport: unknown; fiches: unknown }): Promise<Res<{ evaluationId: string; passed: boolean; motifs: string[] }>> {
+  if (!autorise(a.octrois, 'prompt.evaluate', PLATEFORME)) return refus('FORBIDDEN', 'prompt.evaluate', 'Réservé à l’ADMIN « IA et Studios » (prompt.evaluate).');
+  if (!a.userId) return refus('FORBIDDEN', 'acteur', 'Des fiches de revue portent le nom d’une personne.');
+  const ligne = typeof e.releaseId === 'string' && depot.estUuid(e.releaseId) ? await depot.lireReleaseParId(e.releaseId) : null;
+  if (!ligne) return refus('NOT_FOUND', 'release', 'Release introuvable.');
+  const rapport = e.rapport as RapportCampagne;
+  if (!estObjet(e.rapport) || !Array.isArray(rapport.cas) || !estObjet(rapport.verdict) || !estObjet(rapport.release) || !estObjet(rapport.budget)) return refus('RAPPORT_ILLISIBLE', 'rapport', 'Rapport de campagne illisible (rapport.json attendu).');
+  if (empreinteRapport(rapport) !== rapport.empreinte) return refus('RAPPORT_ALTERE', 'rapport', 'Le rapport a été modifié après sa production (empreinte recalculée différente).');
+  const fiches = lireFiches(e.fiches);
+  if (!fiches) return refus('FICHES_ILLISIBLES', 'fiches', 'Fiches illisibles (liste des fiche-revue.json attendue).');
+  const jointes = await db.select({ result: E.result }).from(E).where(and(eq(E.releaseId, ligne.id), eq(E.kind, 'benchmark')));
+  const campagne = jointes.find((l) => (l.result as { type?: unknown; empreinteRapport?: unknown } | null)?.type === 'campagne_benchmark' && (l.result as { empreinteRapport?: unknown }).empreinteRapport === rapport.empreinte);
+  if (!campagne) return refus('RAPPORT_NON_JOINT', 'rapport', 'Ce rapport n’a pas été joint à cette release par une campagne.');
+  const verifies = await tracesVerifiees(rapport, ligne.id);
+  const motifsRapport = refusEvaluationReelle(rapport, { id: ligne.id, hash: ligne.releaseHash }, verifies).filter((m) => m.code !== 'VERDICT_NON_CONFORME');
+  const pd = planEtDevis(null);
+  if (!pd.ok) return pd;
+  const { verdict, constats } = verdictAvecFiches(rapport, fiches, pd.plans);
+  const motifs: ConstatBench[] = [...motifsRapport, ...constats, ...(verdict.approuvable ? [] : [constatBench('VERDICT_NON_CONFORME', verdict.statut, verdict.motifs.join(' ; '))])];
+  const passed = motifs.length === 0;
+  const result: ResultatFichesBenchmark & { empreinteFiches: string; par: string; traces: typeof verifies } = {
+    type: 'fiches_benchmark', mode: rapport.mode, releaseHash: ligne.releaseHash, empreinteRapport: rapport.empreinte, evaluationReelle: motifsRapport.length === 0,
+    refus: motifs.map((m) => m.code), verdict: { statut: verdict.statut, approuvable: verdict.approuvable, moyenne: verdict.moyenne }, fiches,
+    empreinteFiches: empreinteContenu({ fiches }), par: a.userId, traces: verifies,
+  };
+  return db.transaction(async (tx) => {
+    const [l] = await tx.insert(E).values({ releaseId: ligne.id, kind: 'benchmark', passed, evaluatorId: a.userId, result }).returning({ id: E.id });
+    await auditer(tx, a, 'prompt.benchmark.joindre_fiches', ligne.id, { evaluationId: l!.id, passed, refus: result.refus, empreinteRapport: rapport.empreinte });
+    return { ok: true as const, evaluationId: l!.id, passed, motifs: motifs.map((m) => `${m.code} · ${m.message}`) };
   });
 }
 
@@ -279,6 +349,8 @@ export interface EntreeReelle {
   racine: string | null;
   jeu?: Jeu;
   maintenant?: Date;
+  /** Variables lues (environnement du registre) · défaut `process.env`. */
+  env?: Readonly<Record<string, string | undefined>>;
 }
 
 /**
@@ -307,7 +379,7 @@ export async function lancerCampagneReelle(e: EntreeReelle): Promise<Res<{ resul
   await semerPorteeBenchmark();
   const resultat = await executerCampagne({
     mode: 'reel', plans: pd.plans, devis: pd.devis, release, portee: { workspaceId: PORTEE_BENCHMARK.workspaceId, brandId: PORTEE_BENCHMARK.brandId },
-    userId: approbation.approuvePar, adaptateur: e.adaptateur, medias: e.medias, environnement: environnementPrompts(process.env),
+    userId: approbation.approuvePar, adaptateur: e.adaptateur, medias: e.medias, environnement: environnementPrompts(e.env ?? process.env),
     budgetUsdMicros: aut.budgetUsdMicros, approbationId: approbation.id, jeu: e.jeu ?? await genererJeu(), racine: e.racine, maintenant,
   });
   const acteur: Acteur = { userId: approbation.approuvePar, roleEffectif: `script:bench-studios(approbation ${approbation.id})`, traceId: `st_${randomUUID()}`, octrois: [{ permission: 'prompt.evaluate', portee: PLATEFORME }] };

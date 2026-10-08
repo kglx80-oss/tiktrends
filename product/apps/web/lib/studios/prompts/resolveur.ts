@@ -1,19 +1,25 @@
 import 'server-only';
-import { desc, eq } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   allouerContexte, compilerRequete, constat, couchesResolution, empreinteJson, evaluerSortie, releaseDuJob, resoudreTemplate,
   sha256Texte, POLITIQUE_SERVEUR,
   type Constat, type EntreeTache, type SortieTache, type TemplatePrompt, type RapportBudget, type Couche,
 } from './noyau';
-import { releaseActive, releaseChargee, type ReleaseChargee } from './depot-prompts';
-import { JETONS_ENTREE_MAX_PROPOSITION, JETONS_RESERVE_CONTEXTE, JETONS_SORTIE_MAX_PROPOSITION } from '@tiktrends/core';
+import { lireCampagneBenchmark, releaseActive, releaseChargee, type ReleaseChargee } from './depot-prompts';
+import {
+  admissibiliteEvaluation, versionDepuisEmpreinte, JETONS_ENTREE_MAX_PROPOSITION, JETONS_RESERVE_CONTEXTE, JETONS_SORTIE_MAX_PROPOSITION,
+  type DemandeEvaluation,
+} from '@tiktrends/core';
+import { planifierPiecesVision, type CorrespondancePiece, type MediaResoluVision, type PieceNative } from '@tiktrends/core';
+import { lecteurMedias, type LecteurMedias } from '../rendu/medias';
 import { construireContexte, type EntreeContexte, type SourceSnapshot } from './contexte';
 import { CLE_CONVERSATION_JARVIS, validerPolitiqueConversation, type PolitiqueConversation } from './conversation';
 import { POLITIQUE_JARVIS_1_0_0 } from './complement-tiktrends';
 import { chargerSource } from './source';
 import { microsUsd, type SourceTrace } from './traces';
-import type { AdaptateurModele } from './adaptateur';
+import { PiecesInvalides, type AdaptateurModele } from './adaptateur';
 import type { EnvironnementPrompts } from './environnement';
 
 /**
@@ -57,6 +63,48 @@ export interface DemandeTache {
   budget?: { budgetJetons: number; reserveJetons: number };
   capacites?: { lipsync?: boolean };
   sansTexte?: boolean;
+  /**
+   * Lecture SERVEUR des médias liés (`mediaBindings`) d'une tâche vision, dans
+   * la portée de la tâche · défaut : `studio_assets` de l'espace ET de la marque.
+   * Jamais une URL ni des octets fournis par le client.
+   */
+  medias?: ResolveurMediasTache;
+  /**
+   * Mode ÉVALUATION · exécute une release `staged` dans une campagne de
+   * benchmark autorisée (approbation consommée, non close), portée synthétique
+   * seulement. Exclusif de `epinglage`. Les traces portent `evaluation`.
+   */
+  evaluation?: DemandeEvaluation | null;
+}
+
+/** Lit, pour chaque identifiant, les octets du média DANS la portée · un absent est dit, jamais remplacé. */
+export type ResolveurMediasTache = (portee: { workspaceId: string; brandId: string }, assetIds: readonly string[]) => Promise<Map<string, MediaResoluVision>>;
+
+const PREFIXE_MEDIA_STUDIO = 'sta_';
+const UUID_MEDIA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Résolveur de production · `sta_<uuid>` = ligne `studio_assets` de CET espace
+ * et de CETTE marque, stockée ; octets relus (taille et sha256 égaux à la
+ * ligne). Les autres catalogues (photos produit, logos, bibliothèque) ne sont
+ * pas lus ici : un tel identifiant est « absent » et la tâche est bloquée.
+ */
+export function resolveurMediasStudio(lecteur: LecteurMedias = lecteurMedias()): ResolveurMediasTache {
+  return async (portee, ids) => {
+    const out = new Map<string, MediaResoluVision>();
+    for (const assetId of new Set(ids)) {
+      const uuid = assetId.startsWith(PREFIXE_MEDIA_STUDIO) ? assetId.slice(PREFIXE_MEDIA_STUDIO.length) : '';
+      if (!UUID_MEDIA.test(uuid)) { out.set(assetId, { ok: false, assetId, motif: 'absent' }); continue; }
+      const S = schema.studioAssets;
+      const [l] = await db.select().from(S).where(and(eq(S.id, uuid), eq(S.workspaceId, portee.workspaceId), eq(S.brandId, portee.brandId))).limit(1);
+      if (!l) { out.set(assetId, { ok: false, assetId, motif: 'hors_portee' }); continue; }
+      if (l.storageState !== 'stored') { out.set(assetId, { ok: false, assetId, motif: 'non_stocke' }); continue; }
+      const octets = await lecteur.lire(l);
+      if (!octets || octets.length !== l.bytes || createHash('sha256').update(octets).digest('hex') !== l.sha256) { out.set(assetId, { ok: false, assetId, motif: 'illisible' }); continue; }
+      out.set(assetId, { ok: true, assetId, assetVersion: versionDepuisEmpreinte(l.sha256), octets });
+    }
+    return out;
+  };
 }
 
 export type ResultatTache =
@@ -73,6 +121,10 @@ interface Trace {
   contextSnapshotHash: string;
   taskInputsHash: string;
   epinglee: boolean;
+  /** Mode évaluation (release `staged` dans une campagne autorisée) · `null` sinon. */
+  evaluation: { approbationId: string; releaseStatut: string } | null;
+  /** Correspondance liaison ↔ pièce native réellement envoyée (vision) · vide sinon. */
+  pieces: CorrespondancePiece[];
 }
 
 async function ecrireRun(d: DemandeTache, t: Trace, r: {
@@ -94,6 +146,8 @@ async function ecrireRun(d: DemandeTache, t: Trace, r: {
       adaptateur: d.adaptateur.nom, simule: d.adaptateur.simule, modelProfile: t.template.modelProfile,
       constats: (r.constats ?? []).map((c) => ({ code: c.code, cible: c.cible })), epinglee: t.epinglee, environnement: d.environnement,
       jetons: r.jetons ?? null,
+      evaluation: t.evaluation ? { mode: 'benchmark', approbationId: t.evaluation.approbationId, releaseStatut: t.evaluation.releaseStatut } : null,
+      mediaBindings: t.pieces,
     },
     outputHash: r.outputHash ?? null, latencyMs: r.latenceMs ?? null,
     costUsdMicros: r.coutUsd === null || r.coutUsd === undefined ? null : microsUsd(r.coutUsd),
@@ -103,17 +157,29 @@ async function ecrireRun(d: DemandeTache, t: Trace, r: {
 }
 
 /** La release qui sert cette tâche · épinglée si un devis l'a fixée, sinon le pointeur. */
-async function releaseDeLaTache(d: DemandeTache): Promise<{ ok: true; release: ReleaseChargee; epinglee: boolean } | { ok: false; constats: Constat[] }> {
+async function releaseDeLaTache(d: DemandeTache): Promise<{ ok: true; release: ReleaseChargee; epinglee: boolean; evaluation: Trace['evaluation'] } | { ok: false; constats: Constat[] }> {
+  if (d.evaluation) {
+    // Mode évaluation : jamais combiné à un épinglage (un devis ne vise qu'une release publiée).
+    if (d.epinglage) return { ok: false, constats: [constat('EVALUATION_ET_EPINGLAGE', d.evaluation.releaseId, 'Une tâche d’évaluation ne s’épingle pas sur un devis.')] };
+    const c = await releaseChargee(d.evaluation.releaseId);
+    const campagne = await lireCampagneBenchmark(d.evaluation.approbationId);
+    const refus = admissibiliteEvaluation({
+      release: c ? { id: c.ligne.id, statut: c.ligne.status, hash: c.ligne.releaseHash, revoquee: !!c.noyau.revocation } : null,
+      demande: d.evaluation, campagne, portee: d.portee, maintenant: new Date(),
+    });
+    if (refus.length || !c) return { ok: false, constats: refus.map((x) => constat(x.code, x.cible, x.message)) };
+    return { ok: true, release: c, epinglee: false, evaluation: { approbationId: d.evaluation.approbationId, releaseStatut: c.ligne.status } };
+  }
   if (d.epinglage) {
     const c = await releaseChargee(d.epinglage.promptReleaseId);
     if (!c) return { ok: false, constats: [constat('RELEASE_INTROUVABLE', d.epinglage.promptReleaseId, 'Release épinglée introuvable.')] };
     const r = releaseDuJob({ promptReleaseId: c.noyau.id, releaseHash: c.noyau.hash }, [c.noyau]);
-    return r.ok ? { ok: true, release: c, epinglee: true } : r;
+    return r.ok ? { ok: true, release: c, epinglee: true, evaluation: null } : r;
   }
   const c = await releaseActive();
   if (!c) return { ok: false, constats: [constat('RELEASE_ACTIVE_ABSENTE', d.templateKey, 'Aucune release globale publiée · aucun prompt de repli.')] };
   if (c.noyau.revocation) return { ok: false, constats: [constat('RELEASE_REVOQUEE', c.ligne.id, `Release active révoquée · ${c.noyau.revocation.motif}`)] };
-  return { ok: true, release: c, epinglee: false };
+  return { ok: true, release: c, epinglee: false, evaluation: null };
 }
 
 /**
@@ -135,7 +201,7 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
 
   const { contexte, sources } = await construireContexte(d.portee, d.contexte);
   const entree: EntreeTache = { context: contexte, taskInputs: d.taskInputs };
-  const trace: Trace = { release, template, versionId, sources, contextSnapshotHash: empreinteJson(contexte, 'js'), taskInputsHash: empreinteJson(d.taskInputs, 'js'), epinglee: rel.epinglee };
+  const trace: Trace = { release, template, versionId, sources, contextSnapshotHash: empreinteJson(contexte, 'js'), taskInputsHash: empreinteJson(d.taskInputs, 'js'), epinglee: rel.epinglee, evaluation: rel.evaluation, pieces: [] };
   const bloque = async (code: string, constats: Constat[]): Promise<ResultatTache> => {
     const compiledHash = empreinteJson({ blocage: code, releaseHash: release.ligne.releaseHash, templateContentHash: template.contentHash, contextSnapshotHash: trace.contextSnapshotHash, taskInputsHash: trace.taskInputsHash }, 'js');
     const runId = await ecrireRun(d, trace, { statut: 'blocked', compiledHash, modele: 'aucun-appel', constats });
@@ -166,12 +232,26 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
   trace.couches = couchesResolution({ politique: POLITIQUE_SERVEUR, trace: res.trace, entree: budget.entree });
   trace.taskInputsHash = req.taskInputsHash;
 
+  // Vision : chaque liaison image devient une pièce native lue par le serveur
+  // dans la portée, ou la tâche est bloquée AVANT l'appel (0 $).
+  let pieces: PieceNative[] = [];
+  if (template.modelProfile === 'vision_analysis') {
+    const liaisons = budget.entree.context.mediaBindings;
+    const lus = liaisons.length ? await (d.medias ?? resolveurMediasStudio())(d.portee, liaisons.map((l) => l.assetId)) : new Map<string, MediaResoluVision>();
+    const plan = planifierPiecesVision(liaisons, lus);
+    if (!plan.ok) return bloque(plan.code, plan.constats);
+    pieces = plan.pieces;
+    trace.pieces = plan.correspondances;
+  }
+
   const debut = Date.now();
   let reponse: Awaited<ReturnType<AdaptateurModele['appeler']>>;
   try {
-    reponse = await d.adaptateur.appeler({ profil: template.modelProfile, messages: req.messages, maxJetonsSortie: MAX_JETONS_SORTIE, workspaceId: d.portee.workspaceId, action: `studio-prompt:${template.key}` });
+    reponse = await d.adaptateur.appeler({ profil: template.modelProfile, messages: req.messages, maxJetonsSortie: MAX_JETONS_SORTIE, workspaceId: d.portee.workspaceId, action: `studio-prompt:${template.key}`, ...(pieces.length ? { pieces } : {}) });
   } catch (e) {
-    const code = (e as Error).name === 'SpendBlockedError' ? 'BUDGET_EXCEEDED' : 'PROVIDER_ERROR';
+    const nom = (e as Error).name;
+    if (e instanceof PiecesInvalides || nom === 'PiecesInvalides') return bloque('MEDIA_HORS_BORNES', [constat('MEDIA_HORS_BORNES', template.key, (e as Error).message)]);
+    const code = nom === 'SpendBlockedError' ? 'BUDGET_EXCEEDED' : 'PROVIDER_ERROR';
     const constats = [constat(code, template.key, code === 'BUDGET_EXCEEDED' ? 'Plafond de dépense atteint · rien n’est parti.' : 'Le fournisseur n’a pas répondu.')];
     const runId = await ecrireRun(d, trace, { statut: 'failed', compiledHash: req.compiledHash, modele, latenceMs: Date.now() - debut, constats });
     return { ok: false, statut: 'erreur', code, constats, runId, releaseId: release.ligne.id };

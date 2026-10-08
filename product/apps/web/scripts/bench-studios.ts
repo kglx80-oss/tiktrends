@@ -16,7 +16,7 @@
  *   --jeu                  régénère le jeu synthétique et son manifeste (aucune base)
  *
  *   --cas F04,F17          sélection de cas (une campagne partielle n'approuve jamais une release)
- *   --release <uuid>       release publiée à évaluer (défaut : celle du pointeur)
+ *   --release <uuid>       release à évaluer : publiée, ou en attente (staged) en mode évaluation (défaut : le pointeur)
  *   --sortie <dossier>     racine des preuves (défaut : docs/studios-v2/benchmark)
  *
  * Lancement : `tsx` (fourni par `@tiktrends/workers`) avec `bench-studios-chargeur.mjs`,
@@ -77,6 +77,17 @@ export function decider(argv: readonly string[], env: Readonly<Record<string, st
   return { ok: true, mode: 'reel', cas, sortie, budgetBrut: vals['--budget-usd'] ?? null, releaseId: vals['--release'] ?? null };
 }
 
+/**
+ * L'exécuteur média réel, ou `null` · PUR (reçoit l'environnement et la
+ * fabrique). Sans clé, ou avec la clé de simulation locale, rien n'est branché
+ * et tout plan qui génère reste refusé (`EXECUTEUR_NON_BRANCHE`).
+ */
+export function executeurDepuisEnv<T>(env: Readonly<Record<string, string | undefined>>, fabrique: (apiKey: string) => T): T | null {
+  const cle = env.FAL_KEY?.trim();
+  if (!cle || /^simule/i.test(cle) || /\s/.test(cle)) return null;
+  return fabrique(cle);
+}
+
 /* -------------------------------------------------------------------------- */
 
 async function main(): Promise<number> {
@@ -119,8 +130,13 @@ async function main(): Promise<number> {
   }
 
   const { adaptateurAnthropicGarde } = await import('../lib/studios/prompts/adaptateur');
-  // Les exécuteurs média réels (lot F-A) se branchent ici à l'intégration ; sans eux, tout plan qui génère est refusé.
-  const r = await programme.lancerCampagneReelle({ budgetBrut: d.budgetBrut, releaseId: d.releaseId, cas: d.cas, adaptateur: adaptateurAnthropicGarde(), medias: null, racine: d.sortie });
+  const { genererJeu } = await import('../lib/studios/benchmark/jeu-synthetique');
+  const { executeurMediasFal } = await import('../lib/studios/benchmark/executeur-fal');
+  const jeu = await genererJeu();
+  // Exécuteur image RÉEL (F-A) · seulement avec une vraie clé fal. Le construire n'appelle rien :
+  // `lancerCampagneReelle` revérifie budget, devis, plafond et approbation AVANT le premier appel.
+  const medias = executeurDepuisEnv(process.env, (apiKey) => executeurMediasFal({ apiKey, fetch: globalThis.fetch, jeu }));
+  const r = await programme.lancerCampagneReelle({ budgetBrut: d.budgetBrut, releaseId: d.releaseId, cas: d.cas, adaptateur: adaptateurAnthropicGarde(), medias, racine: d.sortie, jeu });
   if (!r.ok) { console.error(`✗ Campagne réelle REFUSÉE · rien n’a été appelé ni écrit\n${r.refus.map((c) => `  - ${c.code} · ${c.message}`).join('\n')}`); return 2; }
   console.log(`RÉEL · ${r.resultat.dossier} · dépense ${usdLisible(r.resultat.rapport.depenseUsdMicros)} · évaluation réelle : ${r.evaluationReelle ? 'oui' : 'non'}`);
   return 0;

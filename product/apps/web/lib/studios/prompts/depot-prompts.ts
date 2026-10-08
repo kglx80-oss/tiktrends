@@ -37,13 +37,15 @@ import {
 } from './noyau';
 import {
   CLE_RENDU, CLE_SOCLE, contenuDeRelease, contenuPourBase, empreinteDeContenu, empreintesRelease, entierVersVersion,
-  entreeDeLigne, lireEntrees, lireRevocation, referencesRelease, registreNoyau, releaseDeLigne, versionSuivante, versionVersEntier,
+  entreeDeLigne, lireEntrees, lireEvaluation, lireRevocation, referencesRelease, registreNoyau, releaseDeLigne, versionSuivante, versionVersEntier,
   type ContenuComplet, type EntreeServeur, type EntreesRelease, type LigneRelease, type LigneVersion, type TypeEntree,
   kindDe, typeDe,
 } from './correspondance';
 import { assemblerConsigneJarvis, validerPolitiqueConversation, SECTIONS_CONVERSATION } from './conversation';
 import { chargerSource, validerPackSynthetique } from './source';
 import type { EnvironnementPrompts } from './environnement';
+import { PACK_EMBARQUE } from './pack-embarque';
+import { controlerBenchmarkApprouve, lireBenchmark, planCampagne, type CampagneRelue, type PlanCas } from '@tiktrends/core';
 
 /* ─────────────────────────────── Acteur ───────────────────────────────── */
 
@@ -691,3 +693,70 @@ export async function releaseActive(ex: Ex = db): Promise<ReleaseChargee | null>
 
 export type { ReleaseChargee };
 export { typeDe, entierVersVersion };
+
+/* ───────────────────────── Benchmark · lot F-D (ajouts) ───────────────── */
+
+const EV = schema.studioPromptEvaluations;
+
+/**
+ * L'état d'une campagne de benchmark relu en base, pour le mode évaluation du
+ * résolveur : l'approbation ADMIN (`kind = 'manual'`), sa consommation par le
+ * lancement réel, et sa clôture (rapport joint). `null` si l'identifiant n'est
+ * pas une approbation de benchmark.
+ */
+export async function lireCampagneBenchmark(approbationId: string, ex: Ex = db): Promise<CampagneRelue | null> {
+  if (!estUuid(approbationId)) return null;
+  const [a] = await ex.select().from(EV).where(and(eq(EV.id, approbationId), eq(EV.kind, 'manual'))).limit(1);
+  const r = a?.result as { type?: unknown; releaseHash?: unknown } | null;
+  if (!a || !a.releaseId || r?.type !== 'approbation_budget_benchmark' || typeof r.releaseHash !== 'string') return null;
+  const suite = await ex.select({ result: EV.result }).from(EV).where(and(eq(EV.releaseId, a.releaseId), eq(EV.kind, 'benchmark')));
+  const de = (type: string) => suite.map((l) => l.result as { type?: unknown; approbationId?: unknown; le?: unknown } | null).filter((x) => x?.type === type && x.approbationId === approbationId);
+  const conso = de('campagne_reelle_demarree')[0];
+  return {
+    approbationId, releaseId: a.releaseId, releaseHash: r.releaseHash,
+    consommeeLe: conso && typeof conso.le === 'string' ? conso.le : null,
+    close: de('campagne_benchmark').length > 0,
+  };
+}
+
+function plansBenchmark(): PlanCas[] {
+  const b = lireBenchmark(PACK_EMBARQUE.benchmark.texte, new Set(chargerSource().pack.templates.map((t) => t.key)));
+  if (!b.ok) throw new Error('09-BENCHMARK embarqué invalide');
+  const p = planCampagne(b.benchmark, null);
+  if (!p.ok) throw new Error('Plans du benchmark invalides');
+  return p.plans;
+}
+
+/**
+ * Geste ADMIN « Benchmark approuvé » · pose `evaluation.benchmarkApprouve` sur
+ * une release `staged`, à partir d'une évaluation benchmark RÉELLE passée sur
+ * CETTE empreinte, avec ses fiches humaines remplies (`controlerBenchmarkApprouve`).
+ * Nominatif (`prompt.evaluate`, plateforme), motif obligatoire, audit. Aucune
+ * publication : le pointeur et le statut ne bougent pas.
+ */
+export async function approuverBenchmark(a: Acteur, e: { releaseId: unknown; evaluationId: unknown; motif: unknown }): Promise<Res<{ releaseId: string; evaluationId: string }>> {
+  if (!autorise(a.octrois, 'prompt.evaluate', PLATEFORME)) return interdit('prompt.evaluate');
+  if (!estUuid(e.releaseId)) return refusUn('NOT_FOUND', '', 'Release introuvable.');
+  const motif = typeof e.motif === 'string' ? e.motif.trim().slice(0, 2000) : '';
+  if (!motif) return refusUn('INVALID_SCHEMA', 'motif', 'Indique pourquoi le benchmark est approuvé.');
+  const plans = plansBenchmark();
+  return db.transaction(async (tx) => {
+    const [l] = await tx.select().from(R).where(eq(R.id, e.releaseId as string)).for('update');
+    if (!l || l.scope !== 'platform') return refusUn('NOT_FOUND', '', 'Release introuvable.');
+    const ev = estUuid(e.evaluationId) ? (await tx.select().from(EV).where(eq(EV.id, e.evaluationId)).limit(1))[0] ?? null : null;
+    const evaluationRelease = lireEvaluation(l.evaluation);
+    const refus = controlerBenchmarkApprouve({
+      release: { id: l.id, statut: l.status, hash: l.releaseHash, revoquee: !!lireRevocation(l.evaluation), testsStructurels: !!evaluationRelease && evaluationRelease.releaseHash === l.releaseHash && evaluationRelease.testsStructurels },
+      evaluation: ev ? { id: ev.id, releaseId: ev.releaseId, kind: ev.kind, passed: ev.passed, result: ev.result } : null,
+      approbateur: a.userId, plans,
+    });
+    if (refus.length || !ev) return refus.length ? refus2(refus) : refusUn('NOT_FOUND', '', 'Évaluation introuvable.');
+    const evaluation = { ...((l.evaluation as Record<string, unknown> | null) ?? {}), benchmarkApprouve: true, approuvePar: a.userId, benchmarkEvaluationId: ev.id, benchmarkApprouveLe: new Date().toISOString() };
+    const maj = await tx.update(R).set({ evaluation, updatedAt: new Date() }).where(and(eq(R.id, l.id), eq(R.status, 'staged'), eq(R.releaseHash, l.releaseHash))).returning({ id: R.id });
+    if (maj.length !== 1) return refusUn('VERSION_CONFLICT', l.id, 'La release a changé pendant l’approbation.');
+    await audit(tx, a, { action: 'prompt.benchmark.approuver', targetType: 'prompt_release', targetId: l.id, avant: 'benchmark_non_approuve', apres: 'benchmark_approuve', raison: motif, details: { evaluationId: ev.id, releaseHash: l.releaseHash } });
+    return { ok: true as const, releaseId: l.id, evaluationId: ev.id };
+  });
+}
+
+const refus2 = (c: ReadonlyArray<{ code: string; cible: string; message: string }>) => refus(c.map((x) => constat(x.code, x.cible, x.message)));

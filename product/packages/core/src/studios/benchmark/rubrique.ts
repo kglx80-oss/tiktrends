@@ -84,7 +84,7 @@ export interface Invariant {
   detail: string;
 }
 
-export type StatutCas = 'execute' | 'bloque_capacite' | 'arrete_budget' | 'erreur';
+export type StatutCas = 'execute' | 'bloque_capacite' | 'arrete_budget' | 'arrete_incertain' | 'erreur';
 
 export interface ResultatCas {
   cas: string;

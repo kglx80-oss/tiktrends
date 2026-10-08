@@ -44,13 +44,13 @@ describe('--plan · devis sans base', () => {
     expect(pd.ok).toBe(true);
     if (!pd.ok) return;
     expect(pd.devis.cas).toHaveLength(24);
-    expect(pd.devis).toMatchObject({ ok: false, code: 'NON_CHIFFRABLE', nonChiffrables: ['F01', 'F02', 'F07', 'F12', 'F13', 'F15'] });
+    // Lot F-D : vision routée (images comptées dans le devis) · les 24 cas sont chiffrables.
+    expect(pd.devis).toMatchObject({ ok: true, totalUsdMicros: 9_925_120 });
   });
 
-  it('routage de production : seul reasoning_structured a un modèle', () => {
+  it('routage de production : texte structuré et vision ont un modèle, rien d’autre', () => {
     const r = routageProduction();
-    expect(Object.entries(r).filter(([, m]) => m !== null).map(([p]) => p)).toEqual(['reasoning_structured']);
-    expect(r.vision_analysis).toBeNull();
+    expect(Object.entries(r).filter(([, m]) => m !== null).map(([p]) => p).sort()).toEqual(['reasoning_structured', 'vision_analysis']);
   });
 
   it('une sélection chiffrable donne un total et une empreinte', () => {
