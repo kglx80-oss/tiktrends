@@ -350,6 +350,19 @@ describe('négatifs · rien d’approuvé, rien de débité', () => {
     expect(delta(avant2, await compter(db))).toEqual({});
   });
 
+  it('brief changé APRÈS avoir retenu la consigne · devis refusé (consigne périmée), rien écrit', async () => {
+    const { projectId } = await projetEpingle();
+    const { version } = await consigneRetenue(projectId);
+    const brief = (version.content as ContenuVersion).brief as unknown as BriefCanonique;
+    const w = await enregistrerVersion(ctxDe(ids, 'ua'), { projectId, baseVersionId: version.id, changes: [{ op: 'replace', path: '/brief/invariants', newValue: [...brief.invariants, 'Fond clair'], reason: 'x' }] });
+    if (!w.ok) throw new Error('version');
+    const avant = await compter(db);
+    const r = await devisImagePour(ctxDe(ids, 'ua'), { projectId }, T);
+    expect(r).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
+    expect(r.ok ? '' : r.message).toBe('Le brief ou le produit épinglé a changé depuis la compilation · recompile la consigne.');
+    expect(delta(avant, await compter(db))).toEqual({});
+  });
+
   it('liaison vers l’annonce concurrente · retenue, mais devis refusé : le fournisseur ne reçoit pas ce fichier', async () => {
     const { projectId, source } = await projetEpingle();
     const v = await courante(projectId);

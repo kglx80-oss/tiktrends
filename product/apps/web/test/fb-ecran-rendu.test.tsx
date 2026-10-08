@@ -178,8 +178,9 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     conteneur?.remove();
     vi.useRealTimers();
   });
+  /** Chaque lecture rend un NOUVEL objet, comme le serveur. */
   async function monter(v: VueParcoursImage) {
-    m.lire.mockResolvedValue({ ok: true, vue: v });
+    m.lire.mockImplementation(async () => ({ ok: true, vue: structuredClone(v) }));
     conteneur = document.createElement('div');
     document.body.appendChild(conteneur);
     racine = createRoot(conteneur);
@@ -220,13 +221,16 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
 
   it('média livré en `pending` · contrôle des composants demandé UNE fois, puis relecture', async () => {
     const livre = job({ id: 'j9', etat: 'completed', terminal: true, annulable: false, media: { assetId: 'm1', url: '/api/studios/media/m1', largeur: 8, hauteur: 8 } });
-    m.controler.mockResolvedValue({ ok: true, qualite: 'requires_review' });
+    // Borné à 3 réponses : un écran qui redemanderait en boucle s'arrête et se compte.
+    let n = 0;
+    m.controler.mockImplementation(() => (++n <= 3 ? Promise.resolve({ ok: true, qualite: 'requires_review' }) : new Promise(() => {})));
     await monter(vue({ jobs: [livre] }));
-    await act(async () => { await Promise.resolve(); });
+    // Chaque relecture rend un NOUVEL objet (comme le serveur) : l'écran ne redemande pas le contrôle pour autant.
+    for (let i = 0; i < 10; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    // Après le contrôle, l'écran s'est relu ; le nouvel état (toujours `pending` ici) ne redéclenche rien.
+    expect(m.lire.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(m.controler).toHaveBeenCalledTimes(1);
     expect(m.controler).toHaveBeenCalledWith({ jobId: 'j9' });
-    await act(async () => { await Promise.resolve(); });
-    expect(m.controler).toHaveBeenCalledTimes(1);
   });
 
   it('job non terminé · l’état se relit toutes les 4 s, sans autre geste', async () => {
