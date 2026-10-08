@@ -179,7 +179,7 @@ describe('Consulter n’écrit rien · route handlers GET et rendus, par le grap
       expect(ecrivains.has(n), `le graphe ne reconnaît pas ${n} comme écrivain`).toBe(true);
     }
     const noms = cibles.map((f) => relative(join(RACINE, 'app'), f));
-    for (const attendu of ['api/ad/[id]/route.tsx', '(app)/jarvis/sources/page.tsx', '(app)/studio/video/page.tsx']) {
+    for (const attendu of ['api/ad/[id]/route.tsx', '(app)/jarvis/sources/page.tsx', '(app)/studio/video/page.tsx', 'api/studios/media/[id]/route.ts']) {
       expect(noms, `le scanner ne voit pas ${attendu}`).toContain(attendu);
     }
   });
@@ -202,7 +202,9 @@ describe('Consulter n’écrit rien · route handlers GET et rendus, par le grap
   });
 
   it('les lectures appelées AU MONTAGE des écrans restent pures (préflight des Studios, cloche, Adsmap)', () => {
-    const lectures = ['preflightAction', 'jarvisStats', 'briefConceptBeforeLaunch', 'jarvisSnapshot', 'fetchNotifications', 'listAdsAction', 'listDecisionsAction', 'marketCoverageAction', 'radarViewAction', 'curationViewAction'];
+    const lectures = ['preflightAction', 'jarvisStats', 'briefConceptBeforeLaunch', 'jarvisSnapshot', 'fetchNotifications', 'listAdsAction', 'listDecisionsAction', 'marketCoverageAction', 'radarViewAction', 'curationViewAction',
+      // L5-A · aperçu d'une version et lecture d'un média studio : lectures pures.
+      'rendreApercu', 'lireMediaDansPortee', 'chargerMediasDocument'];
     const fautes = lectures.filter((n) => ecrivains.has(n)).map((n) => `${n} · ${ecrivains.get(n)}`);
     expect(fautes, `lecture appelée au montage qui écrit :\n${fautes.join('\n')}`).toEqual([]);
   });
