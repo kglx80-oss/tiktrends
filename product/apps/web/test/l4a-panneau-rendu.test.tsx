@@ -73,9 +73,8 @@ describe('panneau · rempli (FLOW-04)', () => {
     expect(t).toContain('À trancher');
     expect(t).toContain('Rien n’est généré et rien n’est débité');
     expect(t).toContain('Aucune génération touchée');
-    expect(t).toMatch(/À refaire · \d+/);
-    expect(t).toMatch(/Réutilisé · \d+/);
-    expect(t).toMatch(/Obsolète · \d+/);
+    expect(t).toContain('Aucun média n’a encore été produit pour cette version');
+    expect(t).not.toContain('À refaire ·');
     expect(html).toMatch(/<button[^>]*>Appliquer<\/button>/);
     expect(html).toMatch(/<button[^>]*>Rejeter<\/button>/);
   });
@@ -103,6 +102,24 @@ describe('panneau · rempli (FLOW-04)', () => {
     expect(html).not.toContain('Ta demande');
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Appliquer<\/button>/);
     expect(texte(html)).toContain('Ton rôle permet de lire les propositions, pas de les trancher.');
+  });
+});
+
+describe('panneau · plan d’impact avec des médias livrés', () => {
+  it('à refaire, réutilisé, obsolète · lus des sorties réellement livrées pour la base', async () => {
+    const p = await projetVideo(db, ids, ids.brandA1, ids.ua);
+    await db.insert(schema.studioJobs).values({
+      workspaceId: ids.wsA, brandId: ids.brandA1, projectId: p.projectId, projectVersionId: p.versionId, operation: 'generation',
+      state: 'completed', idempotencyKey: `cle-${p.projectId}`, inputHash: 'a'.repeat(64), snapshot: {},
+      result: { assets: { 'keyframe:s_produit': 'asset-1', 'keyframe:s_fin': 'asset-2' } },
+    });
+    const m = await creerPropositionManuelle(ctxDe(ids, 'ua'), { projectId: p.projectId, baseVersionId: p.versionId, cible: 'shot:s_produit', changes: [{ op: 'replace', path: '/shots/byId/s_produit/subject', newValue: 'une femme en veste verte', reason: '' }] });
+    if (!m.ok || m.statut !== 'proposee') throw new Error(JSON.stringify(m));
+    const t = texte(rendre(await liste('ua', p.projectId), p.projectId, { id: p.versionId, n: 1 }));
+    expect(t).toMatch(/Réutilisé · 1 Image clé · Plan 3 · génération/);
+    expect(t).toMatch(/Obsolète · 1 Image clé · Plan 2 · génération/);
+    expect(t).toMatch(/À refaire · \d+/);
+    expect(t).toContain('crédits pour 2 générations, non débité');
   });
 });
 

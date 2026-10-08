@@ -30,15 +30,21 @@ function Groupe({ titre, noeuds, vide }: { titre: string; noeuds: NoeudPresente[
 export function PlanImpactVue({ impact }: { impact: ImpactPresente | null }) {
   if (!impact) return <p style={mini}>Plan d’impact indisponible pour cette proposition.</p>;
   const generations = impact.touchees.filter((n) => n.nature === 'generation');
+  // Sans aucun média livré pour la base, « à refaire » listerait tout le graphe · on le dit en une phrase.
+  const mediasExistants = impact.reutilisees.length + impact.obsoletes.length > 0;
   return (
     <section aria-label="Plan d’impact" style={{ ...tuile, padding: 12, background: 'var(--surface)', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <p style={{ ...texte, color: 'var(--ink)', fontWeight: 600 }}>Impact si tu appliques</p>
       <Groupe titre="Touché par ce changement" noeuds={impact.touchees} vide="Rien d’autre que le document." />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
-        <Groupe titre="À refaire" noeuds={impact.aRefaire} vide="Rien à refaire." />
-        <Groupe titre="Réutilisé" noeuds={impact.reutilisees} vide="Aucun média existant réutilisé." />
-        <Groupe titre="Obsolète" noeuds={impact.obsoletes} vide="Aucun média rendu obsolète." />
-      </div>
+      {mediasExistants ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
+          <Groupe titre="À refaire" noeuds={impact.aRefaire} vide="Rien à refaire." />
+          <Groupe titre="Réutilisé" noeuds={impact.reutilisees} vide="Aucun média existant réutilisé." />
+          <Groupe titre="Obsolète" noeuds={impact.obsoletes} vide="Aucun média rendu obsolète." />
+        </div>
+      ) : (
+        <p style={mini}>Aucun média n’a encore été produit pour cette version · rien n’est rendu obsolète, rien n’est perdu.</p>
+      )}
       <p style={mini}>
         {generations.length === 0
           ? 'Aucune génération touchée · seule la composition ou le montage serait recalculé.'
