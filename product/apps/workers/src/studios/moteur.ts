@@ -5,7 +5,8 @@ import {
   cleFournisseurDuJob, preuveSoumission, decisionBailExpire, decisionAnnulation, decisionStatut, decisionEvenement,
   acteurDepuis, fenetreWebhook, chaineSignee, lireEvenement, lireSnapshotJob, operationsDuSnapshot,
   inspecterMedia, etatFichierMedia, verdictQualiteAuto, estErreurCertaine,
-  type ActeurJob, type EtatJob, type FournisseurStudio, type StockageStudio, type StatutFournisseur,
+  verdictDecodage, decisionMediaRefuse, operationsNonVerifiables,
+  type DecodeurMedia, type EnteteMedia, type ResultatDecodage, type ActeurJob, type EtatJob, type FournisseurStudio, type StockageStudio, type StatutFournisseur,
   type SnapshotJob, type IssueFinanciere, type SortieFournisseur,
 } from '@tiktrends/core';
 import { reglerJob } from './registre';
@@ -32,9 +33,13 @@ import type { BaseStudio, ExecStudio, JobStudio, TentativeStudio, TxStudio, Entr
  *  · bail expiré avant soumission prouvée ⇒ `queued` ; après soumission
  *    possible ⇒ recherche par clé ou `reconciliation_required`, JAMAIS une
  *    nouvelle soumission ;
- *  · `completed` seulement quand chaque fichier est déposé, RELU, décodable et
- *    relié (`studio_assets`) ; sinon le job reste `persisting` et la reprise ne
- *    refait que la finalisation, sans régénérer ;
+ *  · `completed` seulement quand chaque fichier a passé le premier filtre pur,
+ *    a été RÉELLEMENT décodé (`DecodeurMedia`, pixels complets aux dimensions
+ *    de l'en-tête), déposé, RELU et relié (`studio_assets`) ; sinon le job
+ *    reste `persisting` et la reprise ne refait que la finalisation, sans
+ *    régénérer. Un fichier refusé est retéléchargé `TELECHARGEMENTS_MEDIA_MAX`
+ *    fois au plus, puis `failed` sans débit client. Une vidéo, faute de
+ *    décodeur vidéo, n'est jamais livrée ni même soumise ;
  *  · règlement unique (`settle`) et libération (`release`) dans la transaction
  *    de l'état final ;
  *  · la qualité ne relance jamais rien : un constat négatif ⇒ `requires_review`.
@@ -51,6 +56,8 @@ export interface OptionsMoteur {
   base: BaseStudio;
   fournisseur: FournisseurStudio;
   stockage: StockageStudio;
+  /** Décodage RÉEL des sorties · obligatoire : sans lui, rien n'atteint `completed`. */
+  decodeur: DecodeurMedia;
   workerId?: string;
   /** Durée du bail · 60 s par défaut. */
   bailMs?: number;
@@ -90,6 +97,7 @@ export class MoteurStudio {
   private readonly base: BaseStudio;
   private readonly f: FournisseurStudio;
   private readonly stockage: StockageStudio;
+  private readonly decodeur: DecodeurMedia;
   private readonly bailMs: number;
   private readonly horloge: () => Date;
   private readonly secret: string | null;
@@ -99,6 +107,8 @@ export class MoteurStudio {
     this.base = o.base;
     this.f = o.fournisseur;
     this.stockage = o.stockage;
+    if (!o.decodeur || typeof o.decodeur.decoderImage !== 'function') throw new Error('MoteurStudio sans décodeur · aucun média ne serait vérifié');
+    this.decodeur = o.decodeur;
     this.workerId = o.workerId ?? `wk-${randomUUID()}`;
     this.bailMs = o.bailMs ?? 60_000;
     this.horloge = o.horloge ?? (() => new Date());
@@ -283,6 +293,13 @@ export class MoteurStudio {
   /** `claimed → running` avec la clé fournisseur, PUIS l'appel. */
   async demarrer(job0: JobStudio): Promise<void> {
     const snap = this.snapshot(job0);
+    // Une sortie que ce worker ne saurait pas vérifier (vidéo sans décodeur)
+    // ne se commande pas : refus AVANT toute soumission, rien n'est dépensé.
+    const nonVerifiables = operationsNonVerifiables(operationsDuSnapshot(snap), { video: typeof this.decodeur.decoderVideo === 'function' });
+    if (nonVerifiables.length > 0) {
+      await this.terminer(job0, 'failed', 'worker', 'echec_sans_frais', `capacité indisponible · aucun décodeur vidéo dans le worker, sortie non vérifiable (${nonVerifiables.join(', ')}) · rien n'a été soumis`, 0);
+      return;
+    }
     const cle = cleFournisseurDuJob(job0.id);
     const job = await this.tx(async (tx, journal) => {
       const t = await this.tentativeCourante(tx, job0.id);
@@ -418,9 +435,11 @@ export class MoteurStudio {
   /* ───────────────────────────── Finaliser ─────────────────────────────── */
 
   /**
-   * `persisting → completed` : télécharger, vérifier l'en-tête, déposer,
-   * RELIRE, relier. Une erreur de stockage laisse le job `persisting` avec son
-   * constat · la reprise ne refait que cette étape, sans régénérer.
+   * `persisting → completed` : télécharger, premier filtre pur, DÉCODER
+   * réellement, déposer, RELIRE, relier. Une erreur de stockage ou un décodeur
+   * indisponible laisse le job `persisting` avec son constat · la reprise ne
+   * refait que cette étape, sans régénérer. Un fichier refusé (structure ou
+   * décodage) est retéléchargé en nombre borné, puis `failed` sans débit.
    */
   async finaliser(job: JobStudio): Promise<void> {
     if (job.state !== 'persisting') return;
@@ -447,13 +466,27 @@ export class MoteurStudio {
       }
       const entete = inspecterMedia(octets);
       if (!entete) {
-        // Format reconnu mais fichier incomplet (transfert coupé) : on le
-        // retélécharge, rien n'est livré ni réglé. Pas un média : échec.
+        // Format reconnu mais fichier incomplet ou sans contenu (transfert
+        // coupé, MP4 sans piste) : retéléchargé en nombre borné, rien n'est
+        // livré ni réglé entre-temps. Pas un média du tout : échec.
         if (etatFichierMedia(octets) === 'incomplet') {
-          await this.noterEchecPersistance(job, `sortie ${s.operation} incomplète (${octets.length} octets)`);
+          await this.mediaRefuse(job, `sortie ${s.operation} incomplète ou sans contenu (${octets.length} octets)`);
           return;
         }
-        await this.terminer(job, 'failed', 'finaliseur', 'facture_sans_livrable', `sortie ${s.operation} non décodable`, res.coutUsdMicros ?? null);
+        await this.terminer(job, 'failed', 'finaliseur', 'facture_sans_livrable', `sortie ${s.operation} non reconnue comme média`, res.coutUsdMicros ?? null);
+        return;
+      }
+      const verdict = verdictDecodage(entete, await this.decoder(entete, octets));
+      if (!verdict.livrable) {
+        if (verdict.suite === 'refuser') {
+          await this.terminer(job, 'failed', 'finaliseur', 'facture_sans_livrable', `sortie ${s.operation} refusée · ${verdict.raison}`, res.coutUsdMicros ?? null);
+          return;
+        }
+        if (verdict.suite === 'attendre') {
+          await this.noterEchecPersistance(job, `décodage impossible · ${verdict.raison}`);
+          return;
+        }
+        await this.mediaRefuse(job, `sortie ${s.operation} non décodée · ${verdict.raison}`);
         return;
       }
       const sha256 = createHash('sha256').update(octets).digest('hex');
@@ -467,7 +500,7 @@ export class MoteurStudio {
         await this.noterEchecPersistance(job, `stockage · ${(e as Error).message}`);
         return;
       }
-      fichiers.push({ operation: s.operation, cle, mime: entete.mime, octets: octets.length, sha256, largeur: entete.largeur, hauteur: entete.hauteur });
+      fichiers.push({ operation: s.operation, cle, mime: entete.mime, octets: octets.length, sha256, largeur: verdict.largeur, hauteur: verdict.hauteur });
     }
 
     const snap = this.snapshot(job);
@@ -485,7 +518,7 @@ export class MoteurStudio {
         }).returning({ id: schema.studioAssets.id });
         assets[f.operation] = a!.id;
       }
-      let j = await this.transition(tx, journal, job, 'completed', 'finaliseur', 'fichiers déposés, relus, décodables et reliés', {
+      let j = await this.transition(tx, journal, job, 'completed', 'finaliseur', 'fichiers décodés, déposés, relus et reliés', {
         result: { ...res, assets }, error: null,
       });
       await reglerJob(tx, j, snap, 'livre', { operationsLivrees: fichiers.map((f) => f.operation), coutFournisseurUsdMicros: res.coutUsdMicros ?? null, worker: this.workerId, journal });
@@ -501,9 +534,36 @@ export class MoteurStudio {
     });
   }
 
-  private async noterEchecPersistance(job: JobStudio, motif: string): Promise<void> {
+  /** Décodage réel · une vidéo sans décodeur vidéo n'est JAMAIS décodée « par défaut ». */
+  private async decoder(entete: EnteteMedia, octets: Uint8Array): Promise<ResultatDecodage | 'decodeur_absent'> {
+    if (entete.mime.startsWith('video/')) return this.decodeur.decoderVideo ? this.decodeur.decoderVideo(octets) : 'decodeur_absent';
+    return this.decodeur.decoderImage(octets);
+  }
+
+  /** Téléchargements déjà refusés pour ce job (structure ou décodage). */
+  private essaisMedia(job: JobStudio): number {
+    const e = job.error as { essaisMedia?: unknown } | null;
+    return typeof e?.essaisMedia === 'number' ? e.essaisMedia : 0;
+  }
+
+  /**
+   * Un fichier refusé · retéléchargé au tour suivant tant que la borne n'est
+   * pas atteinte, puis `failed` : crédits rendus au client, coût fournisseur
+   * réglé (la génération a eu lieu), aucun média livré.
+   */
+  private async mediaRefuse(job: JobStudio, motif: string): Promise<void> {
+    const essais = this.essaisMedia(job) + 1;
+    if (decisionMediaRefuse(essais) === 'echec') {
+      const res = this.resultat(job);
+      await this.terminer(job, 'failed', 'finaliseur', 'facture_sans_livrable', `${motif} · ${essais} téléchargements refusés`, res.coutUsdMicros ?? null);
+      return;
+    }
+    await this.noterEchecPersistance(job, motif, essais);
+  }
+
+  private async noterEchecPersistance(job: JobStudio, motif: string, essaisMedia: number = this.essaisMedia(job)): Promise<void> {
     await this.base.update(J).set({
-      error: { code: 'PERSISTENCE_FAILED', motif, a: this.maintenant().toISOString() },
+      error: { code: 'PERSISTENCE_FAILED', motif, a: this.maintenant().toISOString(), ...(essaisMedia > 0 ? { essaisMedia } : {}) },
       // Bail rendu court : la reprise de finalisation peut venir d'un autre worker.
       leaseExpiresAt: this.maintenant(), updatedAt: this.maintenant(),
     }).where(and(eq(J.id, job.id), eq(J.state, 'persisting'), eq(J.rowVersion, job.rowVersion)));

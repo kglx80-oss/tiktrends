@@ -6,6 +6,8 @@ import { contexteDepuisSession, type ContexteStudio } from '../lib/studios/garde
 import { session, type IdsStudios } from './studios-semis';
 import type { BaseStudio } from '../lib/studios/execution/types';
 import { MoteurStudio } from '../../workers/src/studios/moteur';
+import { DecodeurSharp } from '../../workers/src/studios/decodeur';
+import type { DecodeurMedia } from '@tiktrends/core';
 import type { EntreeJournal } from '../../workers/src/studios/types';
 import { FournisseurSimule, StockageSimule, DRAPEAU_SIMULE, type OptionsFournisseurSimule } from '../../../packages/integrations/src/studios-simule';
 import { contenuVideo } from '../../../packages/core/test/studios-fixtures';
@@ -55,13 +57,15 @@ export interface Banc {
   horloge(): Date;
 }
 
-export function banc(base: BaseStudio, o: Partial<Omit<OptionsFournisseurSimule, 'drapeau'>> & { workerId?: string; secret?: string; partage?: { fournisseur: FournisseurSimule; stockage: StockageSimule; decalage: { ms: number }; journal: EntreeJournal[] } } = {}): Banc {
+export function banc(base: BaseStudio, o: Partial<Omit<OptionsFournisseurSimule, 'drapeau'>> & { workerId?: string; secret?: string; decodeur?: DecodeurMedia; partage?: { fournisseur: FournisseurSimule; stockage: StockageSimule; decalage: { ms: number }; journal: EntreeJournal[] } } = {}): Banc {
   const decalage = o.partage?.decalage ?? { ms: 0 };
   const horloge = () => new Date(Date.now() + decalage.ms);
   const fournisseur = o.partage?.fournisseur ?? new FournisseurSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' }, ...o });
   const stockage = o.partage?.stockage ?? new StockageSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' } });
   const journal = o.partage?.journal ?? [];
-  const moteur = new MoteurStudio({ base, fournisseur, stockage, workerId: o.workerId, bailMs: 30_000, horloge, secretWebhook: o.secret ?? null, journal: (e) => journal.push(e) });
+  // Décodeur de PRODUCTION (sharp, pixels complets) : les médias simulés
+  // passent par le même décodage réel que les vrais.
+  const moteur = new MoteurStudio({ base, fournisseur, stockage, decodeur: o.decodeur ?? new DecodeurSharp(), workerId: o.workerId, bailMs: 30_000, horloge, secretWebhook: o.secret ?? null, journal: (e) => journal.push(e) });
   return { moteur, fournisseur, stockage, journal, decalage, avancer: (ms) => { decalage.ms += ms; }, horloge };
 }
 

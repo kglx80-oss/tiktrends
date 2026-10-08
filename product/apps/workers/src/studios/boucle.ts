@@ -1,6 +1,7 @@
 import { schema, eq, and, isNull, sql } from '@tiktrends/db';
-import type { FournisseurStudio, StockageStudio } from '@tiktrends/core';
+import type { DecodeurMedia, FournisseurStudio, StockageStudio } from '@tiktrends/core';
 import { MoteurStudio } from './moteur';
+import { DecodeurSharp } from './decodeur';
 import type { BaseStudio, EntreeJournal } from './types';
 
 /**
@@ -12,10 +13,12 @@ export function demarrerBoucleStudio(o: {
   base: BaseStudio;
   fournisseur: FournisseurStudio;
   stockage: StockageStudio;
+  /** Décodage réel des sorties · `sharp` pour les images, aucune vidéo par défaut. */
+  decodeur?: DecodeurMedia;
   intervalleMs?: number;
   journal?: (e: EntreeJournal) => void;
 }): { arreter: () => void; moteur: MoteurStudio } {
-  const moteur = new MoteurStudio({ base: o.base, fournisseur: o.fournisseur, stockage: o.stockage, journal: o.journal, secretWebhook: process.env.STUDIO_WEBHOOK_SECRET ?? null });
+  const moteur = new MoteurStudio({ base: o.base, fournisseur: o.fournisseur, stockage: o.stockage, decodeur: o.decodeur ?? new DecodeurSharp(), journal: o.journal, secretWebhook: process.env.STUDIO_WEBHOOK_SECRET ?? null });
   let enCours = false;
   const minuterie = setInterval(async () => {
     if (enCours) return;

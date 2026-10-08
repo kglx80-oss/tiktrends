@@ -37,6 +37,7 @@ import { semer } from './studios-semis';
 import { ctxDe, poserSolde, solde, projetTest, banc, secondWorker, jusquAuBout, etatEnBase } from './l3-harnais';
 import { creerDevis, approuverEtMettreEnFile, annulerJob, etatJob, deciderQualite } from '../lib/studios/execution/commandes';
 import { MoteurStudio } from '../../workers/src/studios/moteur';
+import { DecodeurSharp } from '../../workers/src/studios/decodeur';
 import { FournisseurSimule, StockageSimule, DRAPEAU_SIMULE, SimulationInterdite, signerWebhookSimule } from '../../../packages/integrations/src/studios-simule';
 
 const ids = etat.ids;
@@ -74,7 +75,7 @@ describe('adaptateur simulé · jamais en production, jamais sans drapeau', () =
 });
 
 describe('chemin nominal · un job livré, réglé une fois, média simulé marqué comme tel', () => {
-  it('queued → claimed → running → persisting → completed ; fichier relu, décodable, relié', async () => {
+  it('queued → claimed → running → persisting → completed ; fichier décodé, relu, relié', async () => {
     const id = await jobEnFile();
     const s0 = await solde(db, ids.wsA);
     const w = banc(db);
@@ -191,7 +192,7 @@ describe('COST-07 · crash APRÈS soumission · réconciliation, jamais de resou
       soumettre: () => new Promise(() => {}), // l'appel part et le worker meurt avant la réponse
       statut: (r) => A.fournisseur.statut(r), telecharger: (r, x) => A.fournisseur.telecharger(r, x),
     };
-    const mourant = new MoteurStudio({ base: db, fournisseur: bloque, stockage: A.stockage, workerId: 'worker-mourant', bailMs: 30_000, horloge: A.horloge });
+    const mourant = new MoteurStudio({ base: db, fournisseur: bloque, stockage: A.stockage, decodeur: new DecodeurSharp(), workerId: 'worker-mourant', bailMs: 30_000, horloge: A.horloge });
     const j = await mourant.reclamer();
     void mourant.etape(j!);
     for (let i = 0; i < 50 && (await etatEnBase(db, id)).job.state !== 'running'; i++) await new Promise((r) => setTimeout(r, 5));
