@@ -2,7 +2,7 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "ad883e7 (claude/studios-integration = L0 à L5 + corrections de la recette du 8 octobre + raccords ; portes vertes : core 2548, web 3039 dont 16 ignorés, workers 7, ai 8, integrations 88, build)",
+  "shaCourant": "f2fd4bb (claude/studios-integration = L0 à L5 + F-A + F-C + raccords ; portes vertes : core 2609, web 3093 dont 16 ignorés, workers 21 dont 1 ignoré, ai 8, integrations 127, build)",
   "lotCourant": "F (fournisseurs réels et benchmark, vague 5) puis L6",
   "lots": {
     "L0": "LOCAL_VERIFIED",
@@ -38,8 +38,12 @@
     "claude/studios-l5-calques": "L5-B (c865e47, PR #743)",
     "claude/studios-l5-produit-textes": "L5-C (de70ca6, PR #744)",
     "claude/studios-base-vague5": "base figée vague 5 = ad883e7",
-    "claude/studios-f-fournisseur-image": "F-A fournisseur image réel, barrière worker (en cours)",
-    "claude/studios-f-benchmark": "F-C benchmark F01-F24 (en cours)"
+    "claude/studios-f-fournisseur-image": "F-A (8ce5ece, PR #745)",
+    "claude/studios-f-benchmark": "F-C (e164b58, PR #746)",
+    "claude/studios-base-vague5b": "base F-B = bf99691",
+    "claude/studios-base-vague5c": "base F-D = f2fd4bb",
+    "claude/studios-f-parcours-image": "F-B parcours image bout en bout (en cours)",
+    "claude/studios-f-evaluation": "F-D vision, évaluation staged, ADMIN, exécuteur image (en cours)"
   },
   "prEnAttente": {
     "729": {
@@ -906,7 +910,12 @@
     "complement": "jarvis.conversation 1.0.0 (texte migré du code)",
     "etat": "import en brouillons prouvé localement ; aucune release publiée nulle part"
   },
-  "fournisseursVerifies": [],
+  "fournisseursVerifies": [
+    {
+      "fournisseur": "fal (file image)",
+      "etat": "LOCAL_VERIFIED contre réponses rejouées écrites d’après la documentation publique ; aucun appel réel"
+    }
+  ],
   "depenses": {
     "autorisees": "aucun budget de recette fournisseur explicitement autorisé pour ce chantier ; plafond global AI_SPEND_CAP_USD du dépôt",
     "reelles": 0
@@ -941,9 +950,17 @@
       ],
       "cause": "Aucun budget fournisseur TikTrends explicitement autorisé pour le benchmark réel F01-F24 ni pour le premier passage réel des fournisseurs.",
       "solutionPreparee": "Commande de benchmark avec devis agrégé, budget explicite et approbation ADMIN (vague 5) ; exécution réelle seulement après accord chiffré du propriétaire."
+    },
+    {
+      "id": "B-VISION",
+      "exigences": [
+        "UX-07"
+      ],
+      "cause": "vision_analysis non routé : F01, F02, F07, F12, F13, F15 non chiffrables, devis agrégé refusé.",
+      "solutionPreparee": "Lot F-D en cours (routage vision sous la barrière)."
     }
   ],
-  "prochaineAction": "Recette Codex des PR #742 à #744 au SHA indiqué, et de l'intégration #741 (ad883e7). En parallèle, vague 5 : F-A (adaptateur fal du moteur, barrière de dépense partagée web/worker, démarrage du worker) et F-C (benchmark F01-F24 : devis agrégé, campagne simulée, mode réel refusé sans budget et approbation ADMIN). L'exécution réelle attend un budget explicite du propriétaire. Puis L6.",
+  "prochaineAction": "Recette Codex des PR #742 à #746 et de l'intégration #741 (f2fd4bb). En cours : F-B (parcours image consigne → devis → approbation → job → média) et F-D (vision routée, évaluation staged, ADMIN benchmark, exécuteur image réel). Ensuite : devis agrégé complet présenté au propriétaire pour autorisation du benchmark réel, puis L6.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -1065,6 +1082,26 @@
       "id": "D-L5-05",
       "decision": "Composants obligatoires : passed exige chaque composant confirmé ; sans contrôle visuel routé, requires_review.",
       "source": "L5-PRODUIT-TEXTES.md"
+    },
+    {
+      "id": "D-F-01",
+      "decision": "Barrière de dépense hors web : même règle checkBudget, même table ai_spend, même AI_SPEND_CAP_USD et même fenêtre ; réservation sous verrou consultatif avant soumission, gardée si l’issue est incertaine, une ligne par job.",
+      "source": "F-FOURNISSEUR-IMAGE.md, PR #745"
+    },
+    {
+      "id": "D-F-02",
+      "decision": "Webhooks fal non utilisés (signature non vérifiable sans réseau) : sondage avec recul 2 s → 15 s ; rechercheParCle=false, une réponse perdue part en réconciliation.",
+      "source": "PR #745"
+    },
+    {
+      "id": "D-F-03",
+      "decision": "Fal réel seulement avec FAL_KEY réelle, S3 posé, et production ou STUDIO_FOURNISSEUR_REEL=autorise ; sinon le worker ne démarre pas et le dit.",
+      "source": "PR #745"
+    },
+    {
+      "id": "D-F-04",
+      "decision": "Approbation du benchmark réel = évaluation de release manual nominative (prompt.evaluate), 24 h, usage unique, devis recalculé par le serveur ; rapport joint sans publication automatique, passed seulement pour un rapport réel aux traces non simulées.",
+      "source": "F-BENCHMARK.md, PR #746"
     }
   ],
   "prOuvertes": {
@@ -1080,7 +1117,9 @@
     "741": "intégration de référence, brouillon (ad883e7)",
     "742": "L5-A rendu, masques, déclinaisons, médias (ebf4215, base vague 4)",
     "743": "L5-B éditeur de calques (c865e47, base vague 4)",
-    "744": "L5-C produit épinglé, références, Textes (de70ca6, base vague 4)"
+    "744": "L5-C produit épinglé, références, Textes (de70ca6, base vague 4)",
+    "745": "F-A fournisseur image fal, barrière worker (8ce5ece, base vague 5)",
+    "746": "F-C benchmark F01-F24 (e164b58, base vague 5)"
   },
   "besoinsIntegrateur": [
     "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
