@@ -40,6 +40,12 @@ function messageErreur(r: ErreurStudio): string {
   return r.message;
 }
 
+/** « Tenue · veste verte », mais « Cheveux bruns » (pas « Cheveux · cheveux bruns »). */
+function libelleAttributVue(a: IdentiteVue['attributs'][number]): string {
+  if (a.libelle.toLowerCase().startsWith(a.libelleCategorie.toLowerCase())) return a.libelle[0]!.toUpperCase() + a.libelle.slice(1);
+  return `${a.libelleCategorie} · ${a.libelle}`;
+}
+
 const LIBELLE_MODE: Readonly<Record<ModeParole, string>> = { voiceover: 'Voix off', lipsync: 'Parole synchronisée (lipsync)', none: 'Sans voix' };
 
 export function EcranIdentites({ vue }: { vue: VueIdentites }) {
@@ -137,7 +143,7 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
               </div>
               {i.description && <p style={mini}>{i.description}</p>}
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {i.attributs.map((a) => <li key={a.id} style={pastille('var(--line-2)')}>{a.libelleCategorie} · {a.libelle}{a.detail ? ` · ${a.detail}` : ''}</li>)}
+                {i.attributs.map((a) => <li key={a.id} style={pastille('var(--line-2)')}>{libelleAttributVue(a)}{a.detail ? ` · ${a.detail}` : ''}</li>)}
               </ul>
               <fieldset style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
                 <legend style={etiquette}>Plans liés</legend>

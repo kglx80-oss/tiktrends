@@ -139,6 +139,7 @@ restauré, arbre propre vérifié par `git status`). Aucune n'a survécu au prem
 | M17 prise d'une autre marque acceptée | `l6b-identites-db` | `expected { etat: 'mesuree', …(5) } to match object { etat: 'illisible', …(1) }` |
 | M18 absence (« sans ses lunettes ») non vue | `l6b-identites` | `expected undefined to match object { shotId: 's1', champ: 'action', …(2) }` |
 | M19 couleur hors lexique acceptée dans une fiche | `l6b-identites-db` | `expected { ok: true, version: { …(13) }, …(1) } to match object { ok: false, …(2) }` |
+| Libellé « Cheveux · cheveux bruns » (vu sur capture, corrigé) | `l6b-pages-rendu` | `expected [ 'Tenue · veste verte', …(2) ] to deeply equal [ 'Tenue · veste verte', …(2) ]` |
 
 ## 6. Besoins hors périmètre (intégrateur)
 

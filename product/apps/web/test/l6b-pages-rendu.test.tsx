@@ -96,6 +96,8 @@ describe('/studio/projets/[id]/identites', () => {
     const fiche = d.querySelector('[data-identite="perso_lea"]')!;
     expect(fiche.textContent).toContain('Fiche version 1');
     expect(fiche.textContent).toContain('Tenue · veste verte');
+    // Vu sur capture : « Cheveux · cheveux bruns » ; la catégorie n'est pas répétée.
+    expect([...fiche.querySelectorAll('li')].map((x) => x.textContent)).toEqual(['Tenue · veste verte', 'Cheveux bruns', 'Accessoire · lunettes']);
   });
 
   it('VIDEO-07 · aucune option lipsync activable, voix off proposée, plan en lipsync à basculer', async () => {
