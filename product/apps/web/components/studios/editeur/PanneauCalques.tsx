@@ -26,7 +26,7 @@ export function PanneauCalques({
 }) {
   const pile = calquesParZ(doc).reverse();
   return (
-    <section aria-labelledby="titre-calques" data-panneau="calques" style={{ ...panneau, display: 'grid', gap: 12, alignContent: 'start' }}>
+    <section aria-labelledby="titre-calques" data-panneau="calques" style={{ ...panneau, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, alignContent: 'start' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
         <h2 id="titre-calques" style={titrePanneau}>Calques</h2>
         <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{pile.length}</span>
@@ -44,12 +44,12 @@ export function PanneauCalques({
       {pile.length === 0 ? (
         <p style={legende}>Aucun calque · {editable ? 'ajoute un texte, une forme ou un média du projet.' : 'ce document est vide.'}</p>
       ) : (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 4 }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 4 }}>
           {pile.map((c) => {
             const choisi = c.id === selection;
             const etat = [!c.visible ? 'masqué' : null, c.locked ? 'verrouillé' : null].filter(Boolean).join(', ');
             return (
-              <li key={c.id} data-ligne-calque={c.id} style={{ display: 'flex', alignItems: 'center', gap: 4, borderRadius: 12, background: choisi ? 'var(--accent-soft)' : 'transparent' }}>
+              <li key={c.id} data-ligne-calque={c.id} style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, borderRadius: 12, background: choisi ? 'var(--accent-soft)' : 'transparent' }}>
                 <button
                   type="button"
                   aria-pressed={choisi}

@@ -106,7 +106,7 @@ export function PanneauProprietes({
 
   if (!c) {
     return (
-      <section aria-labelledby="titre-proprietes" data-panneau="proprietes" style={{ ...panneau, display: 'grid', gap: 8, alignContent: 'start' }}>
+      <section aria-labelledby="titre-proprietes" data-panneau="proprietes" style={{ ...panneau, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8, alignContent: 'start' }}>
         <h2 id="titre-proprietes" style={titrePanneau}>Propriétés</h2>
         <p style={legende}>Choisis un calque dans la liste ou sur l’aperçu pour voir et changer ses propriétés.</p>
       </section>
@@ -123,7 +123,7 @@ export function PanneauProprietes({
   const partActuelle = Math.round((c.width / doc.width) * 1000) / 10;
 
   return (
-    <section aria-labelledby="titre-proprietes" data-panneau="proprietes" style={{ ...panneau, display: 'grid', gap: 12, alignContent: 'start' }}>
+    <section aria-labelledby="titre-proprietes" data-panneau="proprietes" style={{ ...panneau, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, alignContent: 'start' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <h2 id="titre-proprietes" style={{ ...titrePanneau, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.name}>
           {LIBELLE_TYPE[c.kind]} · {c.name}
