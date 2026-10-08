@@ -71,7 +71,7 @@ describe('vision · des liaisons aux pièces natives', () => {
     expect(controlerPiecesAppel('vision_analysis', p.pieces)).toEqual([]);
     expect(controlerPiecesAppel('reasoning_structured', p.pieces).map((c) => c.code)).toEqual(['PIECES_HORS_VISION']);
     expect(controlerPiecesAppel('vision_analysis', [{ ...p.pieces[0]!, index: 1 }]).map((c) => c.code)).toEqual(['VISION_INDEX_INCOHERENTS']);
-    const altere = p.pieces[0]!.octets.slice(); altere[40] ^= 1;
+    const altere = p.pieces[0]!.octets.slice(); altere[40] = (altere[40] ?? 0) ^ 1;
     expect(controlerPiecesAppel('vision_analysis', [{ ...p.pieces[0]!, octets: altere }]).map((c) => c.code)).toContain('MEDIA_ALTERE');
   });
 });

@@ -298,7 +298,10 @@ export function EcranBenchmark({ b, peutEvaluer }: { b: VueBenchmark; peutEvalue
           Ce que la campagne réelle coûterait AU PLUS, calculé par le serveur avant tout appel (bornes de jetons, images jointes en vision, barème des médias). Afficher ce devis ne dépense rien.
         </p>
         {d.chiffrable ? (
-          <p style={{ margin: '0 0 10px', fontSize: 16 }}><b>Total · {d.totalLisible}</b> <span style={{ ...mono, color: 'var(--muted)' }}>empreinte {d.empreinte?.slice(0, 16)}…</span></p>
+          <>
+            <p style={{ margin: '0 0 4px', fontSize: 16 }}><b>Total · {d.totalLisible}</b></p>
+            <p style={{ ...mono, margin: '0 0 10px', color: 'var(--muted)' }}>empreinte du devis {d.empreinte?.slice(0, 16)}…</p>
+          </>
         ) : (
           <div role="alert" style={{ ...tuile, borderColor: 'var(--warn)', marginBottom: 10 }}>
             <b>Devis non chiffrable · aucun total.</b> Cas en cause : {d.nonChiffrables.join(', ') || 'aucun'}.{d.partielLisible ? ` Chiffrage partiel des autres cas, pour information : ${d.partielLisible} (ce n’est pas un total).` : ''}

@@ -93,7 +93,7 @@ describe('vision · payload Messages reçu par le client espion', () => {
     expect(contenu.map((b) => b.type)).toEqual(['image', 'image', 'text']);
     expect(contenu[0]).toEqual({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: Buffer.from(sortie.octets).toString('base64') } });
     expect(contenu[1]).toEqual({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: Buffer.from(reference.octets).toString('base64') } });
-    expect(contenu[2].text).toContain(`sta_${sortie.id}`);
+    expect(contenu[2]!.text).toContain(`sta_${sortie.id}`);
     // Aucune adresse ne part : ni clé de stockage, ni URL.
     expect(JSON.stringify(p)).not.toMatch(/studios\/|https?:\/\//);
   });
@@ -132,7 +132,7 @@ describe('vision · un média hors portée ou altéré bloque AVANT l’appel, 0
   it('l’adaptateur réel revérifie le contrat : une pièce altérée est refusée avant tout client, aucune dépense', async () => {
     const plan = planifierPiecesVision([lien(sortie, 0)], new Map([[`sta_${sortie.id}`, { ok: true, assetId: `sta_${sortie.id}`, assetVersion: versionDepuisEmpreinte(sortie.sha), octets: sortie.octets }]]));
     if (!plan.ok) throw new Error('plan');
-    const altere = plan.pieces[0]!.octets.slice(); altere[30] ^= 1;
+    const altere = plan.pieces[0]!.octets.slice(); altere[30] = (altere[30] ?? 0) ^ 1;
     const avant = (await db.select().from(schema.aiSpend)).length;
     h.recus.length = 0;
     await expect(adaptateurAnthropicGarde()!.appeler({ profil: 'vision_analysis', messages: [{ role: 'user', nature: 'donnees_utilisateur', contenu: 'x' }], maxJetonsSortie: 10, workspaceId: W, action: 'fd:altere', pieces: [{ ...plan.pieces[0]!, octets: altere }] }))
@@ -151,7 +151,7 @@ describe('le simulé suit le même contrat que le réel', () => {
     expect(['reasoning_structured', 'vision_analysis', 'image_generation'].map((p) => adaptateurAnthropicGarde()!.modelePour(p) !== null)).toEqual([true, true, false]);
     const plan = planifierPiecesVision([lien(sortie, 0)], new Map([[`sta_${sortie.id}`, { ok: true, assetId: `sta_${sortie.id}`, assetVersion: versionDepuisEmpreinte(sortie.sha), octets: sortie.octets }]]));
     if (!plan.ok) throw new Error('plan');
-    const altere = plan.pieces[0]!.octets.slice(); altere[30] ^= 1;
+    const altere = plan.pieces[0]!.octets.slice(); altere[30] = (altere[30] ?? 0) ^ 1;
     const appel = { messages: [], maxJetonsSortie: 10, workspaceId: W, action: 'fd:sim' };
     await expect(sim.appeler({ ...appel, profil: 'vision_analysis', pieces: [{ ...plan.pieces[0]!, octets: altere }] })).rejects.toBeInstanceOf(PiecesInvalides);
     await expect(sim.appeler({ ...appel, profil: 'reasoning_structured', pieces: plan.pieces })).rejects.toBeInstanceOf(PiecesInvalides);

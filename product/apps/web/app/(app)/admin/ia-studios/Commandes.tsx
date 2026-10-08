@@ -214,7 +214,7 @@ const etiquette: CSSProperties = { display: 'block', fontSize: 13, color: 'var(-
 /** Approbation d'un budget · le prix (devis) est affiché AVANT le clic, la confirmation le répète. */
 export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd }: { releases: Array<{ id: string; libelle: string }>; devisLisible: string; devisUsd: number }) {
   const [releaseId, setReleaseId] = useState(releases[0]?.id ?? '');
-  const [budget, setBudget] = useState((Math.ceil(devisUsd * 1000) / 1000).toFixed(3));
+  const [budget, setBudget] = useState((Math.ceil(devisUsd * 1000) / 1000).toFixed(3).replace('.', ','));
   const [motif, setMotif] = useState('');
   const [ouvert, setOuvert] = useState(false);
   const [r, setR] = useState<ReponseBenchmark<Record<string, unknown>> | null>(null);
@@ -237,7 +237,7 @@ export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd }: 
       <div><label htmlFor={`${id}-motif`} style={etiquette}>Motif (entre dans l’audit)</label>
         <input id={`${id}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} style={champ} /></div>
       <div><button type="button" style={{ ...bouton, opacity: motif.trim() && releaseId ? 1 : 0.6 }} disabled={!motif.trim() || !releaseId} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Approuver ce budget…</button></div>
-      <Modal open={ouvert} onClose={() => setOuvert(false)} title={`Approuver ${budget.replace('.', ',')} $ ?`} subtitle="Dépense réelle possible · tracée dans l’audit." maxWidth={520}>
+      <Modal open={ouvert} onClose={() => setOuvert(false)} title={`Approuver ${budget.replace('.', ',').trim()} $ ?`} subtitle="Dépense réelle possible · tracée dans l’audit." maxWidth={520}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           <li>Devis recalculé par le serveur : {devisLisible} au plus.</li>
           <li>Budget approuvé : {budget.replace('.', ',')} $ · il doit couvrir le devis et tenir dans le reste du plafond de dépense.</li>
