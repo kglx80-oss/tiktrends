@@ -421,6 +421,10 @@ export interface VueRun {
   compiledHash: string; contextSnapshotHash: string; outputHash: string | null; latenceMs: number | null; coutUsd: number | null;
   sources: Array<{ type: string; titre: string; version: string }>; couches: Array<{ couche: string; empreinte: string }>; constats: string[];
   espace: string; marque: string; traceId: string | null; budget: string | null;
+  /** Exécution d'évaluation (release staged dans une campagne de benchmark) · `null` sinon. */
+  evaluation: { mode: string; approbationId: string; releaseStatut: string } | null;
+  /** Pièces natives réellement envoyées (vision) · identifiants et empreintes, jamais les octets. */
+  pieces: Array<{ bindingId: string; assetId: string; assetVersion: string; sha256: string; nativeAttachmentIndex: number; mime: string; octets: number | null; largeur: number | null; hauteur: number | null; jetonsMax: number | null }>;
 }
 
 export function EcranExecutions({ runs, detail }: { runs: VueRun[]; detail: VueRun | null }) {
@@ -452,10 +456,21 @@ export function EcranExecutions({ runs, detail }: { runs: VueRun[]; detail: VueR
             <dt style={{ color: 'var(--muted)' }}>Coût</dt><dd style={{ margin: 0 }}>{detail.coutUsd === null ? '·' : `${detail.coutUsd.toFixed(6)} $`}</dd>
             {detail.budget && <><dt style={{ color: 'var(--muted)' }}>Budget de contexte</dt><dd style={{ margin: 0 }}>{detail.budget}</dd></>}
             {detail.constats.length > 0 && <><dt style={{ color: 'var(--muted)' }}>Motifs</dt><dd style={{ margin: 0, ...mono }}>{detail.constats.join(' · ')}</dd></>}
+            {detail.evaluation && <><dt style={{ color: 'var(--muted)' }}>Évaluation</dt><dd style={{ margin: 0 }}>Exécution d’évaluation · {detail.evaluation.mode || '?'} · release {detail.evaluation.releaseStatut || '?'} · approbation <code style={mono}>{detail.evaluation.approbationId || '·'}</code></dd></>}
             <dt style={{ color: 'var(--muted)' }}>Trace</dt><dd style={{ margin: 0, ...mono }}>{detail.traceId ?? '·'}</dd>
           </dl>
           <h3 style={{ margin: '14px 0 6px', fontSize: 14, fontWeight: 600 }}>Sources retenues</h3>
           {detail.sources.length === 0 ? <p style={{ margin: 0, fontSize: 13 }}>Aucune.</p> : <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{detail.sources.map((s, i) => <li key={i}>{s.titre} <span style={{ color: 'var(--muted)' }}>· {s.type} · <code style={mono}>{s.version}</code></span></li>)}</ul>}
+          {detail.pieces.length > 0 && (<>
+            <h3 style={{ margin: '14px 0 6px', fontSize: 14, fontWeight: 600 }}>Pièces natives envoyées</h3>
+            <p style={{ margin: '0 0 6px', fontSize: 12.5, color: 'var(--ink-2)' }}>Chaque image a été lue par le serveur dans la portée de la tâche ; la trace garde son empreinte, jamais ses octets ni son adresse.</p>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, display: 'grid', gap: 8 }}>{detail.pieces.map((p) => (
+              <li key={`${p.nativeAttachmentIndex}-${p.bindingId}`} style={{ overflowWrap: 'anywhere' }}>
+                index {p.nativeAttachmentIndex} · <code style={mono}>{p.bindingId || '·'}</code> → <code style={mono}>{p.assetId || '·'}</code>{p.assetVersion ? <> @ <code style={mono}>{p.assetVersion}</code></> : null}
+                <span style={{ color: 'var(--muted)' }}> · {p.mime || 'type ?'}{p.octets !== null ? ` · ${p.octets} octets` : ''}{p.largeur !== null && p.hauteur !== null ? ` · ${p.largeur}×${p.hauteur}` : ''}{p.jetonsMax !== null ? ` · au plus ${p.jetonsMax} jetons` : ''} · sha256 <code style={mono}>{p.sha256 || '·'}</code></span>
+              </li>
+            ))}</ul>
+          </>)}
           {detail.couches.length > 0 && (<>
             <h3 style={{ margin: '14px 0 6px', fontSize: 14, fontWeight: 600 }}>Couches de résolution</h3>
             <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{detail.couches.map((c) => <li key={c.couche}>{c.couche} · <code style={mono}>{c.empreinte.slice(0, 16)}…</code></li>)}</ol>

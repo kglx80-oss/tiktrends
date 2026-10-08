@@ -6,7 +6,7 @@ import { listerRuns, lireRun } from '../../../../lib/studios/prompts/resolveur';
 import { chargerSource } from '../../../../lib/studios/prompts/source';
 import { champsAffiches, variablesDe, diffVersions } from '../../../../lib/studios/prompts/vue';
 import { LIBELLE_TYPE, entierVersVersion, lireEntrees, lireEvaluation, lireRevocation, typeDe, type TypeEntree } from '../../../../lib/studios/prompts/correspondance';
-import { expurgerRun, type LigneRun } from '../../../../lib/studios/prompts/traces';
+import { expurgerRun, type EvaluationTrace, type LigneRun, type PieceTrace } from '../../../../lib/studios/prompts/traces';
 import { PROFILS_ROUTES_ANTHROPIC, modeleTexte } from '../../../../lib/studios/prompts/adaptateur';
 import { listerConnaissances } from '../../../../lib/jarvis-connaissances';
 import type { VueCle, VueDetail, VueRelease, VueEvaluation, VueRun, VueVersion, VueBenchmark } from './Ecrans';
@@ -119,6 +119,9 @@ function versRun(l: LigneRun): VueRun {
     couches: Array.isArray(cfg.couches) ? cfg.couches.map((c: { couche: string; empreinte: string }) => ({ couche: c.couche, empreinte: c.empreinte })) : [],
     constats: Array.isArray(cfg.constats) ? cfg.constats.map((c: { code: string }) => c.code) : [],
     espace: x.espace, marque: x.marque, traceId: x.traceId, budget,
+    // G-A · déjà expurgés par `expurgerRun` (listes blanches de `traces.ts`).
+    evaluation: (cfg.evaluation as EvaluationTrace | null | undefined) ?? null,
+    pieces: Array.isArray(cfg.mediaBindings) ? (cfg.mediaBindings as PieceTrace[]) : [],
   };
 }
 

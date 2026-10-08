@@ -1,6 +1,6 @@
 'use server';
 
-import type { ErreurStudio, PlanImpact, VueJob, StatutQualite } from '@tiktrends/core';
+import { decisionFournisseurStudio, erreurStudio, type ErreurStudio, type PlanImpact, type VueJob, type StatutQualite } from '@tiktrends/core';
 import { gardeStudio } from '../../../lib/studios/garde';
 import { getSession } from '../../../lib/auth';
 import { unlimitedCredits } from '../../../lib/credits';
@@ -19,7 +19,11 @@ import {
  *  · `estimerImpact`, `etatJob` · lecture et calcul, aucune écriture ;
  *  · `creerDevis` · devis immuable, aucune dépense ;
  *  · `approuverEtMettreEnFile` · la SEULE qui engage de l'argent, dans une
- *    transaction (approbation, réserve, débit, job, outbox) ;
+ *    transaction (approbation, réserve, débit, job, outbox) ; refusée AVANT
+ *    toute écriture quand le fournisseur d'images n'est pas branché sur ce
+ *    serveur (`decisionFournisseurStudio`, même règle que le worker et que
+ *    l'écran image) : sans lui le worker ne démarre pas, le job resterait en
+ *    file avec sa réserve débitée et rien ne serait produit ;
  *  · `annulerJob` · demande d'annulation, aucun remboursement promis ;
  *  · `accepterMedia` / `rejeterMedia` · statut qualité seul, aucun coût.
  *
@@ -28,6 +32,9 @@ import {
  */
 
 type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
+
+/** Même phrase que l'écran image (`approuverImagePour`, F-B) · le refus est le même. Non exportée : un fichier « use server » n'exporte que des actions. */
+const MESSAGE_SANS_FOURNISSEUR_IMAGE = 'Le fournisseur d’images n’est pas branché sur ce serveur · rien n’a été approuvé ni débité.';
 
 export async function estimerImpact(entree: { projectId: unknown; versionAvantId?: unknown; operations?: unknown; variante?: unknown }): Promise<Reponse<{ projectVersionId: string; plan: PlanImpact; devisIndicatif: unknown }>> {
   const g = await gardeStudio('studio.read');
@@ -44,6 +51,11 @@ export async function creerDevis(entree: { projectId: unknown; versionAvantId?: 
 export async function approuverEtMettreEnFile(entree: { quoteId: unknown; inputHash: unknown; creditsAnnonces: unknown; idempotencyKey: unknown }): Promise<Reponse<{ job: JobPresente; deja: boolean }>> {
   const g = await gardeStudio('studio.generate');
   if (!g.ok) return g;
+  // G-A · même règle que le worker (F-A) et que l'écran image (F-B) : sans
+  // fournisseur branché, rien ne serait exécuté · refus AVANT toute écriture.
+  if (!decisionFournisseurStudio(process.env).ok) {
+    return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: g.ctx.traceId, message: MESSAGE_SANS_FOURNISSEUR_IMAGE });
+  }
   const s = await getSession();
   const plafond = await spendStatus();
   return approuverCmd(g.ctx, {
