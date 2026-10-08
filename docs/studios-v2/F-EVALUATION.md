@@ -81,6 +81,14 @@ l'empreinte courante ET relit les fiches (une ligne « passée » forgée sans f
 `evaluation.benchmarkApprouve` (+ `approuvePar`, `benchmarkEvaluationId`) par compare-and-set sur `staged` et
 l'empreinte ; il ne publie rien. La publication en production reste le geste séparé, désormais possible.
 
+**Révocation jamais effacée (contre-recette du 8 octobre, P2).** Le lot n'ajoute qu'UNE écriture de
+`studio_prompt_releases.evaluation` : le geste « Benchmark approuvé ». Il prend le verrou de ligne `SELECT … FOR UPDATE`
+dans sa transaction AVANT de lire la release, relit la révocation sous ce verrou (une release révoquée est refusée,
+`RELEASE_REVOQUEE`) et reprend explicitement tout ce que la ligne verrouillée porte, révocation comprise. Le rattachement
+des rapports, la jonction des fiches, l'approbation de budget et sa consommation n'écrivent que des lignes
+`studio_prompt_evaluations`, jamais la colonne `evaluation` de la release. La réévaluation (`evaluerRelease`) n'est pas de
+ce lot (correctif sur #737) ; la garde vérifie qu'elle laisse la révocation intacte.
+
 **Exécuteur image : une barrière, une ligne.** La campagne appelle `sousPlafond` autour de `produire` (une ligne
 `ai_spend` par média). `FournisseurFal` exige une `BarriereDepenseStudio` : l'exécuteur lui donne un port « déjà
 compté » qui n'écrit rien et refuse une seconde réservation pour la même demande. `preparer` (avant la barrière, 0 $)
@@ -112,6 +120,7 @@ l'écran de refus et chaque commande est refusée sans écriture.
 | Exécuteur fal | `fd-executeur-fal` | F14 en réel contre la file rejouée : 2 POST `…/nano-banana-2/edit`, corps `aspect_ratio 9:16`, référence en data URI, clé vers la file seulement, image relue (`text/html` annoncé, PNG relu) ; `ai_spend` = 2 lignes `fal_image 0,08` de la campagne, 0 ligne `studio.generation` |
 | Incertain | `fd-executeur-fal` | coupure après envoi : `F14 arrete_incertain`, `F21 arrete_incertain`, 1 seul POST, F21 jamais appelé, 0,08 $ gardé |
 | Refus avant barrière | `fd-executeur-fal` | F05 : `EXECUTEUR_REFUS` ×2, 0 requête, 0 ligne |
+| Révocation (P2) | `fd-revocation-db`, `fd-revocation-pg` (Postgres réel, `FD_PG_URL`) | témoin non révoqué approuvé ; révoquée : geste refusé `RELEASE_REVOQUEE`, réévaluation acceptée, révocation identique avant et après ; course réelle (révocation tenue sous verrou, geste lancé pendant) : le geste attend, refuse, la révocation validée reste |
 | `--reel` sans budget | commande sur la base locale | refusé (`APPROBATION_ABSENTE`, `EXECUTEUR_NON_BRANCHE` : aucun adaptateur ni clé fal), rien appelé ni écrit |
 | ADMIN | `fd-admin-benchmark` | HTML : total 9,925 $, ligne F07 0,218 $, aucun « non chiffrable », formulaire et confirmation, rapport SIMULÉ et sa bannière, « Ne vaut pas évaluation », geste indisponible ; approbation listée « budget 10,000 $ pour un devis de 9,925 $ · non utilisée » ; owner, admin d'espace, lecteur : écran de refus, 3 commandes refusées, 0 écriture |
 | Simulé complet | `fc-campagne-db` (mis à jour), commande simulée | 24 cas `execute`, 51/51 invariants, `REVUE_HUMAINE_REQUISE`, 0 $, `piecesNatives` dans `config.json` |
@@ -120,6 +129,9 @@ Les tests F-C qui affirmaient l'ancien état (« vision non routée », devis no
 été mis à jour au nouveau résultat, sans relâcher ce qu'ils gardent (`fc-commande`, `fc-campagne-db`, `fc-reel-db`).
 
 ## 4. Mutations (cassées volontairement, échec constaté, code restauré)
+
+M20 reproduit exactement le défaut P2 : sans verrou, le geste lit l'ancienne ligne, attend sur l'UPDATE et écrase la
+révocation validée entre-temps.
 
 | Mutation | Garde qui tombe | Phrase d'échec |
 | --- | --- | --- |
@@ -142,6 +154,8 @@ Les tests F-C qui affirmaient l'ancien état (« vision non routée », devis no
 | M16 rapport non joint accepté | `fd-evaluation-db` | `expected { ok: true, …(3) } to match object { ok: false, …(1) }` |
 | M17 simulé sans contrat des pièces | `fd-vision-adaptateur` | `expected Error: Aucune réponse simulée pour cet ap… to be an instance of PiecesInvalides` |
 | M18 refus de l'exécuteur après la barrière | `fd-executeur-fal` | `expected [ 'PROVIDER_ERROR', 'PROVIDER_ERROR' ] to deeply equal [ Array(2) ]` |
+| M20 geste sans `FOR UPDATE` avant la lecture | `fd-revocation-pg` (Postgres réel) | `la révocation a été effacée par le geste: expected undefined to be 'Révocation concurrente'` |
+| M21 release révoquée acceptée par le geste | `fd-revocation-db` | `expected [] to deeply equal [ 'RELEASE_REVOQUEE' ]` |
 | M19 bannière SIMULÉ retirée de l'écran | `fd-admin-benchmark` | `expected '<main style="padding:32px clamp(16px,…' to contain 'SIMULÉ · exécution sur fournisseurs s…'` |
 
 Aucune n'a survécu au premier passage. M03 tombait par la branche « non chiffrable » ; M03b vise la somme elle-même.
@@ -160,7 +174,8 @@ Aucune n'a survécu au premier passage. M03 tombait par la branche « non chiffr
   première exécution réelle.
 - **Catalogues lus en vision** : seuls les médias studio `sta_` ; photos produit, logos et bibliothèque bloquent.
 - **Fiches** : saisies en collant le JSON (`rapport.json`, `fiche-revue.json`) ; aucun éditeur de fiches.
-- **Concurrence du mode évaluation** prouvée sur pglite (transactions sérialisées), pas sur deux connexions Postgres.
+- **Concurrence du mode évaluation** prouvée sur pglite (transactions sérialisées), pas sur deux connexions Postgres ;
+  la course révocation / geste l'est sur Postgres réel (`fd-revocation-pg`, ignoré sans `FD_PG_URL`).
 - La preuve simulée commitée par F-C (`docs/studios-v2/benchmark/20261008T114529Z-SIMULE/`) date d'avant ce lot
   (vision bloquée) ; une nouvelle campagne simulée (24/24, 51/51) a été produite hors dépôt.
 
