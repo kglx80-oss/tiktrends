@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "bench:studios": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/bench-studios.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
