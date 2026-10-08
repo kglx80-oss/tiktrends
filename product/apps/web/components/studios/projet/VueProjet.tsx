@@ -68,6 +68,7 @@ export function VueProjet({ detail, exportAutorise, variantes = null }: { detail
             { href: `/studio/projets/${projet.id}/image`, libelle: 'Éditer l’image' },
             { href: `/studio/projets/${projet.id}/produit`, libelle: 'Produit et références' },
             { href: `/studio/projets/${projet.id}/textes`, libelle: 'Textes liés au brief' },
+            { href: `/studio/projets/${projet.id}/video`, libelle: 'Vidéo · storyboard et montage' },
           ].map((l) => (
             <Link key={l.href} href={l.href} data-atelier={l.href.split('/').pop()} style={{ ...tuile, padding: '0 14px', fontSize: 13, fontWeight: 650, color: 'var(--ink)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>
               {l.libelle}

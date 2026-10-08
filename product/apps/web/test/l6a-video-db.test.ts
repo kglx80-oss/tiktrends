@@ -275,7 +275,7 @@ describe('images clés des plans · consigne shot.image attestée, devis, approb
     const [audit] = await db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, d.devis.id), eq(schema.studioAuditEvents.action, 'quote.create')));
     expect(audit!.details).toMatchObject({ consignesPlans: empreinteConsignesDevis([c.consigne]) });
     const [q] = await db.select().from(schema.studioQuotes).where(eq(schema.studioQuotes.id, d.devis.id));
-    const [ip] = await db.select().from(schema.studioImpactPlans).where(eq(schema.studioImpactPlans.id, q!.impactPlanId));
+    const [ip] = await db.select().from(schema.studioImpactPlans).where(eq(schema.studioImpactPlans.id, q!.impactPlanId!));
     const [rel] = q!.promptReleaseId ? await db.select().from(schema.studioPromptReleases).where(eq(schema.studioPromptReleases.id, q!.promptReleaseId)) : [];
     expect(d.devis.inputHash).toBe(empreinteEntreesDevisImage({
       workspaceId: ids.wsA, brandId: ids.brandA1, projectId, projectVersionId: r.version.id, contentHash: r.version.contentHash, impactPlanHash: ip!.planHash,
