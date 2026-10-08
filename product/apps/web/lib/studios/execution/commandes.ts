@@ -6,7 +6,7 @@ import {
   calculerPlanImpact, lignesDuDevis, empreinteEntreesDevis, expirationDevis, dureeValidite, verifierApprobation,
   decisionIdempotence, cleIdempotenceValide, refsDuJob, refusPlafondDollars, bilanRegistre, preuveSoumission,
   vueJob, transitionJob, transitionQualite, jobTerminal, objetDansPortee, erreurStudio,
-  operationsNonVerifiables, DECODEUR_VIDEO_WORKER, PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
+  operationsNonVerifiables, operationsSansFournisseur, FOURNISSEUR_ANIMATION_BRANCHE, PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
   type ContenuVersion, type PlanImpact, type LigneDevis, type ErreurStudio, type SnapshotJob, type VueJob,
   type EtatJob, type StatutQualite, type EpinglageDevis,
 } from '@tiktrends/core';
@@ -21,6 +21,8 @@ import { raccordImageDevis, parametresImageApprobation } from '../image/raccord'
 import { refusIdentitesDevis } from '../identites/devis';
 // L6-A · raccord des images clés des plans vidéo (`keyframe:<plan>` hors `s_image`) · même modèle que F-B.
 import { raccordPlansDevis, parametresPlansApprobation } from '../image/plans';
+// L7-B · capacité vidéo SONDÉE par le worker (ffmpeg réel), jamais une constante.
+import { lireCapaciteVideo } from './capacite-video';
 import type { BaseStudio, ExecStudio, TxStudio } from './types';
 
 /**
@@ -188,9 +190,15 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       }
       // Une sortie que le worker ne saurait pas vérifier n'est jamais devisée :
       // aucun devis pour un échec certain (contre-recette du 8 octobre).
-      const nonVerifiables = operationsNonVerifiables(l.lignes, { video: DECODEUR_VIDEO_WORKER });
+      const capacite = await lireCapaciteVideo(tx, maintenant);
+      const nonVerifiables = operationsNonVerifiables(l.lignes, { video: capacite.decodage });
       if (nonVerifiables.length) {
         throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: nonVerifiables, message: `Vidéo indisponible · le service ne sait pas encore vérifier une vidéo produite · ${nonVerifiables.join(', ')}. Retire-la du devis.` }));
+      }
+      // Vérifiable ne suffit pas : sans fournisseur d'animation, le job échouerait au worker après débit.
+      const sansFournisseur = operationsSansFournisseur(l.lignes, { animation: FOURNISSEUR_ANIMATION_BRANCHE });
+      if (sansFournisseur.length) {
+        throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: sansFournisseur, message: `Animation indisponible · aucun fournisseur d’animation n’est branché sur ce serveur · ${sansFournisseur.join(', ')}. Retire-la du devis.` }));
       }
       // L6-B · identités : un plan qui contredit sa fiche ne se devise pas (VIDEO-02).
       const identites = refusIdentitesDevis(ctx, courante.content as ContenuVersion, l.lignes);

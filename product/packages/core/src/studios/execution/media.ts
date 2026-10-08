@@ -296,8 +296,37 @@ function inspecterMp4(o: Uint8Array): EnteteMedia | null {
  * plante (binaire absent) : c'est l'infrastructure, pas le fichier.
  */
 export type ResultatDecodage =
-  | { ok: true; largeur: number; hauteur: number; canaux: number; octetsPixels: number }
+  | { ok: true; largeur: number; hauteur: number; canaux: number; octetsPixels: number; video?: InfosVideo }
   | { ok: false; cause: 'contenu' | 'decodeur'; raison: string };
+
+/**
+ * Ce que le décodage COMPLET d'une vidéo a constaté (worker, ffprobe PUIS
+ * ffmpeg sur toutes les images). Les durées sont en ticks de
+ * `TIMEBASE_VIDEO` (microsecondes), le débit d'images est rationnel.
+ */
+export interface InfosVideo {
+  codec: string;
+  fps: { num: number; den: number };
+  /** Images réellement décodées par ffmpeg (lecture complète). */
+  images: number;
+  /** Images annoncées par le conteneur (`nb_frames`) · `null` s'il ne le dit pas. */
+  imagesAnnoncees: number | null;
+  dureeTicks: number;
+  audio: { codec: string; dureeTicks: number | null; creteDb: number | null; sature: boolean } | null;
+  /** Images début, milieu, fin extraites en PNG puis décodées pixel par pixel. */
+  extraits: ReadonlyArray<ImageExtraite>;
+}
+
+export interface ImageExtraite {
+  /** Rang de l'image dans le flux décodé (0 = première). */
+  rang: number;
+  largeur: number;
+  hauteur: number;
+  canaux: number;
+  octetsPixels: number;
+  /** Moyenne par canal (0-255), arrondie · prouve des pixels, pas un en-tête. */
+  moyenne: number[];
+}
 
 /**
  * Le décodeur du worker. `decoderVideo` ABSENT = aucun décodeur vidéo : une
@@ -331,7 +360,29 @@ export function verdictDecodage(entete: EnteteMedia, d: ResultatDecodage | 'deco
   if (entete.mime.startsWith('image/') && (d.canaux < 1 || d.octetsPixels !== d.largeur * d.hauteur * d.canaux)) {
     return { livrable: false, suite: 'retelecharger', raison: `pixels incomplets · ${d.octetsPixels} octets pour ${d.largeur}×${d.hauteur}×${d.canaux}` };
   }
+  if (entete.mime.startsWith('video/')) {
+    const refus = refusLectureVideo(d.video, d.largeur, d.hauteur);
+    if (refus) return { livrable: false, suite: 'retelecharger', raison: refus };
+  }
   return { livrable: true, largeur: d.largeur, hauteur: d.hauteur };
+}
+
+/**
+ * Une vidéo n'est livrable que LUE EN ENTIER : des images décodées, autant
+ * que le conteneur en annonce, et les images début, milieu, fin extraites aux
+ * dimensions de la vidéo, pixels complets. `null` = rien à redire.
+ */
+export function refusLectureVideo(v: InfosVideo | undefined, largeur: number, hauteur: number): string | null {
+  if (!v) return 'vidéo sans lecture complète · aucun constat de décodage des images';
+  if (!(v.images > 0)) return 'vidéo sans aucune image décodée';
+  if (v.imagesAnnoncees !== null && v.imagesAnnoncees !== v.images) return `lecture incomplète · ${v.images} images décodées sur ${v.imagesAnnoncees} annoncées`;
+  if (!(v.fps.num > 0 && v.fps.den > 0)) return 'débit d’images illisible';
+  if (v.extraits.length < Math.min(3, v.images)) return `images début, milieu, fin non extraites (${v.extraits.length})`;
+  for (const x of v.extraits) {
+    if (x.largeur !== largeur || x.hauteur !== hauteur) return `image ${x.rang} extraite en ${x.largeur}×${x.hauteur}, vidéo ${largeur}×${hauteur}`;
+    if (x.canaux < 1 || x.octetsPixels !== x.largeur * x.hauteur * x.canaux) return `image ${x.rang} aux pixels incomplets`;
+  }
+  return null;
 }
 
 /**
@@ -349,12 +400,102 @@ export function decisionMediaRefuse(essais: number): 'retelecharger' | 'echec' {
 }
 
 /**
- * Le worker sait-il DÉCODER une vidéo ? Non : ni ffmpeg ni ffprobe dans son
- * image (contre-recette du 8 octobre). Source unique pour le devis (refus dès
- * le devis) et pour le worker (refus avant soumission) · à passer à `true`
- * seulement avec un décodeur vidéo réel prouvé sur une vraie vidéo.
+ * Valeur SANS PREUVE de la capacité vidéo · ce que rend `capaciteVideo` quand
+ * aucune sonde fraîche n'existe. Ce n'est plus la source de la décision :
+ * devis, écran et worker lisent la capacité SONDÉE (`capaciteVideo`), publiée
+ * par le worker après avoir décodé un échantillon réel (ffmpeg). Gardée pour
+ * les lecteurs anciens · ne pas lire pour décider.
+ * @deprecated lire `capaciteVideo(sonde, maintenant).decodage`.
  */
 export const DECODEUR_VIDEO_WORKER = false;
+
+/* ─────────────────────── Capacité vidéo SONDÉE ─────────────────────────── */
+
+/** Ligne `app_settings` où le worker publie sa sonde vidéo (aucune migration). */
+export const CLE_SONDE_VIDEO = 'studio:capacite-video';
+
+/**
+ * Ce que le worker a CONSTATÉ au démarrage puis à chaque `INTERVALLE_SONDE_VIDEO_MS` :
+ * `ffmpeg -version`, la liste des encodeurs, et le décodage COMPLET d'un
+ * échantillon minuscule généré à la volée (images comptées, pixels lus).
+ */
+export interface SondeVideo {
+  version: 1;
+  sondeLe: string;
+  workerId: string;
+  /** Première ligne de `ffmpeg -version` · `null` = binaire absent. */
+  ffmpeg: string | null;
+  decodage: { ok: boolean; raison: string; dureeMs: number };
+  encodeurs: { libx264: boolean; aac: boolean };
+}
+
+export interface CapaciteVideo {
+  /** Le worker sait décoder ET vérifier une vidéo produite, preuve fraîche à l'appui. */
+  decodage: boolean;
+  /** Encodeurs constatés · jamais annoncés sans décodage prouvé. */
+  encodeurs: { libx264: boolean; aac: boolean };
+  raison: string;
+  sondeLe: string | null;
+}
+
+/**
+ * Mesure (conteneur de développement, 4 cœurs, ffmpeg 6.1.1, 20 sondes
+ * complètes : version, encodeurs, échantillon 32×32 de 12 images généré,
+ * ffprobe, décodage complet, 3 extraits, crête audio) :
+ *
+ *   | sonde complète | min 0,42 s | médiane 0,48 s | max 0,55 s |
+ *
+ * Le worker resonde toutes les 5 min (≈ 0,2 % d'un cœur au pire mesuré).
+ * La preuve reste valable TROIS intervalles : deux sondes manquées (worker
+ * redémarré, reconstruit par le déploiement à la minute, base indisponible
+ * un instant) ne retirent pas la capacité ; un worker arrêté depuis plus d'un
+ * quart d'heure ne la promet plus. Un job accepté entre-temps n'est jamais
+ * soumis sans décodeur : le worker garde sa propre barrière
+ * (`operationsNonVerifiables` au démarrage du job).
+ */
+export const INTERVALLE_SONDE_VIDEO_MS = 5 * 60_000;
+export const FRAICHEUR_SONDE_VIDEO_MS = 3 * INTERVALLE_SONDE_VIDEO_MS;
+/** Une sonde datée dans le futur au-delà de cette dérive d'horloge n'est pas une preuve. */
+export const DERIVE_HORLOGE_SONDE_MS = 60_000;
+
+const SANS_CAPACITE = (raison: string, sondeLe: string | null = null): CapaciteVideo =>
+  ({ decodage: false, encodeurs: { libx264: false, aac: false }, raison, sondeLe });
+
+/** Relit une sonde venue de la base (JSON quelconque) · `null` si ce n'en est pas une. */
+export function lireSondeVideo(x: unknown): SondeVideo | null {
+  if (!x || typeof x !== 'object') return null;
+  const s = x as Record<string, unknown>;
+  const d = s.decodage as Record<string, unknown> | null | undefined;
+  const e = s.encodeurs as Record<string, unknown> | null | undefined;
+  if (s.version !== 1 || typeof s.sondeLe !== 'string' || typeof s.workerId !== 'string') return null;
+  if (!(s.ffmpeg === null || typeof s.ffmpeg === 'string')) return null;
+  if (!d || typeof d !== 'object' || typeof d.ok !== 'boolean' || typeof d.raison !== 'string' || typeof d.dureeMs !== 'number') return null;
+  if (!e || typeof e !== 'object' || typeof e.libx264 !== 'boolean' || typeof e.aac !== 'boolean') return null;
+  return {
+    version: 1, sondeLe: s.sondeLe, workerId: s.workerId, ffmpeg: s.ffmpeg as string | null,
+    decodage: { ok: d.ok, raison: d.raison, dureeMs: d.dureeMs }, encodeurs: { libx264: e.libx264, aac: e.aac },
+  };
+}
+
+/**
+ * La capacité vidéo, DÉCIDÉE depuis la dernière sonde publiée. Par défaut
+ * (aucune sonde, sonde illisible, périmée, datée dans le futur, ffmpeg absent,
+ * échantillon non décodé) : `decodage: false` · le devis refuse l'animation,
+ * l'écran la dit indisponible.
+ */
+export function capaciteVideo(sonde: unknown, maintenant: Date): CapaciteVideo {
+  if (sonde === null || sonde === undefined) return SANS_CAPACITE('aucune sonde vidéo publiée par le worker');
+  const s = lireSondeVideo(sonde);
+  if (!s) return SANS_CAPACITE('sonde vidéo illisible');
+  const t = Date.parse(s.sondeLe);
+  if (!Number.isFinite(t)) return SANS_CAPACITE('sonde vidéo sans date lisible');
+  const age = maintenant.getTime() - t;
+  if (age < -DERIVE_HORLOGE_SONDE_MS) return SANS_CAPACITE('sonde vidéo datée dans le futur', s.sondeLe);
+  if (age > FRAICHEUR_SONDE_VIDEO_MS) return SANS_CAPACITE(`sonde vidéo périmée · ${Math.floor(age / 60_000)} min, preuve valable ${FRAICHEUR_SONDE_VIDEO_MS / 60_000} min`, s.sondeLe);
+  if (!s.ffmpeg) return SANS_CAPACITE(`ffmpeg absent du worker · ${s.decodage.raison}`, s.sondeLe);
+  if (!s.decodage.ok) return SANS_CAPACITE(`échantillon vidéo non décodé par le worker · ${s.decodage.raison}`, s.sondeLe);
+  return { decodage: true, encodeurs: { ...s.encodeurs }, raison: '', sondeLe: s.sondeLe };
+}
 
 /**
  * Opérations dont la sortie ne pourrait PAS être vérifiée par ce worker : une
@@ -366,6 +507,26 @@ export function operationsNonVerifiables(
   decodeur: { video: boolean },
 ): string[] {
   return operations.filter((op) => op.profil === 'animation' && !decodeur.video).map((op) => op.operation);
+}
+
+/**
+ * Aucun adaptateur de fournisseur VIDÉO dans le code : le seul fournisseur
+ * branché est l'image (fal), qui refuse l'animation avant tout envoi
+ * (`coutSoumissionImage`). Fait du CODE, pas de l'infrastructure : il ne
+ * change qu'avec un adaptateur vidéo, qui le déclarera.
+ */
+export const FOURNISSEUR_ANIMATION_BRANCHE = false;
+
+/**
+ * Animations qu'AUCUN fournisseur branché ne saurait produire. Même vérifiable
+ * (décodeur présent), une animation sans fournisseur ne se devise pas : le
+ * job échouerait au worker après débit des crédits.
+ */
+export function operationsSansFournisseur(
+  operations: ReadonlyArray<{ operation: string; profil: string }>,
+  fournisseur: { animation: boolean },
+): string[] {
+  return operations.filter((op) => op.profil === 'animation' && !fournisseur.animation).map((op) => op.operation);
 }
 
 /** Ce que le fournisseur (ou un contrôle automatique) dit d'une sortie. */

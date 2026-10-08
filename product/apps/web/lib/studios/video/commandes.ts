@@ -22,8 +22,10 @@ import { mediasProduits } from './lecture';
  *  · `approuverKeyframePour` · `studio.generate`, la SEULE qui engage de
  *    l'argent, refusée si le fournisseur d'images n'est pas branché.
  *
- * L'animation n'a aucun geste ici : `DECODEUR_VIDEO_WORKER = false`, un clip
- * est refusé dès le devis (L3), l'écran le dit.
+ * L'animation n'a aucun geste ici : un clip est refusé dès le devis (L3)
+ * tant que le worker n'a pas PROUVÉ son décodeur vidéo (sonde fraîche,
+ * `lireCapaciteVideo`) et tant qu'aucun fournisseur d'animation n'est branché
+ * (`FOURNISSEUR_ANIMATION_BRANCHE`) ; l'écran le dit.
  */
 
 export type Resultat<T> = ({ ok: true } & T) | ErreurStudio;

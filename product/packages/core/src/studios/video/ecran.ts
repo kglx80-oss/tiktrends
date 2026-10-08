@@ -5,7 +5,9 @@
  * Pur. Une capacité que le fournisseur ou l'infrastructure ne permet pas
  * d'exécuter n'est jamais présentée comme disponible : l'animation reste
  * « Vidéo indisponible · aucun décodeur vidéo » tant que le worker ne sait
- * pas vérifier une vidéo produite (`DECODEUR_VIDEO_WORKER`).
+ * pas vérifier une vidéo produite (capacité SONDÉE, `capaciteVideo`), et
+ * reste indisponible tant qu'aucun fournisseur d'animation n'est branché
+ * (`FOURNISSEUR_ANIMATION_BRANCHE`), même décodeur prouvé.
  */
 
 import type { ContenuVersion, ModeParole } from '../document';
@@ -17,6 +19,7 @@ import { idsPlansAlloues, PLANS_MAX, DUREE_CIBLE_MIN_MS, DUREE_CIBLE_MAX_MS } fr
 
 export const LIBELLE_ANIMATION_INDISPONIBLE = 'Vidéo indisponible · aucun décodeur vidéo';
 export const RAISON_ANIMATION_INDISPONIBLE = 'Le service ne sait pas encore vérifier une vidéo produite : aucune animation n’est proposée, devisée ni facturée. Les images clés, le montage et le texte restent utilisables.';
+export const RAISON_ANIMATION_SANS_FOURNISSEUR = 'Le service sait vérifier une vidéo produite, mais aucun fournisseur d’animation n’est branché : aucune animation n’est proposée, devisée ni facturée. Les images clés, le montage et le texte restent utilisables.';
 
 export interface EntreeDisponibiliteVideo {
   peutGenerer: boolean;
@@ -25,7 +28,10 @@ export interface EntreeDisponibiliteVideo {
   fournisseurTexte: boolean;
   plafondAtteint: boolean;
   fournisseurImage: boolean;
+  /** Capacité SONDÉE du worker (`capaciteVideo(...).decodage`), jamais une constante. */
   decodeurVideo: boolean;
+  /** Un fournisseur d'animation est branché · absent = non. */
+  fournisseurVideo?: boolean;
   briefPresent: boolean;
 }
 
@@ -59,7 +65,9 @@ export function disponibiliteVideo(e: EntreeDisponibiliteVideo): DisponibiliteVi
       : !e.fournisseurImage ? non('Le fournisseur d’images n’est pas branché sur ce serveur · aucun lancement possible, rien n’est débité.')
       : e.plafondAtteint ? non('Le plafond de dépense est atteint · aucun lancement avant le prochain cycle.')
       : oui,
-    animation: e.decodeurVideo ? oui : non(RAISON_ANIMATION_INDISPONIBLE),
+    animation: !e.decodeurVideo ? non(RAISON_ANIMATION_INDISPONIBLE)
+      : e.fournisseurVideo !== true ? non(RAISON_ANIMATION_SANS_FOURNISSEUR)
+      : oui,
   };
 }
 

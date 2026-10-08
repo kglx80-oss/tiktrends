@@ -1,5 +1,11 @@
 FROM node:22-alpine AS build
 RUN corepack enable
+# Studios L7-B · décodage vidéo RÉEL des sorties (ffprobe PUIS ffmpeg, toutes
+# les images). Paquet `ffmpeg` du dépôt community d'Alpine (ffmpeg et ffprobe).
+# Aucune capacité n'est promise par cette ligne : au démarrage, le worker sonde
+# ffmpeg (version, encodeurs, échantillon généré puis décodé) et ne publie la
+# capacité vidéo que si l'échantillon est lu en entier.
+RUN apk add --no-cache ffmpeg
 WORKDIR /app
 COPY pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
 COPY packages ./packages

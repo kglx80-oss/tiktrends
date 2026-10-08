@@ -1,7 +1,9 @@
 import { schema, eq, and, isNull, sql } from '@tiktrends/db';
-import type { DecodeurMedia, FournisseurStudio, StockageStudio } from '@tiktrends/core';
+import { capaciteVideo, type DecodeurMedia, type FournisseurStudio, type StockageStudio } from '@tiktrends/core';
 import { MoteurStudio } from './moteur';
 import { DecodeurSharp } from './decodeur';
+import { decoderVideoFfmpeg } from './decodeur-video';
+import { demarrerSondeVideo } from './sonde-video';
 import type { BaseStudio, EntreeJournal } from './types';
 
 /**
@@ -13,12 +15,23 @@ export function demarrerBoucleStudio(o: {
   base: BaseStudio;
   fournisseur: FournisseurStudio;
   stockage: StockageStudio;
-  /** Décodage réel des sorties · `sharp` pour les images, aucune vidéo par défaut. */
+  /**
+   * Décodage réel des sorties · par défaut `sharp` pour les images et
+   * ffmpeg pour la vidéo, ce dernier ACTIF seulement tant que la sonde de ce
+   * processus est fraîche et a décodé son échantillon (`capaciteVideo`).
+   */
   decodeur?: DecodeurMedia;
   intervalleMs?: number;
   journal?: (e: EntreeJournal) => void;
 }): { arreter: () => void; moteur: MoteurStudio } {
-  const moteur = new MoteurStudio({ base: o.base, fournisseur: o.fournisseur, stockage: o.stockage, decodeur: o.decodeur ?? new DecodeurSharp(), journal: o.journal, secretWebhook: process.env.STUDIO_WEBHOOK_SECRET ?? null });
+  let sonde: ReturnType<typeof demarrerSondeVideo> | null = null;
+  let decodeur = o.decodeur;
+  if (!decodeur) {
+    const s = demarrerSondeVideo({ base: o.base });
+    sonde = s;
+    decodeur = new DecodeurSharp({ video: (octets) => decoderVideoFfmpeg(octets), videoActif: () => capaciteVideo(s.derniere(), new Date()).decodage });
+  }
+  const moteur = new MoteurStudio({ base: o.base, fournisseur: o.fournisseur, stockage: o.stockage, decodeur, journal: o.journal, secretWebhook: process.env.STUDIO_WEBHOOK_SECRET ?? null });
   let enCours = false;
   const minuterie = setInterval(async () => {
     if (enCours) return;
@@ -32,7 +45,7 @@ export function demarrerBoucleStudio(o: {
       enCours = false;
     }
   }, o.intervalleMs ?? 2_000);
-  return { arreter: () => clearInterval(minuterie), moteur };
+  return { arreter: () => { clearInterval(minuterie); sonde?.arreter(); }, moteur };
 }
 
 export type EvenementOutbox = typeof schema.studioOutbox.$inferSelect;

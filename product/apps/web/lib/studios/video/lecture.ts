@@ -3,7 +3,7 @@ import { and, desc, eq, gt, inArray, isNull, like } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   aPermissionEspace, disponibiliteVideo, sortiesValides, segmentsPlans, dureePlanMs, estSansTexte, estBriefCanonique, lireSnapshotJob,
-  prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, formatVideo, LIBELLES_ETAT_IMAGE, DECODEUR_VIDEO_WORKER,
+  prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, formatVideo, LIBELLES_ETAT_IMAGE, FOURNISSEUR_ANIMATION_BRANCHE,
   type ContenuVersion, type DisponibiliteVideo, type EtatJob, type LigneDevis, type StatutQualite, type VerdictConsignePlan,
   type ConsignePlanPersistee, type ErreurStudio, erreurStudio,
 } from '@tiktrends/core';
@@ -13,6 +13,7 @@ import { etatJob } from '../execution/commandes';
 import { ROUTE_APERCU_MEDIA } from '../editeur/apercus';
 import { verifierConsignePlan } from '../image/plans';
 import { consignesCompileesSur } from './consigne';
+import { lireCapaciteVideo } from '../execution/capacite-video';
 import type { ExecStudio } from '../execution/types';
 
 /**
@@ -168,6 +169,9 @@ export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: 
   )).orderBy(desc(S.createdAt)).limit(20)).map((m, i) => ({ assetId: m.id, libelle: `Piste ${i + 1}${m.durationMs ? ` · ${Math.round(m.durationMs / 1000)} s` : ''}` }));
   if (contenu.timeline?.music && !musiques.some((m) => m.assetId === contenu.timeline!.music!.assetId)) musiques.unshift({ assetId: contenu.timeline.music.assetId, libelle: 'Piste actuelle' });
 
+  // L7-B · capacité vidéo SONDÉE par le worker · sans preuve fraîche, l'animation reste dite indisponible.
+  const capacite = await lireCapaciteVideo(db, o.maintenant);
+
   return {
     ok: true,
     vue: {
@@ -185,7 +189,7 @@ export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: 
       disponibilite: disponibiliteVideo({
         peutGenerer: aPermissionEspace(ctx.permissions, 'studio.generate'), peutProposer: aPermissionEspace(ctx.permissions, 'studio.propose'),
         releasePubliee: o.releasePubliee, fournisseurTexte: o.fournisseurTexte, plafondAtteint: o.plafondAtteint, fournisseurImage: o.fournisseurImage,
-        decodeurVideo: DECODEUR_VIDEO_WORKER, briefPresent: estBriefCanonique(contenu.brief),
+        decodeurVideo: capacite.decodage, fournisseurVideo: FOURNISSEUR_ANIMATION_BRANCHE, briefPresent: estBriefCanonique(contenu.brief),
       }),
       coutTexteUsd: o.coutTexteUsd,
       prix: prixImage(),
