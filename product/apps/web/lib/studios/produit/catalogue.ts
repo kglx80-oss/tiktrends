@@ -7,6 +7,7 @@ import {
   lireReferencesSources, lireReferenceEpinglee, lireReferenceProduit, validerFormeBrief, objetDansPortee, erreurStudio,
   type BriefCanonique, type ContenuVersion, type EmpreinteFichier, type FichierCatalogue, type ProduitMarque,
   type ReferenceProduitEpinglee, type ReferenceProduitStudio, type SourceReferenceStudio, type ErreurStudio,
+  libelleMediaStudio,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { lireProjet, lireVersion, type ProjetStudio, type VersionStudio } from '../depot';
@@ -135,13 +136,13 @@ export async function chargerCatalogueProjet(
   }
 
   const S = schema.studioAssets;
-  const medias = await db.select({ id: S.id, sha256: S.sha256, mime: S.mime, workspaceId: S.workspaceId, brandId: S.brandId })
+  const medias = await db.select({ id: S.id, sha256: S.sha256, mime: S.mime, origin: S.origin, workspaceId: S.workspaceId, brandId: S.brandId })
     .from(S).where(and(eq(S.workspaceId, ctx.workspaceId), eq(S.brandId, brandId), eq(S.storageState, 'stored')))
     .orderBy(desc(S.createdAt)).limit(MEDIAS_STUDIO_MAX);
   for (const m of medias) {
     if (!m.mime.startsWith('image/') || !estEmpreinte(m.sha256)) continue;
     const assetId = idMediaStudio(m.id);
-    fichiers.set(assetId, { assetId, assetVersion: versionDepuisEmpreinte(m.sha256), sha256: m.sha256, nature: 'contenu', provenance: 'studio', libelle: `Média du studio · ${m.id.slice(0, 8)}`, productId: null, position: null, annonceur: null, apercu: false, url: null });
+    fichiers.set(assetId, { assetId, assetVersion: versionDepuisEmpreinte(m.sha256), sha256: m.sha256, nature: 'contenu', provenance: 'studio', libelle: libelleMediaStudio(m.origin, m.id), productId: null, position: null, annonceur: null, apercu: false, url: null });
   }
 
   // Sources du projet · seules les sources ENCORE lisibles s'associent (une

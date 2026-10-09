@@ -134,3 +134,25 @@ export function photosDuProduit(p: ProduitCatalogue, hacher: (url: string) => Em
  */
 export interface VarianteCatalogue { id: string | null; libelle: string }
 export const VARIANTE_UNIQUE: VarianteCatalogue = { id: null, libelle: 'Variante unique · le catalogue n’a pas de variantes' };
+
+/* ───────────── Libellé d'un média studio selon son ORIGINE (raccord L9) ───── */
+
+export type OrigineMediaStudio = 'upload' | 'generated' | 'legacy' | 'import' | 'render';
+
+/**
+ * Le catalogue nommait tout média `studio_assets` « Média du studio », sans
+ * lire son origine : un ancien média (`legacy`, migré) passait pour un média
+ * produit par le studio (recette L9-A, MIG-02 : « pas de provenance
+ * inventée »). Le libellé dit désormais d'où vient le média.
+ */
+export function libelleMediaStudio(origine: string, id: string): string {
+  const court = id.slice(0, 8);
+  switch (origine) {
+    case 'generated': return `Média du studio · ${court}`;
+    case 'legacy': return `Ancien média · ${court}`;
+    case 'upload': return `Média déposé · ${court}`;
+    case 'import': return `Média importé · ${court}`;
+    case 'render': return `Rendu exporté · ${court}`;
+    default: return `Média · ${court}`;
+  }
+}
