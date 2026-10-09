@@ -15,6 +15,7 @@
     "recette:pas1": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/recette/pas1.ts",
     "recette:budget": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/recette/budget.ts",
     "recette:budget:saisir": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/recette/budget-saisir.ts",
+    "recette:budget:deverrouiller": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/recette/deverrouiller.ts",
     "recette:bench": "pnpm --filter @tiktrends/workers exec tsx --import ../web/scripts/bench-studios-chargeur.mjs ../web/scripts/recette/bench.ts"
   },
   "dependencies": {

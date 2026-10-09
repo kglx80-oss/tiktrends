@@ -56,7 +56,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { closeSync, copyFileSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeSync } from 'node:fs';
+import { closeSync, copyFileSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -257,19 +257,34 @@ export function journaliser(dossier: string, entree: Record<string, unknown>): v
 }
 
 /**
- * Écriture ATOMIQUE, SOUS VERROU · temporaire + `fsync`, version précédente
- * gardée en `.prec`, confirmation que le verrou est toujours à nous, puis
- * `rename`. Sans verrou tenu, rien n'est écrit.
+ * E4 · points de suspension INJECTABLES d'une écriture (gardes seulement) ·
+ * `apresConfirmation` juste après `confirmer`, `avantPublication` juste avant
+ * le `rename` qui publie. Un détenteur suspendu à l'un ou l'autre garde le
+ * verrou : personne ne le reprend sur son âge (`verrou.ts`).
  */
-export function ecrireRegistre(dossier: string, reg: RegistreBudget, verrou: Verrou): void {
+export interface PointsSuspension { apresConfirmation?: () => Promise<void>; avantPublication?: () => Promise<void> }
+
+/**
+ * Écriture ATOMIQUE, SOUS VERROU · temporaire propre à l'écriture + `fsync`,
+ * confirmation que le verrou est toujours à nous, version précédente gardée
+ * en `.prec`, puis `rename`. Sans verrou tenu, rien n'est écrit.
+ */
+export async function ecrireRegistre(dossier: string, reg: RegistreBudget, verrou: Verrou, points: PointsSuspension = {}): Promise<void> {
   mkdirSync(dossier, { recursive: true });
   const f = join(dossier, FICHIER_REGISTRE);
-  const tmp = `${f}.tmp-${process.pid}`;
+  const tmp = `${f}.tmp-${process.pid}-${randomUUID()}`;
   const fd = openSync(tmp, 'w', 0o600);
   try { writeSync(fd, `${JSON.stringify(reg, null, 2)}\n`); fsyncSync(fd); } finally { closeSync(fd); }
-  verrou.confirmer();
-  if (existsSync(f)) copyFileSync(f, `${f}.prec`);
-  renameSync(tmp, f);
+  try {
+    verrou.confirmer();
+    if (points.apresConfirmation) await points.apresConfirmation();
+    if (existsSync(f)) copyFileSync(f, `${f}.prec`);
+    if (points.avantPublication) await points.avantPublication();
+    renameSync(tmp, f);
+  } catch (e) {
+    try { unlinkSync(tmp); } catch { /* déjà publié ou parti */ }
+    throw e;
+  }
   // Le renommage lui-même est rendu durable (entrée de répertoire).
   try { const d = openSync(dossier, 'r'); try { fsyncSync(d); } finally { closeSync(d); } } catch { /* système sans fsync de dossier */ }
 }
@@ -353,8 +368,13 @@ export async function engagerEssai(dossier: string, o: {
   commande: string; reservationMicros: number; lu: LectureBase; maintenant?: Date; id?: string;
   /** Crochet de test · appelé sous verrou entre la décision et l'écriture (élargit une course). */
   avantEcriture?: () => Promise<void>;
+  /** E4 · gardes seulement · suspend l'écriture après la confirmation du verrou, ou juste avant la publication. */
+  suspension?: PointsSuspension;
+  /** Attente maximale du verrou (défaut `ATTENTE_VERROU_MS`). */
+  attenteVerrouMs?: number;
 }): Promise<ResultatEngagement> {
   const id = o.id ?? `${o.commande}:${randomUUID()}`;
+  const horloge = o.maintenant ? { maintenantMs: () => o.maintenant!.getTime() } : {};
   return sousVerrou(dossier, async (verrou) => {
     const maintenant = o.maintenant ?? new Date();
     const e = etatDepuis(dossier, lireFichierRegistre(dossier), o.lu, maintenant);
@@ -370,11 +390,11 @@ export async function engagerEssai(dossier: string, o: {
     const registre: RegistreBudget = { ...e.registre, engagements: { ...e.registre.engagements, [id]: engagement }, majLe: maintenant.toISOString() };
     const bilan = bilanRegistre(registre);
     if (o.avantEcriture) await o.avantEcriture();
-    ecrireRegistre(dossier, registre, verrou);
+    await ecrireRegistre(dossier, registre, verrou, o.suspension);
     if (e.initialiser) journaliser(dossier, { le: maintenant.toISOString(), type: 'initialisation', commande: o.commande, base: e.base });
     journaliser(dossier, { le: maintenant.toISOString(), type: 'engagement', commande: o.commande, engagement: id, reservationMaximaleUsdMicros: o.reservationMicros, base: e.base, changees: e.changees, bilan });
     return { ok: true, engagement, bilan, registre, deja: false, depenseFenetreUsd: e.depenseFenetreUsd };
-  });
+  }, { ...horloge, ...(o.attenteVerrouMs !== undefined ? { attenteMaxMs: o.attenteVerrouMs } : {}) });
 }
 
 export type ResultatCloture =
@@ -416,7 +436,7 @@ export async function cloreEssai(dossier: string, id: string, issue: IssueEngage
     const neuf: RegistreBudget = { ...reg, lignes, engagements: { ...reg.engagements, [id]: t.engagement }, majLe: maintenant.toISOString() };
     const bilan = bilanRegistre(neuf);
     // Écritures IDEMPOTENTES · rejouer la même clôture ne change ni l'état ni le montant ; seule la fusion des lignes est rafraîchie.
-    if (t.change || aRattacher.length > 0 || lu !== null) ecrireRegistre(dossier, neuf, verrou);
+    if (t.change || aRattacher.length > 0 || lu !== null) await ecrireRegistre(dossier, neuf, verrou);
     if (t.change || aRattacher.length > 0) {
       journaliser(dossier, { le: maintenant.toISOString(), type: 'cloture', engagement: id, commande: g.commande, issue: t.engagement.etat, regleUsdMicros: t.engagement.regleMicros, cause: t.engagement.cause, rattachees: aRattacher, base: lu?.base ?? null, bilan });
     }

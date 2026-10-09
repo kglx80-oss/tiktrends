@@ -21,6 +21,11 @@ import { violationsCommandesDocker, violationsRegistre } from '../scripts/recett
  *    (pas de dossier du registre créé). Un échec de phase 2 arrête aussi tout
  *    ce qui suit. Jamais une valeur du fichier d'env, même renvoyée par un
  *    outil.
+ *  · E4 · l'isolement n'analyse rien sans que la LISTE des conteneurs puis
+ *    CHAQUE inspection aient réussi et rendu une sortie lisible : échec de
+ *    `docker ps` ou de `docker inspect` (même avec une sortie partielle qui
+ *    paraît valide), message sans préfixe, sortie vide ou d'un autre
+ *    conteneur ⇒ ÉCHEC, aucun build, up ni run.
  */
 
 const PRODUIT = join(process.cwd(), '..', '..');
@@ -58,11 +63,20 @@ volumes:
 FIN
   ;;
   *" build"*) [ -n "\${BUILD_KO:-}" ] && { echo "échec de construction"; exit 1; } ;;
-  *" up -d"*) [ -n "\${UP_KO:-}" ] && { echo "échec du démarrage"; exit 1; } ;;
+  *" up -d"*) [ -n "\${UP_KO:-}" ] && { echo "échec du démarrage"; exit 1; }; touch "\$JOURNAL_DOCKER.up" ;;
   *"ps --status running --services"*) printf 'db_recette\\nredis_recette\\nweb_recette\\nworkers_recette\\n' ;;
   "ps --filter publish=3101"*) [ -n "\${PORT_OCCUPE:-}" ] && echo "\${PORT_OCCUPE}" ;;
-  "ps -a"*) echo tiktrends-recette-web_recette-1 ;;
-  inspect*) echo "\${INSPECT:-V:\${NOM_VOLUME:-tiktrends-recette-pgdata} N:tiktrends-recette-reseau B:/machine/product/ops/recette/sorties }" ;;
+  "ps -a"*)
+    [ -n "\${PS_KO:-}" ] && { echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock"; exit 1; }
+    echo "\${CONTENEURS:-tiktrends-recette-web_recette-1}"
+    # Liste puis statut d'ÉCHEC sans message (démon coupé en route) · la sortie seule paraît valide.
+    [ -n "\${PS_KO_PARTIEL:-}" ] && exit 1 ;;
+  inspect*)
+    [ -n "\${INSPECT_KO:-}" ] && { echo "Error: No such object: tiktrends-recette-web_recette-1"; exit 1; }
+    # Inspection puis statut d'ÉCHEC sans message · la sortie seule paraît valide.
+    [ -n "\${INSPECT_KO_PARTIEL:-}" ] && { echo "C:/tiktrends-recette-web_recette-1 N:tiktrends-recette-reseau "; exit 1; }
+    [ -n "\${INSPECT_KO_APRES_UP:-}" ] && [ -f "\$JOURNAL_DOCKER.up" ] && { echo "Error response from daemon: inspection impossible"; exit 1; }
+    if [ -n "\${INSPECT+x}" ]; then echo "\$INSPECT"; else echo "C:/tiktrends-recette-web_recette-1 V:\${NOM_VOLUME:-tiktrends-recette-pgdata} N:tiktrends-recette-reseau B:/machine/product/ops/recette/sorties "; fi ;;
   *"ffprobe -version"*) echo "ffprobe version 6.1.1" ;;
   *"ffmpeg -version"*) echo "ffmpeg version 6.1.1" ;;
   *"sonde-recette.ts"*) echo "\${SONDE:-OK · sonde vidéo publiée et relue · décodage prouvé (ffmpeg version 6.1.1) · H.264 oui, AAC oui}" ;;
@@ -155,7 +169,17 @@ describe('verifier-environnement.sh · contre de faux outils', () => {
     ['port publié sur toutes les interfaces', { HOTE_PORT: '0.0.0.0' }, ENV_CONFORME, 'compose-config'],
     ['volume étranger (production)', { NOM_VOLUME: 'product_pgdata' }, ENV_CONFORME, 'compose-config'],
     ['port 3101 tenu par un autre projet', { PORT_OCCUPE: 'product' }, ENV_CONFORME, 'port-libre'],
-    ['conteneur existant qui monte un volume étranger', { INSPECT: 'V:product_pgdata N:tiktrends-recette-reseau' }, ENV_CONFORME, 'isolement-existant'],
+    ['conteneur existant qui monte un volume étranger', { INSPECT: 'C:/tiktrends-recette-web_recette-1 V:product_pgdata N:tiktrends-recette-reseau' }, ENV_CONFORME, 'isolement-existant'],
+    // E4 · un échec ou une sortie illisible n'est jamais « aucun partage ».
+    ['liste des conteneurs en échec (docker ps)', { PS_KO: '1' }, ENV_CONFORME, 'isolement-existant'],
+    ['liste lisible mais statut d’échec (docker ps)', { PS_KO_PARTIEL: '1' }, ENV_CONFORME, 'isolement-existant'],
+    ['inspection en échec (docker inspect)', { INSPECT_KO: '1' }, ENV_CONFORME, 'isolement-existant'],
+    ['inspection lisible mais statut d’échec (docker inspect)', { INSPECT_KO_PARTIEL: '1' }, ENV_CONFORME, 'isolement-existant'],
+    ['inspection réussie mais message sans préfixe', { INSPECT: 'Error response from daemon: page not found' }, ENV_CONFORME, 'isolement-existant'],
+    ['inspection vide', { INSPECT: '' }, ENV_CONFORME, 'isolement-existant'],
+    ['inspection d’un autre conteneur que celui demandé', { INSPECT: 'C:/autre N:tiktrends-recette-reseau' }, ENV_CONFORME, 'isolement-existant'],
+    ['élément sans préfixe mêlé à une inspection valide', { INSPECT: 'C:/tiktrends-recette-web_recette-1 N:tiktrends-recette-reseau avertissement' }, ENV_CONFORME, 'isolement-existant'],
+    ['nom de conteneur illisible dans la liste', { CONTENEURS: 'WARNING: erreur de configuration' }, ENV_CONFORME, 'isolement-existant'],
   ] as const)('prérequis KO · %s ⇒ ÉCHEC nommé, arrêt immédiat : aucun build, up ni run, rien d’écrit', (_n, env, envFichier, attendu) => {
     const r = lancer([], env, chantier(envFichier));
     expect(r.code, r.sortie).toBe(1);
@@ -170,6 +194,7 @@ describe('verifier-environnement.sh · contre de faux outils', () => {
   it.each([
     ['construction en échec', { BUILD_KO: '1' }, 'construction', [' build']],
     ['démarrage en échec', { UP_KO: '1' }, 'demarrage', [' build', ' up -d']],
+    ['E4 · inspection après démarrage en échec', { INSPECT_KO_APRES_UP: '1' }, 'isolement', [' build', ' up -d']],
   ] as const)('phase 2 · %s ⇒ arrêt, aucune étape suivante (ni up, ni run)', (_n, env, attendu, permis) => {
     const r = lancer([], env);
     expect(r.code).toBe(1);

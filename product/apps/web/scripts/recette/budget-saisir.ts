@@ -45,14 +45,14 @@ export async function saisirAnterieure(env: Env, argv: readonly string[], mainte
   const dossier = resoudreDossier(env);
   const lu = await lireBase();
   // Lecture, cohérence et ajout SOUS VERROU · une saisie concurrente d'un engagement n'en efface aucun.
-  const r = await sousVerrou(dossier, (verrou) => {
+  const r = await sousVerrou(dossier, async (verrou) => {
     const f = lireFichierRegistre(dossier);
     const c = coherenceRegistre(f, lu.lignes.length, dossier);
     if (!c.ok) return c;
     const reg = f.etat === 'lisible' ? f.registre : registreVierge(maintenant);
     const a = { id: randomUUID(), usdMicros: o.usdMicros, motif: o.motif, saisieLe: maintenant.toISOString() };
     const neuf = { ...reg, anterieures: [...reg.anterieures, a], majLe: maintenant.toISOString() };
-    ecrireRegistre(dossier, neuf, verrou);
+    await ecrireRegistre(dossier, neuf, verrou);
     journaliser(dossier, { le: a.saisieLe, type: 'anterieure', anterieure: a, bilan: bilanRegistre(neuf) });
     return { ok: true as const, a, neuf };
   });
