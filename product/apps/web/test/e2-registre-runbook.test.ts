@@ -5,6 +5,7 @@ import { bilanBudgetEssai } from '@tiktrends/core';
 import { lireEnvFile, lireYaml, nomsProduction, violationsComposeRecette, violationsRegistre, BUDGET_ESSAI_USD } from '../scripts/recette/compose';
 import { CITATION_AUTORISATION, coherenceRegistre, fusionnerRegistre, lireRegistre, registreVierge } from '../scripts/recette/registre';
 import { deciderBench } from '../scripts/recette/bench';
+import { RECETTE } from '../scripts/recette/regles';
 
 /**
  * E2 · le budget d'essai de 15 $ AU TOTAL est tenu par un registre qui
@@ -22,7 +23,7 @@ const COMPOSE = lire('docker-compose.recette.yml');
 const RUNBOOK = lire('ops', 'recette', 'README.md');
 const PROD = nomsProduction(lireYaml(lire('docker-compose.yml')));
 const NEUTRE = lireEnvFile(lire('ops', 'recette', 'neutralise.env'));
-const violations = (t: string) => violationsComposeRecette(lireYaml(t), PROD, { neutralise: NEUTRE, externes: [] });
+const violations = (t: string) => violationsComposeRecette(lireYaml(t), PROD, { neutralise: NEUTRE, externes: [], espaceRecette: RECETTE.workspaceId });
 
 describe('registre · monté depuis la machine, jamais nettoyé, ignoré par git', () => {
   it('le compose réel monte ops/recette/registre dans les outils (RECETTE_REGISTRE) ; le retirer ⇒ refus nommé', () => {

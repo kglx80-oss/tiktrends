@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import {
   lireYaml, lireEnvFile, nomsProduction, variablesExternes, violationsComposeRecette, violationsCommandesDocker, YamlNonPrisEnCharge, BUDGET_ESSAI_USD,
 } from '../scripts/recette/compose';
+import { ENV_INTERRUPTEURS } from '@tiktrends/core';
+import { RECETTE } from '../scripts/recette/regles';
 
 /**
  * Recette Studios · lot E · le compose d'essai réel ne partage RIEN avec la
@@ -38,7 +40,7 @@ function variablesLuesParLeCode(): string[] {
 }
 const EXTERNES = variablesExternes(variablesLuesParLeCode());
 const violations = (texte: string, neutralise = TEXTE_NEUTRALISE, externes: readonly string[] = EXTERNES) =>
-  violationsComposeRecette(lireYaml(texte), PROD, { neutralise: lireEnvFile(neutralise), externes });
+  violationsComposeRecette(lireYaml(texte), PROD, { neutralise: lireEnvFile(neutralise), externes, espaceRecette: RECETTE.workspaceId });
 const muter = (de: string | RegExp, vers: string) => {
   const t = TEXTE_RECETTE.replace(de, vers);
   if (t === TEXTE_RECETTE) throw new Error(`mutation sans effet · ${String(de)}`);
@@ -179,6 +181,45 @@ describe('Compose de recette · isolé de la production', () => {
     expect(() => lireYaml('a:\n\t- x\n')).toThrow(/tabulation/);
     expect(() => lireYaml('a: 1\n---\nb: 2\n')).toThrow(/documents multiples/);
     expect(lireYaml('s:\n  - "x # pas un commentaire" # commentaire\n  - [a, { b: "c:d" }]\n')).toEqual({ s: ['x # pas un commentaire', ['a', { b: 'c:d' }]] });
+  });
+});
+
+describe('R6 · interrupteurs Studios de la recette · l’essai autorisé, rien de plus, pour l’espace de recette', () => {
+  const OUTILS_PILOTES = '      STUDIOS_CAPACITES_PILOTES: "generation_image,controle_visuel"\n      STUDIOS_CAPACITES_GENERALES: benchmark_reel\n';
+
+  it('les quatre variables d’interrupteur (lues par le noyau) sont vidées par neutralise.env', () => {
+    const neutre = lireEnvFile(TEXTE_NEUTRALISE);
+    expect(Object.values(ENV_INTERRUPTEURS).filter((n) => neutre[n] !== '')).toEqual([]);
+  });
+
+  it('variable d’interrupteur retirée de neutralise.env et non posée ⇒ héritée de .env.recette, refus nommé', () => {
+    const t = TEXTE_NEUTRALISE.replace(/^STUDIOS_CAPACITES_GENERALES=\n/m, '');
+    expect(t).not.toBe(TEXTE_NEUTRALISE);
+    expect(violations(TEXTE_RECETTE, t)).toContain('Service « web_recette » : STUDIOS_CAPACITES_GENERALES absente (ni neutralisée ni posée, donc héritée de .env.recette) · les interrupteurs de la recette ne viennent que du compose.');
+  });
+
+  it('outils sans les capacités du pas 1 ou du pas 2 ⇒ l’essai autorisé ne passerait pas la garde', () => {
+    expect(violations(muter(OUTILS_PILOTES, '      STUDIOS_CAPACITES_GENERALES: benchmark_reel\n'))).toEqual(expect.arrayContaining([
+      'Service « outils_recette » : « generation_image » coupée pour l’espace de recette · l’essai réel autorisé (pas 1 : generation_image, controle_visuel ; pas 2 : benchmark_reel) ne passerait pas la garde.',
+      'Service « outils_recette » : « controle_visuel » coupée pour l’espace de recette · l’essai réel autorisé (pas 1 : generation_image, controle_visuel ; pas 2 : benchmark_reel) ne passerait pas la garde.',
+    ]));
+    expect(violations(muter(OUTILS_PILOTES, '      STUDIOS_CAPACITES_PILOTES: "generation_image,controle_visuel"\n'))).toContain(
+      'Service « outils_recette » : « benchmark_reel » coupée pour l’espace de recette · l’essai réel autorisé (pas 1 : generation_image, controle_visuel ; pas 2 : benchmark_reel) ne passerait pas la garde.');
+  });
+
+  it('capacité au-delà de l’essai (vidéo), benchmark réel hors des outils ⇒ refus nommés', () => {
+    const t = TEXTE_RECETTE.replace(/STUDIOS_CAPACITES_PILOTES: "generation_image,controle_visuel"/g, 'STUDIOS_CAPACITES_PILOTES: "generation_image,controle_visuel,video"');
+    expect(violations(t)).toContain('Service « web_recette » : « video » ouverte · seules generation_image, controle_visuel le sont en recette (essai réel autorisé).');
+    const w = muter('      APP_URL: http://localhost:3101\n', '      APP_URL: http://localhost:3101\n      STUDIOS_CAPACITES_GENERALES: benchmark_reel\n');
+    expect(violations(w)).toContain('Service « web_recette » : « benchmark_reel » ouverte · seules generation_image, controle_visuel le sont en recette (essai réel autorisé).');
+  });
+
+  it('ouverture hors de l’espace de recette (généralisation, autre espace pilote) ⇒ refus nommé', () => {
+    const g = muter('      APP_URL: http://localhost:3101\n', '      APP_URL: http://localhost:3101\n      STUDIOS_CAPACITES_GENERALES: generation_image\n');
+    expect(violations(g)).toContain(`Service « web_recette » : « generation_image » ouverte hors de l’espace de recette · ouverture par espace pilote seulement (STUDIOS_ESPACES_PILOTES=${RECETTE.workspaceId}).`);
+    const autre = TEXTE_RECETTE.replace(/STUDIOS_ESPACES_PILOTES: e5ec0000-0000-4000-8000-00000000e001/g, 'STUDIOS_ESPACES_PILOTES: "e5ec0000-0000-4000-8000-00000000e001,7b1d2c3e-0000-4000-8000-000000000042"');
+    expect(autre).not.toBe(TEXTE_RECETTE);
+    expect(violations(autre)).toContain(`Service « workers_recette » : STUDIOS_ESPACES_PILOTES nomme « 7b1d2c3e-0000-4000-8000-000000000042 » · seul l’espace de recette (${RECETTE.workspaceId}) peut être pilote.`);
   });
 });
 

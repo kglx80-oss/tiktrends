@@ -113,6 +113,28 @@ Liste EXACTE :
 `CRON_SECRET`, et toutes les clés de services externes (Trendtrack, Stripe,
 Klaviyo, Slack, SMTP, Meta, Shopify, Google, TikTok, webhook studio).
 
+### Interrupteurs Studios · posés par le compose, jamais par toi
+
+Les nouveautés Studios incomplètes sont **coupées par défaut** (interrupteurs
+F1). Le compose de recette ouvre EXPLICITEMENT ce que l'essai réel autorisé
+exige, et rien d'autre ; `ops/recette/neutralise.env` vide les quatre
+variables, de sorte qu'aucune valeur de `.env.recette` ne s'y ajoute.
+
+| Variable (posée dans `docker-compose.recette.yml`) | Services | Ce qu'elle ouvre | Pourquoi |
+| --- | --- | --- | --- |
+| `STUDIOS_ESPACES_PILOTES` | web, worker, outils | l'espace de recette synthétique seul (`e5ec0000-…-e001`, semé par `recette:semer`) | une ouverture par espace pilote ne déborde sur aucun autre espace |
+| `STUDIOS_CAPACITES_PILOTES` | web, worker, outils | `generation_image`, `controle_visuel` | pas 1 · image puis contrôle visuel du livrable |
+| `STUDIOS_CAPACITES_GENERALES` | outils seulement | `benchmark_reel` | pas 2 · le benchmark réel est une capacité de plateforme (pas d'espace) : `recette:bench --reel` et `bench:studios --reel` refusent sans elle |
+| `STUDIOS_CAPACITES_COUPEES` | aucun (vidée) | rien | coupure d'urgence, inutile ici |
+
+Restent coupées en recette : `video`, `voix`, `shadow`. Le pas 1 vérifie les
+capacités AVANT tout engagement (refus `INTERRUPTEUR_COUPE`, rien d'engagé ni
+de dépensé) et donne au moteur du worker les mêmes interrupteurs que la boucle
+de production : un job dont une capacité est coupée reste en file, rien n'est
+soumis. Garde : `apps/web/test/e-compose-recette.test.ts` (toute capacité
+ouverte au-delà, hors de l'espace de recette, ou manquante pour l'essai est
+refusée et nommée), `apps/web/test/r6-pas1-interrupteurs.test.ts`.
+
 ### Dans ton shell, seulement le temps d'une commande payante
 
 | Variable | Rôle | Où l'obtenir |
@@ -274,7 +296,7 @@ déjà engagé, toutes bases), pas une cible.
    ```
    Si le TOTAL dépasse le restant, **arrête-toi** : rien ne doit être lancé (la commande réelle le refuserait de toute façon).
 3. **Approbation ADMIN** · ouvre `http://localhost:3101` (sur le VPS : `ssh -L 3101:127.0.0.1:3101 debian@51.255.39.79`, le port n'écoute que sur 127.0.0.1). Crée ton compte avec ton e-mail de fondateur, puis Admin, IA et Studios, onglet Évaluations : approuve un budget au plus égal au restant, sur la release notée en 4.4, avec un motif. L'approbation expire en 24 h et ne sert qu'une fois.
-4. **Campagne réelle** · par l'enveloppe `recette:bench`, qui revérifie le registre (`antérieur + réglé + incertain + budget ≤ 15 $`), l'écrit, pose le plafond du processus, puis met le registre à jour après coup. Mêmes saisies de clés qu'en 4.6, puis :
+4. **Campagne réelle** · par l'enveloppe `recette:bench`, qui vérifie d'abord l'interrupteur `benchmark_reel` (ouvert dans le service d'outils, §3), puis revérifie le registre (`antérieur + réglé + incertain + budget ≤ 15 $`), l'écrit, pose le plafond du processus, puis met le registre à jour après coup. Mêmes saisies de clés qu'en 4.6, puis :
    ```bash
    docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:bench -- --reel --budget-usd <restant ou moins> --sortie /sorties/benchmark
    unset FAL_KEY ANTHROPIC_API_KEY STUDIO_FOURNISSEUR_REEL

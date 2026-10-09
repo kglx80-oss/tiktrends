@@ -16,9 +16,18 @@
 # services externes : le web et le worker de recette ne peuvent rien dépenser
 # ni rien écrire hors de la recette.
 #
+# Interrupteurs Studios (F1 · nouveautés incomplètes coupées par défaut) ·
+# l'essai réel AUTORISÉ les ouvre ici, explicitement, et rien d'autre :
+#  · pas 1 (recette:pas1) · generation_image et controle_visuel, pour l'ESPACE
+#    DE RECETTE seulement (espace pilote e5ec0000-…-e001, données synthétiques) ;
+#  · pas 2 (recette:bench --reel) · benchmark_reel (capacité de plateforme),
+#    dans le service d'outils seulement.
+# neutralise.env vide les quatre variables ; seul `environment:` les repose.
+#
 # Garde : apps/web/test/e-compose-recette.test.ts (lit ce fichier et refuse
 # tout partage avec docker-compose.yml, tout port public, tout plafond absent
-# ou au-delà de 15 $).
+# ou au-delà de 15 $, toute capacité ouverte au-delà de l'essai autorisé ou
+# hors de l'espace de recette).
 name: tiktrends-recette
 
 services:
@@ -59,6 +68,8 @@ services:
       DATABASE_URL: postgres://recette:${POSTGRES_PASSWORD:?absent}@db_recette:5432/tiktrends_recette
       REDIS_URL: redis://redis_recette:6379
       APP_URL: http://localhost:3101
+      STUDIOS_ESPACES_PILOTES: e5ec0000-0000-4000-8000-00000000e001
+      STUDIOS_CAPACITES_PILOTES: "generation_image,controle_visuel"
     # Lisible depuis la machine seulement (tunnel SSH sur le VPS), jamais sur 0.0.0.0.
     ports: ["127.0.0.1:3101:3000"]
     networks: [recette]
@@ -80,6 +91,8 @@ services:
       AI_SPEND_CAP_USD: "15"
       DATABASE_URL: postgres://recette:${POSTGRES_PASSWORD:?absent}@db_recette:5432/tiktrends_recette
       REDIS_URL: redis://redis_recette:6379
+      STUDIOS_ESPACES_PILOTES: e5ec0000-0000-4000-8000-00000000e001
+      STUDIOS_CAPACITES_PILOTES: "generation_image,controle_visuel"
     networks: [recette]
     depends_on:
       db_recette: { condition: service_healthy }
@@ -104,6 +117,10 @@ services:
       STUDIOS_PROMPTS_RECETTE_LOCALE: "1"
       DATABASE_URL: postgres://recette:${POSTGRES_PASSWORD:?absent}@127.0.0.1:5432/tiktrends_recette
       RECETTE_SORTIE: /sorties
+      # Essai réel autorisé · pas 1 pour l'espace de recette, pas 2 (plateforme).
+      STUDIOS_ESPACES_PILOTES: e5ec0000-0000-4000-8000-00000000e001
+      STUDIOS_CAPACITES_PILOTES: "generation_image,controle_visuel"
+      STUDIOS_CAPACITES_GENERALES: benchmark_reel
       # Registre CUMULATIF du budget d'essai (15 $ au total) · sur la machine, hors du
       # volume Postgres : il survit à `down -v` et aux redémarrages (E2).
       RECETTE_REGISTRE: /registre

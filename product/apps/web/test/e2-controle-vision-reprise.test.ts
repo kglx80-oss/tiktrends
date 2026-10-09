@@ -80,9 +80,10 @@ describe('reprise · média livré, ligne approuvée, aucun contrôle fait', () 
     const devisAvant = await devis();
     srv.comportement({ type: 'ok', entree: 9000, sortie: 300, texte: sortieVision(sortieId) });
     const r = await controlerMediaPour(ctxDe(ids, 'ua'), { jobId }, { medias: resolveurMediasStudio(lecteur) });
-    expect(r.ok, JSON.stringify(r)).toBe(true);
+    // R6 · qualité EXACTE : une sortie refusée par le schéma conclut « requires_review » et ne doit pas passer.
+    expect(r, `le verdict « passed » de la vision n’a pas été enregistré · ${JSON.stringify(r)}`).toEqual({ ok: true, qualite: 'passed' });
     const tranche = (await job(jobId)).qualityStatus;
-    expect(tranche).not.toBe('pending');
+    expect(tranche, 'la qualité en base n’est pas celle rendue par la vision').toBe('passed');
     expect({ requetes: srv.requetes(), devisNouveaux: (await devis()) - devisAvant }, 'la reprise a fait autre chose que le seul contrôle manquant').toEqual({ requetes: 1, devisNouveaux: 0 });
     expect((await depenses()).map((l) => [l.action, l.inputTokens, l.reconcileReason])).toEqual([['studio-prompt:quality.visual', 9000, null]]);
     expect(lireMarqueurControleVision((await job(jobId)).result)).toMatchObject({ etat: 'conclu' });

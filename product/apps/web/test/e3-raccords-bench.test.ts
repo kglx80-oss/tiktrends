@@ -13,7 +13,8 @@ import { sousVerrou } from '../scripts/recette/verrou';
  * doit y être déjà, ouvert, au budget de la campagne. Aucune base, aucun appel.
  */
 
-const ENV = { TIKTRENDS_ENV: 'recette', STUDIOS_PROMPTS_RECETTE_LOCALE: '1', AI_SPEND_CAP_USD: '15', DATABASE_URL: 'postgres://recette:x@127.0.0.1:5432/tiktrends_recette' };
+// R6 · la campagne réelle exige l'interrupteur de plateforme `benchmark_reel` (ouvert ici comme dans le compose de recette).
+const ENV = { TIKTRENDS_ENV: 'recette', STUDIOS_PROMPTS_RECETTE_LOCALE: '1', AI_SPEND_CAP_USD: '15', DATABASE_URL: 'postgres://recette:x@127.0.0.1:5432/tiktrends_recette', STUDIOS_CAPACITES_GENERALES: 'benchmark_reel' };
 const dossiers: string[] = [];
 afterAll(() => { for (const d of dossiers) rmSync(d, { recursive: true, force: true }); });
 

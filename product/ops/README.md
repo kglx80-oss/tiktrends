@@ -206,6 +206,42 @@ d'animation n'est branché.
 
 ---
 
+## Interrupteurs Studios (F1) · ce qui est coupé au premier déploiement
+
+Les capacités Studios incomplètes sont **coupées par défaut** : rien n'est à
+poser pour qu'elles le restent. Au premier déploiement, sans aucune variable :
+
+| Capacité | Coupée car |
+| --- | --- |
+| `generation_image` | le fournisseur d’images n’est pas encore validé en réel |
+| `controle_visuel` | la relecture par la vision n’est pas encore validée en réel |
+| `video` | la chaîne vidéo n’est pas encore validée en réel |
+| `voix` | aucun fournisseur de voix n’est validé |
+| `shadow` | outil de recette interne, pas encore comparé en production |
+| `benchmark_reel` | campagne réelle non budgétée |
+
+Le reste (projets, éditeur, textes, export, canvas, propositions, identités)
+est actif ; l'ancienne expérience (Studio historique, Pubs IA, ADMIN IA) n'est
+jamais coupée.
+
+Variables lues par le web ET le worker (noms seulement · listes de capacités
+ou d'espaces séparées par des virgules, à poser dans `.env.deploy` par le
+propriétaire ; le worker les relit à son redémarrage, le web à chaque requête) :
+
+| Variable | Effet |
+| --- | --- |
+| `STUDIOS_CAPACITES_COUPEES` | coupure d'urgence, partout ; l'emporte sur tout |
+| `STUDIOS_CAPACITES_GENERALES` | généralisation, pour tous les espaces (seule façon d'ouvrir `benchmark_reel`) |
+| `STUDIOS_ESPACES_PILOTES` | identifiants des espaces pilotes |
+| `STUDIOS_CAPACITES_PILOTES` | capacités ouvertes pour ces espaces pilotes seulement |
+
+Un espace peut aussi être réglé depuis l'écran ADMIN « Interrupteurs Studios »
+(`/admin/studios-interrupteurs`, réglage en base, sans redémarrage). Ordre de
+décision et garde : `packages/core/src/studios/interrupteurs.ts`. La recette
+isolée ouvre les siennes dans son compose (`ops/recette/README.md`, §3).
+
+---
+
 ## Sauvegardes de la base (quotidiennes)
 
 Dump `pg_dump` compressé chaque nuit à 03h30, gardé 14 jours dans `~/backups`.

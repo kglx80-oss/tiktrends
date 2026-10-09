@@ -11,8 +11,10 @@
  *   --plan                 devis agrégé, par cas et total · aucun appel, aucune écriture
  *   (défaut)               campagne SIMULÉE de bout en bout · recette locale seulement
  *                          (STUDIOS_PROMPTS_RECETTE_LOCALE=1 et base 127.0.0.1/localhost)
- *   --reel --budget-usd X  campagne RÉELLE · refusée tant que budget ≥ devis, budget ≤ reste
- *                          du plafond AI_SPEND_CAP_USD et approbation ADMIN ne sont pas réunis
+ *   --reel --budget-usd X  campagne RÉELLE · refusée tant que l'interrupteur `benchmark_reel`
+ *                          n'est pas ouvert (F1, STUDIOS_CAPACITES_GENERALES), puis tant que
+ *                          budget ≥ devis, budget ≤ reste du plafond AI_SPEND_CAP_USD et
+ *                          approbation ADMIN ne sont pas réunis
  *   --jeu                  régénère le jeu synthétique et son manifeste (aucune base)
  *
  *   --cas F04,F17          sélection de cas (une campagne partielle n'approuve jamais une release)
@@ -27,6 +29,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ENV_INTERRUPTEURS, capaciteActive, messageCapaciteCoupee } from '@tiktrends/core';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 export const DOSSIER_BENCHMARK = join(ICI, '..', '..', '..', '..', 'docs', 'studios-v2', 'benchmark');
@@ -43,9 +46,21 @@ const OPTIONS_VALEUR = new Set(['--cas', '--budget-usd', '--release', '--sortie'
 const DRAPEAUX = new Set(['--plan', '--reel', '--jeu']);
 
 /**
+ * R6 · le refus du mode réel quand l'interrupteur de plateforme
+ * `benchmark_reel` (F1) est coupé · même règle que l'approbation ADMIN
+ * (`lib/studios/benchmark/actions.ts`), même phrase, plus le nom de la
+ * variable qui l'ouvre. `null` si la campagne réelle est permise.
+ */
+export function refusBenchmarkReel(env: Readonly<Record<string, string | undefined>>): string | null {
+  if (capaciteActive('benchmark_reel', { env, espace: null })) return null;
+  return `${messageCapaciteCoupee(['benchmark_reel']).replace('pour cet espace', 'sur cette plateforme')} La campagne réelle ne part qu’avec ${ENV_INTERRUPTEURS.generales}=benchmark_reel dans l’environnement de la commande (voir ops/README.md, interrupteurs), en plus de l’approbation de budget.`;
+}
+
+/**
  * Le garde · PUR. Reçoit les arguments et l'environnement, ne lit rien.
  * Refuse une option inconnue, deux modes à la fois, un budget hors mode
- * réel, et le simulé hors recette locale.
+ * réel, le simulé hors recette locale, et le réel tant que l'interrupteur
+ * `benchmark_reel` est coupé (R6).
  */
 export function decider(argv: readonly string[], env: Readonly<Record<string, string | undefined>>, environnement: 'test' | 'production'): Decision {
   const vals: Record<string, string> = {};
@@ -74,6 +89,8 @@ export function decider(argv: readonly string[], env: Readonly<Record<string, st
     if (environnement !== 'test') return { ok: false, raison: 'La campagne simulée ne tourne qu’en recette locale : STUDIOS_PROMPTS_RECETTE_LOCALE=1 et une base 127.0.0.1 ou localhost. Un fournisseur simulé ne sert jamais ailleurs.' };
     return { ok: true, mode, cas, sortie };
   }
+  const coupe = refusBenchmarkReel(env);
+  if (coupe) return { ok: false, raison: coupe };
   return { ok: true, mode: 'reel', cas, sortie, budgetBrut: vals['--budget-usd'] ?? null, releaseId: vals['--release'] ?? null };
 }
 

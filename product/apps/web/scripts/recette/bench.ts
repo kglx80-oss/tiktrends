@@ -5,8 +5,10 @@
  *   pnpm --filter @tiktrends/web recette:bench -- --reel --budget-usd <X> --sortie /sorties/benchmark
  *   pnpm --filter @tiktrends/web recette:bench -- --plan     (aucun appel, transmis tel quel)
  *
- * Enveloppe de `scripts/bench-studios.ts`, qui n'est pas modifié : en mode
- * `--reel`, AVANT de le lancer,
+ * Enveloppe de `scripts/bench-studios.ts` : en mode `--reel`, AVANT de le
+ * lancer,
+ *  · interrupteur `benchmark_reel` ouvert (F1, R6 · `refusBenchmarkReel`),
+ *    sinon refus sans engagement ni appel ;
  *  · cohérence registre/base (`lireEtatEssai`) ;
  *  · `antérieur + réglé + incertain + budget X ≤ 15 $`, sinon refus sans appel ;
  *  · un ENGAGEMENT de X est écrit au registre sous verrou (relecture,
@@ -25,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { decisionDepenseEssai, type BilanBudgetEssai, type IssueEngagement } from '@tiktrends/core';
 import { lireMontantUsd, masquerSecrets, usdAffiche, verifierCibleRecette, type Env } from './regles';
 import { cloreEssai, engagerEssai, lireEtatEssai, plafondProcessusUsd, resoudreDossier, texteBilan, type LectureBase } from './registre';
+import { refusBenchmarkReel } from '../bench-studios';
 
 export type DecisionBench =
   | { ok: true; reel: false }
@@ -62,6 +65,9 @@ export async function executerBench(d: DependancesBench): Promise<number> {
   const dire = d.dire ?? ((l: string) => console.log(l));
   const cible = verifierCibleRecette(d.env);
   if (!cible.ok) { dire(`✗ Benchmark REFUSÉ · rien n’a été appelé\n${cible.raisons.map((r) => `  - ${r}`).join('\n')}`); return 2; }
+  // R6 · interrupteur coupé ⇒ refus AVANT tout engagement au registre (rien n'est réservé ni appelé).
+  const coupe = d.argv.includes('--reel') ? refusBenchmarkReel(d.env) : null;
+  if (coupe) { dire(`✗ Benchmark REFUSÉ · rien n’a été appelé ni engagé\n  - ${coupe}`); return 2; }
   const dossier = resoudreDossier(d.env);
   const etat = await lireEtatEssai(dossier, new Date(), d.lecteur);
   if (!etat.ok) { dire(`✗ Benchmark REFUSÉ · ${etat.raison}`); return 2; }
