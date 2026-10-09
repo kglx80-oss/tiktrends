@@ -275,7 +275,7 @@ export function decisionRepriseVerrou(e: {
  */
 export type DecisionDeverrouillage =
   | { retirer: true }
-  | { retirer: false; motif: 'vivant' | 'autres_commandes' | 'confirmation_absente' | 'confirmation_autre' };
+  | { retirer: false; motif: 'plateforme_non_prise_en_charge' | 'vivant' | 'autres_commandes' | 'confirmation_absente' | 'confirmation_autre' };
 
 export function decisionDeverrouillage(e: {
   reprise: DecisionRepriseVerrou;
@@ -283,7 +283,16 @@ export function decisionDeverrouillage(e: {
   autresCommandes: number | null;
   confirmation: string | null;
   jeton: string;
+  /**
+   * L'identité LOCALE (démarrage, espace de PID) est-elle lisible ? Hors Linux
+   * (macOS natif), elle ne l'est pas : un détenteur vivant devient
+   * « insondable » et ne peut plus être distingué d'un mort. Contre-recette
+   * Codex sur ee9c3c9 (P2) : le geste y retirait le verrou d'un processus
+   * vivant. Il est donc REFUSÉ sur ces plateformes, avant toute autre règle.
+   */
+  plateformeSondable: boolean;
 }): DecisionDeverrouillage {
+  if (!e.plateformeSondable) return { retirer: false, motif: 'plateforme_non_prise_en_charge' };
   if (!e.reprise.reprendre && e.reprise.motif === 'vivant') return { retirer: false, motif: 'vivant' };
   if (e.autresCommandes !== null && e.autresCommandes > 0) return { retirer: false, motif: 'autres_commandes' };
   if (e.confirmation === null) return { retirer: false, motif: 'confirmation_absente' };

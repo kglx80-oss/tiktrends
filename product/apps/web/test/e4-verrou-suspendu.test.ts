@@ -101,7 +101,20 @@ describe('E4 · recette:budget:deverrouiller · retrait seulement après arrêt 
     poser(d, { pid: process.pid });
     const r = await deverrouiller(ENV, ['--confirmer-arret', 'jeton-du-verrou'], { dossier: d, autresCommandes: aucune });
     expect(r.code, 'verrou retiré à un détenteur VIVANT').toBe(2);
-    expect(r.texte).toContain('REFUS · son détenteur est VIVANT');
+    // Linux (conteneur de recette) : le vivant est sondé. Hors Linux (macOS natif, contre-recette ee9c3c9) :
+    // l'identité est illisible et le geste est refusé comme plateforme non prise en charge. Le refus et le verrou
+    // intact sont exigés PARTOUT ; seule la phrase dépend de la plateforme.
+    expect(r.texte).toContain(boot === 'inconnu' || pidns === 'inconnu' ? 'REFUS · plateforme non prise en charge' : 'REFUS · son détenteur est VIVANT');
+    expect(JSON.parse(lu(d, FICHIER_VERROU)!).jeton).toBe('jeton-du-verrou');
+  });
+
+  it('contre-recette ee9c3c9 · plateforme sans /proc (macOS natif) : détenteur VIVANT, bon jeton, aucune autre commande ⇒ REFUS explicite, verrou intact', async () => {
+    const d = nouveau();
+    // Ce que voit macOS : le verrou d'un processus vivant porte un démarrage et un espace de PID « inconnu ».
+    poser(d, { pid: process.pid, demarrage: 'inconnu', pidns: 'inconnu' });
+    const r = await deverrouiller(ENV, ['--confirmer-arret', 'jeton-du-verrou'], { dossier: d, autresCommandes: aucune, ici: { hote: hostname(), demarrage: 'inconnu', pidns: 'inconnu' } });
+    expect(r.code, 'verrou retiré à un détenteur vivant sur une plateforme non sondable').toBe(2);
+    expect(r.texte).toContain('REFUS · plateforme non prise en charge');
     expect(JSON.parse(lu(d, FICHIER_VERROU)!).jeton).toBe('jeton-du-verrou');
   });
 

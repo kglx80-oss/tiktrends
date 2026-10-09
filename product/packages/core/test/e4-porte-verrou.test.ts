@@ -62,17 +62,20 @@ describe('decisionRepriseVerrou', () => {
 describe('decisionDeverrouillage', () => {
   const insondable = { reprendre: false as const, motif: 'insondable' as const };
   it('détenteur vivant ⇒ refus, quoi qu’on confirme', () => {
-    expect(decisionDeverrouillage({ reprise: { reprendre: false, motif: 'vivant' }, autresCommandes: 0, confirmation: 'j', jeton: 'j' })).toEqual({ retirer: false, motif: 'vivant' });
+    expect(decisionDeverrouillage({ reprise: { reprendre: false, motif: 'vivant' }, autresCommandes: 0, confirmation: 'j', jeton: 'j', plateformeSondable: true })).toEqual({ retirer: false, motif: 'vivant' });
   });
   it('autres commandes connectées ⇒ refus', () => {
-    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: 2, confirmation: 'j', jeton: 'j' })).toEqual({ retirer: false, motif: 'autres_commandes' });
+    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: 2, confirmation: 'j', jeton: 'j', plateformeSondable: true })).toEqual({ retirer: false, motif: 'autres_commandes' });
   });
   it('sans confirmation, ou confirmation d’un autre verrou ⇒ refus', () => {
-    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: 0, confirmation: null, jeton: 'j' })).toEqual({ retirer: false, motif: 'confirmation_absente' });
-    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: null, confirmation: 'ancien', jeton: 'j' })).toEqual({ retirer: false, motif: 'confirmation_autre' });
+    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: 0, confirmation: null, jeton: 'j', plateformeSondable: true })).toEqual({ retirer: false, motif: 'confirmation_absente' });
+    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: null, confirmation: 'ancien', jeton: 'j', plateformeSondable: true })).toEqual({ retirer: false, motif: 'confirmation_autre' });
   });
   it('confirmation du verrou actuel, aucune commande connue ⇒ retrait (connexions non vérifiables : dit à l’écran)', () => {
-    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: 0, confirmation: 'j', jeton: 'j' })).toEqual({ retirer: true });
-    expect(decisionDeverrouillage({ reprise: { reprendre: false, motif: 'illisible' }, autresCommandes: null, confirmation: 'j', jeton: 'j' })).toEqual({ retirer: true });
+    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: 0, confirmation: 'j', jeton: 'j', plateformeSondable: true })).toEqual({ retirer: true });
+    // Contre-recette ee9c3c9 (P2, macOS natif) : identité locale illisible ⇒ refus AVANT toute autre règle,
+    // même si tout le reste autoriserait le retrait (détenteur insondable, aucune autre commande, bon jeton).
+    expect(decisionDeverrouillage({ reprise: insondable, autresCommandes: 0, confirmation: 'j', jeton: 'j', plateformeSondable: false }), 'déverrouillage accepté sur une plateforme où un vivant est indiscernable').toEqual({ retirer: false, motif: 'plateforme_non_prise_en_charge' });
+    expect(decisionDeverrouillage({ reprise: { reprendre: false, motif: 'illisible' }, autresCommandes: null, confirmation: 'j', jeton: 'j', plateformeSondable: true })).toEqual({ retirer: true });
   });
 });
