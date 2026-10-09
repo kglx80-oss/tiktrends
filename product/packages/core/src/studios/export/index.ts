@@ -4,3 +4,4 @@
  */
 export * from './preflight';
 export * from './fichier';
+export * from './archive';

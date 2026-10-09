@@ -8,11 +8,13 @@ export const dynamic = 'force-dynamic';
  * Studios · L7-A · téléchargement d'un export AUDITÉ, désigné par sa version,
  * son format et son empreinte (jamais par un nom de fichier).
  *
- * LECTURE PURE : aucune écriture métier (l'audit est écrit par la commande
- * explicite d'export, pas ici). La garde `studio.export` est relue à chaque
- * requête ; la version est relue dans la portée, re-rendue (rendu
- * déterministe) et doit redonner l'empreinte de l'export audité. Hors portée,
- * inconnu ou jamais exporté : 404 neutre.
+ * LECTURE PURE : aucune écriture métier (l'audit et l'archive sont écrits par
+ * la commande explicite d'export, pas ici). La garde `studio.export` est
+ * relue à chaque requête ; la version est relue dans la portée, les droits de
+ * ses médias aussi (un média révoqué ⇒ 422 ciblé). R4 · le fichier servi est
+ * l'export CONSERVÉ dont les octets relus redonnent l'empreinte auditée ; un
+ * export sans archive est re-rendu et doit redonner cette empreinte. Hors
+ * portée, inconnu ou jamais exporté : 404 neutre.
  */
 
 const ENTETES_COMMUNS: Record<string, string> = {

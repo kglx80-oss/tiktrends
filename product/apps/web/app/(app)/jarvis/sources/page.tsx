@@ -11,9 +11,9 @@ import { isFounder } from '../../../../lib/founder';
 import { getActiveBrand } from '../../../../lib/brands';
 import { jarvisStats, jarvisMeasuredMemory } from '../../../../lib/jarvis-memory';
 import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../../lib/jarvis-state';
-import { spendStatus } from '../../../../lib/spend-guard';
+import { spendStatus, depensesAReconcilier } from '../../../../lib/spend-guard';
 import { currentDeployment } from '../../../../lib/deployment';
-import { partDeMax, libelleTauxFraction, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { partDeMax, libelleTauxFraction, CIBLE_TACTILE_MIN, rappelReconciliation } from '@tiktrends/core';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { JarvisRules } from '../JarvisRules';
@@ -89,10 +89,12 @@ export default async function JarvisPage() {
 
   // On ne charge que ce qu'on affiche · la mémoire mesurée derrière l'offre, la
   // dépense derrière le fondateur.
-  const [memoire, stats, depense] = await Promise.all([
+  const [memoire, stats, depense, aReconcilier] = await Promise.all([
     voitMemoire ? jarvisMeasuredMemory(brand.id, s.workspaceId) : Promise.resolve(''),
     voitMemoire ? jarvisStats(brand.id, s.workspaceId) : Promise.resolve(null),
     fondateur ? spendStatus() : Promise.resolve(null),
+    // R4 · le rappel des dépenses à réconcilier · fondateur seul, et jamais bloquant (un échec se tait ici, /admin/depenses le dit).
+    fondateur ? rappelDepenses() : Promise.resolve(null),
   ]);
   // Ce que ce serveur exécute · fondateur seulement, information d'exploitation.
   const deploiement = fondateur ? await currentDeployment() : null;
@@ -193,6 +195,12 @@ export default async function JarvisPage() {
           <p style={{ margin: '7px 0 0', fontSize: 12.5, color: depense.blocked ? '#ff8095' : 'var(--ink-2)', lineHeight: 1.55 }}>
             {depense.summary} Aucun appel ne part sans passer par ce plafond · y compris les tiens.
           </p>
+          {aReconcilier && (
+            <p data-rappel-reconciliation style={{ margin: '7px 0 0', fontSize: 12.5, color: '#f5b043', lineHeight: 1.55, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>À réconcilier · {aReconcilier}</span>
+              <Link href="/admin/depenses#a-reconcilier" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12, color: 'var(--accent-strong)', textDecoration: 'none' }}>Rapprocher ›</Link>
+            </p>
+          )}
         </section>
       )}
 
@@ -386,4 +394,13 @@ function Stat({ label, value, sub, strong }: { label: string; value: string; sub
       {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>}
     </div>
   );
+}
+
+/** R4 · rappel « à réconcilier » (noyau : `rappelReconciliation`) · `null` quand rien n'attend, ou si la lecture échoue. */
+async function rappelDepenses(): Promise<string | null> {
+  try {
+    return rappelReconciliation(await depensesAReconcilier());
+  } catch {
+    return null;
+  }
 }

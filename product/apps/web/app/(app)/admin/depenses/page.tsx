@@ -5,8 +5,10 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
-import { spendStatus, spendByAction } from '../../../../lib/spend-guard';
+import { ecranReconciliation, type EcranReconciliation } from '@tiktrends/core';
+import { spendStatus, spendByAction, depensesAReconcilier } from '../../../../lib/spend-guard';
 import { cadrePage, surface, h1 } from '../../../../components/ui';
+import { SectionReconciliation } from './SectionReconciliation';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,12 @@ export const dynamic = 'force-dynamic';
  * Elle existe pour une raison simple : un plafond dont on ne voit pas le
  * compteur n'est pas rassurant, il est inquiétant · on ne sait jamais s'il reste
  * de la marge ou si tout est bloqué depuis hier.
+ *
+ * R4 · elle montre aussi les dépenses « à réconcilier » (issue incertaine,
+ * gardées au maximum, R3) et ce qu'il faut en faire. Lecture seule : la
+ * consulter n'écrit rien. La porte ne change pas · admin de l'espace ET
+ * fondateur (plateforme) ; un admin d'espace seul est renvoyé ailleurs AVANT
+ * toute lecture.
  */
 export default async function DepensesPage() {
   const s = await getSession();
@@ -27,12 +35,13 @@ export default async function DepensesPage() {
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
   if (!isFounder(s.user.email)) redirect('/admin');
 
-  const [status, parAction, recentes] = await Promise.all([
+  const [status, parAction, recentes, reconciliation] = await Promise.all([
     spendStatus(),
     spendByAction(12),
     db
       ? db.select().from(schema.aiSpend).orderBy(desc(schema.aiSpend.createdAt)).limit(25)
       : Promise.resolve([]),
+    lireReconciliation(),
   ]);
 
   const pct = status.capUsd > 0 ? Math.min(100, Math.round((status.spentUsd / status.capUsd) * 100)) : 100;
@@ -80,6 +89,9 @@ export default async function DepensesPage() {
           Au-delà, aucune requête payante ne part · le blocage est dur, pas un avertissement.
         </p>
       </div>
+
+      {/* R4 · ce qui reste à rapprocher de la facture · avant le détail, c'est ce qui demande un geste. */}
+      <SectionReconciliation ecran={reconciliation.ecran} erreur={reconciliation.erreur} />
 
       {/* Où part l'argent */}
       <h2 style={titre}>Où part l’argent</h2>
@@ -136,6 +148,16 @@ export default async function DepensesPage() {
       )}
     </main>
   );
+}
+
+/** Lecture des lignes à réconcilier · un échec s'affiche (état « lecture impossible »), il ne casse pas la page. */
+async function lireReconciliation(): Promise<{ ecran: EcranReconciliation | null; erreur: string | null }> {
+  try {
+    return { ecran: ecranReconciliation(await depensesAReconcilier()), erreur: null };
+  } catch (e) {
+    console.error('[depenses] lecture des lignes à réconcilier', e instanceof Error ? e.message : e);
+    return { ecran: null, erreur: 'erreur de lecture en base' };
+  }
 }
 
 const titre = { margin: '26px 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' } as const;
