@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, CONTRAT_FORMAT, tailleLisible, type FormatExport, type ViolationExport } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, CONTRAT_FORMAT, tailleLisible, libelleConservation, type FormatExport, type ViolationExport } from '@tiktrends/core';
 import { exporterVersion } from '../../../app/actions/studios/export';
 import type { ExportRealise, VueExport } from '../../../lib/studios/export/export';
 import { btn, btnGhost, surface, tuile } from '../../ui';
@@ -17,6 +17,10 @@ import { btn, btnGhost, surface, tuile } from '../../ui';
  * contrôle au clic (droits et ressources relus). Le fichier livré a été
  * décodé et mesuré : format, dimensions, poids, empreinte. L'historique garde
  * chaque export, désigné par sa version et son empreinte, jamais par son nom.
+ *
+ * R4 · chaque export dit s'il est CONSERVÉ (le téléchargement sert le fichier
+ * archivé, même après un changement de média) ou refait à la demande · en
+ * toutes lettres, jamais par la seule couleur.
  */
 
 const section: CSSProperties = { ...surface, background: 'var(--surface)', padding: 18, display: 'grid', gap: 12, minWidth: 0 };
@@ -31,6 +35,16 @@ const date = (iso: string | null) => {
 
 function resume(e: ExportRealise): string {
   return `${CONTRAT_FORMAT[e.format].libelle} · ${e.largeur} × ${e.hauteur} · ${tailleLisible(e.octets)}`;
+}
+
+/** R4 · état de conservation, en toutes lettres. */
+function Conservation({ e }: { e: ExportRealise }) {
+  const oui = e.conserve === true;
+  return (
+    <span data-conserve={oui ? 'oui' : 'non'} style={{ fontSize: 11.5, color: oui ? 'var(--ink-2)' : 'var(--muted)', lineHeight: 1.45, overflowWrap: 'anywhere' }}>
+      {libelleConservation(oui)}
+    </span>
+  );
 }
 
 function ListeViolations({ violations }: { violations: ViolationExport[] }) {
@@ -121,6 +135,7 @@ export function PanneauExport({ vue }: { vue: VueExport }) {
               <span style={{ fontSize: 13, color: 'var(--ink)' }}>Fichier vérifié · {resume(fait)}</span>
               <span style={{ fontSize: 12, color: 'var(--ink-2)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>Empreinte {fait.empreinteCourte}</span>
               <a href={fait.url} download={fait.nomFichier} style={lien}>Télécharger {fait.nomFichier}</a>
+              <Conservation e={fait} />
             </div>
           )}
           {erreur && (
@@ -160,6 +175,7 @@ export function PanneauExport({ vue }: { vue: VueExport }) {
                   <span style={{ fontSize: 11.5, color: 'var(--muted)', overflowWrap: 'anywhere' }}>
                     {date(e.le)}{e.le ? ' · ' : ''}empreinte <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{e.empreinteCourte}</span>
                   </span>
+                  <Conservation e={e} />
                   <a href={e.url} download={e.nomFichier} style={lien}>Télécharger</a>
                 </li>
               ))}

@@ -125,9 +125,17 @@ export interface TraceExport extends IdentiteExport {
   hauteur: number;
   octets: number;
   nomFichier: string;
+  /**
+   * R4 · identifiant de l'archive (`studio_assets`, origine `render`) du
+   * fichier vérifié · `null` ou absent pour un export non conservé (antérieur
+   * à R4, ou stockage indisponible au moment de l'export).
+   */
+  assetId?: string | null;
 }
 
 export const ACTION_AUDIT_EXPORT = 'project.export';
+
+const UUID_ARCHIVE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Lecture défensive d'un `details` d'audit · `null` si la forme n'est pas celle d'un export. */
 export function lireTraceExport(x: unknown): TraceExport | null {
@@ -138,9 +146,11 @@ export function lireTraceExport(x: unknown): TraceExport | null {
   if (typeof d.sha256 !== 'string' || !EMPREINTE_VALIDE.test(d.sha256)) return null;
   if (!entierPositif(d.versionN) || !entierPositif(d.largeur) || !entierPositif(d.hauteur) || !entierPositif(d.octets)) return null;
   if (typeof d.nomFichier !== 'string' || typeof d.mime !== 'string') return null;
+  const assetId = typeof d.assetId === 'string' && UUID_ARCHIVE.test(d.assetId) ? d.assetId.toLowerCase() : null;
   return {
     projectId: d.projectId, versionId: d.versionId, format: d.format, sha256: d.sha256, versionN: d.versionN as number,
     mime: d.mime, largeur: d.largeur as number, hauteur: d.hauteur as number, octets: d.octets as number, nomFichier: d.nomFichier,
+    ...(assetId ? { assetId } : {}),
   };
 }
 

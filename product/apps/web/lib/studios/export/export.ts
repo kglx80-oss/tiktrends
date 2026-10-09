@@ -3,18 +3,20 @@ import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { storageFromEnv, putObject } from '@tiktrends/integrations';
 import {
   erreurStudio, aPermissionEspace, inspecterMedia, objetDansPortee,
   preflightVersion, mediasAVerifier, versionExportable, codeRefusPreflight, messageRefusPreflight,
   verifierExport, attenduExport, nomFichierExport, estFormatExport, lireTraceExport, empreinteCourte, cleExport,
   POLICES_EMBARQUEES, CONTRAT_FORMAT, JPEG_EXPORT, ACTION_AUDIT_EXPORT, EMPREINTE_VALIDE,
+  cleArchiveExport, droitsArchiveExport, ressourcesRevoquees, decisionTelechargement, ORIGINE_ARCHIVE_EXPORT,
   type ErreurStudio, type DisponiblesExport, type EtatMediaExport, type FormatExport, type MesureExport,
-  type ViolationExport, type TraceExport, type DocumentStudio,
+  type ViolationExport, type TraceExport, type DocumentStudio, type StockageStudio, type ArchiveRelue, type DroitMediaExport,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { lireProjet, lireVersion, lireAsset, estUuid, type ProjetStudio, type VersionStudio } from '../depot';
 import { ajouterAudit } from '../audit';
-import { lireMediaDansPortee, chargerMediasDocument, lecteurMedias, type LecteurMedias } from '../rendu/medias';
+import { lireMediaDansPortee, chargerMediasDocument, lecteurMedias, lecteurStockage, type LecteurMedias } from '../rendu/medias';
 import { estFichierCatalogue, lireFichierCatalogue } from '../rendu/catalogue-medias';
 import { rendreDocument, type ImageRvba } from '../rendu/compositeur';
 import { policeRendu } from '../rendu/polices';
@@ -40,14 +42,22 @@ import { policeRendu } from '../rendu/polices';
  *
  * ── Ce qui est écrit ─────────────────────────────────────────────────────────
  *
- * Seule la commande explicite `exporterVersionPour` écrit, et une seule ligne :
- * l'événement d'audit `project.export` (version, format, empreinte,
- * dimensions). La version n'est pas modifiée (l'export est un fichier DÉRIVÉ).
- * Aucun octet n'est persisté : il n'existe aucun stockage des dérivés côté web
- * (`studio_assets` n'est écrit que par le worker pour les générations). Le
- * rendu étant déterministe, le téléchargement (GET, aucune écriture) RE-REND la
- * version et exige la même empreinte que l'export audité : V1 reste
- * téléchargeable après V2, au même hash.
+ * Seule la commande explicite `exporterVersionPour` écrit :
+ *  · R4 · le fichier VÉRIFIÉ est déposé dans le stockage des médias studio
+ *    (même bucket S3 que le worker, `putObject`), RELU, comparé à son
+ *    empreinte, puis conservé comme ligne `studio_assets` (origine `render`,
+ *    projet du fichier, provenance de version dans `rights`) ;
+ *  · l'événement d'audit `project.export` (version, format, empreinte,
+ *    dimensions, identifiant de l'archive), dans la MÊME transaction.
+ * La version n'est pas modifiée (l'export est un fichier DÉRIVÉ).
+ *
+ * Le téléchargement (GET, aucune écriture) relit les droits, puis sert le
+ * fichier ARCHIVÉ dont les octets relus redonnent l'empreinte de l'export :
+ * un média modifié depuis ne change plus ce qui est servi. Sans archive
+ * (export antérieur à R4, ou stockage indisponible au moment de l'export), il
+ * RE-REND la version et exige la même empreinte, comme L7-A. Un média RÉVOQUÉ
+ * depuis l'export bloque le téléchargement (décision documentée dans
+ * `packages/core/src/studios/export/archive.ts`).
  *
  * Coût : calcul local, 0 $. Aucun appel fournisseur, aucune ligne de dépense.
  */
@@ -61,6 +71,35 @@ export interface DependancesExport {
   polices?: () => readonly string[];
   /** Encodeur · injectable pour éprouver la vérification (fichier abîmé ⇒ refus). */
   encoder?: (rendu: { png: Buffer; pixels: ImageRvba }, format: FormatExport) => Promise<Uint8Array>;
+  /** R4 · stockage où conserver le fichier · défaut `stockageExport()` ; `null` : ne rien conserver. */
+  stockage?: StockageStudio | null;
+}
+
+/* ───────────────────────── R4 · stockage des exports ──────────────────────── */
+
+let stockageInjecte: StockageStudio | null | undefined;
+/** Pour les tests seulement · refusé en production. `undefined` rend le stockage réel. */
+export function injecterStockageExport(s: StockageStudio | null | undefined): void {
+  if (process.env.NODE_ENV === 'production') throw new Error('stockage d’export injecté refusé en production');
+  stockageInjecte = s;
+}
+
+/**
+ * Le stockage des médias studio vu par l'export · dépôt par le MÊME mécanisme
+ * que le worker (`putObject` signé sur le bucket S3), relecture par le MÊME
+ * lecteur que celui qui servira le fichier (`lecteurStockage`). `null` sans
+ * stockage configuré : l'export reste possible, il n'est pas conservé, et
+ * l'écran le dit.
+ */
+export function stockageExport(): StockageStudio | null {
+  if (stockageInjecte !== undefined) return stockageInjecte;
+  const cfg = storageFromEnv();
+  if (!cfg) return null;
+  const lecteur = lecteurStockage();
+  return {
+    async deposer(cle, octets, mime) { await putObject(cfg, cle, Buffer.from(octets), mime); },
+    relire: (cle) => lecteur.lire({ storageKey: cle, bytes: 0 }),
+  };
 }
 
 /** Polices réellement chargeables (fichier présent, empreinte égale à celle du noyau). */
@@ -141,6 +180,8 @@ export interface FichierExport {
   largeur: number;
   hauteur: number;
   nomFichier: string;
+  /** Médias dont les pixels sont dans le fichier (calques image et logo visibles). */
+  medias: string[];
 }
 
 async function versionDuProjet(ctx: ContexteStudio, projectId: unknown, versionId: unknown): Promise<Resultat<{ projet: ProjetStudio; version: VersionStudio }>> {
@@ -217,6 +258,7 @@ export async function fabriquerExport(
     fichier: {
       projet, version, format, mime: CONTRAT_FORMAT[format].mime, octets, sha256: mesure.sha256,
       largeur: doc.width, hauteur: doc.height, nomFichier: nomFichierExport(projet.title, version.n, format),
+      medias: mediasAVerifier(doc),
     },
   };
 }
@@ -264,14 +306,59 @@ export interface ExportRealise {
   url: string;
   /** Date de l'export (ISO), lue dans l'audit. */
   le: string | null;
+  /** R4 · fichier conservé dans le stockage (servi tel quel) · absent ou faux : refait à la demande. */
+  conserve?: boolean;
 }
 
-function realise(f: Pick<FichierExport, 'format' | 'mime' | 'sha256' | 'largeur' | 'hauteur' | 'nomFichier'> & { projectId: string; versionId: string; versionN: number; octets: number }, le: Date | null): ExportRealise {
+function realise(f: TraceExport, le: Date | null): ExportRealise {
   return {
     projectId: f.projectId, versionId: f.versionId, versionN: f.versionN, format: f.format, mime: f.mime,
     largeur: f.largeur, hauteur: f.hauteur, octets: f.octets, sha256: f.sha256, empreinteCourte: empreinteCourte(f.sha256),
-    nomFichier: f.nomFichier, url: urlTelechargementExport(f), le: le ? le.toISOString() : null,
+    nomFichier: f.nomFichier, url: urlTelechargementExport(f), le: le ? le.toISOString() : null, conserve: !!f.assetId,
   };
+}
+
+/**
+ * Dépose le fichier vérifié, le RELIT et compare l'empreinte · rend la clé
+ * conservée, ou `null` (stockage absent ou défaillant : l'export reste livré,
+ * non conservé, et la trace le dit). Aucun octet d'une autre identité n'est
+ * jamais conservé sous cette clé.
+ */
+async function deposerArchive(ctx: ContexteStudio, f: FichierExport, stockage: StockageStudio | null): Promise<string | null> {
+  if (!stockage) return null;
+  const cle = cleArchiveExport({ workspaceId: ctx.workspaceId, projectId: f.projet.id, versionId: f.version.id, format: f.format, sha256: f.sha256 });
+  try {
+    await stockage.deposer(cle, f.octets, f.mime);
+    const relu = await stockage.relire(cle);
+    if (!relu || sha256(relu) !== f.sha256) {
+      console.warn(`[studios] ${ctx.traceId} export non conservé · relecture différente du dépôt`);
+      return null;
+    }
+    return cle;
+  } catch (err) {
+    console.warn(`[studios] ${ctx.traceId} export non conservé · ${err instanceof Error ? err.message : 'dépôt refusé'}`);
+    return null;
+  }
+}
+
+type TxExport = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * La ligne `studio_assets` de l'archive · une par clé (identité de l'export).
+ * Le même fichier ré-exporté retrouve sa ligne ; une ligne existante qui n'est
+ * plus ce fichier (retirée, autre empreinte) n'est jamais réutilisée.
+ */
+async function enregistrerArchive(tx: TxExport, ctx: ContexteStudio, f: FichierExport, cle: string, trace: TraceExport): Promise<string | null> {
+  const S = schema.studioAssets;
+  const [n] = await tx.insert(S).values({
+    workspaceId: ctx.workspaceId, brandId: f.projet.brandId, projectId: f.projet.id, storageKey: cle, mime: f.mime,
+    bytes: f.octets.length, width: f.largeur, height: f.hauteur, sha256: f.sha256, origin: ORIGINE_ARCHIVE_EXPORT,
+    rights: droitsArchiveExport(trace, f.medias), parentAssetId: null, storageState: 'stored', createdBy: ctx.userId,
+  }).onConflictDoNothing({ target: [S.workspaceId, S.storageKey] }).returning({ id: S.id });
+  if (n) return n.id;
+  const [e] = await tx.select({ id: S.id, brandId: S.brandId, projectId: S.projectId, sha256: S.sha256, origin: S.origin, storageState: S.storageState })
+    .from(S).where(and(eq(S.workspaceId, ctx.workspaceId), eq(S.storageKey, cle))).limit(1);
+  return e && e.storageState === 'stored' && e.sha256 === f.sha256 && e.brandId === f.projet.brandId && e.projectId === f.projet.id && e.origin === ORIGINE_ARCHIVE_EXPORT ? e.id : null;
 }
 
 /**
@@ -291,12 +378,18 @@ export async function exporterVersionPour(
     projectId: x.projet.id, versionId: x.version.id, versionN: x.version.n, format: x.format, sha256: x.sha256,
     mime: x.mime, largeur: x.largeur, hauteur: x.hauteur, octets: x.octets.length, nomFichier: x.nomFichier,
   };
+  // R4 · dépôt et relecture HORS transaction (le stockage n'en a pas) ; la ligne et l'audit, ensemble.
+  const cle = await deposerArchive(ctx, x, deps.stockage !== undefined ? deps.stockage : stockageExport());
   try {
-    await ajouterAudit(db, ctx, {
-      action: ACTION_AUDIT_EXPORT, brandId: x.projet.brandId, targetType: 'studio_project_version', targetId: x.version.id,
-      versionBefore: x.version.id, versionAfter: x.version.id,
-      reason: `Export ${CONTRAT_FORMAT[x.format].libelle} de la version ${x.version.n}`,
-      details: { ...trace },
+    await db.transaction(async (tx) => {
+      const assetId = cle ? await enregistrerArchive(tx, ctx, x, cle, trace) : null;
+      if (assetId) trace.assetId = assetId;
+      await ajouterAudit(tx, ctx, {
+        action: ACTION_AUDIT_EXPORT, brandId: x.projet.brandId, targetType: 'studio_project_version', targetId: x.version.id,
+        versionBefore: x.version.id, versionAfter: x.version.id,
+        reason: `Export ${CONTRAT_FORMAT[x.format].libelle} de la version ${x.version.n}${assetId ? ' · fichier conservé' : ' · non conservé'}`,
+        details: { ...trace },
+      });
     });
   } catch (err) {
     console.error(`[studios] ${ctx.traceId} audit d'export`, err instanceof Error ? err.message : err);
@@ -307,6 +400,14 @@ export async function exporterVersionPour(
 
 /** Exports audités d'un projet, du plus récent au plus ancien · lecture dans la portée. */
 export async function historiqueExports(ctx: ContexteStudio, projet: ProjetStudio, limite = 30): Promise<ExportRealise[]> {
+  return (await tracesAuditees(ctx, projet, limite)).map((x) => realise(x.trace, x.le));
+}
+
+/**
+ * Traces d'export d'un projet, une par fichier (la plus récente ; à identité
+ * égale, celle qui désigne une archive l'emporte) · lecture dans la portée.
+ */
+async function tracesAuditees(ctx: ContexteStudio, projet: ProjetStudio, limite: number): Promise<Array<{ trace: TraceExport; le: Date | null }>> {
   if (ctx.marques.length === 0) return [];
   const V = schema.studioProjectVersions;
   const versions = await db.select({ id: V.id }).from(V)
@@ -319,24 +420,79 @@ export async function historiqueExports(ctx: ContexteStudio, projet: ProjetStudi
       inArray(E.targetId, versions.map((v) => v.id)), eq(E.workspaceId, ctx.workspaceId), inArray(E.brandId, ctx.marques),
     ))
     .orderBy(desc(E.occurredAt)).limit(limite);
-  const out: ExportRealise[] = [];
-  const vus = new Set<string>();
+  const out: Array<{ trace: TraceExport; le: Date | null }> = [];
+  const vus = new Map<string, number>();
   for (const l of lignes) {
     if (!l.workspaceId || !l.brandId || !objetDansPortee({ workspaceId: ctx.workspaceId, marquesDuWorkspace: ctx.marquesDuWorkspace, restrictionsMarque: ctx.restrictionsMarque }, { workspaceId: l.workspaceId, brandId: l.brandId })) continue;
     const t = lireTraceExport(l.details);
     if (!t || t.versionId !== l.targetId || t.projectId !== projet.id) continue;
-    // Le même fichier exporté deux fois (même version, format, empreinte) · une entrée, la plus récente.
-    if (vus.has(cleExport(t))) continue;
-    vus.add(cleExport(t));
-    out.push(realise(t, l.le));
+    // Le même fichier exporté deux fois (même version, format, empreinte) · une entrée, la plus récente,
+    // qui hérite de l'archive d'une trace plus ancienne si elle-même n'en a pas.
+    const deja = vus.get(cleExport(t));
+    if (deja !== undefined) {
+      if (!out[deja]!.trace.assetId && t.assetId) out[deja] = { trace: { ...out[deja]!.trace, assetId: t.assetId }, le: out[deja]!.le };
+      continue;
+    }
+    vus.set(cleExport(t), out.length);
+    out.push({ trace: t, le: l.le });
   }
   return out;
 }
 
+/* ───────────────────────── R4 · téléchargement ───────────────────────────── */
+
 /**
- * Téléchargement d'un export AUDITÉ · lecture pure (aucune écriture). La
- * version est re-rendue et doit redonner l'empreinte de l'export ; sinon,
- * refus (rien n'est servi qui ne soit pas le fichier exporté).
+ * Droits de chaque média de la version, relus MAINTENANT (lignes seulement,
+ * pas le contenu) · autorisé = dans la portée, de la marque du projet, stocké ;
+ * photo ou logo du catalogue encore servi. Tout le reste est révoqué.
+ */
+async function droitsMedias(ctx: ContexteStudio, projet: ProjetStudio, doc: DocumentStudio): Promise<Record<string, DroitMediaExport>> {
+  const out: Record<string, DroitMediaExport> = {};
+  for (const id of mediasAVerifier(doc)) {
+    if (estFichierCatalogue(id)) {
+      out[id] = (await lireFichierCatalogue(ctx, projet.id, id)).ok ? 'autorise' : 'revoque';
+      continue;
+    }
+    const a = estUuid(id) ? await lireAsset(ctx, id) : null;
+    out[id] = a && a.ok && a.asset.brandId === projet.brandId && a.asset.storageState === 'stored' ? 'autorise' : 'revoque';
+  }
+  return out;
+}
+
+/** L'archive relue dans la portée · ligne et octets (empreinte recalculée) · `null` hors portée ou inconnue. */
+async function relireArchive(ctx: ContexteStudio, assetId: string, lecteur: LecteurMedias): Promise<(ArchiveRelue & { octets: Uint8Array | null }) | null> {
+  const a = await lireAsset(ctx, assetId);
+  if (!a.ok) return null;
+  const x = a.asset;
+  let octets: Uint8Array | null = null;
+  if (x.storageState === 'stored') {
+    try { octets = await lecteur.lire(x); } catch { octets = null; }
+  }
+  return {
+    origin: x.origin, storageState: x.storageState, projectId: x.projectId, mime: x.mime, bytes: x.bytes, sha256: x.sha256,
+    rights: x.rights, empreinteRelue: octets ? sha256(octets) : null, octets,
+  };
+}
+
+function refusTelechargement(ctx: ContexteStudio, ids: string[], violations: ViolationExport[]): RefusExport {
+  const cibles = violations.map((v) => v.cible.calqueId).filter((x): x is string => typeof x === 'string');
+  const autres = violations.length - 1;
+  return {
+    ...erreurStudio(codeRefusPreflight(violations), {
+      traceId: ctx.traceId, targetIds: [...ids, ...new Set(cibles)],
+      message: `Téléchargement refusé · ${violations[0]?.message ?? 'ressource retirée.'}${autres > 0 ? ` Et ${autres} autre${autres > 1 ? 's' : ''} média${autres > 1 ? 's' : ''} retiré${autres > 1 ? 's' : ''}.` : ''} Le fichier reste conservé.`,
+    }),
+    preflight: violations,
+  };
+}
+
+/**
+ * Téléchargement d'un export AUDITÉ · lecture pure (aucune écriture).
+ * Permission relue, version et projet relus dans la portée, droits de chaque
+ * média relus (révoqué ⇒ refus ciblé), puis le fichier ARCHIVÉ dont les
+ * octets relus redonnent l'empreinte de l'export. Sans archive conforme,
+ * re-rendu exigeant la même empreinte ; sinon refus (rien n'est servi qui ne
+ * soit pas le fichier exporté).
  */
 export async function telechargerExportPour(
   ctx: ContexteStudio,
@@ -351,10 +507,32 @@ export async function telechargerExportPour(
   if (!v.ok) return v;
   const p = await lireProjet(ctx, v.version.projectId);
   if (!p.ok) return p;
-  const audites = await historiqueExports(ctx, p.projet, 500);
-  const connu = audites.some((a) => a.versionId === v.version.id && a.format === e.format && a.sha256 === e.empreinte);
-  if (!connu) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
-  return fabriquerExport(ctx, { projectId: p.projet.id, versionId: v.version.id, format: e.format, empreinteAttendue: e.empreinte }, deps);
+  const format = e.format;
+  const empreinte = e.empreinte;
+  const t = (await tracesAuditees(ctx, p.projet, 500)).find((a) => a.trace.versionId === v.version.id && a.trace.format === format && a.trace.sha256 === empreinte)?.trace;
+  if (!t) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
+  const ids = [p.projet.id, v.version.id];
+
+  // Droits relus d'abord · un média révoqué bloque, archive ou pas.
+  const exportable = versionExportable(v.version);
+  if (!exportable.ok) return refusPreflight(ctx, ids, exportable.violations);
+  const revoquees = ressourcesRevoquees(exportable.document, await droitsMedias(ctx, p.projet, exportable.document));
+  const lecteur = deps.lecteur ?? lecteurMedias();
+  const archive = t.assetId ? await relireArchive(ctx, t.assetId, lecteur) : undefined;
+  const d = decisionTelechargement({ trace: t, revoquees, archive });
+  if (d.servir === 'refus') return refusTelechargement(ctx, ids, d.violations);
+  if (d.servir === 'archive' && archive?.octets) {
+    return {
+      ok: true,
+      fichier: {
+        projet: p.projet, version: v.version, format, mime: CONTRAT_FORMAT[format].mime, octets: archive.octets, sha256: t.sha256,
+        largeur: t.largeur, hauteur: t.hauteur, nomFichier: t.nomFichier, medias: mediasAVerifier(exportable.document),
+      },
+    };
+  }
+  if (t.assetId) console.warn(`[studios] ${ctx.traceId} export conservé non servi · ${d.servir === 'rendu' ? d.raison : 'octets absents'} · repli sur le re-rendu`);
+  // Repli L7-A · re-rendu, servi SEULEMENT s'il redonne l'empreinte exacte de l'export.
+  return fabriquerExport(ctx, { projectId: p.projet.id, versionId: v.version.id, format, empreinteAttendue: empreinte }, { ...deps, lecteur });
 }
 
 /* ─────────────────────────────── Écran ───────────────────────────────────── */

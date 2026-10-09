@@ -34,7 +34,9 @@ export type CauseExport =
   | 'police_televersee'
   | 'media_absent'
   | 'media_illisible'
-  | 'media_dimensions';
+  | 'media_dimensions'
+  /** R4 · média retiré depuis l'export · l'export conservé n'est plus servi. */
+  | 'media_revoque';
 
 export interface CibleExport {
   type: 'version' | 'document' | 'calque';
@@ -180,7 +182,7 @@ export function preflightVersion(v: { content: unknown; contentHash: string }, d
 /** Code d'erreur commun d'un préflight refusé · décidé par la PREMIÈRE cause. */
 export function codeRefusPreflight(violations: readonly ViolationExport[]): 'MISSING_REFERENCE' | 'UNSUPPORTED_CAPABILITY' | 'INVARIANT_CONFLICT' {
   const c = violations[0]?.cause;
-  if (c === 'media_absent' || c === 'media_illisible' || c === 'media_dimensions' || c === 'police_absente') return 'MISSING_REFERENCE';
+  if (c === 'media_absent' || c === 'media_illisible' || c === 'media_dimensions' || c === 'police_absente' || c === 'media_revoque') return 'MISSING_REFERENCE';
   if (c === 'police_televersee' || c === 'document_trop_grand' || c === 'document_absent') return 'UNSUPPORTED_CAPABILITY';
   return 'INVARIANT_CONFLICT';
 }

@@ -185,3 +185,4 @@ export * from './studios/ux/projet-etats';
 export * from './studios/ux/projet-focus';
 export * from './studios/canvas';
 export * from './migration-additive';
+export * from './depense-reconciliation-ecran';
