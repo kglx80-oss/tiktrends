@@ -1,0 +1,227 @@
+{
+  "environnement": {
+    "date": "2026-10-09T06:08:20.527Z",
+    "app": "http://127.0.0.1:3485",
+    "etiquette": "main-bc33cec-p1",
+    "machine": "4 cœurs Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memoireMo": 16095,
+    "chargeAvant": [
+      "10.03",
+      "8.80",
+      "4.27"
+    ],
+    "node": "v22.22.2",
+    "repetitions": 11,
+    "chargeApres": [
+      "9.96",
+      "8.86",
+      "4.36"
+    ]
+  },
+  "resultats": [
+    {
+      "groupe": "Accueil",
+      "route": "/dashboard",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 2043,
+      "medianeMs": 140,
+      "p95Ms": 224,
+      "minMs": 47,
+      "maxMs": 224,
+      "erreurs": 0,
+      "octets": 106440,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Pubs IA",
+      "route": "/studio/ads",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 320,
+      "medianeMs": 212,
+      "p95Ms": 491,
+      "minMs": 165,
+      "maxMs": 491,
+      "erreurs": 0,
+      "octets": 415944,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studio historique",
+      "route": "/studio",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 64,
+      "medianeMs": 74,
+      "p95Ms": 100,
+      "minMs": 31,
+      "maxMs": 100,
+      "erreurs": 0,
+      "octets": 85703,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studio historique",
+      "route": "/studio/image",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 71,
+      "medianeMs": 63,
+      "p95Ms": 88,
+      "minMs": 45,
+      "maxMs": 88,
+      "erreurs": 0,
+      "octets": 251431,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studio historique",
+      "route": "/studio/video",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 53,
+      "medianeMs": 55,
+      "p95Ms": 85,
+      "minMs": 44,
+      "maxMs": 85,
+      "erreurs": 0,
+      "octets": 220273,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studio historique",
+      "route": "/studio/textes",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 46,
+      "medianeMs": 26,
+      "p95Ms": 31,
+      "minMs": 20,
+      "maxMs": 31,
+      "erreurs": 0,
+      "octets": 73770,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Veille",
+      "route": "/veille",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 52,
+      "medianeMs": 41,
+      "p95Ms": 84,
+      "minMs": 37,
+      "maxMs": 84,
+      "erreurs": 0,
+      "octets": 132220,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Veille",
+      "route": "/veille/scale",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 47,
+      "medianeMs": 26,
+      "p95Ms": 48,
+      "minMs": 24,
+      "maxMs": 48,
+      "erreurs": 0,
+      "octets": 97988,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Veille",
+      "route": "/saved",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 133,
+      "medianeMs": 122,
+      "p95Ms": 178,
+      "minMs": 105,
+      "maxMs": 178,
+      "erreurs": 0,
+      "octets": 1464159,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Adsmap",
+      "route": "/adsmap",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 209,
+      "medianeMs": 67,
+      "p95Ms": 98,
+      "minMs": 54,
+      "maxMs": 98,
+      "erreurs": 0,
+      "octets": 90199,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studios v1",
+      "route": "/studio/projets",
+      "statuts": [
+        404
+      ],
+      "redirection": null,
+      "froidMs": 20,
+      "medianeMs": null,
+      "p95Ms": null,
+      "minMs": null,
+      "maxMs": null,
+      "erreurs": 0,
+      "octets": 10027,
+      "contenuAttendu": false,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studios v1",
+      "route": "/studio/projets/[id]",
+      "statuts": [
+        404
+      ],
+      "redirection": null,
+      "froidMs": 2,
+      "medianeMs": null,
+      "p95Ms": null,
+      "minMs": null,
+      "maxMs": null,
+      "erreurs": 0,
+      "octets": 10027,
+      "contenuAttendu": false,
+      "detailErreur": null
+    }
+  ]
+}
