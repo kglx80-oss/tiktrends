@@ -3,7 +3,7 @@
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
   "shaCourant": "f2b9fc4",
-  "lotCourant": "vague 8 (base f2b9fc4) · L8-A écrans image, L8-B écrans projet/vidéo/Veille/ADMIN, L8-C performance, L8-D canvas métier, R4 réconciliation + exports conservés, L9-A migration/rollback/baseline/plan de fusion",
+  "lotCourant": "vague 8 (base f2b9fc4) · L8-A écrans image, L8-B écrans projet/vidéo/Veille/ADMIN, L8-C performance, L8-D canvas métier, R4 réconciliation + exports conservés, L9-A migration/rollback/baseline/plan de fusion ; E2 devis calculé + reprise vision + registre cumulatif + vérification Docker",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
@@ -932,7 +932,8 @@
     "autorisees": "aucun budget de recette fournisseur explicitement autorisé pour ce chantier ; plafond global AI_SPEND_CAP_USD du dépôt",
     "reelles": 0,
     "budgetEssaiReelAutoriseUsd": 15,
-    "depenseEssaiReelUsd": 0
+    "depenseEssaiReelUsd": 0,
+    "portee": "total cumulé, tous tests du chantier, tous fournisseurs"
   },
   "blocages": [
     {
@@ -1178,6 +1179,12 @@
       "date": "2026-10-08",
       "par": "propriétaire",
       "decision": "ffmpeg/ffprobe intégrés à l'image Docker du worker ; arrivée sur le VPS par le déploiement normal après fusion."
+    },
+    {
+      "id": "D-PROP-04",
+      "date": "2026-10-09",
+      "par": "propriétaire",
+      "decision": "15 $ maximum AU TOTAL pour tous les tests du chantier TikTrends, tous fournisseurs, étapes et relances confondus ; remplace la limite de 1 $ par passe ; dépenses déjà engagées déduites, réservations incertaines conservées ; aucune recharge ni dépassement. Préalables : devis complet calculé sur les paramètres envoyés (estimation / réservation max / réglé) et reprise du seul contrôle visuel manquant ; un seul rendu réel examiné avant le benchmark ; suivi cumulatif durable."
     }
   ],
   "prOuvertes": {
@@ -1294,6 +1301,16 @@
         "9,925 $ benchmark non garanti tant que ces limites ne sont pas closes"
       ],
       "suite": "R3 (budget), L7-A (export image), L7-B (décodeur vidéo ffmpeg) lancés · vague 7"
+    },
+    {
+      "date": "2026-10-09",
+      "passe": "tests ciblés sur f2b9fc4",
+      "constat": "135 tests ciblés PASS ; pas de feu vert global de fusion",
+      "resteOuvert": [
+        "devis du pas 1 figé à 0,36 $ au lieu d'être calculé sur les paramètres envoyés",
+        "reprise du seul contrôle visuel manquant après interruption, sans double facturation"
+      ],
+      "suite": "E2 lancé (devis calculé, reprise vision avec exclusion, registre cumulatif durable, vérification Docker)"
     }
   ]
 }
