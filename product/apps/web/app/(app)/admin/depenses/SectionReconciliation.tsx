@@ -1,14 +1,20 @@
 import type { CSSProperties } from 'react';
 import type { EcranReconciliation } from '@tiktrends/core';
 import { surface, tuile, cadreSignal } from '../../../../components/ui';
+import { FormulaireReconciliation } from './FormulaireReconciliation';
 
 /**
  * R4 · « À réconcilier » sur l'écran des dépenses du propriétaire.
  *
  * Affiche ce que R3 a rendu lisible (`ai_spend.reconcile_reason`) : chaque
  * appel dont l'issue est incertaine, gardé au MAXIMUM réservé en attendant la
- * facture. Rendu pur d'un modèle décidé dans le noyau (`ecranReconciliation`) ·
- * aucune écriture, aucun bouton qui modifie une ligne.
+ * facture. Rendu d'un modèle décidé dans le noyau (`ecranReconciliation`).
+ *
+ * R5 · chaque ligne porte le geste « Réconcilier avec la facture » (repli
+ * natif `<details>`, fermé par défaut) : montant facturé, devise, preuve,
+ * motif, confirmation réservé → facturé (`FormulaireReconciliation`). Le
+ * geste AJOUTE une réconciliation ; la ligne n'est jamais modifiée. Sans clé
+ * fournie (`cles`), aucun formulaire n'est rendu.
  *
  * Trois états : vide (le silence, le plus fréquent), rempli, lecture
  * impossible. Liste par défaut à toutes les largeurs (une carte par ligne,
@@ -19,8 +25,12 @@ import { surface, tuile, cadreSignal } from '../../../../components/ui';
 const discret: CSSProperties = { margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, overflowWrap: 'anywhere' };
 const etiquette: CSSProperties = { fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' };
 const titre: CSSProperties = { margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' };
+const resume: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer',
+  border: '1px solid var(--line-2)', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+};
 
-export function SectionReconciliation({ ecran, erreur }: { ecran: EcranReconciliation | null; erreur?: string | null }) {
+export function SectionReconciliation({ ecran, erreur, cles }: { ecran: EcranReconciliation | null; erreur?: string | null; cles?: Readonly<Record<string, string>> }) {
   const etat = erreur || !ecran ? 'erreur' : ecran.etat;
   const attention = etat === 'rempli';
   return (
@@ -69,11 +79,19 @@ export function SectionReconciliation({ ecran, erreur }: { ecran: EcranReconcili
                   <dt style={etiquette}>Réservé</dt><dd style={{ ...discret, margin: 0 }}>{l.reserve} au maximum, compté au plafond</dd>
                 </dl>
                 <p style={{ ...discret, color: 'var(--ink)' }}>{l.aFaire}</p>
+                {cles?.[l.id] && (
+                  <details data-geste-reconcilier={l.id} style={{ minWidth: 0 }}>
+                    <summary style={resume}>Réconcilier avec la facture</summary>
+                    <div style={{ paddingTop: 10 }}>
+                      <FormulaireReconciliation ligneId={l.id} reserveMicros={l.reserveMicros} cle={cles[l.id]!} />
+                    </div>
+                  </details>
+                )}
               </li>
             ))}
           </ol>
           <p style={{ ...discret, fontSize: 11.5, color: 'var(--muted)' }}>
-            Le rapprochement se fait sur la facture du fournisseur · cet écran ne modifie aucune ligne et ne libère aucun montant.
+            Le rapprochement se fait sur la facture du fournisseur · une réconciliation s’ajoute à l’historique avec sa preuve et son motif, la ligne garde son montant réservé et sa cause.
           </p>
         </>
       )}

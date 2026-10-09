@@ -35,7 +35,12 @@ import * as schema from './schema';
  *  · rendue   · `actual_usd = 0`, jetons nuls ;
  *  · à réconcilier (R3, colonne `reconcile_reason`, migration 0055) · issue
  *    incertaine : montant inchangé (le maximum), cause écrite, plus aucune
- *    transition automatique (`marquerAReconcilier`).
+ *    transition automatique (`marquerAReconcilier`) ;
+ *  · réconciliée (R5, table `ai_spend_reconciliations`, migration 0056) · un
+ *    humain a rapproché la ligne de la facture : la ligne ne change PAS
+ *    (montant réservé et cause gardés), une réconciliation s'AJOUTE, et le
+ *    plafond retient son montant facturé (`montantRetenuSql`,
+ *    `depenseDepuis`, `reconcilierDepense`).
  * Chaque transition part de « réservée » et seulement d'elle : rejouer un
  * règlement, régler après une annulation, annuler après un règlement ne change
  * rien (`apps/web/test/fa-reservation-commune.test.ts`).
@@ -71,10 +76,23 @@ export type ReservationDepense =
   | { ok: true; depenseAvantUsd: number; id: string }
   | { ok: false; raison: string; dejaEngagee: boolean };
 
-/** Dépense de la fenêtre · la même somme que `spentUsd()` du site. */
+/**
+ * Montant RETENU par le plafond pour une ligne `ai_spend` · R5 : le montant
+ * FACTURÉ de sa réconciliation quand elle en a une (`ai_spend_reconciliations`,
+ * jointure à gauche requise), sinon `actual_usd`. La ligne elle-même n'est
+ * jamais réécrite : elle garde le montant réservé, l'historique reste lisible.
+ */
+export const montantRetenuSql = () => sql<number>`case when ${schema.aiSpendReconciliations.id} is null then ${schema.aiSpend.actualUsd} else ${schema.aiSpendReconciliations.billedMicros}::double precision / 1000000 end`;
+
+/**
+ * Dépense de la fenêtre · la somme que le plafond compare (site, worker,
+ * écran). Une ligne réconciliée compte pour son montant facturé (R5).
+ */
 export async function depenseDepuis(base: BaseDepense, depuis: Date): Promise<number> {
-  const [r] = await base.select({ total: sql<number>`coalesce(sum(${schema.aiSpend.actualUsd}), 0)` })
-    .from(schema.aiSpend).where(gte(schema.aiSpend.createdAt, depuis));
+  const [r] = await base.select({ total: sql<number>`coalesce(sum(${montantRetenuSql()}), 0)` })
+    .from(schema.aiSpend)
+    .leftJoin(schema.aiSpendReconciliations, eq(schema.aiSpendReconciliations.aiSpendId, schema.aiSpend.id))
+    .where(gte(schema.aiSpend.createdAt, depuis));
   return Number(r?.total ?? 0);
 }
 
@@ -169,15 +187,108 @@ export async function marquerAReconcilier(base: BaseDepense, id: string, cause: 
   return r.length > 0;
 }
 
-/** Les lignes « à réconcilier » de la fenêtre, les plus récentes d'abord · lecture seule. */
+/**
+ * Les lignes « à réconcilier » de la fenêtre, les plus récentes d'abord ·
+ * lecture seule. Une ligne réconciliée (R5) n'y figure plus : elle passe à
+ * l'historique (`lireDepensesReconciliees`), sa cause reste écrite.
+ */
 export async function lireDepensesAReconcilier(base: BaseDepense, depuis: Date, limite = 200) {
   const A = schema.aiSpend;
+  const R = schema.aiSpendReconciliations;
   const rows = await base.select({
     id: A.id, createdAt: A.createdAt, provider: A.provider, model: A.model, action: A.action,
     workspaceId: A.workspaceId, estimatedUsd: A.estimatedUsd, actualUsd: A.actualUsd, cause: A.reconcileReason,
   }).from(A)
-    .where(and(isNotNull(A.reconcileReason), gte(A.createdAt, depuis)))
+    .leftJoin(R, eq(R.aiSpendId, A.id))
+    .where(and(isNotNull(A.reconcileReason), isNull(R.id), gte(A.createdAt, depuis)))
     .orderBy(desc(A.createdAt))
     .limit(Math.max(1, Math.min(1000, Math.trunc(limite))));
   return rows.map((r) => ({ ...r, cause: r.cause ?? '', estimatedUsd: Number(r.estimatedUsd), actualUsd: Number(r.actualUsd) }));
+}
+
+/* ── R5 · réconciliation avec la facture : AJOUT, jamais réécriture ─────────── */
+
+export interface SaisieReconciliationDepense {
+  aiSpendId: string;
+  billedMicros: number;
+  currency: string;
+  providerRef: string;
+  reason: string;
+  authorId: string;
+  idempotencyKey: string;
+}
+
+/** L'état lu sous verrou, passé à la décision de l'appelant (`decisionReconciliation`, noyau). */
+export interface EtatReconciliationDepense {
+  ligne: { id: string; reconcileReason: string | null; actualUsd: number } | null;
+  parCle: { id: string; aiSpendId: string } | null;
+  parLigne: { id: string; idempotencyKey: string; createdAt: Date } | null;
+}
+
+export type DecisionReconciliationDepense =
+  | { geste: 'inserer'; reserveMicros: number }
+  | { geste: 'deja_enregistree'; reconciliationId: string }
+  | { geste: 'refus'; code: string; message: string };
+
+export type ResultatReconciliationDepense =
+  | { ok: true; statut: 'creee' | 'deja_enregistree'; reconciliation: typeof schema.aiSpendReconciliations.$inferSelect }
+  | { ok: false; code: string; message: string };
+
+/**
+ * Réconcilie une ligne « à réconcilier » avec la facture · UNE transaction :
+ * verrou sur la ligne `ai_spend` (deux soumissions simultanées s'attendent),
+ * lecture de l'état (ligne, réconciliation sous cette clé, réconciliation de
+ * cette ligne), décision de l'appelant, AJOUT d'une ligne
+ * `ai_spend_reconciliations`. Rien d'autre n'est écrit : la ligne `ai_spend`
+ * garde son montant réservé et sa cause. Rejouer la même clé rend la même
+ * réconciliation (aucun doublon) ; les contraintes d'unicité de 0056 tiennent
+ * même si un appelant oubliait la décision.
+ */
+export async function reconcilierDepense(
+  base: BaseDepense,
+  s: SaisieReconciliationDepense,
+  decider: (etat: EtatReconciliationDepense) => DecisionReconciliationDepense,
+): Promise<ResultatReconciliationDepense> {
+  const A = schema.aiSpend;
+  const R = schema.aiSpendReconciliations;
+  return base.transaction(async (tx) => {
+    const [ligne] = await tx.select({ id: A.id, reconcileReason: A.reconcileReason, actualUsd: A.actualUsd })
+      .from(A).where(eq(A.id, s.aiSpendId)).for('update').limit(1);
+    const [parCle] = await tx.select({ id: R.id, aiSpendId: R.aiSpendId }).from(R).where(eq(R.idempotencyKey, s.idempotencyKey)).limit(1);
+    const [parLigne] = await tx.select({ id: R.id, idempotencyKey: R.idempotencyKey, createdAt: R.createdAt }).from(R).where(eq(R.aiSpendId, s.aiSpendId)).limit(1);
+    const d = decider({
+      ligne: ligne ? { ...ligne, actualUsd: Number(ligne.actualUsd) } : null,
+      parCle: parCle ?? null,
+      parLigne: parLigne ?? null,
+    });
+    if (d.geste === 'refus') return { ok: false as const, code: d.code, message: d.message };
+    if (d.geste === 'deja_enregistree') {
+      const [r] = await tx.select().from(R).where(eq(R.id, d.reconciliationId)).limit(1);
+      if (!r) throw new Error('réconciliation introuvable');
+      return { ok: true as const, statut: 'deja_enregistree' as const, reconciliation: r };
+    }
+    const [r] = await tx.insert(R).values({
+      aiSpendId: s.aiSpendId, reservedMicros: d.reserveMicros, billedMicros: s.billedMicros, currency: s.currency,
+      providerRef: s.providerRef, reason: s.reason, authorId: s.authorId, idempotencyKey: s.idempotencyKey,
+    }).returning();
+    if (!r) throw new Error('réconciliation non écrite');
+    return { ok: true as const, statut: 'creee' as const, reconciliation: r };
+  });
+}
+
+/** L'historique des réconciliations, les plus récentes d'abord · lecture seule, sans fenêtre (l'historique ne s'efface pas). */
+export async function lireDepensesReconciliees(base: BaseDepense, limite = 100) {
+  const A = schema.aiSpend;
+  const R = schema.aiSpendReconciliations;
+  const U = schema.users;
+  const rows = await base.select({
+    id: R.id, aiSpendId: R.aiSpendId, appelLe: A.createdAt, provider: A.provider, model: A.model, action: A.action, cause: A.reconcileReason,
+    reservedMicros: R.reservedMicros, billedMicros: R.billedMicros, currency: R.currency, providerRef: R.providerRef, reason: R.reason,
+    auteur: U.email, createdAt: R.createdAt,
+  }).from(R)
+    .innerJoin(A, eq(A.id, R.aiSpendId))
+    .leftJoin(U, eq(U.id, R.authorId))
+    .orderBy(desc(R.createdAt))
+    .limit(Math.max(1, Math.min(1000, Math.trunc(limite))));
+  return rows.map((r) => ({ ...r, cause: r.cause ?? '', reservedMicros: Number(r.reservedMicros), billedMicros: Number(r.billedMicros) }));
 }

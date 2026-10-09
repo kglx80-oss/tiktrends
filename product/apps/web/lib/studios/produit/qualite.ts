@@ -1,6 +1,6 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { and, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   verdictComposants, lireReferenceEpinglee, transitionQualite, erreurStudio, associationProduit, criteresComposants, versionDepuisEmpreinte, aPermissionEspace,
@@ -19,6 +19,8 @@ import {
   CLE_MARQUEUR_CONTROLE_VISION, causeIncertaine, decisionControleVision, issueEchecAppel, lireMarqueurControleVision, messageControleIncertain,
   reservationTexteLiberable, type IssueEchecAppel, type LigneDepenseLiee, type MarqueurControleVision,
 } from '@tiktrends/core';
+// R5 · une issue incertaine dont toutes les lignes sont réconciliées avec la facture n'est plus incertaine.
+import { controleIncertainReconcilie } from '@tiktrends/core';
 import type { EnvironnementPrompts } from '../prompts/environnement';
 
 /**
@@ -209,20 +211,58 @@ const MARGE_HORLOGE_MS = 5_000;
 
 /**
  * Les lignes de dépense nées PENDANT un contrôle (espace du job, action du
- * contrôle visuel, fenêtre du marqueur) et encore incertaines · lecture seule.
+ * contrôle visuel, fenêtre du marqueur) et incertaines · lecture seule. R5 :
+ * chacune dit si elle a été réconciliée avec la facture (`reconciliee`).
  */
-async function lignesDuControle(job: typeof schema.studioJobs.$inferSelect, m: { le: string; fin?: string | null }): Promise<LigneDepenseLiee[]> {
+async function lignesDuControle(job: typeof schema.studioJobs.$inferSelect, m: { le: string; fin?: string | null }): Promise<Array<LigneDepenseLiee & { reconciliee: boolean }>> {
   const A = schema.aiSpend;
+  const R = schema.aiSpendReconciliations;
   const debut = new Date(Date.parse(m.le) - MARGE_HORLOGE_MS);
   const fin = new Date((m.fin ? Date.parse(m.fin) : Date.now()) + MARGE_HORLOGE_MS);
   if (!Number.isFinite(debut.getTime()) || !Number.isFinite(fin.getTime())) return [];
-  const rows = await db.select({ id: A.id, createdAt: A.createdAt, actualUsd: A.actualUsd, cause: A.reconcileReason, entree: A.inputTokens, sortie: A.outputTokens })
+  const rows = await db.select({ id: A.id, createdAt: A.createdAt, actualUsd: A.actualUsd, cause: A.reconcileReason, entree: A.inputTokens, sortie: A.outputTokens, rec: R.id })
     .from(A)
+    .leftJoin(R, eq(R.aiSpendId, A.id))
     .where(and(eq(A.workspaceId, job.workspaceId), eq(A.action, ACTION_DEPENSE_CONTROLE_VISION), gte(A.createdAt, debut), lte(A.createdAt, fin)))
     .orderBy(A.createdAt);
   return rows
     .filter((r) => r.cause !== null || (r.entree === null && r.sortie === null && Number(r.actualUsd) > 0))
-    .map((r) => ({ id: r.id, createdAt: r.createdAt, actualUsd: Number(r.actualUsd), cause: r.cause }));
+    .map((r) => ({ id: r.id, createdAt: r.createdAt, actualUsd: Number(r.actualUsd), cause: r.cause, reconciliee: r.rec !== null }));
+}
+
+/**
+ * R5 · REPREND un contrôle incertain réconcilié · UNE écriture conditionnelle
+ * (le marqueur « incertain » de CETTE trace, qualité `pending` ou
+ * `requires_review` laissée par ce contrôle) qui pose le marqueur « engagé »
+ * du nouveau lancement et rend la qualité à `pending`, avec son audit, dans la
+ * même transaction. Un second lancement simultané ne correspond plus : un
+ * seul reprend. Rend le job relu, ou `null` si la reprise n'a pas été prise.
+ */
+async function reprendreMarqueur(
+  ctx: ContexteStudio, job: typeof schema.studioJobs.$inferSelect, ancienne: string, m: MarqueurControleVision, lignes: readonly string[],
+): Promise<typeof schema.studioJobs.$inferSelect | null> {
+  const J = schema.studioJobs;
+  return db.transaction(async (tx) => {
+    const [pris] = await tx.update(J)
+      .set({
+        result: sql`jsonb_set(coalesce(${J.result}, '{}'::jsonb), ${`{${CLE_MARQUEUR_CONTROLE_VISION}}`}::text[], ${JSON.stringify(m)}::jsonb)`,
+        qualityStatus: 'pending', rowVersion: sql`${J.rowVersion} + 1`, updatedAt: new Date(),
+      })
+      .where(and(
+        eq(J.id, job.id), eq(J.workspaceId, job.workspaceId), eq(J.state, 'completed'), inArray(J.qualityStatus, ['pending', 'requires_review']),
+        sql`${J.result} -> ${CLE_MARQUEUR_CONTROLE_VISION} ->> 'etat' = 'incertain'`,
+        sql`${J.result} -> ${CLE_MARQUEUR_CONTROLE_VISION} ->> 'trace' = ${ancienne}`,
+      ))
+      .returning();
+    if (!pris) return null;
+    await ajouterAudit(tx, ctx, {
+      action: 'media.quality.reprise', brandId: job.brandId, targetType: 'studio_job', targetId: job.id,
+      versionBefore: job.qualityStatus, versionAfter: 'pending',
+      reason: 'contrôle visuel incertain réconcilié avec la facture · reprise du seul contrôle approuvé',
+      details: { lignesReconciliees: [...lignes], traceIncertaine: ancienne },
+    });
+    return pris;
+  });
 }
 
 /**
@@ -268,17 +308,33 @@ const messageEngage = (le: string | null) => `Un contrôle visuel de ce média e
  * peut partir. Exporté pour `controlerMediaPour` (même règle, même message).
  */
 export async function refusControleVision(ctx: ContexteStudio, job: typeof schema.studioJobs.$inferSelect): Promise<ErreurStudio | null> {
+  return (await decisionDuJob(ctx, job)).refus;
+}
+
+/** La décision pour CE job · le refus dit, ou la permission, avec la reprise d'un contrôle incertain réconcilié (R5). */
+async function decisionDuJob(ctx: ContexteStudio, job: typeof schema.studioJobs.$inferSelect): Promise<{ refus: ErreurStudio | null; reprise: { trace: string; lignes: string[] } | null }> {
   const ligne = controleVisionApprouve(lireSnapshotJob(job.snapshot)?.lignes);
   const marqueur = lireMarqueurControleVision(job.result);
-  const d = decisionControleVision({ visionApprouvee: ligne !== null, qualite: job.qualityStatus, marqueur });
-  if (d.lancer) return null;
+  const incertain = marqueur !== null && marqueur !== 'illisible' && marqueur.etat === 'incertain' ? marqueur : null;
+  const lignesIncertaines = incertain && ligne !== null ? await lignesDuControle(job, incertain) : [];
+  const d = decisionControleVision({ visionApprouvee: ligne !== null, qualite: job.qualityStatus, marqueur, incertainReconcilie: controleIncertainReconcilie(lignesIncertaines) });
+  if (d.lancer) return { refus: null, reprise: d.reprise && incertain ? { trace: incertain.trace, lignes: lignesIncertaines.map((l) => l.id) } : null };
+  const refus = await refusDit(ctx, job, d.motif, marqueur, lignesIncertaines);
+  return { refus, reprise: null };
+}
+
+async function refusDit(
+  ctx: ContexteStudio, job: typeof schema.studioJobs.$inferSelect, motif: Exclude<ReturnType<typeof decisionControleVision>, { lancer: true }>['motif'],
+  marqueur: ReturnType<typeof lireMarqueurControleVision>, lignesIncertaines: ReadonlyArray<LigneDepenseLiee & { reconciliee: boolean }>,
+): Promise<ErreurStudio> {
   const base = { traceId: ctx.traceId, targetIds: [job.id] };
-  switch (d.motif) {
+  switch (motif) {
     case 'hors_devis':
       return erreurStudio('BUDGET_EXCEEDED', { ...base, message: 'Contrôle visuel hors devis · aucune ligne « contrôle visuel » n’a été approuvée pour ce média. Rien n’est envoyé ni dépensé · relis la sortie toi-même.' });
     case 'incertain': {
       const m = marqueur as Extract<MarqueurControleVision, { etat: 'incertain' }>;
-      return erreurStudio('PROVIDER_UNCERTAIN', { ...base, message: messageControleIncertain(m, await lignesDuControle(job, m)) });
+      // R5 · seules les lignes encore à réconcilier sont nommées.
+      return erreurStudio('PROVIDER_UNCERTAIN', { ...base, message: messageControleIncertain(m, lignesIncertaines.filter((l) => !l.reconciliee)) });
     }
     case 'deja_tranche':
       return erreurStudio('INVARIANT_CONFLICT', { ...base, message: MESSAGE_DEJA_TRANCHE });
@@ -297,9 +353,10 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
   if (!aPermissionEspace(ctx.permissions, 'studio.generate')) return erreurStudio('FORBIDDEN', { traceId: ctx.traceId });
   const j = await lireJob(ctx, e.jobId);
   if (!j.ok) return j;
-  const job = j.job;
+  let job = j.job;
   // R3 · jamais un débit hors devis ; E2 · jamais un second contrôle (engagé, conclu, incertain, tranché).
-  const refus = await refusControleVision(ctx, job);
+  // R5 · sauf la REPRISE d'un contrôle incertain dont toutes les lignes sont réconciliées avec la facture.
+  const { refus, reprise } = await decisionDuJob(ctx, job);
   if (refus) return refus;
   const ligne = controleVisionApprouve(lireSnapshotJob(job.snapshot)?.lignes)!;
   const v = await lireVersion(ctx, job.projectVersionId);
@@ -316,6 +373,10 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
   else if (ids.length === 0) motif = 'aucun média livré par ce job';
   else if (!d.adaptateur) motif = 'le fournisseur de vision n’est pas configuré sur ce serveur';
   else if (await d.plafondAtteint()) motif = 'le plafond de dépense est atteint';
+  // R5 · une reprise qui ne peut pas partir ne repose pas la qualité : rien n'a changé, on le dit.
+  if (reprise && motif !== null) {
+    return erreurStudio('INVARIANT_CONFLICT', { traceId: ctx.traceId, targetIds: [job.id], message: `Reprise du contrôle visuel impossible · ${motif}. Rien n’est envoyé ni dépensé.` });
+  }
   if (motif === null) {
     const liaisons: Array<Record<string, unknown>> = [];
     for (const [i, id] of ids.entries()) {
@@ -327,7 +388,9 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
       // E2 · exclusion mutuelle : le marqueur « engagé » est pris AVANT l'appel ; qui ne l'obtient pas n'appelle rien.
       const trace = `${ctx.traceId}:${randomUUID()}`;
       const le = new Date().toISOString();
-      if (!(await prendreMarqueur(job, { etat: 'engage', le, trace }))) {
+      const repris = reprise ? await reprendreMarqueur(ctx, job, reprise.trace, { etat: 'engage', le, trace }, reprise.lignes) : null;
+      if (repris) job = repris;
+      else if (reprise || !(await prendreMarqueur(job, { etat: 'engage', le, trace }))) {
         const relu = await lireJob(ctx, job.id);
         const r2 = relu.ok ? await refusControleVision(ctx, relu.job) : null;
         return r2 ?? erreurStudio('INVARIANT_CONFLICT', { traceId: ctx.traceId, targetIds: [job.id], message: messageEngage(null) });

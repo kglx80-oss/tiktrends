@@ -441,7 +441,7 @@ export function lireMarqueurControleVision(result: unknown): MarqueurControleVis
 export type MotifRefusControleVision = 'hors_devis' | 'incertain' | 'deja_tranche' | 'deja_controle' | 'engage';
 
 export type DecisionControleVision =
-  | { lancer: true }
+  | { lancer: true; reprise?: true }
   | { lancer: false; motif: MotifRefusControleVision };
 
 /**
@@ -457,6 +457,13 @@ export type DecisionControleVision =
  *     écrite), ou un marqueur illisible ⇒ `engage` ;
  *  6. sinon ⇒ on lance, et SEULEMENT le contrôle (jamais une génération).
  *
+ * R5 · une issue incertaine dont TOUTES les lignes de dépense sont
+ * réconciliées avec la facture (`incertainReconcilie`, calculé par
+ * `controleIncertainReconcilie`) n'est plus incertaine : si le média n'a pas
+ * été tranché par un humain depuis (qualité `pending`, ou `requires_review`
+ * laissée par ce contrôle sans verdict), le contrôle peut REPARTIR
+ * (`reprise`) ; tranché depuis ⇒ `deja_tranche`.
+ *
  * Le job non terminé n'est pas tranché ici : sans média, l'appelant refuse
  * avant de prendre le marqueur (aucun appel possible).
  */
@@ -464,10 +471,16 @@ export function decisionControleVision(e: {
   visionApprouvee: boolean;
   qualite: string;
   marqueur: MarqueurControleVision | 'illisible' | null;
+  /** R5 · toutes les lignes de dépense du contrôle incertain sont réconciliées. */
+  incertainReconcilie?: boolean;
 }): DecisionControleVision {
   if (!e.visionApprouvee) return { lancer: false, motif: 'hors_devis' };
   const m = e.marqueur;
-  if (m !== null && m !== 'illisible' && m.etat === 'incertain') return { lancer: false, motif: 'incertain' };
+  if (m !== null && m !== 'illisible' && m.etat === 'incertain') {
+    if (e.incertainReconcilie !== true) return { lancer: false, motif: 'incertain' };
+    if (e.qualite === 'pending' || e.qualite === 'requires_review') return { lancer: true, reprise: true };
+    return { lancer: false, motif: 'deja_tranche' };
+  }
   if (e.qualite !== 'pending') return { lancer: false, motif: 'deja_tranche' };
   if (m !== null && m !== 'illisible' && m.etat === 'conclu') return { lancer: false, motif: 'deja_controle' };
   if (m !== null) return { lancer: false, motif: 'engage' };
