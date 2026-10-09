@@ -78,7 +78,8 @@ function avecCalques(doc: DocumentStudio, calques: Record<string, CalqueStudio |
 }
 
 function conclure(avant: DocumentStudio, apres: DocumentStudio, libelle: string, calqueId: string | null): ResultatOperation {
-  const v = validerDocument(apres);
+  // L8-C · un document hérité déjà au-delà des limites peut toujours DESCENDRE : la base est passée.
+  const v = validerDocument(apres, '/document', { base: avant });
   if (v.length) return refus('DOCUMENT_INVALIDE', 'La modification rendrait le document invalide · rien n’a changé.', v);
   return { ok: true, document: apres, changes: patchDocument(avant, apres, libelle), libelle, calqueId };
 }

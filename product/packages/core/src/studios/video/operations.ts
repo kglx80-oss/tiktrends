@@ -125,7 +125,8 @@ function bilanDurees(avant: ContenuVersion, apres: ContenuVersion): BilanDurees 
 
 function conclure(avant: ContenuVersion, apres: ContenuVersion, libelle: string, signalements: string[] = []): ResultatOperationVideo {
   const final: ContenuVersion = { ...apres, timeline: timelineDesPlans(apres, apres.timeline) };
-  const violations = validerContenuVersion(final);
+  // L8-C · un contenu hérité déjà au-delà des limites peut toujours descendre : la base est passée.
+  const violations = validerContenuVersion(final, { base: avant });
   if (violations.length) return refus('CONTENU_INVALIDE', 'Le montage obtenu n’est pas valide · rien n’a été modifié.', violations);
   const changes = changementsVideo(avant, final, libelle);
   if (changes.length === 0) return refus('AUCUN_CHANGEMENT', 'Rien ne change · aucune version n’est créée.');

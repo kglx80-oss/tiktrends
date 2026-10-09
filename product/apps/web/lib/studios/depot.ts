@@ -230,7 +230,8 @@ export async function enregistrerVersion(ctx: ContexteStudio, e: EntreeEnregistr
 
       const r = appliquerPatch(courante.content as ContenuVersion, e.changes, allowedPaths);
       if (!r.ok) throw new Refus(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: r.violations }));
-      const violations = validerContenuVersion(r.resultat);
+      // L8-C · refus seulement si le contenu GRANDIT au-delà des limites (un contenu hérité peut descendre).
+      const violations = validerContenuVersion(r.resultat, { base: courante.content });
       if (violations.length) throw new Refus(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations }));
 
       const empreinte = empreinteContenu(r.resultat);
