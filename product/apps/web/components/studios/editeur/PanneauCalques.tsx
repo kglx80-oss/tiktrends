@@ -34,7 +34,7 @@ export function PanneauCalques({
 
       {editable && (
         <div role="group" aria-label="Ajouter un calque" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          <button type="button" onClick={onAjouterTexte} style={bouton}><Icon name="plus" size={14} />Texte</button>
+          <button type="button" data-ajouter="texte" onClick={onAjouterTexte} style={bouton}><Icon name="plus" size={14} />Texte</button>
           <button type="button" onClick={() => onAjouterForme('rect')} style={bouton}><Icon name="plus" size={14} />Rectangle</button>
           <button type="button" onClick={() => onAjouterForme('ellipse')} style={bouton}><Icon name="plus" size={14} />Ellipse</button>
           <button type="button" onClick={onAjouterMedia} style={bouton}><Icon name="image" size={14} />Média</button>
@@ -49,24 +49,31 @@ export function PanneauCalques({
             const choisi = c.id === selection;
             const etat = [!c.visible ? 'masqué' : null, c.locked ? 'verrouillé' : null].filter(Boolean).join(', ');
             return (
-              <li key={c.id} data-ligne-calque={c.id} style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, borderRadius: 12, background: choisi ? 'var(--accent-soft)' : 'transparent' }}>
+              <li key={c.id} data-ligne-calque={c.id} data-choisi={choisi ? 'oui' : 'non'} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0, borderRadius: 12, background: choisi ? 'var(--accent-soft)' : 'transparent', boxShadow: choisi ? 'inset 3px 0 0 var(--accent-strong)' : undefined }}>
+                {/* Le nom passe en premier, sur toute la largeur restante et sur deux lignes au plus · les
+                    gestes passent à la ligne quand la colonne est étroite (1280 : 270 px), au lieu de
+                    réduire le nom à une lettre (mesuré : « I » pour « Bandeau masqué »). L'état se LIT
+                    (choisi, masqué, verrouillé), la couleur ne fait qu'appuyer. */}
                 <button
                   type="button"
+                  data-choisir-calque={c.id}
                   aria-pressed={choisi}
                   aria-label={`${LIBELLE_TYPE[c.kind]} · ${c.name}${etat ? ` · ${etat}` : ''}`}
                   title={c.name}
                   onClick={(e) => onChoisir(c.id, e.currentTarget)}
                   style={{
-                    ...bouton, flex: 1, minWidth: 0, justifyContent: 'flex-start', border: '1px solid transparent',
+                    ...bouton, flex: '1 1 150px', minWidth: 0, flexDirection: 'column', alignItems: 'flex-start', gap: 2, border: '1px solid transparent',
                     color: c.visible ? 'var(--ink)' : 'var(--muted)', textAlign: 'left',
                   }}
                 >
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', flexShrink: 0 }}>{LIBELLE_TYPE[c.kind]}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{c.name}</span>
-                  {!c.visible && <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>masqué</span>}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                    {LIBELLE_TYPE[c.kind]}{choisi ? ' · choisi' : ''}
+                  </span>
+                  <span data-nom-calque style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', minWidth: 0, maxWidth: '100%' }}>{c.name}</span>
+                  {etat && <span data-etat-calque style={{ fontSize: 11, color: 'var(--muted)' }}>{etat}</span>}
                 </button>
                 {editable && (
-                  <>
+                  <span style={{ display: 'inline-flex', gap: 4, marginLeft: 'auto' }}>
                     <button
                       type="button"
                       aria-pressed={!c.visible}
@@ -81,11 +88,10 @@ export function PanneauCalques({
                       aria-label={c.locked ? `Déverrouiller « ${c.name} »` : `Verrouiller « ${c.name} »`}
                       title={c.locked ? 'Déverrouiller' : 'Verrouiller'}
                       onClick={() => onVerrou(c.id, !c.locked)}
-                      style={{ ...bouton, padding: 6, color: c.locked ? 'var(--accent-strong)' : 'var(--muted)', borderColor: c.locked ? 'var(--accent-strong)' : 'var(--line-2)' }}
+                      style={{ ...bouton, padding: 6, color: c.locked ? 'var(--accent-strong)' : 'var(--muted)', borderColor: c.locked ? 'var(--accent-strong)' : 'var(--line-2)', borderWidth: c.locked ? 2 : 1 }}
                     ><Icon name="lock" size={15} /></button>
-                  </>
+                  </span>
                 )}
-                {!editable && c.locked && <span style={{ color: 'var(--muted)', padding: '0 8px' }} aria-hidden><Icon name="lock" size={14} /></span>}
               </li>
             );
           })}

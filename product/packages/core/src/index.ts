@@ -187,3 +187,5 @@ export * from './studios/canvas';
 export * from './migration-additive';
 export * from './depense-reconciliation-ecran';
 export * from './studios/perf';
+export * from './studios/ux/image-contraste';
+export * from './studios/ux/image-etats';

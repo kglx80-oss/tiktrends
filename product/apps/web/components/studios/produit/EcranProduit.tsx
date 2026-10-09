@@ -4,7 +4,7 @@ import { useId, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   TRANSFORMATIONS_PRODUIT, TRANSFORMATIONS_PAR_DEFAUT, LIBELLES_TRANSFORMATION, ROLES_REFERENCE, PORTEES_REFERENCE,
-  LIBELLES_ROLE, LIBELLES_PORTEE, EFFET_ROLE, LIBELLES_MODE_IMAGE, LIBELLES_NATURE_EMPREINTE,
+  LIBELLES_ROLE, LIBELLES_PORTEE, EFFET_ROLE, raisonEpinglage, raisonAssociation, LIBELLES_MODE_IMAGE, LIBELLES_NATURE_EMPREINTE,
   type TransformationProduit, type ErreurStudio, type ModeImage,
 } from '@tiktrends/core';
 import type { VueProduit } from '../../../lib/studios/produit/vue';
@@ -72,8 +72,12 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
   }
 
   const listeComposants = composants.split(',').map((c) => c.trim()).filter(Boolean);
-  const epinglageBloque = !vue.peutModifier || enCours || !produit || !photoId;
-  const associationBloquee = !vue.peutModifier || enCours || !fichier || !role || !portee || !vue.briefPresent;
+  // L8-A · la raison d'un geste bloqué vient d'une règle du noyau et nomme TOUT ce qui manque
+  // (mesuré : fichier non choisi, « Associer » restait muet).
+  const raisonEpingle = raisonEpinglage({ peutModifier: vue.peutModifier, enCours, produitChoisi: !!produit, photoChoisie: !!photoId });
+  const raisonAssocie = raisonAssociation({ peutModifier: vue.peutModifier, briefPresent: vue.briefPresent, enCours, fichier, role, portee });
+  const epinglageBloque = raisonEpingle !== null;
+  const associationBloquee = raisonAssocie !== null;
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
@@ -165,11 +169,11 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
             </fieldset>
             {vue.peutModifier ? (
               <div style={rangee}>
-                <button type="button" disabled={epinglageBloque} aria-busy={enCours} style={{ ...boutonPrimaire, ...(epinglageBloque ? desactive : {}) }}
+                <button type="button" disabled={epinglageBloque} aria-busy={enCours} aria-describedby={`${id}-epingle-raison`} style={{ ...boutonPrimaire, ...(epinglageBloque ? desactive : {}) }}
                   onClick={() => agir('Photo épinglée · nouvelle version du projet.', () => epinglerProduit({ projectId: vue.projet.id, baseVersionId: vue.version.id, productId: produitId, photoId, composants: listeComposants, transformations: transfos }))}>
                   {enCours ? 'Épinglage…' : 'Épingler cette photo'}
                 </button>
-                <span style={mini}>{photoId ? 'Crée une nouvelle version · aucun appel, aucun coût.' : 'Choisis d’abord une photo.'}</span>
+                <span id={`${id}-epingle-raison`} style={mini} data-raison="epinglage">{raisonEpingle ?? 'Crée une nouvelle version · aucun appel, aucun coût.'}</span>
               </div>
             ) : <p style={mini}>Ton rôle permet de consulter, pas d’épingler.</p>}
           </>
@@ -230,11 +234,11 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
               <p style={signal('warn')}>Annonce concurrente · seulement Style ou Composition, sur le décor ou l’image entière. Ni son sujet, ni son produit, ni son logo ne passent.</p>
             )}
             <div style={rangee}>
-              <button type="button" disabled={associationBloquee} style={{ ...boutonPrimaire, ...(associationBloquee ? desactive : {}) }}
+              <button type="button" disabled={associationBloquee} aria-describedby={raisonAssocie ? `${id}-associer-raison` : undefined} style={{ ...boutonPrimaire, ...(associationBloquee ? desactive : {}) }}
                 onClick={() => agir('Référence associée · nouvelle version du projet.', () => associerReference({ projectId: vue.projet.id, baseVersionId: vue.version.id, assetId: fichier, role, scope: portee }))}>
                 Associer
               </button>
-              {(!role || !portee) && <span style={mini}>Choisis un rôle et une portée.</span>}
+              {raisonAssocie && <span id={`${id}-associer-raison`} style={mini} data-raison="association">{raisonAssocie}</span>}
             </div>
           </div>
         )}
