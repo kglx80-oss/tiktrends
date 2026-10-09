@@ -265,6 +265,9 @@ de dépense (`reserverDepense`) échoue pendant cette fenêtre (`column "reconci
 exist`, vérifié en transaction annulée) : la génération est refusée AVANT l'appel payant · erreur visible, aucune
 dépense non comptée. Voir `PLAN-FUSION.md` §4.
 
+> **Mise à jour vague 9 (D1, `16a97d3`).** `deploy.sh` construit puis migre dans un conteneur éphémère de la nouvelle
+> image, vérifie, et seulement ensuite active le nouveau code : cette fenêtre n'existe plus. Voir `PLAN-FUSION.md` §3.
+
 ## 8. Refaire tout le lot en local
 
 ```bash

@@ -115,22 +115,30 @@ avec `ops/migration/verifier-migration.sh` (elle doit être additive et rejouabl
 
 ## 3. Ce que fait le déploiement automatique à chaque fusion
 
-Lu dans `ops/deploy.sh` (non modifié). Le timer tourne chaque minute :
+Lu dans `ops/deploy.sh` **tel que modifié par D1** (vague 9, `16a97d3` ; banc `ops/test-deploiement/banc.sh`,
+garde `apps/web/test/d1-deploiement.test.ts`). Le timer tourne chaque minute :
 
 1. `git fetch` ; si le marqueur `.tiktrends-deployed-sha` vaut déjà `origin/main`, rien.
 2. `git pull --ff-only`. Si rien n'a changé sous `product/apps`, `product/packages`, Dockerfiles, compose, Caddyfile
    depuis le dernier SHA DÉPLOYÉ : marqueur avancé, **aucun rebuild** (cas de #731, et des fusions docs seules).
-3. Sinon `BUILD_SHA` = 8 premiers caractères du commit, `docker compose up -d --build` (images web et workers
-   reconstruites puis conteneurs recréés · build local mesuré 242 à 321 s sur 4 cœurs chargés).
-4. PUIS `pnpm --filter @tiktrends/db migrate` dans le conteneur workers, 12 essais espacés de 5 s.
-5. Marqueur avancé en dernier. Un échec à 3 ou 4 laisse le marqueur : retenté à la minute suivante.
+3. Sinon `BUILD_SHA` = 8 premiers caractères du commit, `docker compose build` : images reconstruites, **aucun
+   conteneur remplacé** (l'ancienne version reste servie).
+4. Base démarrée si absente (jamais remplacée), puis migrations dans un conteneur ÉPHÉMÈRE de la NOUVELLE image
+   workers (`docker compose run --rm --no-deps … pnpm --filter @tiktrends/db migrate`, 6 essais espacés de 5 s).
+5. Vérification : chaque migration du journal du dépôt est en base (inclusion ; une base en avance après un revert
+   reste acceptée). Attrape aussi une migration ignorée par drizzle pour un `when` trop ancien.
+6. Seulement alors `docker compose up -d --no-build` : activation du nouveau code. Marqueur avancé en dernier.
+   Un échec en 3, 4, 5 ou 6 laisse le marqueur et **ne remplace aucun conteneur** : retenté à la minute suivante.
 
-Conséquences mesurées (L9-MIGRATION §7, « fenêtre de déploiement ») pour les fusions 1 et 9 :
+Conséquences pour les fusions 1 et 9 :
 
-- Entre l'étape 3 et la fin de l'étape 4, le NOUVEAU code tourne sur l'ANCIEN schéma. Écrans historiques : servis
-  normalement. Écrans Studios : erreur `42P01` jusqu'à la fin de la migration (fusion 1). Fusion 9 : toute réservation
-  de dépense échoue (`reconcile_reason` absente) · génération refusée AVANT l'appel payant, aucune dépense non comptée.
-  Durée attendue : quelques secondes (migration locale : 2,9 s pour 0054 + 0055), plus si le conteneur workers tarde.
+- La fenêtre « nouveau code sur ancien schéma » mesurée par L9-A (L9-MIGRATION §7 : écrans Studios en `42P01`,
+  réservations refusées) **n'existe plus** : le nouveau code n'est activé qu'après une migration vérifiée.
+- La fenêtre INVERSE (ancien code sur schéma étendu, pendant 4 et 5) est sûre : 0054 n'ajoute que des tables
+  `studio_*` nouvelles et deux unicités sur des clés déjà primaires, 0055 une colonne nullable ; une garde permanente
+  (`d1-deploiement`) refuse toute migration future non additive ou portant un déclencheur sur une table existante.
+- Non éprouvé sans démon Docker : la recréation effective des conteneurs par `up -d` et la connexion du conteneur
+  éphémère à la base · procédure réelle sur copie isolée : `ops/README.md`, projet `tiktrends-essai-d1`.
 - 0054 pose deux unicités sur `brands` et `adsmap_ads` : écritures bloquées sur ces deux tables le temps de construire
   les index (proportionnel au nombre de lignes).
 - Si la migration échoue 12 fois, le site tourne sur le nouveau code avec l'ancien schéma JUSQU'À la réussite d'un
@@ -148,7 +156,7 @@ observe :
 | Quoi | Commande ou écran | Attendu |
 | --- | --- | --- |
 | Dernier SHA déployé | `cat ~/tiktrends/.tiktrends-deployed-sha` | = `git rev-parse origin/main` |
-| Image servie récente | `docker compose ps web` et `docker compose images web` (dans `~/tiktrends/product`) | conteneur recréé après l'heure de fusion. `BUILD_SHA` n'est PAS dans l'environnement du conteneur (`Dockerfile.web` : stage `run` sans `ENV BUILD_SHA`) ; il est figé dans le build Next et lu par `/console` |
+| Image servie récente | `docker compose ps web` et `docker compose images web` (dans `~/tiktrends/product`) | conteneur recréé après l'heure de fusion. Depuis D1, `BUILD_SHA` est AUSSI dans l'environnement des conteneurs (`ENV` des images web et workers) : `docker compose exec web printenv BUILD_SHA` ; il reste figé dans le build Next et lu par `/console` |
 | SHA vu par l'app | écran `/console` (bandeau de diagnostic, `lib/deployment.ts`) | même SHA ; « inconnu » si `BUILD_SHA` absent : le dire tel quel, ne pas le déduire |
 | Migrations | `/console`, ou `select count(*), max(created_at) from drizzle.__drizzle_migrations` | 55 après fusion 1, 56 après fusion 9 ; comparer à `drizzle/meta/_journal.json` |
 | Déploiement | `journalctl -u tiktrends-deploy -n 50 --no-pager` | « Déploiement terminé (<sha>) », pas d'« ÉCHEC · migrations » |
