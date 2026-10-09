@@ -19,7 +19,16 @@
  *    `num/den`. Aucun flottant pour le temps.
  */
 
+import { depassementCalques, depassementPlans } from './perf/limites';
+
 export interface ViolationStudio { chemin: string; raison: string }
+
+/**
+ * L8-C · `base` : le contenu (ou le document) d'où l'on part. Les limites de
+ * taille (`perf/limites.ts`) ne refusent que ce qui GRANDIT au-delà ; sans
+ * base, elles s'appliquent pleinement (création, nouveau contenu).
+ */
+export interface OptionsValidation { base?: unknown }
 
 /* ─────────────────────────────── Types ───────────────────────────────────── */
 
@@ -270,9 +279,12 @@ function validerCalque(c: Collecteur, l: Record<string, unknown>, ch: string, fo
   }
 }
 
-export function validerDocument(x: unknown, chemin = '/document'): ViolationStudio[] {
+export function validerDocument(x: unknown, chemin = '/document', o: OptionsValidation = {}): ViolationStudio[] {
   const c = new Collecteur();
   if (!estObjet(x)) { c.ajoute(chemin, 'document attendu'); return c.v; }
+  // Limite d'abord, et seule : un refus ciblé, sans valider mille calques de trop.
+  const limite = depassementCalques(x, o.base, chemin);
+  if (limite) return [limite];
   c.cles(x, chemin, ['width', 'height', 'colorSpace', 'layers', 'fonts'], ['width', 'height', 'colorSpace', 'layers', 'fonts']);
   c.verifie(entier(x.width, 1, DIMENSION_MAX), `${chemin}/width`, `largeur entière entre 1 et ${DIMENSION_MAX}`);
   c.verifie(entier(x.height, 1, DIMENSION_MAX), `${chemin}/height`, `hauteur entière entre 1 et ${DIMENSION_MAX}`);
@@ -380,9 +392,13 @@ function validerPlan(c: Collecteur, p: Record<string, unknown>, ch: string) {
  * Valide un contenu de version complet. Une liste vide = valide. Les messages
  * nomment le chemin et la règle, jamais une valeur.
  */
-export function validerContenuVersion(x: unknown): ViolationStudio[] {
+export function validerContenuVersion(x: unknown, o: OptionsValidation = {}): ViolationStudio[] {
   const c = new Collecteur();
   if (!estObjet(x)) return [{ chemin: '', raison: 'contenu de version attendu' }];
+  // L8-C · limites d'abord (refus ciblé et bon marché), avant tout parcours du contenu.
+  const baseDocument = estObjet(o.base) ? o.base.document : undefined;
+  const limites = [depassementPlans(x, o.base), depassementCalques(x.document, baseDocument)].filter((l): l is ViolationStudio => l !== null);
+  if (limites.length) return limites;
   c.v.push(...clesInterditesEnProfondeur(x));
   c.cles(x, '', CLES_CONTENU, CLES_CONTENU);
   for (const k of ['brief', 'styleRef'] as const) c.verifie(x[k] === null || estObjet(x[k]), `/${k}`, 'objet ou null attendu');
@@ -406,11 +422,11 @@ export function validerContenuVersion(x: unknown): ViolationStudio[] {
       c.verifie(ordre.length === ids.length && ordre.every((s) => ids.includes(s)), '/shots/order', 'l’ordre doit lister chaque plan une fois, et eux seuls');
     }
   }
-  if (x.document !== null) c.v.push(...validerDocument(x.document));
+  if (x.document !== null) c.v.push(...validerDocument(x.document, '/document', { base: baseDocument }));
   if (x.timeline !== null) c.v.push(...validerTimeline(x.timeline));
   if (c.v.length === 0) {
     try {
-      if (JSON.stringify(x).length > TAILLE_MAX_CONTENU) c.ajoute('', `contenu trop volumineux (${TAILLE_MAX_CONTENU} caractères au plus)`);
+      if (JSON.stringify(x).length > TAILLE_MAX_CONTENU) c.ajoute('', `contenu trop volumineux (${TAILLE_MAX_CONTENU} caractères au plus) · allège les textes ou scinde le projet ; rien n’est modifié`);
     } catch {
       c.ajoute('', 'contenu non sérialisable');
     }

@@ -27,7 +27,7 @@
 
 import type { ContenuVersion, PlanStudio } from './document';
 import { cheminsDifferents } from './patch';
-import { empreinteContenu } from './version';
+import { avecCanoniqueMemorise, empreinteContenu } from './version';
 
 export type NatureNoeud = 'generation' | 'calcul';
 
@@ -113,6 +113,10 @@ export function entreesKeyframe(c: ContenuVersion, shotId: string): Record<strin
 
 /** Le graphe des sorties d'une version, empreintes comprises. */
 export function grapheImpact(c: ContenuVersion): Map<string, NoeudImpact> {
+  return avecCanoniqueMemorise(() => construireGraphe(c));
+}
+
+function construireGraphe(c: ContenuVersion): Map<string, NoeudImpact> {
   const g = new Map<string, NoeudImpact>();
   const pose = (id: string, nature: NatureNoeud, niveau: number, entrees: unknown) => {
     const n: NoeudImpact = { id, nature, niveau, empreinte: empreinteContenu(entrees) };
@@ -190,6 +194,22 @@ export interface OptionsImpact {
 }
 
 export function calculerPlanImpact(avant: ContenuVersion, apres: ContenuVersion, o: OptionsImpact = {}): PlanImpact {
+  return planImpactEtGraphes(avant, apres, o).plan;
+}
+
+/**
+ * Le plan ET les deux graphes dont il est tiré · pour l'appelant qui en a
+ * besoin (libellés de `impactVideo`), sans reconstruire le graphe de départ
+ * (L8-C : un graphe de 200 plans et 1000 calques coûte ≈ 45 ms, mesuré).
+ */
+export function planImpactEtGraphes(avant: ContenuVersion, apres: ContenuVersion, o: OptionsImpact = {}):
+  { plan: PlanImpact; grapheAvant: Map<string, NoeudImpact>; grapheApres: Map<string, NoeudImpact> } {
+  // Pur et sans mutation des entrées · la forme canonique d'un objet partagé n'est calculée qu'une fois.
+  return avecCanoniqueMemorise(() => planEtGraphes(avant, apres, o));
+}
+
+function planEtGraphes(avant: ContenuVersion, apres: ContenuVersion, o: OptionsImpact):
+  { plan: PlanImpact; grapheAvant: Map<string, NoeudImpact>; grapheApres: Map<string, NoeudImpact> } {
   const ga = grapheImpact(avant);
   const gb = grapheImpact(apres);
   const existantes = new Set(o.sortiesExistantes ?? ga.keys());
@@ -219,7 +239,7 @@ export function calculerPlanImpact(avant: ContenuVersion, apres: ContenuVersion,
     empreinteAvant: empreinteContenu(avant),
     empreinteApres: empreinteContenu(apres),
   };
-  return { ...corps, empreinte: empreinteContenu(corps) };
+  return { plan: { ...corps, empreinte: empreinteContenu(corps) }, grapheAvant: ga, grapheApres: gb };
 }
 
 /** Les sorties PAYANTES d'un plan (images, clips, voix, fiches). */
