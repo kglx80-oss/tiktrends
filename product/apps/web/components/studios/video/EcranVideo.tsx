@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { appliquerOperationVideo as appliquerNoyau, impactVideo, type ErreurStudio, type OperationVideo } from '@tiktrends/core';
+import { appliquerOperationVideo as appliquerNoyau, impactVideo, messageHorsLigneStudio, ECHEC_RESEAU_STUDIO, type ErreurStudio, type OperationVideo } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
 import {
   appliquerOperationVideo, planifierStoryboard, compilerConsignePlan, retenirConsignePlan, demanderDevisKeyframe, approuverEtLancerKeyframe,
 } from '../../../app/actions/studios/video';
-import { VueVideo, type ApercuGeste, type StoryboardPropose } from './VueVideo';
+import { VueVideo, type ApercuGeste, type StoryboardPropose, type RetourGesteVideo } from './VueVideo';
 
 /**
  * Le studio vidéo d'un projet (lot L6-A) · état servi par la page (lecture
@@ -23,6 +23,16 @@ import { VueVideo, type ApercuGeste, type StoryboardPropose } from './VueVideo';
  */
 
 const RELECTURE_MS = 4_000;
+
+/**
+ * L8-B · gestes que « Réessayer » peut rejouer sans rien dépenser : enregistrer
+ * une version, retenir une consigne, demander un devis (gratuit). Un appel texte
+ * payant (storyboard, consigne) ne se rejoue jamais par ce bouton · son prix est
+ * annoncé à côté de son propre bouton. « Lancer » garde sa clé de clic.
+ */
+export function gesteVideoReessayable(nom: string): boolean {
+  return nom === 'confirmer' || nom.startsWith('retenir:') || nom.startsWith('devis:');
+}
 
 const messageErreur = (r: ErreurStudio): string => (r.violations?.length ? r.violations.map((v) => v.raison).join(' · ') : r.message);
 
@@ -55,7 +65,8 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
   const [storyboard, setStoryboard] = useState<StoryboardPropose | null>(null);
   const [questions, setQuestions] = useState<string[]>([]);
   const [enCours, setEnCours] = useState<string | null>(null);
-  const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
+  const [retour, setRetour] = useState<RetourGesteVideo | null>(null);
+  const dernierGeste = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!vue.jobs.some((j) => !['completed', 'failed', 'cancelled'].includes(j.etat))) return;
@@ -66,11 +77,13 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: (r: { ok: true }) => string, apres?: () => void) {
     setEnCours(nom);
     setRetour(null);
+    const reessayable = gesteVideoReessayable(nom);
+    dernierGeste.current = reessayable ? () => { void agir(nom, f, succes, apres); } : null;
     try {
       const r = await f();
-      if (r.ok) { setRetour({ ok: true, texte: succes(r) }); apres?.(); router.refresh(); } else setRetour({ ok: false, texte: `${messageErreur(r)}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}` });
+      if (r.ok) { setRetour({ ok: true, texte: succes(r) }); apres?.(); router.refresh(); } else setRetour({ ok: false, code: r.code, reessayable, texte: `${messageErreur(r)}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}` });
     } catch {
-      setRetour({ ok: false, texte: 'Le serveur n’a pas répondu · rien n’a été confirmé. Recharge avant de réessayer.' });
+      setRetour({ ok: false, code: ECHEC_RESEAU_STUDIO, reessayable, texte: messageHorsLigneStudio('enregistrement') });
     } finally {
       setEnCours(null);
     }
@@ -80,6 +93,8 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
   return (
     <VueVideo
       vue={vue} apercu={apercu} storyboard={storyboard} questions={questions} enCours={enCours} retour={retour}
+      surRecharger={() => { setRetour(null); setApercu(null); router.refresh(); }}
+      surReessayer={() => dernierGeste.current?.()}
       surPrevoir={(op) => { setRetour(null); setApercu(apercuDuGeste(vue, op)); }}
       surAbandonner={() => setApercu(null)}
       surConfirmer={() => {

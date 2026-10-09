@@ -45,7 +45,7 @@ export default async function StudioVideoPage({ params }: { params: Promise<{ id
     const etat = refuse ? 'acces-refuse' : r.code === 'NOT_FOUND' ? 'introuvable' : 'erreur';
     return (
       <main style={cadrePage}>
-        <Link href={r.code === 'NOT_FOUND' || refuse ? '/studio/projets' : `/studio/projets/${encodeURIComponent(id)}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>
+        <Link href={r.code === 'NOT_FOUND' || refuse ? '/studio/projets' : `/studio/projets/${encodeURIComponent(id)}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>
           ‹ {r.code === 'NOT_FOUND' || refuse ? 'Projets' : 'Projet'}
         </Link>
         <h1 style={h1}>{refuse ? 'Accès réservé' : r.code === 'NOT_FOUND' ? 'Projet introuvable' : 'Vidéo indisponible'}</h1>
@@ -64,8 +64,11 @@ export default async function StudioVideoPage({ params }: { params: Promise<{ id
 
   return (
     <main style={cadrePage}>
-      <Link href={`/studio/projets/${r.vue.projet.id}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>‹ Projet</Link>
-      <h1 style={{ ...h1, marginBottom: 16, overflowWrap: 'anywhere' }}>Vidéo · {r.vue.projet.titre}</h1>
+      {/* L8-B · le retour nomme le projet (comme Produit, Textes, Identités) et fait 44 px de
+          large au minimum (« ‹ Projet » mesurait 43 px) · le titre long du projet ne prend
+          plus tout l'écran à 390 px : il est nommé une fois, dans le lien de retour. */}
+      <Link href={`/studio/projets/${r.vue.projet.id}`} data-retour-projet style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, maxWidth: '100%', display: 'inline-flex', alignItems: 'center', overflowWrap: 'anywhere' }}>‹ {r.vue.projet.titre || 'Projet'}</Link>
+      <h1 style={{ ...h1, marginBottom: 16, overflowWrap: 'anywhere' }}>Vidéo · storyboard et montage</h1>
       <EcranVideo vue={r.vue} />
     </main>
   );

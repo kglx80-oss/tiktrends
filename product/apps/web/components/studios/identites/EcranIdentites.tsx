@@ -1,13 +1,14 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CATEGORIES_ATTRIBUT, LIBELLES_CATEGORIE, VUES_IDENTITE, LIBELLES_VUE, BORNES_IDENTITE, formatSecondes,
+  CATEGORIES_ATTRIBUT, LIBELLES_CATEGORIE, etatEchecStudio, messageHorsLigneStudio, ECHEC_RESEAU_STUDIO, VUES_IDENTITE, LIBELLES_VUE, BORNES_IDENTITE, formatSecondes,
   type CategorieAttribut, type VueIdentite, type ErreurStudio, type ModeParole,
 } from '@tiktrends/core';
 import type { VueIdentites, IdentiteVue } from '../../../lib/studios/identites/commandes';
 import { enregistrerIdentite, lierIdentite, resoudreContradiction, choisirModeParole } from '../../../app/actions/studios/identites';
+import { useFocusApresGeste, cleRetour } from '../projet/focus-geste';
 import { panneau, carte, titre, sousTitre, etiquette, texte, mini, boutonPrimaire, boutonSecondaire, desactive, champ, signal, pastille, rangee } from '../propositions/styles';
 
 /**
@@ -52,7 +53,7 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
   const id = useId();
   const router = useRouter();
   const [enCours, setEnCours] = useState<string | null>(null);
-  const [retour, setRetour] = useState<{ ok: boolean; texte: string; conflit?: boolean } | null>(null);
+  const [retour, setRetour] = useState<{ ok: boolean; texte: string; conflit?: boolean; code?: string } | null>(null);
   const [edition, setEdition] = useState<Edition | null>(null);
   const [liaisons, setLiaisons] = useState<Record<string, string[]>>(() => Object.fromEntries(vue.identites.map((i) => [i.identityId, i.plans])));
   const peut = vue.peutProposer && enCours === null;
@@ -63,12 +64,12 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
     setRetour(null);
     try {
       const r = await action();
-      if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r), conflit: r.code === 'VERSION_CONFLICT' }); return false; }
+      if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r), conflit: r.code === 'VERSION_CONFLICT', code: r.code }); return false; }
       setRetour({ ok: true, texte: r.inchange ? 'Aucun changement à enregistrer.' : `${ok} · version ${r.version.n}.` });
       router.refresh();
       return true;
     } catch {
-      setRetour({ ok: false, texte: 'Aucune réponse · rien n’a été enregistré, réessaie dans un instant.' });
+      setRetour({ ok: false, texte: messageHorsLigneStudio('enregistrement'), code: ECHEC_RESEAU_STUDIO });
       return false;
     } finally { setEnCours(null); }
   }
@@ -76,12 +77,22 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
   const nomIdentite = (iid: string) => vue.identites.find((i) => i.identityId === iid)?.nom ?? iid;
   const rang = (sid: string) => vue.plans.find((p) => p.shotId === sid)?.rang ?? sid;
   const v = vue.voix;
+  // L8-B · UX-02 · le message, le formulaire ouvert, ou le geste d'ouverture reçoivent le focus
+  // (mesuré avant : BODY après « Nouvelle fiche », « Annuler » et « Enregistrer la fiche »).
+  const ecran = useRef<HTMLDivElement>(null);
+  const retourRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  useFocusApresGeste({ apercu: false, retour: cleRetour(retour), formulaire: !!edition }, {
+    conteneur: ecran, retour: retourRef, formulaire: formRef,
+    repli: () => ecran.current?.querySelector<HTMLElement>('[data-geste="nouvelle-fiche"]') ?? null,
+  });
+  const echec = retour && !retour.ok ? etatEchecStudio(retour.code) : null;
 
   return (
-    <div style={{ display: 'grid', gap: 18 }}>
+    <div ref={ecran} style={{ display: 'grid', gap: 18 }}>
       {retour && (
-        <div role={retour.ok ? 'status' : 'alert'} style={signal(retour.ok ? 'ok' : retour.conflit ? 'warn' : 'err')}>
-          <span style={{ fontWeight: 600 }}>{retour.ok ? 'Fait · ' : retour.conflit ? 'Conflit de version · ' : 'Refusé · '}</span>{retour.texte}
+        <div ref={retourRef} tabIndex={-1} role={retour.ok ? 'status' : 'alert'} data-retour={retour.ok ? 'ok' : 'refus'} style={signal(retour.ok ? 'ok' : echec!.ton)}>
+          <span style={{ fontWeight: 600 }}>{retour.ok ? 'Fait · ' : `${echec!.mot} · `}</span>{retour.texte}
           {retour.conflit && <div style={{ marginTop: 8 }}><button type="button" style={boutonSecondaire} onClick={() => window.location.reload()}>Recharger la version courante</button></div>}
         </div>
       )}
@@ -130,7 +141,7 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
       <section aria-labelledby={`${id}-fiches`} style={panneau} data-zone="fiches">
         <div style={{ ...rangee, justifyContent: 'space-between' }}>
           <h2 id={`${id}-fiches`} style={titre}>Fiches d’identité</h2>
-          {vue.peutProposer && !edition && <button type="button" style={boutonSecondaire} onClick={() => setEdition(vide())}>Nouvelle fiche</button>}
+          {vue.peutProposer && !edition && <button type="button" data-geste="nouvelle-fiche" style={boutonSecondaire} onClick={() => setEdition(vide())}>Nouvelle fiche</button>}
         </div>
         <p style={sousTitre}>Les attributs d’une fiche sont immuables pour les plans : un plan qui dit autre chose est bloqué avant devis. Changer la fiche crée une nouvelle version, et les plans liés deviennent à refaire.</p>
         {vue.identites.length === 0 && !edition && <p style={texte} data-etat="sans-fiche">Aucun personnage récurrent dans ce projet.</p>}
@@ -178,7 +189,7 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
         </ul>
         {edition && (
           <form
-            style={carte} data-zone="edition-fiche"
+            ref={formRef} style={carte} data-zone="edition-fiche"
             onSubmit={async (ev) => {
               ev.preventDefault();
               const ok = await geste('fiche', () => enregistrerIdentite({

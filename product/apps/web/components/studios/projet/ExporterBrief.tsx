@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { messageHorsLigneStudio } from '@tiktrends/core';
 import { exporterBrief } from '../../../app/actions/studios/sources';
 import { btn, btnGhost } from '../../ui';
 
@@ -17,7 +18,15 @@ export function ExporterBrief({ projectId, versionId, autorise }: { projectId: s
   async function exporter(format: 'markdown' | 'json', copier = false) {
     setEncours(true);
     setEtat(null);
-    const r = await exporterBrief({ projectId, versionId, format });
+    let r: Awaited<ReturnType<typeof exporterBrief>>;
+    try {
+      r = await exporterBrief({ projectId, versionId, format });
+    } catch {
+      // L8-B · hors ligne · les boutons restaient inactifs pour toujours (promesse rejetée, rien affiché).
+      setEncours(false);
+      setEtat({ message: `Hors ligne · ${messageHorsLigneStudio('export')}`, erreur: true });
+      return;
+    }
     setEncours(false);
     if (!r.ok) { setEtat({ message: `${r.message} · identifiant support : ${r.traceId}`, erreur: true }); return; }
     if (copier) {

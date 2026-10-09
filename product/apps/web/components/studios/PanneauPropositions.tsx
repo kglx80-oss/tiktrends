@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusApresGeste, cleRetour } from './projet/focus-geste';
 import { changementDepuisSaisie, reponsePourVue } from '@tiktrends/core';
 import {
   listerPropositions, proposerPatch, proposerBrief, creerPropositionManuelle, appliquerProposition, rejeterProposition,
@@ -142,9 +143,13 @@ export function PanneauPropositions({ projectId, versionCourante, initial, onVer
   const recharger = () => { setRetour(null); void charger('recharge'); };
 
   const ouvertes = liste?.ok ? liste.propositions.filter((p) => p.etat === 'proposed').length : 0;
+  // L8-B · UX-02 · le retour d'un geste reçoit le focus (mesuré avant : BODY après « Proposer cette modification »).
+  const zone = useRef<HTMLElement>(null);
+  const retourRef = useRef<HTMLDivElement>(null);
+  useFocusApresGeste({ apercu: false, retour: cleRetour(retour), formulaire: false }, { conteneur: zone, retour: retourRef });
 
   return (
-    <section aria-labelledby="titre-propositions" style={panneau} data-panneau="propositions">
+    <section ref={zone} aria-labelledby="titre-propositions" style={panneau} data-panneau="propositions">
       <header style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <h2 id="titre-propositions" style={titre}>Propositions</h2>
         <p style={sousTitre}>
@@ -162,7 +167,7 @@ export function PanneauPropositions({ projectId, versionCourante, initial, onVer
           <FormulaireDemande cibles={liste.cibles} jarvis={liste.jarvis} peutProposer={liste.peutProposer} enCours={enCours === 'demande'}
             onDemanderJarvis={demanderJarvis} onProposerMain={proposerMain} />
 
-          <div aria-live="polite" style={{ display: 'contents' }}>
+          <div ref={retourRef} tabIndex={-1} aria-live="polite" data-retour={retour?.type ?? undefined} style={{ display: 'flex', flexDirection: 'column', gap: 12, outlineOffset: 4 }}>
             {retour?.type === 'succes' && <p role="status" style={signal('ok')}>{retour.message}</p>}
             {retour?.type === 'questions' && (
               <div role="status" style={signal('info')}>
@@ -171,10 +176,10 @@ export function PanneauPropositions({ projectId, versionCourante, initial, onVer
                 <p style={{ ...mini, marginTop: 6 }}>Aucune proposition n’a été enregistrée · précise ta demande puis redemande.</p>
               </div>
             )}
-            {retour?.type === 'reseau' && <p role="alert" style={signal('err')}>{ERREUR_RESEAU}</p>}
+            {retour?.type === 'reseau' && <p role="alert" style={signal('err')}><span style={{ fontWeight: 600 }}>Hors ligne · </span>{ERREUR_RESEAU}</p>}
+            {retour?.type === 'conflit' && <ConflitVersion erreur={retour.erreur} onRecharger={recharger} enCours={enCours === 'recharge'} />}
+            {retour?.type === 'erreur' && <ErreurRecuperable erreur={retour.erreur} />}
           </div>
-          {retour?.type === 'conflit' && <ConflitVersion erreur={retour.erreur} onRecharger={recharger} enCours={enCours === 'recharge'} />}
-          {retour?.type === 'erreur' && <ErreurRecuperable erreur={retour.erreur} />}
 
           {liste.propositions.length === 0
             ? <Vide peutProposer={liste.peutProposer} />
