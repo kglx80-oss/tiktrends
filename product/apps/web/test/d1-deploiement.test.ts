@@ -7,6 +7,13 @@ import { fileURLToPath } from 'node:url';
 import { analyserMigrationSql, decouperInstructionsSql, type EntreeJournalMigration } from '@tiktrends/core';
 
 /**
+ * Nombre de migrations du journal RÉEL du dépôt · le banc ajoute la sienne à la
+ * suite. Écrit en dur (« 0056 »), il cassait dès qu'un lot ajoutait une vraie
+ * migration (intégration vague 9 : R5 ajoute 0056 ⇒ celle du banc devient 0057).
+ */
+const N_JOURNAL = (JSON.parse(readFileSync(new URL('../../../packages/db/drizzle/meta/_journal.json', import.meta.url), 'utf8')) as { entries: unknown[] }).entries.length;
+
+/**
  * Studios v1.0 · D1 · le déploiement construit, migre, vérifie, PUIS active.
  *
  * Avant, `ops/deploy.sh` lançait `docker compose up -d --build` AVANT les
@@ -165,13 +172,13 @@ function violationsDeploiement(p: Passage, attendu: Attendu): string[] {
 }
 
 const SCENARIOS: Array<{ nom: string; attendu: Attendu; phrase?: RegExp }> = [
-  { nom: 'succes', attendu: 'active', phrase: /Vérification · 57 migration\(s\) du journal toutes en base \(base : 57\)\.[\s\S]*Déploiement terminé/ },
+  { nom: 'succes', attendu: 'active', phrase: new RegExp(`Vérification · ${N_JOURNAL + 1} migration\\(s\\) du journal toutes en base \\(base : ${N_JOURNAL + 1}\\)\\.[\\s\\S]*Déploiement terminé`) },
   { nom: 'premier', attendu: 'active', phrase: /\(déployé : aucun\)[\s\S]*Déploiement terminé/ },
-  { nom: 'retour_arriere', attendu: 'active', phrase: /Vérification · 56 migration\(s\) du journal toutes en base \(base : 57\)\./ },
+  { nom: 'retour_arriere', attendu: 'active', phrase: new RegExp(`Vérification · ${N_JOURNAL} migration\\(s\\) du journal toutes en base \\(base : ${N_JOURNAL + 1}\\)\\.`) },
   { nom: 'build_ko', attendu: 'arrete', phrase: /ÉCHEC · construction des images · aucun conteneur remplacé, marqueur inchangé/ },
   { nom: 'migration_ko', attendu: 'arrete', phrase: /ÉCHEC · migrations non appliquées après 6 essais · l'ancienne version reste servie · aucun conteneur remplacé/ },
   { nom: 'migration_ko_base_a_jour', attendu: 'arrete', phrase: /ÉCHEC · migrations non appliquées après 6 essais/ },
-  { nom: 'verification_ko', attendu: 'arrete', phrase: /ÉCHEC · vérification · migration\(s\) du journal absente\(s\) de la base : 0056_banc_d1 \(base 56, journal 57\)/ },
+  { nom: 'verification_ko', attendu: 'arrete', phrase: new RegExp(`ÉCHEC · vérification · migration\\(s\\) du journal absente\\(s\\) de la base : ${String(N_JOURNAL).padStart(4, '0')}_banc_d1 \\(base ${N_JOURNAL}, journal ${N_JOURNAL + 1}\\)`) },
   { nom: 'lecture_base_ko', attendu: 'arrete', phrase: /ÉCHEC · vérification · lecture de drizzle\.__drizzle_migrations impossible/ },
   { nom: 'activation_ko', attendu: 'arrete_a_l_activation', phrase: /ÉCHEC · activation \(docker compose up\) · activation peut-être partielle, marqueur inchangé/ },
   { nom: 'ops_seul', attendu: 'sans_build', phrase: /Pas de changement de code applicatif · pull seul, aucun rebuild\./ },
