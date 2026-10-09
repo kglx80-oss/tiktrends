@@ -3,7 +3,7 @@
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
   "shaCourant": "f2b9fc4",
-  "lotCourant": "vague 7 intégrée (f2b9fc4) · en attente de recette Codex",
+  "lotCourant": "vague 8 (base f2b9fc4) · L8-A écrans image, L8-B écrans projet/vidéo/Veille/ADMIN, L8-C performance, L8-D canvas métier, R4 réconciliation + exports conservés, L9-A migration/rollback/baseline/plan de fusion",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
@@ -978,7 +978,7 @@
       "besoinKevin": "Choix et budget d’un fournisseur d’animation et de voix."
     }
   ],
-  "prochaineAction": "Recette Codex de la vague 7 (#753–#756, intégration #741 f2b9fc4) ; puis le propriétaire lance l’essai réel isolé (pas 1, 0,36 $ annoncés) après contrôle du runbook ; L8 ensuite.",
+  "prochaineAction": "Intégrer la vague 8 ; recette Codex des vagues 7 et 8 ; essai réel isolé par le propriétaire après contrôle du runbook (#756).",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
