@@ -1,25 +1,34 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FICHIER_VERROU, VERROU_PERIME_MS, VerrouIndisponible, prendreVerrou } from '../scripts/recette/verrou';
+import { COMMANDE_DEVERROUILLER, FICHIER_VERROU, VerrouIndisponible, prendreVerrou } from '../scripts/recette/verrou';
 
 /**
- * E3 · un verrou PÉRIMÉ n'est repris que si son processus n'existe plus (même
- * hôte), ou s'il a dépassé `VERROU_PERIME_MS` (autre conteneur, PID
- * insondable). Un verrou tenu par un processus VIVANT n'est jamais volé. Un
- * détenteur dépossédé n'écrit rien.
+ * E3 · un verrou abandonné n'est repris que si son processus n'existe plus.
+ * Un verrou tenu par un processus VIVANT n'est jamais volé. Un détenteur
+ * dépossédé n'écrit rien.
+ *
+ * E4 · JAMAIS sur son âge : un verrou dont la mort du détenteur ne peut pas
+ * être établie d'ici (autre hôte, ou même hôte et même démarrage mais autre
+ * espace de PID · deux `docker compose run`) n'est jamais repris, même très
+ * vieux ; le refus renvoie à `recette:budget:deverrouiller`.
  */
 
 const dossiers: string[] = [];
 const dossier = () => { const d = mkdtempSync(join(tmpdir(), 'e3-verrou-')); dossiers.push(d); return d; };
 afterAll(() => { for (const d of dossiers) rmSync(d, { recursive: true, force: true }); });
 const boot = (() => { try { return readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim(); } catch { return 'inconnu'; } })();
-const poser = (d: string, c: Record<string, unknown>) => writeFileSync(join(d, FICHIER_VERROU), JSON.stringify({ jeton: 'ancien', hote: hostname(), demarrage: boot, le: new Date().toISOString(), ...c }));
+const pidns = (() => { try { return readlinkSync('/proc/self/ns/pid'); } catch { return 'inconnu'; } })();
+const poser = (d: string, c: Record<string, unknown>) => writeFileSync(join(d, FICHIER_VERROU), JSON.stringify({ jeton: 'ancien', hote: hostname(), demarrage: boot, pidns, le: new Date().toISOString(), ...c }));
+const vieux = () => {
+  const t = new Date(Date.now() - 3_600_000);
+  return { le: t.toISOString(), poserDate: (d: string) => utimesSync(join(d, FICHIER_VERROU), t, t) };
+};
 
 describe('verrou périmé · repris seulement quand son processus n’existe plus', () => {
-  it('PID mort, même hôte ⇒ repris aussitôt, sans marqueur de reprise laissé', async () => {
+  it.skipIf(pidns === 'inconnu' || boot === 'inconnu')('PID mort, même hôte, même démarrage, même espace de PID ⇒ repris aussitôt, sans marqueur de reprise laissé', async () => {
     const d = dossier();
     const mort = spawnSync(process.execPath, ['-e', 'process.exit(0)']).pid!;
     poser(d, { pid: mort });
@@ -41,16 +50,28 @@ describe('verrou périmé · repris seulement quand son processus n’existe plu
     } finally { vivant.kill('SIGKILL'); }
   });
 
-  it('autre hôte (autre conteneur) ⇒ attendu tant qu’il est récent, repris au-delà de VERROU_PERIME_MS', async () => {
+  it.each([
+    ['autre hôte (autre machine)', { hote: 'autre-machine' }],
+    ['même hôte et même démarrage, AUTRE espace de PID (deux `docker compose run` du service d’outils)', { pidns: 'pid:[4026599999]' }],
+    ['ancien format, sans espace de PID noté', { pidns: undefined }],
+  ] as const)('E4 · %s, PID absent ici, verrou vieux d’une heure ⇒ JAMAIS repris : refus qui renvoie au déverrouillage', async (_n, c) => {
     const d = dossier();
-    poser(d, { pid: 1, hote: 'autre-conteneur' });
-    await expect(prendreVerrou(d, { attenteMaxMs: 300 })).rejects.toBeInstanceOf(VerrouIndisponible);
-    const vieux = new Date(Date.now() - VERROU_PERIME_MS - 5_000);
-    poser(d, { pid: 1, hote: 'autre-conteneur', le: vieux.toISOString() });
-    utimesSync(join(d, FICHIER_VERROU), vieux, vieux);
-    const v = await prendreVerrou(d, { attenteMaxMs: 2_000 });
-    v.relacher();
-    expect(existsSync(join(d, FICHIER_VERROU))).toBe(false);
+    const mort = spawnSync(process.execPath, ['-e', 'process.exit(0)']).pid!;
+    const v = vieux();
+    poser(d, { pid: mort, le: v.le, ...c });
+    v.poserDate(d);
+    const err = await prendreVerrou(d, { attenteMaxMs: 300 }).catch((e: unknown) => e);
+    expect(err, 'verrou REPRIS alors que la mort de son détenteur n’est pas établie (autre hôte, autre espace de PID, ou ancien format)').toBeInstanceOf(VerrouIndisponible);
+    expect((err as Error).message, 'un verrou dont la mort du détenteur n’est pas établie a été repris (sur son âge ?)').toContain(`il n’est jamais repris sur son âge. Si AUCUNE commande de recette ne tourne plus, lance ${COMMANDE_DEVERROUILLER}.`);
+    expect(JSON.parse(readFileSync(join(d, FICHIER_VERROU), 'utf8')).jeton, 'le verrou a été volé').toBe('ancien');
+  });
+
+  it('E4 · verrou illisible (écrit à moitié par un ancien format), même très vieux ⇒ jamais repris', async () => {
+    const d = dossier();
+    writeFileSync(join(d, FICHIER_VERROU), '');
+    vieux().poserDate(d);
+    await expect(prendreVerrou(d, { attenteMaxMs: 300 })).rejects.toThrow('verrou illisible');
+    expect(readFileSync(join(d, FICHIER_VERROU), 'utf8')).toBe('');
   });
 
   it('détenteur DÉPOSSÉDÉ ⇒ `confirmer` lève avant toute écriture, et il ne retire pas le verrou d’un autre', async () => {

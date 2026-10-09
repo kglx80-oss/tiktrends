@@ -21,7 +21,14 @@
 #   phase 2 · mutations : 8 construction · 9 demarrage · 10 isolement ·
 #                        11 migrations · 12 ffmpeg-worker · 13 sonde-video ·
 #                        14 site-local · 15 registre
+#
+# E4 · aucune sortie d'outil n'est analysée sans que l'outil ait RÉUSSI :
+# `pipefail` (aucun échec masqué par un tube), et l'isolement contrôle à part
+# la liste des conteneurs PUIS chaque inspection (statut et forme de la
+# sortie) avant d'y chercher un partage. Un échec, ou une sortie qu'on ne sait
+# pas lire, n'est jamais pris pour « aucun partage ».
 set -u
+set -o pipefail
 
 A_BLANC=0
 if [ "${1:-}" = "--a-blanc" ]; then A_BLANC=1; fi
@@ -142,17 +149,44 @@ if [ "$A_BLANC" = "0" ]; then
 fi
 
 # Inspection des conteneurs du projet · montages et réseaux (lecture seule).
-INSPECTER="docker ps -a --filter label=com.docker.compose.project=${PROJET} --format '{{.Names}}' | xargs -r docker inspect --format '{{range .Mounts}}{{if .Name}}V:{{.Name}} {{else}}B:{{.Source}} {{end}}{{end}}{{range \$k, \$v := .NetworkSettings.Networks}}N:{{\$k}} {{end}}'"
-verifier_isolement() {
-  INTRUS=$(echo "$SORTIE" | tr ' ' '\n' | grep -E '^(V|N):' | grep -vE "^(V|N):${PROJET}" | sort -u)
-  BINDS=$(echo "$SORTIE" | tr ' ' '\n' | grep -E '^B:' | grep -vE '/ops/recette/(sorties|registre)$' | sort -u)
+# E4 · deux temps contrôlés séparément : la LISTE (statut, noms lisibles), puis
+# CHAQUE inspection (statut, sortie entièrement préfixée C:/V:/B:/N:, en-tête
+# C: qui nomme le conteneur demandé). Tout le reste ⇒ ÉCHEC, rien ne suit.
+LISTER="docker ps -a --filter label=com.docker.compose.project=${PROJET} --format '{{.Names}}'"
+FORMAT_INSPECTION="C:{{.Name}} {{range .Mounts}}{{if .Name}}V:{{.Name}} {{else}}B:{{.Source}} {{end}}{{end}}{{range \$k, \$v := .NetworkSettings.Networks}}N:{{\$k}} {{end}}"
+inspecter_isolement() {
+  if [ "$A_BLANC" = "1" ]; then
+    echo "  [à blanc] ${LISTER}"
+    echo "  [à blanc] puis, pour CHAQUE conteneur listé : docker inspect --format '${FORMAT_INSPECTION}' <conteneur>"
+    return 0
+  fi
+  lancer "$LISTER"
+  if [ "$STATUT" -ne 0 ]; then echec "liste des conteneurs du projet illisible (docker ps en échec, code ${STATUT}) · $(echo "$SORTIE" | head -1)" "$1"; fi
+  local NOMS="$SORTIE" NOM_C INSPECTIONS="" JETON
+  while IFS= read -r NOM_C; do
+    [ -z "$NOM_C" ] && continue
+    case "$NOM_C" in
+      *[!A-Za-z0-9_.-]*|[!A-Za-z0-9]*) echec "liste des conteneurs illisible · nom inattendu « ${NOM_C} »" "$1" ;;
+    esac
+    lancer "docker inspect --format '${FORMAT_INSPECTION}' ${NOM_C}"
+    if [ "$STATUT" -ne 0 ]; then echec "inspection de ${NOM_C} en échec (code ${STATUT}) · $(echo "$SORTIE" | head -1)" "$1"; fi
+    if [ "$(echo "$SORTIE" | grep -c .)" != "1" ] || [ "$(echo "$SORTIE" | awk '{print $1}')" != "C:/${NOM_C}" ]; then
+      echec "inspection de ${NOM_C} illisible (en-tête C:/${NOM_C} attendu) · $(echo "$SORTIE" | head -1)" "$1"
+    fi
+    for JETON in $SORTIE; do
+      case "$JETON" in C:*|V:*|B:*|N:*) ;; *) echec "inspection de ${NOM_C} illisible (élément sans préfixe C:/V:/B:/N: « ${JETON} »)" "$1" ;; esac
+    done
+    INSPECTIONS="${INSPECTIONS} ${SORTIE}"
+  done <<< "$NOMS"
+  SORTIE="$INSPECTIONS"
+  INTRUS=$(echo "$SORTIE" | tr ' ' '\n' | grep -E '^(V|N):' | grep -vE "^(V|N):${PROJET}" | sort -u || true)
+  BINDS=$(echo "$SORTIE" | tr ' ' '\n' | grep -E '^B:' | grep -vE '/ops/recette/(sorties|registre)$' | sort -u || true)
   if [ -n "$INTRUS" ] || [ -n "$BINDS" ]; then echec "partage détecté · $(echo "$INTRUS $BINDS" | tr '\n' ' ')" "$1"; else ok "$2" "$1"; fi
 }
 
 # 7 · conteneurs DÉJÀ présents du projet (passage précédent) · aucun montage ni réseau étranger
 etape "isolement-existant · conteneurs déjà présents du projet ${PROJET} : montages et réseaux propres"
-lancer "$INSPECTER"
-if [ "$A_BLANC" = "0" ]; then verifier_isolement "isolement-existant" "aucun partage (ou aucun conteneur encore)"; fi
+inspecter_isolement "isolement-existant" "aucun partage (ou aucun conteneur encore)"
 
 echo "PHASE 2 · construction, démarrage, migrations et commandes · seulement si tout ce qui précède est OK"
 PHASE="mutations"
@@ -173,8 +207,7 @@ fi
 
 # 10 · inspection après démarrage · aucun volume ni réseau hors du projet de recette sur ses conteneurs
 etape "isolement · inspection des conteneurs : montages et réseaux du seul projet ${PROJET}"
-lancer "$INSPECTER"
-if [ "$A_BLANC" = "0" ]; then verifier_isolement "isolement" "volumes, réseaux et montages propres à ${PROJET}"; fi
+inspecter_isolement "isolement" "volumes, réseaux et montages propres à ${PROJET}"
 
 # 11 · migrations de la base de recette (la sonde publie dans app_settings)
 etape "migrations · base de recette à jour"

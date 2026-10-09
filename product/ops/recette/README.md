@@ -35,7 +35,7 @@ garde tout ce qui a été vu.
 
 - **Alimenté depuis `ai_spend`** avant et après chaque commande payante (`recette:pas1`, `recette:bench`) : réglé au coût réel ou au prix fixe, **incertain conservé au maximum réservé** (lignes à réconcilier, réservations sans issue).
 - **Engagement durable AVANT chaque appel payant** : la commande écrit d'abord au registre un engagement (identifiant, commande, réservation maximale, heure), compté au bilan **dès son écriture**, puis appelle, puis le **règle** au coût réel des lignes nées (ou le passe **incertain**, au maximum, si elle a rencontré une erreur). Un processus tué pendant l'appel laisse son engagement **ouvert, compté au maximum**, même si la base est détruite ensuite : `recette:budget` le montre sous « engagé (ouvert) ». Le bilan compte donc antérieur + réglé + engagé + incertain.
-- **Verrou entre processus** : lire le registre, décider et écrire l'engagement se font sous un verrou exclusif (`budget-essais.lock`, à côté du registre), pour toutes les commandes, toutes les bases et tous les conteneurs qui montent ce dossier. Deux commandes lancées en même temps ne peuvent plus dépenser deux fois le même restant. Un verrou laissé par un processus disparu est repris seul (aussitôt sur la même machine, après 30 s s'il venait d'un autre conteneur) ; un verrou tenu par une commande en cours n'est jamais pris : l'autre commande attend, puis refuse sans rien lancer.
+- **Verrou entre processus** : lire le registre, décider et écrire l'engagement se font sous un verrou exclusif (`budget-essais.lock`, à côté du registre), pour toutes les commandes, toutes les bases et tous les conteneurs qui montent ce dossier. Deux commandes lancées en même temps ne peuvent plus dépenser deux fois le même restant. Un verrou n'est repris seul que si la mort de son détenteur est **établie** (même conteneur : même hôte, même démarrage, même espace de PID, et PID disparu). Il n'est **jamais repris sur son âge** : une commande figée peut encore reprendre et écrire (E4). Un verrou tenu par une commande en cours, ou laissé par un autre conteneur, n'est jamais pris : l'autre commande attend, puis refuse sans rien lancer et renvoie au déverrouillage (§4.8).
 - **Écriture atomique** (fichier temporaire, `fsync`, version précédente gardée en `budget-essais.json.prec`, puis renommage) et **journal en ajout seul** `budget-essais.journal.jsonl`.
 - **Avant toute dépense** : `antérieur + réglé + incertain + réservation maximale ≤ 15 $`, sinon refus sans aucun appel.
 - **Refus** si le registre est **absent ou illisible alors que la base de recette contient des dépenses** (incohérence : restaure-le, ou sa copie `.prec`), ou s'il est illisible (ou si quelqu'un y a relevé l'autorisation). Base neuve et registre qui dit qu'on a déjà dépensé : **le registre fait foi**.
@@ -167,7 +167,10 @@ aucune commande payante), en deux phases :
 2. **seulement si tout est OK** : construction, démarrage, inspection des conteneurs (aucun volume, réseau ou montage hors du projet de recette), migrations, `ffprobe` et `ffmpeg` dans le worker, sonde vidéo publiée PUIS relue en base, site de recette qui répond sur `127.0.0.1:3101` et nulle part ailleurs, registre du budget lisible.
 
 **Le premier ÉCHEC arrête tout, sur-le-champ** : aucun build, démarrage,
-commande ni écriture ne suit.
+commande ni écriture ne suit. L'inspection des conteneurs vérifie d'abord que
+`docker ps` PUIS chaque `docker inspect` ont réussi et rendu une sortie
+lisible : un échec ou un message inattendu n'est jamais pris pour « aucun
+partage » (E4).
 
 ```bash
 bash ops/recette/verifier-environnement.sh --a-blanc   # d'abord : la liste des commandes, rien n'est exécuté
@@ -274,6 +277,19 @@ Dépense antérieure connue par facture (ajout seul, au registre et au journal) 
 docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:budget:saisir -- --usd 0,40 --motif "facture fal du 7 octobre"
 ```
 
+Verrou du registre resté en place (une commande refuse avec « il n’est jamais repris sur son âge ») · d'abord, vérifie qu'AUCUNE commande de recette ne tourne :
+
+```bash
+docker ps --filter label=com.docker.compose.project=tiktrends-recette --filter label=com.docker.compose.service=outils_recette --format "{{.Names}} {{.Status}} {{.Command}}"
+docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:budget:deverrouiller
+```
+
+La seconde commande dit qui tient le verrou, compte les autres commandes de
+recette encore connectées à la base, et affiche le jeton à recopier. Elle ne
+retire rien sans `--confirmer-arret <jeton>` ; elle refuse si le détenteur
+est vivant dans ce conteneur, si une autre commande est connectée, ou si le
+verrou a changé depuis. Le registre lui-même n'est jamais touché.
+
 **4.9 · Ce que tu transmets ensuite** (aucun secret dedans) :
 
 1. la sortie de `bash ops/recette/verifier-environnement.sh` (les lignes OK / ÉCHEC) ;
@@ -356,7 +372,7 @@ dont le nom ne commence pas par `tiktrends-recette`. Garde :
 ## 8. Ce que ce kit ne prouve pas
 
 - Aucune commande payante de ce kit n'a été lancée pour de vrai : seulement en simulé (fournisseur factice, `apps/web/test/e-pas1-recette.test.ts`, `apps/web/test/e2-pas1-registre.test.ts`) et contre des bases Postgres locales sans clé.
-- Le verrou et l'engagement sont éprouvés par de vrais processus sur une même machine (`apps/web/test/e3-registre-verrou.test.ts` : huit commandes concurrentes, deux bases, un processus tué en plein appel, base supprimée puis recréée). Entre deux conteneurs `docker compose run`, le PID d'un détenteur n'est pas sondable : un verrou abandonné n'y est repris qu'après 30 s. Ce cas n'a pas été joué avec Docker.
+- Le verrou et l'engagement sont éprouvés par de vrais processus sur une même machine (`apps/web/test/e3-registre-verrou.test.ts` : huit commandes concurrentes, deux bases, un processus tué en plein appel, base supprimée puis recréée). Entre deux conteneurs `docker compose run`, le PID d'un détenteur n'est pas sondable (espaces de PID distincts) : un verrou abandonné n'y est JAMAIS repris seul, il se retire par `recette:budget:deverrouiller` après arrêt vérifié des commandes (E4, `apps/web/test/e4-verrou-suspendu.test.ts` : détenteur suspendu, horloge avancée de dix minutes, aucun engagement accepté perdu). Ce cas n'a pas été joué avec Docker.
 - Un engagement laissé ouvert par un processus tué reste compté au maximum : aucune commande ne le règle à ta place. Si la facture du fournisseur montre moins, le restant reste plus prudent que nécessaire ; il n'existe pas encore de commande de réconciliation (à demander si besoin).
 - La construction des images et `verifier-environnement.sh` n'ont pas été joués avec Docker (pas de démon dans la session) : le script a été exécuté à blanc et contre de faux outils (`apps/web/test/e2-verifier-environnement.test.ts`).
 - La borne de compilation est mesurée sur le semis de recette ; le montant qui fait foi est celui que la commande affiche au moment du lancement.

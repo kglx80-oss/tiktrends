@@ -176,3 +176,117 @@ export function engagementValide(x: unknown): x is EngagementEssai {
     && typeof g.creeLe === 'string' && Number.isFinite(Date.parse(g.creeLe))
     && typeof g.base === 'string';
 }
+
+/* ──────────── E4 · la PORTE de tout contrôle visuel lancé par une commande d'essai ──────────── */
+
+/**
+ * E4 (contre-recette Codex sur 150c17c) · le défaut réparé : `recette:pas1`
+ * ne prenait l'engagement du registre et ne vérifiait l'interrupteur
+ * `controle_visuel` que pour un livrable de qualité `pending`, avec une
+ * décision PARTIELLE (sans la réconciliation). Un job `requires_review` dont
+ * le contrôle incertain a été réconcilié sautait ce bloc ; la fonction qui
+ * appelle la vision relisait ensuite la décision COMPLÈTE, voyait « reprise
+ * permise » et appelait, sans interrupteur ni engagement au registre
+ * cumulatif (la barrière fournisseur de la base ne connaît pas les autres
+ * bases).
+ *
+ * Désormais UNE porte, dans cet ordre, avant CHAQUE appel de vision de la
+ * commande, quelle que soit la qualité :
+ *
+ *   1. la décision COMPLÈTE du job (`decisionControleVision`, réconciliation
+ *      comprise) dit qu'un appel peut partir · sinon aucun appel ;
+ *   2. un fournisseur est configuré · sinon aucun appel ;
+ *   3. l'interrupteur `controle_visuel` est ouvert pour l'espace · sinon
+ *      aucun appel, rien d'engagé ;
+ *   4. un engagement DURABLE du registre couvre cet appel · s'il n'y en a pas
+ *      encore, la commande doit l'ÉCRIRE avant (`engager`), et un refus du
+ *      registre ⇒ aucun appel ;
+ *   5. alors seulement, l'appel.
+ */
+export type PorteVisionEssai =
+  | { appeler: false; etape: 'decision' | 'fournisseur' | 'interrupteur' }
+  | { appeler: true; engager: boolean };
+
+export function porteVisionEssai(e: {
+  /** La décision COMPLÈTE du job (réconciliation comprise) autorise un appel. */
+  decisionLancer: boolean;
+  fournisseur: boolean;
+  /** Capacités coupées parmi celles qu'exige le contrôle visuel. */
+  capacitesCoupees: readonly string[];
+  /** Un engagement de CETTE commande, écrit au registre, couvre déjà l'appel. */
+  engagementCouvrant: boolean;
+}): PorteVisionEssai {
+  if (!e.decisionLancer) return { appeler: false, etape: 'decision' };
+  if (!e.fournisseur) return { appeler: false, etape: 'fournisseur' };
+  if (e.capacitesCoupees.length > 0) return { appeler: false, etape: 'interrupteur' };
+  return { appeler: true, engager: !e.engagementCouvrant };
+}
+
+/* ──────────── E4 · verrou du registre : jamais repris sur son seul âge ──────────── */
+
+/**
+ * E4 (contre-recette Codex sur 150c17c) · le défaut réparé : un verrou de
+ * plus de 30 s était REPRIS même si son détenteur pouvait encore reprendre.
+ * A suspendu après sa confirmation, B reprenait le verrou et écrivait son
+ * engagement, A reprenait et publiait son registre : l'engagement de B
+ * disparaissait. Aucun âge ne prouve qu'un processus est mort.
+ *
+ * Désormais un verrou n'est repris AUTOMATIQUEMENT que si la mort de son
+ * détenteur est ÉTABLIE : même hôte, même démarrage de la machine, même
+ * espace de PID (deux `docker compose run` partagent hôte et démarrage, pas
+ * leurs PID) et PID absent. Dans tous les autres cas (autre conteneur, autre
+ * machine, contenu illisible, ancien format), refus nommé : la récupération
+ * passe par `recette:budget:deverrouiller`, après arrêt vérifié des commandes.
+ */
+export interface DetenteurVerrou { hote: string; demarrage: string; pidns: string; pid: number }
+
+export type DecisionRepriseVerrou =
+  | { reprendre: true }
+  | { reprendre: false; motif: 'vivant' | 'insondable' | 'illisible' };
+
+export function decisionRepriseVerrou(e: {
+  /** Contenu du verrou · `null` s'il est illisible. */
+  detenteur: DetenteurVerrou | null;
+  ici: { hote: string; demarrage: string; pidns: string };
+  /** Le PID du détenteur existe-t-il dans NOTRE espace de PID ? (seulement significatif s'il est le même). */
+  pidVivant: boolean;
+}): DecisionRepriseVerrou {
+  const d = e.detenteur;
+  if (!d) return { reprendre: false, motif: 'illisible' };
+  const connu = (x: string) => x !== '' && x !== 'inconnu';
+  const memeEspace = connu(d.hote) && d.hote === e.ici.hote
+    && connu(d.demarrage) && d.demarrage === e.ici.demarrage
+    && connu(d.pidns) && d.pidns === e.ici.pidns;
+  if (!memeEspace) return { reprendre: false, motif: 'insondable' };
+  return e.pidVivant ? { reprendre: false, motif: 'vivant' } : { reprendre: true };
+}
+
+/**
+ * `recette:budget:deverrouiller` · retirer un verrou dont la mort du
+ * détenteur n'a pas pu être établie. Dans l'ordre :
+ *
+ *  · détenteur VIVANT (sondé ici) ⇒ refus, jamais retiré ;
+ *  · d'autres commandes de recette encore connectées à la base ⇒ refus ;
+ *  · aucune confirmation ⇒ on dit QUI tient le verrou et COMMENT vérifier
+ *    qu'aucune commande ne tourne, puis la confirmation à taper ;
+ *  · confirmation qui n'est pas le jeton du verrou ACTUEL ⇒ refus (un verrou
+ *    changé entre-temps n'est jamais retiré sur une confirmation ancienne) ;
+ *  · sinon ⇒ retrait.
+ */
+export type DecisionDeverrouillage =
+  | { retirer: true }
+  | { retirer: false; motif: 'vivant' | 'autres_commandes' | 'confirmation_absente' | 'confirmation_autre' };
+
+export function decisionDeverrouillage(e: {
+  reprise: DecisionRepriseVerrou;
+  /** Commandes de recette encore connectées à la base · `null` si non vérifiable. */
+  autresCommandes: number | null;
+  confirmation: string | null;
+  jeton: string;
+}): DecisionDeverrouillage {
+  if (!e.reprise.reprendre && e.reprise.motif === 'vivant') return { retirer: false, motif: 'vivant' };
+  if (e.autresCommandes !== null && e.autresCommandes > 0) return { retirer: false, motif: 'autres_commandes' };
+  if (e.confirmation === null) return { retirer: false, motif: 'confirmation_absente' };
+  if (e.confirmation !== e.jeton) return { retirer: false, motif: 'confirmation_autre' };
+  return { retirer: true };
+}

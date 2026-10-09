@@ -144,7 +144,7 @@ describe('verrou interprocessus · 8 processus réels, départ simultané', { ti
     const types = journal(d).map((e) => e.type);
     expect(types.filter((t) => t === 'engagement')).toHaveLength(8);
     expect(types.filter((t) => t === 'cloture')).toHaveLength(8);
-    // Mesure du seuil de péremption (VERROU_PERIME_MS = 30 s) · détention réelle, sans pause de test.
+    // Mesure de la détention réelle du verrou, sans pause de test (E4 : aucun seuil d’âge ne reprend plus un verrou).
     const detentions = issues.flatMap((i) => i.detentions).sort((a, b) => a - b);
     console.log(`[e3:mesure] détention du verrou · ${detentions.length} prises · médiane ${detentions[Math.floor(detentions.length / 2)]!.toFixed(1)} ms · max ${detentions.at(-1)!.toFixed(1)} ms`);
     expect(detentions.at(-1)!).toBeLessThan(2_000);

@@ -51,6 +51,18 @@
  *    quoi réconcilier ; contrôle tranché ⇒ rapport seulement ;
  *  · `--nouveau-rendu` seul ouvre un second rendu payant (nouvelle confirmation).
  *
+ * ── E4 · une seule porte pour tout appel de vision ───────────────────────────
+ *
+ *  · chaque contrôle visuel de la commande (après le rendu, reprise d'un
+ *    contrôle manquant, reprise d'un contrôle incertain RÉCONCILIÉ, qualité
+ *    `pending` ou `requires_review`) passe par `controleVisuel` : décision
+ *    COMPLÈTE du job (réconciliation comprise) → interrupteur
+ *    `controle_visuel` → engagement durable au registre cumulatif s'il n'est
+ *    pas couvert par celui de la passe → appel (`porteVisionEssai`, noyau).
+ *    La barrière de la base (plafond fournisseur) ne connaît pas les autres
+ *    bases : elle ne remplace jamais l'engagement (garde :
+ *    `test/e4-pas1-reprise-vision.test.ts`).
+ *
  * Codes de sortie : 0 livrable produit (et contrôle tranché ou hors devis),
  * 1 erreur, job en échec, ou contrôle visuel bloqué (engagé, incertain), 2
  * refus (rien de dépensé), 3 job encore en cours (relancer la même commande
@@ -173,12 +185,17 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   // R6 · interrupteurs du worker (même chemin que `demarrerBoucleStudio`), relus avec l'environnement de la commande.
   const { interrupteursWorker } = await import('../../../workers/src/studios/boucle');
   const interrupteurs = interrupteursWorker(d.env);
-  /** Refus si l'une des capacités exigées est coupée pour l'espace de recette · `null` sinon. */
-  const refusCapacites = async (capacites: ReturnType<typeof core.capacitesDesOperations>): Promise<string | null> => {
+  type Capacites = ReturnType<typeof core.capacitesDesOperations>;
+  /** Les capacités exigées qui sont coupées pour l'espace de recette (relues à chaque appel). */
+  const coupeesParmi = async (capacites: Capacites): Promise<Capacites> => {
     const reglages = await interrupteurs.reglagesEspace(db as never, RECETTE.workspaceId);
-    const coupees = core.capacitesCoupees(capacites, { env: d.env, espace: RECETTE.workspaceId, reglages });
-    if (!coupees.length) return null;
-    return `INTERRUPTEUR_COUPE · ${core.messageCapaciteCoupee(coupees)} Ouvre-les pour l’espace de recette seulement (${core.ENV_INTERRUPTEURS.espacesPilotes}=${RECETTE.workspaceId}, ${core.ENV_INTERRUPTEURS.capacitesPilotes}=${coupees.join(',')} · docker-compose.recette.yml), puis relance.`;
+    return core.capacitesCoupees(capacites, { env: d.env, espace: RECETTE.workspaceId, reglages });
+  };
+  const messageCoupe = (coupees: Capacites) => `INTERRUPTEUR_COUPE · ${core.messageCapaciteCoupee(coupees)} Ouvre-les pour l’espace de recette seulement (${core.ENV_INTERRUPTEURS.espacesPilotes}=${RECETTE.workspaceId}, ${core.ENV_INTERRUPTEURS.capacitesPilotes}=${coupees.join(',')} · docker-compose.recette.yml), puis relance.`;
+  /** Refus si l'une des capacités exigées est coupée pour l'espace de recette · `null` sinon. */
+  const refusCapacites = async (capacites: Capacites): Promise<string | null> => {
+    const coupees = await coupeesParmi(capacites);
+    return coupees.length ? messageCoupe(coupees) : null;
   };
 
   // Le semis est là ? Sinon rien ne part.
@@ -231,25 +248,52 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   let erreur: unknown = null;
   let controleVision: string | null = null;
   let controleBloque = false;
+  /** Barrière de la passe en vigueur (posée par le dernier engagement). */
+  let capPasseCourant = etatBudget.depenseFenetreUsd;
 
-  /** Le contrôle visuel d'un job livré · exécuté s'il est approuvé et dû, sinon dit pourquoi. */
-  const controleVisuel = async (jobId: string): Promise<void> => {
+  /**
+   * E4 · LA PORTE de tout appel de vision de cette commande, quelle que soit
+   * la qualité du livrable (`pending`, `requires_review` d'un contrôle
+   * incertain réconcilié…), dans l'ordre de `porteVisionEssai` (noyau) :
+   * décision COMPLÈTE du job (la même que celle de l'appel, réconciliation
+   * comprise) → fournisseur → interrupteur `controle_visuel` → engagement
+   * DURABLE au registre s'il n'est pas déjà couvert par celui de la passe →
+   * appel. Rend le refus survenu AVANT tout appel (rien dépensé), sinon `null`.
+   */
+  const controleVisuel = async (jobId: string): Promise<{ refusAvantAppel: string | null }> => {
+    const sans = { refusAvantAppel: null };
     const [jv] = await db.select().from(J).where(eq(J.id, jobId));
-    if (!jv || jv.state !== 'completed') return;
-    if (!core.controleVisionApprouve(core.lireSnapshotJob(jv.snapshot)?.lignes)) {
+    if (!jv || jv.state !== 'completed') return sans;
+    const ligne = core.controleVisionApprouve(core.lireSnapshotJob(jv.snapshot)?.lignes);
+    if (!ligne) {
       controleVision = 'aucune ligne au devis approuvé (fournisseur IA absent au devis, ou décochée) · aucun appel, aucune dépense · relecture humaine.';
       dire(`Contrôle visuel · ${controleVision}`);
-      return;
+      return sans;
     }
+    // 1 · la décision COMPLÈTE (`decisionControleVision`, réconciliation comprise), relue en base.
     const refus = await refusControleVision(ctx, jv);
     if (refus) {
       const tranche = jv.qualityStatus !== 'pending' && refus.code !== 'PROVIDER_UNCERTAIN';
       controleVision = tranche ? `déjà tranché (qualité « ${jv.qualityStatus} ») · aucun appel` : `NON relancé · ${refus.message}`;
       controleBloque = !tranche;
       dire(`Contrôle visuel · ${controleVision}`);
-      return;
+      return sans;
     }
-    if (!d.adaptateur) { controleVision = 'ANTHROPIC_API_KEY absente · contrôle approuvé non exécuté, relance avec la clé (aucun autre appel ne partira)'; controleBloque = true; dire(`Contrôle visuel · ${controleVision}`); return; }
+    // 2 à 4 · fournisseur, interrupteur, engagement · AVANT chaque appel autorisé, reprise comprise.
+    const coupees = await coupeesParmi(core.capacitesDesOperations([core.OPERATION_CONTROLE_VISION]));
+    const porte = core.porteVisionEssai({ decisionLancer: true, fournisseur: d.adaptateur !== null, capacitesCoupees: coupees, engagementCouvrant: engagementId !== null && !clos });
+    if (!porte.appeler && porte.etape === 'fournisseur') { controleVision = 'ANTHROPIC_API_KEY absente · contrôle approuvé non exécuté, relance avec la clé (aucun autre appel ne partira)'; controleBloque = true; dire(`Contrôle visuel · ${controleVision}`); return sans; }
+    if (!porte.appeler) {
+      const m = messageCoupe(coupees);
+      controleVision = `NON lancé · ${m}`; controleBloque = true; dire(`Contrôle visuel · ${controleVision}`);
+      return { refusAvantAppel: m };
+    }
+    if (porte.engager) {
+      const e = await engager(ligne.totalUsdMicros);
+      if (!e.ok) { controleVision = `NON lancé · ${e.raison}`; controleBloque = true; dire(`Contrôle visuel · ${controleVision}`); return { refusAvantAppel: e.raison }; }
+      capPasseCourant = e.capPasseUsd;
+      dire(`Reprise du contrôle visuel approuvé (${usdAffiche(ligne.totalUsdMicros)} au plus) · seul ce contrôle part. Barrière de la passe : ${e.capPasseUsd} $.`);
+    }
     const { resolveurMediasStudio } = await import('../../lib/studios/prompts/resolveur');
     const v = await controlerSortieParVision(ctx, { jobId }, {
       adaptateur: d.adaptateur, environnement: environnementPrompts(d.env), plafondAtteint: async () => (await spendStatus()).blocked,
@@ -265,6 +309,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       controleBloque = true;
     }
     dire(`Contrôle visuel · ${controleVision}`);
+    return sans;
   };
 
   /**
@@ -295,18 +340,10 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
     if (!enCours && livre && !opt.options.nouveauRendu) {
       dire(`Un livrable existe déjà (job ${livre.id}) · aucune génération, aucun devis, aucune approbation. Pour un second rendu payant : --nouveau-rendu et une nouvelle confirmation.`);
       ids.jobId = livre.id; ids.devisId = livre.quoteId;
-      const ligne = core.controleVisionApprouve(core.lireSnapshotJob(livre.snapshot)?.lignes);
-      let capPasseUsd = etatBudget.depenseFenetreUsd;
-      if (ligne && livre.qualityStatus === 'pending' && core.decisionControleVision({ visionApprouvee: true, qualite: livre.qualityStatus, marqueur: core.lireMarqueurControleVision(livre.result) }).lancer && d.adaptateur) {
-        const coupe = await refusCapacites(core.capacitesDesOperations([core.OPERATION_CONTROLE_VISION]));
-        if (coupe) return { ...refuser([coupe], devis), jobId: livre.id };
-        const e = await engager(ligne.totalUsdMicros);
-        if (!e.ok) return { ...refuser([e.raison], devis), jobId: livre.id };
-        capPasseUsd = e.capPasseUsd;
-        dire(`Reprise du contrôle visuel approuvé (${usdAffiche(ligne.totalUsdMicros)} au plus) · seul ce contrôle part. Barrière de la passe : ${capPasseUsd} $.`);
-      }
-      await controleVisuel(livre.id);
-      const rapport = await ecrireRapport(livre.id, { capPasseUsd, confirmeUsdMicros: 0, arret: controleBloque ? `Contrôle visuel bloqué · ${controleVision}` : null });
+      // E4 · la MÊME porte que tout contrôle (décision complète, interrupteur, engagement) · refus ⇒ rien dépensé.
+      const p = await controleVisuel(livre.id);
+      if (p.refusAvantAppel) return { ...refuser([p.refusAvantAppel], devis), jobId: livre.id };
+      const rapport = await ecrireRapport(livre.id, { capPasseUsd: capPasseCourant, confirmeUsdMicros: 0, arret: controleBloque ? `Contrôle visuel bloqué · ${controleVision}` : null });
       return { code: controleBloque ? 1 : 0, refus: controleBloque ? [String(controleVision)] : [], devis, rapport, jobId: livre.id };
     }
 
