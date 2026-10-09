@@ -74,15 +74,18 @@ describe('le commit du build remonte jusqu’au bandeau de diagnostic', () => {
 
   it('ops/deploy.sh exporte BUILD_SHA (git rev-parse) AVANT le build compose', () => {
     // Sans cet export, le build-arg du compose reste vide · le bandeau dit
-    // « inconnu » quoi qu'on fasse en amont.
+    // « inconnu » quoi qu'on fasse en amont. Depuis D1, le build est une étape
+    // à part (`docker compose build`), avant la migration et l'activation ; le
+    // banc `d1-deploiement.test.ts` vérifie la valeur REÇUE par la construction.
     expect(DEPLOY).toContain('export BUILD_SHA');
     expect(DEPLOY, 'le SHA doit venir de git, pas d’une valeur en dur').toMatch(/BUILD_SHA=\$\(git rev-parse/);
     const assign = DEPLOY.indexOf('BUILD_SHA=$(git rev-parse');
-    const build = DEPLOY.indexOf('docker compose up -d --build');
+    // La première ligne de CODE (hors commentaire) qui construit.
+    const build = DEPLOY.search(/^[^#\n]*docker compose build/m);
     expect(build, 'le script doit lancer le build compose').toBeGreaterThan(-1);
     expect(
       assign > -1 && assign < build,
-      'BUILD_SHA doit être posé AVANT `docker compose up --build`',
+      'BUILD_SHA doit être posé AVANT `docker compose build`',
     ).toBe(true);
   });
 });

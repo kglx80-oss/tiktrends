@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Banc D1 · FAUX git : journalise l'appel puis passe la main au vrai git.
+printf 'git\tgit %s\n' "$*" >> "${BANC_JOURNAL:?BANC_JOURNAL absent}"
+exec "${BANC_VRAI_GIT:?BANC_VRAI_GIT absent}" "$@"

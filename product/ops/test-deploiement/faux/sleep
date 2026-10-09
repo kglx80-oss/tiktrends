@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Banc D1 · FAUX sleep : journalise la pause et rend la main tout de suite.
+printf 'pause\tsleep %s\n' "$*" >> "${BANC_JOURNAL:?BANC_JOURNAL absent}"
+exit 0

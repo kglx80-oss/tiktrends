@@ -29,7 +29,7 @@ services:
 
   web:
     # BUILD_SHA vient de l'environnement du déploiement · le timer l'exporte
-    # (git rev-parse) AVANT `docker compose up --build`. Absent, le bandeau dit
+    # (git rev-parse) AVANT `docker compose build`. Absent, le bandeau dit
     # « inconnu » sans casser le reste (CDC · Lot 0).
     build: { context: ., dockerfile: Dockerfile.web, args: { BUILD_SHA: "${BUILD_SHA-}" } }
     restart: unless-stopped
@@ -39,7 +39,8 @@ services:
       redis: { condition: service_healthy }
 
   workers:
-    build: { context: ., dockerfile: Dockerfile.workers }
+    # Même BUILD_SHA, porté dans l'environnement de l'image (constat L9-A n°6).
+    build: { context: ., dockerfile: Dockerfile.workers, args: { BUILD_SHA: "${BUILD_SHA-}" } }
     restart: unless-stopped
     env_file: .env.deploy
     depends_on:
