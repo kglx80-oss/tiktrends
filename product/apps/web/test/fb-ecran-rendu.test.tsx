@@ -244,6 +244,14 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     expect(m.controler).toHaveBeenCalledWith({ jobId: 'j9' });
   });
 
+  it('raccord E2 · contrôle visuel REFUSÉ (issue incertaine à réconcilier) ⇒ le refus est DIT, pas avalé', async () => {
+    const livre = job({ id: 'j7', etat: 'completed', terminal: true, annulable: false, media: { assetId: 'm1', url: '/api/studios/media/m1', largeur: 8, hauteur: 8 } });
+    m.controler.mockResolvedValue({ ok: false, code: 'PROVIDER_UNCERTAIN', message: 'Contrôle visuel précédent incertain · rapproche-le de la facture avant toute relance.', traceId: 't1' });
+    await monter(vue({ jobs: [livre] }));
+    for (let i = 0; i < 5; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(txt(conteneur, '[data-retour]'), 'le refus du contrôle visuel est avalé').toBe('Refusé · Contrôle visuel précédent incertain · rapproche-le de la facture avant toute relance.');
+  });
+
   it('job non terminé · l’état se relit toutes les 4 s, sans autre geste', async () => {
     vi.useFakeTimers();
     await monter(vue({ jobs: [job({ etat: 'running', libelleEtat: 'En cours' })] }));

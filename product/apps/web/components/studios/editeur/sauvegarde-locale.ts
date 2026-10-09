@@ -31,8 +31,9 @@ export function lireSauvegardeLocale(projectId: string): SauvegardeLocale | null
     if (!brut) return null;
     const s = JSON.parse(brut) as SauvegardeLocale;
     if (s?.v !== 1 || typeof s.baseVersionId !== 'string' || typeof s.baseN !== 'number' || typeof s.enregistreeLe !== 'string') return null;
-    if (validerDocument(s.document).length) return null;
-    if (s.base !== null && validerDocument(s.base).length) return null;
+    // L8-C · un document hérité au-delà des limites reste lisible : on valide contre sa base.
+    if (validerDocument(s.document, '/document', { base: s.base ?? undefined }).length) return null;
+    if (s.base !== null && validerDocument(s.base, '/document', { base: s.base }).length) return null;
     return s;
   } catch {
     return null;

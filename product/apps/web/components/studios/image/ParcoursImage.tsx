@@ -89,7 +89,11 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
     for (const j of vue.jobs) {
       if (j.etat === 'completed' && j.qualite === 'pending' && !controles.current.has(j.id)) {
         controles.current.add(j.id);
-        void controlerMediaImage({ jobId: j.id }).then(() => charger()).catch(() => undefined);
+        // Un refus (issue incertaine à réconcilier, plafond…) est DIT, jamais avalé (raccord E2).
+        void controlerMediaImage({ jobId: j.id }).then((r) => {
+          if (!r.ok) setRetour({ ok: false, texte: r.message });
+          return charger();
+        }).catch(() => undefined);
       }
     }
   }, [vue, charger]);

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as KeyboardEventReact } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as KeyboardEventReact } from 'react';
 import {
   CIBLE_TACTILE_MIN,
   ajouterForme, ajouterMedia, calqueApresRetrait, calquesParZ, ajouterTexte, alignerCalque, annulerEtape, appliquerOperation, definirVerrou, definirVisibilite,
@@ -83,7 +83,8 @@ export function EditeurCalques(props: PropsEditeur) {
   const calque = present && selection ? present.layers[selection] ?? null : null;
   const statut = statutEnregistrement({ base: base.document, present, enCours, conflit: conflit !== null, erreur: erreur !== null });
   const modifie = statut.etat === 'modifie' || statut.etat === 'erreur';
-  const impact = present && modifie ? impactEdition({ ...contenu, document: base.document }, present) : null;
+  // L8-C · recalculé seulement quand le document change (un glisser rend plusieurs fois par geste).
+  const impact = useMemo(() => (present && modifie ? impactEdition({ ...contenu, document: base.document }, present) : null), [present, modifie, contenu, base.document]);
   const libelleAnnuler = h ? prochainAnnuler(h) : null;
   const libelleRetablir = h ? prochainRetablir(h) : null;
 
@@ -138,7 +139,12 @@ export function EditeurCalques(props: PropsEditeur) {
   const operer = (fn: (d: DocumentStudio) => ResultatOperation) => {
     if (!h || !editable) return;
     const r = fn(h.present);
-    if (!r.ok) { setRefus(r.message); setAnnonce(r.message); return; }
+    if (!r.ok) {
+      // La raison ciblée (ex. limite de calques L8-C) complète le message général.
+      const detail = r.violations?.[0]?.raison;
+      const texte = detail ? `${r.message} ${detail}` : r.message;
+      setRefus(texte); setAnnonce(texte); return;
+    }
     setRefus(null);
     if (r.changes.length === 0) return;
     setH(appliquerOperation(h, r));
