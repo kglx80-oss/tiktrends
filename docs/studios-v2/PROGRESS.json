@@ -2,8 +2,8 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "b35ce9b",
-  "lotCourant": "vague 9 (base b35ce9b) · E3 registre durable + verrou + préflight bloquant, D1 déploiement build→migration→activation, F1 interrupteurs par capacité/espace, R5 réconciliation auditée (migration 0056)",
+  "shaCourant": "150c17c",
+  "lotCourant": "vague 9 intégrée (150c17c) · en attente de recette Codex",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
@@ -853,7 +853,7 @@
       "test": null,
       "proofPath": null,
       "sha": "216318d",
-      "limites": "Retour d’application prouvé en local (bc33cec sur base migrée) ; aucun drapeau Studios ; revert VPS non exécuté."
+      "limites": "Retour d’application prouvé en local ; interrupteurs F1 (#766) permettent de couper sans revert ; revert VPS non exécuté."
     },
     "MIG-04": {
       "statut": "LOCAL_VERIFIED",
@@ -915,6 +915,13 @@
       "nature": "additive · colonne ai_spend.reconcile_reason nullable, IF NOT EXISTS",
       "pr": "#753",
       "verifie": "base vide 55 + 0055 rejouée deux fois"
+    },
+    {
+      "numero": "0056",
+      "fichier": "0056_ai_spend_reconciliations.sql",
+      "nature": "additive · table ai_spend_reconciliations (ajout seul, déclencheurs anti-modification)",
+      "pr": "#767",
+      "verifie": "pglite rejouée deux fois ; Postgres réel rejouée deux fois + r5-plafond-pg"
     }
   ],
   "versionsPrompts": {
@@ -977,19 +984,9 @@
       "cause": "Aucun adaptateur d’animation ni de voix/lipsync dans le code ; le décodeur vidéo réel est prêt (#755).",
       "solutionPreparee": "Refus au devis tant que FOURNISSEUR_ANIMATION_BRANCHE = false ; préflight export vidéo et décodage complet prêts.",
       "besoinKevin": "Choix et budget d’un fournisseur d’animation et de voix."
-    },
-    {
-      "id": "B-DEPLOIEMENT-ORDRE",
-      "exigences": [
-        "MIG-05",
-        "MIG-06"
-      ],
-      "cause": "ops/deploy.sh démarre le nouveau code avant de migrer : fenêtre d’erreur 42P01 sur les écrans Studios (aucune dépense non comptée).",
-      "solutionPreparee": "Migrer avant docker compose up (une ligne).",
-      "besoinKevin": "Accord pour modifier le script de déploiement de production."
     }
   ],
-  "prochaineAction": "Intégrer la vague 9 ; nouvelle recette Codex ; pas d'essai réel ni de fusion avant fermeture des protections.",
+  "prochaineAction": "Recette Codex des vagues 7, 8 et 9 (#753–#767, intégration #741 150c17c) ; puis vérification Docker isolée et premier rendu réel par le propriétaire (15 $ au total).",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -1195,6 +1192,12 @@
       "date": "2026-10-09",
       "par": "propriétaire",
       "decision": "15 $ maximum AU TOTAL pour tous les tests du chantier TikTrends, tous fournisseurs, étapes et relances confondus ; remplace la limite de 1 $ par passe ; dépenses déjà engagées déduites, réservations incertaines conservées ; aucune recharge ni dépassement. Préalables : devis complet calculé sur les paramètres envoyés (estimation / réservation max / réglé) et reprise du seul contrôle visuel manquant ; un seul rendu réel examiné avant le benchmark ; suivi cumulatif durable."
+    },
+    {
+      "id": "D-INT-09",
+      "date": "2026-10-09",
+      "par": "intégrateur (recommandation Codex, CDC 338/340)",
+      "decision": "deploy.sh build → migration éphémère → vérification (inclusion) → activation ; interrupteurs par capacité/espace, nouveautés incomplètes coupées par défaut ; réconciliation par geste plateforme lié à une preuve, additive."
     }
   ],
   "prOuvertes": {
@@ -1229,7 +1232,11 @@
     "760": "L8-C performance et limites (bda8e93)",
     "761": "L8-D canvas métier (c3ef38f)",
     "762": "R4 réconciliation à l’écran, exports conservés (c88229a)",
-    "763": "L9-A migration, rollback, restauration, baseline, plan de fusion (216318d)"
+    "763": "L9-A migration, rollback, restauration, baseline, plan de fusion (216318d)",
+    "764": "E3 registre durable, verrou, préflight bloquant (f264831, base vague 9)",
+    "765": "D1 déploiement build→migration→activation (16a97d3)",
+    "766": "F1 interrupteurs par capacité/espace (68b902c)",
+    "767": "R5 réconciliation auditée, migration 0056 (326a902)"
   },
   "besoinsIntegrateur": [
     "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
