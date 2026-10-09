@@ -1,15 +1,17 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
-import { gte, sql } from 'drizzle-orm';
+import { eq, gte, sql } from 'drizzle-orm';
 import {
-  db, schema, reserverDepense, reglerDepense, annulerDepense, marquerAReconcilier, lireDepensesAReconcilier, type BaseDepense,
+  db, schema, reserverDepense, reglerDepense, annulerDepense, marquerAReconcilier, lireDepensesAReconcilier,
+  depenseDepuis, montantRetenuSql, lireDepensesReconciliees, type BaseDepense,
 } from '@tiktrends/db';
 import { anthropicFromEnv } from '@tiktrends/ai';
 import { errorFamily } from './user-error';
 import {
   checkBudget, costOfTokens, estimateCallCost, summarizeBudget, FIXED_COSTS, rienNaEteFacture,
   reservationTexteLiberable, VISION_JETONS_IMAGE_MAX, borneMaxAppel, causeIncertaine, vueReconciliation,
-  REESSAIS_AUTOMATIQUES_PAYANTS, type FixedCostKind, type CauseAReconcilier, type VueReconciliation,
+  REESSAIS_AUTOMATIQUES_PAYANTS, ecranReconciliees, type FixedCostKind, type CauseAReconcilier, type VueReconciliation,
+  type EcranReconciliees,
 } from '@tiktrends/core';
 
 /**
@@ -53,14 +55,15 @@ export function spendCapUsd(): number {
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_CAP_USD;
 }
 
-/** Somme dépensée sur la fenêtre · c'est `actual_usd` qui fait foi. */
+/**
+ * Somme dépensée sur la fenêtre · `actual_usd`, sauf pour une ligne
+ * réconciliée (R5) qui compte pour son montant FACTURÉ. C'est la MÊME somme
+ * que la réservation (`depenseDepuis`, `@tiktrends/db`) : le compteur affiché
+ * et la décision du plafond ne peuvent plus diverger.
+ */
 export async function spentUsd(): Promise<number> {
   if (!db) return Number.POSITIVE_INFINITY;   // pas de compteur = pas d'appel
-  const depuis = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
-  const [row] = await db.select({ total: sql<number>`coalesce(sum(${schema.aiSpend.actualUsd}), 0)` })
-    .from(schema.aiSpend)
-    .where(gte(schema.aiSpend.createdAt, depuis));
-  return Number(row?.total ?? 0);
+  return depenseDepuis(db as unknown as BaseDepense, new Date(Date.now() - WINDOW_DAYS * 86_400_000));
 }
 
 export interface SpendStatus { spentUsd: number; capUsd: number; summary: string; blocked: boolean }
@@ -432,19 +435,31 @@ export async function depensesAReconcilier(limite = 200): Promise<VueReconciliat
   return vueReconciliation(await lireDepensesAReconcilier(db as unknown as BaseDepense, depuis, limite));
 }
 
-/** Postes de dépense · dit OÙ part l'argent, pas seulement combien. */
+/**
+ * Dépenses réconciliées (R5) · l'historique pour l'écran propriétaire, sans
+ * fenêtre (l'historique ne s'efface pas). Lecture seule ; la présentation est
+ * pure (`ecranReconciliees`). Base absente ⇒ historique vide.
+ */
+export async function depensesReconciliees(limite = 100): Promise<EcranReconciliees> {
+  if (!db) return ecranReconciliees([]);
+  return ecranReconciliees(await lireDepensesReconciliees(db as unknown as BaseDepense, limite));
+}
+
+/** Postes de dépense · dit OÙ part l'argent, pas seulement combien (montant retenu, R5). */
 export async function spendByAction(limit = 12): Promise<Array<{ action: string; usd: number; calls: number }>> {
   if (!db) return [];
   const depuis = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
+  const retenu = montantRetenuSql();
   const rows = await db.select({
     action: schema.aiSpend.action,
-    usd: sql<number>`coalesce(sum(${schema.aiSpend.actualUsd}), 0)`,
+    usd: sql<number>`coalesce(sum(${retenu}), 0)`,
     calls: sql<number>`count(*)`,
   })
     .from(schema.aiSpend)
+    .leftJoin(schema.aiSpendReconciliations, eq(schema.aiSpendReconciliations.aiSpendId, schema.aiSpend.id))
     .where(gte(schema.aiSpend.createdAt, depuis))
     .groupBy(schema.aiSpend.action)
-    .orderBy(sql`sum(${schema.aiSpend.actualUsd}) desc`)
+    .orderBy(sql`sum(${retenu}) desc`)
     .limit(limit);
   return rows.map((r) => ({ action: r.action, usd: Number(r.usd), calls: Number(r.calls) }));
 }

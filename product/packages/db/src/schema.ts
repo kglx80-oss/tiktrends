@@ -362,6 +362,41 @@ export const aiSpend = pgTable('ai_spend', {
 }));
 
 /**
+ * R5 · réconciliation d'une dépense « à réconcilier » avec la facture du
+ * fournisseur · geste PLATEFORME (fondateur), AJOUT SEUL (déclencheur,
+ * migration 0056).
+ *
+ * La ligne `ai_spend` n'est jamais réécrite : elle garde son montant réservé
+ * (`actual_usd`) et sa cause (`reconcile_reason`). Le plafond retient, pour une
+ * ligne réconciliée, le montant FACTURÉ d'ici (`depenseDepuis`). Une ligne se
+ * réconcilie une fois (`ai_spend_id` unique) ; une même soumission rejouée
+ * (même `idempotency_key`) rend la même réconciliation, sans doublon. Les
+ * colonnes auteur, date, preuve et motif SONT l'audit du geste (aucune table
+ * d'audit plateforme n'existe ; `studio_audit_events` est portée par espace).
+ * Contraintes CHECK (devise gérée, montants ≥ 0, preuve et motif non vides)
+ * dans le SQL de 0056.
+ */
+export const aiSpendReconciliations = pgTable('ai_spend_reconciliations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  aiSpendId: uuid('ai_spend_id').notNull().references(() => aiSpend.id, { onDelete: 'restrict' }),
+  /** Montant réservé de la ligne AU MOMENT du geste, en micro-unités · instantané d'audit. */
+  reservedMicros: bigint('reserved_micros', { mode: 'number' }).notNull(),
+  /** Montant facturé par le fournisseur, en micro-unités de `currency`. */
+  billedMicros: bigint('billed_micros', { mode: 'number' }).notNull(),
+  currency: text('currency').notNull(),
+  /** Identifiant de la preuve fournisseur · facture, ligne de facture, requête. */
+  providerRef: text('provider_ref').notNull(),
+  reason: text('reason').notNull(),
+  authorId: uuid('author_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  idempotencyKey: text('idempotency_key').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  ligneUq: unique('ai_spend_reconciliations_ligne_uq').on(t.aiSpendId),
+  cleUq: unique('ai_spend_reconciliations_cle_uq').on(t.idempotencyKey),
+  dateIdx: index('ai_spend_reconciliations_date_idx').on(t.createdAt),
+}));
+
+/**
  * Créas CONCURRENTES décrites par l'agent A0.
  *
  * Distinctes de `creatives`, qui porte nos propres assets. La différence n'est

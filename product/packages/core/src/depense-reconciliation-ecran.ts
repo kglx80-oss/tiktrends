@@ -8,9 +8,9 @@
  *
  * Ce module décide QUOI montrer · combien de lignes, le montant compté au
  * maximum, la cause en clair, la date, l'action, et le geste attendu (comparer
- * à la facture du fournisseur). Il ne propose AUCUN bouton qui modifie une
- * ligne : rapprocher un montant exige le montant facturé, saisi par un humain,
- * tracé, et ce geste n'existe pas encore (voir le rapport R4).
+ * à la facture du fournisseur). Aucun bouton ne modifie une ligne : R5 AJOUTE
+ * une réconciliation (montant facturé, devise, preuve, motif, auteur), saisie
+ * par le fondateur et décidée dans `depense-reconciliation-geste.ts`.
  *
  * Pur : ni base, ni réseau, ni horloge (le fuseau d'affichage est fixé).
  */
@@ -46,6 +46,8 @@ export interface LigneEcranReconciliation {
   cause: string;
   /** Montant compté au plafond pour cette ligne (le maximum réservé). */
   reserve: string;
+  /** Le même, en micro-unités · ce que la confirmation de R5 compare au facturé. */
+  reserveMicros: number;
   /** Ce qu'il faut faire, pour CETTE ligne. */
   aFaire: string;
 }
@@ -64,7 +66,7 @@ export interface EcranReconciliation {
 }
 
 export const CONSIGNE_RECONCILIATION =
-  'Retrouve chaque appel sur la facture du fournisseur à la date indiquée et compare au maximum réservé. Tant qu’une ligne n’est pas rapprochée, ce maximum reste compté au plafond · c’est le côté prudent. Rien sur cet écran ne modifie une ligne.';
+  'Retrouve chaque appel sur la facture du fournisseur à la date indiquée et compare au maximum réservé. Tant qu’une ligne n’est pas rapprochée, ce maximum reste compté au plafond · c’est le côté prudent. Rien sur cet écran ne modifie une ligne. Facture trouvée, réconcilie-la : montant facturé, identifiant de preuve et motif s’ajoutent à côté, et le plafond retient alors le facturé.';
 
 export function ecranReconciliation(v: VueReconciliation): EcranReconciliation {
   const groupes = new Map<string, { n: number; usd: number }>();
@@ -88,7 +90,7 @@ export function ecranReconciliation(v: VueReconciliation): EcranReconciliation {
       const reserve = montantDepenseLisible(l.actualUsd);
       return {
         id: l.id, quand, fournisseur: f, modele: l.model, action: l.action || 'action inconnue',
-        cause: l.causeLisible || 'cause non renseignée', reserve,
+        cause: l.causeLisible || 'cause non renseignée', reserve, reserveMicros: Math.max(0, Math.round(l.actualUsd * 1_000_000)),
         aFaire: `Chercher cet appel sur la facture ${f} du ${quand.slice(0, 10)} · comparer à ${reserve} comptés au plafond.`,
       };
     }),

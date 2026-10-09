@@ -1,14 +1,14 @@
 import Link from 'next/link';
+import { randomUUID } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { desc } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { getSession } from '../../../../lib/auth';
-import { roleAtLeast } from '../../../../lib/rbac';
-import { isFounder } from '../../../../lib/founder';
-import { ecranReconciliation, type EcranReconciliation } from '@tiktrends/core';
-import { spendStatus, spendByAction, depensesAReconcilier } from '../../../../lib/spend-guard';
+import { ecranReconciliation, type EcranReconciliation, type EcranReconciliees } from '@tiktrends/core';
+import { spendStatus, spendByAction, depensesAReconcilier, depensesReconciliees } from '../../../../lib/spend-guard';
 import { cadrePage, surface, h1 } from '../../../../components/ui';
 import { SectionReconciliation } from './SectionReconciliation';
+import { SectionReconciliees } from './SectionReconciliees';
+import { porteDepenses } from './porte';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,21 +28,33 @@ export const dynamic = 'force-dynamic';
  * consulter n'écrit rien. La porte ne change pas · admin de l'espace ET
  * fondateur (plateforme) ; un admin d'espace seul est renvoyé ailleurs AVANT
  * toute lecture.
+ *
+ * R5 · chaque ligne à réconcilier porte le geste de réconciliation (montant
+ * facturé, devise, preuve, motif ; action `reconcilierDepenseAction`, même
+ * porte), et l'historique « Réconciliées » suit. Le compteur retient le
+ * montant facturé d'une ligne réconciliée (`spentUsd` → `depenseDepuis`).
  */
-export default async function DepensesPage() {
-  const s = await getSession();
-  if (!s) redirect('/login');
-  if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
-  if (!isFounder(s.user.email)) redirect('/admin');
+type ParametresDepenses = Record<string, string | string[] | undefined>;
+// Deux signatures · Next lit la dernière (props de page) ; un rendu de test appelle la page sans argument.
+export default function DepensesPage(): Promise<React.JSX.Element>;
+export default function DepensesPage(props: { searchParams?: Promise<ParametresDepenses> }): Promise<React.JSX.Element>;
+export default async function DepensesPage(props?: { searchParams?: Promise<ParametresDepenses> }): Promise<React.JSX.Element> {
+  const porte = await porteDepenses();
+  if (!porte.ok) redirect(porte.vers);
+  const q = (await props?.searchParams) ?? {};
+  const vientDe = typeof q.reconciliee === 'string' ? q.reconciliee : null;
 
-  const [status, parAction, recentes, reconciliation] = await Promise.all([
+  const [status, parAction, recentes, reconciliation, historique] = await Promise.all([
     spendStatus(),
     spendByAction(12),
     db
       ? db.select().from(schema.aiSpend).orderBy(desc(schema.aiSpend.createdAt)).limit(25)
       : Promise.resolve([]),
     lireReconciliation(),
+    lireHistorique(),
   ]);
+  // R5 · une clé d'idempotence par ligne et par rendu : la même soumission rejouée rend la même réconciliation.
+  const cles = Object.fromEntries((reconciliation.ecran?.lignes ?? []).map((l) => [l.id, randomUUID()]));
 
   const pct = status.capUsd > 0 ? Math.min(100, Math.round((status.spentUsd / status.capUsd) * 100)) : 100;
   const usd = (n: number) => `${n.toFixed(n < 1 ? 4 : 2)} $`;
@@ -91,7 +103,8 @@ export default async function DepensesPage() {
       </div>
 
       {/* R4 · ce qui reste à rapprocher de la facture · avant le détail, c'est ce qui demande un geste. */}
-      <SectionReconciliation ecran={reconciliation.ecran} erreur={reconciliation.erreur} />
+      <SectionReconciliation ecran={reconciliation.ecran} erreur={reconciliation.erreur} cles={cles} />
+      <SectionReconciliees ecran={historique.ecran} erreur={historique.erreur} vientDe={vientDe} deja={q.deja === '1'} />
 
       {/* Où part l'argent */}
       <h2 style={titre}>Où part l’argent</h2>
@@ -156,6 +169,16 @@ async function lireReconciliation(): Promise<{ ecran: EcranReconciliation | null
     return { ecran: ecranReconciliation(await depensesAReconcilier()), erreur: null };
   } catch (e) {
     console.error('[depenses] lecture des lignes à réconcilier', e instanceof Error ? e.message : e);
+    return { ecran: null, erreur: 'erreur de lecture en base' };
+  }
+}
+
+/** R5 · historique des réconciliations · même règle : un échec se dit, la page tient. */
+async function lireHistorique(): Promise<{ ecran: EcranReconciliees | null; erreur: string | null }> {
+  try {
+    return { ecran: await depensesReconciliees(), erreur: null };
+  } catch (e) {
+    console.error('[depenses] lecture des réconciliations', e instanceof Error ? e.message : e);
     return { ecran: null, erreur: 'erreur de lecture en base' };
   }
 }

@@ -189,3 +189,4 @@ export * from './depense-reconciliation-ecran';
 export * from './studios/perf';
 export * from './studios/ux/image-contraste';
 export * from './studios/ux/image-etats';
+export * from './depense-reconciliation-geste';
