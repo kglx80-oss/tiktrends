@@ -105,16 +105,44 @@ function egalJson(a: unknown, b: unknown): boolean {
  * liste est une VALEUR (comparée entière) puisqu'on n'adresse pas ses positions.
  */
 export function cheminsDifferents(a: unknown, b: unknown, chemin = ''): string[] {
+  const out: string[] = [];
+  differences(a, b, chemin, out);
+  return out;
+}
+
+/**
+ * Deux feuilles PRIMITIVES JSON (chaîne, booléen, null, nombre fini) sont
+ * égales en forme canonique si et seulement si elles sont `===` · on évite
+ * alors deux sérialisations par feuille. Tout le reste (listes, valeurs hors
+ * JSON, `-0` contre `0` compris via `===`) passe par `egalJson`, comme avant.
+ */
+function primitiveJson(x: unknown): boolean {
+  return x === null || typeof x === 'string' || typeof x === 'boolean' || (typeof x === 'number' && Number.isFinite(x));
+}
+
+/*
+ * L8-C · même parcours (union des clés triée, profondeur d'abord), même
+ * sortie ; le chemin d'une clé n'est fabriqué qu'au moment où il sert (une
+ * différence, ou une descente). Mesuré : 20 ms pour comparer deux contenus de
+ * 200 plans et 1000 calques, dont l'essentiel en sérialisations de feuilles
+ * égales (`perf/mesures.ts`).
+ */
+function differences(a: unknown, b: unknown, chemin: string, out: string[]): void {
   if (estObjet(a) && estObjet(b)) {
-    const out: string[] = [];
-    for (const k of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) {
-      const ch = `${chemin}/${echapper(k)}`;
-      if (!(k in a) || !(k in b)) out.push(ch);
-      else out.push(...cheminsDifferents(a[k], b[k], ch));
+    // Union des clés PROPRES (comme le `Set` d'origine), puis tri.
+    const cles = Object.keys(a);
+    for (const k of Object.keys(b)) if (!Object.prototype.hasOwnProperty.call(a, k)) cles.push(k);
+    cles.sort();
+    for (const k of cles) {
+      if (!(k in a) || !(k in b)) { out.push(`${chemin}/${echapper(k)}`); continue; }
+      const x = a[k];
+      const y = b[k];
+      if (primitiveJson(x) && primitiveJson(y)) { if (x !== y) out.push(`${chemin}/${echapper(k)}`); continue; }
+      differences(x, y, `${chemin}/${echapper(k)}`, out);
     }
-    return out;
+    return;
   }
-  return egalJson(a, b) ? [] : [chemin];
+  if (primitiveJson(a) && primitiveJson(b) ? a !== b : !egalJson(a, b)) out.push(chemin);
 }
 
 /** Valeur au chemin (segments non échappés) · `undefined` si absente. */

@@ -2,7 +2,7 @@ import 'server-only';
 import { and, desc, eq, gt, inArray, isNull, like } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  aPermissionEspace, disponibiliteVideo, sortiesValides, segmentsPlans, dureePlanMs, estSansTexte, estBriefCanonique, lireSnapshotJob,
+  aPermissionEspace, disponibiliteVideo, jugeSortiesValides, segmentsPlans, dureePlanMs, estSansTexte, estBriefCanonique, lireSnapshotJob,
   prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, formatVideo, LIBELLES_ETAT_IMAGE, FOURNISSEUR_ANIMATION_BRANCHE,
   type ContenuVersion, type DisponibiliteVideo, type EtatJob, type LigneDevis, type StatutQualite, type VerdictConsignePlan,
   type ConsignePlanPersistee, type ErreurStudio, erreurStudio,
@@ -74,7 +74,7 @@ const vueConsigne = (c: ConsignePlanPersistee): ConsigneVuePlan => ({
 
 /**
  * Les sorties produites (jobs `completed` du projet, toutes versions) et la
- * version pour laquelle chacune a été faite · `sortiesValides` dit celles qui
+ * version pour laquelle chacune a été faite · `jugeSortiesValides` dit celles qui
  * valent encore pour `courante`.
  */
 export async function mediasProduits(ex: ExecStudio, p: { workspaceId: string; brandId: string; projectId: string }, courante: ContenuVersion):
@@ -94,12 +94,14 @@ export async function mediasProduits(ex: ExecStudio, p: { workspaceId: string; b
   const produites = new Set<string>();
   // Le média retenu pour une sortie valide · le plus récent dont l'empreinte vaut pour la version courante.
   const assets = new Map<string, string>();
+  // L8-C · un seul juge pour toute la lecture : graphes construits une fois (courante, puis chaque version source).
+  let juge: ReturnType<typeof jugeSortiesValides> | null = null;
   for (const j of jobs) {
     const source = contenus.get(j.versionId);
     if (!source) continue;
     for (const [op, asset] of Object.entries((j.result as { assets?: Record<string, string> } | null)?.assets ?? {})) {
       produites.add(op);
-      if (!assets.has(op) && sortiesValides(courante, [{ operation: op, source }]).has(op)) assets.set(op, asset);
+      if (!assets.has(op) && (juge ??= jugeSortiesValides(courante))(op, source)) assets.set(op, asset);
     }
   }
   return { valides: new Set(assets.keys()), produites, assets };

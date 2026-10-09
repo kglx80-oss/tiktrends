@@ -28,7 +28,66 @@ function echapperSegment(s: string): string {
   return s.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 
-function canon(v: unknown, chemin: string, vus: Set<object>): string {
+/*
+ * L8-C · le chemin d'une erreur est construit SEULEMENT quand on lève : la
+ * pile `segments` garde les clés brutes de la descente, échappées au moment
+ * de l'erreur. Avant, chaque clé de chaque objet fabriquait sa chaîne de
+ * chemin (deux expressions régulières par clé) pour un message qui ne sert
+ * presque jamais : 17 ms sur 23 pour l'empreinte d'un contenu de 200 plans et
+ * 1000 calques (`perf/mesures.ts`). Sortie et messages identiques, éprouvés
+ * contre l'implémentation d'origine (`l8c-equivalence.test.ts`).
+ */
+function cheminDe(segments: readonly string[]): string {
+  let s = '';
+  for (const k of segments) s += `/${echapperSegment(k)}`;
+  return s;
+}
+
+/**
+ * Clés déjà mises entre guillemets · un contenu répète les mêmes noms de champ
+ * des milliers de fois (`id`, `kind`, `x`…). Bornée : vidée au-delà de
+ * `CLES_EN_CACHE_MAX` entrées, jamais une croissance sans fin.
+ */
+const CLES_EN_CACHE_MAX = 10_000;
+const clesCitees = new Map<string, string>();
+function citerCle(k: string): string {
+  let q = clesCitees.get(k);
+  if (q === undefined) {
+    if (clesCitees.size >= CLES_EN_CACHE_MAX) clesCitees.clear();
+    q = JSON.stringify(k);
+    clesCitees.set(k, q);
+  }
+  return q;
+}
+
+/*
+ * L8-C · mémoire de forme canonique, active SEULEMENT pendant un calcul pur
+ * qui ne modifie pas ses entrées (`avecCanoniqueMemorise`). Un graphe
+ * d'impact hache le document pour la composition PUIS le contenu entier qui
+ * le contient, et deux versions voisines partagent presque tous leurs calques :
+ * la même forme canonique était recalculée jusqu'à quatre fois par geste.
+ * Hors de cette portée, aucune mémoire : un objet modifié après coup ne peut
+ * jamais rendre une forme périmée.
+ */
+let memoire: WeakMap<object, string> | null = null;
+/** Empreintes déjà calculées dans la même portée, par forme canonique · une identité citée par 200 plans est hachée une fois. */
+let empreintesVues: Map<string, string> | null = null;
+const FORME_MEMORISEE_MAX = 4096;
+
+/**
+ * Exécute `f` avec la mémoire de forme canonique · `f` NE DOIT PAS modifier
+ * un objet déjà sérialisé pendant l'appel. Réentrant : un appel imbriqué
+ * réutilise la mémoire en cours. La mémoire est relâchée en sortie, même sur
+ * exception.
+ */
+export function avecCanoniqueMemorise<T>(f: () => T): T {
+  if (memoire) return f();
+  memoire = new WeakMap();
+  empreintesVues = new Map();
+  try { return f(); } finally { memoire = null; empreintesVues = null; }
+}
+
+function canon(v: unknown, segments: string[], vus: Set<object>): string {
   if (v === null) return 'null';
   switch (typeof v) {
     case 'boolean':
@@ -36,31 +95,47 @@ function canon(v: unknown, chemin: string, vus: Set<object>): string {
     case 'string':
       return JSON.stringify(v);
     case 'number':
-      if (!Number.isFinite(v)) throw new ErreurCanonique(chemin, 'nombre non fini');
+      if (!Number.isFinite(v)) throw new ErreurCanonique(cheminDe(segments), 'nombre non fini');
       return JSON.stringify(v);
     case 'object': {
-      if (vus.has(v)) throw new ErreurCanonique(chemin, 'référence circulaire');
+      const deja = memoire?.get(v);
+      if (deja !== undefined) return deja;
+      if (vus.has(v)) throw new ErreurCanonique(cheminDe(segments), 'référence circulaire');
       vus.add(v);
       let s: string;
       if (Array.isArray(v)) {
-        s = '[' + v.map((x, i) => canon(x, `${chemin}/${i}`, vus)).join(',') + ']';
+        s = '[';
+        for (let i = 0; i < v.length; i++) {
+          segments.push(String(i));
+          s += (i ? ',' : '') + canon(v[i], segments, vus);
+          segments.pop();
+        }
+        s += ']';
       } else {
         const proto = Object.getPrototypeOf(v);
-        if (proto !== Object.prototype && proto !== null) throw new ErreurCanonique(chemin, 'objet non JSON');
+        if (proto !== Object.prototype && proto !== null) throw new ErreurCanonique(cheminDe(segments), 'objet non JSON');
         const cles = Object.keys(v).sort();
-        s = '{' + cles.map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k], `${chemin}/${echapperSegment(k)}`, vus)}`).join(',') + '}';
+        s = '{';
+        for (let i = 0; i < cles.length; i++) {
+          const k = cles[i]!;
+          segments.push(k);
+          s += (i ? ',' : '') + citerCle(k) + ':' + canon((v as Record<string, unknown>)[k], segments, vus);
+          segments.pop();
+        }
+        s += '}';
       }
       vus.delete(v);
+      memoire?.set(v, s);
       return s;
     }
     default:
-      throw new ErreurCanonique(chemin, `valeur ${typeof v} hors JSON`);
+      throw new ErreurCanonique(cheminDe(segments), `valeur ${typeof v} hors JSON`);
   }
 }
 
 /** JSON canonique · lève `ErreurCanonique` sur une valeur hors JSON. */
 export function jsonCanonique(v: unknown): string {
-  return canon(v, '', new Set());
+  return canon(v, [], new Set());
 }
 
 /* ─────────────────────────────── SHA-256 ─────────────────────────────────── */
@@ -76,14 +151,24 @@ const K = new Uint32Array([
   0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ]);
 
+const tailleRembourree = (n: number) => ((n + 9 + 63) >> 6) << 6;
+
 /** SHA-256 d'une suite d'octets, en hexadécimal minuscule. */
 export function sha256OctetsHex(donnees: Uint8Array): string {
-  const longueurBits = donnees.length * 8;
-  const total = ((donnees.length + 9 + 63) >> 6) << 6;
-  const m = new Uint8Array(total);
+  const m = new Uint8Array(tailleRembourree(donnees.length));
   m.set(donnees);
-  m[donnees.length] = 0x80;
-  const vue = new DataView(m.buffer);
+  return compresser(m, donnees.length);
+}
+
+/**
+ * Le message est dans `m[0..n)`, suivi de zéros jusqu'à la taille rembourrée
+ * au moins · bourrage FIPS 180-4 posé ici, en place.
+ */
+function compresser(m: Uint8Array, n: number): string {
+  const longueurBits = n * 8;
+  const total = tailleRembourree(n);
+  m[n] = 0x80;
+  const vue = new DataView(m.buffer, m.byteOffset, total);
   // Longueur sur 64 bits big-endian · les deux mots, pour les contenus > 512 Mo.
   vue.setUint32(total - 8, Math.floor(longueurBits / 0x100000000));
   vue.setUint32(total - 4, longueurBits >>> 0);
@@ -116,14 +201,30 @@ export function sha256OctetsHex(donnees: Uint8Array): string {
   return hex;
 }
 
-/** SHA-256 du texte encodé en UTF-8. */
+const encodeur = new TextEncoder();
+
+/**
+ * SHA-256 du texte encodé en UTF-8. L8-C · le texte est encodé DIRECTEMENT
+ * dans le tampon rembourré (`encodeInto`) : ni copie, ni le chemin lent
+ * d'`encode` sur une chaîne à deux octets par caractère (2,9 ms contre
+ * 0,3 ms pour un contenu de 200 plans et 1000 calques, mesuré). Mêmes
+ * octets : un UTF-16 isolé devient U+FFFD dans les deux cas (éprouvé).
+ */
 export function sha256Hex(texte: string): string {
-  return sha256OctetsHex(new TextEncoder().encode(texte));
+  // 3 octets UTF-8 au plus par unité UTF-16.
+  const m = new Uint8Array(tailleRembourree(texte.length * 3));
+  const { written } = encodeur.encodeInto(texte, m);
+  return compresser(m, written);
 }
 
 /** Empreinte d'un contenu JSON · SHA-256 de sa forme canonique. */
 export function empreinteContenu(v: unknown): string {
-  return sha256Hex(jsonCanonique(v));
+  const forme = jsonCanonique(v);
+  // Seules les formes COURTES se répètent (identités, entrées d'un plan) ; une grande forme coûterait à indexer.
+  if (!empreintesVues || forme.length > FORME_MEMORISEE_MAX) return sha256Hex(forme);
+  let e = empreintesVues.get(forme);
+  if (e === undefined) { e = sha256Hex(forme); empreintesVues.set(forme, e); }
+  return e;
 }
 
 export const EMPREINTE_VALIDE = /^[a-f0-9]{64}$/;

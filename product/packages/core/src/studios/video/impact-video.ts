@@ -9,7 +9,7 @@
  */
 
 import type { ContenuVersion } from '../document';
-import { calculerPlanImpact, grapheImpact, type NatureNoeud, type PlanImpact } from '../impact';
+import { grapheImpact, planImpactEtGraphes, type NatureNoeud, type PlanImpact } from '../impact';
 import { profilDuNoeud } from '../execution/tarifs';
 
 export interface LigneImpactVideo { id: string; libelle: string; nature: NatureNoeud; payant: boolean }
@@ -54,10 +54,10 @@ const tri = (a: LigneImpactVideo, b: LigneImpactVideo) => (a.id < b.id ? -1 : a.
  * nomme les médias rendus obsolètes.
  */
 export function impactVideo(avant: ContenuVersion, apres: ContenuVersion, o: { mediasExistants?: Iterable<string> } = {}): ImpactVideo {
-  const plan = calculerPlanImpact(avant, apres);
+  // Le graphe de départ vient du calcul du plan · il n'est plus reconstruit (L8-C).
+  const { plan, grapheAvant: ga } = planImpactEtGraphes(avant, apres);
   const ordres = [apres.shots.order, avant.shots.order];
   const ligne = (id: string, nature: NatureNoeud): LigneImpactVideo => ({ id, libelle: libelleSortie(id, ordres), nature, payant: nature === 'generation' && profilDuNoeud(id, nature) !== 'calcul' });
-  const ga = grapheImpact(avant);
   const aRefaire = plan.aRefaire.map((n) => ligne(n.id, n.nature));
   const conservees = plan.reutilisees.map((id) => ligne(id, ga.get(id)!.nature)).sort(tri);
   const existants = new Set(o.mediasExistants ?? []);
@@ -79,20 +79,32 @@ export function empreintesKeyframes(c: ContenuVersion): Record<string, string> {
 }
 
 /**
+ * Juge réutilisable · « la sortie `operation`, livrée pour `source`, vaut-elle
+ * encore pour `courante` ? ». Le graphe de `courante` est construit UNE fois,
+ * celui de chaque source une fois (par identité d'objet). L8-C : l'écran vidéo
+ * reconstruisait les deux graphes pour chaque média relu · 10,5 s pour 200
+ * plans et 200 images clés produites, mesuré (`perf/mesures.ts`).
+ */
+export function jugeSortiesValides(courante: ContenuVersion): (operation: string, source: ContenuVersion) => boolean {
+  const gc = grapheImpact(courante);
+  const cache = new Map<ContenuVersion, ReturnType<typeof grapheImpact>>();
+  return (operation, source) => {
+    let g = cache.get(source);
+    if (!g) { g = grapheImpact(source); cache.set(source, g); }
+    const a = g.get(operation);
+    const b = gc.get(operation);
+    return !!(a && b && a.empreinte === b.empreinte);
+  };
+}
+
+/**
  * Les sorties PRODUITES qui valent encore pour `courante` · une sortie livrée
  * pour une version passée reste valable si son nœud a la même empreinte dans
  * la version courante (le graphe le dit, pas une comparaison de champs).
  */
 export function sortiesValides(courante: ContenuVersion, produites: ReadonlyArray<{ operation: string; source: ContenuVersion }>): Set<string> {
-  const gc = grapheImpact(courante);
-  const cache = new Map<ContenuVersion, ReturnType<typeof grapheImpact>>();
+  const juge = jugeSortiesValides(courante);
   const out = new Set<string>();
-  for (const p of produites) {
-    let g = cache.get(p.source);
-    if (!g) { g = grapheImpact(p.source); cache.set(p.source, g); }
-    const a = g.get(p.operation);
-    const b = gc.get(p.operation);
-    if (a && b && a.empreinte === b.empreinte) out.add(p.operation);
-  }
+  for (const p of produites) if (juge(p.operation, p.source)) out.add(p.operation);
   return out;
 }

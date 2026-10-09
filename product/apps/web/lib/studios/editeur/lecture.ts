@@ -45,7 +45,8 @@ export async function lireEditeurPour(ctx: ContexteStudio, projectId: unknown): 
   const contenu = v.version.content as ContenuVersion;
   const brut = contenu?.document ?? null;
   // Un document illisible n'est pas montré comme vide : on refuse de l'éditer.
-  if (brut !== null && validerDocument(brut).length) {
+  // L8-C · base = lui-même : OUVRIR un document n'est jamais refusé pour sa taille (limite de calques).
+  if (brut !== null && validerDocument(brut, '/document', { base: brut }).length) {
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, message: 'Le document de cette version n’est pas lisible par l’éditeur · ouvre une autre version ou contacte le support.' });
   }
   const document = brut as DocumentStudio | null;

@@ -69,19 +69,31 @@ function forme(op: Extract<OperationRendu, { kind: 'shape' }>): ImageRvba {
   const { width: w, height: h } = op.rect;
   const d = new Uint8Array(w * h * 4);
   const [r, g, b] = couleur(op.fill);
+  // L8-C · mêmes nombres flottants, calculés une fois par colonne et par ligne
+  // au lieu de seize fois par pixel, et plus de tableau alloué par pixel :
+  // 17 % du temps de rendu d'un document de 1000 calques (profil mesuré).
+  // Pixels identiques au bit près (`l8c-rendu-identique.test.ts`).
+  let carresX: Float64Array | null = null;
+  let carresY: Float64Array | null = null;
+  if (op.forme === 'ellipse') {
+    carresX = new Float64Array(w * 4);
+    for (let x = 0; x < w; x++) for (let sx = 0; sx < 4; sx++) { const px = (x + (sx + 0.5) / 4) / w - 0.5; carresX[x * 4 + sx] = px * px; }
+    carresY = new Float64Array(h * 4);
+    for (let y = 0; y < h; y++) for (let sy = 0; sy < 4; sy++) { const py = (y + (sy + 0.5) / 4) / h - 0.5; carresY[y * 4 + sy] = py * py; }
+  }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let a = 255;
-      if (op.forme === 'ellipse') {
+      if (carresX && carresY) {
         let n = 0;
-        for (let sy = 0; sy < 4; sy++) for (let sx = 0; sx < 4; sx++) {
-          const px = (x + (sx + 0.5) / 4) / w - 0.5;
-          const py = (y + (sy + 0.5) / 4) / h - 0.5;
-          if (px * px + py * py <= 0.25) n++;
+        for (let sy = 0; sy < 4; sy++) {
+          const py2 = carresY[y * 4 + sy]!;
+          for (let sx = 0; sx < 4; sx++) if (carresX[x * 4 + sx]! + py2 <= 0.25) n++;
         }
         a = Math.round((n * 255) / 16);
       }
-      d.set([r, g, b, a], (y * w + x) * 4);
+      const i = (y * w + x) * 4;
+      d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a;
     }
   }
   return { largeur: w, hauteur: h, donnees: d };
