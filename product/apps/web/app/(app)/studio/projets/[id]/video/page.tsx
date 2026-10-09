@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CIBLE_TACTILE_MIN, coutMaximalTexte, decisionFournisseurStudio } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, capacitesDuRefus, coutMaximalTexte, decisionFournisseurStudio } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { effectiveAccess } from '../../../../../../lib/access';
 import { FEATURES, denyReason } from '../../../../../../lib/rbac';
@@ -10,6 +10,7 @@ import { lirePointeur } from '../../../../../../lib/studios/prompts/depot-prompt
 import { modeleTexte } from '../../../../../../lib/studios/prompts/adaptateur';
 import { spendStatus } from '../../../../../../lib/spend-guard';
 import { EcranVideo } from '../../../../../../components/studios/video/EcranVideo';
+import { CapaciteNonActive } from '../../../../../../components/studios/CapaciteNonActive';
 import { Icon } from '../../../../../../components/Icon';
 import { cadrePage, h1, surface } from '../../../../../../components/ui';
 
@@ -30,7 +31,8 @@ export default async function StudioVideoPage({ params }: { params: Promise<{ id
   const s = await getSession();
   if (!s) redirect('/login');
   const { id } = await params;
-  const g = await gardeStudio('studio.read');
+  // F1 · capacité « video », coupée par défaut (chaîne non validée en réel) · la page le dit.
+  const g = await gardeStudio('studio.read', 'video');
   const [pointeur, plafond] = await Promise.all([lirePointeur().catch(() => null), spendStatus()]);
   const r = g.ok
     ? await lireVideoPour(g.ctx, id, {
@@ -40,6 +42,8 @@ export default async function StudioVideoPage({ params }: { params: Promise<{ id
     : g;
 
   if (!r.ok) {
+    const coupees = capacitesDuRefus(r);
+    if (coupees.length) return <main style={cadrePage}><CapaciteNonActive capacites={coupees} projectId={id} /></main>;
     const refuse = r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED';
     const plan = refuse && denyReason(effectiveAccess(s), feature) === 'plan';
     const etat = refuse ? 'acces-refuse' : r.code === 'NOT_FOUND' ? 'introuvable' : 'erreur';

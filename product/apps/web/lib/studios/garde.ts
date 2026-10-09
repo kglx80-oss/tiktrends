@@ -4,11 +4,12 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   permissionsStudio, restreindrePlateforme, marquesAccessibles, aPermissionEspace, erreurStudio, estRoleEspace,
-  type PermissionEspace, type PermissionsStudio, type RoleEspace, type ErreurStudio,
+  type PermissionEspace, type PermissionsStudio, type RoleEspace, type ErreurStudio, type CapaciteStudio,
 } from '@tiktrends/core';
 import { getSession, type Session } from '../auth';
 import { effectiveAccess } from '../access';
 import { canAccess, FEATURES, type Feature } from '../rbac';
+import { refusCapacite } from './interrupteurs';
 
 /**
  * Garde unique des commandes studio · session → contexte authentifié.
@@ -85,8 +86,13 @@ export function contexteDepuisSession(
 
 export type ResultatGarde = { ok: true; ctx: ContexteStudio } | ErreurStudio;
 
-/** Charge le contexte et exige la permission d'espace demandée. */
-export async function gardeStudio(permission: PermissionEspace): Promise<ResultatGarde> {
+/**
+ * Charge le contexte et exige la permission d'espace demandée, puis (F1) que
+ * la capacité Studios du geste soit active pour CET espace (interrupteurs,
+ * `lib/studios/interrupteurs.ts`). Ordre : session ⇒ permission ⇒ capacité ;
+ * un refus de capacité est `UNSUPPORTED_CAPABILITY`, avant toute écriture.
+ */
+export async function gardeStudio(permission: PermissionEspace, capacite?: CapaciteStudio): Promise<ResultatGarde> {
   const traceId = nouveauTraceId();
   const s = await getSession();
   if (!s || !db) return erreurStudio('AUTH_REQUIRED', { traceId });
@@ -100,6 +106,10 @@ export async function gardeStudio(permission: PermissionEspace): Promise<Resulta
   const ctx = contexteDepuisSession(s, marques.map((m) => m.id), restrictions.map((r) => r.brandId), traceId);
   if (!aPermissionEspace(ctx.permissions, permission)) {
     return erreurStudio('FORBIDDEN', { traceId });
+  }
+  if (capacite) {
+    const refus = await refusCapacite(ctx, [capacite]);
+    if (refus) return refus;
   }
   return { ok: true, ctx };
 }

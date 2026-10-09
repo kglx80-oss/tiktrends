@@ -6,6 +6,7 @@ import { lireIdentitesProjet } from '../../../../../actions/studios/identites';
 import { EcranIdentites } from '../../../../../../components/studios/identites/EcranIdentites';
 import { EnTeteProjet, RefusProjet } from '../../../../../../components/studios/produit/EnTeteProjet';
 import { cadrePage } from '../../../../../../components/ui';
+import { etatInterrupteurs } from '../../../../../../lib/studios/interrupteurs';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,13 +24,14 @@ export default async function IdentitesProjetPage({ params }: { params: Promise<
   const r = await lireIdentitesProjet({ projectId: id });
   if (!r.ok) {
     const plan = (r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED') && denyReason(effectiveAccess(s), feature) === 'plan';
-    return <main style={cadrePage}><RefusProjet r={r} plan={plan} /></main>;
+    return <main style={cadrePage}><RefusProjet r={r} plan={plan} projectId={id} /></main>;
   }
+  const inter = await etatInterrupteurs(s.workspaceId);
   return (
     <main style={cadrePage}>
       <div style={{ display: 'grid', gap: 18 }}>
         <EnTeteProjet projet={r.vue.projet} version={r.vue.version} titre="Identités et voix" sousTitre="personnages récurrents, plans liés, contradictions et modes de parole" />
-        <EcranIdentites vue={r.vue} />
+        <EcranIdentites vue={r.vue} voixActive={inter.actif('voix')} />
       </div>
     </main>
   );

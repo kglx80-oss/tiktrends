@@ -34,7 +34,7 @@ function refus(status: number, code: string, message: string, traceId: string): 
 }
 
 export async function GET(req: Request, ctx: { params: Promise<{ versionId: string }> }): Promise<Response> {
-  const g = await gardeStudio('studio.export');
+  const g = await gardeStudio('studio.export', 'export');
   if (!g.ok) return refus(g.status, g.code, g.message, g.traceId);
   const { versionId } = await ctx.params;
   const q = new URL(req.url).searchParams;

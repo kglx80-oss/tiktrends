@@ -1,7 +1,8 @@
 'use server';
 
-import { decisionFournisseurStudio, erreurStudio, type ErreurStudio, type PlanImpact, type VueJob, type StatutQualite } from '@tiktrends/core';
+import { capacitesDesOperations, decisionFournisseurStudio, erreurStudio, type ErreurStudio, type PlanImpact, type VueJob, type StatutQualite } from '@tiktrends/core';
 import { gardeStudio } from '../../../lib/studios/garde';
+import { refusCapacite, refusCapacitesDevis } from '../../../lib/studios/interrupteurs';
 import { getSession } from '../../../lib/auth';
 import { unlimitedCredits } from '../../../lib/credits';
 import { spendStatus } from '../../../lib/spend-guard';
@@ -27,6 +28,12 @@ import {
  *  · `annulerJob` · demande d'annulation, aucun remboursement promis ;
  *  · `accepterMedia` / `rejeterMedia` · statut qualité seul, aucun coût.
  *
+ * F1 · `creerDevis` et `approuverEtMettreEnFile` exigent que les capacités
+ * des opérations (génération d'images, vidéo, voix, contrôle visuel) soient
+ * actives pour l'espace (interrupteurs) · refus AVANT tout devis ou débit.
+ * Lire, annuler, accepter, rejeter ne sont jamais coupés : un job déjà payé
+ * doit pouvoir être suivi, annulé et tranché.
+ *
  * Aucune n'appelle de fournisseur : le worker (`apps/workers/src/studios`)
  * exécute, hors de toute requête HTTP.
  */
@@ -45,6 +52,8 @@ export async function estimerImpact(entree: { projectId: unknown; versionAvantId
 export async function creerDevis(entree: { projectId: unknown; versionAvantId?: unknown; operations?: unknown; validiteMs?: unknown; variante?: unknown }): Promise<Reponse<{ devis: DevisPresente; plan: PlanImpact }>> {
   const g = await gardeStudio('studio.generate');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, capacitesDesOperations(Array.isArray(entree?.operations) ? entree.operations : []));
+  if (coupe) return coupe;
   return creerDevisCmd(g.ctx, { projectId: entree?.projectId, versionAvantId: entree?.versionAvantId, operations: entree?.operations, validiteMs: entree?.validiteMs, variante: entree?.variante });
 }
 
@@ -56,6 +65,8 @@ export async function approuverEtMettreEnFile(entree: { quoteId: unknown; inputH
   if (!decisionFournisseurStudio(process.env).ok) {
     return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: g.ctx.traceId, message: MESSAGE_SANS_FOURNISSEUR_IMAGE });
   }
+  const coupe = await refusCapacitesDevis(g.ctx, entree?.quoteId);
+  if (coupe) return coupe;
   const s = await getSession();
   const plafond = await spendStatus();
   return approuverCmd(g.ctx, {

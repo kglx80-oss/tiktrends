@@ -17,13 +17,13 @@ import { exporterVersionPour, lireVueExportPour, type ExportRealise, type RefusE
  */
 
 export async function lireExportProjet(entree: { projectId: unknown; versionId?: unknown }): Promise<Resultat<{ vue: VueExport }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'export');
   if (!g.ok) return g;
   return lireVueExportPour(g.ctx, { projectId: entree?.projectId, versionId: entree?.versionId });
 }
 
 export async function exporterVersion(entree: { projectId: unknown; versionId?: unknown; format: unknown }): Promise<Resultat<{ export: ExportRealise }> | RefusExport> {
-  const g = await gardeStudio('studio.export');
+  const g = await gardeStudio('studio.export', 'export');
   if (!g.ok) return g;
   return exporterVersionPour(g.ctx, { projectId: entree?.projectId, versionId: entree?.versionId, format: entree?.format });
 }

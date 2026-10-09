@@ -1,10 +1,28 @@
 import { schema, eq, and, isNull, sql } from '@tiktrends/db';
-import { capaciteVideo, type DecodeurMedia, type FournisseurStudio, type StockageStudio } from '@tiktrends/core';
-import { MoteurStudio } from './moteur';
+import { capaciteVideo, cleInterrupteursEspace, type DecodeurMedia, type FournisseurStudio, type StockageStudio } from '@tiktrends/core';
+import { MoteurStudio, type InterrupteursMoteur } from './moteur';
 import { DecodeurSharp } from './decodeur';
 import { decoderVideoFfmpeg } from './decodeur-video';
 import { demarrerSondeVideo } from './sonde-video';
 import type { BaseStudio, EntreeJournal } from './types';
+
+/**
+ * F1 · les interrupteurs du worker : l'environnement du processus (relu à son
+ * démarrage) et le réglage plateforme de chaque espace (`app_settings`, relu à
+ * chaque réclamation). Même règle que le serveur (`capaciteActive`, noyau).
+ * Un réglage illisible vaut « aucun réglage » : les défauts s'appliquent, et
+ * ils coupent toute nouveauté incomplète.
+ */
+export function interrupteursWorker(env: Readonly<Record<string, string | undefined>> = process.env): InterrupteursMoteur {
+  return {
+    env,
+    reglagesEspace: async (ex, workspaceId) => {
+      const A = schema.appSettings;
+      const [l] = await ex.select({ value: A.value }).from(A).where(eq(A.key, cleInterrupteursEspace(workspaceId))).limit(1);
+      return l?.value ?? null;
+    },
+  };
+}
 
 /**
  * Boucle du worker des studios · un tour toutes les `intervalleMs`, jamais
@@ -23,6 +41,8 @@ export function demarrerBoucleStudio(o: {
   decodeur?: DecodeurMedia;
   intervalleMs?: number;
   journal?: (e: EntreeJournal) => void;
+  /** Environnement des interrupteurs · `process.env` par défaut (bancs d'essai seulement). */
+  env?: Readonly<Record<string, string | undefined>>;
 }): { arreter: () => void; moteur: MoteurStudio } {
   let sonde: ReturnType<typeof demarrerSondeVideo> | null = null;
   let decodeur = o.decodeur;
@@ -31,7 +51,7 @@ export function demarrerBoucleStudio(o: {
     sonde = s;
     decodeur = new DecodeurSharp({ video: (octets) => decoderVideoFfmpeg(octets), videoActif: () => capaciteVideo(s.derniere(), new Date()).decodage });
   }
-  const moteur = new MoteurStudio({ base: o.base, fournisseur: o.fournisseur, stockage: o.stockage, decodeur, journal: o.journal, secretWebhook: process.env.STUDIO_WEBHOOK_SECRET ?? null });
+  const moteur = new MoteurStudio({ base: o.base, fournisseur: o.fournisseur, stockage: o.stockage, decodeur, journal: o.journal, secretWebhook: process.env.STUDIO_WEBHOOK_SECRET ?? null, interrupteurs: interrupteursWorker(o.env ?? process.env) });
   let enCours = false;
   const minuterie = setInterval(async () => {
     if (enCours) return;

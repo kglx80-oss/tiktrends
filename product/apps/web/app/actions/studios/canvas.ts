@@ -20,21 +20,21 @@ import { enregistrerDispositionCanvasPour, lireCanvasPour, type CanvasProjetLu }
 type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
 
 export async function lireCanvasProjet(entree: { projectId: unknown; versionId?: unknown }): Promise<Reponse<{ canvas: CanvasProjetLu }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'canvas');
   if (!g.ok) return g;
   return lireCanvasPour(g.ctx, entree?.projectId, entree?.versionId);
 }
 
 /** Geste explicite · déplacer une carte (la disposition entière, révision attendue). */
 export async function enregistrerDispositionCanvas(entree: { projectId: unknown; disposition: unknown; rev: unknown }): Promise<Reponse<{ disposition: DispositionCanvas; rev: number }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'canvas');
   if (!g.ok) return g;
   return enregistrerDispositionCanvasPour(g.ctx, { projectId: entree?.projectId, disposition: entree?.disposition, rev: entree?.rev });
 }
 
 /** Geste explicite · réinitialiser la disposition (toutes les cartes reprennent leur place automatique). */
 export async function reinitialiserDispositionCanvas(entree: { projectId: unknown; rev: unknown }): Promise<Reponse<{ disposition: DispositionCanvas; rev: number }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'canvas');
   if (!g.ok) return g;
   return enregistrerDispositionCanvasPour(g.ctx, { projectId: entree?.projectId, disposition: { positions: {} }, rev: entree?.rev });
 }

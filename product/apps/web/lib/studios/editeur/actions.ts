@@ -13,7 +13,7 @@ import type { DocumentRelu, ReponseEditeur } from './types';
  * (`app/actions/studios/projets.ts` · `studio.propose`, base obligatoire, 409).
  */
 export async function relireDocumentEditeur(projectId: unknown): Promise<ReponseEditeur<DocumentRelu>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'editeur');
   if (!g.ok) return g;
   const r = await lireEditeurPour(g.ctx, projectId);
   if (!r.ok) return r;

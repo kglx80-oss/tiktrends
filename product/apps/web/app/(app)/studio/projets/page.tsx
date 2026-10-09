@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, capacitesDuRefus } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { effectiveAccess } from '../../../../lib/access';
@@ -8,6 +8,7 @@ import { FEATURES, denyReason } from '../../../../lib/rbac';
 import { listerProjetsCartes } from '../../../actions/studios/sources';
 import { CarteProjet } from '../../../../components/studios/projet/CarteProjet';
 import { Icon } from '../../../../components/Icon';
+import { CapaciteNonActive } from '../../../../components/studios/CapaciteNonActive';
 import { cadrePage, h1, sub, surface, vide, btn } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,8 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
   const r = await listerProjetsCartes();
 
   if (!r.ok) {
+    const coupees = capacitesDuRefus(r);
+    if (coupees.length) return <main style={cadrePage}><CapaciteNonActive capacites={coupees} /></main>;
     if (r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED') {
       const plan = denyReason(effectiveAccess(s), feature) === 'plan';
       return (

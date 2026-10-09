@@ -25,7 +25,7 @@ export default async function ExportProjetPage({ params, searchParams }: { param
   const r = await lireExportProjet({ projectId: id, ...(sp.version ? { versionId: sp.version } : {}) });
   if (!r.ok) {
     const plan = (r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED') && denyReason(effectiveAccess(s), feature) === 'plan';
-    return <main style={cadrePage}><RefusProjet r={r} plan={plan} /></main>;
+    return <main style={cadrePage}><RefusProjet r={r} plan={plan} projectId={id} /></main>;
   }
   return (
     <main style={cadrePage}>

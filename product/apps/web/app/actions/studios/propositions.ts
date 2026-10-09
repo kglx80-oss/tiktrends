@@ -34,7 +34,7 @@ import type {
  */
 
 export async function proposerPatch(entree: { projectId: unknown; baseVersionId: unknown; cible: unknown; demande: unknown; allowedPaths?: unknown }): Promise<ReponseProposition<ResultatProposer>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'propositions');
   if (!g.ok) return g;
   return proposerAvecJarvis(g.ctx, {
     tache: 'document.patch', projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, cible: entree?.cible,
@@ -43,7 +43,7 @@ export async function proposerPatch(entree: { projectId: unknown; baseVersionId:
 }
 
 export async function proposerBrief(entree: { projectId: unknown; baseVersionId: unknown; demande: unknown; formats?: unknown }): Promise<ReponseProposition<ResultatProposer>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'propositions');
   if (!g.ok) return g;
   return proposerAvecJarvis(g.ctx, {
     tache: 'brief.build', projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, demande: entree?.demande, formats: entree?.formats,
@@ -51,7 +51,7 @@ export async function proposerBrief(entree: { projectId: unknown; baseVersionId:
 }
 
 export async function creerPropositionManuelle(entree: { projectId: unknown; baseVersionId: unknown; cible: unknown; changes: unknown; explication?: unknown; allowedPaths?: unknown }): Promise<ReponseProposition<ResultatProposer>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'propositions');
   if (!g.ok) return g;
   return creerManuelle(g.ctx, {
     projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, cible: entree?.cible, changes: entree?.changes,
@@ -60,27 +60,27 @@ export async function creerPropositionManuelle(entree: { projectId: unknown; bas
 }
 
 export async function appliquerProposition(entree: { proposalId: unknown; projectId: unknown; baseVersionId: unknown }): Promise<ReponseProposition<ResultatApplication>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'propositions');
   if (!g.ok) return g;
   return appliquerDepot(g.ctx, { proposalId: entree?.proposalId, projectId: entree?.projectId, baseVersionId: entree?.baseVersionId });
 }
 
 export async function rejeterProposition(entree: { proposalId: unknown; projectId: unknown; raison?: unknown }): Promise<ReponseProposition<{ projectId: string; proposition: PropositionPresentee }>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'propositions');
   if (!g.ok) return g;
   return rejeterDepot(g.ctx, { proposalId: entree?.proposalId, projectId: entree?.projectId, raison: entree?.raison });
 }
 
 /** LECTURE PURE · propositions du projet, version courante, disponibilité de Jarvis, cibles. */
 export async function listerPropositions(entree: { projectId: unknown }): Promise<ReponseProposition<ListePropositions>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'propositions');
   if (!g.ok) return g;
   return listerDepot(g.ctx, { projectId: entree?.projectId }, { jarvis: await disponibiliteJarvisServeur(g.ctx) });
 }
 
 /** LECTURE PURE · une proposition. */
 export async function inspecterProposition(entree: { proposalId: unknown }): Promise<ReponseProposition<{ projectId: string; versionCourante: { id: string; n: number }; proposition: PropositionPresentee }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'propositions');
   if (!g.ok) return g;
   return inspecterDepot(g.ctx, { proposalId: entree?.proposalId });
 }

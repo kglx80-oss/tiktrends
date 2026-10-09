@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { CIBLE_TACTILE_MIN, type ErreurStudio } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, capacitesDuRefus, type ErreurStudio } from '@tiktrends/core';
 import { h1, surface } from '../../ui';
 import { Icon } from '../../Icon';
+import { CapaciteNonActive } from '../CapaciteNonActive';
 
 /**
  * En-tête commun des sous-pages d'un projet (Produit, Textes) · retour au
@@ -19,7 +20,10 @@ export function EnTeteProjet({ projet, version, titre, sousTitre }: { projet: { 
   );
 }
 
-export function RefusProjet({ r, plan }: { r: ErreurStudio; plan: boolean }) {
+export function RefusProjet({ r, plan, projectId }: { r: ErreurStudio; plan: boolean; projectId?: string }) {
+  // F1 · capacité coupée par un interrupteur ⇒ l'écran « non activé pour cet espace », pas une erreur.
+  const coupees = capacitesDuRefus(r);
+  if (coupees.length) return <CapaciteNonActive capacites={coupees} projectId={projectId} />;
   const refuse = r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED';
   return (
     <>

@@ -49,7 +49,7 @@ function libelleAttributVue(a: IdentiteVue['attributs'][number]): string {
 
 const LIBELLE_MODE: Readonly<Record<ModeParole, string>> = { voiceover: 'Voix off', lipsync: 'Parole synchronisée (lipsync)', none: 'Sans voix' };
 
-export function EcranIdentites({ vue }: { vue: VueIdentites }) {
+export function EcranIdentites({ vue, voixActive = true }: { vue: VueIdentites; voixActive?: boolean }) {
   const id = useId();
   const router = useRouter();
   const [enCours, setEnCours] = useState<string | null>(null);
@@ -57,6 +57,8 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
   const [edition, setEdition] = useState<Edition | null>(null);
   const [liaisons, setLiaisons] = useState<Record<string, string[]>>(() => Object.fromEntries(vue.identites.map((i) => [i.identityId, i.plans])));
   const peut = vue.peutProposer && enCours === null;
+  // F1 · « Voix » coupée pour l'espace : les modes de parole se lisent, ne se changent pas.
+  const peutVoix = peut && voixActive;
   const base = vue.version.id;
 
   async function geste(cle: string, action: () => Promise<{ ok: true; version: { n: number }; inchange: boolean } | ErreurStudio>, ok: string) {
@@ -257,6 +259,12 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
 
       <section aria-labelledby={`${id}-voix`} style={panneau} data-zone="voix">
         <h2 id={`${id}-voix`} style={titre}>Voix et temps</h2>
+        {!voixActive && (
+          <p role="status" data-etat="non-active" data-capacite="voix" style={signal('info')}>
+            <span style={{ fontWeight: 600 }}>Voix · non activé pour cet espace. </span>
+            Les modes de parole restent lisibles ; les changer s’ouvrira avec la voix, d’abord pour des espaces pilotes.
+          </p>
+        )}
         <div style={signal('info')} data-capacite="synthese">
           <span style={{ fontWeight: 600 }}>{v.capacites.synthese.disponible ? 'Synthèse vocale disponible · ' : 'Synthèse vocale indisponible · '}</span>
           {v.capacites.synthese.disponible ? 'chaque prise est devisée avant d’être produite.' : v.capacites.synthese.raison.replace(/^La synthèse vocale n’est pas disponible · /, '')} La voix ne prononce que la narration validée de chaque plan.
@@ -278,7 +286,7 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
             <span style={{ fontWeight: 600 }}>Parole synchronisée demandée sans fournisseur · </span>
             {v.plansLipsync.map((s) => `plan ${rang(s)}`).join(', ')}. Rien n’est simulé : passe {v.plansLipsync.length > 1 ? 'ces plans' : 'ce plan'} en voix off (la voix est posée sur les images) ou retire la parole.
             <div style={{ marginTop: 8 }}>
-              <button type="button" disabled={!peut} style={{ ...boutonPrimaire, ...(peut ? {} : desactive) }}
+              <button type="button" disabled={!peutVoix} style={{ ...boutonPrimaire, ...(peutVoix ? {} : desactive) }}
                 onClick={() => geste('voixoff', () => choisirModeParole({ projectId: vue.projet.id, baseVersionId: base, shotIds: v.plansLipsync, mode: 'voiceover' }), 'Passage en voix off enregistré')}>
                 Passer en voix off
               </button>
@@ -300,7 +308,7 @@ export function EcranIdentites({ vue }: { vue: VueIdentites }) {
                   <label style={{ display: 'grid', maxWidth: 360 }}>
                     <span style={etiquette}>Mode de parole</span>
                     <select
-                      style={champ} value={p.mode} disabled={!peut}
+                      style={champ} value={p.mode} disabled={!peutVoix}
                       onChange={(e) => { const mode = e.target.value; void geste(`mode-${p.shotId}`, () => choisirModeParole({ projectId: vue.projet.id, baseVersionId: base, shotIds: [p.shotId], mode }), `Mode du plan ${p.rang} enregistré`); }}
                     >
                       {v.modes.map((m) => <option key={m.mode} value={m.mode} disabled={!m.disponible}>{LIBELLE_MODE[m.mode]}{m.disponible ? '' : ' · indisponible'}</option>)}

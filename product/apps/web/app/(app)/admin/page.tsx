@@ -46,6 +46,7 @@ export default async function AdminBackstage() {
     { icon: 'brain', title: 'Jarvis', desc: 'Règles créatives maison imposées à chaque génération, par marque.', href: '/jarvis' },
     { icon: 'file', title: 'Connaissances', desc: 'Consignes, méthodes d’itération, savoirs et données que Jarvis lit à chaque réponse.', href: '/admin/connaissances' },
     { icon: 'layers', title: 'IA et Studios', desc: 'Registre des prompts de Jarvis et des studios · versions, releases, évaluations, routage et traces.', href: '/admin/ia-studios' },
+    { icon: 'lock', title: 'Interrupteurs Studios', desc: 'Capacités des nouveaux Studios par espace · pilotes, généralisation, coupures. Nouveautés en recette coupées par défaut.', href: '/admin/studios-interrupteurs' },
     { icon: 'search', title: 'Intelligence marché', desc: 'Concurrents (Atria, Foreplay, Higgsfield) et notre positionnement.', href: '/admin/intelligence' },
     { icon: 'card', title: 'Plans & Facturation', desc: 'Formules, prix, allocations et abonnements.', href: '/billing' },
     { icon: 'gear', title: 'Réglages', desc: 'Paramètres de l’espace, modèles IA, clés et intégrations serveur.', href: '/settings' },

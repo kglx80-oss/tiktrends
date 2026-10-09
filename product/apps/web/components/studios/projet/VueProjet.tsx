@@ -5,6 +5,7 @@ import {
   type FaitBrief, type NatureFait,
 } from '@tiktrends/core';
 import type { DetailProjet } from '../../../lib/studios/sources/projet';
+import { liensAtelierProjet, type LienAtelier } from '../../../lib/navigation';
 import { surface, tuile, h1 } from '../../ui';
 import { RetourVeille } from '../../RetourVeille';
 import { PastilleEtape } from './CarteProjet';
@@ -42,7 +43,7 @@ const Liste = ({ items }: { items: string[] }) => (
   <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>{items.map((t, i) => <li key={`${i}-${t}`} style={texte}>{t}</li>)}</ul>
 );
 
-export function VueProjet({ detail, exportAutorise, variantes = null }: { detail: DetailProjet; exportAutorise: boolean; variantes?: ReactNode }) {
+export function VueProjet({ detail, exportAutorise, variantes = null, atelier }: { detail: DetailProjet; exportAutorise: boolean; variantes?: ReactNode; atelier?: LienAtelier[] }) {
   const { projet, version, brief, hypothese, produit, sources, completude, versions } = detail;
   const retour = sources.find((s) => s.statut === 'active' && s.retourVeille)?.retourVeille ?? null;
   const ancienne = !versions.find((v) => v.id === version.id)?.courante;
@@ -64,18 +65,16 @@ export function VueProjet({ detail, exportAutorise, variantes = null }: { detail
           <PastilleEtape etape={completude.etape} libelle={completude.libelleEtape} />
         </div>
         <nav aria-label="Atelier du projet" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[
-            { href: `/studio/projets/${projet.id}/image`, libelle: 'Éditer l’image' },
-            { href: `/studio/projets/${projet.id}/produit`, libelle: 'Produit et références' },
-            { href: `/studio/projets/${projet.id}/textes`, libelle: 'Textes liés au brief' },
-            { href: `/studio/projets/${projet.id}/video`, libelle: 'Vidéo · storyboard et montage' },
-            { href: `/studio/projets/${projet.id}/identites`, libelle: 'Identités et voix' },
-            { href: `/studio/projets/${projet.id}/export`, libelle: 'Exporter l’image' },
-          ].map((l) => (
-            <Link key={l.href} href={l.href} data-atelier={l.href.split('/').pop()} style={{ ...tuile, padding: '0 14px', fontSize: 13, fontWeight: 650, color: 'var(--ink)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>
+          {/* F1 · une entrée dont la capacité est coupée pour l'espace n'est pas un lien : elle le dit. */}
+          {(atelier ?? liensAtelierProjet(projet.id, () => true)).map((l) => (l.href ? (
+            <Link key={l.segment} href={l.href} data-atelier={l.segment} style={{ ...tuile, padding: '0 14px', fontSize: 13, fontWeight: 650, color: 'var(--ink)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>
               {l.libelle}
             </Link>
-          ))}
+          ) : (
+            <span key={l.segment} data-atelier={l.segment} data-etat="non-active" aria-disabled="true" style={{ ...tuile, padding: '0 14px', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', borderStyle: 'dashed', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {l.libelle} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· {l.mention}</span>
+            </span>
+          )))}
         </nav>
         {ancienne && (
           <p role="status" style={{ ...discret, ...tuile, padding: '8px 12px', background: 'rgba(59,130,246,.10)' }}>
