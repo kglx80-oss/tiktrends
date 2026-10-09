@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
-  libelleCoutTexteEstime, NOTE_BORNE_TEXTE, TYPES_TEXTE, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, VARIANTES_MAX, VARIANTES_DEFAUT,
+  libelleCoutTexteEstime, NOTE_BORNE_TEXTE, raisonAjoutTexte, TYPES_TEXTE, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, VARIANTES_MAX, VARIANTES_DEFAUT,
   type TexteStudio, type TypeTexte, type VarianteTexte, type ErreurStudio,
 } from '@tiktrends/core';
 import type { VueTextes } from '../../../lib/studios/textes/textes';
@@ -35,6 +35,27 @@ function messageErreur(r: ErreurStudio): string {
   return r.message;
 }
 
+/**
+ * L8-A · brouillon gardé à travers un rechargement après conflit de version.
+ * Mesuré : « Recharger la version courante » rechargeait la page et le texte
+ * en cours d'écriture était perdu. Il est rangé dans l'onglet (sessionStorage,
+ * jamais partagé) juste avant le rechargement, puis rendu une seule fois.
+ */
+export const cleBrouillonTextes = (projectId: string) => `tt-studio-textes-brouillon-${projectId}`;
+interface Brouillon { manuel: Edition; edition: { id: string; valeur: string } | null }
+function lireBrouillon(projectId: string): Brouillon | null {
+  try {
+    const brut = window.sessionStorage.getItem(cleBrouillonTextes(projectId));
+    if (!brut) return null;
+    window.sessionStorage.removeItem(cleBrouillonTextes(projectId));
+    const b = JSON.parse(brut) as Brouillon;
+    return b && typeof b.manuel?.texte === 'string' ? b : null;
+  } catch { return null; }
+}
+function ecrireBrouillon(projectId: string, b: Brouillon): void {
+  try { window.sessionStorage.setItem(cleBrouillonTextes(projectId), JSON.stringify(b)); } catch { /* stockage refusé · rien à garder */ }
+}
+
 async function copier(t: string): Promise<boolean> {
   try { await navigator.clipboard.writeText(t); return true; } catch { return false; }
 }
@@ -57,6 +78,17 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
   const [enCours, setEnCours] = useState<string | null>(null);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string; conflit?: boolean; lien?: boolean } | null>(null);
   const d = vue.disponibilite;
+
+  useEffect(() => {
+    const b = lireBrouillon(vue.projet.id);
+    if (!b || (!b.manuel.texte.trim() && !b.edition)) return;
+    setManuel(b.manuel);
+    if (b.edition && vue.textes.some((t) => t.id === b.edition!.id)) setEdition(b.edition);
+    setRetour({ ok: true, texte: 'Version courante rechargée · ton brouillon est remis en place, rien n’est encore enregistré.' });
+    // Lecture au montage seulement.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const recharger = () => { ecrireBrouillon(vue.projet.id, { manuel, edition }); window.location.reload(); };
   const faits = vue.brief?.faits ?? [];
   const libelleFait = (fid: string) => faits.find((f) => f.id === fid)?.claim ?? 'fait absent de cette version';
 
@@ -93,6 +125,7 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
 
   async function exporter(format: 'markdown' | 'csv' | 'json') {
     setEnCours(`export-${format}`);
+    setRetour(null);
     try {
       const r = await exporterTextes({ projectId: vue.projet.id, versionId: version.id, format });
       if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r) }); return; }
@@ -101,6 +134,8 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
       a.href = url; a.download = r.nomFichier; a.click();
       URL.revokeObjectURL(url);
       setRetour({ ok: true, texte: `Export ${r.nomFichier} · aucun média lancé, rien de facturé.` });
+    } catch {
+      setRetour({ ok: false, texte: 'Le serveur n’a pas répondu · aucun fichier exporté. Vérifie ta connexion puis réessaie.' });
     } finally { setEnCours(null); }
   }
 
@@ -114,6 +149,8 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
       if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r), conflit: r.code === 'VERSION_CONFLICT' }); return; }
       const nom = vue.calques.find((c) => c.id === layerId)?.nom ?? layerId;
       setRetour({ ok: true, texte: `Proposition créée pour le calque « ${nom} » · rien n’est appliqué tant que tu ne l’appliques pas depuis la page du projet.`, lien: true });
+    } catch {
+      setRetour({ ok: false, texte: 'Le serveur n’a pas répondu · aucune proposition créée. Vérifie ta connexion puis réessaie.' });
     } finally { setEnCours(null); }
   }
 
@@ -122,7 +159,8 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
     ...proposees.map((t, i) => ({ cle: `p-${t.id}`, libelle: `Proposé ${i + 1} · ${libelleType(t.type)} · ${t.texte.slice(0, 40)}`, texte: t.texte })),
   ];
   const ecritureBloquee = !d.disponible || !vue.peutEcrire || enCours !== null || !vue.brief;
-  const ajoutBloque = !vue.peutEcrire || enCours !== null || !manuel.texte.trim() || !vue.brief;
+  const raisonAjout = raisonAjoutTexte({ peutEcrire: vue.peutEcrire, briefPresent: !!vue.brief, enCours: enCours !== null, texte: manuel.texte });
+  const ajoutBloque = raisonAjout !== null;
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
@@ -130,7 +168,7 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
         <div role={retour.ok ? 'status' : 'alert'} style={signal(retour.ok ? 'ok' : retour.conflit ? 'warn' : 'err')}>
           <span style={{ fontWeight: 600 }}>{retour.ok ? 'Fait · ' : retour.conflit ? 'Conflit de version · ' : 'Refusé · '}</span>{retour.texte}
           {retour.lien && <> <Link href={`/studio/projets/${vue.projet.id}`} style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>Ouvrir le projet</Link></>}
-          {retour.conflit && <div style={{ marginTop: 8 }}><button type="button" style={boutonSecondaire} onClick={() => window.location.reload()}>Recharger la version courante</button></div>}
+          {retour.conflit && <div style={{ marginTop: 8 }}><button type="button" style={boutonSecondaire} onClick={recharger}>Recharger la version courante</button></div>}
         </div>
       )}
 
@@ -199,7 +237,7 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
         )}
       </section>
 
-      <section aria-labelledby={`${id}-manuel`} id={`${id}-manuel`} style={panneau} data-zone="ecrire-main">
+      <section aria-labelledby={`${id}-manuel-titre`} id={`${id}-manuel`} style={panneau} data-zone="ecrire-main">
         <h2 id={`${id}-manuel-titre`} style={titre}>Écrire à la main</h2>
         <p style={sousTitre}>Aucun appel, aucun coût · les mêmes règles : une allégation cite un fait du brief.</p>
         {vue.peutEcrire ? (
@@ -226,9 +264,10 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
                 </div>
               </fieldset>
             )}
-            <div>
-              <button type="button" disabled={ajoutBloque} style={{ ...boutonPrimaire, ...(ajoutBloque ? desactive : {}) }}
+            <div style={rangee}>
+              <button type="button" disabled={ajoutBloque} aria-describedby={raisonAjout ? `${id}-ajout-raison` : undefined} style={{ ...boutonPrimaire, ...(ajoutBloque ? desactive : {}) }}
                 onClick={async () => { if (await sauver([...retenus, manuel], 'Texte ajouté')) setManuel({ type: manuel.type, langue: 'fr', texte: '', sources: [] }); }}>Ajouter aux textes retenus</button>
+              {raisonAjout && <span id={`${id}-ajout-raison`} style={mini} data-raison="ajout">{raisonAjout}</span>}
             </div>
           </>
         ) : <p style={mini}>Ton rôle permet de lire et d’exporter, pas d’écrire.</p>}

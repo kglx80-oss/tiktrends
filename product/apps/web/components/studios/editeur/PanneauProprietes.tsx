@@ -176,7 +176,7 @@ export function PanneauProprietes({
           <div role="group" aria-label="Alignement du texte" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {(['left', 'center', 'right'] as const).map((a) => (
               <button key={a} type="button" aria-pressed={c.align === a} disabled={fige} onClick={() => actions.texte({ align: a })}
-                style={{ ...bouton, ...(c.align === a ? { borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)' } : {}), ...(fige ? boutonInactif : {}) }}>
+                style={{ ...bouton, ...(c.align === a ? { borderColor: 'var(--accent-strong)', borderWidth: 2, color: 'var(--accent-strong)', fontWeight: 800 } : {}), ...(fige ? boutonInactif : {}) }}>
                 {{ left: 'Gauche', center: 'Centre', right: 'Droite' }[a]}
               </button>
             ))}

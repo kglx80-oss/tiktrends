@@ -181,3 +181,5 @@ export * from './studios/identites';
 export * from './studios/video';
 export * from './studios/export';
 export * from './depense-prudente';
+export * from './studios/ux/image-contraste';
+export * from './studios/ux/image-etats';

@@ -24,7 +24,7 @@ import { AssistantImage } from './AssistantImage';
 import { usePiegeFocus } from '../../../../components/use-piege-focus';
 
 const RATIOS: FalAspect[] = ['9:16', '4:5', '1:1', '16:9'];
-const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
+const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 16, outline: 'none' } as const; // 16 px · pas de zoom forcé sur téléphone (L8-A)
 
 type Product = { id: string; name: string; hasImage: boolean };
 
@@ -275,7 +275,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
               : "Importe le visuel packshot de ton produit (jpg, png, webp). Redimensionné automatiquement."}
           </p>
           <details style={{ marginTop: 8 }}>
-            <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien direct vers l'image</summary>
+            <summary style={{ fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center' }}>ou coller un lien direct vers l'image</summary>
             <input value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setUploadedUri(''); }} disabled={!ready || busy} placeholder="https://…/produit.jpg" aria-label="Lien direct vers la photo produit" style={{ ...fld, marginTop: 8 }} />
             <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)' }}>Lien direct vers le fichier image, pas la page produit (clic droit → « Copier l'adresse de l'image »).</p>
           </details>
@@ -319,9 +319,10 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
         {/* Contexte marque : produit + DA appliqués automatiquement */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
           {prods.length > 0 && (
-            <div>
-              <label style={lbl}>Produit de la marque</label>
-              <select value={productId} onChange={(e) => { setProductId(e.target.value); setUploadedUri(''); setNotice(''); }} disabled={!ready} style={{ ...fld, width: 'auto', minWidth: 200, padding: '9px 10px' }}>
+            <div style={{ flex: '1 1 240px', minWidth: 0, maxWidth: '100%' }}>
+              <label htmlFor="image-studio-produit" style={lbl}>Produit de la marque</label>
+              {/* L8-A · largeur bornée au cadre · un nom de produit long élargissait la page à 831 px sur 390 (mesuré). */}
+              <select id="image-studio-produit" value={productId} onChange={(e) => { setProductId(e.target.value); setUploadedUri(''); setNotice(''); }} disabled={!ready} style={{ ...fld, width: '100%', maxWidth: '100%', textOverflow: 'ellipsis', padding: '9px 10px' }}>
                 <option value="">Aucun (générique)</option>
                 {prods.map((p) => <option key={p.id} value={p.id}>{p.name}{p.hasImage ? ' · photo' : ''}</option>)}
               </select>
@@ -329,7 +330,7 @@ export function ImageStudio({ ready, aiReady, brandName, initial, products, bran
           )}
           {brandColors.length > 0 && (
             <div>
-              <label style={lbl}>DA appliquée</label>
+              <span style={{ ...lbl, display: 'block' }}>DA appliquée</span>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', height: 38 }}>
                 {brandColors.slice(0, 6).map((c, i) => <span key={i} title={c} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid var(--line-2)', background: c }} />)}
                 <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>couleurs de {brandName ?? 'la marque'}</span>

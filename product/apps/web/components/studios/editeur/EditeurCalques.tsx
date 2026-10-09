@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as KeyboardEventReact } from 'react';
 import {
   CIBLE_TACTILE_MIN,
-  ajouterForme, ajouterMedia, ajouterTexte, alignerCalque, annulerEtape, appliquerOperation, definirVerrou, definirVisibilite,
+  ajouterForme, ajouterMedia, calqueApresRetrait, calquesParZ, ajouterTexte, alignerCalque, annulerEtape, appliquerOperation, definirVerrou, definirVisibilite,
   documentInitial, dupliquerCalque, enregistrerEtape, historiqueInitial, impactEdition, memeValeur, modifierRemplissage,
   modifierTexte, patchDocument, prochainAnnuler, prochainRetablir, reappliquerModifications, redimensionnerSelonDocument,
   renommerCalque, reordonnerCalque, retablirEtape, statutEnregistrement, supprimerCalque, transformerCalque,
@@ -75,6 +75,9 @@ export function EditeurCalques(props: PropsEditeur) {
   const [proprietesMobile, setProprietesMobile] = useState(false);
   const [secours, setSecours] = useState<SauvegardeLocale | null>(null);
   const [demandeEnregistrement, setDemandeEnregistrement] = useState(0);
+  /** L8-A · où porter le focus si l'élément qui l'avait disparaît (suppression, conflit tranché). */
+  const [cibleFocus, setCibleFocus] = useState<{ selecteurs: string[]; n: number } | null>(null);
+  const racine = useRef<HTMLDivElement>(null);
 
   const present = h?.present ?? null;
   const calque = present && selection ? present.layers[selection] ?? null : null;
@@ -83,6 +86,22 @@ export function EditeurCalques(props: PropsEditeur) {
   const impact = present && modifie ? impactEdition({ ...contenu, document: base.document }, present) : null;
   const libelleAnnuler = h ? prochainAnnuler(h) : null;
   const libelleRetablir = h ? prochainRetablir(h) : null;
+
+  /* ──────────────────────────────── Focus ───────────────────────────────── */
+
+  // Mesuré (L8-A) · le bouton « Supprimer » ou « Voir le conflit » quittait l'écran avec son geste et le
+  // focus tombait sur <body> : le clavier repartait en haut de page. Le piège des dialogues rend le focus
+  // au déclencheur quand il existe encore ; sinon, on le porte ici, sur la cible prévue.
+  useEffect(() => {
+    if (!cibleFocus) return;
+    const actif = document.activeElement;
+    if (actif && actif !== document.body && actif.isConnected) return;
+    for (const sel of cibleFocus.selecteurs) {
+      const el = racine.current?.querySelector<HTMLElement>(sel);
+      if (el) { el.focus(); return; }
+    }
+  }, [cibleFocus]);
+  const focusSiPerdu = (...selecteurs: string[]) => setCibleFocus({ selecteurs, n: Date.now() });
 
   /* ─────────────────────────── Copie de secours ─────────────────────────── */
 
@@ -200,6 +219,7 @@ export function EditeurCalques(props: PropsEditeur) {
     setSelection(null);
     setSecours(lireSauvegardeLocale(projet.id));
     setAnnonce(`Version ${c.version.n} rechargée`);
+    focusSiPerdu('[data-action="enregistrer"]', '[data-editeur-titre]');
   };
   const reappliquer = () => {
     const c = conflit?.courant;
@@ -210,6 +230,7 @@ export function EditeurCalques(props: PropsEditeur) {
     setConflit(null);
     setConflitOuvert(false);
     setAnnonce(`Version ${c.version.n} rechargée · tes modifications sont réappliquées, enregistre pour les garder`);
+    focusSiPerdu('[data-action="enregistrer"]', '[data-editeur-titre]');
   };
 
   const creer = (format: FormatDocument, avecProduit: boolean) => {
@@ -268,7 +289,13 @@ export function EditeurCalques(props: PropsEditeur) {
     visibilite: (v) => calque && operer((d) => definirVisibilite(d, calque.id, v)),
     verrou: (l) => calque && operer((d) => definirVerrou(d, calque.id, l)),
     dupliquer: () => calque && operer((d) => dupliquerCalque(d, calque.id)),
-    supprimer: () => { if (calque) { operer((d) => supprimerCalque(d, calque.id)); setProprietesMobile(false); } },
+    supprimer: () => {
+      if (!calque || !present) return;
+      const suivant = calqueApresRetrait(calquesParZ(present).reverse().map((x) => x.id), calque.id);
+      operer((d) => supprimerCalque(d, calque.id));
+      setProprietesMobile(false);
+      focusSiPerdu(...(suivant ? [`[data-choisir-calque="${suivant.replace(/["\\]/g, '\\$&')}"]`] : []), '[data-ajouter="texte"]', '[role="tab"][aria-selected="true"]', '[data-editeur-titre]');
+    },
   };
 
   const fermerProprietesMobile = () => setProprietesMobile(false);
@@ -284,7 +311,7 @@ export function EditeurCalques(props: PropsEditeur) {
       </Link>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ minWidth: 0 }}>
-          <h1 style={h1}>Éditer l’image</h1>
+          <h1 style={h1} tabIndex={-1} data-editeur-titre>Éditer l’image</h1>
           <p style={{ ...legende, marginTop: 4 }}>
             {projet.marque ? `${projet.marque} · ` : ''}version {base.n}{present ? ` · ${present.width} × ${present.height} px` : ''}
           </p>
@@ -400,7 +427,7 @@ export function EditeurCalques(props: PropsEditeur) {
   );
 
   return (
-    <div data-editeur="calques" data-mobile={mobile ? 'oui' : 'non'}>
+    <div ref={racine} data-editeur="calques" data-mobile={mobile ? 'oui' : 'non'}>
       <p aria-live="polite" style={masque}>{annonce}</p>
       {barre}
       {bandeaux}
@@ -412,7 +439,7 @@ export function EditeurCalques(props: PropsEditeur) {
           <div role="tablist" aria-label="Vue de l’éditeur" style={{ display: 'flex', gap: 6 }}>
             {(['calques', 'apercu'] as const).map((v) => (
               <button key={v} type="button" role="tab" id={`onglet-${v}`} aria-selected={vue === v} aria-controls={`vue-${v}`} onClick={() => setVue(v)}
-                style={{ ...bouton, flex: 1, ...(vue === v ? { borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)' } : {}) }}>
+                style={{ ...bouton, flex: 1, ...(vue === v ? { borderColor: 'var(--accent-strong)', borderWidth: 2, color: 'var(--accent-strong)', fontWeight: 800 } : {}) }}>
                 {v === 'calques' ? 'Calques' : 'Aperçu'}
               </button>
             ))}
