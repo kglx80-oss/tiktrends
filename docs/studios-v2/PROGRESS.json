@@ -3,7 +3,7 @@
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
   "shaCourant": "b35ce9b",
-  "lotCourant": "vague 8 intégrée (b35ce9b) · en attente de recette Codex (vagues 7 et 8)",
+  "lotCourant": "vague 9 (base b35ce9b) · E3 registre durable + verrou + préflight bloquant, D1 déploiement build→migration→activation, F1 interrupteurs par capacité/espace, R5 réconciliation auditée (migration 0056)",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
@@ -989,7 +989,7 @@
       "besoinKevin": "Accord pour modifier le script de déploiement de production."
     }
   ],
-  "prochaineAction": "Recette Codex des vagues 7 et 8 (#753–#763, intégration #741 b35ce9b) ; décisions : ordre de deploy.sh, interrupteur Studios, geste « réconcilié » ; puis essai réel isolé (runbook #757, budget 15 $ au total).",
+  "prochaineAction": "Intégrer la vague 9 ; nouvelle recette Codex ; pas d'essai réel ni de fusion avant fermeture des protections.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -1328,6 +1328,22 @@
         "reprise du seul contrôle visuel manquant après interruption, sans double facturation"
       ],
       "suite": "E2 lancé (devis calculé, reprise vision avec exclusion, registre cumulatif durable, vérification Docker)"
+    },
+    {
+      "date": "2026-10-09",
+      "passe": "contre-recette b35ce9b",
+      "constat": "Devis reconstruit sur la requête effective, reprise vision seule et refus incertain affiché : confirmés en lecture ; 23 tests ciblés PASS ; e2-controle-vision-reprise et e2-devis-pas1 interrompus côté Codex (code 130 ; ici 16 s et 12 s, verts)",
+      "resteOuvert": [
+        "P1 registre non durable avant dépense (engagement non compté)",
+        "P1 registre sans verrou interprocessus",
+        "P1 verifier-environnement.sh ne s'arrête pas avant build/up sur prérequis KO"
+      ],
+      "decisionsRecommandees": [
+        "deploy.sh : build → migration contrôlée → activation (CDC 338)",
+        "feature flags par capacité/espace, défaut off (CDC 340)",
+        "réconciliation ADMIN auditée liée à preuve fournisseur, idempotente, additive"
+      ],
+      "suite": "vague 9 : E3, D1, F1, R5 (base b35ce9b)"
     }
   ]
 }
