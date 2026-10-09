@@ -119,3 +119,28 @@ Les dumps sont sur le **même VPS** : si le serveur est perdu, ils le sont aussi
 Pour une vraie sécurité, activer la copie vers **OVH Object Storage** (S3) —
 créer un bucket, configurer `rclone`, puis décommenter la dernière ligne de
 `backup.sh`. (Demander à Claude de le brancher.)
+
+---
+
+## Migrations Studios · vérifier, revenir en arrière, restaurer en isolé (L9)
+
+Scripts dans `ops/migration/`, détail et preuves dans `docs/studios-v2/L9/L9-MIGRATION.md`, ordre de fusion dans
+`docs/studios-v2/L9/PLAN-FUSION.md`. Tous refusent une base qui n'est pas LOCALE (127.0.0.1, localhost, [::1]) et
+nommée `l9_*` ou `copie_*` : ils ne touchent jamais la production (`db`, base `tiktrends`).
+
+| Script | Sert à |
+| --- | --- |
+| `verifier-migration.sh --base URL [--preparer 0053]` | interrompre le vrai migrateur (coupure, échec forcé), reprendre, rejouer, comparer les empreintes |
+| `restaurer-isole.sh --sauvegarde F.sql.gz --base URL [--sans-proprietaires]` | restaurer une sauvegarde de `backup.sh` dans une base NEUVE et la valider (lignes, clés étrangères, contraintes, journal) |
+| `rollback-local.sh --base URL --ancien DIR --nouveau DIR` | ancienne app sur base migrée, puis ré-avance |
+| `lancer-et-mesurer.sh --produit DIR --base URL` | temps et erreurs des parcours sur une app locale construite |
+
+### Attention · restaurer EN PLACE une sauvegarde plus ancienne que les migrations Studios
+
+La commande « Restaurer une sauvegarde » ci-dessus (psql sans `ON_ERROR_STOP`) ne s'arrête pas sur erreur. Éprouvé en
+local : une sauvegarde d'avant 0054 restaurée ainsi sur une base qui a 0054 donne 35 erreurs, un code de sortie 0 et
+une base incohérente (cinq tables gardent leurs lignes actuelles, les autres reviennent à la sauvegarde). Pour revenir
+sur du code plus ancien, **ne pas restaurer** : les migrations Studios sont additives, l'ancien code tourne sur la base
+migrée (revert de la fusion, voir PLAN-FUSION §5). Pour vérifier une sauvegarde, la restaurer en isolé
+(`restaurer-isole.sh`). Une restauration en place, si elle est vraiment voulue, se fait avec
+`psql -v ON_ERROR_STOP=1 --single-transaction` : elle échoue alors proprement au lieu d'appliquer à moitié.

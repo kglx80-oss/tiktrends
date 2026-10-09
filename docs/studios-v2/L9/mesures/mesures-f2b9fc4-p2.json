@@ -1,0 +1,227 @@
+{
+  "environnement": {
+    "date": "2026-10-09T06:08:56.790Z",
+    "app": "http://127.0.0.1:3485",
+    "etiquette": "f2b9fc4-p2",
+    "machine": "4 cœurs Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "memoireMo": 16095,
+    "chargeAvant": [
+      "11.14",
+      "9.23",
+      "4.61"
+    ],
+    "node": "v22.22.2",
+    "repetitions": 11,
+    "chargeApres": [
+      "11.66",
+      "9.41",
+      "4.72"
+    ]
+  },
+  "resultats": [
+    {
+      "groupe": "Accueil",
+      "route": "/dashboard",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 1443,
+      "medianeMs": 67,
+      "p95Ms": 125,
+      "minMs": 46,
+      "maxMs": 125,
+      "erreurs": 0,
+      "octets": 106465,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Pubs IA",
+      "route": "/studio/ads",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 152,
+      "medianeMs": 124,
+      "p95Ms": 151,
+      "minMs": 102,
+      "maxMs": 151,
+      "erreurs": 0,
+      "octets": 415950,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studio historique",
+      "route": "/studio",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 43,
+      "medianeMs": 49,
+      "p95Ms": 80,
+      "minMs": 41,
+      "maxMs": 80,
+      "erreurs": 0,
+      "octets": 85703,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studio historique",
+      "route": "/studio/image",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 64,
+      "medianeMs": 51,
+      "p95Ms": 92,
+      "minMs": 44,
+      "maxMs": 92,
+      "erreurs": 0,
+      "octets": 251436,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studio historique",
+      "route": "/studio/video",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 68,
+      "medianeMs": 47,
+      "p95Ms": 57,
+      "minMs": 42,
+      "maxMs": 57,
+      "erreurs": 0,
+      "octets": 220278,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studio historique",
+      "route": "/studio/textes",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 46,
+      "medianeMs": 34,
+      "p95Ms": 48,
+      "minMs": 24,
+      "maxMs": 48,
+      "erreurs": 0,
+      "octets": 73637,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Veille",
+      "route": "/veille",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 66,
+      "medianeMs": 56,
+      "p95Ms": 75,
+      "minMs": 49,
+      "maxMs": 75,
+      "erreurs": 0,
+      "octets": 135542,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Veille",
+      "route": "/veille/scale",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 70,
+      "medianeMs": 28,
+      "p95Ms": 44,
+      "minMs": 25,
+      "maxMs": 44,
+      "erreurs": 0,
+      "octets": 97910,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Veille",
+      "route": "/saved",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 145,
+      "medianeMs": 128,
+      "p95Ms": 330,
+      "minMs": 108,
+      "maxMs": 330,
+      "erreurs": 0,
+      "octets": 1579081,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Adsmap",
+      "route": "/adsmap",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 129,
+      "medianeMs": 65,
+      "p95Ms": 84,
+      "minMs": 55,
+      "maxMs": 84,
+      "erreurs": 0,
+      "octets": 89835,
+      "contenuAttendu": null,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studios v1",
+      "route": "/studio/projets",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 64,
+      "medianeMs": 46,
+      "p95Ms": 77,
+      "minMs": 32,
+      "maxMs": 77,
+      "erreurs": 0,
+      "octets": 69060,
+      "contenuAttendu": true,
+      "detailErreur": null
+    },
+    {
+      "groupe": "Studios v1",
+      "route": "/studio/projets/[id]",
+      "statuts": [
+        200
+      ],
+      "redirection": null,
+      "froidMs": 83,
+      "medianeMs": 56,
+      "p95Ms": 82,
+      "minMs": 43,
+      "maxMs": 82,
+      "erreurs": 0,
+      "octets": 81842,
+      "contenuAttendu": true,
+      "detailErreur": null
+    }
+  ]
+}

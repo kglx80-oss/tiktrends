@@ -1,0 +1,29 @@
+L9 · vérification de migration · base l9_mig01 · sortie <scratchpad>/l9-exp/mig01
+   machine : 4 cœurs, 16094 Mo, charge 3.04 1.47 0.57 · 2026-10-09T06:02:36Z
+   tranche appliquée jusqu'au rang 11
+   tranche appliquée jusqu'au rang 34
+   tranche appliquée jusqu'au rang 53
+OK · base neuve migrée jusqu'à 0053 puis semée (8320 ms)
+   en attente (2) : 0054_studios_fondations 0055_ai_spend_reconciliation
+   avant : 69 tables, 9674 lignes, 54 migrations appliquées
+   interruption-1-coupure-brands · migrateur (pid 4439) bloqué, transaction ouverte, 0 verrous de relation déjà pris · instruction en cours : -- Studios v1.0 · L1 · fondations du modèle canonique (migration ADDITIVE). -- -- Ce fichier n'efface, ne r
+   interruption-1-coupure-brands · migrateur arrêté (code 1) · cause relevée : CONNECTION_CLOSED
+OK · interruption-1-coupure-brands · base identique à l'avant (journal, 69 empreintes de tables, schéma)
+   interruption-2-echec-adsmap_ads · migrateur (pid 4686) bloqué, transaction ouverte, 3 verrous de relation déjà pris · instruction en cours :  DO $$ BEGIN ALTER TABLE "adsmap_ads" ADD CONSTRAINT "adsmap_ads_id_workspace_uq" UNIQUE ("id", "workspace_id"
+   interruption-2-echec-adsmap_ads · migrateur arrêté (code 1) · cause relevée : canceling statement due to lock timeout
+OK · interruption-2-echec-adsmap_ads · base identique à l'avant (journal, 69 empreintes de tables, schéma)
+   interruption-3-coupure-ai_spend · migrateur (pid 4872) bloqué, transaction ouverte, 229 verrous de relation déjà pris · instruction en cours : -- R3 · dépense à réconcilier (migration ADDITIVE, une colonne nullable). -- -- Une issue incertaine d'un 
+   interruption-3-coupure-ai_spend · migrateur arrêté (code 1) · cause relevée : CONNECTION_CLOSED
+OK · interruption-3-coupure-ai_spend · base identique à l'avant (journal, 69 empreintes de tables, schéma)
+OK · reprise · migrateur terminé (2873 ms)
+OK · journal · 56 migrations en base pour 56 au journal
+OK · journal · chaque empreinte en base est le sha256 du fichier du dépôt
+OK · journal · aucune migration inscrite deux fois
+OK · données · 69 tables existantes identiques ligne à ligne (colonnes d'avant), 9674 lignes
+OK · ajouts · 21 nouvelle(s) table(s) dont 0 non vide(s), 1 colonne(s) ajoutée(s) aux tables existantes (détail : <scratchpad>/l9-exp/mig01/ajouts.txt)
+OK · rejeu · second passage du migrateur sans effet
+OK · rejeu · 0054_studios_fondations ré-exécuté tel quel sur la base déjà migrée, sans erreur
+OK · rejeu · 0055_ai_spend_reconciliation ré-exécuté tel quel sur la base déjà migrée, sans erreur
+OK · rejeu · schéma identique (aucune contrainte, aucun index, aucun déclencheur en double)
+OK · rejeu · toutes les lignes (colonnes ajoutées comprises) identiques, aucun doublon
+VERDICT · MIG-01 vérifié sur l9_mig01 · schéma avant 370818b2dde4 · après 4f28d6317395 · données avant 2b77a23833b3 · charge 5.32 2.17 0.84
